@@ -22,6 +22,7 @@ import { ESFERAS_TRIBUTO, PERIODICIDADES_TRIBUTO } from "@/lib/tributos-constant
 
 import { lancarGuiaAction, salvarTributoAction } from "./actions"
 import { lerGuiaTributo, type LeituraGuia } from "./ia-actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario";
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -108,13 +109,14 @@ function TributoCadastro({
   onSalvo: () => void
 }) {
   const [estado, acao, pendente] = useActionState(salvarTributoAction, {})
+  const envio1 = useEnvioFormulario(acao, estado);
   const [periodicidade, setPeriodicidade] = useState(tributo?.periodicidade ?? "mensal")
   useEffect(() => {
     if (estado.ok) onSalvo()
   }, [estado, onSalvo])
   const valorInicial = tributo?.valorEsperado != null ? tributo.valorEsperado.toFixed(2).replace(".", ",") : ""
   return (
-    <form action={acao} className="grid gap-4">
+    <form action={acao} {...envio1} className="grid gap-4">
       {tributo && <input type="hidden" name="tributo_id" value={tributo.id} />}
       {estado.erro && (
         <Alert variant="destructive">
@@ -249,6 +251,7 @@ export function LancarGuiaDialog({
 }) {
   const [aberto, setAberto] = useState(false)
   const [estado, acao, pendente] = useActionState(lancarGuiaAction, {})
+  const envio2 = useEnvioFormulario(acao, estado);
   const [erroArquivo, setErroArquivo] = useState<string | null>(null)
   const [lendo, setLendo] = useState(false)
   const [leitura, setLeitura] = useState<LeituraGuia | null>(null)
@@ -303,7 +306,7 @@ export function LancarGuiaDialog({
             A guia gera a ordem de pagamento (favorecido = órgão do tributo; a própria guia é o boleto e o documento).
           </DialogDescription>
         </DialogHeader>
-        <form action={acao} className="grid gap-4">
+        <form action={acao} {...envio2} className="grid gap-4">
           <input type="hidden" name="tributo_id" value={tributoId} />
           {guia && <input type="hidden" name="guia_id" value={guia.id} />}
           {estado.erro && (

@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 import { trocarCodigoPixAction, trocarNotaFiscalAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 type Estado = { erro?: string; ok?: string }
 
@@ -53,6 +54,7 @@ export function NovoCodigoPix({
     if (r.ok) setAberto(false)
     return r
   }, {})
+  const envio = useEnvioFormulario(acao, estado)
   const descricao = "Incluir novo código Pix copia e cola (o anterior expirou)"
 
   return (
@@ -76,7 +78,7 @@ export function NovoCodigoPix({
               anterior deixa de valer nesta ordem.
             </DialogDescription>
           </DialogHeader>
-          <form action={acao} className="grid gap-3">
+          <form action={acao} {...envio} className="grid gap-3">
             <input type="hidden" name="processo_id" value={processoId} />
             <input type="hidden" name="ordem_id" value={ordemId} />
             <Textarea

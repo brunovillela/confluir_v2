@@ -19,6 +19,7 @@ import {
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { ErroNoCampo } from "@/components/ui/erro-no-campo"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -121,8 +122,9 @@ export function SolicitarVeiculoForm({
     solicitarVeiculoAction,
     {}
   )
+  const envio1 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid max-w-2xl gap-4">
+    <form action={formAction} {...envio1} className="grid max-w-2xl gap-4">
       <input type="hidden" name="voltar" value={voltar} />
       <CamposAgendamento sedes={sedes} />
       <ErroNoCampo estado={estado} />
@@ -159,8 +161,9 @@ export function ReservarParaTerceiroForm({
     },
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado)
   return (
-    <form key={versao} action={formAction} className="grid max-w-2xl gap-4">
+    <form key={versao} action={formAction} {...envio2} className="grid max-w-2xl gap-4">
       <div className="grid gap-1.5">
         <Label htmlFor="terceiro-condutor">Para quem é a reserva *</Label>
         <select
@@ -234,6 +237,7 @@ export function EditarAgendamentoForm({
     editarAgendamentoAction,
     {}
   )
+  const envio3 = useEnvioFormulario(formAction, estado)
   if (!aberto) {
     return (
       <Button
@@ -248,7 +252,7 @@ export function EditarAgendamentoForm({
     )
   }
   return (
-    <form action={formAction} className="grid gap-3 rounded-md border p-3">
+    <form action={formAction} {...envio3} className="grid gap-3 rounded-md border p-3">
       <input type="hidden" name="agendamento_id" value={agendamentoId} />
       <input type="hidden" name="voltar" value={voltar} />
       <CamposAgendamento sedes={sedes} valores={valores} />
@@ -320,6 +324,7 @@ export function TriagemAgendamentoForm({
     atenderAgendamentoAction,
     {}
   )
+  const envio4 = useEnvioFormulario(acaoAtender, estadoAtender)
   const [estadoNegar, acaoNegar, pendenteNegar] = useActionState(
     negarAgendamentoAction,
     {}
@@ -328,7 +333,7 @@ export function TriagemAgendamentoForm({
 
   return (
     <div className="grid gap-2">
-      <form action={acaoAtender} className="flex flex-wrap items-center gap-2">
+      <form action={acaoAtender} {...envio4} className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="agendamento_id" value={agendamentoId} />
         <input type="hidden" name="voltar" value="/painel/veiculos/agendamentos" />
         <select
@@ -397,8 +402,9 @@ export function TransferirVeiculoForm({
     atenderAgendamentoAction,
     {}
   )
+  const envio5 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="flex flex-wrap items-center gap-2">
+    <form action={formAction} {...envio5} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="agendamento_id" value={agendamentoId} />
       <input type="hidden" name="voltar" value="/painel/veiculos/agendamentos" />
       <select

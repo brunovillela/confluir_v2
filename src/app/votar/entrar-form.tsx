@@ -19,6 +19,7 @@ import {
   solicitarCodigoLinkUnico,
   type EstadoEntrar,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const REMETENTE = "nao-responda@confluir.online"
 
@@ -155,8 +156,11 @@ export function EntrarForm({
     },
     {}
   )
+  const envio1 = useEnvioFormulario(pedir, pedido)
   const [link, mandarLink, mandandoLink] = useActionState(enviarLinkAoEmailDaEmpresa, {})
+  const envio2 = useEnvioFormulario(mandarLink, link)
   const [conf, confirmar, confirmando] = useActionState(confirmarCodigoLinkUnico, {})
+  const envio3 = useEnvioFormulario(confirmar, conf)
 
   // Link pessoal reenviado ao e-mail da empresa.
   if (link.linkEnviado) {
@@ -178,7 +182,7 @@ export function EntrarForm({
 
   if (pedido.ok) {
     return (
-      <form action={confirmar} className="grid gap-4">
+      <form action={confirmar} {...envio3} className="grid gap-4">
         <input type="hidden" name="email" value={email} />
         <Alert>
           <AlertDescription>{pedido.ok}</AlertDescription>
@@ -244,7 +248,7 @@ export function EntrarForm({
         </Alert>
       )}
 
-      <form action={pedir} className="grid gap-4" key={sugestao?.email ?? corporativo?.email ?? "inicio"}>
+      <form action={pedir} {...envio1} className="grid gap-4" key={sugestao?.email ?? corporativo?.email ?? "inicio"}>
         {pedido.erro && (
           <Alert variant="destructive">
             <AlertDescription>{pedido.erro}</AlertDescription>
@@ -306,7 +310,7 @@ export function EntrarForm({
       )}
 
       {corporativo?.temLink && (
-        <form action={mandarLink} className="grid gap-2 border-t pt-4">
+        <form action={mandarLink} {...envio2} className="grid gap-2 border-t pt-4">
           <input type="hidden" name="email" value={corporativo.email} />
           {link.erro && (
             <Alert variant="destructive">

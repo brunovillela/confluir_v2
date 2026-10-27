@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import type { CategoriaConvenio } from "@/lib/db/filiacao-convenios-edicao"
 
 import { excluirCategoriaAction, salvarCategoriaAction } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /** Categorias de convênio: renomear na linha, criar embaixo, excluir só as vazias. */
 export function Categorias({ categorias }: { categorias: CategoriaConvenio[] }) {
@@ -24,13 +25,15 @@ export function Categorias({ categorias }: { categorias: CategoriaConvenio[] }) 
 
 function LinhaCategoria({ categoria }: { categoria: CategoriaConvenio }) {
   const [salvar, salvarAction, salvando] = useActionState(salvarCategoriaAction, {})
+  const envio1 = useEnvioFormulario(salvarAction, salvar)
   const [excluir, excluirAction, excluindo] = useActionState(excluirCategoriaAction, {})
+  const envio2 = useEnvioFormulario(excluirAction, excluir)
   const erro = salvar.erro ?? excluir.erro
 
   return (
     <div className="grid gap-1">
       <div className="flex items-center gap-2">
-        <form action={salvarAction} className="flex flex-1 items-center gap-2">
+        <form action={salvarAction} {...envio1} className="flex flex-1 items-center gap-2">
           <input type="hidden" name="categoria_id" value={categoria.id} />
           <Input name="categoria" defaultValue={categoria.categoria ?? ""} required className="max-w-sm" />
           <Button type="submit" size="sm" variant="secondary" disabled={salvando}>
@@ -41,7 +44,7 @@ function LinhaCategoria({ categoria }: { categoria: CategoriaConvenio }) {
         <span className="text-muted-foreground w-24 text-right text-xs tabular-nums">
           {categoria.total} convênio(s)
         </span>
-        <form action={excluirAction}>
+        <form action={excluirAction} {...envio2}>
           <input type="hidden" name="categoria_id" value={categoria.id} />
           <Button
             type="submit"
@@ -67,8 +70,9 @@ function LinhaCategoria({ categoria }: { categoria: CategoriaConvenio }) {
 
 function NovaCategoria() {
   const [estado, formAction, pendente] = useActionState(salvarCategoriaAction, {})
+  const envio3 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="mt-2 grid gap-1 border-t pt-3">
+    <form action={formAction} {...envio3} className="mt-2 grid gap-1 border-t pt-3">
       <div className="flex items-center gap-2">
         <Input name="categoria" placeholder="Nova categoria (Ótica, Educação, Saúde…)" required className="max-w-sm" />
         <Button type="submit" size="sm" disabled={pendente}>

@@ -166,22 +166,26 @@ export async function configReembolsoCompleta(): Promise<ConfigReembolsoCompleta
   }
 }
 
-/** Quanto já foi lançado no mês da data (para o resumo da tela). */
+/**
+ * Quanto foi lançado no mês da data — pelo dia do LANÇAMENTO (created_at, no
+ * fuso de São Paulo), não pela data de referência: um reembolso retroativo
+ * lançado hoje entra no mês corrente.
+ */
 export async function lancadoNoMes(dataRef: string): Promise<{ total: number; quantidade: number }> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
   const [ano, mes] = dataRef.slice(0, 7).split("-").map(Number)
-  const inicio = `${ano}-${String(mes).padStart(2, "0")}-01`
-  const fimDate = new Date(Date.UTC(ano, mes, 0))
-  const fim = fimDate.toISOString().slice(0, 10)
+  const inicio = `${ano}-${String(mes).padStart(2, "0")}-01T00:00:00-03:00`
+  const proximo = mes === 12 ? `${ano + 1}-01` : `${ano}-${String(mes + 1).padStart(2, "0")}`
+  const fim = `${proximo}-01T00:00:00-03:00`
   // Todos os lançamentos do mês (paginado): o PostgREST corta em 1.000 linhas.
   const data = await lerEmLotes<{ valor: number | null }>((de, ate) =>
     admin
       .from("filiacao_reembolsos")
       .select("id, valor")
       .eq("emp_proprietaria_id", emp)
-      .gte("data", inicio)
-      .lte("data", fim)
+      .gte("created_at", inicio)
+      .lt("created_at", fim)
       .order("id")
       .range(de, ate)
   ).catch(() => [])

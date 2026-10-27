@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 
 import { gerarResenhaPontoAction, lerEspelhosPontoAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function GerarResenhaBotao({
   escopo,
@@ -23,8 +24,9 @@ export function GerarResenhaBotao({
   jaExiste: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(gerarResenhaPontoAction, {})
+  const envio = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-2">
+    <form action={formAction} {...envio} className="grid gap-2">
       <input type="hidden" name="escopo" value={escopo} />
       {remessaId && <input type="hidden" name="remessa_id" value={remessaId} />}
       {ano && <input type="hidden" name="ano" value={ano} />}

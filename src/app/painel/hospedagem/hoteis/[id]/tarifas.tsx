@@ -19,6 +19,7 @@ import {
 
 import { criarTarifa, excluirTarifa } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export type TarifaLinha = {
   id: string
@@ -42,6 +43,7 @@ export function Tarifas({
   tarifas: TarifaLinha[]
 }) {
   const [estado, criarAction, criando] = useActionState(criarTarifa, {})
+  const envio = useEnvioFormulario(criarAction, estado)
   const [estadoExcluir, excluirAction, excluindo] = useActionState(excluirTarifa, {})
 
   const erro = estado.erro ?? estadoExcluir.erro
@@ -113,7 +115,7 @@ export function Tarifas({
           </Table>
         </div>
 
-        <form action={criarAction} className="grid items-end gap-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
+        <form action={criarAction} {...envio} className="grid items-end gap-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
           <input type="hidden" name="hotel_id" value={hotelId} />
           <div className="grid gap-1.5">
             <Label htmlFor="pessoas_por_quarto">Pessoas por quarto *</Label>

@@ -12,6 +12,7 @@ import {
   confirmarCodigoTelefoneAction,
   solicitarCodigoTelefoneAction,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /** Dígitos → (21) 99999-9999 / (21) 9999-9999; ignora +55 se vier. */
 function formatarTelefone(valor: string | null): string {
@@ -36,10 +37,12 @@ export function TelegramTelefone({
     solicitarCodigoTelefoneAction,
     {}
   )
+  const envio1 = useEnvioFormulario(enviarAction, enviar)
   const [confirmar, confirmarAction, confirmando] = useActionState(
     confirmarCodigoTelefoneAction,
     {}
   )
+  const envio2 = useEnvioFormulario(confirmarAction, confirmar)
 
   const aguardando = Boolean(pendente) && !trocar
   const confirmado = Boolean(telefone) && !aguardando && !trocar
@@ -80,7 +83,7 @@ export function TelegramTelefone({
             <AlertDescription>{confirmar.erro}</AlertDescription>
           </Alert>
         )}
-        <form action={confirmarAction} className="flex flex-wrap gap-2">
+        <form action={confirmarAction} {...envio2} className="flex flex-wrap gap-2">
           <Input
             name="codigo"
             inputMode="numeric"
@@ -118,7 +121,7 @@ export function TelegramTelefone({
           <AlertDescription>{enviar.erro}</AlertDescription>
         </Alert>
       )}
-      <form action={enviarAction} className="flex flex-wrap gap-2">
+      <form action={enviarAction} {...envio1} className="flex flex-wrap gap-2">
         <Input
           name="telefone"
           inputMode="tel"

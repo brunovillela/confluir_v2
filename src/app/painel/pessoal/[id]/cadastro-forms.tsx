@@ -14,6 +14,7 @@ import { formatarData } from "@/lib/formato"
 
 import { excluirFuncionarioAction, excluirVinculoAction, salvarDadosCadastraisAction, salvarVinculoAction } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export type DadosCadastraisTela = {
   nomeCompleto: string
@@ -65,6 +66,7 @@ export function DadosCadastrais({
   podeEditar: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(salvarDadosCadastraisAction, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
   const resumo = (
     <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
       <Dado rotulo="Nome completo" valor={dados.nomeCompleto} />
@@ -85,7 +87,7 @@ export function DadosCadastrais({
   }
   return (
     <CartaoEditavel titulo="Dados cadastrais" resumo={resumo}>
-      <form action={formAction} className="grid gap-3">
+      <form action={formAction} {...envio1} className="grid gap-3">
         <input type="hidden" name="usuario_id" value={usuarioId} />
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="grid gap-1.5">
@@ -141,6 +143,7 @@ export function VinculoFuncionario({
 }) {
   const [editando, setEditando] = useState(false)
   const [estado, formAction, pendente] = useActionState(salvarVinculoAction, {})
+  const envio2 = useEnvioFormulario(formAction, estado)
   const [estadoExc, acaoExcluir, pendenteExc] = useActionState(
     async (prev: EstadoForm, formData: FormData) => {
       const r = await excluirVinculoAction(prev, formData)
@@ -191,7 +194,7 @@ export function VinculoFuncionario({
 
       {editando && (
         <div className="bg-muted/30 mt-3 grid gap-4 rounded-md p-4">
-          <form action={formAction} className="grid gap-3">
+          <form action={formAction} {...envio2} className="grid gap-3">
             <input type="hidden" name="usuario_id" value={usuarioId} />
             <input type="hidden" name="vinculo_id" value={vinculo.id} />
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

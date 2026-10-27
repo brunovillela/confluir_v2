@@ -14,6 +14,7 @@ import { type EstadoForm } from "@/lib/contas"
 import type { ConfigCobranca } from "@/lib/db/cobrancas"
 
 import { baixarCobrancaAction, cancelarCobrancaAction, gerarCobrancasAction, salvarConfigCobrancaAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 function Recado({ estado }: { estado: EstadoForm }) {
   if (estado.erro && !estado.campo)
@@ -88,13 +89,14 @@ export function GerarCobrancasForm({ competencia }: { competencia: string }) {
 
 export function BaixaCobrancaBotoes({ cobrancaId, valor, hoje }: { cobrancaId: string; valor: number; hoje: string }) {
   const [eBaixa, aBaixa, pBaixa] = useActionState(baixarCobrancaAction, {})
+  const envio = useEnvioFormulario(aBaixa, eBaixa)
   const [eCanc, aCanc, pCanc] = useActionState(cancelarCobrancaAction, {})
   const [aberto, setAberto] = useState(false)
   if (eBaixa.ok || eCanc.ok) return <span className="text-success-fg text-xs">{eBaixa.ok ?? eCanc.ok}</span>
   return (
     <div className="flex flex-wrap items-center gap-2">
       {aberto ? (
-        <form action={aBaixa} className="flex flex-wrap items-center gap-2">
+        <form action={aBaixa} {...envio} className="flex flex-wrap items-center gap-2">
           <input type="hidden" name="cobranca_id" value={cobrancaId} />
           <Input name="valor_pago" defaultValue={valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} className="h-8 w-24 text-xs" inputMode="decimal" aria-label="Valor recebido" />
           <Input name="data_pagamento" type="date" defaultValue={hoje} className="h-8 w-36 text-xs" aria-label="Data" />

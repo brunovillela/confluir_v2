@@ -16,14 +16,16 @@ import {
   submeterCusteioAction,
 } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function BotaoSubmeter({ custeioId }: { custeioId: string }) {
   const [estado, formAction, pendente] = useActionState(
     submeterCusteioAction,
     {}
   )
+  const envio1 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction}>
+    <form action={formAction} {...envio1}>
       <input type="hidden" name="custeio_id" value={custeioId} />
       {estado.erro && (
         <Alert variant="destructive" className="mb-2">
@@ -43,8 +45,9 @@ export function BotaoAutorizar({ custeioId }: { custeioId: string }) {
     autorizarCusteioAction,
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction}>
+    <form action={formAction} {...envio2}>
       <input type="hidden" name="custeio_id" value={custeioId} />
       {estado.erro && (
         <Alert variant="destructive" className="mb-2">
@@ -64,6 +67,7 @@ export function FormReprovar({ custeioId }: { custeioId: string }) {
     reprovarCusteioAction,
     {}
   )
+  const envio3 = useEnvioFormulario(formAction, estado)
   const [aberto, setAberto] = useState(false)
 
   if (!aberto) {
@@ -75,7 +79,7 @@ export function FormReprovar({ custeioId }: { custeioId: string }) {
     )
   }
   return (
-    <form action={formAction} className="grid max-w-md gap-2">
+    <form action={formAction} {...envio3} className="grid max-w-md gap-2">
       <input type="hidden" name="custeio_id" value={custeioId} />
       {estado.erro && (
         <Alert variant="destructive">
@@ -107,8 +111,9 @@ export function BotaoReabrir({ custeioId }: { custeioId: string }) {
     reabrirCusteioAction,
     {}
   )
+  const envio4 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction}>
+    <form action={formAction} {...envio4}>
       <input type="hidden" name="custeio_id" value={custeioId} />
       {estado.erro && (
         <Alert variant="destructive" className="mb-2">

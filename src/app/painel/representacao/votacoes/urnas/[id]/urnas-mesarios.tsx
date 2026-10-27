@@ -53,6 +53,7 @@ import {
   salvarUrnaAction,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /** ISO (UTC) → "YYYY-MM-DDTHH:mm" na hora local, para <input datetime-local>. */
 function paraInputLocal(iso: string | null): string {
@@ -158,9 +159,10 @@ function AtribuirApurador({
     atribuirUrnaApuradorAction,
     {}
   )
+  const envio1 = useEnvioFormulario(formAction, estado)
   return (
     <form
-      action={formAction}
+      action={formAction} {...envio1}
       className="flex flex-wrap items-center gap-2 rounded-md border border-dashed p-2 text-sm"
     >
       <input type="hidden" name="assembleia_id" value={assembleiaId} />
@@ -200,12 +202,13 @@ function UrnaItem({
 }) {
   const [editando, setEditando] = useState(false)
   const [estSalvar, actSalvar, salvando] = useActionState(salvarUrnaAction, {})
+  const envio2 = useEnvioFormulario(actSalvar, estSalvar)
   const [estApagar, actApagar, apagando] = useActionState(removerUrnaAction, {})
   const erro = estSalvar.erro ?? estApagar.erro
 
   if (editando) {
     return (
-      <form action={actSalvar} className="grid gap-4 rounded-lg border p-4">
+      <form action={actSalvar} {...envio2} className="grid gap-4 rounded-lg border p-4">
         {erro && (
           <Alert variant="destructive">
             <AlertDescription>{erro}</AlertDescription>
@@ -584,6 +587,7 @@ function LacreItem({
 function NovaUrna({ assembleiaId }: { assembleiaId: string }) {
   const [aberto, setAberto] = useState(false)
   const [estado, formAction, pendente] = useActionState(criarUrnaAction, {})
+  const envio3 = useEnvioFormulario(formAction, estado)
 
   if (!aberto) {
     return (
@@ -595,7 +599,7 @@ function NovaUrna({ assembleiaId }: { assembleiaId: string }) {
   }
   return (
     <form
-      action={formAction}
+      action={formAction} {...envio3}
       className="grid gap-4 rounded-lg border border-dashed p-4"
     >
       {estado.erro && (
@@ -673,6 +677,7 @@ function MesarioItem({
     salvarMesarioAction,
     {}
   )
+  const envio4 = useEnvioFormulario(actSalvar, estSalvar)
   const [estApagar, actApagar, apagando] = useActionState(
     removerMesarioAction,
     {}
@@ -681,7 +686,7 @@ function MesarioItem({
 
   if (editando) {
     return (
-      <form action={actSalvar} className="grid gap-4 rounded-lg border p-4">
+      <form action={actSalvar} {...envio4} className="grid gap-4 rounded-lg border p-4">
         {erro && (
           <Alert variant="destructive">
             <AlertDescription>{erro}</AlertDescription>
@@ -773,6 +778,7 @@ function NovoMesario({
 }) {
   const [aberto, setAberto] = useState(false)
   const [estado, formAction, pendente] = useActionState(criarMesarioAction, {})
+  const envio5 = useEnvioFormulario(formAction, estado)
 
   if (!aberto) {
     return (
@@ -784,7 +790,7 @@ function NovoMesario({
   }
   return (
     <form
-      action={formAction}
+      action={formAction} {...envio5}
       className="grid gap-4 rounded-lg border border-dashed p-4"
     >
       {estado.erro && (
@@ -855,12 +861,13 @@ function ApuradorItem({
 }) {
   const [editando, setEditando] = useState(false)
   const [estSalvar, actSalvar, salvando] = useActionState(salvarApuradorAction, {})
+  const envio6 = useEnvioFormulario(actSalvar, estSalvar)
   const [estApagar, actApagar, apagando] = useActionState(removerApuradorAction, {})
   const erro = estSalvar.erro ?? estApagar.erro
 
   if (editando) {
     return (
-      <form action={actSalvar} className="grid gap-4 rounded-lg border p-4">
+      <form action={actSalvar} {...envio6} className="grid gap-4 rounded-lg border p-4">
         {erro && (
           <Alert variant="destructive">
             <AlertDescription>{erro}</AlertDescription>
@@ -936,6 +943,7 @@ function NovoApurador({
 }) {
   const [aberto, setAberto] = useState(false)
   const [estado, formAction, pendente] = useActionState(criarApuradorAction, {})
+  const envio7 = useEnvioFormulario(formAction, estado)
 
   if (!aberto) {
     return (
@@ -946,7 +954,7 @@ function NovoApurador({
     )
   }
   return (
-    <form action={formAction} className="grid gap-4 rounded-lg border border-dashed p-4">
+    <form action={formAction} {...envio7} className="grid gap-4 rounded-lg border border-dashed p-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

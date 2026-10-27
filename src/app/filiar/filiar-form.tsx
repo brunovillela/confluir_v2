@@ -18,6 +18,7 @@ import { limparCpf, mascararCpfParcial, validarCpf } from "@/lib/cpf"
 
 import { solicitarFiliacaoAction } from "./actions"
 import { ErroNoCampo } from "@/components/ui/erro-no-campo"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -43,6 +44,7 @@ export function FiliarForm({
     solicitarFiliacaoAction,
     {}
   )
+  const envio = useEnvioFormulario(formAction, estado)
 
   const [cpf, setCpf] = useState("")
   const cpfDigitos = limparCpf(cpf).length
@@ -90,7 +92,7 @@ export function FiliarForm({
         <CardTitle className="text-base">Seus dados</CardTitle>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="grid gap-5">
+        <form action={formAction} {...envio} className="grid gap-5">
           <ErroNoCampo estado={estado} />
           {estado.erro && (
             <Alert variant="destructive">

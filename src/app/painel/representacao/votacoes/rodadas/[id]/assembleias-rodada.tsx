@@ -61,6 +61,7 @@ import {
   salvarAssembleia,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const TEXTAREA =
   "border-input bg-background text-foreground w-full rounded-md border px-3 py-2 text-sm shadow-xs outline-none"
@@ -416,6 +417,7 @@ function AssembleiaItem({
     salvarAssembleia,
     {}
   )
+  const envio1 = useEnvioFormulario(salvarAction, estadoSalvar)
   const [estadoApagar, apagarAction, apagando] = useActionState(
     apagarAssembleia,
     {}
@@ -433,7 +435,7 @@ function AssembleiaItem({
   if (editando && podeEditar) {
     return (
       <form
-        action={salvarAction}
+        action={salvarAction} {...envio1}
         className="grid gap-4 rounded-lg border p-4"
       >
         {erro && (
@@ -639,6 +641,7 @@ export function AtaBotao({
 }) {
   const [aberto, setAberto] = useState(false)
   const [estado, formAction, pendente] = useActionState(anexarAtaAction, {})
+  const envio2 = useEnvioFormulario(formAction, estado)
 
   const [estadoAnterior, setEstadoAnterior] = useState(estado)
   if (estado !== estadoAnterior) {
@@ -671,7 +674,7 @@ export function AtaBotao({
               {ataUrl ? " O arquivo novo substitui o atual." : ""}
             </DialogDescription>
           </DialogHeader>
-          <form action={formAction} className="grid gap-4">
+          <form action={formAction} {...envio2} className="grid gap-4">
             {estado.erro && (
               <Alert variant="destructive">
                 <AlertDescription>{estado.erro}</AlertDescription>
@@ -719,6 +722,7 @@ export function ProrrogarBotao({
     prorrogarAssembleiaAction,
     {}
   )
+  const envio3 = useEnvioFormulario(formAction, estado)
   const [data, setData] = useState(assembleia.data_termino ?? "")
   // Controlado: o React limpa o formulário ao fim da action, e o motivo
   // sumiria depois de uma recusa (limite, término).
@@ -755,7 +759,7 @@ export function ProrrogarBotao({
               do início, só o término pode mudar.
             </DialogDescription>
           </DialogHeader>
-          <form action={formAction} className="grid gap-4">
+          <form action={formAction} {...envio3} className="grid gap-4">
             {estado.erro && (
               <Alert variant="destructive">
                 <AlertDescription>{estado.erro}</AlertDescription>
@@ -841,6 +845,7 @@ export function ProrrogarBotao({
 function NovaAssembleiaForm({ rodadaId }: { rodadaId: string }) {
   const [aberto, setAberto] = useState(false)
   const [estado, formAction, pendente] = useActionState(novaAssembleia, {})
+  const envio4 = useEnvioFormulario(formAction, estado)
 
   if (!aberto) {
     return (
@@ -855,7 +860,7 @@ function NovaAssembleiaForm({ rodadaId }: { rodadaId: string }) {
 
   return (
     <form
-      action={formAction}
+      action={formAction} {...envio4}
       className="grid gap-4 rounded-lg border border-dashed p-4"
     >
       {estado.erro && (

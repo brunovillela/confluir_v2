@@ -34,6 +34,7 @@ import {
   registrarPresencaAction,
 } from "../../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const ROTULO_EVENTO: Record<string, string> = {
   instalacao: "Instalação",
@@ -66,14 +67,17 @@ export function RitualUrna({
   eventos: EventoLinha[]
 }) {
   const [estAbrir, actAbrir, pendAbrir] = useActionState(abrirUrnaDiaAction, {})
+  const envio1 = useEnvioFormulario(actAbrir, estAbrir)
   const [estFechar, actFechar, pendFechar] = useActionState(
     fecharUrnaDiaAction,
     {}
   )
+  const envio2 = useEnvioFormulario(actFechar, estFechar)
   const [estAnom, actAnom, pendAnom] = useActionState(
     registrarAnomaliaAction,
     {}
   )
+  const envio3 = useEnvioFormulario(actAnom, estAnom)
   const [anomAberto, setAnomAberto] = useState(false)
 
   return (
@@ -106,7 +110,7 @@ export function RitualUrna({
               <AlertDescription>{estFechar.erro ?? estFechar.ok}</AlertDescription>
             </Alert>
           )}
-          <form action={actFechar} className="grid gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+          <form action={actFechar} {...envio2} className="grid gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-end">
             <input type="hidden" name="urna_id" value={urnaId} />
             <div className="grid gap-1.5">
               <Label htmlFor="fecha-lacre">Nº do lacre da boca (no fechamento)</Label>
@@ -147,7 +151,7 @@ export function RitualUrna({
             </Alert>
           )}
           {aberta ? (
-            <form action={actAbrir} className="grid gap-3">
+            <form action={actAbrir} {...envio1} className="grid gap-3">
               <input type="hidden" name="urna_id" value={urnaId} />
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="grid gap-1.5">
@@ -190,7 +194,7 @@ export function RitualUrna({
           </Alert>
         )}
         {anomAberto ? (
-          <form action={actAnom} className="grid gap-2">
+          <form action={actAnom} {...envio3} className="grid gap-2">
             <input type="hidden" name="urna_id" value={urnaId} />
             <Label htmlFor="anom-desc" className="flex items-center gap-1.5 text-sm">
               <AlertTriangle className="size-4" />
@@ -259,9 +263,10 @@ export function RitualUrna({
 
 export function PareamentoTerminal({ urnaId }: { urnaId: string }) {
   const [estado, formAction, pendente] = useActionState(parearTerminalAction, {})
+  const envio4 = useEnvioFormulario(formAction, estado)
   return (
     <form
-      action={formAction}
+      action={formAction} {...envio4}
       className="grid gap-3 rounded-lg border border-dashed p-4"
     >
       <div className="grid gap-1">
@@ -320,6 +325,7 @@ export function VotoEmSeparado({
     registrarEmSeparadoAction,
     {}
   )
+  const envio5 = useEnvioFormulario(formAction, estado)
 
   // Após cadastrar: mostra as orientações do procedimento.
   if (estado.ok && estado.instrucoes) {
@@ -374,7 +380,7 @@ export function VotoEmSeparado({
 
   return (
     <form
-      action={formAction}
+      action={formAction} {...envio5}
       className="grid gap-4 rounded-lg border border-dashed p-4"
     >
       <div className="grid gap-1">
@@ -443,6 +449,7 @@ export function ListaPresenca({
     registrarPresencaAction,
     {}
   )
+  const envio6 = useEnvioFormulario(formAction, estado)
   return (
     <div className="grid gap-3">
       {estado.erro && (
@@ -485,7 +492,7 @@ export function ListaPresenca({
                   Compareceu
                 </Badge>
               ) : aberta ? (
-                <form action={formAction}>
+                <form action={formAction} {...envio6}>
                   <input type="hidden" name="urna_id" value={urnaId} />
                   <input type="hidden" name="apto_id" value={a.id} />
                   <Button

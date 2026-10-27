@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 
 import { removerCanal, salvarCanal } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export type CanalLinha = {
   id: string
@@ -118,8 +119,9 @@ function CamposCanal({ canal }: { canal?: CanalLinha }) {
 
 export function NovoCanalForm() {
   const [estado, formAction, pendente] = useActionState(salvarCanal, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio1} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -143,7 +145,9 @@ export function NovoCanalForm() {
 
 export function CanalEditavel({ canal }: { canal: CanalLinha }) {
   const [estado, formAction, pendente] = useActionState(salvarCanal, {})
+  const envio2 = useEnvioFormulario(formAction, estado)
   const [estadoRem, removerAction, removendo] = useActionState(removerCanal, {})
+  const envio3 = useEnvioFormulario(removerAction, estadoRem)
 
   return (
     <CartaoEditavel
@@ -178,7 +182,7 @@ export function CanalEditavel({ canal }: { canal: CanalLinha }) {
           </Alert>
         )}
 
-        <form action={formAction} className="grid gap-4">
+        <form action={formAction} {...envio2} className="grid gap-4">
           <input type="hidden" name="id" value={canal.id} />
           <CamposCanal canal={canal} />
           <div>
@@ -189,7 +193,7 @@ export function CanalEditavel({ canal }: { canal: CanalLinha }) {
           </div>
         </form>
 
-        <form action={removerAction}>
+        <form action={removerAction} {...envio3}>
           <input type="hidden" name="id" value={canal.id} />
           <Button
             type="submit"

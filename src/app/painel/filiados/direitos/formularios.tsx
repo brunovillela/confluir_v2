@@ -22,6 +22,7 @@ import {
   salvarCarenciaAction,
   salvarRegraAction,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -69,6 +70,7 @@ export function CarenciaForm({
     salvarCarenciaAction,
     {}
   )
+  const envio1 = useEnvioFormulario(formAction, estado)
   const [ativo, setAtivo] = useState(carencia.ativo)
   const [dias, setDias] = useState(String(carencia.dias))
 
@@ -76,7 +78,7 @@ export function CarenciaForm({
   const n = Number(dias) || 0
 
   return (
-    <form action={formAction} className="grid gap-3 rounded-lg border p-4">
+    <form action={formAction} {...envio1} className="grid gap-3 rounded-lg border p-4">
       <input type="hidden" name="beneficio" value={carencia.beneficio} />
 
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -152,12 +154,13 @@ export function CarenciaForm({
 
 export function RegraForm({ regra }: { regra: RegraInadimplencia }) {
   const [estado, formAction, pendente] = useActionState(salvarRegraAction, {})
+  const envio2 = useEnvioFormulario(formAction, estado)
   const [ativo, setAtivo] = useState(regra.ativo)
   const [quantidade, setQuantidade] = useState(String(regra.quantidade))
   const [consecutivas, setConsecutivas] = useState(regra.exigirConsecutivas)
 
   return (
-    <form action={formAction} className="grid gap-3 rounded-lg border p-4">
+    <form action={formAction} {...envio2} className="grid gap-3 rounded-lg border p-4">
       <input type="hidden" name="tipo" value={regra.tipo} />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -253,11 +256,12 @@ export function ConcederSuspensao({
     concederSuspensaoAction,
     {}
   )
+  const envio3 = useEnvioFormulario(formAction, estado)
   const [cpf, setCpf] = useState(mascaraCpf(cpfInicial))
   const [escopo, setEscopo] = useState(escopoInicial ?? "carencia")
 
   return (
-    <form action={formAction} className="grid gap-4 pt-2">
+    <form action={formAction} {...envio3} className="grid gap-4 pt-2">
       <Recado erro={estado.erro} ok={estado.ok} />
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -342,13 +346,14 @@ export function RevogarSuspensao({ id }: { id: string }) {
     revogarSuspensaoAction,
     {}
   )
+  const envio4 = useEnvioFormulario(formAction, estado)
 
   if (estado.ok) {
     return <span className="text-muted-foreground text-xs">{estado.ok}</span>
   }
 
   return (
-    <form action={formAction} className="grid gap-1">
+    <form action={formAction} {...envio4} className="grid gap-1">
       <input type="hidden" name="id" value={id} />
       <Button type="submit" variant="ghost" size="sm" disabled={pendente}>
         {pendente ? <Loader2 className="animate-spin" /> : <Undo2 />}

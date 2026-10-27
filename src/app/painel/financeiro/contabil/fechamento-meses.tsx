@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatarDataHora } from "@/lib/formato"
 
 import { fecharMesAction, reabrirMesAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export type LinhaMes = {
   /** "AAAA-MM". */
@@ -66,8 +67,9 @@ export function FechamentoMeses({ meses, podeFechar }: { meses: LinhaMes[]; pode
 
 function Fechar({ mes }: { mes: string }) {
   const [estado, acao, pendente] = useActionState(fecharMesAction, {})
+  const envio1 = useEnvioFormulario(acao, estado)
   return (
-    <form action={acao} className="flex flex-wrap items-center justify-end gap-2">
+    <form action={acao} {...envio1} className="flex flex-wrap items-center justify-end gap-2">
       <input type="hidden" name="mes" value={mes} />
       <Input name="observacao" placeholder="Observação (opcional)" className="h-8 w-48" />
       <Button type="submit" size="sm" variant="outline" disabled={pendente}>
@@ -86,6 +88,7 @@ function Fechar({ mes }: { mes: string }) {
 function Reabrir({ id }: { id: string }) {
   const [aberto, setAberto] = useState(false)
   const [estado, acao, pendente] = useActionState(reabrirMesAction, {})
+  const envio2 = useEnvioFormulario(acao, estado)
   if (!aberto) {
     return (
       <div className="flex justify-end">
@@ -97,7 +100,7 @@ function Reabrir({ id }: { id: string }) {
     )
   }
   return (
-    <form action={acao} className="flex flex-wrap items-center justify-end gap-2">
+    <form action={acao} {...envio2} className="flex flex-wrap items-center justify-end gap-2">
       <input type="hidden" name="id" value={id} />
       <Input name="motivo" placeholder="Motivo da reabertura *" required className="h-8 w-56" autoFocus />
       <Button type="submit" size="sm" variant="outline" disabled={pendente}>

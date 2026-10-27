@@ -16,6 +16,7 @@ import {
   excluirNivelAnuenioBase,
 } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export type DegrauFormDados = {
   id: string
@@ -29,6 +30,7 @@ export function AnuenioBaseForm({ degrau }: { degrau?: DegrauFormDados }) {
     degrau ? atualizarNivelAnuenioBase : criarNivelAnuenioBase,
     {}
   )
+  const envio = useEnvioFormulario(formAction, estado)
 
   return (
     <Card>
@@ -38,7 +40,7 @@ export function AnuenioBaseForm({ degrau }: { degrau?: DegrauFormDados }) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="grid gap-4">
+        <form action={formAction} {...envio} className="grid gap-4">
           {estado.erro && (
             <Alert variant="destructive">
               <AlertDescription>{estado.erro}</AlertDescription>

@@ -16,6 +16,7 @@ import {
 import type { ConfigReembolsoCompleta } from "@/lib/db/filiacao-reembolsos-edicao"
 
 import { salvarConfigAction } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export type OpcaoCentroCusto = { id: string; nome: string }
 
@@ -27,9 +28,10 @@ export function ConfigForm({
   centros: OpcaoCentroCusto[]
 }) {
   const [estado, formAction, pendente] = useActionState(salvarConfigAction, {})
+  const envio = useEnvioFormulario(formAction, estado)
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 
 import { encerrarApuracaoAction, reabrirApuracaoAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function ApuracaoForm({
   assembleiaId,
@@ -20,7 +21,9 @@ export function ApuracaoForm({
   disponivel?: boolean
 }) {
   const [estEnc, actEnc, pendEnc] = useActionState(encerrarApuracaoAction, {})
+  const envio1 = useEnvioFormulario(actEnc, estEnc)
   const [estReab, actReab, pendReab] = useActionState(reabrirApuracaoAction, {})
+  const envio2 = useEnvioFormulario(actReab, estReab)
   const [reabrindo, setReabrindo] = useState(false)
   const [motivo, setMotivo] = useState("")
 
@@ -40,7 +43,7 @@ export function ApuracaoForm({
           </Alert>
         )}
         {reabrindo ? (
-          <form action={actReab} className="grid gap-2">
+          <form action={actReab} {...envio2} className="grid gap-2">
             <input type="hidden" name="assembleia_id" value={assembleiaId} />
             <Label htmlFor="motivo-reabertura">Motivo da reabertura</Label>
             <Textarea
@@ -85,7 +88,7 @@ export function ApuracaoForm({
   }
 
   return (
-    <form action={actEnc} className="grid gap-4">
+    <form action={actEnc} {...envio1} className="grid gap-4">
       <input type="hidden" name="assembleia_id" value={assembleiaId} />
       {estEnc.erro && (
         <Alert variant="destructive">

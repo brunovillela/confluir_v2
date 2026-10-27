@@ -22,6 +22,7 @@ import {
   registrarPedidoAction,
   reenviarCodigoAction,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 type Publico = "qualquer" | "interno" | "filiados"
 
@@ -56,11 +57,14 @@ export function PedidoForm({
   } | null>(null)
 
   const [estado, enviar, enviando] = useActionState(registrarPedidoAction, {})
+  const envio1 = useEnvioFormulario(enviar, estado)
   const [confirmacao, confirmar, confirmando] = useActionState(
     confirmarPedidoAction,
     {}
   )
+  const envio2 = useEnvioFormulario(confirmar, confirmacao)
   const [reenvio, reenviar, reenviando] = useActionState(reenviarCodigoAction, {})
+  const envio3 = useEnvioFormulario(reenviar, reenvio)
 
   // Respostas que mudam as exigências — calculadas na hora, sem ida ao servidor.
   const [publicoEstimado, setPublicoEstimado] = useState<string>("")
@@ -124,7 +128,7 @@ export function PedidoForm({
               <AlertDescription>{reenvio.ok}</AlertDescription>
             </Alert>
           )}
-          <form action={confirmar} className="flex flex-wrap items-end gap-2">
+          <form action={confirmar} {...envio2} className="flex flex-wrap items-end gap-2">
             <input type="hidden" name="token" value={token} />
             <div className="grid gap-1.5">
               <Label htmlFor="codigo">Código</Label>
@@ -142,7 +146,7 @@ export function PedidoForm({
               Confirmar
             </Button>
           </form>
-          <form action={reenviar}>
+          <form action={reenviar} {...envio3}>
             <input type="hidden" name="token" value={token} />
             <Button type="submit" variant="ghost" size="sm" disabled={reenviando}>
               {reenviando && <Loader2 className="animate-spin" />}
@@ -168,7 +172,7 @@ export function PedidoForm({
 
   // Passo 2 — o pedido.
   return (
-    <form action={enviar} className="grid gap-4">
+    <form action={enviar} {...envio1} className="grid gap-4">
       <input type="hidden" name="espaco_id" value={espacoId} />
       <input type="hidden" name="publico_alvo" value={publico} />
       {filiado && <input type="hidden" name="cpf" value={filiado.cpf} />}
@@ -341,6 +345,7 @@ function IdentificacaoFiliado({
   aoEncontrar: (dados: { cpf: string; primeiroNome?: string; emailMascarado?: string }) => void
 }) {
   const [estado, acao, pendente] = useActionState(conferirFiliadoAction, {})
+  const envio4 = useEnvioFormulario(acao, estado)
   const [cpf, setCpf] = useState("")
   if (estado.ok === "encontrado") {
     // Passa adiante assim que o CPF confere.
@@ -367,7 +372,7 @@ function IdentificacaoFiliado({
             <AlertDescription>{estado.erro}</AlertDescription>
           </Alert>
         )}
-        <form action={acao} className="flex flex-wrap items-end gap-2">
+        <form action={acao} {...envio4} className="flex flex-wrap items-end gap-2">
           <div className="grid gap-1.5">
             <Label htmlFor="cpf">CPF</Label>
             <Input

@@ -18,6 +18,7 @@ import {
   salvarConfigAction,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -44,6 +45,7 @@ export type ConfigInicial = {
 
 export function ConfigForm({ config }: { config: ConfigInicial }) {
   const [estado, formAction, pendente] = useActionState(salvarConfigAction, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
   const [frequencia, setFrequencia] = useState(config.frequencia)
   const promptRef = useRef<HTMLTextAreaElement>(null)
   const [iaPendente, setIaPendente] = useState(false)
@@ -66,7 +68,7 @@ export function ConfigForm({ config }: { config: ConfigInicial }) {
   const usaHora = frequencia !== "horas"
 
   return (
-    <form action={formAction} className="grid gap-5">
+    <form action={formAction} {...envio1} className="grid gap-5">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -232,8 +234,9 @@ export function GerarAgoraBotao() {
 
 export function AdicionarFonteForm() {
   const [estado, formAction, pendente] = useActionState(adicionarFonteAction, {})
+  const envio2 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+    <form action={formAction} {...envio2} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
       {estado.erro && (
         <Alert variant="destructive" className="sm:col-span-3">
           <AlertDescription>{estado.erro}</AlertDescription>

@@ -21,6 +21,7 @@ import {
   extrairContribuicoesIa,
   registrarContribuicoesIa,
 } from "./ia-actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const brl = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
@@ -43,6 +44,7 @@ export function ImportarRelatorioIa({
     extrairContribuicoesIa,
     {}
   )
+  const envio = useEnvioFormulario(extrairAction, estado)
   const [confirmando, setConfirmando] = useState(false)
   const [erroConfirm, setErroConfirm] = useState<string | null>(null)
   const [resultado, setResultado] = useState<{
@@ -206,7 +208,7 @@ export function ImportarRelatorioIa({
   }
 
   return (
-    <form action={extrairAction} className="grid gap-3">
+    <form action={extrairAction} {...envio} className="grid gap-3">
       <input type="hidden" name="remessa_id" value={remessaId} />
       <input type="hidden" name="fonte_id" value={fonteId} />
       {grupoId && <input type="hidden" name="grupo_id" value={grupoId} />}

@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import type { AgendamentoSaude, Profissional } from "@/lib/db/atendimentos"
 
 import { excluirAgendamentoAction, salvarAgendamentoAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -26,8 +27,9 @@ export function AgendamentoForm({
     salvarAgendamentoAction,
     {}
   )
+  const envio1 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio1} className="grid gap-4">
       {agendamento && <input type="hidden" name="id" value={agendamento.id} />}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -125,8 +127,9 @@ export function ExcluirAgendamentoForm({ id }: { id: string }) {
     excluirAgendamentoAction,
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction}>
+    <form action={formAction} {...envio2}>
       <input type="hidden" name="id" value={id} />
       <Button
         type="submit"

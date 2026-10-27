@@ -12,6 +12,7 @@ import { formatarTelefone } from "@/lib/formato"
 
 import { atualizarLinhaAction, criarLinhaAction, excluirLinhaAction } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -139,8 +140,9 @@ function Mensagens({ estado }: { estado: { erro?: string; ok?: string } }) {
 /** Formulário de cadastro (dentro de um GrupoColapsavel na página). */
 export function AdicionarLinha({ responsaveis }: { responsaveis: ResponsavelLinha[] }) {
   const [estado, formAction, pendente] = useActionState(criarLinhaAction, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio1} className="grid gap-4">
       <Mensagens estado={estado} />
       <Campos prefixo="nova" responsaveis={responsaveis} />
       <div>
@@ -162,8 +164,9 @@ export function EditarLinha({
   responsaveis: ResponsavelLinha[]
 }) {
   const [estado, formAction, pendente] = useActionState(atualizarLinhaAction, {})
+  const envio2 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio2} className="grid gap-4">
       <input type="hidden" name="id" value={linha.id} />
       <Mensagens estado={estado} />
       <Campos prefixo={linha.id} linha={linha} responsaveis={responsaveis} />

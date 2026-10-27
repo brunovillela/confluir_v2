@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label"
 
 import { ClausulaColetivaCampos } from "../../clausula-coletiva-campos"
 import { novaRodada } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const TEXTAREA =
   "border-input bg-background text-foreground w-full rounded-md border px-3 py-2 text-sm shadow-xs outline-none"
@@ -24,6 +25,7 @@ const TEXTAREA =
 export function NovaRodadaForm({ campanhaId }: { campanhaId: string }) {
   const [aberto, setAberto] = useState(false)
   const [estado, formAction, pendente] = useActionState(novaRodada, {})
+  const envio = useEnvioFormulario(formAction, estado)
 
   if (!aberto) {
     return (
@@ -44,7 +46,7 @@ export function NovaRodadaForm({ campanhaId }: { campanhaId: string }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="grid gap-4">
+        <form action={formAction} {...envio} className="grid gap-4">
           {estado.erro && (
             <Alert variant="destructive">
               <AlertDescription>{estado.erro}</AlertDescription>

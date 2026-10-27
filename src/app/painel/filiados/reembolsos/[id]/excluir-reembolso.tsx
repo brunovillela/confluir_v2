@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 
 import { excluirReembolsoAction } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /**
  * Desfazer um lançamento. A confirmação diz o que acontece com a ordem: ela é
@@ -24,6 +25,7 @@ export function ExcluirReembolso({
   paga: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(excluirReembolsoAction, {})
+  const envio = useEnvioFormulario(formAction, estado)
   const [confirmando, setConfirmando] = useState(false)
 
   if (paga) return null
@@ -68,7 +70,7 @@ export function ExcluirReembolso({
           <AlertDescription>{estado.erro}</AlertDescription>
         </Alert>
       )}
-      <form action={formAction} className="flex justify-end gap-2">
+      <form action={formAction} {...envio} className="flex justify-end gap-2">
         <input type="hidden" name="reembolso_id" value={reembolsoId} />
         {filiadoId && <input type="hidden" name="filiado_id" value={filiadoId} />}
         <Button type="button" variant="ghost" onClick={() => setConfirmando(false)}>

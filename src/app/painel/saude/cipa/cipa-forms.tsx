@@ -18,6 +18,7 @@ import {
   removerRepresentanteAction,
   salvarReuniaoAction,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -32,9 +33,10 @@ export function ReuniaoForm({
   empresas: EmpresaOpcao[]
 }) {
   const [estado, formAction, pendente] = useActionState(salvarReuniaoAction, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio1} className="grid gap-4">
       {reuniao && <input type="hidden" name="id" value={reuniao.id} />}
 
       {/*
@@ -264,8 +266,9 @@ export function RepresentanteForm({
     adicionarRepresentanteAction,
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+    <form action={formAction} {...envio2} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
       <input type="hidden" name="reuniao_id" value={reuniaoId} />
       <div className="grid gap-1.5">
         <Label htmlFor="usuario_id">Do sistema</Label>
@@ -359,8 +362,9 @@ export function RemoverRepresentanteBotao({
 
 export function AtaForm({ reuniaoId }: { reuniaoId: string }) {
   const [estado, formAction, pendente] = useActionState(enviarAtaAction, {})
+  const envio3 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-2">
+    <form action={formAction} {...envio3} className="grid gap-2">
       <input type="hidden" name="reuniao_id" value={reuniaoId} />
       <div className="flex flex-wrap items-center gap-2">
         <Input
@@ -382,8 +386,9 @@ export function AtaForm({ reuniaoId }: { reuniaoId: string }) {
 
 export function ExcluirReuniaoBotao({ id }: { id: string }) {
   const [estado, formAction, pendente] = useActionState(excluirReuniaoAction, {})
+  const envio4 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction}>
+    <form action={formAction} {...envio4}>
       <input type="hidden" name="id" value={id} />
       <Button type="submit" variant="ghost" size="sm" disabled={pendente}>
         {pendente ? <Loader2 className="animate-spin" /> : <Trash2 />}

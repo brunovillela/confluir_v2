@@ -20,6 +20,7 @@ import {
   excluirExtratoAction,
   ignorarLancamentoAction,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 max-w-full rounded-md border px-2 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -51,10 +52,15 @@ export function AcoesLancamento({
   podeEscrever: boolean
 }) {
   const [eOrdem, aOrdem, pOrdem] = useActionState(conciliarOrdemAction, {})
+  const envio1 = useEnvioFormulario(aOrdem, eOrdem)
   const [eComp, aComp, pComp] = useActionState(conciliarComprovacaoAction, {})
+  const envio2 = useEnvioFormulario(aComp, eComp)
   const [eCob, aCob, pCob] = useActionState(conciliarCobrancaAction, {})
+  const envio3 = useEnvioFormulario(aCob, eCob)
   const [eCriar, aCriar, pCriar] = useActionState(criarComprovacaoAction, {})
+  const envio4 = useEnvioFormulario(aCriar, eCriar)
   const [eIgn, aIgn, pIgn] = useActionState(ignorarLancamentoAction, {})
+  const envio5 = useEnvioFormulario(aIgn, eIgn)
   const [criando, setCriando] = useState(false)
   const [ignorando, setIgnorando] = useState(false)
   if (!podeEscrever) return <span className="text-muted-foreground text-xs">Só leitura</span>
@@ -62,7 +68,7 @@ export function AcoesLancamento({
   return (
     <div className="grid gap-2">
       {ordens.map((o) => (
-        <form key={o.id} action={aOrdem} className="flex flex-wrap items-center gap-2">
+        <form key={o.id} action={aOrdem} {...envio1} className="flex flex-wrap items-center gap-2">
           <input type="hidden" name="lancamento_id" value={lancamentoId} />
           <input type="hidden" name="ordem_id" value={o.id} />
           <Button type="submit" size="sm" variant="outline" disabled={pOrdem}>
@@ -77,7 +83,7 @@ export function AcoesLancamento({
       ))}
       <Recado estado={eOrdem} />
       {comprovacoes.map((c) => (
-        <form key={c.id} action={aComp} className="flex flex-wrap items-center gap-2">
+        <form key={c.id} action={aComp} {...envio2} className="flex flex-wrap items-center gap-2">
           <input type="hidden" name="lancamento_id" value={lancamentoId} />
           <input type="hidden" name="comprovacao_id" value={c.id} />
           <Button type="submit" size="sm" variant="outline" disabled={pComp}>
@@ -91,7 +97,7 @@ export function AcoesLancamento({
       ))}
       <Recado estado={eComp} />
       {cobrancas.lista.map((c) => (
-        <form key={c.id} action={aCob} className="flex flex-wrap items-center gap-2">
+        <form key={c.id} action={aCob} {...envio3} className="flex flex-wrap items-center gap-2">
           <input type="hidden" name="lancamento_id" value={lancamentoId} />
           <input type="hidden" name="cobranca_id" value={c.id} />
           <Button type="submit" size="sm" variant={cobrancas.porTxid ? "default" : "outline"} disabled={pCob}>
@@ -120,7 +126,7 @@ export function AcoesLancamento({
         )}
       </div>
       {criando && (
-        <form action={aCriar} className="flex flex-wrap items-center gap-2">
+        <form action={aCriar} {...envio4} className="flex flex-wrap items-center gap-2">
           <input type="hidden" name="lancamento_id" value={lancamentoId} />
           <select name="remessa_id" defaultValue="" className={SELECT} required>
             <option value="" disabled>
@@ -150,7 +156,7 @@ export function AcoesLancamento({
         </form>
       )}
       {ignorando && (
-        <form action={aIgn} className="flex flex-wrap items-center gap-2">
+        <form action={aIgn} {...envio5} className="flex flex-wrap items-center gap-2">
           <input type="hidden" name="lancamento_id" value={lancamentoId} />
           <Input name="motivo" placeholder="Por quê? (tarifa, transferência interna…)" className="h-9 w-64" />
           <Button type="submit" size="sm" variant="outline" disabled={pIgn}>

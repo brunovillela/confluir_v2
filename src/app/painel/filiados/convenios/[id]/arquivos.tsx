@@ -10,6 +10,7 @@ import type { ArquivoConvenio } from "@/lib/db/filiacao-convenios-edicao"
 
 import { enviarArquivoAction, removerArquivoAction } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const ROTULO: Record<ArquivoConvenio, { titulo: string; ajuda: string; aceita: string }> = {
   contrato: {
@@ -37,6 +38,7 @@ export function ArquivoConvenioCampo({
   noBubble: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(enviarArquivoAction, {})
+  const envio = useEnvioFormulario(formAction, estado)
   const r = ROTULO[tipo]
 
   return (
@@ -86,7 +88,7 @@ export function ArquivoConvenioCampo({
         </Alert>
       )}
 
-      <form action={formAction} className="flex flex-wrap items-center gap-2">
+      <form action={formAction} {...envio} className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="convenio_id" value={convenioId} />
         <input type="hidden" name="tipo" value={tipo} />
         <Input type="file" name="arquivo" accept={r.aceita} required className="max-w-xs" />

@@ -11,6 +11,7 @@ import { type Sede } from "@/lib/db/organizacao"
 import { formatarCnpjCpf } from "@/lib/formato"
 
 import { salvarOrganizacaoAction, salvarSedeAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 function Sucesso({ estado }: { estado: EstadoForm }) {
   if (!estado.ok) return null
@@ -44,9 +45,10 @@ export function OrganizacaoForm({
     salvarOrganizacaoAction,
     {}
   )
+  const envio1 = useEnvioFormulario(formAction, estado)
 
   return (
-    <form action={formAction} className="grid max-w-2xl gap-4">
+    <form action={formAction} {...envio1} className="grid max-w-2xl gap-4">
       <div className="grid gap-1.5">
         <Label htmlFor="nome_razao">Razão social *</Label>
         <Input
@@ -220,9 +222,10 @@ const INPUT_SEDE =
 
 export function SedeForm({ sede }: { sede: Sede }) {
   const [estado, formAction, pendente] = useActionState(salvarSedeAction, {})
+  const envio2 = useEnvioFormulario(formAction, estado)
 
   return (
-    <form action={formAction} className="grid gap-3">
+    <form action={formAction} {...envio2} className="grid gap-3">
       <input type="hidden" name="sede_id" value={sede.id} />
       <div className="grid gap-3 sm:grid-cols-6">
         <label className="grid gap-1 text-xs sm:col-span-4">

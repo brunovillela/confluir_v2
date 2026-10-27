@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 
 import { anexarComprovacaoAction, cancelarFaltaAction, solicitarFaltaAction } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -26,8 +27,9 @@ export function SolicitarFaltaForm({
   exigeComprovacao: boolean
 }) {
   const [estado, acao, pendente] = useActionState(solicitarFaltaAction, {})
+  const envio1 = useEnvioFormulario(acao, estado)
   return (
-    <form action={acao} className="grid gap-4">
+    <form action={acao} {...envio1} className="grid gap-4">
       <ErroNoCampo estado={estado} />
       {estado.erro && (
         <Alert variant="destructive">
@@ -87,9 +89,10 @@ export function SolicitarFaltaForm({
 /** Anexa a comprovação a uma falta já pedida (sem arquivo). */
 export function AnexarComprovacaoForm({ id }: { id: string }) {
   const [estado, acao, pendente] = useActionState(anexarComprovacaoAction, {})
+  const envio2 = useEnvioFormulario(acao, estado)
   if (estado.ok) return <span className="text-success-fg text-xs">{estado.ok}</span>
   return (
-    <form action={acao} className="flex flex-wrap items-center justify-end gap-1.5">
+    <form action={acao} {...envio2} className="flex flex-wrap items-center justify-end gap-1.5">
       <input type="hidden" name="id" value={id} />
       <Input
         name="comprovacao"

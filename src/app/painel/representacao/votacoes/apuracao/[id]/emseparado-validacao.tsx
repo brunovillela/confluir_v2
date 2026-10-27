@@ -10,6 +10,7 @@ import type { EmSeparadoLinha } from "@/lib/db/votacao-mesarios"
 import { formatarCpf } from "@/lib/cpf"
 
 import { validarEmSeparadoAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const ROTULO = {
   pendente: "Pendente",
@@ -31,6 +32,7 @@ export function EmSeparadoValidacao({
     validarEmSeparadoAction,
     {}
   )
+  const envio = useEnvioFormulario(formAction, estado)
 
   return (
     <div className="grid gap-3">
@@ -77,7 +79,7 @@ export function EmSeparadoValidacao({
             >
               {ROTULO[s.status]}
             </Badge>
-            <form action={formAction} className="flex gap-1">
+            <form action={formAction} {...envio} className="flex gap-1">
               <input type="hidden" name="assembleia_id" value={assembleiaId} />
               <input type="hidden" name="em_separado_id" value={s.id} />
               <Button

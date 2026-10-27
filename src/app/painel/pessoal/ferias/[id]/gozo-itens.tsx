@@ -26,6 +26,7 @@ import {
   excluirGozoAction,
 } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export type GozoFormDados = {
   id: string
@@ -50,6 +51,7 @@ export function GozoForm({
     gozo ? atualizarGozoAction : criarGozoAction,
     {}
   )
+  const envio1 = useEnvioFormulario(formAction, estado)
 
   // jaTemGozos = a gravação resultará em férias divididas (2+ partes).
   const divisao = jaTemGozos
@@ -67,7 +69,7 @@ export function GozoForm({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="grid gap-4">
+        <form action={formAction} {...envio1} className="grid gap-4">
           {estado.erro && (
             <Alert variant="destructive">
               <AlertDescription>{estado.erro}</AlertDescription>
@@ -242,6 +244,7 @@ export function AvisoFeriasSituacao({
   motivoRecusa: string | null
 }) {
   const [estado, acao, pendente] = useActionState(enviarAvisoFeriasAction, {})
+  const envio2 = useEnvioFormulario(acao, estado)
   if (!autorizado) return null
   const rotulo =
     situacao === "assinado"
@@ -256,7 +259,7 @@ export function AvisoFeriasSituacao({
     <div className="mt-1 grid gap-0.5">
       <span className={`text-xs ${rotulo.classe}`}>{rotulo.texto}</span>
       {botao && (
-        <form action={acao}>
+        <form action={acao} {...envio2}>
           <input type="hidden" name="gozo_id" value={gozoId} />
           <input type="hidden" name="periodo_id" value={periodoId} />
           {situacao === "pendente" && <input type="hidden" name="reenviar" value="1" />}

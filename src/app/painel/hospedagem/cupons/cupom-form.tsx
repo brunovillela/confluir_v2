@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label"
 import { FiliadoPicker } from "@/components/filiado-picker"
 
 import { criarCupom } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -27,11 +28,12 @@ export type HotelOpcao = {
 
 export function CupomForm({ hoteis }: { hoteis: HotelOpcao[] }) {
   const [estado, formAction, pendente] = useActionState(criarCupom, {})
+  const envio = useEnvioFormulario(formAction, estado)
   const [hotelId, setHotelId] = useState("")
   const garantida = hoteis.find((h) => h.id === hotelId)?.garantida === true
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

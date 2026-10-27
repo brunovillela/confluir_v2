@@ -18,6 +18,7 @@ import {
 import { useActionState } from "react"
 
 import { atualizarProcessoAction, criarProcessoAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -377,8 +378,9 @@ export function NovoProcessoForm({
   escritorios: EmpresaOpcao[]
 }) {
   const [estado, formAction, pendente] = useActionState(criarProcessoAction, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid max-w-3xl gap-4">
+    <form action={formAction} {...envio1} className="grid max-w-3xl gap-4">
       <CamposProcesso
         buscaFiliadoEndpoint={buscaFiliadoEndpoint}
         responsaveis={responsaveis}
@@ -414,8 +416,9 @@ export function EditarProcessoForm({
     atualizarProcessoAction,
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio2} className="grid gap-4">
       <input type="hidden" name="id" value={inicial.id} />
       <CamposProcesso
         buscaFiliadoEndpoint={buscaFiliadoEndpoint}

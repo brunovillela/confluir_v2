@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 
 import { alternarInatividadeAction, alternarManutencaoAction } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /**
  * Gestor: envia o veículo para manutenção ou conclui a manutenção. Vive na
@@ -26,8 +27,9 @@ export function ManutencaoVeiculoBotao({
     alternarManutencaoAction,
     {}
   )
+  const envio = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-1">
+    <form action={formAction} {...envio} className="grid gap-1">
       <input type="hidden" name="veiculo_id" value={veiculoId} />
       <input type="hidden" name="manutencao" value={manutencao ? "0" : "1"} />
       {voltar && <input type="hidden" name="voltar" value={voltar} />}

@@ -10,9 +10,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { verificarSegundoFator } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function VerificacaoForm({ fatorId, next }: { fatorId: string; next: string }) {
   const [estado, acao, pendente] = useActionState(verificarSegundoFator, {})
+  const envio = useEnvioFormulario(acao, estado)
   return (
     <Card>
       <CardHeader>
@@ -25,7 +27,7 @@ export function VerificacaoForm({ fatorId, next }: { fatorId: string; next: stri
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={acao} className="grid gap-4">
+        <form action={acao} {...envio} className="grid gap-4">
           <input type="hidden" name="fator_id" value={fatorId} />
           <input type="hidden" name="next" value={next} />
           {estado.erro && (

@@ -16,6 +16,7 @@ import {
   excluirTreinamento,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export type TreinamentoFormDados = {
   id: string
@@ -34,6 +35,7 @@ export function TreinamentoForm({
     treinamento ? atualizarTreinamento : criarTreinamento,
     {}
   )
+  const envio = useEnvioFormulario(formAction, estado)
   const [estadoExcluir, excluirAction, excluindo] = useActionState(
     excluirTreinamento,
     {}
@@ -49,7 +51,7 @@ export function TreinamentoForm({
         </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <form action={formAction} className="grid gap-4">
+        <form action={formAction} {...envio} className="grid gap-4">
           {erro && (
             <Alert variant="destructive">
               <AlertDescription>{erro}</AlertDescription>

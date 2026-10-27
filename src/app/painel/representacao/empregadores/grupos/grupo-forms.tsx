@@ -20,6 +20,7 @@ import {
   removerMembroAction,
   salvarGrupoAction,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -65,6 +66,7 @@ export function GrupoForm({
   aoCancelarHref: string
 }) {
   const [estado, acao, pendente] = useActionState(salvarGrupoAction, {})
+  const envio1 = useEnvioFormulario(acao, estado)
   const [centralizada, setCentralizada] = useState(grupo?.contribuicaoCentralizada ?? false)
   const [busca, setBusca] = useState("")
   const visiveis = (livres ?? []).filter((f) =>
@@ -72,7 +74,7 @@ export function GrupoForm({
   )
 
   return (
-    <form action={acao} className="grid gap-4">
+    <form action={acao} {...envio1} className="grid gap-4">
       {grupo && <input type="hidden" name="grupo_id" value={grupo.id} />}
       <Mensagem estado={estado} />
       <div className="grid gap-4 md:grid-cols-2">
@@ -184,8 +186,9 @@ export function GrupoForm({
 
 export function AdicionarEmpregador({ grupoId, opcoes }: { grupoId: string; opcoes: Opcao[] }) {
   const [estado, acao, pendente] = useActionState(adicionarEmpregadorAction, {})
+  const envio2 = useEnvioFormulario(acao, estado)
   return (
-    <form action={acao} className="grid gap-2">
+    <form action={acao} {...envio2} className="grid gap-2">
       <input type="hidden" name="grupo_id" value={grupoId} />
       <Label htmlFor="empresa_id">Empregador representado</Label>
       <div className="flex gap-2">

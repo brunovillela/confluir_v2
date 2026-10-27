@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Turnstile } from "@/components/auth/turnstile"
 
 import { confirmarCodigoApurador, enviarCodigoApurador } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function LoginApurador() {
   const [email, setEmail] = useState("")
@@ -22,14 +23,16 @@ export function LoginApurador() {
     },
     {}
   )
+  const envio1 = useEnvioFormulario(actEnviar, estEnviar)
   const [estConfirmar, actConfirmar, pendConfirmar] = useActionState(
     confirmarCodigoApurador,
     {}
   )
+  const envio2 = useEnvioFormulario(actConfirmar, estConfirmar)
 
   return (
     <div className="grid gap-4">
-      <form action={actEnviar} className="grid gap-3">
+      <form action={actEnviar} {...envio1} className="grid gap-3">
         <div className="grid gap-1.5">
           <Label htmlFor="email">E-mail cadastrado</Label>
           <Input
@@ -60,7 +63,7 @@ export function LoginApurador() {
       </form>
 
       {enviado && (
-        <form action={actConfirmar} className="grid gap-3 border-t pt-4">
+        <form action={actConfirmar} {...envio2} className="grid gap-3 border-t pt-4">
           <input type="hidden" name="email" value={email} />
           <div className="grid gap-1.5">
             <Label htmlFor="token">Código recebido por e-mail</Label>

@@ -32,6 +32,7 @@ import {
   salvarEnderecoAction,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -285,9 +286,10 @@ export function ContatoForm({
   aoCancelarHref: string
 }) {
   const [estado, formAction, pendente] = useActionState(salvarContatoAction, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
   const [telefone, setTelefone] = useState(contato?.telefone ? mascaraTelefone(contato.telefone) : "")
   return (
-    <form action={formAction} className="grid gap-4 rounded-md border p-3">
+    <form action={formAction} {...envio1} className="grid gap-4 rounded-md border p-3">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -362,6 +364,7 @@ export function EnderecoForm({
   acao?: AcaoServidor
 }) {
   const [estado, formAction, pendente] = useActionState(acao, {})
+  const envio2 = useEnvioFormulario(formAction, estado)
   const [buscandoCep, setBuscandoCep] = useState(false)
 
   async function preencherPorCep(e: React.FocusEvent<HTMLInputElement>) {
@@ -390,7 +393,7 @@ export function EnderecoForm({
   }
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio2} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -503,8 +506,9 @@ export function ContaForm({
   acao?: AcaoServidor
 }) {
   const [estado, formAction, pendente] = useActionState(acao, {})
+  const envio3 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio3} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

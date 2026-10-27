@@ -11,6 +11,7 @@ import { mascaraCpf } from "@/lib/mascaras"
 
 import { anexarAssinadoAction, cancelarAssinaturaAction, enviarParaAssinaturaAction } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 type Pessoa = { nome: string; email: string; cpf: string }
 
@@ -58,10 +59,11 @@ export function EnviarAssinaturaForm({
   outraParte: Partial<Pessoa>
 }) {
   const [estado, acao, pendente] = useActionState(enviarParaAssinaturaAction, {})
+  const envio1 = useEnvioFormulario(acao, estado)
   const papelOutra = papelEntidade === "contratada" ? "Contratante" : "Contratada"
   const papelEnt = papelEntidade === "contratada" ? "Contratada" : "Contratante"
   return (
-    <form action={acao} className="grid gap-3">
+    <form action={acao} {...envio1} className="grid gap-3">
       <input type="hidden" name="id" value={id} />
       <p className="text-muted-foreground text-xs">
         Ordem das assinaturas: 1º a outra parte, 2º a entidade, depois as testemunhas. Cada um recebe o
@@ -109,8 +111,9 @@ export function CancelarAssinatura({ id }: { id: string }) {
 
 export function AnexarAssinadoForm({ id }: { id: string }) {
   const [estado, acao, pendente] = useActionState(anexarAssinadoAction, {})
+  const envio2 = useEnvioFormulario(acao, estado)
   return (
-    <form action={acao} className="grid gap-2">
+    <form action={acao} {...envio2} className="grid gap-2">
       <input type="hidden" name="id" value={id} />
       <div className="grid gap-1.5">
         <Label htmlFor="arquivo_assinado">PDF assinado com certificado digital (ICP-Brasil) ou pelo gov.br</Label>

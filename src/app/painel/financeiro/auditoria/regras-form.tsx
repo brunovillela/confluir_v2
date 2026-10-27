@@ -12,6 +12,7 @@ import { SEVERIDADES, type Severidade } from "@/lib/auditoria-regras-catalogo"
 import { cn } from "@/lib/utils"
 
 import { salvarRegrasAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const TEXTAREA =
   "border-input bg-background text-foreground w-full rounded-md border px-3 py-2 text-sm shadow-xs outline-none"
@@ -47,8 +48,9 @@ function valorTexto(v: number | string | boolean, tipo: string): string {
 /** As regras de UMA origem: a resposta de cada uma e os parâmetros. */
 export function RegrasForm({ origem, regras }: { origem: string; regras: RegraTela[] }) {
   const [estado, acao, pendente] = useActionState(salvarRegrasAction, {})
+  const envio = useEnvioFormulario(acao, estado)
   return (
-    <form action={acao} className="grid gap-4">
+    <form action={acao} {...envio} className="grid gap-4">
       <input type="hidden" name="origem" value={origem} />
       {estado.erro && (
         <Alert variant="destructive">

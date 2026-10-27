@@ -20,14 +20,16 @@ import {
   importarCatsAction,
   type EstadoCat,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 
 export function ImportarCatsForm() {
   const [estado, formAction, pendente] = useActionState(importarCatsAction, {})
+  const envio = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-3">
+    <form action={formAction} {...envio} className="grid gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <Input
           type="file"

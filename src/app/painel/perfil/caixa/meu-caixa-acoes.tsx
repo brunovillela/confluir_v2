@@ -32,6 +32,7 @@ import {
   vincularOrdemCaixa,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function ConfirmarAporte({
   movimentacaoId,
@@ -69,6 +70,7 @@ export function ConfirmarAporte({
 /** Recusa o aporte com motivo — o Financeiro (quem lançou) é avisado. */
 function RecusarAporte({ movimentacaoId, valor }: { movimentacaoId: string; valor: string }) {
   const [estado, formAction, pendente] = useActionState(recusarAporte, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -84,7 +86,7 @@ function RecusarAporte({ movimentacaoId, valor }: { movimentacaoId: string; valo
             O aporte fica fora do saldo e quem o lançou é avisado com o seu motivo.
           </DialogDescription>
         </DialogHeader>
-        <form action={formAction} className="grid gap-3">
+        <form action={formAction} {...envio1} className="grid gap-3">
           <input type="hidden" name="movimentacao_id" value={movimentacaoId} />
           {estado.erro && (
             <Alert variant="destructive">
@@ -190,8 +192,9 @@ export function DesfazerPrestacao({ prestacaoId }: { prestacaoId: string }) {
 
 export function RelatarPerda() {
   const [estado, formAction, pendente] = useActionState(relatarPerda, {})
+  const envio2 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-3">
+    <form action={formAction} {...envio2} className="grid gap-3">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

@@ -13,6 +13,7 @@ import {
   parearManualAction,
 } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-8 w-full rounded-md border px-2 text-xs shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -85,8 +86,9 @@ export function VerDiferenca({ comparacaoId, parId }: { comparacaoId: string; pa
 
 export function AnalisarPar({ comparacaoId, parId, jaAnalisado }: { comparacaoId: string; parId: string; jaAnalisado: boolean }) {
   const [estado, acao, pendente] = useActionState(analisarParAction, {})
+  const envio1 = useEnvioFormulario(acao, estado)
   return (
-    <form action={acao} className="inline-flex items-center gap-2">
+    <form action={acao} {...envio1} className="inline-flex items-center gap-2">
       <input type="hidden" name="comparacao_id" value={comparacaoId} />
       <input type="hidden" name="par_id" value={parId} />
       <Button type="submit" variant="ghost" size="sm" disabled={pendente}>
@@ -126,9 +128,10 @@ export function ParearManual({
   novas: { parId: string; rotulo: string }[]
 }) {
   const [estado, acao, pendente] = useActionState(parearManualAction, {})
+  const envio2 = useEnvioFormulario(acao, estado)
   if (novas.length === 0) return null
   return (
-    <form action={acao} className="grid gap-1.5 sm:max-w-md">
+    <form action={acao} {...envio2} className="grid gap-1.5 sm:max-w-md">
       <input type="hidden" name="comparacao_id" value={comparacaoId} />
       <input type="hidden" name="par_id" value={parId} />
       <div className="flex items-center gap-2">

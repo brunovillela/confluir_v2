@@ -17,6 +17,7 @@ import {
   salvarContagemAction,
 } from "../../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 function valorAtual(
   dados: ApuracaoUrnaDados,
@@ -38,14 +39,17 @@ export function ApuracaoUrna({ dados }: { dados: ApuracaoUrnaDados }) {
     iniciarApuracaoAction,
     {}
   )
+  const envio1 = useEnvioFormulario(actIniciar, estIniciar)
   const [estSalvar, actSalvar, pendSalvar] = useActionState(
     salvarContagemAction,
     {}
   )
+  const envio2 = useEnvioFormulario(actSalvar, estSalvar)
   const [estConcluir, actConcluir, pendConcluir] = useActionState(
     concluirApuracaoAction,
     {}
   )
+  const envio3 = useEnvioFormulario(actConcluir, estConcluir)
 
   const concluida = dados.sessao.status === "concluida"
   const iniciada = dados.sessao.status !== "nao_iniciada"
@@ -83,7 +87,7 @@ export function ApuracaoUrna({ dados }: { dados: ApuracaoUrnaDados }) {
 
         {/* Atestar integridade + iniciar */}
         {!iniciada && (
-          <form action={actIniciar} className="mt-2 grid gap-2 border-t pt-3">
+          <form action={actIniciar} {...envio1} className="mt-2 grid gap-2 border-t pt-3">
             <input type="hidden" name="urna_id" value={dados.urnaId} />
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" name="lacres_ok" className="mt-0.5 size-4" />
@@ -137,7 +141,7 @@ export function ApuracaoUrna({ dados }: { dados: ApuracaoUrnaDados }) {
 
       {/* Contagem */}
       {iniciada && !concluida && (
-        <form action={actSalvar} className="grid gap-5">
+        <form action={actSalvar} {...envio2} className="grid gap-5">
           <input type="hidden" name="urna_id" value={dados.urnaId} />
           {dados.perguntas.map((p, i) => (
             <div key={p.id} className="grid gap-2 rounded-lg border p-4">
@@ -199,7 +203,7 @@ export function ApuracaoUrna({ dados }: { dados: ApuracaoUrnaDados }) {
 
       {/* Concluir */}
       {iniciada && !concluida && (
-        <form action={actConcluir}>
+        <form action={actConcluir} {...envio3}>
           <input type="hidden" name="urna_id" value={dados.urnaId} />
           {estConcluir.erro && (
             <Alert variant="destructive" className="mb-2">

@@ -10,18 +10,21 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { reenviarCodigoAction, verificarCodigoAction } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function VerificarForm({ token }: { token: string }) {
   const [estado, formAction, pendente] = useActionState(verificarCodigoAction, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
   const [reenvio, reenviarAction, reenviando] = useActionState(
     reenviarCodigoAction,
     {}
   )
+  const envio2 = useEnvioFormulario(reenviarAction, reenvio)
 
   return (
     <Card>
       <CardContent className="grid gap-4">
-        <form action={formAction} className="grid gap-4">
+        <form action={formAction} {...envio1} className="grid gap-4">
           <input type="hidden" name="token" value={token} />
           {estado.erro && (
             <Alert variant="destructive">
@@ -52,7 +55,7 @@ export function VerificarForm({ token }: { token: string }) {
           </Button>
         </form>
 
-        <form action={reenviarAction} className="text-center">
+        <form action={reenviarAction} {...envio2} className="text-center">
           <input type="hidden" name="token" value={token} />
           <Button
             type="submit"

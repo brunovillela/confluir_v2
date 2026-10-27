@@ -10,12 +10,14 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 
 import { anonimizarFiliacaoAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function AnonimizarForm({ filiacaoId }: { filiacaoId: string }) {
   const [estado, acao, pendente] = useActionState(anonimizarFiliacaoAction, {})
+  const envio = useEnvioFormulario(acao, estado)
   const [confirmacao, setConfirmacao] = useState("")
   return (
-    <form action={acao} className="grid gap-3 border-t pt-4">
+    <form action={acao} {...envio} className="grid gap-3 border-t pt-4">
       <input type="hidden" name="filiacao_id" value={filiacaoId} />
       {estado.erro && (
         <Alert variant="destructive">

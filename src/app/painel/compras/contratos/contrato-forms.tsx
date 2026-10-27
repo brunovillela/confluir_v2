@@ -22,6 +22,7 @@ import {
   excluirContratoAction,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 type AcaoForm = (prev: EstadoForm, formData: FormData) => Promise<EstadoForm>
 
@@ -82,6 +83,7 @@ export function ContratoForm({
     contrato ? acaoAtualizar : acaoCriar,
     {}
   )
+  const envio = useEnvioFormulario(formAction, estado)
   // O centro de custo é filtrado pelo departamento e só se habilita depois
   // dele. Trocar o departamento descarta um centro que não é dele.
   const [depto, setDepto] = useState(contrato?.departamento_id ?? "")
@@ -99,7 +101,7 @@ export function ContratoForm({
       : (contrato?.sob_demanda ?? false)
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

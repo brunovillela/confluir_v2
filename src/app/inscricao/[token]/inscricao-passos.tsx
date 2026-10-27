@@ -13,6 +13,7 @@ import {
   reenviarCodigoAction,
   responderRsvpAction,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function ConfirmarEmail({
   token,
@@ -22,10 +23,12 @@ export function ConfirmarEmail({
   email: string | null
 }) {
   const [estado, formAction, pendente] = useActionState(confirmarEmailAction, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
   const [estadoReenvio, reenviarAction, reenviando] = useActionState(
     reenviarCodigoAction,
     {}
   )
+  const envio2 = useEnvioFormulario(reenviarAction, estadoReenvio)
 
   return (
     <div className="grid gap-3">
@@ -45,7 +48,7 @@ export function ConfirmarEmail({
         </Alert>
       )}
 
-      <form action={formAction} className="grid gap-3">
+      <form action={formAction} {...envio1} className="grid gap-3">
         <input type="hidden" name="token" value={token} />
         <div className="grid gap-2">
           <Label htmlFor="codigo">Código de 6 dígitos</Label>
@@ -62,7 +65,7 @@ export function ConfirmarEmail({
         </div>
       </form>
 
-      <form action={reenviarAction}>
+      <form action={reenviarAction} {...envio2}>
         <input type="hidden" name="token" value={token} />
         <Button type="submit" variant="ghost" size="sm" disabled={reenviando}>
           {reenviando ? <Loader2 className="animate-spin" /> : null}

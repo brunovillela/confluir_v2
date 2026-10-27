@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { mascaraCpf, mascaraTelefone } from "@/lib/mascaras"
 
 import { inscreverAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -83,6 +84,7 @@ export function InscricaoForm({
   retencaoFotoDias: number
 }) {
   const [estado, formAction, pendente] = useActionState(inscreverAction, {})
+  const envio = useEnvioFormulario(formAction, estado)
   const [aceite, setAceite] = useState(false)
   const [aceiteFoto, setAceiteFoto] = useState(false)
   const [cpf, setCpf] = useState("")
@@ -91,7 +93,7 @@ export function InscricaoForm({
   const bloqueado = !aceite || (fotoObrigatoria && !aceiteFoto)
 
   return (
-    <form action={formAction} className="grid gap-5">
+    <form action={formAction} {...envio} className="grid gap-5">
       <input type="hidden" name="slug" value={slug} />
       {estado.erro && (
         <Alert variant="destructive">

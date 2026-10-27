@@ -26,6 +26,7 @@ import {
   salvarCondicoesHospedagemAction,
   salvarRegraNaoComparecimentoAction,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -102,6 +103,7 @@ export function CondicoesHospedagemForm({
     salvarCondicoesHospedagemAction,
     {}
   )
+  const envio1 = useEnvioFormulario(formAction, estado)
   const [porFonte, setPorFonte] = useState(condicoes.restringirFontes)
   const [porQuantidade, setPorQuantidade] = useState(condicoes.limitarQuantidade)
   const [porRegime, setPorRegime] = useState(condicoes.restringirRegimes)
@@ -124,7 +126,7 @@ export function CondicoesHospedagemForm({
       .includes(filtro)
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio1} className="grid gap-4">
       <Recado erro={estado.erro} ok={estado.ok} />
 
       <Condicao
@@ -281,10 +283,11 @@ export function IncluirBeneficiarioHospedagem() {
     incluirBeneficiarioHospedagemAction,
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado)
   const [cpf, setCpf] = useState("")
 
   return (
-    <form action={formAction} className="grid gap-3">
+    <form action={formAction} {...envio2} className="grid gap-3">
       <Recado erro={estado.erro} ok={estado.ok} />
       <div className="grid gap-3 sm:grid-cols-[12rem_1fr_auto] sm:items-end">
         <div className="grid gap-1.5">
@@ -321,11 +324,12 @@ export function NaoComparecimentoForm({ regra }: { regra: RegraNaoComparecimento
     salvarRegraNaoComparecimentoAction,
     {}
   )
+  const envio3 = useEnvioFormulario(formAction, estado)
   const [ativa, setAtiva] = useState(regra.ativa)
   const [penalidade, setPenalidade] = useState<PenalidadeNaoComparecimento>(regra.penalidade)
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio3} className="grid gap-4">
       <Recado erro={estado.erro} ok={estado.ok} />
 
       <label className="flex items-start gap-3">
@@ -434,9 +438,10 @@ export function RemoverBeneficiarioHospedagem({ id }: { id: string }) {
     removerBeneficiarioHospedagemAction,
     {}
   )
+  const envio4 = useEnvioFormulario(formAction, estado)
 
   return (
-    <form action={formAction} className="grid gap-1">
+    <form action={formAction} {...envio4} className="grid gap-1">
       <input type="hidden" name="id" value={id} />
       <Button type="submit" variant="ghost" size="sm" disabled={pendente}>
         {pendente ? <Loader2 className="animate-spin" /> : <Trash2 />}

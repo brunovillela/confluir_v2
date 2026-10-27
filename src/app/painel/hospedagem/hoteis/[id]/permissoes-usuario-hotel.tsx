@@ -16,6 +16,7 @@ import {
 import { cn } from "@/lib/utils"
 
 import { salvarPermissoesUsuarioHotel } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 type Escolha = "" | NivelHotel
 
@@ -35,6 +36,7 @@ export function PermissoesUsuarioHotel({
   garantida: boolean
 }) {
   const [estado, acao, pendente] = useActionState(salvarPermissoesUsuarioHotel, {})
+  const envio = useEnvioFormulario(acao, estado)
   const inicial = Object.fromEntries(
     AREAS_HOTEL.map((a) => [a.chave, (nivelNaArea(permissoes, a.chave) ?? "") as Escolha])
   ) as Record<ChaveAreaHotel, Escolha>
@@ -45,7 +47,7 @@ export function PermissoesUsuarioHotel({
   }
 
   return (
-    <form action={acao} className="grid gap-3">
+    <form action={acao} {...envio} className="grid gap-3">
       <input type="hidden" name="id" value={id} />
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-muted-foreground text-xs">Atalhos:</span>

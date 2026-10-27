@@ -18,6 +18,7 @@ import {
   removerIntegranteAction,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const INPUT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -40,9 +41,10 @@ export function MandatoForm({
     edicao ? atualizarMandatoAction : criarMandatoAction,
     {}
   )
+  const envio = useEnvioFormulario(formAction, estado)
 
   return (
-    <form action={formAction} className="grid gap-3 sm:grid-cols-[2fr_1fr_1fr_auto] sm:items-end">
+    <form action={formAction} {...envio} className="grid gap-3 sm:grid-cols-[2fr_1fr_1fr_auto] sm:items-end">
       {dados?.id && <input type="hidden" name="mandato_id" value={dados.id} />}
       <div className="grid gap-1.5">
         <Label htmlFor="mandato">Mandato *</Label>

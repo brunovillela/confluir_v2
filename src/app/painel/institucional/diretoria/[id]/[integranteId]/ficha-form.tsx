@@ -21,6 +21,7 @@ import type { FichaDiretor, OrigemDaFicha } from "@/lib/db/diretoria-ficha"
 import { formatarData } from "@/lib/formato"
 
 import { salvarFichaAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -72,11 +73,12 @@ export function FichaDiretorForm({
 }) {
   const daFiliacao = Boolean(origem.filiacao)
   const [estado, formAction, pendente] = useActionState(salvarFichaAction, {})
+  const envio = useEnvioFormulario(formAction, estado)
   const [temRestricao, setTemRestricao] = useState(ficha?.tem_restricao ?? false)
   const v = (k: keyof FichaDiretor) => (ficha?.[k] as string | null) ?? ""
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio} className="grid gap-4">
       <input type="hidden" name="integrante_id" value={integranteId} />
       <input type="hidden" name="mandato_id" value={mandatoId} />
 

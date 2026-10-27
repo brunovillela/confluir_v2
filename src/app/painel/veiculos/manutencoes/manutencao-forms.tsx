@@ -17,6 +17,7 @@ import {
   salvarManutencao,
   salvarPlano,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -60,6 +61,7 @@ export function ManutencaoForm({
   veiculoFixo?: string
 }) {
   const [estado, formAction, pendente] = useActionState(salvarManutencao, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
   const [veiculoId, setVeiculoId] = useState(
     inicial?.veiculo_id ?? veiculoFixo ?? ""
   )
@@ -69,7 +71,7 @@ export function ManutencaoForm({
   const planosDoVeiculo = planos.filter((p) => p.veiculo_id === veiculoId)
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio1} className="grid gap-4">
       {inicial && <input type="hidden" name="id" value={inicial.id} />}
       {estado.erro && (
         <Alert variant="destructive">
@@ -454,8 +456,9 @@ function CamposPlano({
 
 export function NovoPlanoForm({ veiculos }: { veiculos: VeiculoOpcao[] }) {
   const [estado, formAction, pendente] = useActionState(salvarPlano, {})
+  const envio2 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio2} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -489,7 +492,9 @@ export function PlanoEditavel({
   resumo: string
 }) {
   const [estado, formAction, pendente] = useActionState(salvarPlano, {})
+  const envio3 = useEnvioFormulario(formAction, estado)
   const [estadoRem, removerAction, removendo] = useActionState(removerPlano, {})
+  const envio4 = useEnvioFormulario(removerAction, estadoRem)
 
   const intervalo = [
     plano.intervalo_dias ? `${plano.intervalo_dias} dias` : null,
@@ -527,7 +532,7 @@ export function PlanoEditavel({
           </Alert>
         )}
 
-        <form action={formAction} className="grid gap-4">
+        <form action={formAction} {...envio3} className="grid gap-4">
           <input type="hidden" name="id" value={plano.id} />
           <CamposPlano plano={plano} veiculos={veiculos} />
           <div>
@@ -538,7 +543,7 @@ export function PlanoEditavel({
           </div>
         </form>
 
-        <form action={removerAction}>
+        <form action={removerAction} {...envio4}>
           <input type="hidden" name="id" value={plano.id} />
           <Button
             type="submit"

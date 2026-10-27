@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { confirmarCadastro2FA, desativar2FA, iniciarCadastro2FA } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 type Fator = { id: string; nome: string; desde: string | null }
 
@@ -26,8 +27,11 @@ export function SegurancaForm({
   emailConta: string
 }) {
   const [inicio, iniciar, iniciando] = useActionState(iniciarCadastro2FA, {})
+  const envio1 = useEnvioFormulario(iniciar, inicio)
   const [confirmacao, confirmar, confirmando] = useActionState(confirmarCadastro2FA, {})
+  const envio2 = useEnvioFormulario(confirmar, confirmacao)
   const [remocao, remover, removendo] = useActionState(desativar2FA, {})
+  const envio3 = useEnvioFormulario(remover, remocao)
 
   // Passo 2 — QR e código de confirmação.
   if (inicio.fatorId && inicio.qr) {
@@ -49,7 +53,7 @@ export function SegurancaForm({
             <p className="text-muted-foreground text-xs">Conta: {emailConta}</p>
             <p className="font-mono text-xs break-all select-all">{inicio.segredo}</p>
           </div>
-          <form action={confirmar} className="grid gap-3">
+          <form action={confirmar} {...envio2} className="grid gap-3">
             <input type="hidden" name="fator_id" value={inicio.fatorId} />
             {confirmacao.erro && (
               <Alert variant="destructive">
@@ -93,7 +97,7 @@ export function SegurancaForm({
               Com ela ativa, quem souber a sua senha ainda não entra: falta o código que só o seu
               celular gera.
             </p>
-            <form action={iniciar}>
+            <form action={iniciar} {...envio1}>
               {inicio.erro && (
                 <Alert variant="destructive" className="mb-3">
                   <AlertDescription>{inicio.erro}</AlertDescription>
@@ -116,7 +120,7 @@ export function SegurancaForm({
                     {f.desde && <span className="text-muted-foreground"> · desde {f.desde}</span>}
                   </span>
                   {sessaoElevada ? (
-                    <form action={remover}>
+                    <form action={remover} {...envio3}>
                       <input type="hidden" name="fator_id" value={f.id} />
                       <Button type="submit" variant="outline" size="sm" disabled={removendo}>
                         {removendo && <Loader2 className="animate-spin" />}

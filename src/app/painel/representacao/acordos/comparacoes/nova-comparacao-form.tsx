@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 
 import { criarComparacaoAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -22,13 +23,14 @@ export function NovaComparacaoForm({
   inicialB?: string
 }) {
   const [estado, acao, pendente] = useActionState(criarComparacaoAction, {})
+  const envio = useEnvioFormulario(acao, estado)
   const opcoes = acordos.map((a) => (
     <option key={a.id} value={a.id} disabled={a.clausulas === 0}>
       {a.rotulo} — {a.clausulas > 0 ? `${a.clausulas} cláusulas` : "sem cláusulas (extraia do PDF)"}
     </option>
   ))
   return (
-    <form action={acao} className="grid gap-3">
+    <form action={acao} {...envio} className="grid gap-3">
       <div className="grid gap-3 md:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="acordo_a">A — base (o anterior, o vigente)</Label>

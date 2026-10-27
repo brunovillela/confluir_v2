@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 
 import { marcarRemocaoAction } from "../configuracao/actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function BaixarPendencia({
   pedidoId,
@@ -16,6 +17,7 @@ export function BaixarPendencia({
   sistema: string
 }) {
   const [estado, formAction, pendente] = useActionState(marcarRemocaoAction, {})
+  const envio = useEnvioFormulario(formAction, estado)
 
   if (estado.ok) {
     return (
@@ -26,7 +28,7 @@ export function BaixarPendencia({
   }
 
   return (
-    <form action={formAction} className="grid gap-2">
+    <form action={formAction} {...envio} className="grid gap-2">
       <input type="hidden" name="pedidoId" value={pedidoId} />
       {estado.erro && (
         <Alert variant="destructive">

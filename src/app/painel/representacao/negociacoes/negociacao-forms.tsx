@@ -29,6 +29,7 @@ import {
   salvarNegociacaoAction,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -60,11 +61,12 @@ export function NegociacaoForm({
   aoCancelarHref: string
 }) {
   const [estado, acao, pendente] = useActionState(salvarNegociacaoAction, {})
+  const envio1 = useEnvioFormulario(acao, estado)
   const selec = new Set(negociacao?.empresas.map((e) => e.id) ?? [])
   const concluida = negociacao?.situacao === "concluida"
 
   return (
-    <form action={acao} className="grid gap-5">
+    <form action={acao} {...envio1} className="grid gap-5">
       {negociacao && <input type="hidden" name="negociacao_id" value={negociacao.id} />}
       <Erro erro={estado.erro} />
 
@@ -267,8 +269,9 @@ function CamposDocumento({ doc, papelInicial }: { doc?: DocumentoNegociacao; pap
 
 export function NovoDocumento({ negociacaoId, temPauta }: { negociacaoId: string; temPauta: boolean }) {
   const [estado, acao, pendente] = useActionState(adicionarDocumentoAction, {})
+  const envio2 = useEnvioFormulario(acao, estado)
   return (
-    <form action={acao} className="grid gap-4">
+    <form action={acao} {...envio2} className="grid gap-4">
       <input type="hidden" name="negociacao_id" value={negociacaoId} />
       <Erro erro={estado.erro} />
       <CamposDocumento papelInicial={temPauta ? undefined : "pauta"} />
@@ -287,9 +290,10 @@ export function NovoDocumento({ negociacaoId, temPauta }: { negociacaoId: string
 
 export function EditarDocumento({ doc }: { doc: DocumentoNegociacao }) {
   const [estado, acao, pendente] = useActionState(atualizarDocumentoAction, {})
+  const envio3 = useEnvioFormulario(acao, estado)
   return (
     <div className="grid gap-3">
-      <form action={acao} className="grid gap-4">
+      <form action={acao} {...envio3} className="grid gap-4">
         <input type="hidden" name="acordo_id" value={doc.id} />
         <Erro erro={estado.erro} />
         {estado.ok && <p className="text-success-fg text-xs">{estado.ok}</p>}
@@ -320,8 +324,9 @@ export function EditarDocumento({ doc }: { doc: DocumentoNegociacao }) {
 
 export function NovoEvento({ negociacaoId }: { negociacaoId: string }) {
   const [estado, acao, pendente] = useActionState(registrarEventoAction, {})
+  const envio4 = useEnvioFormulario(acao, estado)
   return (
-    <form action={acao} className="grid gap-3">
+    <form action={acao} {...envio4} className="grid gap-3">
       <input type="hidden" name="negociacao_id" value={negociacaoId} />
       <Erro erro={estado.erro} />
       {estado.ok && <p className="text-success-fg text-xs">{estado.ok}</p>}

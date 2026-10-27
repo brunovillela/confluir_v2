@@ -14,6 +14,7 @@ import {
   definirCentroCustoJuridicoAction,
   registrarReembolsoAction,
 } from "./reembolso-actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -32,8 +33,9 @@ export function ConfigCentroCustoForm({
     definirCentroCustoJuridicoAction,
     {}
   )
+  const envio1 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid max-w-xl gap-3">
+    <form action={formAction} {...envio1} className="grid max-w-xl gap-3">
       <div className="grid gap-1.5">
         <Label htmlFor="centro_custo_id">Centro de custo dos reembolsos</Label>
         <select
@@ -79,8 +81,9 @@ export function RegistrarReembolsoForm({ processoId }: { processoId: string }) {
     registrarReembolsoAction,
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid max-w-xl gap-4">
+    <form action={formAction} {...envio2} className="grid max-w-xl gap-4">
       <input type="hidden" name="processo_id" value={processoId} />
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5">
@@ -153,8 +156,9 @@ export function AvaliarReembolsoForm({
     avaliarReembolsoAction,
     {}
   )
+  const envio3 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-3">
+    <form action={formAction} {...envio3} className="grid gap-3">
       <input type="hidden" name="reembolso_id" value={reembolsoId} />
       {processoId && (
         <input type="hidden" name="processo_id" value={processoId} />

@@ -14,6 +14,7 @@ import {
   adicionarDocumentoAction,
   excluirDocumentoAction,
 } from "./docs-actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -25,8 +26,9 @@ export function AdicionarDocumento({ empresaId }: { empresaId: string }) {
     adicionarDocumentoAction,
     {}
   )
+  const envio = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-3 rounded-md border p-3">
+    <form action={formAction} {...envio} className="grid gap-3 rounded-md border p-3">
       <input type="hidden" name="empresa_id" value={empresaId} />
       {estado.erro && (
         <Alert variant="destructive">

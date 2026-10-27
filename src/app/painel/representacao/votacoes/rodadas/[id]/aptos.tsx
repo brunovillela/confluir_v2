@@ -26,11 +26,13 @@ import {
   salvarEleitor,
 } from "./actions"
 import { confirmar, confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario";
 
 /** Importação de aptos por CSV (colunas: cpf, nome, matricula, email, telefone). */
 export function ImportarAptos({ rodadaId }: { rodadaId: string }) {
   const [aberto, setAberto] = useState(false)
   const [estado, formAction, pendente] = useActionState(importarAptosCsv, {})
+  const envio1 = useEnvioFormulario(formAction, estado);
   const r = estado.resultado
 
   if (!aberto) {
@@ -44,7 +46,7 @@ export function ImportarAptos({ rodadaId }: { rodadaId: string }) {
 
   return (
     <div className="grid w-full gap-4 rounded-lg border border-dashed p-4">
-      <form action={formAction} className="grid gap-3">
+      <form action={formAction} {...envio1} className="grid gap-3">
         <input type="hidden" name="rodada_id" value={rodadaId} />
         <div className="grid gap-1.5">
           <Label htmlFor="arquivo-aptos">Planilha CSV</Label>
@@ -170,6 +172,7 @@ function EleitorDialog({
     apto ? salvarEleitor : cadastrarEleitor,
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado);
 
   // Fecha ao salvar (ajuste de estado no render, via troca de identidade).
   const [estadoAnterior, setEstadoAnterior] = useState(estado)
@@ -190,7 +193,7 @@ function EleitorDialog({
               : "Cadastre um eleitor apto a votar nesta rodada."}
           </DialogDescription>
         </DialogHeader>
-        <form action={formAction} className="grid gap-3">
+        <form action={formAction} {...envio2} className="grid gap-3">
           <input type="hidden" name="rodada_id" value={rodadaId} />
           {apto && <input type="hidden" name="apto_id" value={apto.id} />}
           {estado.erro && (
@@ -390,6 +393,7 @@ export function ExclusaoEmMassaAptos({
 }) {
   const formId = formExclusaoAptos(rodadaId)
   const [estado, formAction, pendente] = useActionState(excluirAptosEmMassa, {})
+  const envio3 = useEnvioFormulario(formAction, estado);
   const [marcados, setMarcados] = useState(0)
 
   useEffect(() => {
@@ -437,7 +441,7 @@ export function ExclusaoEmMassaAptos({
   }
 
   return (
-    <form id={formId} action={formAction} className="flex flex-wrap items-center gap-2">
+    <form id={formId} action={formAction} {...envio3} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="rodada_id" value={rodadaId} />
       <input type="hidden" name="modo" value="selecionados" />
       <Button

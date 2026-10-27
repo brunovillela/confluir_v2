@@ -15,6 +15,7 @@ import {
   salvarTipoMinutaAction,
 } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 function Rodape({ pendente, ok, erro }: { pendente: boolean; ok?: string; erro?: string }) {
   return (
@@ -31,8 +32,9 @@ function Rodape({ pendente, ok, erro }: { pendente: boolean; ok?: string; erro?:
 
 export function TipoForm({ tipo }: { tipo?: TipoMinutaConfig }) {
   const [estado, acao, pendente] = useActionState(salvarTipoMinutaAction, {})
+  const envio1 = useEnvioFormulario(acao, estado)
   return (
-    <form action={acao} className="grid gap-3">
+    <form action={acao} {...envio1} className="grid gap-3">
       {tipo && <input type="hidden" name="id" value={tipo.id} />}
       <div className="grid gap-3 md:grid-cols-[1fr_7rem]">
         <div className="grid gap-1.5">
@@ -86,10 +88,11 @@ export function ClausulaForm({
   tipos: TipoMinutaConfig[]
 }) {
   const [estado, acao, pendente] = useActionState(salvarClausulaFixaAction, {})
+  const envio2 = useEnvioFormulario(acao, estado)
   const [todos, setTodos] = useState((clausula?.tipos.length ?? 0) === 0)
   const sufixo = clausula?.id ?? "nova"
   return (
-    <form action={acao} className="grid gap-3">
+    <form action={acao} {...envio2} className="grid gap-3">
       {clausula && <input type="hidden" name="id" value={clausula.id} />}
       <div className="grid gap-3 md:grid-cols-[1fr_7rem]">
         <div className="grid gap-1.5">

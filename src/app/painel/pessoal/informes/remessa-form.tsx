@@ -17,6 +17,7 @@ import {
   excluirRemessaInformes,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export type RemessaInformesFormDados = {
   id: string
@@ -34,6 +35,7 @@ export function RemessaInformesForm({
     remessa ? atualizarRemessaInformes : criarRemessaInformes,
     {}
   )
+  const envio = useEnvioFormulario(formAction, estado)
   const [estadoExcluir, excluirAction, excluindo] = useActionState(
     excluirRemessaInformes,
     {}
@@ -52,7 +54,7 @@ export function RemessaInformesForm({
         </Alert>
       )}
 
-      <form action={formAction} className="grid gap-4">
+      <form action={formAction} {...envio} className="grid gap-4">
         {remessa && <input type="hidden" name="id" value={remessa.id} />}
         <Card>
           <CardHeader>

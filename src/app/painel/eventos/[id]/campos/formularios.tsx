@@ -15,6 +15,7 @@ import {
   removerCampoAction,
   salvarCampoAction,
 } from "../../configuracao/actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -29,10 +30,11 @@ export function CampoForm({
   aoFechar?: () => void
 }) {
   const [estado, formAction, pendente] = useActionState(salvarCampoAction, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
   const [tipo, setTipo] = useState(campo?.tipo ?? "texto")
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio1} className="grid gap-4">
       <input type="hidden" name="eventoId" value={eventoId} />
       {campo && <input type="hidden" name="id" value={campo.id} />}
 
@@ -164,17 +166,19 @@ export function AcoesCampo({
     removerCampoAction,
     {}
   )
+  const envio2 = useEnvioFormulario(acaoRemover, remover)
   const [reativar, acaoReativar, reativando] = useActionState(
     reativarCampoAction,
     {}
   )
+  const envio3 = useEnvioFormulario(acaoReativar, reativar)
   const estado = remover.erro || remover.ok ? remover : reativar
 
   return (
     <div className="grid gap-2">
       <div className="flex flex-wrap gap-2">
         {campo.ativo ? (
-          <form action={acaoRemover}>
+          <form action={acaoRemover} {...envio2}>
             <input type="hidden" name="eventoId" value={eventoId} />
             <input type="hidden" name="campoId" value={campo.id} />
             <Button
@@ -193,7 +197,7 @@ export function AcoesCampo({
             </Button>
           </form>
         ) : (
-          <form action={acaoReativar}>
+          <form action={acaoReativar} {...envio3}>
             <input type="hidden" name="eventoId" value={eventoId} />
             <input type="hidden" name="campoId" value={campo.id} />
             <Button type="submit" size="sm" variant="ghost" disabled={reativando}>

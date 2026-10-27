@@ -23,6 +23,7 @@ import {
   excluirCentroCusto,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function CentroCustoForm({
   centro,
@@ -38,6 +39,7 @@ export function CentroCustoForm({
     centro ? atualizarCentroCusto : criarCentroCusto,
     {}
   )
+  const envio = useEnvioFormulario(formAction, estado)
   const [estadoExcluir, excluirAction, excluindo] = useActionState(
     excluirCentroCusto,
     {}
@@ -54,7 +56,7 @@ export function CentroCustoForm({
         </Alert>
       )}
 
-      <form action={formAction} className="grid gap-4">
+      <form action={formAction} {...envio} className="grid gap-4">
         {centro && <input type="hidden" name="centro_id" value={centro.id} />}
 
         <Card>

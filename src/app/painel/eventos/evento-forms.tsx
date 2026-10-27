@@ -25,6 +25,7 @@ import {
   mudarSituacaoEvento,
   salvarEvento,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -59,6 +60,7 @@ export function EventoForm({
   modoFoto: "nenhuma" | "visual" | "biometrica"
 }) {
   const [estado, formAction, pendente] = useActionState(salvarEvento, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
   const [lotacao, setLotacao] = useState(
     inicial?.lotacao_maxima != null ? String(inicial.lotacao_maxima) : ""
   )
@@ -77,7 +79,7 @@ export function EventoForm({
   const publicas = vagas === null ? null : Math.max(0, vagas - c)
 
   return (
-    <form action={formAction} className="grid gap-5">
+    <form action={formAction} {...envio1} className="grid gap-5">
       {inicial && <input type="hidden" name="id" value={inicial.id} />}
       {estado.erro && (
         <Alert variant="destructive">
@@ -429,12 +431,13 @@ export function SituacaoEventoForm({
   situacao: string
 }) {
   const [estado, formAction, pendente] = useActionState(mudarSituacaoEvento, {})
+  const envio2 = useEnvioFormulario(formAction, estado)
   const [nova, setNova] = useState(situacao)
 
   const precisaMotivo = nova === "cancelado" || nova === "adiado"
 
   return (
-    <form action={formAction} className="grid gap-3">
+    <form action={formAction} {...envio2} className="grid gap-3">
       <input type="hidden" name="id" value={eventoId} />
       {estado.erro && (
         <Alert variant="destructive">
@@ -511,10 +514,11 @@ export function AvaliarInscricao({
   situacao: string
 }) {
   const [estado, formAction, pendente] = useActionState(avaliarInscricao, {})
+  const envio3 = useEnvioFormulario(formAction, estado)
   const [decisao, setDecisao] = useState("")
 
   return (
-    <form action={formAction} className="grid gap-2">
+    <form action={formAction} {...envio3} className="grid gap-2">
       <input type="hidden" name="inscricao_id" value={inscricaoId} />
       {estado.erro && (
         <p className="text-destructive text-xs">{estado.erro}</p>
@@ -578,6 +582,7 @@ export function EnviarRsvpForm({
   semResposta: number
 }) {
   const [estado, formAction, pendente] = useActionState(enviarRsvpAction, {})
+  const envio4 = useEnvioFormulario(formAction, estado)
   // Null até montar: o servidor não pode decidir "já abriu", senão a resposta
   // renderizada chega ao navegador já vencida e a hidratação diverge.
   const [restante, setRestante] = useState<number | null>(null)
@@ -641,7 +646,7 @@ export function EnviarRsvpForm({
         </Alert>
       )}
 
-      <form action={formAction} className="grid gap-3">
+      <form action={formAction} {...envio4} className="grid gap-3">
         <input type="hidden" name="id" value={eventoId} />
 
         {jaEnviados > 0 && (
@@ -678,9 +683,10 @@ export function ConciliarFiliadosForm({ eventoId }: { eventoId: string }) {
     conciliarFiliadosAction,
     {}
   )
+  const envio5 = useEnvioFormulario(formAction, estado)
 
   return (
-    <form action={formAction} className="grid gap-2">
+    <form action={formAction} {...envio5} className="grid gap-2">
       <input type="hidden" name="id" value={eventoId} />
       {estado.erro && (
         <Alert variant="destructive">

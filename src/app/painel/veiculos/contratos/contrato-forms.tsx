@@ -17,6 +17,7 @@ import {
   gerarOrdemAluguelAction,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -40,8 +41,9 @@ export function NovoContratoForm({
     criarContratoAction,
     {}
   )
+  const envio1 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid max-w-2xl gap-4">
+    <form action={formAction} {...envio1} className="grid max-w-2xl gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="numero">Nº do contrato na locadora *</Label>
@@ -167,8 +169,9 @@ export function GerarOrdemAluguelForm({
     gerarOrdemAluguelAction,
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-2">
+    <form action={formAction} {...envio2} className="grid gap-2">
       <input type="hidden" name="contrato_id" value={contratoId} />
       <div className="grid gap-2 sm:grid-cols-2">
         <div className="grid gap-1">

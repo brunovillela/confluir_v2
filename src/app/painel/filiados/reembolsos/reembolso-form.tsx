@@ -1,6 +1,6 @@
 "use client"
 
-import { startTransition, useActionState } from "react"
+import { useActionState } from "react"
 import Link from "next/link"
 import { Loader2 } from "lucide-react"
 
@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea"
 import type { ReembolsoLinha } from "@/lib/db/filiacao-reembolsos-edicao"
 
 import { atualizarReembolsoAction, criarReembolsoAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export type OpcaoProjeto = { id: string; titulo: string }
 
@@ -50,21 +51,12 @@ export function ReembolsoForm({
     reembolso ? atualizarReembolsoAction : criarReembolsoAction,
     {}
   )
+  const envio = useEnvioFormulario(formAction, estado)
   const paga = reembolso?.ordem?.situacao === "Paga"
   const hoje = new Date().toISOString().slice(0, 10)
 
   return (
-    <form
-      className="grid gap-4"
-      onSubmit={(e) => {
-        // Envio sem `action=`: o React 19 reinicia o formulário depois de uma
-        // action de <form>, e uma recusa do servidor apagaria o que foi
-        // digitado — a data voltava para hoje e a justificativa sumia.
-        e.preventDefault()
-        const dados = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter)
-        startTransition(() => formAction(dados))
-      }}
-    >
+    <form action={formAction} {...envio} className="grid gap-4">
       {reembolso && <input type="hidden" name="reembolso_id" value={reembolso.id} />}
       {reembolso?.filiadoId && <input type="hidden" name="filiado_id" value={reembolso.filiadoId} />}
       {estado.erro && (

@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Turnstile } from "@/components/auth/turnstile"
 import type { EstadoForm } from "@/lib/contas"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 type Props = {
   titulo: string
@@ -36,6 +37,7 @@ export function FormEmail({
   voltarHref = "/login",
 }: Props) {
   const [estado, formAction, pendente] = useActionState(action, {})
+  const envio = useEnvioFormulario(formAction, estado)
 
   return (
     <Card>
@@ -44,7 +46,7 @@ export function FormEmail({
         <CardDescription>{descricao}</CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="grid gap-4">
+        <form action={formAction} {...envio} className="grid gap-4">
           {estado.erro && (
             <Alert variant="destructive">
               <AlertDescription>{estado.erro}</AlertDescription>

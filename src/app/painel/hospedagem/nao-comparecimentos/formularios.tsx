@@ -10,13 +10,15 @@ import { Label } from "@/components/ui/label"
 import { mascaraCpf } from "@/lib/mascaras"
 
 import { abonarAction, liberarAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function AbonarForm({ cupomId }: { cupomId: string }) {
   const [estado, formAction, pendente] = useActionState(abonarAction, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
   if (estado.ok) return <span className="text-success-fg text-xs">{estado.ok}</span>
 
   return (
-    <form action={formAction} className="flex flex-wrap items-center gap-2">
+    <form action={formAction} {...envio1} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="cupom_id" value={cupomId} />
       <Input
         name="motivo"
@@ -36,10 +38,11 @@ export function AbonarForm({ cupomId }: { cupomId: string }) {
 
 export function LiberarForm() {
   const [estado, formAction, pendente] = useActionState(liberarAction, {})
+  const envio2 = useEnvioFormulario(formAction, estado)
   const [cpf, setCpf] = useState("")
 
   return (
-    <form action={formAction} className="grid gap-3">
+    <form action={formAction} {...envio2} className="grid gap-3">
       {(estado.erro || estado.ok) && (
         <Alert variant={estado.erro ? "destructive" : "success"}>
           <AlertDescription>{estado.erro ?? estado.ok}</AlertDescription>

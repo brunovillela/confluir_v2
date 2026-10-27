@@ -16,6 +16,7 @@ import {
   excluirNivelBase,
 } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -44,6 +45,7 @@ export function NivelBaseForm({
     degrau ? atualizarNivelBase : criarNivelBase,
     {}
   )
+  const envio = useEnvioFormulario(formAction, estado)
 
   return (
     <Card>
@@ -55,7 +57,7 @@ export function NivelBaseForm({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="grid gap-4">
+        <form action={formAction} {...envio} className="grid gap-4">
           {estado.erro && (
             <Alert variant="destructive">
               <AlertDescription>{estado.erro}</AlertDescription>

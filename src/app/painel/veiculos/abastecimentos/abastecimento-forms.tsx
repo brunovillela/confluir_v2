@@ -11,6 +11,7 @@ import {
   criarAbastecimentoAction,
   importarAbastecimentosAction,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -22,8 +23,9 @@ export function ImportarAbastecimentosForm() {
     importarAbastecimentosAction,
     {}
   )
+  const envio1 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid max-w-2xl gap-3">
+    <form action={formAction} {...envio1} className="grid max-w-2xl gap-3">
       <p className="text-muted-foreground text-sm">
         CSV com cabeçalho:{" "}
         <code>placa; data; hora; posto; cidade; combustivel; litros; valor; hodometro</code>
@@ -59,8 +61,9 @@ export function NovoAbastecimentoForm({
     criarAbastecimentoAction,
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid max-w-2xl gap-4">
+    <form action={formAction} {...envio2} className="grid max-w-2xl gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="veiculo_id">Veículo *</Label>

@@ -10,6 +10,7 @@ import { CATEGORIAS_CNH } from "@/lib/veiculos-constantes"
 
 import { definirAutorizacaoAction, salvarCondutorAction } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -33,8 +34,9 @@ export function CondutorForm({
     salvarCondutorAction,
     {}
   )
+  const envio = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid max-w-2xl gap-4">
+    <form action={formAction} {...envio} className="grid max-w-2xl gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor={`usuario-${dados?.usuario_id ?? "novo"}`}>

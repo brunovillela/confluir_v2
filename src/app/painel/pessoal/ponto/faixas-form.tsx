@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { salvarFaixasHoraExtraAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /**
  * Percentual de cada faixa de hora extra na entidade (o acordo coletivo pode
@@ -17,8 +18,9 @@ import { salvarFaixasHoraExtraAction } from "./actions"
  */
 export function FaixasHoraExtraForm({ faixa1, faixa2 }: { faixa1: number; faixa2: number }) {
   const [estado, formAction, pendente] = useActionState(salvarFaixasHoraExtraAction, {})
+  const envio = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-3 px-6 pb-5">
+    <form action={formAction} {...envio} className="grid gap-3 px-6 pb-5">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

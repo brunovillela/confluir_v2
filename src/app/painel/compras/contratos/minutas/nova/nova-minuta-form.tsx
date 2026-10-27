@@ -18,6 +18,7 @@ import {
 } from "@/lib/contratos-minutas-constantes"
 
 import { criarMinutaAction } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -72,11 +73,12 @@ export function NovaMinutaForm({
   inicial: Partial<ParametrosMinuta>
 }) {
   const [estado, acao, pendente] = useActionState(criarMinutaAction, {})
+  const envio = useEnvioFormulario(acao, estado)
   const [tipo, setTipo] = useState<string>(inicial.tipoId ?? "")
   const fixas = clausulasDoTipo(clausulas, tipo || null)
 
   return (
-    <form action={acao} className="grid gap-8">
+    <form action={acao} {...envio} className="grid gap-8">
       <fieldset className="grid gap-2">
         <legend className="mb-2 text-sm font-medium">1. Tipo de contrato *</legend>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">

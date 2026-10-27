@@ -21,6 +21,7 @@ import type { SituacaoLinha } from "@/lib/db/veiculos-abastecimentos-ia"
 
 import type { Opcao } from "./abastecimento-forms"
 import { lerRelatorioAbastecimentosIa, registrarAbastecimentosIa } from "./ia-actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full max-w-sm truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -43,6 +44,7 @@ const SITUACAO: Record<SituacaoLinha, { rotulo: string; classe: string }> = {
  */
 export function ImportarRelatorioAbastecimentoIa({ veiculos }: { veiculos: Opcao[] }) {
   const [estado, lerAction, lendo] = useActionState(lerRelatorioAbastecimentosIa, {})
+  const envio = useEnvioFormulario(lerAction, estado)
   const [veiculoPadrao, setVeiculoPadrao] = useState("")
   const [gravando, setGravando] = useState(false)
   const [erroGravar, setErroGravar] = useState<string | null>(null)
@@ -220,7 +222,7 @@ export function ImportarRelatorioAbastecimentoIa({ veiculos }: { veiculos: Opcao
   }
 
   return (
-    <form action={lerAction} className="grid max-w-2xl gap-3">
+    <form action={lerAction} {...envio} className="grid max-w-2xl gap-3">
       <div className="grid gap-1.5">
         <Label htmlFor="arquivo-abastecimento-ia">Relatório (PDF, Excel, CSV ou foto)</Label>
         <Input

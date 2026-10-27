@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 
 import { salvarAutorizacaoDiariasAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const OPCOES = [
   {
@@ -35,8 +36,9 @@ export function AutorizacaoDiariasForm({
   podeEditar: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(salvarAutorizacaoDiariasAction, {})
+  const envio = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-3">
+    <form action={formAction} {...envio} className="grid gap-3">
       {OPCOES.map((o) => (
         <label
           key={o.valor}

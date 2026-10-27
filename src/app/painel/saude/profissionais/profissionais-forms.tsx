@@ -13,14 +13,16 @@ import {
   salvarProfissionalAction,
   salvarTipoAction,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 
 export function TipoForm({ tipo }: { tipo?: TipoAtendimento }) {
   const [estado, formAction, pendente] = useActionState(salvarTipoAction, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="flex flex-wrap items-end gap-2">
+    <form action={formAction} {...envio1} className="flex flex-wrap items-end gap-2">
       {tipo && <input type="hidden" name="id" value={tipo.id} />}
       <div className="grid flex-1 gap-1.5" style={{ minWidth: "16rem" }}>
         <Label htmlFor={`nome-${tipo?.id ?? "novo"}`}>
@@ -47,8 +49,9 @@ export function TipoForm({ tipo }: { tipo?: TipoAtendimento }) {
 
 export function ExcluirTipoForm({ id }: { id: string }) {
   const [estado, formAction, pendente] = useActionState(excluirTipoAction, {})
+  const envio2 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction}>
+    <form action={formAction} {...envio2}>
       <input type="hidden" name="id" value={id} />
       <Button
         type="submit"
@@ -79,8 +82,9 @@ export function ProfissionalForm({
     salvarProfissionalAction,
     {}
   )
+  const envio3 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid max-w-3xl gap-4">
+    <form action={formAction} {...envio3} className="grid max-w-3xl gap-4">
       {profissional && <input type="hidden" name="id" value={profissional.id} />}
 
       <div className="grid gap-4 sm:grid-cols-2">

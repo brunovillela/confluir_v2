@@ -15,6 +15,7 @@ import {
   atualizarHomologacaoAction,
   criarHomologacaoAction,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -201,8 +202,9 @@ export function NovaHomologacaoForm({
     criarHomologacaoAction,
     {}
   )
+  const envio1 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid max-w-2xl gap-4">
+    <form action={formAction} {...envio1} className="grid max-w-2xl gap-4">
       <CamposHomologacao
         buscaFiliadoEndpoint={buscaFiliadoEndpoint}
         fontes={fontes}
@@ -235,8 +237,9 @@ export function EditarHomologacaoForm({
     atualizarHomologacaoAction,
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio2} className="grid gap-4">
       <input type="hidden" name="id" value={inicial.id} />
       <CamposHomologacao
         buscaFiliadoEndpoint={buscaFiliadoEndpoint}

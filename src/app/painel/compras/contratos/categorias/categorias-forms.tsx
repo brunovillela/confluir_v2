@@ -16,6 +16,7 @@ import {
   excluirCategoriaAction,
 } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 function CheckSigiloso({ defaultChecked }: { defaultChecked?: boolean }) {
   return (
@@ -33,9 +34,10 @@ function CheckSigiloso({ defaultChecked }: { defaultChecked?: boolean }) {
 
 export function NovaCategoria() {
   const [estado, formAction, pendente] = useActionState(criarCategoriaAction, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
   return (
     // key troca a cada sucesso → limpa o formulário (React 19 não reseta em action)
-    <form key={estado.ok ?? "novo"} action={formAction} className="grid gap-3 sm:max-w-md">
+    <form key={estado.ok ?? "novo"} action={formAction} {...envio1} className="grid gap-3 sm:max-w-md">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -131,12 +133,13 @@ function EditarCategoria({
     atualizarCategoriaAction,
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado)
   useEffect(() => {
     if (estado.ok) aoFechar()
   }, [estado.ok, aoFechar])
 
   return (
-    <form action={formAction} className="grid gap-3">
+    <form action={formAction} {...envio2} className="grid gap-3">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

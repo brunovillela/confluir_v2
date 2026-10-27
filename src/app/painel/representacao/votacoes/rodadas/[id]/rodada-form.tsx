@@ -18,6 +18,7 @@ import { Switch } from "@/components/ui/switch"
 
 import { ClausulaColetivaCampos } from "../../clausula-coletiva-campos"
 import { salvarRodada } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const TEXTAREA =
   "border-input bg-background text-foreground w-full rounded-md border px-3 py-2 text-sm shadow-xs outline-none"
@@ -47,6 +48,7 @@ export function RodadaForm({
 }) {
   const [editando, setEditando] = useState(false)
   const [estado, formAction, pendente] = useActionState(salvarRodada, {})
+  const envio = useEnvioFormulario(formAction, estado)
 
   // Fecha o formulário quando a action confirma o salvamento (ajuste de
   // estado durante o render, disparado pela troca de identidade do estado).
@@ -81,7 +83,7 @@ export function RodadaForm({
           </Alert>
         )}
         {editando ? (
-          <form action={formAction} className="grid gap-4">
+          <form action={formAction} {...envio} className="grid gap-4">
             {estado.erro && (
               <Alert variant="destructive">
                 <AlertDescription>{estado.erro}</AlertDescription>

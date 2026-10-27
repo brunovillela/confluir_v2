@@ -18,6 +18,7 @@ import {
   registrarSaidaAction,
 } from "../agendamentos/actions"
 import { SELECT, type OpcaoCondutor } from "../agendamentos/agendamento-forms"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /** Solicitação que pode ser baixada por esta saída. */
 export type ReservaVinculavel = {
@@ -72,6 +73,7 @@ export function SaidaVeiculoForm({
   ultimaEntrada: UltimaEntrada | null
 }) {
   const [estado, formAction, pendente] = useActionState(registrarSaidaAction, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
   const [hodometro, setHodometro] = useState(
     ultimaEntrada ? ultimaEntrada.hodometro.toLocaleString("pt-BR") : ""
   )
@@ -95,7 +97,7 @@ export function SaidaVeiculoForm({
   }
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio1} className="grid gap-4">
       <input type="hidden" name="veiculo_id" value={veiculoId} />
       <input type="hidden" name="voltar" value={`/painel/veiculos/${veiculoId}`} />
       {reservaId && <input type="hidden" name="agendamento_id" value={reservaId} />}
@@ -263,6 +265,7 @@ export function EntradaVeiculoForm({
     registrarEntradaAction,
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado)
   const [hodometro, setHodometro] = useState("")
   const anormal = quilometragemAnormal({
     hodometroSaida,
@@ -271,7 +274,7 @@ export function EntradaVeiculoForm({
     saidaEm,
   })
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio2} className="grid gap-4">
       <input type="hidden" name="veiculo_id" value={veiculoId} />
       <input type="hidden" name="movimentacao_id" value={movimentacaoId} />
       <input type="hidden" name="voltar" value={`/painel/veiculos/${veiculoId}`} />

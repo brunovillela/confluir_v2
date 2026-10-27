@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { excluirMovimentacaoAction } from "../../../agendamentos/actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /**
  * Exclusão de movimentação pela gestão da frota. Confirmação na própria tela,
@@ -24,6 +25,7 @@ export function ExcluirMovimentacao({
   temAgendamento: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(excluirMovimentacaoAction, {})
+  const envio = useEnvioFormulario(formAction, estado)
   const [confirmando, setConfirmando] = useState(false)
   const [palavra, setPalavra] = useState("")
 
@@ -42,7 +44,7 @@ export function ExcluirMovimentacao({
   }
 
   return (
-    <form action={formAction} className="grid gap-3">
+    <form action={formAction} {...envio} className="grid gap-3">
       <input type="hidden" name="movimentacao_id" value={movimentacaoId} />
       {estado.erro && (
         <Alert variant="destructive">

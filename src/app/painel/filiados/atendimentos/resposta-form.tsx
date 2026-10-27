@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { PRAZO_REABRIR_DIAS, rotuloDias } from "@/lib/atendimento-constantes"
 
 import { reabrirAtendimentoAction, responderAtendimentoAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /**
  * Resposta da entidade: envia e mantém aberta, ou envia e conclui.
@@ -30,11 +31,12 @@ export function RespostaAtendimentoForm({
 }) {
   const [estado, action, enviando] = useActionState(responderAtendimentoAction, {})
   const [estadoReabrir, reabrir, reabrindo] = useActionState(reabrirAtendimentoAction, {})
+  const envio = useEnvioFormulario(reabrir, estadoReabrir)
   const anexo = useAnexo()
 
   if (concluida) {
     return (
-      <form action={reabrir} className="grid gap-3">
+      <form action={reabrir} {...envio} className="grid gap-3">
         <input type="hidden" name="atendimento_id" value={atendimentoId} />
         <p className="text-muted-foreground text-sm">Esta solicitação está concluída. Reabra para continuar a conversa — o filiado é avisado no portal.</p>
         {estadoReabrir.erro && (

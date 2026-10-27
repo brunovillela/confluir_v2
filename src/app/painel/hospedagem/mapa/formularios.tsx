@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 
 import { cancelarReservaEquipeAction, remanejarAction } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-8 rounded-md border px-2 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -21,13 +22,14 @@ export function RemanejarForm({
   totalQuartos: number
 }) {
   const [estado, formAction, pendente] = useActionState(remanejarAction, {})
+  const envio = useEnvioFormulario(formAction, estado)
   const outros = Array.from({ length: totalQuartos }, (_, i) => i + 1).filter(
     (q) => q !== quartoAtual
   )
   if (outros.length === 0) return null
 
   return (
-    <form action={formAction} className="flex flex-wrap items-center gap-2">
+    <form action={formAction} {...envio} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="cupom_id" value={cupomId} />
       <select name="quarto" className={SELECT} defaultValue={outros[0]} aria-label="Quarto de destino">
         {outros.map((q) => (

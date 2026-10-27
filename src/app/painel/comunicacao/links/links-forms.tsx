@@ -25,6 +25,7 @@ import {
   moverLink,
   salvarConfigLinks,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 type Estado = { erro?: string; ok?: string }
 type ActionForm = (p: Estado, fd: FormData) => Promise<Estado>
@@ -172,6 +173,7 @@ export function LinhaLink({
   ultimo: boolean
 }) {
   const [estadoEdit, editAction, editPend] = useActionState(atualizarLink, {})
+  const envio = useEnvioFormulario(editAction, estadoEdit)
   return (
     <li className={`px-3 py-2 ${link.ativo ? "" : "opacity-60"}`}>
       <div className="flex items-center gap-1">
@@ -236,7 +238,7 @@ export function LinhaLink({
           <Pencil className="mr-1 inline size-3 align-[-1px]" />
           Editar
         </summary>
-        <form action={editAction} className="mt-2 grid gap-2">
+        <form action={editAction} {...envio} className="mt-2 grid gap-2">
           {estadoEdit.erro && (
             <Alert variant="destructive">
               <AlertDescription>{estadoEdit.erro}</AlertDescription>

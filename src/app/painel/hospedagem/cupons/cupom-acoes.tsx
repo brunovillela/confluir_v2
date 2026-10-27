@@ -9,6 +9,7 @@ import { CopiarLinkBotao } from "@/components/copiar-link"
 
 import { cancelarCupom, linkDaReservaAction, reenviarConfirmacaoReservaAction } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /** Cancelamento do cupom, com confirmação. Erros aparecem como alerta nativo. */
 export function CancelarCupomBotao({ id }: { id: string }) {
@@ -42,9 +43,10 @@ export function CancelarCupomBotao({ id }: { id: string }) {
 /** Reserva garantida: reenviar o e-mail de confirmação ou copiar o link direto. */
 export function AcoesReservaGarantida({ id }: { id: string }) {
   const [estado, formAction, pendente] = useActionState(reenviarConfirmacaoReservaAction, {})
+  const envio = useEnvioFormulario(formAction, estado)
   return (
     <span className="inline-flex flex-wrap items-center gap-1">
-      <form action={formAction}>
+      <form action={formAction} {...envio}>
         <input type="hidden" name="id" value={id} />
         <Button
           type="submit"

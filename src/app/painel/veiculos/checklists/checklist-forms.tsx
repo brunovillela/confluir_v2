@@ -18,6 +18,7 @@ import {
   salvarItem,
   salvarRecorrenciaVeiculo,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -118,9 +119,10 @@ export function ChecklistForm({
   veiculoFixo?: string
 }) {
   const [estado, formAction, pendente] = useActionState(registrarChecklist, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio1} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -191,8 +193,9 @@ export function ConfigForm({
   }
 }) {
   const [estado, formAction, pendente] = useActionState(salvarConfig, {})
+  const envio2 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio2} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -334,8 +337,9 @@ function CamposItem({ item }: { item?: ItemForm }) {
 
 export function NovoItemForm() {
   const [estado, formAction, pendente] = useActionState(salvarItem, {})
+  const envio3 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio3} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -359,7 +363,9 @@ export function NovoItemForm() {
 
 export function ItemEditavel({ item }: { item: ItemForm }) {
   const [estado, formAction, pendente] = useActionState(salvarItem, {})
+  const envio4 = useEnvioFormulario(formAction, estado)
   const [estadoRem, removerAction, removendo] = useActionState(removerItem, {})
+  const envio5 = useEnvioFormulario(removerAction, estadoRem)
 
   return (
     <CartaoEditavel
@@ -388,7 +394,7 @@ export function ItemEditavel({ item }: { item: ItemForm }) {
           </Alert>
         )}
 
-        <form action={formAction} className="grid gap-4">
+        <form action={formAction} {...envio4} className="grid gap-4">
           <input type="hidden" name="id" value={item.id} />
           <CamposItem item={item} />
           <div>
@@ -399,7 +405,7 @@ export function ItemEditavel({ item }: { item: ItemForm }) {
           </div>
         </form>
 
-        <form action={removerAction}>
+        <form action={removerAction} {...envio5}>
           <input type="hidden" name="id" value={item.id} />
           <Button
             type="submit"
@@ -432,8 +438,9 @@ export function RecorrenciaVeiculoForm({
     salvarRecorrenciaVeiculo,
     {}
   )
+  const envio6 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-3">
+    <form action={formAction} {...envio6} className="grid gap-3">
       <input type="hidden" name="veiculo_id" value={veiculoId} />
       {estado.erro && (
         <Alert variant="destructive">

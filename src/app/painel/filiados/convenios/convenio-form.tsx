@@ -27,6 +27,7 @@ import type {
 } from "@/lib/db/filiacao-convenios-edicao"
 
 import { salvarConvenioAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SEM_CATEGORIA = "sem_categoria"
 
@@ -40,11 +41,12 @@ export function ConvenioForm({
   convenio?: ConvenioEditavel
 }) {
   const [estado, formAction, pendente] = useActionState(salvarConvenioAction, {})
+  const envio = useEnvioFormulario(formAction, estado)
   const marcados = conveniadores.filter((c) => c.conveniador)
   const demais = conveniadores.filter((c) => !c.conveniador)
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio} className="grid gap-4">
       {convenio && <input type="hidden" name="convenio_id" value={convenio.id} />}
       {estado.erro && (
         <Alert variant="destructive">

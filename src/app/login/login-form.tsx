@@ -20,6 +20,7 @@ import { Turnstile } from "@/components/auth/turnstile"
 import { mensagemLinkRecusado } from "@/lib/auth-email-constantes"
 
 import { loginFuncionario } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const MENSAGENS_ERRO: Record<string, string> = {
   sem_vinculo:
@@ -34,6 +35,7 @@ export function LoginForm({
   erroInicial?: string
 }) {
   const [estado, formAction, pendente] = useActionState(loginFuncionario, {})
+  const envio = useEnvioFormulario(formAction, estado)
   const erro =
     estado.erro ??
     (erroInicial
@@ -49,7 +51,7 @@ export function LoginForm({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="grid gap-4">
+        <form action={formAction} {...envio} className="grid gap-4">
           {next && <input type="hidden" name="next" value={next} />}
           {erro && (
             <Alert variant="destructive">

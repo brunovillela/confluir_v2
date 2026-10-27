@@ -16,6 +16,7 @@ import {
   salvarConfigFaltasAction,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -51,8 +52,9 @@ export function RegistrarFaltaForm({
   hoje: string
 }) {
   const [estado, acao, pendente] = useActionState(registrarFaltaAction, {})
+  const envio1 = useEnvioFormulario(acao, estado)
   return (
-    <form action={acao} className="grid gap-4">
+    <form action={acao} {...envio1} className="grid gap-4">
       <Retorno erro={estado.erro} ok={estado.ok} />
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5">
@@ -116,10 +118,11 @@ export function RegistrarFaltaForm({
 /** Autorizar ou recusar (com motivo) uma falta aguardando. */
 export function DecisaoFalta({ id }: { id: string }) {
   const [estado, acao, pendente] = useActionState(decidirFaltaAction, {})
+  const envio2 = useEnvioFormulario(acao, estado)
   const [recusando, setRecusando] = useState(false)
   if (estado.ok) return <span className="text-success-fg text-xs">{estado.ok}</span>
   return (
-    <form action={acao} className="flex flex-wrap items-center justify-end gap-1.5">
+    <form action={acao} {...envio2} className="flex flex-wrap items-center justify-end gap-1.5">
       <input type="hidden" name="id" value={id} />
       {recusando ? (
         <>
@@ -176,6 +179,7 @@ export function ExcluirFaltaBotao({ id }: { id: string }) {
 /** Limites (vazio = sem limite) e tipos de justificativa. */
 export function ConfigFaltasForm({ config }: { config: ConfigFaltas }) {
   const [estado, acao, pendente] = useActionState(salvarConfigFaltasAction, {})
+  const envio3 = useEnvioFormulario(acao, estado)
   const campo = (nome: string, rotulo: string, valor: number | null, dica: string) => (
     <div className="grid gap-1.5">
       <Label htmlFor={nome}>{rotulo}</Label>
@@ -193,7 +197,7 @@ export function ConfigFaltasForm({ config }: { config: ConfigFaltas }) {
     </div>
   )
   return (
-    <form action={acao} className="grid gap-5">
+    <form action={acao} {...envio3} className="grid gap-5">
       <Retorno erro={estado.erro} />
       <div className="grid gap-4 sm:grid-cols-3">
         {campo("limite_ano", "Total por ano", config.limiteAno, "No período do acordo (vigência do ACT).")}

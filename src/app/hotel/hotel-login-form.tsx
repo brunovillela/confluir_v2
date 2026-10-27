@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Turnstile } from "@/components/auth/turnstile"
 
 import { loginHotel, recuperarSenhaHotel } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 function Mensagens({ erro, ok }: { erro?: string; ok?: string }) {
   if (erro) {
@@ -39,10 +40,12 @@ function Mensagens({ erro, ok }: { erro?: string; ok?: string }) {
 
 export function HotelLoginForm() {
   const [estadoLogin, actionLogin, pendenteLogin] = useActionState(loginHotel, {})
+  const envio1 = useEnvioFormulario(actionLogin, estadoLogin)
   const [estadoSenha, actionSenha, pendenteSenha] = useActionState(
     recuperarSenhaHotel,
     {}
   )
+  const envio2 = useEnvioFormulario(actionSenha, estadoSenha)
 
   return (
     <Card>
@@ -64,7 +67,7 @@ export function HotelLoginForm() {
           </TabsList>
 
           <TabsContent value="entrar">
-            <form action={actionLogin} className="grid gap-4 pt-2">
+            <form action={actionLogin} {...envio1} className="grid gap-4 pt-2">
               <Mensagens erro={estadoLogin.erro} ok={estadoLogin.ok} />
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
@@ -99,7 +102,7 @@ export function HotelLoginForm() {
           </TabsContent>
 
           <TabsContent value="recuperar">
-            <form action={actionSenha} className="grid gap-4 pt-2">
+            <form action={actionSenha} {...envio2} className="grid gap-4 pt-2">
               <Mensagens erro={estadoSenha.erro} ok={estadoSenha.ok} />
               <div className="grid gap-2">
                 <Label htmlFor="email-recuperar">Email</Label>

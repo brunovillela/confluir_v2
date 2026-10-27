@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import type { Assistido } from "@/lib/db/atendimentos"
 
 import { salvarAssistidoAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const AREA =
   "border-input bg-background text-foreground min-h-20 w-full rounded-md border px-3 py-2 text-sm shadow-xs outline-none"
@@ -38,6 +39,7 @@ export function AssistidoForm({
     salvarAssistidoAction,
     {}
   )
+  const envio = useEnvioFormulario(formAction, estado)
   const [exposto, setExposto] = useState(
     assistido?.exposicao_cancerigeno_quimico ||
       assistido?.exposicao_radiacao_ionizante ||
@@ -45,7 +47,7 @@ export function AssistidoForm({
   )
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio} className="grid gap-4">
       {assistido && <input type="hidden" name="id" value={assistido.id} />}
 
       <Card>

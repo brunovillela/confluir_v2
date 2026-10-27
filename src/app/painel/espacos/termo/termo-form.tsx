@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { MARCADORES, renderizarTermo } from "@/lib/espacos-termo"
 
 import { redigirComIAAction, salvarTermoAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /** Exemplo para a prévia — não é dado de cessão nenhuma. */
 const EXEMPLO = Object.fromEntries(MARCADORES.map((m) => [m.chave, m.exemplo]))
@@ -22,6 +23,7 @@ export function TermoForm({ textoInicial }: { textoInicial: string }) {
   const [verPrevia, setVerPrevia] = useState(false)
   const [salvo, salvar, salvando] = useActionState(salvarTermoAction, {})
   const [ia, redigir, redigindo] = useActionState(redigirComIAAction, {})
+  const envio = useEnvioFormulario(redigir, ia)
 
   // A sugestão da IA entra no editor, para a pessoa ler e ajustar antes de salvar.
   if (ia.texto && ia.texto !== textoInicial && texto === textoInicial) {
@@ -53,7 +55,7 @@ export function TermoForm({ textoInicial }: { textoInicial: string }) {
               <AlertDescription>{ia.ok}</AlertDescription>
             </Alert>
           )}
-          <form action={redigir} className="grid gap-2">
+          <form action={redigir} {...envio} className="grid gap-2">
             <input type="hidden" name="texto" value={texto} />
             <div className="grid gap-1.5">
               <Label htmlFor="instrucao">O que você quer mudar ou incluir</Label>

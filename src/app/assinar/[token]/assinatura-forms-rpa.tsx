@@ -11,9 +11,11 @@ import { Textarea } from "@/components/ui/textarea"
 import { mascaraCpf } from "@/lib/mascaras"
 
 import { assinarRpaAction, pedirCodigoRpaAction, recusarRpaAction } from "./acoes-rpa"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function AssinarRpaForm({ token }: { token: string }) {
   const [codigo, pedir, pedindo] = useActionState(pedirCodigoRpaAction, {})
+  const envio1 = useEnvioFormulario(pedir, codigo)
   const [assin, assinar, assinando] = useActionState(assinarRpaAction, {})
 
   return (
@@ -30,7 +32,7 @@ export function AssinarRpaForm({ token }: { token: string }) {
             <AlertDescription>{codigo.ok}</AlertDescription>
           </Alert>
         )}
-        <form action={pedir}>
+        <form action={pedir} {...envio1}>
           <input type="hidden" name="token" value={token} />
           <Button type="submit" variant="outline" disabled={pedindo}>
             {pedindo && <Loader2 className="animate-spin" />}
@@ -95,8 +97,9 @@ export function AssinarRpaForm({ token }: { token: string }) {
 
 export function RecusarRpaForm({ token }: { token: string }) {
   const [estado, recusar, recusando] = useActionState(recusarRpaAction, {})
+  const envio2 = useEnvioFormulario(recusar, estado)
   return (
-    <form action={recusar} className="grid gap-3">
+    <form action={recusar} {...envio2} className="grid gap-3">
       <input type="hidden" name="token" value={token} />
       {estado.erro && (
         <Alert variant="destructive">

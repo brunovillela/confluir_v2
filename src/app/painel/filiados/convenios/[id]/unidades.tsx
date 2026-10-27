@@ -15,6 +15,7 @@ import { formatarTelefone } from "@/lib/formato"
 
 import { excluirUnidadeAction, salvarUnidadeAction } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /**
  * As unidades de atendimento de um convênio — onde o filiado é atendido.
@@ -159,11 +160,12 @@ function UnidadeForm({
     },
     {}
   )
+  const envio = useEnvioFormulario(formAction, estado)
   const e = unidade?.endereco
   const p = unidade ? `u-${unidade.id}` : "u-nova"
 
   return (
-    <form action={formAction} className="bg-muted/30 grid gap-3 rounded-lg border p-3">
+    <form action={formAction} {...envio} className="bg-muted/30 grid gap-3 rounded-lg border p-3">
       <input type="hidden" name="convenio_id" value={convenioId} />
       {unidade && <input type="hidden" name="unidade_id" value={unidade.id} />}
       {estado.erro && (

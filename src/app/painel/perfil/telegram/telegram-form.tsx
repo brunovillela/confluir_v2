@@ -11,6 +11,7 @@ import {
   desvincularTelegramAction,
   gerarCodigoTelegramAction,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function TelegramVinculo({
   vinculado,
@@ -23,10 +24,12 @@ export function TelegramVinculo({
     gerarCodigoTelegramAction,
     {}
   )
+  const envio1 = useEnvioFormulario(gerarAction, gerar)
   const [desv, desvAction, desvinculando] = useActionState(
     desvincularTelegramAction,
     {}
   )
+  const envio2 = useEnvioFormulario(desvAction, desv)
 
   if (!configurado) {
     return (
@@ -56,7 +59,7 @@ export function TelegramVinculo({
             <AlertDescription>{desv.erro}</AlertDescription>
           </Alert>
         )}
-        <form action={desvAction}>
+        <form action={desvAction} {...envio2}>
           <Button
             type="submit"
             variant="outline"
@@ -113,7 +116,7 @@ export function TelegramVinculo({
           </p>
         </div>
       ) : (
-        <form action={gerarAction}>
+        <form action={gerarAction} {...envio1}>
           <Button type="submit" size="sm" disabled={gerando}>
             {gerando ? <Loader2 className="animate-spin" /> : <Send />}
             Gerar link de vínculo

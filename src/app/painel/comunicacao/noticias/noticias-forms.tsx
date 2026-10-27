@@ -16,6 +16,7 @@ import {
   excluirNoticiaAction,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 function CamposNoticia({
   noticia,
@@ -65,8 +66,9 @@ export function NovaNoticiaForm() {
     criarNoticiaAction,
     {}
   )
+  const envio1 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio1} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -101,8 +103,9 @@ export function EditarNoticiaForm({
     atualizarNoticiaAction,
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio2} className="grid gap-4">
       <input type="hidden" name="id" value={noticia.id} />
       {estado.erro && (
         <Alert variant="destructive">
@@ -128,8 +131,9 @@ export function BotaoExcluirNoticia({ id }: { id: string }) {
     excluirNoticiaAction,
     {}
   )
+  const envio3 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction}>
+    <form action={formAction} {...envio3}>
       <input type="hidden" name="id" value={id} />
       {estado.erro && (
         <p className="text-destructive mb-1 text-xs">{estado.erro}</p>

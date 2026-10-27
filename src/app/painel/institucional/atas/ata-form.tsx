@@ -17,6 +17,7 @@ import {
   excluirAtaAction,
 } from "./actions"
 import { extrairAtaDePdf } from "./ia-actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -234,8 +235,9 @@ export function BotaoExcluirAta({
   mandatoId: string | null
 }) {
   const [estado, formAction, pendente] = useActionState(excluirAtaAction, {})
+  const envio = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction}>
+    <form action={formAction} {...envio}>
       <input type="hidden" name="ata_id" value={ataId} />
       {mandatoId && <input type="hidden" name="mandato_id" value={mandatoId} />}
       {estado.erro && (

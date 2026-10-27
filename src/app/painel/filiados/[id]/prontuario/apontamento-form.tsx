@@ -15,6 +15,7 @@ import {
   excluirApontamento,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export type ApontamentoEditavel = {
   id: string
@@ -38,9 +39,10 @@ export function ApontamentoForm({
     apontamento ? atualizarApontamento : criarApontamento,
     {}
   )
+  const envio = useEnvioFormulario(formAction, estado)
 
   return (
-    <form action={formAction} className="grid gap-3">
+    <form action={formAction} {...envio} className="grid gap-3">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

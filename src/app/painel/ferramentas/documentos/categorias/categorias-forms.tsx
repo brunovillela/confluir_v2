@@ -15,12 +15,14 @@ import {
   excluirCategoriaAction,
 } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function NovaCategoria() {
   const [estado, formAction, pendente] = useActionState(criarCategoriaAction, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
   return (
     // key troca a cada sucesso → limpa o campo (React 19 não reseta em action).
-    <form key={estado.ok ?? "novo"} action={formAction} className="flex flex-wrap items-end gap-2">
+    <form key={estado.ok ?? "novo"} action={formAction} {...envio1} className="flex flex-wrap items-end gap-2">
       <div className="grid gap-1.5">
         <Label htmlFor="nome">Nova categoria</Label>
         <Input id="nome" name="nome" required placeholder="Ex.: Alvarás" className="w-64" />
@@ -100,11 +102,12 @@ function EditarCategoria({
     atualizarCategoriaAction,
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado)
   useEffect(() => {
     if (estado.ok) aoFechar()
   }, [estado.ok, aoFechar])
   return (
-    <form action={formAction} className="flex flex-wrap items-end gap-2">
+    <form action={formAction} {...envio2} className="flex flex-wrap items-end gap-2">
       <input type="hidden" name="categoria_id" value={categoria.id} />
       <div className="grid gap-1.5">
         <Label htmlFor={`nome-${categoria.id}`}>Nome</Label>

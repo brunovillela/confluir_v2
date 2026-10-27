@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { registrarRecebimento } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function RecebimentoForm({
   remessaId,
@@ -20,9 +21,10 @@ export function RecebimentoForm({
   atual: { data: string | null; valor: number | null } | null
 }) {
   const [estado, formAction, pendente] = useActionState(registrarRecebimento, {})
+  const envio = useEnvioFormulario(formAction, estado)
 
   return (
-    <form action={formAction} className="grid gap-3">
+    <form action={formAction} {...envio} className="grid gap-3">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

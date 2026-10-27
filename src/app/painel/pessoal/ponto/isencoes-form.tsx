@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 
 import { criarIsencaoPonto, encerrarIsencaoPonto, excluirIsencaoPonto } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -111,6 +112,7 @@ export function IsencaoPontoForm({
 /** Define o último dia de uma isenção vigente (o histórico fica). */
 export function EncerrarIsencaoBotao({ id, hoje }: { id: string; hoje: string }) {
   const [estado, formAction, pendente] = useActionState(encerrarIsencaoPonto, {})
+  const envio = useEnvioFormulario(formAction, estado)
   const [aberto, setAberto] = useState(false)
   if (!aberto) {
     return (
@@ -120,7 +122,7 @@ export function EncerrarIsencaoBotao({ id, hoje }: { id: string; hoje: string })
     )
   }
   return (
-    <form action={formAction} className="inline-flex flex-wrap items-center justify-end gap-1">
+    <form action={formAction} {...envio} className="inline-flex flex-wrap items-center justify-end gap-1">
       <input type="hidden" name="id" value={id} />
       <Input name="fim" type="date" defaultValue={hoje} aria-label="Último dia da isenção" className="h-7 w-36" />
       <Button type="submit" size="sm" className="h-7 px-2" disabled={pendente}>

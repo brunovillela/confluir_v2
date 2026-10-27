@@ -13,6 +13,7 @@ import { TIPOS_AGENDA_AVULSA, TITULO_MAX_AGENDA } from "@/lib/agenda-constantes"
 
 import { excluirCompromissoAction, salvarCompromissoAction } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -49,6 +50,7 @@ export function CompromissoForm({
   departamentos: Opcao[]
 }) {
   const [estado, acao, pendente] = useActionState(salvarCompromissoAction, {})
+  const envio = useEnvioFormulario(acao, estado)
   const [diaTodo, setDiaTodo] = useState(compromisso?.diaTodo ?? false)
   const voltar = compromisso
     ? `/painel/ferramentas/agenda/${compromisso.id}`
@@ -59,7 +61,7 @@ export function CompromissoForm({
     : ""
 
   return (
-    <form action={acao} className="grid gap-4">
+    <form action={acao} {...envio} className="grid gap-4">
       {compromisso && <input type="hidden" name="id" value={compromisso.id} />}
       {estado.erro && (
         <Alert variant="destructive">

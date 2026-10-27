@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { CatForm } from "./cat-forms"
 import { ClassificacaoCatAviso } from "./classificacao-cat"
 import { verificarNumeroCatAction } from "./verificar-numero-actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /**
  * Digitação de CAT em duas etapas: primeiro o número, comparado com a base —
@@ -25,6 +26,7 @@ export function DigitarCat() {
 
 function Etapas({ recomecar }: { recomecar: () => void }) {
   const [estado, verificar, pendente] = useActionState(verificarNumeroCatAction, {})
+  const envio = useEnvioFormulario(verificar, estado)
   const [semNumero, setSemNumero] = useState(false)
   const c = estado.classificacao
 
@@ -84,7 +86,7 @@ function Etapas({ recomecar }: { recomecar: () => void }) {
   return (
     <Card>
       <CardContent className="grid gap-3">
-        <form action={verificar} className="grid gap-3">
+        <form action={verificar} {...envio} className="grid gap-3">
           <div className="grid gap-1.5">
             <Label htmlFor="numero-cat">Número da CAT (campo 5)</Label>
             <div className="flex flex-wrap gap-2">

@@ -14,6 +14,7 @@ import {
   criarEmailAction,
   excluirEmailAction,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -46,9 +47,10 @@ export function AdicionarEmail({
   responsaveis: Responsavel[]
 }) {
   const [estado, formAction, pendente] = useActionState(criarEmailAction, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio1} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -97,9 +99,10 @@ export function EditarEmail({
     atualizarEmailAction,
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado)
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio2} className="grid gap-4">
       <input type="hidden" name="id" value={email.id} />
       {estado.erro && (
         <Alert variant="destructive">
@@ -142,9 +145,10 @@ export function EditarEmail({
 
 export function BotaoExcluirEmail({ id }: { id: string }) {
   const [estado, formAction, pendente] = useActionState(excluirEmailAction, {})
+  const envio3 = useEnvioFormulario(formAction, estado)
 
   return (
-    <form action={formAction}>
+    <form action={formAction} {...envio3}>
       <input type="hidden" name="id" value={id} />
       {estado.erro && (
         <p className="text-destructive mb-1 text-xs">{estado.erro}</p>

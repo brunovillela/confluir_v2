@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { enviarDocumentoAction, removerDocumentoAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export type DocumentoNaTela = {
   tipo: "ficha" | "carta"
@@ -40,10 +41,12 @@ export function DocumentoDoVinculo({
     enviarDocumentoAction,
     {}
   )
+  const envio1 = useEnvioFormulario(enviarAction, envio)
   const [remocao, removerAction, removendo] = useActionState(
     removerDocumentoAction,
     {}
   )
+  const envio2 = useEnvioFormulario(removerAction, remocao)
   const estado = envio.erro || envio.ok ? envio : remocao
 
   return (
@@ -84,7 +87,7 @@ export function DocumentoDoVinculo({
                 Abrir documento
               </a>
             </Button>
-            <form action={removerAction}>
+            <form action={removerAction} {...envio2}>
               <input type="hidden" name="filiadoId" value={filiadoId} />
               <input type="hidden" name="vinculoId" value={vinculoId} />
               <input type="hidden" name="tipo" value={doc.tipo} />
@@ -106,7 +109,7 @@ export function DocumentoDoVinculo({
         </p>
       )}
 
-      <form action={enviarAction} className="grid gap-2 border-t pt-3">
+      <form action={enviarAction} {...envio1} className="grid gap-2 border-t pt-3">
         <input type="hidden" name="filiadoId" value={filiadoId} />
         <input type="hidden" name="vinculoId" value={vinculoId} />
         <input type="hidden" name="tipo" value={doc.tipo} />

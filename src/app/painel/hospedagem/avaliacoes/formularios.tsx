@@ -8,14 +8,16 @@ import { Textarea } from "@/components/ui/textarea"
 
 import { ocultarAction, tratarAction } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /** Providência de uma nota baixa — fica registrada com o nome de quem tratou. */
 export function ProvidenciaForm({ id }: { id: string }) {
   const [estado, formAction, pendente] = useActionState(tratarAction, {})
+  const envio = useEnvioFormulario(formAction, estado)
   if (estado.ok) return <span className="text-success-fg text-xs">{estado.ok}</span>
 
   return (
-    <form action={formAction} className="grid gap-2">
+    <form action={formAction} {...envio} className="grid gap-2">
       <input type="hidden" name="id" value={id} />
       <Textarea
         name="providencia"

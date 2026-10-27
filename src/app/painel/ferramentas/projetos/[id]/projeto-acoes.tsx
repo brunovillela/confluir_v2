@@ -6,6 +6,7 @@ import { CheckCircle2, Loader2, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 import { alternarFinalizadoAction } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /** Botão do editor: finalizar / reabrir o projeto. */
 export function ProjetoAcoes({
@@ -16,10 +17,11 @@ export function ProjetoAcoes({
   finalizado: boolean
 }) {
   const [estado, acao, pendente] = useActionState(alternarFinalizadoAction, {})
+  const envio = useEnvioFormulario(acao, estado)
 
   return (
     <div className="grid gap-2">
-      <form action={acao}>
+      <form action={acao} {...envio}>
         <input type="hidden" name="projeto_id" value={projetoId} />
         <input type="hidden" name="finalizado" value={finalizado ? "0" : "1"} />
         <Button type="submit" variant="outline" size="sm" disabled={pendente}>

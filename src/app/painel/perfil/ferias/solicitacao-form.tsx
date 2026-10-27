@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { cancelarFeriasAction, solicitarFeriasAction } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { ErroNoCampo } from "@/components/ui/erro-no-campo"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -24,9 +25,10 @@ export function SolicitarFeriasForm({
     solicitarFeriasAction,
     {}
   )
+  const envio = useEnvioFormulario(formAction, estado)
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio} className="grid gap-4">
       <ErroNoCampo estado={estado} />
       {estado.erro && (
         <Alert variant="destructive">

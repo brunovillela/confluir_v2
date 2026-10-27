@@ -19,6 +19,7 @@ import {
   criarRegistroAction,
   excluirRegistroAction,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -36,9 +37,10 @@ export function RegistroForm({
     registro ? atualizarRegistroAction : criarRegistroAction,
     {}
   )
+  const envio1 = useEnvioFormulario(formAction, estado)
 
   return (
-    <form action={formAction} className="grid gap-5">
+    <form action={formAction} {...envio1} className="grid gap-5">
       {registro && (
         <input type="hidden" name="registro_id" value={registro.id} />
       )}
@@ -171,8 +173,9 @@ export function BotaoExcluirRegistro({ registroId }: { registroId: string }) {
     excluirRegistroAction,
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction}>
+    <form action={formAction} {...envio2}>
       <input type="hidden" name="registro_id" value={registroId} />
       {estado.erro && (
         <Alert variant="destructive" className="mb-2">

@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { GATILHOS, rotuloGatilho, type Gatilho } from "@/lib/espacos-constantes"
 
 import { criarRegraAction, excluirRegraAction } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -36,6 +37,7 @@ export function Exigencias({
   podeGerir: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(criarRegraAction, {})
+  const envio = useEnvioFormulario(formAction, estado)
   const [gatilho, setGatilho] = useState<Gatilho>("publico")
 
   const faixas = regras.filter((r) => r.gatilho === "publico")
@@ -101,7 +103,7 @@ export function Exigencias({
         )}
 
         {podeGerir && (
-          <form action={formAction} className="grid gap-3 rounded-md border p-3">
+          <form action={formAction} {...envio} className="grid gap-3 rounded-md border p-3">
             <input type="hidden" name="espaco_id" value={espacoId} />
             {estado.erro && (
               <Alert variant="destructive">

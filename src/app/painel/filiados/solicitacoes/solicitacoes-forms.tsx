@@ -9,14 +9,16 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 
 import { avaliarSolicitacaoAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function AvaliarFichaForm({ id }: { id: string }) {
   const [estado, formAction, pendente] = useActionState(
     avaliarSolicitacaoAction,
     {}
   )
+  const envio = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-3">
+    <form action={formAction} {...envio} className="grid gap-3">
       <input type="hidden" name="id" value={id} />
       {estado.erro && (
         <Alert variant="destructive">

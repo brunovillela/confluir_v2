@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import type { ConvidadoLinha } from "@/lib/db/custeio"
 
 import { salvarConvidadoAction } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function ConvidadoForm({
   convidado,
@@ -23,9 +24,10 @@ export function ConvidadoForm({
     salvarConvidadoAction,
     {}
   )
+  const envio = useEnvioFormulario(formAction, estado)
 
   return (
-    <form action={formAction} className="grid gap-5">
+    <form action={formAction} {...envio} className="grid gap-5">
       {convidado && (
         <input type="hidden" name="convidado_id" value={convidado.id} />
       )}

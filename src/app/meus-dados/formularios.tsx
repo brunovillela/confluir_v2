@@ -17,12 +17,14 @@ import {
   excluirAction,
   pedirCodigoAction,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function PedirCodigo() {
   const [estado, formAction, pendente] = useActionState(pedirCodigoAction, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio1} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -53,9 +55,10 @@ export function PedirCodigo() {
 
 export function ConfirmarAcesso({ token }: { token: string }) {
   const [estado, formAction, pendente] = useActionState(confirmarAcessoAction, {})
+  const envio2 = useEnvioFormulario(formAction, estado)
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio2} className="grid gap-4">
       <input type="hidden" name="token" value={token} />
       {estado.erro && (
         <Alert variant="destructive">
@@ -90,9 +93,10 @@ export function Corrigir({
   telefone: string | null
 }) {
   const [estado, formAction, pendente] = useActionState(corrigirAction, {})
+  const envio3 = useEnvioFormulario(formAction, estado)
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio3} className="grid gap-4">
       <input type="hidden" name="token" value={token} />
       {estado.erro && (
         <Alert variant="destructive">
@@ -134,6 +138,7 @@ export function Excluir({
   temBiometria: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(excluirAction, {})
+  const envio4 = useEnvioFormulario(formAction, estado)
   const [confirmacao, setConfirmacao] = useState("")
 
   return (
@@ -141,7 +146,7 @@ export function Excluir({
       titulo="Excluir meus dados"
       descricao="Apaga sua identificação de todas as inscrições. Não tem volta."
     >
-      <form action={formAction} className="grid gap-4 pt-2">
+      <form action={formAction} {...envio4} className="grid gap-4 pt-2">
         <input type="hidden" name="token" value={token} />
         {estado.erro && (
           <Alert variant="destructive">

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { atualizarAbastecimentoAction, excluirAbastecimentoAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -44,14 +45,16 @@ export function EdicaoAbastecimentoForm({
   pendentes: { placa: number; condutor: number }
 }) {
   const [estado, acao, salvando] = useActionState(atualizarAbastecimentoAction, {})
+  const envio1 = useEnvioFormulario(acao, estado)
   const [estadoExcluir, acaoExcluir, excluindo] = useActionState(excluirAbastecimentoAction, {})
+  const envio2 = useEnvioFormulario(acaoExcluir, estadoExcluir)
   const [veiculoId, setVeiculoId] = useState(atual.veiculoId)
   const [condutorId, setCondutorId] = useState(atual.condutorId)
   const [confirmarExclusao, setConfirmarExclusao] = useState(false)
 
   return (
     <div className="grid gap-6">
-      <form action={acao} className="grid max-w-3xl gap-4">
+      <form action={acao} {...envio1} className="grid max-w-3xl gap-4">
         <input type="hidden" name="id" value={id} />
         {estado.erro && (
           <Alert variant="destructive">
@@ -175,7 +178,7 @@ export function EdicaoAbastecimentoForm({
             Excluir lançamento
           </Button>
         ) : (
-          <form action={acaoExcluir} className="border-destructive/40 grid max-w-xl gap-3 rounded-md border p-3">
+          <form action={acaoExcluir} {...envio2} className="border-destructive/40 grid max-w-xl gap-3 rounded-md border p-3">
             <input type="hidden" name="id" value={id} />
             <p className="text-sm">
               Excluir este abastecimento? Ele sai do consumo e dos gastos do veículo e não pode

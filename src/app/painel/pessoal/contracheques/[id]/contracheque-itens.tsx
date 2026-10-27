@@ -17,6 +17,7 @@ import {
   gerarOrdemContrachequeAction,
 } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -35,12 +36,13 @@ export function NovoContrachequeForm({
   gerarOrdem: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(criarContracheque, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
   const [funcionarioId, setFuncionarioId] = useState("")
   const escolhido = funcionarios.find((f) => f.usuarioId === funcionarioId)
 
   return (
     <form
-      action={formAction}
+      action={formAction} {...envio1}
       className={`grid items-end gap-3 ${pedirValor ? "sm:grid-cols-[1fr_1fr_9rem_auto_auto]" : "sm:grid-cols-[1fr_1fr_auto_auto]"}`}
     >
       {estado.erro && (
@@ -135,6 +137,7 @@ export function AcoesContracheque({
     alternarLiberadoContracheque,
     {}
   )
+  const envio2 = useEnvioFormulario(libAction, estadoLib)
   const [estadoExc, excAction, excPendente] = useActionState(
     excluirContracheque,
     {}
@@ -143,6 +146,7 @@ export function AcoesContracheque({
     gerarOrdemContrachequeAction,
     {}
   )
+  const envio3 = useEnvioFormulario(ordemAction, estadoOrdem)
   const [gerando, setGerando] = useState(false)
   const erro = estadoLib.erro ?? estadoExc.erro ?? estadoOrdem.erro
 
@@ -161,7 +165,7 @@ export function AcoesContracheque({
             Gerar ordem
           </Button>
         )}
-        <form action={libAction}>
+        <form action={libAction} {...envio2}>
           <input type="hidden" name="id" value={id} />
           <input type="hidden" name="remessa_id" value={remessaId} />
           <input type="hidden" name="liberado" value={String(!liberado)} />
@@ -196,7 +200,7 @@ export function AcoesContracheque({
         </form>
       </div>
       {gerando && (
-        <form action={ordemAction} className="flex items-center gap-1">
+        <form action={ordemAction} {...envio3} className="flex items-center gap-1">
           <input type="hidden" name="id" value={id} />
           <input type="hidden" name="remessa_id" value={remessaId} />
           <Input

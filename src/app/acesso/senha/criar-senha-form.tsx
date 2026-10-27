@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { criarSenhaPeloLink } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function CriarSenhaForm({
   tokenHash,
@@ -21,6 +22,7 @@ export function CriarSenhaForm({
   destino: string | null
 }) {
   const [estado, acao, pendente] = useActionState(criarSenhaPeloLink, {})
+  const envio = useEnvioFormulario(acao, estado)
   return (
     <Card>
       <CardHeader>
@@ -30,7 +32,7 @@ export function CriarSenhaForm({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={acao} className="grid gap-4">
+        <form action={acao} {...envio} className="grid gap-4">
           <input type="hidden" name="token_hash" value={tokenHash} />
           <input type="hidden" name="type" value={tipo} />
           {destino && <input type="hidden" name="destino" value={destino} />}

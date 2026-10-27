@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 
 import { editarMovimentacaoAction } from "../../../agendamentos/actions"
 import { SELECT, type OpcaoCondutor } from "../../../agendamentos/agendamento-forms"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export type ValoresMovimentacao = {
   condutor_id: string | null
@@ -44,12 +45,13 @@ export function MovimentacaoEditarForm({
     editarMovimentacaoAction,
     {}
   )
+  const envio = useEnvioFormulario(formAction, estado)
   const data = "[color-scheme:light] dark:[color-scheme:dark]"
   const condutorConhecido =
     !valores.condutor_id || condutores.some((c) => c.id === valores.condutor_id)
 
   return (
-    <form action={formAction} className="grid gap-6">
+    <form action={formAction} {...envio} className="grid gap-6">
       <input type="hidden" name="movimentacao_id" value={movimentacaoId} />
       <input type="hidden" name="veiculo_id" value={veiculoId} />
       <input type="hidden" name="voltar" value={`/painel/veiculos/${veiculoId}/historico`} />

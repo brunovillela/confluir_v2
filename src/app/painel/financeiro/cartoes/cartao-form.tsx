@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label"
 import { TIPOS_CARTAO, USOS_CARTAO } from "@/lib/compras-constantes"
 
 import { criarCartaoAction, definirUsoCartaoAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -54,11 +55,12 @@ export function CartaoForm({
   onSalvo?: () => void
 }) {
   const [estado, acao, pendente] = useActionState(criarCartaoAction, {})
+  const envio1 = useEnvioFormulario(acao, estado)
   useEffect(() => {
     if (estado.ok) onSalvo?.()
   }, [estado, onSalvo])
   return (
-    <form action={acao} className="grid gap-4">
+    <form action={acao} {...envio1} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -178,8 +180,9 @@ export function UsoCartaoForm({
   pessoas: { id: string; nome: string }[]
 }) {
   const [estado, acao, pendente] = useActionState(definirUsoCartaoAction, {})
+  const envio2 = useEnvioFormulario(acao, estado)
   return (
-    <form action={acao} className="grid gap-3">
+    <form action={acao} {...envio2} className="grid gap-3">
       <input type="hidden" name="cartao_id" value={cartaoId} />
       {estado.erro && (
         <Alert variant="destructive">

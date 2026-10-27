@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 
 import { removerPagamento, salvarPagamento } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -41,6 +42,7 @@ export function PagamentoForm({
   podeEditar?: boolean
 }) {
   const [estado, salvarAction, salvando] = useActionState(salvarPagamento, {})
+  const envio = useEnvioFormulario(salvarAction, estado)
   const [estadoRemover, removerAction, removendo] = useActionState(
     removerPagamento,
     {}
@@ -58,7 +60,7 @@ export function PagamentoForm({
         </Alert>
       )}
 
-      <form action={salvarAction} className="grid gap-4 sm:grid-cols-2">
+      <form action={salvarAction} {...envio} className="grid gap-4 sm:grid-cols-2">
         <input type="hidden" name="id" value={ordemId} />
         <div className="grid gap-1.5">
           <Label htmlFor="valor_pago">Valor do pagamento (R$) *</Label>

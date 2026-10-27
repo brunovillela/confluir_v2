@@ -17,6 +17,7 @@ import {
   removerLiberacaoAction,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 type OpcaoIntegrante = { id: string; nome: string; cargo: string | null }
 
@@ -185,8 +186,9 @@ export function InstanciaForm({
     edicao ? atualizarInstanciaAction : criarInstanciaAction,
     {}
   )
+  const envio = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid max-w-xl gap-3">
+    <form action={formAction} {...envio} className="grid max-w-xl gap-3">
       {dados?.id && <input type="hidden" name="instancia_id" value={dados.id} />}
       <div className="grid gap-1.5">
         <Label htmlFor="inst-nome">Nome da instância *</Label>

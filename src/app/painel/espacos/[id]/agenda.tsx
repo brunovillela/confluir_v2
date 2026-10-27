@@ -27,6 +27,7 @@ import {
   excluirBloqueioAction,
   excluirJanelaAction,
 } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -51,6 +52,7 @@ export function Janelas({
   podeGerir: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(criarJanelasAction, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
   const [modo, setModo] = useState<ModoJanela>("livre")
 
   const porDia = DIAS_SEMANA.map((d) => ({
@@ -122,7 +124,7 @@ export function Janelas({
         )}
 
         {podeGerir && (
-          <form action={formAction} className="grid gap-3 rounded-md border p-3">
+          <form action={formAction} {...envio1} className="grid gap-3 rounded-md border p-3">
             <input type="hidden" name="espaco_id" value={espacoId} />
             {estado.erro && (
               <Alert variant="destructive">
@@ -228,6 +230,7 @@ export function Bloqueios({
   podeGerir: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(criarBloqueioAction, {})
+  const envio2 = useEnvioFormulario(formAction, estado)
   const emAberto = bloqueios.filter((b) => !b.encerrado_em)
   const encerrados = bloqueios.filter((b) => b.encerrado_em)
 
@@ -303,7 +306,7 @@ export function Bloqueios({
         )}
 
         {podeGerir && (
-          <form action={formAction} className="grid gap-3 rounded-md border p-3">
+          <form action={formAction} {...envio2} className="grid gap-3 rounded-md border p-3">
             <input type="hidden" name="espaco_id" value={espacoId} />
             {estado.erro && (
               <Alert variant="destructive">

@@ -27,6 +27,7 @@ import {
   recusarAction,
   registrarVisitaAction,
 } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -51,8 +52,9 @@ function Aviso({ estado }: { estado: { erro?: string; ok?: string } }) {
 
 export function Assumir({ id }: { id: string }) {
   const [estado, acao, pendente] = useActionState(assumirAction, {})
+  const envio1 = useEnvioFormulario(acao, estado)
   return (
-    <form action={acao} className="grid gap-2">
+    <form action={acao} {...envio1} className="grid gap-2">
       <input type="hidden" name="id" value={id} />
       <Aviso estado={estado} />
       <p className="text-muted-foreground text-sm">
@@ -91,7 +93,9 @@ export function Visita({
   podeGerir: boolean
 }) {
   const [agenda, agendar, agendando] = useActionState(agendarVisitaAction, {})
+  const envio2 = useEnvioFormulario(agendar, agenda)
   const [registro, registrar, registrando] = useActionState(registrarVisitaAction, {})
+  const envio3 = useEnvioFormulario(registrar, registro)
 
   if (visita.dispensada && !visita.agendadaEm) {
     return (
@@ -144,7 +148,7 @@ export function Visita({
               {visita.responsavelNome ? ` · ${visita.responsavelNome}` : ""}
             </p>
             {podeGerir && (
-              <form action={registrar} className="grid gap-2">
+              <form action={registrar} {...envio3} className="grid gap-2">
                 <input type="hidden" name="id" value={id} />
                 <Aviso estado={registro} />
                 <div className="grid gap-1.5">
@@ -182,7 +186,7 @@ export function Visita({
           </>
         ) : (
           podeGerir && (
-            <form action={agendar} className="grid gap-3">
+            <form action={agendar} {...envio2} className="grid gap-3">
               <input type="hidden" name="id" value={id} />
               <Aviso estado={agenda} />
               <div className="grid gap-3 sm:grid-cols-2">
@@ -254,6 +258,7 @@ export function Autorizacao({
   podeAutorizar: boolean
 }) {
   const [estado, acao, pendente] = useActionState(autorizarAction, {})
+  const envio4 = useEnvioFormulario(acao, estado)
   const decidida = autorizacao.situacao !== "pendente"
 
   return (
@@ -290,7 +295,7 @@ export function Autorizacao({
             Aguardando a avaliação de quem tem a permissão de autorizar.
           </p>
         ) : (
-          <form action={acao} className="grid gap-2">
+          <form action={acao} {...envio4} className="grid gap-2">
             <input type="hidden" name="id" value={id} />
             <Aviso estado={estado} />
             <div className="grid gap-1.5">
@@ -340,6 +345,7 @@ export function Custeio({
   podeGerir: boolean
 }) {
   const [estado, acao, pendente] = useActionState(custeioAction, {})
+  const envio5 = useEnvioFormulario(acao, estado)
   const linhas =
     custeio.itens.length > 0
       ? custeio.itens
@@ -365,7 +371,7 @@ export function Custeio({
               : `Total ${formatarMoeda(custeio.valor)}`}
           </p>
         ) : (
-          <form action={acao} className="grid gap-3">
+          <form action={acao} {...envio5} className="grid gap-3">
             <input type="hidden" name="id" value={id} />
             <Aviso estado={estado} />
             <div className="grid gap-2">
@@ -466,7 +472,9 @@ export function Fechamento({
 }) {
   const [conf, confirmar, confirmando] = useActionState(confirmarAction, {})
   const [rec, recusar, recusando] = useActionState(recusarAction, {})
+  const envio6 = useEnvioFormulario(recusar, rec)
   const [can, cancelar, cancelando] = useActionState(cancelarAction, {})
+  const envio7 = useEnvioFormulario(cancelar, can)
   if (!podeGerir || encerrado) return null
 
   return (
@@ -495,7 +503,7 @@ export function Fechamento({
         )}
 
         <div className="grid gap-2 border-t pt-3 sm:grid-cols-2">
-          <form action={recusar} className="grid gap-1.5">
+          <form action={recusar} {...envio6} className="grid gap-1.5">
             <input type="hidden" name="id" value={id} />
             <Label htmlFor="motivo_rec">Recusar — motivo</Label>
             <Input id="motivo_rec" name="motivo" placeholder="Vai para o solicitante" />
@@ -503,7 +511,7 @@ export function Fechamento({
               Recusar pedido
             </Button>
           </form>
-          <form action={cancelar} className="grid gap-1.5">
+          <form action={cancelar} {...envio7} className="grid gap-1.5">
             <input type="hidden" name="id" value={id} />
             <Label htmlFor="motivo_can">Cancelar — motivo</Label>
             <Input id="motivo_can" name="motivo" placeholder="Opcional" />
@@ -616,6 +624,7 @@ export function Assinatura({
   podeGerir: boolean
 }) {
   const [estado, enviar, enviando] = useActionState(enviarAssinaturaAction, {})
+  const envio8 = useEnvioFormulario(enviar, estado)
   const pendentes = assinaturas.filter((a) => a.situacao === "pendente")
   const recusada = assinaturas.find((a) => a.situacao === "recusado")
 
@@ -677,7 +686,7 @@ export function Assinatura({
         )}
 
         {podeGerir && !assinadoEm && (
-          <form action={enviar} className="grid gap-3 rounded-md border p-3">
+          <form action={enviar} {...envio8} className="grid gap-3 rounded-md border p-3">
             <input type="hidden" name="id" value={id} />
             <p className="text-muted-foreground text-sm">
               O <strong>cedente</strong> assina primeiro; só então o link vai

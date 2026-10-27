@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { type EstadoForm } from "@/lib/contas"
 import { COMBUSTIVEIS_VEICULO } from "@/lib/veiculos-constantes"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -41,9 +42,10 @@ export function VeiculoForm({
   sedes: string[]
 }) {
   const [estado, formAction, pendente] = useActionState(action, {})
+  const envio = useEnvioFormulario(formAction, estado)
 
   return (
-    <form action={formAction} className="grid max-w-2xl gap-4">
+    <form action={formAction} {...envio} className="grid max-w-2xl gap-4">
       {dados?.id && <input type="hidden" name="veiculo_id" value={dados.id} />}
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5">

@@ -14,6 +14,7 @@ import {
 } from "@/lib/eventos-constantes"
 
 import { salvarConfigAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function ConfiguracaoForm({
   config,
@@ -23,6 +24,7 @@ export function ConfiguracaoForm({
   fotosGuardadas: number
 }) {
   const [estado, formAction, pendente] = useActionState(salvarConfigAction, {})
+  const envio = useEnvioFormulario(formAction, estado)
   const [modo, setModo] = useState<ModoFoto>(config.modo_foto)
 
   const escolhido = MODOS_FOTO.find((m) => m.valor === modo)
@@ -32,7 +34,7 @@ export function ConfiguracaoForm({
     config.modo_foto === "biometrica" && modo !== "biometrica"
 
   return (
-    <form action={formAction} className="grid gap-6">
+    <form action={formAction} {...envio} className="grid gap-6">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

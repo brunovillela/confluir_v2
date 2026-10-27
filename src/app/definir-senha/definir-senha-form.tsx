@@ -16,9 +16,11 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { redefinirSenha } from "@/lib/actions/sessao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function DefinirSenhaForm({ destino }: { destino: string }) {
   const [estado, formAction, pendente] = useActionState(redefinirSenha, {})
+  const envio = useEnvioFormulario(formAction, estado)
 
   if (estado.ok) {
     return (
@@ -47,7 +49,7 @@ export function DefinirSenhaForm({ destino }: { destino: string }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="grid gap-4">
+        <form action={formAction} {...envio} className="grid gap-4">
           {estado.erro && (
             <Alert variant="destructive">
               <AlertDescription>{estado.erro}</AlertDescription>

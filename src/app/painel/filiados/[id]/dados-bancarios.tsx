@@ -15,6 +15,7 @@ import { lerDocumentoTitular } from "@/lib/cpf"
 import type { DadoBancarioFiliado } from "@/lib/db/filiacao-dados-bancarios"
 
 import { excluirDadoBancarioFiliadoAction, salvarDadoBancarioFiliadoAction } from "./dados-bancarios-actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /**
  * Contas e chaves Pix do filiado, uma por linha, com lápis e lixeira — o
@@ -35,6 +36,7 @@ export function DadosBancariosFiliado({
   const [editando, setEditando] = useState<string | null>(null)
   const [novo, setNovo] = useState(false)
   const [estadoExclusao, acaoExcluir, excluindo] = useActionState(excluirDadoBancarioFiliadoAction, {})
+  const envio = useEnvioFormulario(acaoExcluir, estadoExclusao)
   const titularSugerido = lerDocumentoTitular(cpfFiliado).documento
 
   return (
@@ -99,7 +101,7 @@ export function DadosBancariosFiliado({
                 >
                   <Pencil />
                 </Button>
-                <form action={acaoExcluir}>
+                <form action={acaoExcluir} {...envio}>
                   <input type="hidden" name="filiado_id" value={filiadoId} />
                   <input type="hidden" name="dado_id" value={d.id} />
                   <Button

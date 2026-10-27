@@ -24,6 +24,7 @@ import {
   solicitarTokenEleitor,
   solicitarTokenEmail,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 type Modo = "cpf" | "email"
 
@@ -41,6 +42,7 @@ export function VotarForm({ assembleiaId }: { assembleiaId: string }) {
     },
     {}
   )
+  const envio1 = useEnvioFormulario(actCpf, estCpf)
   const [, actCpfConf, pendCpfConf] = useActionState(confirmarTokenEleitor, {})
 
   const [estEmail, actEmail, pendEmail] = useActionState(
@@ -50,6 +52,7 @@ export function VotarForm({ assembleiaId }: { assembleiaId: string }) {
     },
     {}
   )
+  const envio2 = useEnvioFormulario(actEmail, estEmail)
   const [, actEmailConf, pendEmailConf] = useActionState(
     confirmarTokenEmail,
     {}
@@ -112,7 +115,7 @@ export function VotarForm({ assembleiaId }: { assembleiaId: string }) {
 
         {/* Passo 1 — pedir o código */}
         {!aguardandoCodigo && !linkEnviado && modo === "cpf" && (
-          <form action={actCpf} className="grid gap-4">
+          <form action={actCpf} {...envio1} className="grid gap-4">
             <input type="hidden" name="assembleia_id" value={assembleiaId} />
             {estCpf.erro && (
               <Alert variant="destructive">
@@ -132,7 +135,7 @@ export function VotarForm({ assembleiaId }: { assembleiaId: string }) {
         )}
 
         {!aguardandoCodigo && !linkEnviado && modo === "email" && (
-          <form action={actEmail} className="grid gap-4">
+          <form action={actEmail} {...envio2} className="grid gap-4">
             <input type="hidden" name="assembleia_id" value={assembleiaId} />
             {estEmail.erro && (
               <Alert variant="destructive">

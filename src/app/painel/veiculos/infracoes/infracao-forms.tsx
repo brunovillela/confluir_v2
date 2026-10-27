@@ -21,6 +21,7 @@ import {
   salvarEmailsCopiaAction,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -38,8 +39,9 @@ export function NovaInfracaoForm({
   emailsCopia: string[] | null
 }) {
   const [estado, formAction, pendente] = useActionState(criarInfracaoAction, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid max-w-2xl gap-4">
+    <form action={formAction} {...envio1} className="grid max-w-2xl gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="veiculo_id">Veículo *</Label>
@@ -190,8 +192,9 @@ export function NovaInfracaoForm({
 /** Lista padrão de endereços que recebem cópia de todo aviso de infração. */
 export function CopiaAvisoForm({ emails }: { emails: string[] }) {
   const [estado, formAction, pendente] = useActionState(salvarEmailsCopiaAction, {})
+  const envio2 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid max-w-2xl gap-3">
+    <form action={formAction} {...envio2} className="grid max-w-2xl gap-3">
       <div className="grid gap-1.5">
         <Label htmlFor="config_emails_copia">E-mails que recebem cópia</Label>
         <Textarea
@@ -224,8 +227,9 @@ export function JustificativaForm({ infracaoId }: { infracaoId: string }) {
     justificarInfracaoAction,
     {}
   )
+  const envio3 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid max-w-2xl gap-3">
+    <form action={formAction} {...envio3} className="grid max-w-2xl gap-3">
       <input type="hidden" name="infracao_id" value={infracaoId} />
       <div className="grid gap-1.5">
         <Label htmlFor="descricao">Justificativa</Label>
@@ -260,10 +264,11 @@ export function AvaliacaoInfracaoForm({
     avaliarInfracaoAction,
     {}
   )
+  const envio4 = useEnvioFormulario(formAction, estado)
   const [decisao, setDecisao] = useState<"sindical" | "cobrar">("sindical")
 
   return (
-    <form action={formAction} className="grid max-w-2xl gap-3">
+    <form action={formAction} {...envio4} className="grid max-w-2xl gap-3">
       <input type="hidden" name="infracao_id" value={infracaoId} />
       <input type="hidden" name="decisao" value={decisao} />
       <div className="flex flex-wrap gap-4 text-sm">

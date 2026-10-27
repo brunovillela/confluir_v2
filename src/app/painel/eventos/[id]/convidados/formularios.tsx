@@ -14,15 +14,17 @@ import {
   importarPlanilhaAction,
   lancarConvidadoAction,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function ImportarPlanilha({ eventoId }: { eventoId: string }) {
   const [estado, formAction, pendente] = useActionState(
     importarPlanilhaAction,
     {}
   )
+  const envio1 = useEnvioFormulario(formAction, estado)
 
   return (
-    <form action={formAction} className="grid gap-4 pt-2">
+    <form action={formAction} {...envio1} className="grid gap-4 pt-2">
       <input type="hidden" name="eventoId" value={eventoId} />
 
       {estado.erro && (
@@ -106,11 +108,12 @@ export function LancarConvidado({ eventoId }: { eventoId: string }) {
     lancarConvidadoAction,
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado)
   const [cpf, setCpf] = useState("")
   const [telefone, setTelefone] = useState("")
 
   return (
-    <form action={formAction} className="grid gap-4 pt-2">
+    <form action={formAction} {...envio2} className="grid gap-4 pt-2">
       <input type="hidden" name="eventoId" value={eventoId} />
 
       {estado.erro && (
@@ -188,9 +191,10 @@ export function RemoverConvidado({
     excluirConvidadoAction,
     {}
   )
+  const envio3 = useEnvioFormulario(formAction, estado)
 
   return (
-    <form action={formAction} className="flex items-center gap-2">
+    <form action={formAction} {...envio3} className="flex items-center gap-2">
       <input type="hidden" name="eventoId" value={eventoId} />
       <input type="hidden" name="inscricaoId" value={inscricaoId} />
       <Button

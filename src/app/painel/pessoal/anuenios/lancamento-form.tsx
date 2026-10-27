@@ -17,6 +17,7 @@ import {
   excluirLancamentoAnuenio,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -44,6 +45,7 @@ export function AnuenioLancamentoForm({
     lancamento ? atualizarLancamentoAnuenio : criarLancamentoAnuenio,
     {}
   )
+  const envio = useEnvioFormulario(formAction, estado)
   const [estadoExcluir, excluirAction, excluindo] = useActionState(
     excluirLancamentoAnuenio,
     {}
@@ -59,7 +61,7 @@ export function AnuenioLancamentoForm({
         </Alert>
       )}
 
-      <form action={formAction} className="grid gap-4">
+      <form action={formAction} {...envio} className="grid gap-4">
         {lancamento && <input type="hidden" name="id" value={lancamento.id} />}
         <Card>
           <CardHeader>

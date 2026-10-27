@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { type EstadoForm } from "@/lib/contas"
 
 import { enviarCompetenciaAction, receberCompetenciaAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 function Retorno({ estado }: { estado: EstadoForm }) {
   if (estado.erro) {
@@ -73,9 +74,10 @@ export function EnviarCompetenciaForm({
 
 export function ReceberCompetenciaBotao({ competencia }: { competencia: string }) {
   const [estado, formAction, pendente] = useActionState(receberCompetenciaAction, {})
+  const envio = useEnvioFormulario(formAction, estado)
   if (estado.ok) return <Retorno estado={estado} />
   return (
-    <form action={formAction} className="grid gap-2">
+    <form action={formAction} {...envio} className="grid gap-2">
       <input type="hidden" name="competencia" value={competencia} />
       <Retorno estado={estado} />
       <Button type="submit" disabled={pendente} className="justify-self-start">

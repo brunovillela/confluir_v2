@@ -14,6 +14,7 @@ import {
   sugerirPlanoComIA,
   vincularFuncionario,
 } from "../../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 type Atribuicao = {
   id: string
@@ -63,7 +64,9 @@ export function PlanoCargos({
   atividades: { id: string; nome: string | null }[]
 }) {
   const [estadoAdd, addAction, addPend] = useActionState(adicionarAtribuicao, {})
+  const envio1 = useEnvioFormulario(addAction, estadoAdd)
   const [estadoIA, iaAction, iaPend] = useActionState(sugerirPlanoComIA, {})
+  const envio2 = useEnvioFormulario(iaAction, estadoIA)
   const msgErro = estadoAdd.erro ?? estadoIA.erro
   const msgOk = estadoAdd.ok ?? estadoIA.ok
 
@@ -107,7 +110,7 @@ export function PlanoCargos({
         </ul>
       )}
 
-      <form action={addAction} className="grid gap-2">
+      <form action={addAction} {...envio1} className="grid gap-2">
         <input type="hidden" name="funcao_id" value={funcaoId} />
         <Textarea
           name="descricao"
@@ -135,7 +138,7 @@ export function PlanoCargos({
         </div>
       </form>
 
-      <form action={iaAction}>
+      <form action={iaAction} {...envio2}>
         <input type="hidden" name="funcao_id" value={funcaoId} />
         <input type="hidden" name="nome" value={funcaoNome} />
         <input type="hidden" name="descricao" value={funcaoDescricao ?? ""} />
@@ -158,6 +161,7 @@ export function FuncionariosFuncao({
   opcoes: OpcaoFuncionario[]
 }) {
   const [estadoAdd, addAction, addPend] = useActionState(vincularFuncionario, {})
+  const envio3 = useEnvioFormulario(addAction, estadoAdd)
   const jaVinculados = new Set(vinculados.map((v) => v.funcionarioId))
   const disponiveis = opcoes.filter((o) => !jaVinculados.has(o.usuarioId))
 
@@ -187,7 +191,7 @@ export function FuncionariosFuncao({
         </ul>
       )}
 
-      <form action={addAction} className="flex items-end gap-2">
+      <form action={addAction} {...envio3} className="flex items-end gap-2">
         <input type="hidden" name="funcao_id" value={funcaoId} />
         <select
           name="funcionario_id"

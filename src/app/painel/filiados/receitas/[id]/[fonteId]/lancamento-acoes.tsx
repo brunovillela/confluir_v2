@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 
 import { atualizarContribuicao, excluirContribuicao } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /** Editar/excluir um lançamento da relação (inline na linha da tabela). */
 export function LancamentoAcoes({
@@ -26,11 +27,12 @@ export function LancamentoAcoes({
     atualizarContribuicao,
     {}
   )
+  const envio = useEnvioFormulario(salvarAction, salvar)
   const [, excluirAction, excluindo] = useActionState(excluirContribuicao, {})
 
   if (editando) {
     return (
-      <form action={salvarAction} className="flex items-center justify-end gap-1.5">
+      <form action={salvarAction} {...envio} className="flex items-center justify-end gap-1.5">
         <input type="hidden" name="remessa_id" value={remessaId} />
         <input type="hidden" name="fonte_id" value={fonteId} />
         <input type="hidden" name="lancamento_id" value={lancamentoId} />

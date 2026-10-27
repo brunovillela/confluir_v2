@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils"
 
 import { enviarAvaliacaoAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /**
  * A Hospedagem no portal (Filiados › Área do associado), lida pela página:
@@ -59,6 +60,7 @@ export function AvaliarForm({
   hospedagem: HospedagemNoPortal
 }) {
   const [estado, acao, pendente] = useActionState(enviarAvaliacaoAction, {})
+  const envio = useEnvioFormulario(acao, estado)
   const [nota, setNota] = useState<number | null>(notaInicial)
   const [sobre, setSobre] = useState<number | null>(null)
   const [marcadas, setMarcadas] = useState<string[]>([])
@@ -87,7 +89,7 @@ export function AvaliarForm({
   }
 
   return (
-    <form action={acao} className="grid gap-5">
+    <form action={acao} {...envio} className="grid gap-5">
       <input type="hidden" name="token" value={token} />
       <input type="hidden" name="nota" value={nota ?? ""} />
 

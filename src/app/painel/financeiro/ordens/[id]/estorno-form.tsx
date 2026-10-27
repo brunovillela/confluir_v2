@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { registrarEstornoAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const TEXTAREA =
   "border-input bg-background text-foreground w-full rounded-md border px-3 py-2 text-sm shadow-xs outline-none"
@@ -33,6 +34,7 @@ export function EstornoForm({
 }) {
   const [aberto, setAberto] = useState(false)
   const [estado, acao, pendente] = useActionState(registrarEstornoAction, {})
+  const envio = useEnvioFormulario(acao, estado)
 
   if (!aberto) {
     return (
@@ -49,7 +51,7 @@ export function EstornoForm({
   }
 
   return (
-    <form action={acao} className="border-destructive/40 mt-1 grid gap-3 rounded-md border p-3">
+    <form action={acao} {...envio} className="border-destructive/40 mt-1 grid gap-3 rounded-md border p-3">
       <input type="hidden" name="id" value={ordemId} />
       <p className="text-sm font-medium">Comunicado de estorno</p>
       {estado.erro && (

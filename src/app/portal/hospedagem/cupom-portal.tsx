@@ -35,6 +35,7 @@ import {
   motivoDasFaltas,
   resumoDaCota,
 } from "./direito"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export type HotelDoPortal = {
   id: string
@@ -443,6 +444,7 @@ function EntrarNaEsperaForm({
   checkOut: string
 }) {
   const [estado, formAction, pendente] = useActionState(entrarNaEsperaPortal, {})
+  const envio = useEnvioFormulario(formAction, estado)
 
   if (estado.ok) {
     return (
@@ -453,7 +455,7 @@ function EntrarNaEsperaForm({
   }
 
   return (
-    <form action={formAction} className="grid gap-2 rounded-lg border p-3">
+    <form action={formAction} {...envio} className="grid gap-2 rounded-lg border p-3">
       <input type="hidden" name="hotel_id" value={hotelId} />
       <input type="hidden" name="check_in" value={checkIn} />
       <input type="hidden" name="check_out" value={checkOut} />

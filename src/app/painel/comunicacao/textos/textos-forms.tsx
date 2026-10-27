@@ -19,6 +19,7 @@ import {
   salvarTextoFinal,
   solicitarTexto,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -75,13 +76,14 @@ export function SolicitacaoForm({
   temPolitica: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(solicitarTexto, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
   const [canalId, setCanalId] = useState(canais[0]?.id ?? "")
   const [tamanho, setTamanho] = useState(String(canais[0]?.limite ?? 1500))
 
   const canal = canais.find((c) => c.id === canalId) ?? null
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio1} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -292,12 +294,13 @@ export function ResultadoTexto({
   alvo: number | null
 }) {
   const [estado, formAction, pendente] = useActionState(salvarTextoFinal, {})
+  const envio2 = useEnvioFormulario(formAction, estado)
   const [texto, setTexto] = useState(final ?? gerado)
 
   const distancia = alvo ? Math.round(((texto.length - alvo) / alvo) * 100) : null
 
   return (
-    <form action={formAction} className="grid gap-3">
+    <form action={formAction} {...envio2} className="grid gap-3">
       <input type="hidden" name="id" value={id} />
       {estado.erro && (
         <Alert variant="destructive">
@@ -341,8 +344,9 @@ export function ResultadoTexto({
 
 export function RegerarForm({ id }: { id: string }) {
   const [estado, formAction, pendente] = useActionState(regerarTexto, {})
+  const envio3 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-3">
+    <form action={formAction} {...envio3} className="grid gap-3">
       <input type="hidden" name="id" value={id} />
       {estado.erro && (
         <Alert variant="destructive">
@@ -387,6 +391,7 @@ export function PoliticaForm({
   }
 }) {
   const [estado, formAction, pendente] = useActionState(salvarPolitica, {})
+  const envio4 = useEnvioFormulario(formAction, estado)
   const router = useRouter()
   const politicaRef = useRef<HTMLTextAreaElement>(null)
   const [iaPendente, setIaPendente] = useState<null | "melhorar" | "aprender">(null)
@@ -417,7 +422,7 @@ export function PoliticaForm({
   }
 
   return (
-    <form action={formAction} className="grid gap-5">
+    <form action={formAction} {...envio4} className="grid gap-5">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

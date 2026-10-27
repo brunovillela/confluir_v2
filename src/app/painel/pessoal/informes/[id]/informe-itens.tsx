@@ -16,6 +16,7 @@ import {
   excluirInforme,
 } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -28,6 +29,7 @@ export function InformeForm({
   funcionarios: { usuarioId: string; nome: string }[]
 }) {
   const [estado, formAction, pendente] = useActionState(criarInforme, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
 
   return (
     <Card>
@@ -35,7 +37,7 @@ export function InformeForm({
         <CardTitle className="text-base">Adicionar informe</CardTitle>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="grid gap-4">
+        <form action={formAction} {...envio1} className="grid gap-4">
           {estado.erro && (
             <Alert variant="destructive">
               <AlertDescription>{estado.erro}</AlertDescription>
@@ -111,9 +113,10 @@ export function AlternarLiberadoBotao({
     alternarLiberadoInforme,
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado)
 
   return (
-    <form action={formAction} className="inline-flex items-center">
+    <form action={formAction} {...envio2} className="inline-flex items-center">
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="remessa_id" value={remessaId} />
       <input type="hidden" name="liberado" value={liberado ? "false" : "true"} />

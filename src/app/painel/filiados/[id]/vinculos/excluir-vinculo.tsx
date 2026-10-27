@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 
 import { excluirVinculo } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /**
  * Exclusão de um registro do histórico de filiação.
@@ -34,6 +35,7 @@ export function ExcluirVinculo({
   temCarta: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(excluirVinculo, {})
+  const envio = useEnvioFormulario(formAction, estado)
   const [confirmando, setConfirmando] = useState(false)
 
   const documentos = [
@@ -117,7 +119,7 @@ export function ExcluirVinculo({
           <X />
           Cancelar
         </Button>
-        <form action={formAction}>
+        <form action={formAction} {...envio}>
           <input type="hidden" name="filiado_id" value={filiadoId} />
           <input type="hidden" name="vinculo_id" value={vinculoId} />
           <Button type="submit" variant="destructive" disabled={pendente}>

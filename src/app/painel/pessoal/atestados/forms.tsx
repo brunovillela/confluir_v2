@@ -23,6 +23,7 @@ import {
   excluirAusenciaAction,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -95,6 +96,7 @@ export function AtestadoForm({
     atestado ? atualizarAtestadoAction : criarAtestadoAction,
     {}
   )
+  const envio1 = useEnvioFormulario(formAction, estado)
   const [acompanhamento, setAcompanhamento] = useState(
     atestado?.atestado_acompanhamento === true
   )
@@ -107,7 +109,7 @@ export function AtestadoForm({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="grid gap-4">
+        <form action={formAction} {...envio1} className="grid gap-4">
           {estado.erro && (
             <Alert variant="destructive">
               <AlertDescription>{estado.erro}</AlertDescription>
@@ -260,6 +262,7 @@ export function AusenciaForm({
     ausencia ? atualizarAusenciaAction : criarAusenciaAction,
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado)
 
   return (
     <Card>
@@ -269,7 +272,7 @@ export function AusenciaForm({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="grid gap-4">
+        <form action={formAction} {...envio2} className="grid gap-4">
           {estado.erro && (
             <Alert variant="destructive">
               <AlertDescription>{estado.erro}</AlertDescription>

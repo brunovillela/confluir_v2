@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { FORMAS_PAGAMENTO_COMPRAS } from "@/lib/compras-constantes"
 
 import { cancelarOrdemAction, corrigirOrdemAction, reenviarOrdemAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -46,8 +47,11 @@ export function AcoesOrdem({
 }) {
   const [aberto, setAberto] = useState<Painel>(null)
   const [estCancelar, acaoCancelar, pendCancelar] = useActionState(cancelarOrdemAction, {})
+  const envio1 = useEnvioFormulario(acaoCancelar, estCancelar)
   const [estCorrigir, acaoCorrigir, pendCorrigir] = useActionState(corrigirOrdemAction, {})
+  const envio2 = useEnvioFormulario(acaoCorrigir, estCorrigir)
   const [estReenviar, acaoReenviar, pendReenviar] = useActionState(reenviarOrdemAction, {})
+  const envio3 = useEnvioFormulario(acaoReenviar, estReenviar)
 
   if (!podeCorrigir && !podeCancelar && !podeReenviar) return null
   const formas = FORMAS_PAGAMENTO_COMPRAS as readonly string[]
@@ -81,7 +85,7 @@ export function AcoesOrdem({
       </div>
 
       {aberto === "reenviar" && (
-        <form action={acaoReenviar} className="grid gap-3 rounded-md border p-3">
+        <form action={acaoReenviar} {...envio3} className="grid gap-3 rounded-md border p-3">
           <input type="hidden" name="id" value={ordemId} />
           {estReenviar.erro && (
             <Alert variant="destructive">
@@ -100,7 +104,7 @@ export function AcoesOrdem({
       )}
 
       {aberto === "corrigir" && (
-        <form action={acaoCorrigir} className="grid gap-3 rounded-md border p-3">
+        <form action={acaoCorrigir} {...envio2} className="grid gap-3 rounded-md border p-3">
           <input type="hidden" name="id" value={ordemId} />
           {estCorrigir.erro && (
             <Alert variant="destructive">
@@ -152,7 +156,7 @@ export function AcoesOrdem({
       )}
 
       {aberto === "cancelar" && (
-        <form action={acaoCancelar} className="border-destructive/40 grid gap-3 rounded-md border p-3">
+        <form action={acaoCancelar} {...envio1} className="border-destructive/40 grid gap-3 rounded-md border p-3">
           <input type="hidden" name="id" value={ordemId} />
           {estCancelar.erro && (
             <Alert variant="destructive">

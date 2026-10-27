@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { importarFiliadosCsv } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario";
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full max-w-md truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -18,11 +19,12 @@ export type OpcaoFonte = { id: string; nome: string }
 /** Importação de filiados em massa (CSV), escolhendo a fonte pagadora. */
 export function ImportarFiliados({ fontes }: { fontes: OpcaoFonte[] }) {
   const [estado, formAction, pendente] = useActionState(importarFiliadosCsv, {})
+  const envio = useEnvioFormulario(formAction, estado);
   const r = estado.resultado
 
   return (
     <div className="grid gap-4">
-      <form action={formAction} className="grid gap-3">
+      <form action={formAction} {...envio} className="grid gap-3">
         <div className="grid gap-1.5">
           <Label htmlFor="fonte_id">Fonte pagadora</Label>
           <select id="fonte_id" name="fonte_id" required className={SELECT} defaultValue="">

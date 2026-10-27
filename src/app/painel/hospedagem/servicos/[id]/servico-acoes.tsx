@@ -9,6 +9,7 @@ import { AcaoVisualizacao, formVisualizacao } from "@/components/acao-visualizac
 
 import { definirFinalizado, desvincularCupom, marcarComparecimento, vincularCupom } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full max-w-md truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -76,6 +77,7 @@ export function HospedeAcoes({
     comparecimentoAction,
     {}
   )
+  const envio = useEnvioFormulario(compAction, estadoComp)
   const [estadoDesv, desvAction, desvPendente] = useActionState(
     desvincularAction,
     {}
@@ -86,7 +88,7 @@ export function HospedeAcoes({
   return (
     <div className="flex items-center justify-end gap-1">
       {erro && <span className="text-destructive mr-1 text-xs">{erro}</span>}
-      <form action={compAction}>
+      <form action={compAction} {...envio}>
         <input type="hidden" name="servico_id" value={servicoId} />
         <input type="hidden" name="cupom_id" value={cupomId} />
         <input type="hidden" name="compareceu" value={String(!compareceu)} />

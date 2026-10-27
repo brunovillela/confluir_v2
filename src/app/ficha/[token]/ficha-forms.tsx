@@ -9,15 +9,17 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { subirFichaAssinadaAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function UploadAssinadaForm({ token }: { token: string }) {
   const [estado, formAction, pendente] = useActionState(
     subirFichaAssinadaAction,
     {}
   )
+  const envio = useEnvioFormulario(formAction, estado)
 
   return (
-    <form action={formAction} className="grid gap-3">
+    <form action={formAction} {...envio} className="grid gap-3">
       <input type="hidden" name="token" value={token} />
       {estado.erro && (
         <Alert variant="destructive">

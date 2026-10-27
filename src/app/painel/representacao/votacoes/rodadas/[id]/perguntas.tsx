@@ -25,6 +25,7 @@ import {
   salvarPergunta,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const TEXTAREA =
   "border-input bg-background text-foreground w-full rounded-md border px-3 py-2 text-sm shadow-xs outline-none"
@@ -96,6 +97,7 @@ function PerguntaItem({
     salvarPergunta,
     {}
   )
+  const envio1 = useEnvioFormulario(salvarAction, estadoSalvar)
   const [estadoRemover, removerAction, removendo] = useActionState(
     removerPergunta,
     {}
@@ -111,7 +113,7 @@ function PerguntaItem({
       )}
 
       {editando && editavel ? (
-        <form action={salvarAction} className="grid gap-3">
+        <form action={salvarAction} {...envio1} className="grid gap-3">
           <input type="hidden" name="rodada_id" value={rodadaId} />
           <input type="hidden" name="pergunta_id" value={pergunta.id} />
           <div className="grid gap-3 sm:grid-cols-[6rem_1fr]">
@@ -243,6 +245,7 @@ function AdicionarOpcao({
 }) {
   const [aberto, setAberto] = useState(false)
   const [estado, opcaoAction, pendente] = useActionState(novaOpcao, {})
+  const envio2 = useEnvioFormulario(opcaoAction, estado)
 
   if (!aberto) {
     return (
@@ -256,7 +259,7 @@ function AdicionarOpcao({
   }
 
   return (
-    <form action={opcaoAction} className="grid gap-2">
+    <form action={opcaoAction} {...envio2} className="grid gap-2">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -324,6 +327,7 @@ function RemoverOpcaoBotao({
 function NovaPerguntaForm({ rodadaId }: { rodadaId: string }) {
   const [aberto, setAberto] = useState(false)
   const [estado, formAction, pendente] = useActionState(novaPergunta, {})
+  const envio3 = useEnvioFormulario(formAction, estado)
 
   if (!aberto) {
     return (
@@ -338,7 +342,7 @@ function NovaPerguntaForm({ rodadaId }: { rodadaId: string }) {
 
   return (
     <form
-      action={formAction}
+      action={formAction} {...envio3}
       className="grid gap-3 rounded-lg border border-dashed p-4"
     >
       {estado.erro && (

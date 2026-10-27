@@ -36,6 +36,7 @@ import {
   linkAcessoHotelAction,
   reenviarAcessoHotelAction,
 } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /**
  * Reenviar o e-mail de acesso ou copiar o link (WhatsApp etc.). Cada um gera
@@ -43,9 +44,10 @@ import {
  */
 function AcessoUsuarioHotel({ id }: { id: string }) {
   const [estado, acao, pendente] = useActionState(reenviarAcessoHotelAction, {})
+  const envio1 = useEnvioFormulario(acao, estado)
   return (
     <span className="inline-flex flex-wrap items-center justify-end gap-1">
-      <form action={acao}>
+      <form action={acao} {...envio1}>
         <input type="hidden" name="id" value={id} />
         <Button
           type="submit"
@@ -97,7 +99,9 @@ export function UsuariosHotel({
 }) {
   const [editando, setEditando] = useState<string | null>(null)
   const [estadoCriar, criarAction, criando] = useActionState(criarUsuarioHotel, {})
+  const envio2 = useEnvioFormulario(criarAction, estadoCriar)
   const [estadoAlt, altAction, alternando] = useActionState(alternarUsuarioHotel, {})
+  const envio3 = useEnvioFormulario(altAction, estadoAlt)
 
   const erro = estadoCriar.erro ?? estadoAlt.erro
   const ok = estadoCriar.ok ?? estadoAlt.ok
@@ -197,7 +201,7 @@ export function UsuariosHotel({
                       <TableCell className="text-right">
                         <div className="flex flex-wrap items-center justify-end gap-1">
                           {u.ativo && <AcessoUsuarioHotel id={u.id} />}
-                          <form action={altAction}>
+                          <form action={altAction} {...envio3}>
                             <input type="hidden" name="id" value={u.id} />
                             <input type="hidden" name="hotel_id" value={hotelId} />
                             <input
@@ -237,7 +241,7 @@ export function UsuariosHotel({
             </div>
 
             <form
-              action={criarAction}
+              action={criarAction} {...envio2}
               className="grid items-end gap-3 sm:grid-cols-[1fr_1fr_auto]"
             >
               <input type="hidden" name="hotel_id" value={hotelId} />

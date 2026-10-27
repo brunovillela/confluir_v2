@@ -19,6 +19,7 @@ import {
   salvarReservaAction,
 } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 function Retorno({ estado }: { estado: EstadoForm }) {
   if (estado.erro) {
@@ -53,8 +54,10 @@ export function AcoesViagem({
   pendentes: number
 }) {
   const [iniciar, acaoIniciar, iniciando] = useActionState(iniciarAtendimentoAction, {})
+  const envio1 = useEnvioFormulario(acaoIniciar, iniciar)
   const [concluir, acaoConcluir, concluindo] = useActionState(concluirAtendimentoAction, {})
   const [encerrar, acaoEncerrar, encerrando] = useActionState(encerrarViagemAction, {})
+  const envio2 = useEnvioFormulario(acaoEncerrar, encerrar)
   const [motivoPara, setMotivoPara] = useState<"recusada" | "cancelada" | null>(null)
 
   const aberta = situacao === "solicitada" || situacao === "em_atendimento"
@@ -72,7 +75,7 @@ export function AcoesViagem({
 
       <div className="flex flex-wrap items-center gap-2">
         {situacao === "solicitada" && (
-          <form action={acaoIniciar}>
+          <form action={acaoIniciar} {...envio1}>
             <input type="hidden" name="id" value={id} />
             <Button type="submit" variant="outline" disabled={iniciando}>
               {iniciando ? <Loader2 className="animate-spin" /> : <Play />}
@@ -123,7 +126,7 @@ export function AcoesViagem({
       )}
 
       {motivoPara && (
-        <form action={acaoEncerrar} className="grid gap-2 rounded-lg border p-4">
+        <form action={acaoEncerrar} {...envio2} className="grid gap-2 rounded-lg border p-4">
           <input type="hidden" name="id" value={id} />
           <input type="hidden" name="como" value={motivoPara} />
           <Label htmlFor="motivo_encerrar">
@@ -217,9 +220,10 @@ export function ReservaItemForm({
   tipo: "passagem" | "hospedagem"
 }) {
   const [estado, formAction, pendente] = useActionState(salvarReservaAction, {})
+  const envio3 = useEnvioFormulario(formAction, estado)
 
   return (
-    <form action={formAction} className="mt-4 grid gap-4 border-t pt-4">
+    <form action={formAction} {...envio3} className="mt-4 grid gap-4 border-t pt-4">
       <Retorno estado={estado} />
       <input type="hidden" name="item_id" value={item.id} />
       <div className="grid gap-4 sm:grid-cols-2">

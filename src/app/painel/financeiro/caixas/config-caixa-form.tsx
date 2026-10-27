@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 
 import { salvarCentroCaixaAction } from "./config-actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -21,8 +22,9 @@ export function ConfigCaixaForm({
   centros: { id: string; rotulo: string }[]
 }) {
   const [estado, acao, pendente] = useActionState(salvarCentroCaixaAction, {})
+  const envio = useEnvioFormulario(acao, estado)
   return (
-    <form action={acao} className="grid gap-3">
+    <form action={acao} {...envio} className="grid gap-3">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

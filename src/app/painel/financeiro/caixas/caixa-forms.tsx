@@ -18,6 +18,7 @@ import {
   rejeitarPrestacao,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -30,9 +31,10 @@ export function NovaContaForm({
   podeEditar?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(criarContaCaixa, {})
+  const envio1 = useEnvioFormulario(formAction, estado)
   if (!podeEditar) return null
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio1} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -83,8 +85,9 @@ export function NovaContaForm({
 
 export function AporteForm({ contaId }: { contaId: string }) {
   const [estado, formAction, pendente] = useActionState(lancarAporte, {})
+  const envio2 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-3">
+    <form action={formAction} {...envio2} className="grid gap-3">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -217,8 +220,9 @@ export function OcorrenciaAtualizar({
   ocorrenciaId: string
 }) {
   const [estado, formAction, pendente] = useActionState(atualizarOcorrencia, {})
+  const envio3 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="grid gap-2 border-t pt-3">
+    <form action={formAction} {...envio3} className="grid gap-2 border-t pt-3">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

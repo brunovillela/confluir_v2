@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils"
 
 import { importarContribuicoes, incluirContribuicao } from "./actions"
 import { ImportarRelatorioIa } from "./importar-relatorio-ia"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario";
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -55,10 +56,12 @@ export function EnviarContribuicoes({
     importarContribuicoes,
     {}
   )
+  const envio1 = useEnvioFormulario(massaAction, massa);
   const [individual, individualAction, individualPendente] = useActionState(
     incluirContribuicao,
     {}
   )
+  const envio2 = useEnvioFormulario(individualAction, individual);
 
   const botaoModo = (valor: "massa" | "individual" | "ia", rotulo: string) => (
     <button
@@ -125,7 +128,7 @@ export function EnviarContribuicoes({
       </div>
 
       {modo === "massa" && (
-        <form action={massaAction} className="grid gap-3">
+        <form action={massaAction} {...envio1} className="grid gap-3">
           <input type="hidden" name="remessa_id" value={remessaId} />
           <input type="hidden" name="fonte_id" value={fonteId} />
           {grupoId && <input type="hidden" name="grupo_id" value={grupoId} />}
@@ -197,7 +200,7 @@ export function EnviarContribuicoes({
       )}
 
       {modo === "individual" && (
-        <form action={individualAction} className="grid gap-3">
+        <form action={individualAction} {...envio2} className="grid gap-3">
           <input type="hidden" name="remessa_id" value={remessaId} />
           <input type="hidden" name="fonte_id" value={fonteId} />
           <input type="hidden" name="forma_recebimento" value={forma} />

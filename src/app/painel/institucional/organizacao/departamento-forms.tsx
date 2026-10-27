@@ -15,6 +15,7 @@ import {
   tornarLegadoAction,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -45,6 +46,7 @@ export function DepartamentoForm({
     salvarDepartamentoAction,
     {}
   )
+  const envio1 = useEnvioFormulario(formAction, estado)
   const [estadoLegado, acaoLegado, pendenteLegado] = useActionState(
     tornarLegadoAction,
     {}
@@ -123,7 +125,7 @@ export function DepartamentoForm({
 
   return (
     <div className="grid gap-3">
-      <form action={formAction} className="grid gap-4">
+      <form action={formAction} {...envio1} className="grid gap-4">
         {departamento && (
           <input type="hidden" name="departamento_id" value={departamento.id} />
         )}
@@ -262,8 +264,9 @@ export function DepartamentoForm({
 /** Departamento legado: volta às listas de escolha. */
 export function ReativarDepartamento({ departamentoId }: { departamentoId: string }) {
   const [estado, acao, pendente] = useActionState(reativarDepartamentoAction, {})
+  const envio2 = useEnvioFormulario(acao, estado)
   return (
-    <form action={acao} className="flex flex-wrap items-center gap-2">
+    <form action={acao} {...envio2} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="departamento_id" value={departamentoId} />
       <Button type="submit" size="sm" variant="outline" disabled={pendente}>
         {pendente ? <Loader2 className="animate-spin" /> : <ArchiveRestore />}

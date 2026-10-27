@@ -14,10 +14,13 @@ import {
   pedirCodigoCessaoAction,
   recusarCessaoAction,
 } from "./acoes-cessao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function AssinarCessaoForm({ token }: { token: string }) {
   const [codigo, pedir, pedindo] = useActionState(pedirCodigoCessaoAction, {})
+  const envio1 = useEnvioFormulario(pedir, codigo)
   const [assin, assinar, assinando] = useActionState(assinarCessaoAction, {})
+  const envio2 = useEnvioFormulario(assinar, assin)
 
   return (
     <div className="grid gap-4">
@@ -31,7 +34,7 @@ export function AssinarCessaoForm({ token }: { token: string }) {
           <AlertDescription>{codigo.ok}</AlertDescription>
         </Alert>
       )}
-      <form action={pedir}>
+      <form action={pedir} {...envio1}>
         <input type="hidden" name="token" value={token} />
         <Button type="submit" variant="outline" disabled={pedindo}>
           {pedindo && <Loader2 className="animate-spin" />}
@@ -44,7 +47,7 @@ export function AssinarCessaoForm({ token }: { token: string }) {
           <AlertDescription>{assin.erro}</AlertDescription>
         </Alert>
       )}
-      <form action={assinar} className="grid gap-3">
+      <form action={assinar} {...envio2} className="grid gap-3">
         <input type="hidden" name="token" value={token} />
         <div className="grid gap-1.5">
           <Label htmlFor="codigo">Código recebido</Label>
@@ -76,8 +79,9 @@ export function AssinarCessaoForm({ token }: { token: string }) {
 
 export function RecusarCessaoForm({ token }: { token: string }) {
   const [estado, recusar, recusando] = useActionState(recusarCessaoAction, {})
+  const envio3 = useEnvioFormulario(recusar, estado)
   return (
-    <form action={recusar} className="grid gap-3">
+    <form action={recusar} {...envio3} className="grid gap-3">
       <input type="hidden" name="token" value={token} />
       {estado.erro && (
         <Alert variant="destructive">

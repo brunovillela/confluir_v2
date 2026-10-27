@@ -17,6 +17,7 @@ import {
   salvarTextoMinutaAction,
 } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -40,14 +41,16 @@ export function EditorMinuta({
 }) {
   const [texto, setTexto] = useState(inicial)
   const [salvo, salvarAcao, salvando] = useActionState(salvarTextoMinutaAction, {})
+  const envio1 = useEnvioFormulario(salvarAcao, salvo)
   const [ajuste, ajustarAcao, ajustando] = useActionState(ajustarMinutaAction, {})
+  const envio2 = useEnvioFormulario(ajustarAcao, ajuste)
   const pendencias = useMemo(() => pendenciasDaMinuta(texto), [texto])
   const ausentes = useMemo(() => clausulasAusentes(texto, clausulasFixas), [texto, clausulasFixas])
   const alterado = texto !== inicial
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
-      <form action={salvarAcao} className="grid content-start gap-2">
+      <form action={salvarAcao} {...envio1} className="grid content-start gap-2">
         <input type="hidden" name="id" value={id} />
         <Textarea
           name="texto"
@@ -126,7 +129,7 @@ export function EditorMinuta({
         </div>
 
         {!bloqueio && (
-        <form action={ajustarAcao} className="grid gap-2 rounded-lg border p-3">
+        <form action={ajustarAcao} {...envio2} className="grid gap-2 rounded-lg border p-3">
           <input type="hidden" name="id" value={id} />
           <input type="hidden" name="texto" value={texto} />
           <Label htmlFor="pedido" className="text-sm font-medium">
@@ -174,8 +177,9 @@ export function DadosMinutaForm({
   contratos: { id: string; rotulo: string }[]
 }) {
   const [estado, acao, pendente] = useActionState(atualizarDadosMinutaAction, {})
+  const envio3 = useEnvioFormulario(acao, estado)
   return (
-    <form action={acao} className="grid gap-3">
+    <form action={acao} {...envio3} className="grid gap-3">
       <input type="hidden" name="id" value={id} />
       <div className="grid gap-3 md:grid-cols-2">
         <div className="grid gap-1.5">

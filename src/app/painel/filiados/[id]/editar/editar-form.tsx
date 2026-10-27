@@ -32,6 +32,7 @@ import {
 import { mascaraCep, mascaraTelefone } from "@/lib/mascaras"
 
 import { atualizarCadastroFiliado } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 type Cadastro = Record<string, unknown>
 
@@ -123,9 +124,10 @@ export function EditarForm({ filiacao }: { filiacao: Cadastro }) {
     atualizarCadastroFiliado,
     {}
   )
+  const envio = useEnvioFormulario(formAction, estado)
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio} className="grid gap-4">
       <input type="hidden" name="id" value={String(filiacao.id)} />
 
       {estado.erro && (

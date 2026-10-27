@@ -21,6 +21,7 @@ import {
   criarCampanhaAction,
   excluirPerguntaAction,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -42,10 +43,11 @@ export function CampanhaForm({
     campanha ? atualizarCampanhaAction : criarCampanhaAction,
     {}
   )
+  const envio1 = useEnvioFormulario(formAction, estado)
   const selec = new Set(fonteIds)
 
   return (
-    <form action={formAction} className="grid gap-5">
+    <form action={formAction} {...envio1} className="grid gap-5">
       {campanha && (
         <input type="hidden" name="campanha_id" value={campanha.id} />
       )}
@@ -241,8 +243,9 @@ export function AdicionarPergunta({ campanhaId }: { campanhaId: string }) {
     adicionarPerguntaAction,
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado)
   return (
-    <form action={formAction} className="flex flex-wrap items-end gap-2">
+    <form action={formAction} {...envio2} className="flex flex-wrap items-end gap-2">
       <input type="hidden" name="campanha_id" value={campanhaId} />
       <div className="grid min-w-64 flex-1 gap-1.5">
         <Label htmlFor="pergunta">Nova pergunta</Label>
@@ -276,9 +279,10 @@ export function AvaliarForm({
     avaliarOpositorAction,
     {}
   )
+  const envio3 = useEnvioFormulario(formAction, estado)
   const pedirConferencia = Boolean(problemaAssinatura) || Boolean(estado.exigeConfirmacao)
   return (
-    <form action={formAction} className="grid gap-3">
+    <form action={formAction} {...envio3} className="grid gap-3">
       <input type="hidden" name="opositor_id" value={opositorId} />
       <input type="hidden" name="campanha_id" value={campanhaId} />
       {estado.erro && (

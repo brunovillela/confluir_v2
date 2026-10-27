@@ -14,9 +14,11 @@ import {
 } from "@/components/ui/card"
 
 import { perguntarAjudaAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function PerguntaIA() {
   const [estado, formAction, pendente] = useActionState(perguntarAjudaAction, {})
+  const envio = useEnvioFormulario(formAction, estado)
 
   return (
     <Card className="border-primary/30 bg-primary/5">
@@ -32,7 +34,7 @@ export function PerguntaIA() {
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3">
-        <form action={formAction} className="grid gap-2">
+        <form action={formAction} {...envio} className="grid gap-2">
           <textarea
             name="pergunta"
             rows={2}
