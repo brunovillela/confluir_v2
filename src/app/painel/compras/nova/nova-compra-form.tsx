@@ -170,8 +170,13 @@ export function NovaCompraForm({
   // Na compra direta, os campos só aparecem depois da escolha do modo — e, no
   // semiautomático, depois da leitura da nota.
   const mostrarCampos = !direta || modo === "manual" || (semi && leitura !== null)
-  // Com nota em mãos (semiautomático) não há RPA: o recibo substitui a nota.
-  const porRpa = direta && !semi && tipo === "servico" && rpaMarcado
+  // RPA só para serviço prestado por pessoa física (CPF no cadastro — a mesma
+  // regra do servidor) e sem nota em mãos (no semiautomático a nota já veio).
+  const fornecedorPf = fornecedores.some(
+    (f) => f.id === fornecedorId && (f.cnpj_cpf ?? "").replace(/\D/g, "").length === 11
+  )
+  const rpaDisponivel = direta && !semi && tipo === "servico" && fornecedorPf
+  const porRpa = rpaDisponivel && rpaMarcado
   // Marketplace: a nota costuma chegar depois, emitida pelo vendedor.
   const [notaDepois, setNotaDepois] = useState(true)
   const ehMarketplace =
@@ -805,28 +810,6 @@ export function NovaCompraForm({
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
-            {!semi && tipo === "servico" && (
-              <label className="flex items-start gap-2 rounded-md border p-3 text-sm">
-                <input
-                  type="checkbox"
-                  name="por_rpa"
-                  checked={rpaMarcado}
-                  onChange={(e) => {
-                    setRpaMarcado(e.target.checked)
-                    if (e.target.checked && forma === "Cartão") setForma("")
-                  }}
-                  className="mt-0.5 size-4"
-                />
-                <span>
-                  <strong>Prestador autônomo — pagar por RPA</strong>
-                  <span className="text-muted-foreground block text-xs">
-                    Para pessoa física (CPF) sem nota fiscal. O RPA substitui só a nota: forma e
-                    data de pagamento ficam nesta compra. O recibo calcula as retenções e o valor
-                    da compra passa a ser o líquido do RPA.
-                  </span>
-                </span>
-              </label>
-            )}
             <div className="grid gap-4 md:grid-cols-2">
               <div className="grid gap-1.5">
                 <Label>Fornecedor *</Label>
@@ -899,6 +882,29 @@ export function NovaCompraForm({
                 </div>
               </div>
             </div>
+            {/* Abaixo do fornecedor: a opção só aparece com serviço de pessoa física. */}
+            {rpaDisponivel && (
+              <label className="flex items-start gap-2 rounded-md border p-3 text-sm">
+                <input
+                  type="checkbox"
+                  name="por_rpa"
+                  checked={rpaMarcado}
+                  onChange={(e) => {
+                    setRpaMarcado(e.target.checked)
+                    if (e.target.checked && forma === "Cartão") setForma("")
+                  }}
+                  className="mt-0.5 size-4"
+                />
+                <span>
+                  <strong>Prestador autônomo — pagar por RPA</strong>
+                  <span className="text-muted-foreground block text-xs">
+                    O fornecedor é pessoa física (CPF) e não emite nota fiscal. O RPA substitui só a
+                    nota: forma e data de pagamento ficam nesta compra. O recibo calcula as retenções e
+                    o valor da compra passa a ser o líquido do RPA.
+                  </span>
+                </span>
+              </label>
+            )}
             {compradores.length > 0 && (
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-1.5">
