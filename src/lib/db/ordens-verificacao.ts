@@ -455,8 +455,21 @@ async function verificarLinha(
         }
         const inicio = t(c.vigencia_inicio)
         const fim = t(c.vigencia_termino)
-        const ref = venc ?? hoje
         const tol = n(p.tolerancia) ?? 0
+        // Locação cobra o mês vencido: a fatura do último mês vence depois do
+        // término. Vale a competência "(MM/AAAA)" da descrição, não o vencimento.
+        const comp = aluguel ? /\((\d{2})\/(\d{4})\)\s*$/.exec(t(linha.descricao) ?? "") : null
+        if (comp) {
+          const iniMes = `${comp[2]}-${comp[1]}-01`
+          const fimMes = somarDias(somarDias(iniMes, 32).slice(0, 7) + "-01", -1)
+          const rotulo = `${comp[1]}/${comp[2]}`
+          if (aluguel?.finalizado === true) r("falha", "O contrato de locação está finalizado.")
+          else if (fim && iniMes > somarDias(fim, tol)) r("falha", `Competência ${rotulo} depois do fim da vigência (${formatarData(fim)}).`)
+          else if (inicio && fimMes < inicio) r("falha", `Competência ${rotulo} antes do início da vigência (${formatarData(inicio)}).`)
+          else r("ok", `Competência ${rotulo} dentro da vigência${fim ? ` (até ${formatarData(fim)})` : ""}.`)
+          break
+        }
+        const ref = venc ?? hoje
         if (aluguel?.finalizado === true) r("falha", "O contrato de locação está finalizado.")
         else if (fim && ref > somarDias(fim, tol)) r("falha", `Vencimento ${formatarData(ref)} depois do fim da vigência (${formatarData(fim)}).`)
         else if (inicio && ref < inicio) r("falha", `Vencimento ${formatarData(ref)} antes do início da vigência (${formatarData(inicio)}).`)

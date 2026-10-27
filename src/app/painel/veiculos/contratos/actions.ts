@@ -17,6 +17,11 @@ function texto(formData: FormData, campo: string): string {
   return String(formData.get(campo) ?? "").trim()
 }
 
+function arquivo(formData: FormData, campo: string): File | null {
+  const f = formData.get(campo)
+  return f instanceof File && f.size > 0 ? f : null
+}
+
 function dataISO(valor: string): string | null {
   return /^\d{4}-\d{2}-\d{2}$/.test(valor) ? valor : null
 }
@@ -92,6 +97,8 @@ export async function gerarOrdemAluguelAction(
     competencia: `${mes}/${ano}`,
     valor,
     vencimento: dataISO(texto(formData, "vencimento")),
+    fatura: arquivo(formData, "fatura"),
+    boleto: arquivo(formData, "boleto"),
   })
   if (erro) return { erro }
   revalidatePath(`/painel/veiculos/contratos/${id}`)

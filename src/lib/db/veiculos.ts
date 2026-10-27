@@ -4,7 +4,7 @@ import { camposAutorizacaoInicial, motivoDispensaContrato, registrarEvento, usua
 import { esquemaAusente, hojeSP, lerEmLotes, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
-import { gerarCodigoProcesso } from "@/lib/db/compras"
+import { gerarCodigoProcesso, subirComprovanteCompras } from "@/lib/db/compras"
 import { rotuladorDeAutores } from "@/lib/db/contas-funcao"
 import { guardarCnhAnterior } from "@/lib/db/veiculos-condutores-cnh"
 import { criarNotificacao } from "@/lib/db/notificacoes"
@@ -3200,7 +3200,13 @@ export async function finalizarContrato(
 /** Ordem mensal do aluguel ('Em autorização', tipo legado). */
 export async function gerarOrdemAluguel(
   contratoId: string,
-  dados: { competencia: string; valor: number; vencimento: string | null }
+  dados: {
+    competencia: string
+    valor: number
+    vencimento: string | null
+    fatura?: File | null
+    boleto?: File | null
+  }
 ): Promise<{ erro?: string }> {
   const contrato = await buscarContrato(contratoId)
   if (!contrato) return { erro: "Contrato não encontrado." }
@@ -3224,6 +3230,26 @@ export async function gerarOrdemAluguel(
   if ((repetidas ?? []).length > 0) {
     return { erro: `Já existe ordem deste contrato para ${dados.competencia}.` }
   }
+  // Fatura = documento fiscal da locação; boleto, quando houver, define a forma.
+  // Ficam no bucket das ordens (compras), onde o Financeiro os abre.
+  const subidos: string[] = []
+  const subir = async (pasta: string, arquivo: File | null | undefined) => {
+    if (!arquivo || arquivo.size === 0) return { caminho: null as string | null }
+    const r = await subirComprovanteCompras(`${pasta}/locacao/${contratoId}`, arquivo)
+    if (r.caminho) subidos.push(r.caminho)
+    return { caminho: r.caminho ?? null, erro: r.erro }
+  }
+  const descartar = async () => {
+    if (subidos.length) await admin.storage.from("compras").remove(subidos)
+  }
+  const fatura = await subir("notas", dados.fatura)
+  if (fatura.erro) return { erro: `Fatura: ${fatura.erro}` }
+  const boleto = await subir("boletos", dados.boleto)
+  if (boleto.erro) {
+    await descartar()
+    return { erro: `Boleto: ${boleto.erro}` }
+  }
+
   // Mensalidade no valor do contrato é pagamento ordinário fixo, aprovado na
   // assinatura; valor diferente passa pela alçada.
   const ordinariaFixa =
@@ -3237,6 +3263,8 @@ export async function gerarOrdemAluguel(
     ),
     valor_inicial_cobranca: dados.valor,
     vencimento: dados.vencimento,
+    ...(fatura.caminho ? { arquivo_nota_fiscal: fatura.caminho } : {}),
+    ...(boleto.caminho ? { arquivo_boleto: boleto.caminho, forma_pagamento: "Boleto" } : {}),
     beneficiario_fornecedor_id: contrato.fornecedor_id,
     departamento_id: contrato.departamento_id,
     centro_custo_despesa_id: contrato.centro_custo_id,
@@ -3245,6 +3273,7 @@ export async function gerarOrdemAluguel(
     emp_proprietaria_id: await tenantAtual(),
   }, {})
   if (error || !criada) {
+    await descartar()
     if (error && esquemaAusente(error)) return { erro: AVISO_SQL }
     return { erro: `Não foi possível gerar a ordem: ${error?.message ?? "sem retorno"}` }
   }

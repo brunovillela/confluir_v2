@@ -195,9 +195,37 @@ export function GerarOrdemAluguelForm({
           Gerar mensalidade
         </Button>
       </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid gap-1">
+          <Label htmlFor={`fatura-${contratoId}`} className="text-xs">
+            Fatura da locadora (PDF/JPG/PNG)
+          </Label>
+          <Input
+            id={`fatura-${contratoId}`}
+            name="fatura"
+            type="file"
+            accept="application/pdf,image/jpeg,image/png,image/webp"
+            className="h-8 text-xs"
+          />
+        </div>
+        <div className="grid gap-1">
+          <Label htmlFor={`boleto-${contratoId}`} className="text-xs">
+            Boleto, se houver
+          </Label>
+          <Input
+            id={`boleto-${contratoId}`}
+            name="boleto"
+            type="file"
+            accept="application/pdf,image/jpeg,image/png,image/webp"
+            className="h-8 text-xs"
+          />
+        </div>
+      </div>
       <p className="text-muted-foreground text-xs">
         Competência, valor e vencimento — a ordem nasce &apos;Em
-        autorização&apos; no Financeiro.
+        autorização&apos; no Financeiro. O vencimento pode cair depois do
+        término do contrato (a fatura do último mês). Com boleto, a forma de
+        pagamento vira Boleto.
       </p>
       {estado.erro && <p className="text-destructive text-xs">{estado.erro}</p>}
     </form>
