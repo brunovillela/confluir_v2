@@ -128,7 +128,7 @@ export default async function ContratoPage({
 
         <Card>
           <CardContent className="grid gap-2 text-sm">
-            <p className="font-medium">Mensalidade</p>
+            <p className="font-medium">Mensalidade contratada</p>
             <p className="text-2xl font-semibold tabular-nums">
               {formatarMoeda(contrato.valor_mensal)}
             </p>
@@ -148,7 +148,7 @@ export default async function ContratoPage({
 
       <GrupoColapsavel
         titulo="Ordens de pagamento do contrato"
-        descricao="Mensalidades geradas aqui e ordens legadas vinculadas pelo backfill"
+        descricao="Cobranças geradas aqui e ordens legadas vinculadas pelo backfill — o código abre a ordem no Financeiro (corrigir vencimento, valor, forma)"
         resumo={
           <span className="text-muted-foreground text-sm tabular-nums">
             {contrato.ordens.length}
@@ -175,7 +175,12 @@ export default async function ContratoPage({
               {contrato.ordens.map((o) => (
                 <TableRow key={o.id}>
                   <TableCell className="whitespace-nowrap tabular-nums">
-                    {o.codigo ?? "—"}
+                    <Link
+                      href={`/painel/financeiro/ordens/${o.id}`}
+                      className="text-primary hover:underline"
+                    >
+                      {o.codigo ?? "—"}
+                    </Link>
                   </TableCell>
                   <TableCell className="max-w-80">
                     <span className="line-clamp-1">{o.descricao ?? "—"}</span>

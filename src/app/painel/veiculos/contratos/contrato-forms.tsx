@@ -170,30 +170,55 @@ export function GerarOrdemAluguelForm({
   return (
     <form action={formAction} className="grid gap-2">
       <input type="hidden" name="contrato_id" value={contratoId} />
-      <div className="flex flex-wrap items-center gap-2">
-        <Input
-          name="competencia"
-          type="month"
-          required
-          className="h-8 w-44 text-sm [color-scheme:light] dark:[color-scheme:dark]"
-        />
-        <Input
-          name="valor"
-          required
-          inputMode="decimal"
-          defaultValue={valorPadrao}
-          placeholder="Valor (R$)"
-          className="h-8 w-32 text-sm tabular-nums"
-        />
-        <Input
-          name="vencimento"
-          type="date"
-          className="h-8 w-40 text-sm [color-scheme:light] dark:[color-scheme:dark]"
-        />
-        <Button type="submit" size="sm" disabled={pendente}>
-          {pendente ? <Loader2 className="animate-spin" /> : <Receipt />}
-          Gerar mensalidade
-        </Button>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid gap-1">
+          <Label htmlFor={`periodo-inicio-${contratoId}`} className="text-xs">
+            Período cobrado — de *
+          </Label>
+          <Input
+            id={`periodo-inicio-${contratoId}`}
+            name="periodo_inicio"
+            type="date"
+            required
+            className="h-8 text-sm [color-scheme:light] dark:[color-scheme:dark]"
+          />
+        </div>
+        <div className="grid gap-1">
+          <Label htmlFor={`periodo-fim-${contratoId}`} className="text-xs">
+            até *
+          </Label>
+          <Input
+            id={`periodo-fim-${contratoId}`}
+            name="periodo_fim"
+            type="date"
+            required
+            className="h-8 text-sm [color-scheme:light] dark:[color-scheme:dark]"
+          />
+        </div>
+        <div className="grid gap-1">
+          <Label htmlFor={`valor-${contratoId}`} className="text-xs">
+            Valor (R$) *
+          </Label>
+          <Input
+            id={`valor-${contratoId}`}
+            name="valor"
+            required
+            inputMode="decimal"
+            defaultValue={valorPadrao}
+            className="h-8 text-sm tabular-nums"
+          />
+        </div>
+        <div className="grid gap-1">
+          <Label htmlFor={`vencimento-${contratoId}`} className="text-xs">
+            Vencimento
+          </Label>
+          <Input
+            id={`vencimento-${contratoId}`}
+            name="vencimento"
+            type="date"
+            className="h-8 text-sm [color-scheme:light] dark:[color-scheme:dark]"
+          />
+        </div>
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
         <div className="grid gap-1">
@@ -222,12 +247,19 @@ export function GerarOrdemAluguelForm({
         </div>
       </div>
       <p className="text-muted-foreground text-xs">
-        Competência, valor e vencimento — a ordem nasce &apos;Em
-        autorização&apos; no Financeiro. O vencimento pode cair depois do
-        término do contrato (a fatura do último mês). Com boleto, a forma de
-        pagamento vira Boleto.
+        Uma cobrança por fatura: o período não precisa ser o mês inteiro —
+        locação curta e prorrogação no mesmo mês saem em cobranças separadas.
+        O vencimento pode cair depois do término do contrato e é corrigível
+        depois na ordem, no Financeiro. Com boleto, a forma de pagamento vira
+        Boleto.
       </p>
       {estado.erro && <p className="text-destructive text-xs">{estado.erro}</p>}
+      <div>
+        <Button type="submit" size="sm" disabled={pendente}>
+          {pendente ? <Loader2 className="animate-spin" /> : <Receipt />}
+          Gerar cobrança
+        </Button>
+      </div>
     </form>
   )
 }

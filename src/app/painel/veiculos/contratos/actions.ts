@@ -84,17 +84,17 @@ export async function gerarOrdemAluguelAction(
 ): Promise<EstadoForm> {
   await requirePermissao("veiculos_gestao")
   const id = texto(formData, "contrato_id")
-  const competencia = texto(formData, "competencia")
+  const de = dataISO(texto(formData, "periodo_inicio"))
+  const ate = dataISO(texto(formData, "periodo_fim"))
   const valor = parseValorBR(texto(formData, "valor"))
   if (!id) return { erro: "Contrato inválido." }
-  if (!/^\d{4}-\d{2}$/.test(competencia)) {
-    return { erro: "Informe a competência (mês/ano)." }
-  }
-  if (valor === null || valor <= 0) return { erro: "Informe o valor da mensalidade." }
+  if (!de || !ate) return { erro: "Informe o período cobrado (de/até)." }
+  if (ate < de) return { erro: "O fim do período é anterior ao início." }
+  if (valor === null || valor <= 0) return { erro: "Informe o valor da cobrança." }
 
-  const [ano, mes] = competencia.split("-")
+  const br = (iso: string) => iso.split("-").reverse().join("/")
   const { erro } = await gerarOrdemAluguel(id, {
-    competencia: `${mes}/${ano}`,
+    periodo: `${br(de)} a ${br(ate)}`,
     valor,
     vencimento: dataISO(texto(formData, "vencimento")),
     fatura: arquivo(formData, "fatura"),

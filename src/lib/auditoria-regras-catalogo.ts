@@ -203,7 +203,7 @@ export const REGRAS_AUDITORIA: RegraCatalogo[] = [
     codigo: "contrato_vencido",
     titulo: "Contrato fora da vigência",
     pergunta: "Aceita pagamento com vencimento fora da vigência do contrato (contrato vencido ou ainda não iniciado)?",
-    explicacao: "Compara o vencimento da ordem com o início e o fim da vigência do contrato. Na locação de veículos vale a competência cobrada: a fatura do último mês pode vencer depois do término.",
+    explicacao: "Compara o vencimento da ordem com o início e o fim da vigência do contrato. Na locação de veículos vale o período cobrado: a fatura pode vencer depois do término.",
     origens: COM_CONTRATO,
     padrao: { "*": "bloquear" },
     parametros: [{ chave: "tolerancia", rotulo: "Tolerância após o fim da vigência (dias)", tipo: "dias", padrao: 0 }],

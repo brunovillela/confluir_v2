@@ -456,17 +456,20 @@ async function verificarLinha(
         const inicio = t(c.vigencia_inicio)
         const fim = t(c.vigencia_termino)
         const tol = n(p.tolerancia) ?? 0
-        // Locação cobra o mês vencido: a fatura do último mês vence depois do
-        // término. Vale a competência "(MM/AAAA)" da descrição, não o vencimento.
-        const comp = aluguel ? /\((\d{2})\/(\d{4})\)\s*$/.exec(t(linha.descricao) ?? "") : null
-        if (comp) {
-          const iniMes = `${comp[2]}-${comp[1]}-01`
-          const fimMes = somarDias(somarDias(iniMes, 32).slice(0, 7) + "-01", -1)
-          const rotulo = `${comp[1]}/${comp[2]}`
+        // Locação cobra o período já rodado: a fatura vence depois do término.
+        // Vale o período da descrição — "(dd/mm/aaaa a dd/mm/aaaa)", ou a
+        // competência "(MM/AAAA)" das ordens antigas —, não o vencimento.
+        const desc = aluguel ? t(linha.descricao) ?? "" : ""
+        const per = /\((\d{2})\/(\d{2})\/(\d{4}) a (\d{2})\/(\d{2})\/(\d{4})\)\s*$/.exec(desc)
+        const comp = per ? null : /\((\d{2})\/(\d{4})\)\s*$/.exec(desc)
+        if (per || comp) {
+          const de = per ? `${per[3]}-${per[2]}-${per[1]}` : `${comp![2]}-${comp![1]}-01`
+          const ate = per ? `${per[6]}-${per[5]}-${per[4]}` : somarDias(somarDias(de, 32).slice(0, 7) + "-01", -1)
+          const rotulo = per ? `Período ${formatarData(de)} a ${formatarData(ate)}` : `Competência ${comp![1]}/${comp![2]}`
           if (aluguel?.finalizado === true) r("falha", "O contrato de locação está finalizado.")
-          else if (fim && iniMes > somarDias(fim, tol)) r("falha", `Competência ${rotulo} depois do fim da vigência (${formatarData(fim)}).`)
-          else if (inicio && fimMes < inicio) r("falha", `Competência ${rotulo} antes do início da vigência (${formatarData(inicio)}).`)
-          else r("ok", `Competência ${rotulo} dentro da vigência${fim ? ` (até ${formatarData(fim)})` : ""}.`)
+          else if (fim && de > somarDias(fim, tol)) r("falha", `${rotulo} depois do fim da vigência (${formatarData(fim)}).`)
+          else if (inicio && ate < inicio) r("falha", `${rotulo} antes do início da vigência (${formatarData(inicio)}).`)
+          else r("ok", `${rotulo} dentro da vigência${fim ? ` (até ${formatarData(fim)})` : ""}.`)
           break
         }
         const ref = venc ?? hoje

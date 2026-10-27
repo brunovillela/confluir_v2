@@ -3201,7 +3201,9 @@ export async function finalizarContrato(
 export async function gerarOrdemAluguel(
   contratoId: string,
   dados: {
-    competencia: string
+    /** Período cobrado, "dd/mm/aaaa a dd/mm/aaaa" — não é o mês: uma locação
+     *  curta e a prorrogação podem ser cobradas à parte no mesmo mês. */
+    periodo: string
     valor: number
     vencimento: string | null
     fatura?: File | null
@@ -3217,8 +3219,8 @@ export async function gerarOrdemAluguel(
   if (dados.valor <= 0) return { erro: "Informe o valor da mensalidade." }
 
   const admin = await createAdminClient()
-  const descricao = `Locação de veículos — contrato ${contrato.numero ?? ""} (${dados.competencia})`
-  // A mesma competência não pode ser cobrada duas vezes.
+  const descricao = `Locação de veículos — contrato ${contrato.numero ?? ""} (${dados.periodo})`
+  // O mesmo período não pode ser cobrado duas vezes.
   const { data: repetidas } = await admin
     .from("ordens_pagamento")
     .select("id")
@@ -3228,7 +3230,7 @@ export async function gerarOrdemAluguel(
     .not("excluido", "is", true)
     .limit(1)
   if ((repetidas ?? []).length > 0) {
-    return { erro: `Já existe ordem deste contrato para ${dados.competencia}.` }
+    return { erro: `Já existe ordem deste contrato para o período ${dados.periodo}.` }
   }
   // Fatura = documento fiscal da locação; boleto, quando houver, define a forma.
   // Ficam no bucket das ordens (compras), onde o Financeiro os abre.
@@ -3277,7 +3279,7 @@ export async function gerarOrdemAluguel(
     if (error && esquemaAusente(error)) return { erro: AVISO_SQL }
     return { erro: `Não foi possível gerar a ordem: ${error?.message ?? "sem retorno"}` }
   }
-  await registrarEvento(String(criada.id), "criada", await usuarioDaTrilha(), `Mensalidade ${dados.competencia} do contrato de locação.`)
+  await registrarEvento(String(criada.id), "criada", await usuarioDaTrilha(), `Cobrança do período ${dados.periodo} do contrato de locação.`)
   return {}
 }
 
