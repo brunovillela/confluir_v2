@@ -26,7 +26,7 @@ export function AvaliacaoOrdemForm({
   return (
     <form
       action={formAction}
-      className="grid gap-2"
+      className="grid w-full min-w-0 gap-2 sm:w-auto"
       onSubmit={(e) => {
         const decisao = (
           (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement
@@ -47,7 +47,7 @@ export function AvaliacaoOrdemForm({
           value={observacao}
           onChange={(e) => setObservacao(e.target.value)}
           placeholder="Observação (obrigatória para devolver)"
-          className="h-8 max-w-72 text-sm"
+          className="h-8 w-full text-sm sm:w-72"
         />
         <Button
           type="submit"

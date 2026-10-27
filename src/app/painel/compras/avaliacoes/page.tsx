@@ -145,7 +145,7 @@ export default async function AvaliacoesComprasPage({
                 className="border-border flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-md border p-3"
               >
                 <DadosOrdem ordem={o} />
-                <div className="flex shrink-0 flex-wrap items-center gap-3">
+                <div className="flex w-full min-w-0 flex-wrap items-center gap-3 sm:w-auto sm:shrink-0">
                   <span className="text-sm font-semibold whitespace-nowrap tabular-nums">
                     {formatarMoeda(o.valor_inicial_cobranca)}
                   </span>
