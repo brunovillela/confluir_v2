@@ -1,5 +1,6 @@
 import "server-only"
 
+import { mesmoTitular } from "@/lib/cpf"
 import { bancoPorCodigo, codigoPorNome } from "@/lib/cnab/bancos"
 import { codigoDeBarrasDe, gerarRemessa240, lerRetorno240, type ContaRemessa, type ItemRemessa } from "@/lib/cnab/febraban240"
 import { esquemaAusente, hojeSP, texto } from "@/lib/db/comum"
@@ -345,7 +346,8 @@ export async function ordensParaRemessa(): Promise<{ disponivel: boolean; ordens
             if (nomeTitular) base.favorecidoNome = nomeTitular
             const i = pendencias.indexOf("favorecido sem CPF/CNPJ")
             if (i >= 0) pendencias.splice(i, 1)
-            if (favorecidoDocumento && docTitular !== favorecidoDocumento) {
+            // Matriz/filial (mesma raiz de CNPJ) é o mesmo titular.
+            if (favorecidoDocumento && !mesmoTitular(docTitular, favorecidoDocumento)) {
               avisos.push(`conta de outro titular: ${nomeTitular ?? "titular"} (${docTitular})`)
             }
           }

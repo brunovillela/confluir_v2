@@ -114,8 +114,10 @@ ainda não foi personalizado.
   Compara o **CPF/CNPJ do titular**, pedido no cadastro de toda conta
   (fornecedor, conta nova na compra/contrato/custeio, funcionário, ficha do
   diretor, contas do hotel); nas contas antigas, sem o documento, compara os
-  nomes. Pega a troca da conta do fornecedor por outra, o golpe mais comum;
-  conta sem titular informado fica como N/A.
+  nomes. Matriz e filial (mesma raiz de CNPJ) contam como o mesmo titular.
+  Pega a troca da conta do fornecedor por outra, o golpe mais comum; conta sem
+  titular informado fica como N/A. Na remessa, a conta de outro titular aparece
+  como aviso, sem travar o pagamento.
 - **Despesa sem centro de custo**.
 - **Cobrança em duplicidade** — outra ordem do mesmo favorecido, com o mesmo
   valor, em até *N* dias do vencimento.

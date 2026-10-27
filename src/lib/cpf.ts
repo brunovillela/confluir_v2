@@ -97,3 +97,13 @@ export function lerDocumentoTitular(valor: string | null | undefined): { documen
   }
   return { documento: null, erro: "CPF/CNPJ do titular da conta inválido." }
 }
+
+/**
+ * Mesmo titular para fins de conta bancária: documentos iguais ou, em CNPJ,
+ * a mesma RAIZ (8 primeiros dígitos) — matriz e filial são a mesma pessoa
+ * jurídica. Recebe só dígitos. Seguro para o client.
+ */
+export function mesmoTitular(a: string, b: string): boolean {
+  if (a === b) return true
+  return a.length === 14 && b.length === 14 && a.slice(0, 8) === b.slice(0, 8)
+}

@@ -8,7 +8,7 @@ import {
   type Severidade,
 } from "@/lib/auditoria-regras-catalogo"
 import type { Apontamento } from "@/lib/auditoria-confirmacao"
-import { validarCnpj, validarCpf } from "@/lib/cpf"
+import { mesmoTitular, validarCnpj, validarCpf } from "@/lib/cpf"
 import { regrasConfiguradas, type RegraConfigurada } from "@/lib/db/auditoria-regras"
 import { avisarOrdensEmAutorizacao, depoisDaResposta } from "@/lib/db/avisos"
 import { esquemaAusente, hojeSP } from "@/lib/db/comum"
@@ -263,7 +263,7 @@ function palavras(nome: string): string[] {
  */
 function titularConfere(titular: string, nomes: string[], docFavorecido: string | null): boolean | null {
   const doc = (titular.match(/\d[\d./-]{9,}\d/)?.[0] ?? "").replace(/\D/g, "")
-  if ((doc.length === 11 || doc.length === 14) && docFavorecido) return doc === docFavorecido
+  if ((doc.length === 11 || doc.length === 14) && docFavorecido) return mesmoTitular(doc, docFavorecido)
   const dele = palavras(titular)
   if (dele.length === 0 || nomes.length === 0) return null
   return nomes.some((nome) => {
@@ -533,6 +533,7 @@ async function verificarLinha(
         // Com o CPF/CNPJ do titular no cadastro da conta, a comparação é exata.
         if (conta && docTitular && docFavorecido) {
           if (docTitular === docFavorecido) r("ok", `Titular da conta: ${titular ?? docTitular} (mesmo CPF/CNPJ do favorecido).`)
+          else if (mesmoTitular(docTitular, docFavorecido)) r("ok", `Titular da conta: ${titular ?? docTitular} (matriz/filial do favorecido — mesma raiz de CNPJ).`)
           else r("falha", `A conta é de ${titular ? `${titular} — ` : ""}${docTitular}, mas o favorecido é ${docFavorecido}.`)
           break
         }
