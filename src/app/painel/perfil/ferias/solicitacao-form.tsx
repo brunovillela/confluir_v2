@@ -100,15 +100,17 @@ export function CancelarFeriasBotao({
   autorizado?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(cancelarFeriasAction, {})
+  const envio2 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+      const pergunta = autorizado
+        ? "Estas férias já foram AUTORIZADAS. Cancelar assim mesmo? Combine a troca com o departamento de pessoal."
+        : "Cancelar esta solicitação de férias?"
+      confirmarEnvio(e, pergunta)},
+  })
 
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        const pergunta = autorizado
-          ? "Estas férias já foram AUTORIZADAS. Cancelar assim mesmo? Combine a troca com o departamento de pessoal."
-          : "Cancelar esta solicitação de férias?"
-        confirmarEnvio(e, pergunta)}}
+      action={formAction} {...envio2}
       className="inline-flex items-center"
     >
       <input type="hidden" name="id" value={id} />

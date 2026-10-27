@@ -137,11 +137,14 @@ export function NotaFiscalIcone({
 }) {
   const [estado, acao, pendente] = useActionState(trocarNotaFiscalAction, {})
   const formRef = useRef<HTMLFormElement>(null)
+  const envio2 = useEnvioFormulario(acao, estado, {
+    ref: formRef,
+  })
   const arquivoRef = useRef<HTMLInputElement>(null)
   const descricao = DESCRICAO_NOTA[alvo][temNota ? "trocar" : "incluir"]
 
   return (
-    <form ref={formRef} action={acao} className="inline-flex items-center gap-1">
+    <form action={acao} {...envio2} className="inline-flex items-center gap-1">
       <input type="hidden" name="processo_id" value={processoId} />
       <input type="hidden" name="alvo" value={alvo} />
       <input type="hidden" name="id" value={id} />

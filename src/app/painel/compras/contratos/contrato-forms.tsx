@@ -306,13 +306,15 @@ export function BotaoExcluirContrato({
   confirmacao?: string
 }) {
   const [estado, formAction, pendente] = useActionState(acao, {})
+  const envio2 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+        confirmarEnvio(e, confirmacao)
+      },
+  })
   return (
     <form
-      action={formAction}
+      action={formAction} {...envio2}
       className="inline-flex flex-col items-end gap-1"
-      onSubmit={(e) => {
-        confirmarEnvio(e, confirmacao)
-      }}
     >
       <input type="hidden" name="contrato_id" value={contratoId} />
       <Button type="submit" variant="destructive" size="sm" disabled={pendente}>

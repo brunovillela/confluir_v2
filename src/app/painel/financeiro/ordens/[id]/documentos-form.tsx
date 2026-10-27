@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 
 import { ACEITA_NOTA, prepararArquivo } from "@/lib/arquivo-envio"
 import { salvarDocumentosOrdemAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /**
  * Nota fiscal e boleto da ordem, anexados ou substituídos pela própria tela
@@ -32,10 +33,11 @@ export function DocumentosForm({
   rotuloNota: string
 }) {
   const [estado, acao, pendente] = useActionState(salvarDocumentosOrdemAction, {})
+  const envio2 = useEnvioFormulario(acao, estado)
   const [erroArquivo, setErroArquivo] = useState<string | null>(null)
 
   return (
-    <form action={acao} className="mt-4 grid gap-4 border-t pt-4">
+    <form action={acao} {...envio2} className="mt-4 grid gap-4 border-t pt-4">
       <input type="hidden" name="id" value={ordemId} />
       {(erroArquivo ?? estado.erro) && (
         <Alert variant="destructive">

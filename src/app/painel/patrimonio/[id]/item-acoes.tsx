@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 
 import { alternarAtivoItemAction } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /** Botão do gestor: ativar/inativar o item (com confirmação). */
 export function ItemAcoes({
@@ -19,16 +20,18 @@ export function ItemAcoes({
   podeEditar?: boolean
 }) {
   const [estado, acao, pendente] = useActionState(alternarAtivoItemAction, {})
+  const envio = useEnvioFormulario(acao, estado, {
+    antes: (e) => {
+        if (ativo) confirmarEnvio(e, "Inativar este item? Ele sai da lista de itens ativos do patrimônio.")
+      },
+  })
 
   if (!podeEditar) return null
 
   return (
     <div className="grid gap-2">
       <form
-        action={acao}
-        onSubmit={(e) => {
-          if (ativo) confirmarEnvio(e, "Inativar este item? Ele sai da lista de itens ativos do patrimônio.")
-        }}
+        action={acao} {...envio}
       >
         <input type="hidden" name="item_id" value={itemId} />
         <input type="hidden" name="ativo" value={ativo ? "0" : "1"} />

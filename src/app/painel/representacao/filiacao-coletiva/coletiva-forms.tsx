@@ -26,6 +26,7 @@ import {
   reverterProcessoAction,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -38,6 +39,7 @@ export function NovoProcessoForm({
   acordos: { id: string; titulo: string | null }[]
 }) {
   const [estado, action, pend] = useActionState(criarProcessoColetivo, {})
+  const envio = useEnvioFormulario(action, estado)
   const [rodadaId, setRodadaId] = useState("")
   const rodada = rodadas.find((r) => r.id === rodadaId)
 
@@ -54,7 +56,7 @@ export function NovoProcessoForm({
   }
 
   return (
-    <form action={action} className="grid gap-4">
+    <form action={action} {...envio} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -152,6 +154,7 @@ export function AplicarProcesso({
   resumo: { total: number; mantidos: number; aCriar: number; aRecarimbar: number; duvidas: number }
 }) {
   const [estado, action, pend] = useActionState(aplicarProcessoAction, {})
+  const envio2 = useEnvioFormulario(action, estado)
   // decisões controladas para o "aplicar a todas" conseguir mexer nos selects
   const [decisoes, setDecisoes] = useState<Record<string, string>>(() =>
     Object.fromEntries(duvidas.map((d) => [d.aptoId, "ignorar"]))
@@ -191,7 +194,7 @@ export function AplicarProcesso({
   }
 
   return (
-    <form action={action} className="grid gap-4">
+    <form action={action} {...envio2} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -318,6 +321,7 @@ export function AplicarProcesso({
 export function ReverterProcesso({ id }: { id: string }) {
   const [aberto, setAberto] = useState(false)
   const [estado, action, pend] = useActionState(reverterProcessoAction, {})
+  const envio3 = useEnvioFormulario(action, estado)
 
   if (!aberto) {
     return (
@@ -328,7 +332,7 @@ export function ReverterProcesso({ id }: { id: string }) {
     )
   }
   return (
-    <form action={action} className="grid max-w-md gap-3">
+    <form action={action} {...envio3} className="grid max-w-md gap-3">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -387,12 +391,14 @@ export function ReverterProcesso({ id }: { id: string }) {
 
 export function ExcluirProcesso({ id }: { id: string }) {
   const [estado, action, pend] = useActionState(excluirProcessoAction, {})
+  const envio4 = useEnvioFormulario(action, estado, {
+    antes: (e) => {
+        confirmarEnvio(e, "Excluir este rascunho de filiação coletiva?")
+      },
+  })
   return (
     <form
-      action={action}
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Excluir este rascunho de filiação coletiva?")
-      }}
+      action={action} {...envio4}
     >
       {estado.erro && (
         <Alert variant="destructive" className="mb-3">
@@ -415,6 +421,7 @@ export function ExcluirProcesso({ id }: { id: string }) {
 
 export function BotaoMaturarAgora() {
   const [estado, action, pend] = useActionState(maturarAgoraAction, {})
+  const envio5 = useEnvioFormulario(action, estado)
   return (
     <div className="grid gap-2">
       {estado.ok && (
@@ -427,7 +434,7 @@ export function BotaoMaturarAgora() {
           <AlertDescription>{estado.erro}</AlertDescription>
         </Alert>
       )}
-      <form action={action}>
+      <form action={action} {...envio5}>
         <Button type="submit" variant="outline" size="sm" disabled={pend}>
           {pend ? <Loader2 className="animate-spin" /> : <Play className="size-3.5" />}
           Processar prazos agora

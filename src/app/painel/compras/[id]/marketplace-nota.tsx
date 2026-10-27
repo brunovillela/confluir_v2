@@ -22,6 +22,7 @@ import { formatarCnpjCpf } from "@/lib/mascaras"
 
 import { cadastrarFornecedorDaNota, lerNotaCompra, type FornecedorDaNota } from "../nova/ia-actions"
 import { anexarNotaMarketplaceAction, vincularVendedorAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 type Estado = { erro?: string; ok?: string }
 
@@ -232,6 +233,7 @@ export function VincularVendedor({
     if (r.ok) setAberto(false)
     return r
   }, {})
+  const envio2 = useEnvioFormulario(acao, estado)
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
       <DialogTrigger asChild>
@@ -245,7 +247,7 @@ export function VincularVendedor({
           <DialogTitle>Vendedor da compra</DialogTitle>
           <DialogDescription>Quem vendeu pela plataforma — o emitente da nota fiscal.</DialogDescription>
         </DialogHeader>
-        <form action={acao} className="grid gap-3">
+        <form action={acao} {...envio2} className="grid gap-3">
           <input type="hidden" name="processo_id" value={processoId} />
           <input type="hidden" name="fornecimento_id" value={fornecimentoId} />
           <EmpresaCombobox empresas={fornecedores} name="vendedor_id" defaultId={vendedorAtual ?? undefined} />

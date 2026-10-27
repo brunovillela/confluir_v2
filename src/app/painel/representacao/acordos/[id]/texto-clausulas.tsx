@@ -20,6 +20,7 @@ import {
   type EstadoExtracao,
 } from "../actions"
 import { confirmar, confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -115,12 +116,14 @@ export function EnviarDocumento({
 /** Refaz a extração a partir do PDF já guardado. */
 export function ExtrairDeNovo({ acordoId, qtdClausulas }: { acordoId: string; qtdClausulas: number }) {
   const [estado, acao, pendente] = useActionState(extrairClausulasAction, {})
+  const envio2 = useEnvioFormulario(acao, estado, {
+    antes: (e) => {
+        if (qtdClausulas > 0) confirmarEnvio(e, `Refazer a extração SUBSTITUI as ${qtdClausulas} cláusula(s) atuais, inclusive as correções feitas. Continuar?`)
+      },
+  })
   return (
     <form
-      action={acao}
-      onSubmit={(e) => {
-        if (qtdClausulas > 0) confirmarEnvio(e, `Refazer a extração SUBSTITUI as ${qtdClausulas} cláusula(s) atuais, inclusive as correções feitas. Continuar?`)
-      }}
+      action={acao} {...envio2}
       className="grid gap-2"
     >
       <input type="hidden" name="acordo_id" value={acordoId} />
@@ -168,6 +171,7 @@ export function EditarClausula({
 }) {
   const [aberto, setAberto] = useState(false)
   const [estado, acao, pendente] = useActionState(salvarClausulaAction, {})
+  const envio3 = useEnvioFormulario(acao, estado)
   if (!aberto) {
     return (
       <Button type="button" variant="ghost" size="sm" onClick={() => setAberto(true)} aria-label="Editar cláusula">
@@ -176,7 +180,7 @@ export function EditarClausula({
     )
   }
   return (
-    <form action={acao} className="bg-muted/30 grid w-full gap-3 rounded-md border p-3">
+    <form action={acao} {...envio3} className="bg-muted/30 grid w-full gap-3 rounded-md border p-3">
       <input type="hidden" name="clausula_id" value={clausula.id} />
       <input type="hidden" name="acordo_id" value={acordoId} />
       <div className="grid gap-3 sm:grid-cols-[7rem_1fr_16rem]">

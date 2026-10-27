@@ -34,8 +34,9 @@ function Recado({ estado }: { estado: EstadoForm }) {
 
 export function ConfigCobrancaForm({ config }: { config: ConfigCobranca }) {
   const [estado, action, salvando] = useActionState(salvarConfigCobrancaAction, {})
+  const envio2 = useEnvioFormulario(action, estado)
   return (
-    <form action={action} className="grid gap-4">
+    <form action={action} {...envio2} className="grid gap-4">
       <ErroNoCampo estado={estado} />
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="grid gap-1.5">
@@ -69,8 +70,11 @@ export function ConfigCobrancaForm({ config }: { config: ConfigCobranca }) {
 
 export function GerarCobrancasForm({ competencia }: { competencia: string }) {
   const [estado, action, gerando] = useActionState(gerarCobrancasAction, {})
+  const envio3 = useEnvioFormulario(action, estado, {
+    antes: (e) => confirmarEnvio(e, "Gerar as cobranças Pix desta competência para todos os filiados ativos que pagam por Pix e avisá-los?"),
+  })
   return (
-    <form action={action} className="grid gap-3" onSubmit={(e) => confirmarEnvio(e, "Gerar as cobranças Pix desta competência para todos os filiados ativos que pagam por Pix e avisá-los?")}>
+    <form action={action} {...envio3} className="grid gap-3">
       <ErroNoCampo estado={estado} />
       <div className="flex flex-wrap items-end gap-3">
         <div className="grid gap-1.5">
@@ -91,6 +95,9 @@ export function BaixaCobrancaBotoes({ cobrancaId, valor, hoje }: { cobrancaId: s
   const [eBaixa, aBaixa, pBaixa] = useActionState(baixarCobrancaAction, {})
   const envio = useEnvioFormulario(aBaixa, eBaixa)
   const [eCanc, aCanc, pCanc] = useActionState(cancelarCobrancaAction, {})
+  const envio4 = useEnvioFormulario(aCanc, eCanc, {
+    antes: (e) => confirmarEnvio(e, "Cancelar esta cobrança? O filiado não a verá mais no portal."),
+  })
   const [aberto, setAberto] = useState(false)
   if (eBaixa.ok || eCanc.ok) return <span className="text-success-fg text-xs">{eBaixa.ok ?? eCanc.ok}</span>
   return (
@@ -112,7 +119,7 @@ export function BaixaCobrancaBotoes({ cobrancaId, valor, hoje }: { cobrancaId: s
           Dar baixa
         </Button>
       )}
-      <form action={aCanc} onSubmit={(e) => confirmarEnvio(e, "Cancelar esta cobrança? O filiado não a verá mais no portal.")}>
+      <form action={aCanc} {...envio4}>
         <input type="hidden" name="cobranca_id" value={cobrancaId} />
         <Button type="submit" size="sm" variant="ghost" disabled={pCanc}>
           {pCanc ? <Loader2 className="animate-spin" /> : <Ban />}

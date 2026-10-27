@@ -115,14 +115,16 @@ export function AnexarComprovacaoForm({ id }: { id: string }) {
 
 export function CancelarFaltaBotao({ id, autorizada = false }: { id: string; autorizada?: boolean }) {
   const [estado, acao, pendente] = useActionState(cancelarFaltaAction, {})
+  const envio3 = useEnvioFormulario(acao, estado, {
+    antes: (e) => {
+      const pergunta = autorizada
+        ? "Esta falta já foi AUTORIZADA. Cancelar assim mesmo? O departamento de pessoal será avisado."
+        : "Cancelar este pedido de falta justificada?"
+      confirmarEnvio(e, pergunta)},
+  })
   return (
     <form
-      action={acao}
-      onSubmit={(e) => {
-        const pergunta = autorizada
-          ? "Esta falta já foi AUTORIZADA. Cancelar assim mesmo? O departamento de pessoal será avisado."
-          : "Cancelar este pedido de falta justificada?"
-        confirmarEnvio(e, pergunta)}}
+      action={acao} {...envio3}
       className="inline-flex items-center"
     >
       <input type="hidden" name="id" value={id} />

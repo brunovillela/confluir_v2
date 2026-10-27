@@ -422,6 +422,11 @@ function AssembleiaItem({
     apagarAssembleia,
     {}
   )
+  const envio5 = useEnvioFormulario(apagarAction, estadoApagar, {
+    antes: (e) => {
+        confirmarEnvio(e, "Excluir esta assembleia?")
+      },
+  })
   const erro = estadoSalvar.erro ?? estadoApagar.erro
 
   // Depois do início: nada de editar nem excluir — só prorrogar o término
@@ -545,10 +550,7 @@ function AssembleiaItem({
               <Pencil />
             </Button>
             <form
-              action={apagarAction}
-              onSubmit={(e) => {
-                confirmarEnvio(e, "Excluir esta assembleia?")
-              }}
+              action={apagarAction} {...envio5}
             >
               <input type="hidden" name="rodada_id" value={rodadaId} />
               <input type="hidden" name="assembleia_id" value={assembleia.id} />

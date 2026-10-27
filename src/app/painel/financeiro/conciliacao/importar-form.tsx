@@ -10,11 +10,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { importarExtratoAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function ImportarExtratoForm() {
   const [estado, action, enviando] = useActionState(importarExtratoAction, {})
+  const envio = useEnvioFormulario(action, estado)
   return (
-    <form action={action} className="grid gap-3" key={estado.ok ?? "form"}>
+    <form action={action} {...envio} className="grid gap-3" key={estado.ok ?? "form"}>
       <ErroNoCampo estado={estado} />
       <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
         <div className="grid gap-1.5">

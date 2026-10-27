@@ -8,6 +8,7 @@ import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { Input } from "@/components/ui/input"
 
 import { avaliarDespesaCaixaAction, transferirDespesaCaixaAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-8 max-w-64 truncate rounded-md border px-2 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -15,20 +16,22 @@ const SELECT =
 /** Reconhecer ou não (com motivo) a despesa lançada na sua conta. */
 export function AvaliarDespesa({ id, resumo }: { id: string; resumo: string }) {
   const [estado, acao, pendente] = useActionState(avaliarDespesaCaixaAction, {})
-  const [motivo, setMotivo] = useState("")
-  if (estado.ok) return <p className="text-success-fg text-xs font-medium">{estado.ok}</p>
-  return (
-    <form
-      action={acao}
-      className="grid justify-items-end gap-1.5"
-      onSubmit={(e) => {
+  const envio = useEnvioFormulario(acao, estado, {
+    antes: (e) => {
         const valor = ((e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement)?.value
         if (valor === "reconhecer") confirmarEnvio(e, `Reconhecer a despesa ${resumo}? Ela fica no extrato da sua conta.`)
         else if (motivo.trim().length < 5) {
           alert("Diga por que não reconhece a despesa.")
           e.preventDefault()
         }
-      }}
+      },
+  })
+  const [motivo, setMotivo] = useState("")
+  if (estado.ok) return <p className="text-success-fg text-xs font-medium">{estado.ok}</p>
+  return (
+    <form
+      action={acao} {...envio}
+      className="grid justify-items-end gap-1.5"
     >
       <input type="hidden" name="id" value={id} />
       <div className="flex flex-wrap items-center justify-end gap-2">
@@ -62,12 +65,14 @@ export function TransferirDespesa({
   contas: { id: string; rotulo: string }[]
 }) {
   const [estado, acao, pendente] = useActionState(transferirDespesaCaixaAction, {})
+  const envio2 = useEnvioFormulario(acao, estado, {
+    antes: (e) => confirmarEnvio(e, "Transferir a despesa? Ela sai da conta atual e entra na escolhida."),
+  })
   if (estado.ok) return <p className="text-success-fg text-xs font-medium">{estado.ok}</p>
   return (
     <form
-      action={acao}
+      action={acao} {...envio2}
       className="grid justify-items-end gap-1.5"
-      onSubmit={(e) => confirmarEnvio(e, "Transferir a despesa? Ela sai da conta atual e entra na escolhida.")}
     >
       <input type="hidden" name="id" value={id} />
       <div className="flex flex-wrap items-center justify-end gap-2">

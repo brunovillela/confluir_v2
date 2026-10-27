@@ -58,6 +58,11 @@ export function PeriodoFeriasForm({
     excluirPeriodoAction,
     {}
   )
+  const envio2 = useEnvioFormulario(excluirAction, estadoExcluir, {
+    antes: (e) => {
+        confirmarEnvio(e, "Excluir este período de férias? Só é possível excluir períodos sem gozos.")
+      },
+  })
 
   const erro = estado.erro ?? estadoExcluir.erro
   const voltar = periodo
@@ -211,10 +216,7 @@ export function PeriodoFeriasForm({
 
       {periodo && (
         <form
-          action={excluirAction}
-          onSubmit={(e) => {
-            confirmarEnvio(e, "Excluir este período de férias? Só é possível excluir períodos sem gozos.")
-          }}
+          action={excluirAction} {...envio2}
           className="flex justify-end border-t pt-4"
         >
           <input type="hidden" name="id" value={periodo.id} />

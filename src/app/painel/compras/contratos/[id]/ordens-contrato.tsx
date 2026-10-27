@@ -26,6 +26,7 @@ import {
   receberDocumentoOrdemAction,
 } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /** Valor NUMERIC → texto pt-BR editável (sem símbolo). */
 function valorParaTexto(valor: number | null): string {
@@ -146,6 +147,11 @@ export function ExclusaoOrdensBarra({
   origemRotulo?: string
 }) {
   const [estado, acao, pendente] = useActionState(acaoExcluir, {})
+  const envio2 = useEnvioFormulario(acao, estado, {
+    antes: (e) => {
+        confirmarEnvio(e, `Excluir ${quantas} ordem(ns) não autorizada(s)? Elas saem do ${origemRotulo} e do Financeiro.`)
+      },
+  })
   const [quantas, setQuantas] = useState(0)
 
   useEffect(() => {
@@ -158,10 +164,7 @@ export function ExclusaoOrdensBarra({
   return (
     <form
       id={formId}
-      action={acao}
-      onSubmit={(e) => {
-        confirmarEnvio(e, `Excluir ${quantas} ordem(ns) não autorizada(s)? Elas saem do ${origemRotulo} e do Financeiro.`)
-      }}
+      action={acao} {...envio2}
       className="grid gap-2"
     >
       <input type="hidden" name={campoOrigem} value={contratoId} />
@@ -228,7 +231,15 @@ export function AcoesLinhaOrdem({
     },
     {}
   )
+  const envio3 = useEnvioFormulario(acaoEditar, estEditar)
   const [estExcluir, acaoExcluir, pendExcluir] = useActionState(acaoExcluirOrdem, {})
+  const envio4 = useEnvioFormulario(acaoExcluir, estExcluir, {
+    antes: (e) =>
+      confirmarEnvio(
+        e,
+        `Excluir a ordem ${ordem.codigo ?? ""}? Ela sai do ${origemRotulo} e do Financeiro${autorizada ? " — e a autorização já dada é desfeita" : ""}. A exclusão fica no histórico.`
+      ),
+  })
   const autorizada = ordem.situacao === "A pagar"
 
   return (
@@ -248,7 +259,7 @@ export function AcoesLinhaOrdem({
                 : "A alteração fica no histórico da ordem, com o antes e o depois."}
             </DialogDescription>
           </DialogHeader>
-          <form action={acaoEditar} className="grid gap-3">
+          <form action={acaoEditar} {...envio3} className="grid gap-3">
             <input type="hidden" name={campoOrigem} value={contratoId} />
             <input type="hidden" name="ordem_id" value={ordem.id} />
             {estEditar.erro && (
@@ -293,13 +304,7 @@ export function AcoesLinhaOrdem({
         </DialogContent>
       </Dialog>
       <form
-        action={acaoExcluir}
-        onSubmit={(e) =>
-          confirmarEnvio(
-            e,
-            `Excluir a ordem ${ordem.codigo ?? ""}? Ela sai do ${origemRotulo} e do Financeiro${autorizada ? " — e a autorização já dada é desfeita" : ""}. A exclusão fica no histórico.`
-          )
-        }
+        action={acaoExcluir} {...envio4}
       >
         <input type="hidden" name={campoOrigem} value={contratoId} />
         <input type="hidden" name="ordem_id" value={ordem.id} />

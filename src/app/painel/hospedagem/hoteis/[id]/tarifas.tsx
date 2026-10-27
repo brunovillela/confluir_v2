@@ -45,6 +45,10 @@ export function Tarifas({
   const [estado, criarAction, criando] = useActionState(criarTarifa, {})
   const envio = useEnvioFormulario(criarAction, estado)
   const [estadoExcluir, excluirAction, excluindo] = useActionState(excluirTarifa, {})
+  const envio2 = useEnvioFormulario(excluirAction, estadoExcluir, {
+    antes: (e) => {
+      confirmarEnvio(e, "Excluir esta tarifa?")},
+  })
 
   const erro = estado.erro ?? estadoExcluir.erro
 
@@ -91,9 +95,7 @@ export function Tarifas({
                   </TableCell>
                   <TableCell>
                     <form
-                      action={excluirAction}
-                      onSubmit={(e) => {
-                        confirmarEnvio(e, "Excluir esta tarifa?")}}
+                      action={excluirAction} {...envio2}
                     >
                       <input type="hidden" name="id" value={t.id} />
                       <input type="hidden" name="hotel_id" value={hotelId} />

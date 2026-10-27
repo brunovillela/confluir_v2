@@ -83,13 +83,15 @@ export function BotaoAcaoProcesso({
   children: React.ReactNode
 }) {
   const [estado, formAction, pendente] = useActionState(ACOES[acao], {})
+  const envio3 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+        if (confirmacao) confirmarEnvio(e, confirmacao)
+      },
+  })
   return (
     <form
-      action={formAction}
+      action={formAction} {...envio3}
       className="inline-flex flex-col items-end gap-1"
-      onSubmit={(e) => {
-        if (confirmacao) confirmarEnvio(e, confirmacao)
-      }}
     >
       {Object.entries(campos).map(([nome, valor]) => (
         <input key={nome} type="hidden" name={nome} value={valor} />
@@ -197,12 +199,14 @@ export function RegistrarCompraForm({
     registrarCompraAction,
     {}
   )
+  const envio4 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+      confirmarEnvio(e, `Efetivar a compra? ${resumo}`)},
+  })
   return (
     <form
-      action={formAction}
+      action={formAction} {...envio4}
       className="flex flex-wrap items-end gap-3"
-      onSubmit={(e) => {
-        confirmarEnvio(e, `Efetivar a compra? ${resumo}`)}}
     >
       <input type="hidden" name="processo_id" value={processoId} />
       <div className="grid gap-1.5">

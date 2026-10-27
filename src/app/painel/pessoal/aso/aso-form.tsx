@@ -169,12 +169,14 @@ export function AsoForm({
 
 export function ExcluirAsoBotao({ id }: { id: string }) {
   const [estado, formAction, pendente] = useActionState(excluirAsoAction, {})
+  const envio2 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+      confirmarEnvio(e, "Excluir este ASO?")},
+  })
 
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Excluir este ASO?")}}
+      action={formAction} {...envio2}
       className="inline-flex items-center"
     >
       <input type="hidden" name="id" value={id} />

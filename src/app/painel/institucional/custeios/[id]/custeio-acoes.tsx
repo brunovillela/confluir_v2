@@ -143,6 +143,16 @@ export function BotaoCancelar({
     cancelarCusteioAction,
     {}
   )
+  const envio5 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+        if (ordensAbertas > 0) {
+          confirmarEnvio(
+            e,
+            `Cancelar este custeio? ${ordensAbertas} ordem(ns) ainda não paga(s) será(ão) cancelada(s) no Financeiro.`
+          )
+        }
+      },
+  })
   const [aberto, setAberto] = useState(false)
 
   if (!aberto) {
@@ -155,15 +165,7 @@ export function BotaoCancelar({
   }
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        if (ordensAbertas > 0) {
-          confirmarEnvio(
-            e,
-            `Cancelar este custeio? ${ordensAbertas} ordem(ns) ainda não paga(s) será(ão) cancelada(s) no Financeiro.`
-          )
-        }
-      }}
+      action={formAction} {...envio5}
       className="grid max-w-md gap-2"
     >
       <input type="hidden" name="custeio_id" value={custeioId} />

@@ -8,15 +8,18 @@ import { Button } from "@/components/ui/button"
 
 import { excluirFuncao } from "../../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function ExcluirFuncao({ id }: { id: string }) {
   const [estado, action, pend] = useActionState(excluirFuncao, {})
+  const envio = useEnvioFormulario(action, estado, {
+    antes: (e) => {
+        confirmarEnvio(e, "Excluir esta função? Esta ação não pode ser desfeita.")
+      },
+  })
   return (
     <form
-      action={action}
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Excluir esta função? Esta ação não pode ser desfeita.")
-      }}
+      action={action} {...envio}
     >
       {estado.erro && (
         <Alert variant="destructive" className="mb-3">

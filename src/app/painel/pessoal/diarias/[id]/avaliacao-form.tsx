@@ -12,6 +12,7 @@ import { formatarMoeda } from "@/lib/formato"
 
 import { avaliarDiaria } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export type InfracaoPendente = {
   id: string
@@ -34,6 +35,17 @@ export function AvaliacaoDiariaForm({
   infracoesPendentes?: InfracaoPendente[]
 }) {
   const [estado, formAction, pendente] = useActionState(avaliarDiaria, {})
+  const envio = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+      const decisao = (
+        (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement
+      )?.value
+      const pergunta =
+        decisao === "aprovar"
+          ? `Aprovar esta diária (${valorTexto})? Ela entra na remessa do beneficiário, que vai para pagamento quando for enviada.`
+          : "Reprovar esta solicitação de diária?"
+      confirmarEnvio(e, pergunta)},
+  })
   const totalPendente = infracoesPendentes.reduce((s, i) => s + i.valor, 0)
 
   return (
@@ -47,16 +59,7 @@ export function AvaliacaoDiariaForm({
       </CardHeader>
       <CardContent>
         <form
-          action={formAction}
-          onSubmit={(e) => {
-            const decisao = (
-              (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement
-            )?.value
-            const pergunta =
-              decisao === "aprovar"
-                ? `Aprovar esta diária (${valorTexto})? Ela entra na remessa do beneficiário, que vai para pagamento quando for enviada.`
-                : "Reprovar esta solicitação de diária?"
-            confirmarEnvio(e, pergunta)}}
+          action={formAction} {...envio}
           className="grid gap-4"
         >
           {estado.erro && (

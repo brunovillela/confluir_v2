@@ -19,6 +19,7 @@ import {
 } from "@/lib/representacao-reunioes-constantes"
 
 import { lerAtaAction, prepararEnvioAtaAction, salvarReuniaoAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const CAMPO =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -43,6 +44,9 @@ export function ReuniaoForm({
   const [estado, acao, pendente] = useActionState(salvarReuniaoAction, {})
   const info = INFO_TIPO_REUNIAO[tipo]
   const formRef = useRef<HTMLFormElement>(null)
+  const envio2 = useEnvioFormulario(acao, estado, {
+    ref: formRef,
+  })
   const [modalidade, setModalidade] = useState<ModalidadeReuniao>(reuniao?.modalidade ?? "presencial")
   const [marcados, setMarcados] = useState<Set<string>>(
     () => new Set((reuniao?.participantes ?? []).filter((p) => p.lado === "sindicato" && p.usuarioId).map((p) => p.usuarioId!))
@@ -149,7 +153,7 @@ export function ReuniaoForm({
   const setorial = tipo === "setorial"
 
   return (
-    <form ref={formRef} action={acao} className="grid gap-5">
+    <form action={acao} {...envio2} className="grid gap-5">
       <input type="hidden" name="empresa_id" value={empresaId} />
       <input type="hidden" name="tipo" value={tipo} />
       {reuniao && <input type="hidden" name="reuniao_id" value={reuniao.id} />}

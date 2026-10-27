@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 
 import { avaliarOrdemAction } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /** Aprovar libera a ordem para pagamento; devolver exige o motivo. */
 export function AvaliacaoOrdemForm({
@@ -21,13 +22,8 @@ export function AvaliacaoOrdemForm({
   voltarPara?: string
 }) {
   const [estado, formAction, pendente] = useActionState(avaliarOrdemAction, {})
-  const [observacao, setObservacao] = useState("")
-
-  return (
-    <form
-      action={formAction}
-      className="grid w-full min-w-0 gap-2 sm:w-auto"
-      onSubmit={(e) => {
+  const envio = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
         const decisao = (
           (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement
         )?.value
@@ -37,7 +33,14 @@ export function AvaliacaoOrdemForm({
           alert("Informe o motivo da devolução.")
           e.preventDefault()
         }
-      }}
+      },
+  })
+  const [observacao, setObservacao] = useState("")
+
+  return (
+    <form
+      action={formAction} {...envio}
+      className="grid w-full min-w-0 gap-2 sm:w-auto"
     >
       <input type="hidden" name="ordem_id" value={ordemId} />
       {voltarPara && <input type="hidden" name="voltar" value={voltarPara} />}

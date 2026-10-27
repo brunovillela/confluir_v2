@@ -380,6 +380,10 @@ export function ConcluirNegociacao({
   vigenteTitulo: string | null
 }) {
   const [estado, acao, pendente] = useActionState(concluirNegociacaoAction, {})
+  const envio5 = useEnvioFormulario(acao, estado, {
+    antes: (e) => {
+      confirmarEnvio(e, "Concluir a negociação? O documento escolhido vira o acordo vigente.")},
+  })
   const finais = documentos.filter((d) => d.papel === "final")
   const opcoes = finais.length ? finais : documentos.filter((d) => d.papel !== "pauta")
   if (opcoes.length === 0) {
@@ -391,10 +395,8 @@ export function ConcluirNegociacao({
   }
   return (
     <form
-      action={acao}
+      action={acao} {...envio5}
       className="grid gap-4"
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Concluir a negociação? O documento escolhido vira o acordo vigente.")}}
     >
       <input type="hidden" name="negociacao_id" value={negociacaoId} />
       <Erro erro={estado.erro} />

@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 
 import { enviarOrdemCompraAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /**
  * Ordem de compra do fornecimento: abre o PDF e envia por e-mail ao
@@ -49,6 +50,7 @@ export function OrdemCompraAcoes({
     },
     {}
   )
+  const envio2 = useEnvioFormulario(acao, estado)
   const pdf = `/painel/compras/${processoId}/fornecimentos/${fornecimentoId}/ordem-compra`
 
   return (
@@ -102,7 +104,7 @@ export function OrdemCompraAcoes({
                 de contato da entidade.
               </DialogDescription>
             </DialogHeader>
-            <form action={acao} className="grid gap-3">
+            <form action={acao} {...envio2} className="grid gap-3">
               <input type="hidden" name="processo_id" value={processoId} />
               <input type="hidden" name="fornecimento_id" value={fornecimentoId} />
               <div className="grid gap-1.5">

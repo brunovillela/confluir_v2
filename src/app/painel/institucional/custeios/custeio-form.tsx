@@ -24,6 +24,7 @@ import { EmpresaCombobox, type EmpresaOpcao } from "@/components/empresa-combobo
 import { ACEITA_NOTA, prepararArquivo } from "@/lib/arquivo-envio"
 import { DetalhePagamento, type CaixaOpcao } from "../../compras/nova/detalhe-pagamento"
 import { atualizarCusteioAction, criarCusteioAction, meiosDoBeneficiarioAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /** Rótulos da forma no custeio: quem recebe é o beneficiário. */
 const ROTULO_FORMA: Record<(typeof FORMAS_ORDEM_CONTRATO)[number], string> = {
@@ -95,6 +96,7 @@ export function CusteioForm({
     custeio ? atualizarCusteioAction : criarCusteioAction,
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado)
 
   const idBeneficiarioInicial =
     custeio?.diretoria_integrante_id ??
@@ -137,7 +139,7 @@ export function CusteioForm({
   }
 
   return (
-    <form action={formAction} className="grid gap-5">
+    <form action={formAction} {...envio2} className="grid gap-5">
       {custeio && <input type="hidden" name="custeio_id" value={custeio.id} />}
       <input type="hidden" name="tipo_beneficiario" value={tipo} />
       <input type="hidden" name="beneficiario_id" value={beneficiarioId} />

@@ -15,6 +15,7 @@ import {
   reenviarRemessaAction,
   retirarDiariaRemessaAction,
 } from "@/app/painel/pessoal/diarias/remessas/actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /**
  * Avaliação da REMESSA de diárias (08/10/2026): aprovar a remessa inteira
@@ -61,16 +62,8 @@ export function AvaliacaoRemessaForm({
   infracoes: { quantidade: number; total: string } | null
 }) {
   const [estado, formAction, pendente] = useActionState(avaliarRemessaAction, {})
-  const [devolvendo, setDevolvendo] = useState(false)
-  const [apontadas, setApontadas] = useState<Set<string>>(new Set())
-
-  if (estado.ok) return <Retorno estado={estado} />
-
-  return (
-    <form
-      action={formAction}
-      className="grid gap-4"
-      onSubmit={(e) => {
+  const envio = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
         const decisao = ((e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement)?.value
         if (decisao === "aprovar") {
           confirmarEnvio(e, {
@@ -85,7 +78,17 @@ export function AvaliacaoRemessaForm({
             confirmar: "Devolver",
           })
         }
-      }}
+      },
+  })
+  const [devolvendo, setDevolvendo] = useState(false)
+  const [apontadas, setApontadas] = useState<Set<string>>(new Set())
+
+  if (estado.ok) return <Retorno estado={estado} />
+
+  return (
+    <form
+      action={formAction} {...envio}
+      className="grid gap-4"
     >
       <input type="hidden" name="remessa_id" value={remessaId} />
       <Retorno estado={estado} />
@@ -191,16 +194,18 @@ export function AvaliacaoRemessaForm({
 /** Compacto (Aprovar pelo celular e área do coordenador): aprovar ou devolver com observação. */
 export function DecisaoRemessaCompacta({ remessaId, resumo }: { remessaId: string; resumo: string }) {
   const [estado, formAction, pendente] = useActionState(avaliarRemessaAction, {})
+  const envio2 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+        const decisao = ((e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement)?.value
+        if (decisao === "aprovar") confirmarEnvio(e, `Aprovar ${resumo}? Nasce a ordem de pagamento rateada — autorizada direto se a regra das diárias permitir; senão, vai para a fila de autorização.`)
+      },
+  })
   const [devolvendo, setDevolvendo] = useState(false)
   if (estado.ok) return <p className="text-success-fg text-xs font-medium">{estado.ok}</p>
   return (
     <form
-      action={formAction}
+      action={formAction} {...envio2}
       className="grid gap-2"
-      onSubmit={(e) => {
-        const decisao = ((e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement)?.value
-        if (decisao === "aprovar") confirmarEnvio(e, `Aprovar ${resumo}? Nasce a ordem de pagamento rateada — autorizada direto se a regra das diárias permitir; senão, vai para a fila de autorização.`)
-      }}
     >
       <input type="hidden" name="remessa_id" value={remessaId} />
       {devolvendo && (
@@ -231,12 +236,14 @@ export function DecisaoRemessaCompacta({ remessaId, resumo }: { remessaId: strin
 /** Reenvio da remessa devolvida, depois de corrigida. */
 export function ReenviarRemessaForm({ remessaId }: { remessaId: string }) {
   const [estado, formAction, pendente] = useActionState(reenviarRemessaAction, {})
+  const envio3 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => confirmarEnvio(e, "Reenviar a remessa corrigida para avaliação?"),
+  })
   if (estado.ok) return <Retorno estado={estado} />
   return (
     <form
-      action={formAction}
+      action={formAction} {...envio3}
       className="grid gap-2"
-      onSubmit={(e) => confirmarEnvio(e, "Reenviar a remessa corrigida para avaliação?")}
     >
       <input type="hidden" name="remessa_id" value={remessaId} />
       <Retorno estado={estado} />
@@ -252,12 +259,14 @@ export function ReenviarRemessaForm({ remessaId }: { remessaId: string }) {
 /** Retirar uma diária aguardando da remessa (quem gere as diárias). */
 export function RetirarDiariaBotao({ remessaId, diariaId }: { remessaId: string; diariaId: string }) {
   const [estado, formAction, pendente] = useActionState(retirarDiariaRemessaAction, {})
+  const envio4 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => confirmarEnvio(e, "Retirar esta diária da remessa? Ela fica cancelada."),
+  })
   if (estado.ok) return <span className="text-success-fg text-xs">{estado.ok}</span>
   return (
     <form
-      action={formAction}
+      action={formAction} {...envio4}
       className="inline-flex items-center gap-1"
-      onSubmit={(e) => confirmarEnvio(e, "Retirar esta diária da remessa? Ela fica cancelada.")}
     >
       <input type="hidden" name="remessa_id" value={remessaId} />
       <input type="hidden" name="diaria_id" value={diariaId} />
@@ -282,18 +291,19 @@ export function EnviarRemessaBotao({
   acao: (prev: EstadoForm, fd: FormData) => Promise<EstadoForm>
 }) {
   const [estado, formAction, pendente] = useActionState(acao, {})
+  const envio5 = useEnvioFormulario(formAction, estado, {
+    antes: (e) =>
+      confirmarEnvio(e, {
+        titulo: `Enviar a remessa para avaliação (${resumo})?`,
+        descricao: "Depois de enviada ela entra na fila de quem avalia e não recebe mais diárias — uma diária nova abre outra remessa.",
+        confirmar: "Enviar",
+      }),
+  })
   if (estado.ok) return <Retorno estado={estado} />
   return (
     <form
-      action={formAction}
+      action={formAction} {...envio5}
       className="grid gap-2"
-      onSubmit={(e) =>
-        confirmarEnvio(e, {
-          titulo: `Enviar a remessa para avaliação (${resumo})?`,
-          descricao: "Depois de enviada ela entra na fila de quem avalia e não recebe mais diárias — uma diária nova abre outra remessa.",
-          confirmar: "Enviar",
-        })
-      }
     >
       <input type="hidden" name="remessa_id" value={remessaId} />
       <Retorno estado={estado} />

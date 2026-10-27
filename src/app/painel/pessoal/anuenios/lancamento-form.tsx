@@ -50,6 +50,11 @@ export function AnuenioLancamentoForm({
     excluirLancamentoAnuenio,
     {}
   )
+  const envio2 = useEnvioFormulario(excluirAction, estadoExcluir, {
+    antes: (e) => {
+        confirmarEnvio(e, "Excluir este lançamento de anuênio?")
+      },
+  })
 
   const erro = estado.erro ?? estadoExcluir.erro
 
@@ -163,10 +168,7 @@ export function AnuenioLancamentoForm({
 
       {lancamento && (
         <form
-          action={excluirAction}
-          onSubmit={(e) => {
-            confirmarEnvio(e, "Excluir este lançamento de anuênio?")
-          }}
+          action={excluirAction} {...envio2}
           className="flex justify-end border-t pt-4"
         >
           <input type="hidden" name="id" value={lancamento.id} />

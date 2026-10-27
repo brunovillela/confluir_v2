@@ -42,15 +42,17 @@ export function ConfirmarAporte({
   valor: string
 }) {
   const [estado, formAction, pendente] = useActionState(confirmarAporte, {})
+  const envio3 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+        confirmarEnvio(e, `Confirmar que você recebeu ${valor} em espécie? A verba fica liberada e a conta abre.`)
+      },
+  })
   // A recusa fica fora do <form>: o submit do diálogo (portal) borbulharia
   // pela árvore React até o onSubmit da confirmação.
   return (
     <div className="flex flex-wrap items-center gap-2">
       <form
-        action={formAction}
-        onSubmit={(e) => {
-          confirmarEnvio(e, `Confirmar que você recebeu ${valor} em espécie? A verba fica liberada e a conta abre.`)
-        }}
+        action={formAction} {...envio3}
         className="flex flex-wrap items-center gap-2"
       >
         <input type="hidden" name="movimentacao_id" value={movimentacaoId} />
@@ -120,12 +122,14 @@ function RecusarAporte({ movimentacaoId, valor }: { movimentacaoId: string; valo
 /** `bloqueio`: despesas sem reconhecimento resolvido — a prestação espera. */
 export function PrestarContas({ bloqueio = null }: { bloqueio?: string | null }) {
   const [estado, formAction, pendente] = useActionState(prestarContas, {})
+  const envio4 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+        confirmarEnvio(e, "Prestar contas agora? A conta fica travada para novas compras até a decisão do Financeiro.")
+      },
+  })
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Prestar contas agora? A conta fica travada para novas compras até a decisão do Financeiro.")
-      }}
+      action={formAction} {...envio4}
       className="grid gap-3"
     >
       {estado.erro && (
@@ -170,12 +174,14 @@ export function PrestarContas({ bloqueio = null }: { bloqueio?: string | null })
 /** Desfaz o envio da prestação enquanto ela aguarda o gestor dos caixas. */
 export function DesfazerPrestacao({ prestacaoId }: { prestacaoId: string }) {
   const [estado, formAction, pendente] = useActionState(desfazerPrestacao, {})
+  const envio5 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+        confirmarEnvio(e, "Desfazer o envio da prestação de contas? Ela sai da fila do gestor e a conta volta a abrir para compras.")
+      },
+  })
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Desfazer o envio da prestação de contas? Ela sai da fila do gestor e a conta volta a abrir para compras.")
-      }}
+      action={formAction} {...envio5}
       className="flex flex-wrap items-center gap-2"
     >
       <input type="hidden" name="prestacao_id" value={prestacaoId} />
@@ -247,6 +253,15 @@ export function VincularOrdem() {
   const [escolhida, setEscolhida] = useState<OrdemVinculavel | null>(null)
   const [buscando, buscar] = useTransition()
   const [estado, formAction, pendente] = useActionState(vincularOrdemCaixa, {})
+  const envio6 = useEnvioFormulario(formAction, estado, {
+    antes: (e) =>
+      confirmarEnvio(
+        e,
+        escolhida
+          ? `Vincular a ordem ${escolhida.codigo ?? ""} (${formatarMoeda(escolhida.valor)}) ao seu caixa? A forma de pagamento passa a Dinheiro, com este caixa${escolhida.situacao === "Paga" ? "" : ", e a ordem fica Paga"}, e o valor sai do saldo.`
+          : "Escolha uma ordem."
+      ),
+  })
 
   // Busca com espera curta depois da digitação.
   useEffect(() => {
@@ -330,15 +345,7 @@ export function VincularOrdem() {
         </Alert>
       )}
       <form
-        action={formAction}
-        onSubmit={(e) =>
-          confirmarEnvio(
-            e,
-            escolhida
-              ? `Vincular a ordem ${escolhida.codigo ?? ""} (${formatarMoeda(escolhida.valor)}) ao seu caixa? A forma de pagamento passa a Dinheiro, com este caixa${escolhida.situacao === "Paga" ? "" : ", e a ordem fica Paga"}, e o valor sai do saldo.`
-              : "Escolha uma ordem."
-          )
-        }
+        action={formAction} {...envio6}
         className="flex justify-end"
       >
         <input type="hidden" name="ordem_id" value={escolhida?.id ?? ""} />

@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { PRESENCAS } from "@/lib/pessoal-sst-constantes"
 
 import { atualizarAtividade, criarAtividade } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export type AtividadeFormDados = {
   id: string
@@ -35,6 +36,7 @@ export function AtividadeForm({ atividade }: { atividade?: AtividadeFormDados })
     atividade ? atualizarAtividade : criarAtividade,
     {}
   )
+  const envio = useEnvioFormulario(action, estado)
 
   return (
     <Card>
@@ -44,7 +46,7 @@ export function AtividadeForm({ atividade }: { atividade?: AtividadeFormDados })
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <form action={action} className="grid gap-4">
+        <form action={action} {...envio} className="grid gap-4">
           {estado.erro && (
             <Alert variant="destructive">
               <AlertDescription>{estado.erro}</AlertDescription>

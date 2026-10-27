@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 
 import { aplicarReajuste } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function ReajusteConfirmarForm({
   percentualTexto,
@@ -18,13 +19,15 @@ export function ReajusteConfirmarForm({
   degraus: number
 }) {
   const [estado, formAction, pendente] = useActionState(aplicarReajuste, {})
+  const envio = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+        confirmarEnvio(e, `Aplicar reajuste de ${percentualTexto}% em ${degraus} degraus da tabela salarial? A alteração vale para todos os cargos e não tem desfazer automático.`)
+      },
+  })
 
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        confirmarEnvio(e, `Aplicar reajuste de ${percentualTexto}% em ${degraus} degraus da tabela salarial? A alteração vale para todos os cargos e não tem desfazer automático.`)
-      }}
+      action={formAction} {...envio}
       className="grid gap-3"
     >
       {estado.erro && (

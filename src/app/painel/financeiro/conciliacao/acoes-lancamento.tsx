@@ -172,8 +172,9 @@ export function AcoesLancamento({
 
 export function DesfazerBotao({ lancamentoId }: { lancamentoId: string }) {
   const [estado, action, pendente] = useActionState(desfazerAction, {})
+  const envio6 = useEnvioFormulario(action, estado)
   return (
-    <form action={action} className="flex items-center gap-2">
+    <form action={action} {...envio6} className="flex items-center gap-2">
       <input type="hidden" name="lancamento_id" value={lancamentoId} />
       <Button type="submit" size="sm" variant="ghost" disabled={pendente}>
         {pendente ? <Loader2 className="animate-spin" /> : <Undo2 />}
@@ -186,8 +187,11 @@ export function DesfazerBotao({ lancamentoId }: { lancamentoId: string }) {
 
 export function ExcluirExtratoBotao({ extratoId, nome }: { extratoId: string; nome: string }) {
   const [estado, action, pendente] = useActionState(excluirExtratoAction, {})
+  const envio7 = useEnvioFormulario(action, estado, {
+    antes: (e) => confirmarEnvio(e, `Excluir o extrato "${nome}" e todos os lançamentos dele? As conciliações automáticas desse arquivo se desfazem.`),
+  })
   return (
-    <form action={action} className="flex items-center gap-2" onSubmit={(e) => confirmarEnvio(e, `Excluir o extrato "${nome}" e todos os lançamentos dele? As conciliações automáticas desse arquivo se desfazem.`)}>
+    <form action={action} {...envio7} className="flex items-center gap-2">
       <input type="hidden" name="extrato_id" value={extratoId} />
       <Button type="submit" size="sm" variant="ghost" disabled={pendente}>
         {pendente ? <Loader2 className="animate-spin" /> : <Trash2 />}

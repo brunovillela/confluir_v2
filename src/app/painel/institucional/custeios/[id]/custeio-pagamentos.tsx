@@ -19,10 +19,12 @@ import {
   receberDocumentoCusteioAction,
   salvarFormalizacaoAction,
 } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /** Anexa ou troca o documento que formaliza o custeio. */
 export function FormalizacaoForm({ custeioId, url }: { custeioId: string; url: string | null }) {
   const [estado, acao, pendente] = useActionState(salvarFormalizacaoAction, {})
+  const envio2 = useEnvioFormulario(acao, estado)
   const [erroArquivo, setErroArquivo] = useState<string | null>(null)
   return (
     <div className="grid gap-3">
@@ -34,7 +36,7 @@ export function FormalizacaoForm({ custeioId, url }: { custeioId: string; url: s
       ) : (
         <p className="text-muted-foreground text-sm">Nenhum documento de formalização anexado.</p>
       )}
-      <form action={acao} className="flex flex-wrap items-center gap-2">
+      <form action={acao} {...envio2} className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="custeio_id" value={custeioId} />
         <Input
           name="formalizacao"

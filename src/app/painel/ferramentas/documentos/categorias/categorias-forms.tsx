@@ -141,13 +141,15 @@ function ExcluirCategoria({ categoria }: { categoria: CategoriaDocumento }) {
     excluirCategoriaAction,
     {}
   )
+  const envio3 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+        confirmarEnvio(e, `Excluir a categoria "${categoria.nome ?? ""}"?`)
+      },
+  })
   return (
     <form
-      action={formAction}
+      action={formAction} {...envio3}
       className="inline-flex flex-col items-end"
-      onSubmit={(e) => {
-        confirmarEnvio(e, `Excluir a categoria "${categoria.nome ?? ""}"?`)
-      }}
     >
       <input type="hidden" name="categoria_id" value={categoria.id} />
       <Button

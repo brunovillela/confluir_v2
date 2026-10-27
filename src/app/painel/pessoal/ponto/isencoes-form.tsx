@@ -138,10 +138,12 @@ export function EncerrarIsencaoBotao({ id, hoje }: { id: string; hoje: string })
 
 export function ExcluirIsencaoBotao({ id }: { id: string }) {
   const [estado, formAction, pendente] = useActionState(excluirIsencaoPonto, {})
+  const envio2 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => confirmarEnvio(e, "Excluir esta isenção? Use só para lançamento feito por engano; para terminar uma isenção, encerre-a."),
+  })
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => confirmarEnvio(e, "Excluir esta isenção? Use só para lançamento feito por engano; para terminar uma isenção, encerre-a.")}
+      action={formAction} {...envio2}
       className="inline-flex"
     >
       <input type="hidden" name="id" value={id} />

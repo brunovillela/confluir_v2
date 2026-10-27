@@ -41,15 +41,17 @@ export function ProvidenciaForm({ id }: { id: string }) {
 /** Ocultar do hotel / Mostrar ao hotel, com confirmação. */
 export function OcultarBotao({ id, oculta }: { id: string; oculta: boolean }) {
   const [estado, formAction, pendente] = useActionState(ocultarAction, {})
+  const envio2 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+      const pergunta = oculta
+        ? "Mostrar este comentário ao hotel de novo? Ele continua anônimo."
+        : "Ocultar este comentário do hotel? O hotel verá a nota e as etiquetas, mas no lugar do texto aparecerá \"Comentário moderado pelo sindicato\"."
+      confirmarEnvio(e, pergunta)},
+  })
 
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        const pergunta = oculta
-          ? "Mostrar este comentário ao hotel de novo? Ele continua anônimo."
-          : "Ocultar este comentário do hotel? O hotel verá a nota e as etiquetas, mas no lugar do texto aparecerá \"Comentário moderado pelo sindicato\"."
-        confirmarEnvio(e, pergunta)}}
+      action={formAction} {...envio2}
       className="flex flex-wrap items-center gap-2"
     >
       <input type="hidden" name="id" value={id} />

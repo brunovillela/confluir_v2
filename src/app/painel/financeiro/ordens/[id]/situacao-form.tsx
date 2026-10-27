@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { DESTINOS_SITUACAO, destinoDaSituacao, motivoOpcional } from "@/lib/ordens-situacoes"
 
 import { alterarSituacaoAction, removerPagamento } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -36,7 +37,9 @@ export function SituacaoForm({
 }) {
   const [aberto, setAberto] = useState(false)
   const [estado, acao, pendente] = useActionState(alterarSituacaoAction, {})
+  const { ref: refSituacao, onSubmit: enviarSituacao } = useEnvioFormulario(acao, estado)
   const [estRemover, acaoRemover, pendRemover] = useActionState(removerPagamento, {})
+  const { ref: refRemover, onSubmit: enviarRemover } = useEnvioFormulario(acaoRemover, estRemover)
   const opcoes = DESTINOS_SITUACAO.filter(
     (d) =>
       d.valor !== situacao &&
@@ -63,14 +66,16 @@ export function SituacaoForm({
           </p>
           <form
             action={acaoRemover}
-            onSubmit={(e) =>
+            ref={refRemover}
+            onSubmit={(e) => {
               confirmarEnvio(e, {
                 titulo: `Trocar a situação para "${volta}"?`,
                 descricao: texto,
                 confirmar: "Trocar",
                 destrutivo: true,
               })
-            }
+              enviarRemover(e)
+            }}
           >
             <input type="hidden" name="id" value={ordemId} />
             <Button type="submit" variant="outline" size="sm" disabled={pendRemover}>
@@ -114,7 +119,8 @@ export function SituacaoForm({
       {aberto && (
         <form
           action={acao}
-          onSubmit={(e) =>
+          ref={refSituacao}
+          onSubmit={(e) => {
             confirmarEnvio(e, {
               titulo: cancelada
                 ? `Desfazer o cancelamento e levar a ordem para "${nova}"?`
@@ -122,7 +128,8 @@ export function SituacaoForm({
               descricao: (destino ?? "") + avisoCancelada,
               confirmar: cancelada ? "Desfazer" : "Trocar",
             })
-          }
+            enviarSituacao(e)
+          }}
           className="grid gap-3 rounded-md border p-3"
         >
           <input type="hidden" name="id" value={ordemId} />

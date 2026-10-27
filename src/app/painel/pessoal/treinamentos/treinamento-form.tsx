@@ -40,6 +40,11 @@ export function TreinamentoForm({
     excluirTreinamento,
     {}
   )
+  const envio2 = useEnvioFormulario(excluirAction, estadoExcluir, {
+    antes: (e) => {
+        confirmarEnvio(e, "Excluir este treinamento? Só é possível excluir treinamentos sem alunos.")
+      },
+  })
 
   const erro = estado.erro ?? estadoExcluir.erro
 
@@ -111,10 +116,7 @@ export function TreinamentoForm({
 
         {treinamento && (
           <form
-            action={excluirAction}
-            onSubmit={(e) => {
-              confirmarEnvio(e, "Excluir este treinamento? Só é possível excluir treinamentos sem alunos.")
-            }}
+            action={excluirAction} {...envio2}
             className="flex justify-end border-t pt-4"
           >
             <input type="hidden" name="id" value={treinamento.id} />

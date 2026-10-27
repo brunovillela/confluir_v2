@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 
 import { trocarRemessa } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export type OpcaoRemessa = { id: string; rotulo: string }
 
@@ -23,17 +24,19 @@ export function TrocarRemessa({
   opcoes: OpcaoRemessa[]
 }) {
   const [estado, formAction, pendente] = useActionState(trocarRemessa, {})
-
-  return (
-    <form
-      action={formAction}
-      onSubmit={(e) => {
+  const envio = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
         const select = e.currentTarget.querySelector<HTMLSelectElement>(
           'select[name="remessa_destino"]'
         )
         const rotulo = select?.selectedOptions[0]?.textContent ?? "outra remessa"
         confirmarEnvio(e, `Mover TODOS os lançamentos e o recebimento desta fonte para a remessa ${rotulo}?`)
-      }}
+      },
+  })
+
+  return (
+    <form
+      action={formAction} {...envio}
       className="grid gap-3"
     >
       {estado.erro && (

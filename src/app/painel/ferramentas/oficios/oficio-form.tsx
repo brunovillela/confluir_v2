@@ -20,6 +20,7 @@ import {
 } from "@/lib/oficios-constantes"
 
 import { melhorarOficio } from "./ia-actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -78,6 +79,9 @@ export function OficioForm({
 
   const corpoRef = useRef<EditorOficioRef>(null)
   const formRef = useRef<HTMLFormElement>(null)
+  const envio = useEnvioFormulario(formAction, estado, {
+    ref: formRef,
+  })
   const [iaPendente, setIaPendente] = useState(false)
   const [iaErro, setIaErro] = useState<string | null>(null)
 
@@ -110,7 +114,7 @@ export function OficioForm({
   return (
     // Duas colunas na tela larga: à esquerda os dados do ofício, à direita só
     // o corpo do texto — é onde se passa mais tempo, então ganha a altura toda.
-    <form ref={formRef} action={formAction} className="grid gap-6 lg:grid-cols-2">
+    <form action={formAction} {...envio} className="grid gap-6 lg:grid-cols-2">
       {dados?.id && <input type="hidden" name="oficio_id" value={dados.id} />}
 
       <fieldset className="grid gap-2 lg:col-span-2">

@@ -26,6 +26,7 @@ import {
   type EstadoEntrada,
 } from "./campos-entrada"
 import { EntradaPorCodigo } from "./entrada-por-codigo"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 type Aba = "codigo" | "senha"
 
@@ -100,6 +101,9 @@ export function PortalLoginForm({
     },
     {}
   )
+  const envio = useEnvioFormulario(actionSenha, estadoSenha, {
+    ref: formSenha,
+  })
 
   const trocarAba = (valor: string) => {
     const nova: Aba = valor === "senha" ? "senha" : "codigo"
@@ -147,7 +151,7 @@ export function PortalLoginForm({
           </TabsContent>
 
           <TabsContent value="senha" forceMount className="data-[state=inactive]:hidden">
-            <form ref={formSenha} action={actionSenha} className="grid gap-4 pt-2">
+            <form action={actionSenha} {...envio} className="grid gap-4 pt-2">
               {next && <input type="hidden" name="next" value={next} />}
               <Mensagens id="erro-senha" erro={estadoSenha.erro} ok={estadoSenha.ok} />
               <div className="grid gap-2">

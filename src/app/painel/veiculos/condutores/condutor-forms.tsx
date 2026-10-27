@@ -150,15 +150,17 @@ export function AutorizacaoForm({
     definirAutorizacaoAction,
     {}
   )
-  return (
-    <form
-      action={formAction}
-      className="inline-flex flex-col items-end gap-1"
-      onSubmit={(e) => {
+  const envio2 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
         confirmarEnvio(e, autorizado
               ? `Retirar a autorização de ${nome} para dirigir?`
               : `Autorizar ${nome} a dirigir os veículos do sindicato?`)
-      }}
+      },
+  })
+  return (
+    <form
+      action={formAction} {...envio2}
+      className="inline-flex flex-col items-end gap-1"
     >
       <input type="hidden" name="condutor_id" value={condutorId} />
       <input type="hidden" name="autorizado" value={autorizado ? "0" : "1"} />

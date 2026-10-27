@@ -20,6 +20,7 @@ import {
   excluirRegistroPonto,
 } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -268,11 +269,8 @@ export function ExcluirRegistroBotao({
   funcionario?: string | null
 }) {
   const [estado, formAction, pendente] = useActionState(excluirRegistroPonto, {})
-
-  return (
-    <form
-      action={formAction}
-      onSubmit={(e) => {
+  const envio = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
         confirmarEnvio(
           e,
           liberado
@@ -284,7 +282,12 @@ export function ExcluirRegistroBotao({
               }
             : "Excluir este registro de ponto? O PDF do espelho também é apagado."
         )
-      }}
+      },
+  })
+
+  return (
+    <form
+      action={formAction} {...envio}
       className="inline-flex"
     >
       <input type="hidden" name="id" value={id} />

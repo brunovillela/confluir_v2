@@ -31,6 +31,7 @@ import {
 } from "@/lib/filiacao"
 
 import { atualizarVinculo, criarVinculo } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export type OpcaoFonte = { id: string; nome: string; fundoPensao: boolean }
 
@@ -89,6 +90,7 @@ export function VinculoForm({
     vinculo ? atualizarVinculo : criarVinculo,
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado)
   const erro = estado.erro
 
   // A condição na fonte segue o TIPO da fonte enquanto o usuário não a
@@ -119,7 +121,7 @@ export function VinculoForm({
         </Alert>
       )}
 
-      <form action={formAction} className="grid gap-4">
+      <form action={formAction} {...envio2} className="grid gap-4">
         <input type="hidden" name="filiado_id" value={filiadoId} />
         {vinculo && <input type="hidden" name="vinculo_id" value={vinculo.id} />}
 

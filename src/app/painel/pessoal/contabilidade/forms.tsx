@@ -43,20 +43,21 @@ export function EnviarCompetenciaForm({
   antesDoCorte: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(enviarCompetenciaAction, {})
+  const envio2 = useEnvioFormulario(formAction, estado, {
+    antes: (e) =>
+      confirmarEnvio(e, {
+        titulo: `Enviar o movimento de ${rotulo} (${total} item(ns))?`,
+        descricao:
+          (antesDoCorte ? "Ainda não chegou o dia do corte (15). " : "") +
+          "Enviada, a competência fica congelada como foi entregue. O que for lançado depois vai para a competência seguinte, marcado como retroativo.",
+        confirmar: "Enviar",
+      }),
+  })
   if (estado.ok) return <Retorno estado={estado} />
   return (
     <form
-      action={formAction}
+      action={formAction} {...envio2}
       className="grid gap-3"
-      onSubmit={(e) =>
-        confirmarEnvio(e, {
-          titulo: `Enviar o movimento de ${rotulo} (${total} item(ns))?`,
-          descricao:
-            (antesDoCorte ? "Ainda não chegou o dia do corte (15). " : "") +
-            "Enviada, a competência fica congelada como foi entregue. O que for lançado depois vai para a competência seguinte, marcado como retroativo.",
-          confirmar: "Enviar",
-        })
-      }
     >
       <input type="hidden" name="competencia" value={competencia} />
       <div className="grid gap-1.5">

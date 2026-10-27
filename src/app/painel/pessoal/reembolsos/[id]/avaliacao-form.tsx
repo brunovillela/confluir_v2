@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label"
 
 import { avaliarReembolsoAction, marcarPagoAction } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -66,6 +67,17 @@ export function AvaliacaoReembolsoForm({
     avaliarReembolsoAction,
     {}
   )
+  const envio = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+      const decisao = (
+        (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement
+      )?.value
+      const pergunta =
+        decisao === "aprovar"
+          ? "Aprovar este reembolso para pagamento em contracheque?"
+          : "Reprovar esta solicitação de reembolso?"
+      confirmarEnvio(e, pergunta)},
+  })
   const sugerido = contrachequeSugerido()
 
   return (
@@ -81,16 +93,7 @@ export function AvaliacaoReembolsoForm({
       </CardHeader>
       <CardContent>
         <form
-          action={formAction}
-          onSubmit={(e) => {
-            const decisao = (
-              (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement
-            )?.value
-            const pergunta =
-              decisao === "aprovar"
-                ? "Aprovar este reembolso para pagamento em contracheque?"
-                : "Reprovar esta solicitação de reembolso?"
-            confirmarEnvio(e, pergunta)}}
+          action={formAction} {...envio}
           className="grid gap-4"
         >
           {estado.erro && (
@@ -180,13 +183,15 @@ export function AvaliacaoReembolsoForm({
 
 export function MarcarPagoBotao({ reembolsoId }: { reembolsoId: string }) {
   const [estado, formAction, pendente] = useActionState(marcarPagoAction, {})
+  const envio2 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+        confirmarEnvio(e, "Marcar este reembolso como pago no contracheque? O funcionário será avisado.")
+      },
+  })
 
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Marcar este reembolso como pago no contracheque? O funcionário será avisado.")
-      }}
+      action={formAction} {...envio2}
       className="grid gap-2"
     >
       {estado.erro && (

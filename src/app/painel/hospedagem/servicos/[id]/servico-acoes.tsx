@@ -31,14 +31,16 @@ export function FinalizarBotao({
   action?: AcaoForm
 }) {
   const [estado, formAction, pendente] = useActionState(action, {})
+  const envio2 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+        if (!finalizado) confirmarEnvio(e, "Finalizar esta reserva? Cupons não poderão mais ser vinculados.")
+      },
+  })
 
   return (
     <form
-      action={formAction}
+      action={formAction} {...envio2}
       className="flex items-center gap-2"
-      onSubmit={(e) => {
-        if (!finalizado) confirmarEnvio(e, "Finalizar esta reserva? Cupons não poderão mais ser vinculados.")
-      }}
     >
       <input type="hidden" name="servico_id" value={servicoId} />
       <input type="hidden" name="finalizado" value={String(!finalizado)} />
@@ -82,6 +84,11 @@ export function HospedeAcoes({
     desvincularAction,
     {}
   )
+  const envio3 = useEnvioFormulario(desvAction, estadoDesv, {
+    antes: (e) => {
+        confirmarEnvio(e, "Desvincular este cupom? Ele volta a aguardar reserva.")
+      },
+  })
 
   const erro = estadoComp.erro ?? estadoDesv.erro
 
@@ -111,10 +118,7 @@ export function HospedeAcoes({
       </form>
       {podeDesvincular && (
         <form
-          action={desvAction}
-          onSubmit={(e) => {
-            confirmarEnvio(e, "Desvincular este cupom? Ele volta a aguardar reserva.")
-          }}
+          action={desvAction} {...envio3}
         >
           <input type="hidden" name="servico_id" value={servicoId} />
           <input type="hidden" name="cupom_id" value={cupomId} />

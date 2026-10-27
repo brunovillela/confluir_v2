@@ -100,6 +100,11 @@ export function NivelLancamentoForm({
     excluirLancamentoNivel,
     {}
   )
+  const envio2 = useEnvioFormulario(excluirAction, estadoExcluir, {
+    antes: (e) => {
+        confirmarEnvio(e, "Excluir este lançamento de nível salarial?")
+      },
+  })
 
   const erro = estado.erro ?? estadoExcluir.erro
 
@@ -234,10 +239,7 @@ export function NivelLancamentoForm({
 
       {lancamento && (
         <form
-          action={excluirAction}
-          onSubmit={(e) => {
-            confirmarEnvio(e, "Excluir este lançamento de nível salarial?")
-          }}
+          action={excluirAction} {...envio2}
           className="flex justify-end border-t pt-4"
         >
           <input type="hidden" name="id" value={lancamento.id} />

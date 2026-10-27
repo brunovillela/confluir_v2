@@ -153,11 +153,13 @@ export function DecisaoFalta({ id }: { id: string }) {
 
 export function ExcluirFaltaBotao({ id }: { id: string }) {
   const [estado, acao, pendente] = useActionState(excluirFaltaAction, {})
+  const envio4 = useEnvioFormulario(acao, estado, {
+    antes: (e) => {
+      confirmarEnvio(e, "Excluir esta falta justificada? A ausência gerada por ela sai junto.")},
+  })
   return (
     <form
-      action={acao}
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Excluir esta falta justificada? A ausência gerada por ela sai junto.")}}
+      action={acao} {...envio4}
       className="inline-flex items-center"
     >
       <input type="hidden" name="id" value={id} />

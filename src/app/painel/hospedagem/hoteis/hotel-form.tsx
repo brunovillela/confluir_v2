@@ -23,6 +23,7 @@ import {
 } from "@/lib/hospedagem-garantida-constantes"
 
 import { atualizarHotel, criarHotel } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export type HotelFormDados = {
   id: string
@@ -64,12 +65,13 @@ export function HotelForm({
     hotel ? atualizarHotel : criarHotel,
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado)
   const [modalidade, setModalidade] = useState<ModalidadeConvenio>(
     hotel?.modalidade === "garantida" ? "garantida" : "uso"
   )
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio2} className="grid gap-4">
       {/* Erro de um campo (o telefone) aparece junto dele; o resto, aqui. */}
       <ErroNoCampo estado={estado} />
       {estado.erro && !estado.campo && (

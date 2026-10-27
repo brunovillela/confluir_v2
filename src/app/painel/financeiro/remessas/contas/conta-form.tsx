@@ -12,6 +12,7 @@ import { BANCOS } from "@/lib/cnab/bancos"
 import type { ContaBancaria } from "@/lib/db/remessas"
 
 import { salvarContaAction } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -26,8 +27,9 @@ export function ContaForm({
   titularPadrao: { nome: string | null; documento: string | null }
 }) {
   const [estado, action, salvando] = useActionState(salvarContaAction, {})
+  const envio = useEnvioFormulario(action, estado)
   return (
-    <form action={action} className="grid gap-4">
+    <form action={action} {...envio} className="grid gap-4">
       {conta && <input type="hidden" name="conta_id" value={conta.id} />}
       <ErroNoCampo estado={estado} />
       <div className="grid gap-3 sm:grid-cols-2">

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { Input } from "@/components/ui/input"
 import { type EstadoForm } from "@/lib/contas"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /**
  * Decidir um pedido da equipe na área do coordenador. `recusar` ausente =
@@ -27,22 +28,24 @@ export function DecisaoPedido({
   recusar?: { valor: string; rotulo: string }
 }) {
   const [estado, formAction, pendente] = useActionState(acao, {})
-  const [motivo, setMotivo] = useState("")
-
-  if (estado.ok) return <p className="text-success-fg text-xs font-medium">{estado.ok}</p>
-
-  return (
-    <form
-      action={formAction}
-      className="grid justify-items-end gap-1.5"
-      onSubmit={(e) => {
+  const envio = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
         const valor = ((e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement)?.value
         if (valor === aprovar.valor) confirmarEnvio(e, pergunta)
         else if (!motivo.trim()) {
           alert("Informe o motivo da recusa.")
           e.preventDefault()
         }
-      }}
+      },
+  })
+  const [motivo, setMotivo] = useState("")
+
+  if (estado.ok) return <p className="text-success-fg text-xs font-medium">{estado.ok}</p>
+
+  return (
+    <form
+      action={formAction} {...envio}
+      className="grid justify-items-end gap-1.5"
     >
       <input type="hidden" name="id" value={id} />
       <div className="flex flex-wrap items-center justify-end gap-2">

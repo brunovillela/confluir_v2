@@ -14,6 +14,7 @@ import type { ContaBancaria, OrdemParaRemessa } from "@/lib/db/remessas"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
 import { gerarRemessaAction, linhaDigitavelAction } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -36,6 +37,9 @@ function LinhaDigitavelForm({ ordemId }: { ordemId: string }) {
 
 export function NovaRemessaForm({ contas, ordens }: { contas: ContaBancaria[]; ordens: OrdemParaRemessa[] }) {
   const [estado, action, gerando] = useActionState(gerarRemessaAction, {})
+  const envio = useEnvioFormulario(action, estado, {
+    antes: (e) => confirmarEnvio(e, `Gerar a remessa com ${marcadas.size} ordem(ns), total ${formatarMoeda(total)}?`),
+  })
   const prontas = ordens.filter((o) => o.item && !o.emRemessa)
   const [marcadas, setMarcadas] = useState<Set<string>>(() => new Set(prontas.map((o) => o.id)))
   const total = prontas.filter((o) => marcadas.has(o.id)).reduce((s, o) => s + o.valor, 0)
@@ -48,7 +52,7 @@ export function NovaRemessaForm({ contas, ordens }: { contas: ContaBancaria[]; o
     })
 
   return (
-    <form action={action} className="grid gap-4" onSubmit={(e) => confirmarEnvio(e, `Gerar a remessa com ${marcadas.size} ordem(ns), total ${formatarMoeda(total)}?`)}>
+    <form action={action} {...envio} className="grid gap-4">
       <ErroNoCampo estado={estado} />
       <div className="flex flex-wrap items-end gap-3">
         <label className="grid gap-1 text-xs">

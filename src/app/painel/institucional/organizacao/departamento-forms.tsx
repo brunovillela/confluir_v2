@@ -51,6 +51,7 @@ export function DepartamentoForm({
     tornarLegadoAction,
     {}
   )
+  const { ref: refLegado, onSubmit: enviarLegado } = useEnvioFormulario(acaoLegado, estadoLegado)
   // O coordenador atual que ainda não está entre as pessoas (dado antigo) já
   // entra marcado: ao salvar, ele passa a ser uma das pessoas vinculadas.
   const coordenadorFora = Boolean(
@@ -232,8 +233,11 @@ export function DepartamentoForm({
       {departamento && (
         <form
           action={acaoLegado}
+          ref={refLegado}
           onSubmit={(e) => {
-            confirmarEnvio(e, `Tornar “${departamento.nome}” legado? Ele sai das listas de escolha e continua nos registros antigos. Dá para reativar depois.`)}}
+            confirmarEnvio(e, `Tornar “${departamento.nome}” legado? Ele sai das listas de escolha e continua nos registros antigos. Dá para reativar depois.`)
+            enviarLegado(e)
+          }}
           className="grid gap-1.5 border-t pt-3"
         >
           <input type="hidden" name="departamento_id" value={departamento.id} />

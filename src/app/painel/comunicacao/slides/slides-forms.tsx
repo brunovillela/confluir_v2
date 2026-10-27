@@ -57,6 +57,7 @@ import {
   salvarSlide,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario";
 
 type Estado = { erro?: string; ok?: string }
 type ActionForm = (p: Estado, fd: FormData) => Promise<Estado>
@@ -115,8 +116,9 @@ function EscolhaOrientacao({
 
 export function NovoConjuntoForm() {
   const [estado, action, pend] = useActionState(criarConjuntoSlides, {})
+  const envio2 = useEnvioFormulario(action, estado);
   return (
-    <form action={action} className="grid gap-4">
+    <form action={action} {...envio2} className="grid gap-4">
       <Recado estado={estado} />
       <div className="grid gap-1.5">
         <Label htmlFor="nome-conjunto">Nome *</Label>
@@ -166,13 +168,14 @@ export function ConfigConjuntoForm({
   temLogo: boolean
 }) {
   const [estado, action, pend] = useActionState(salvarConjuntoSlides, {})
+  const envio3 = useEnvioFormulario(action, estado);
   const [comLogo, setComLogo] = useState(conjunto.mostrarLogo)
   const [opacidade, setOpacidade] = useState(conjunto.opacidadeLogo)
   const [comFaixa, setComFaixa] = useState(conjunto.faixaAtiva)
   const [comNoticias, setComNoticias] = useState(conjunto.faixaNoticias)
 
   return (
-    <form action={action} className="grid gap-5">
+    <form action={action} {...envio3} className="grid gap-5">
       <Recado estado={estado} />
       <input type="hidden" name="id" value={conjunto.id} />
 
@@ -343,13 +346,15 @@ function BotaoAcao({
   className?: string
 }) {
   const [estado, act, pend] = useActionState(action, {})
+  const envio4 = useEnvioFormulario(act, estado, {
+    antes: (e) => {
+        if (confirmar) confirmarEnvio(e, confirmar)
+      },
+  });
   return (
     <form
-      action={act}
+      action={act} {...envio4}
       className="grid gap-2"
-      onSubmit={(e) => {
-        if (confirmar) confirmarEnvio(e, confirmar)
-      }}
     >
       {Object.entries(campos).map(([k, v]) => (
         <input key={k} type="hidden" name={k} value={v} />
@@ -382,9 +387,10 @@ export function BotaoNovoLink({ id }: { id: string }) {
 
 export function DuplicarConjuntoForm({ id, orientacao }: { id: string; orientacao: Orientacao }) {
   const [estado, action, pend] = useActionState(duplicarConjuntoSlides, {})
+  const envio5 = useEnvioFormulario(action, estado);
   const outra: Orientacao = orientacao === "horizontal" ? "vertical" : "horizontal"
   return (
-    <form action={action} className="grid gap-2">
+    <form action={action} {...envio5} className="grid gap-2">
       <input type="hidden" name="id" value={id} />
       <div className="flex flex-wrap items-center gap-2">
         <select name="orientacao" defaultValue={outra} className={`${SELECT} w-auto`} aria-label="Orientação da cópia">

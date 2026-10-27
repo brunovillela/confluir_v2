@@ -102,6 +102,11 @@ function PerguntaItem({
     removerPergunta,
     {}
   )
+  const envio4 = useEnvioFormulario(removerAction, estadoRemover, {
+    antes: (e) => {
+        confirmarEnvio(e, "Excluir esta pergunta e suas opções?")
+      },
+  })
   const erro = estadoSalvar.erro ?? estadoRemover.erro
 
   return (
@@ -178,10 +183,7 @@ function PerguntaItem({
                   <Pencil />
                 </Button>
                 <form
-                  action={removerAction}
-                  onSubmit={(e) => {
-                    confirmarEnvio(e, "Excluir esta pergunta e suas opções?")
-                  }}
+                  action={removerAction} {...envio4}
                 >
                   <input type="hidden" name="rodada_id" value={rodadaId} />
                   <input type="hidden" name="pergunta_id" value={pergunta.id} />

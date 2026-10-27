@@ -38,8 +38,9 @@ export function ConfigLinksForm({
   nomeEntidade: string
 }) {
   const [estado, action, pend] = useActionState(salvarConfigLinks, {})
+  const envio2 = useEnvioFormulario(action, estado)
   return (
-    <form action={action} className="grid gap-4">
+    <form action={action} {...envio2} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -93,8 +94,9 @@ export function ConfigLinksForm({
 
 export function NovoLinkForm() {
   const [estado, action, pend] = useActionState(adicionarLink, {})
+  const envio3 = useEnvioFormulario(action, estado)
   return (
-    <form action={action} className="grid gap-3">
+    <form action={action} {...envio3} className="grid gap-3">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

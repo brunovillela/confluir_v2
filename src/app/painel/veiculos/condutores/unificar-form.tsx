@@ -10,6 +10,7 @@ import type { GrupoRepetido } from "@/lib/db/veiculos-condutores-cnh"
 
 import { unificarCondutoresAction } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 function data(v: string | null): string {
   if (!v) return "—"
@@ -20,14 +21,16 @@ function data(v: string | null): string {
 /** Um grupo de cadastros da mesma pessoa, com a escolha de qual fica. */
 export function UnificarGrupo({ grupo }: { grupo: GrupoRepetido }) {
   const [estado, acao, pendente] = useActionState(unificarCondutoresAction, {})
-  return (
-    <form
-      action={acao}
-      className="grid gap-3 rounded-md border p-3"
-      onSubmit={(e) => {
+  const envio = useEnvioFormulario(acao, estado, {
+    antes: (e) => {
         const n = grupo.membros.length - 1
         confirmarEnvio(e, `Unificar? O cadastro marcado fica; ${n === 1 ? "o outro" : `os outros ${n}`} some${n === 1 ? "" : "m"} da lista de condutores, a CNH vai para o histórico e os lançamentos passam para o que fica.`)
-      }}
+      },
+  })
+  return (
+    <form
+      action={acao} {...envio}
+      className="grid gap-3 rounded-md border p-3"
     >
       <p className="text-sm font-medium">
         {grupo.membros[0].nome}

@@ -323,11 +323,13 @@ export function RemoverAptoBotao({
   jaVotou: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(excluirApto, {})
+  const envio4 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+      confirmarEnvio(e, "Remover este apto da lista?")},
+  });
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Remover este apto da lista?")}}
+      action={formAction} {...envio4}
       className="inline-flex items-center gap-1"
     >
       <input type="hidden" name="rodada_id" value={rodadaId} />

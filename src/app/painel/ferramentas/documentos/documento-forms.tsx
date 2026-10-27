@@ -238,13 +238,15 @@ export function BotaoExcluirDocumento({ documentoId }: { documentoId: string }) 
     excluirDocumentoAction,
     {}
   )
+  const envio3 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+        confirmarEnvio(e, "Excluir este documento? Todas as versões e arquivos serão apagados.")
+      },
+  })
   return (
     <form
-      action={formAction}
+      action={formAction} {...envio3}
       className="inline-flex flex-col items-end gap-1"
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Excluir este documento? Todas as versões e arquivos serão apagados.")
-      }}
     >
       <input type="hidden" name="documento_id" value={documentoId} />
       <Button type="submit" variant="destructive" size="sm" disabled={pendente}>
@@ -268,12 +270,14 @@ export function BotaoExcluirVersao({
   documentoId: string
 }) {
   const [estado, formAction, pendente] = useActionState(excluirVersaoAction, {})
+  const envio4 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+      confirmarEnvio(e, "Excluir esta versão e o arquivo?")},
+  })
   return (
     <form
-      action={formAction}
+      action={formAction} {...envio4}
       className="inline-flex items-center"
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Excluir esta versão e o arquivo?")}}
     >
       <input type="hidden" name="versao_id" value={versaoId} />
       <input type="hidden" name="documento_id" value={documentoId} />

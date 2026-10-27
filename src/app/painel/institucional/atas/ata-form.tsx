@@ -41,6 +41,9 @@ export function AtaForm({
   )
   const mandatoDefault = ata?.mandatoId ?? mandatoPadrao ?? ""
   const formRef = useRef<HTMLFormElement>(null)
+  const envio2 = useEnvioFormulario(formAction, estado, {
+    ref: formRef,
+  })
   const [lendo, iniciarLeitura] = useTransition()
   const [leitura, setLeitura] = useState<{ ok?: string; erro?: string } | null>(null)
 
@@ -75,7 +78,7 @@ export function AtaForm({
   }
 
   return (
-    <form ref={formRef} action={formAction} className="grid gap-5">
+    <form action={formAction} {...envio2} className="grid gap-5">
       {ata && <input type="hidden" name="ata_id" value={ata.id} />}
       {estado.erro && (
         <Alert variant="destructive">

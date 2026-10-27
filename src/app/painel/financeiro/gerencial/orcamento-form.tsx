@@ -8,6 +8,7 @@ import { ErroNoCampo } from "@/components/ui/erro-no-campo"
 import { Input } from "@/components/ui/input"
 
 import { salvarOrcamentoAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-8 min-w-56 rounded-md border px-2 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -25,8 +26,9 @@ export function OrcamentoForm({
   valorInicial?: number
 }) {
   const [estado, action, salvando] = useActionState(salvarOrcamentoAction, {})
+  const envio = useEnvioFormulario(action, estado)
   return (
-    <form action={action} className="flex flex-wrap items-center gap-2">
+    <form action={action} {...envio} className="flex flex-wrap items-center gap-2">
       <ErroNoCampo estado={estado} />
       <input type="hidden" name="ano" value={ano} />
       {centroInicial ? (

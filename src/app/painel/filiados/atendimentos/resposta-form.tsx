@@ -33,6 +33,9 @@ export function RespostaAtendimentoForm({
   const [estadoReabrir, reabrir, reabrindo] = useActionState(reabrirAtendimentoAction, {})
   const envio = useEnvioFormulario(reabrir, estadoReabrir)
   const anexo = useAnexo()
+  const envio2 = useEnvioFormulario(action, estado, {
+    antes: anexo.conferirEnvio,
+  })
 
   if (concluida) {
     return (
@@ -55,7 +58,7 @@ export function RespostaAtendimentoForm({
   }
 
   return (
-    <form action={action} onSubmit={anexo.conferirEnvio} className="grid gap-3" key={estado.ok ?? "form"}>
+    <form action={action} {...envio2} className="grid gap-3" key={estado.ok ?? "form"}>
       <input type="hidden" name="atendimento_id" value={atendimentoId} />
       <ErroNoCampo estado={estado} />
       <div className="grid gap-1.5">

@@ -216,11 +216,13 @@ export function ExcluirAtestadoBotao({ id }: { id: string }) {
     excluirAtestadoAction,
     {}
   )
+  const envio3 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+      confirmarEnvio(e, "Excluir este atestado?")},
+  })
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Excluir este atestado?")}}
+      action={formAction} {...envio3}
       className="inline-flex items-center"
     >
       <input type="hidden" name="id" value={id} />
@@ -357,11 +359,13 @@ export function ExcluirAusenciaBotao({ id }: { id: string }) {
     excluirAusenciaAction,
     {}
   )
+  const envio4 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+      confirmarEnvio(e, "Excluir esta ausência?")},
+  })
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Excluir esta ausência?")}}
+      action={formAction} {...envio4}
       className="inline-flex items-center"
     >
       <input type="hidden" name="id" value={id} />

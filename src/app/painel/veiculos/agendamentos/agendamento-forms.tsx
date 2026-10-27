@@ -293,11 +293,13 @@ export function CancelarAgendamentoForm({
     recepcao ? cancelarAgendamentoRecepcaoAction : cancelarAgendamentoAction,
     {}
   )
+  const envio6 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+      confirmarEnvio(e, "Cancelar esta solicitação? Ela fica registrada como cancelada.")},
+  })
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Cancelar esta solicitação? Ela fica registrada como cancelada.")}}
+      action={formAction} {...envio6}
       className="inline-flex flex-col items-end gap-1"
     >
       <input type="hidden" name="agendamento_id" value={agendamentoId} />
@@ -329,6 +331,14 @@ export function TriagemAgendamentoForm({
     negarAgendamentoAction,
     {}
   )
+  const envio7 = useEnvioFormulario(acaoNegar, estadoNegar, {
+    antes: (e) => {
+        if (!motivoNegativa.trim()) {
+          alert("Informe o motivo da negativa.")
+          e.preventDefault()
+        }
+      },
+  })
   const [motivoNegativa, setMotivoNegativa] = useState("")
 
   return (
@@ -357,14 +367,8 @@ export function TriagemAgendamentoForm({
         </Button>
       </form>
       <form
-        action={acaoNegar}
+        action={acaoNegar} {...envio7}
         className="flex flex-wrap items-center gap-2"
-        onSubmit={(e) => {
-          if (!motivoNegativa.trim()) {
-            alert("Informe o motivo da negativa.")
-            e.preventDefault()
-          }
-        }}
       >
         <input type="hidden" name="agendamento_id" value={agendamentoId} />
         <input type="hidden" name="voltar" value="/painel/veiculos/agendamentos" />

@@ -14,13 +14,15 @@ import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 /** Cancelamento do cupom, com confirmação. Erros aparecem como alerta nativo. */
 export function CancelarCupomBotao({ id }: { id: string }) {
   const [estado, formAction, pendente] = useActionState(cancelarCupom, {})
+  const envio2 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+        confirmarEnvio(e, "Cancelar este cupom? A ação não pode ser desfeita.")
+      },
+  })
 
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Cancelar este cupom? A ação não pode ser desfeita.")
-      }}
+      action={formAction} {...envio2}
     >
       <input type="hidden" name="id" value={id} />
       {estado.erro && (

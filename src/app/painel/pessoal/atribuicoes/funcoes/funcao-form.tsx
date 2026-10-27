@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 
 import { atualizarFuncao, criarFuncao } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export type FuncaoFormDados = {
   id: string
@@ -26,6 +27,7 @@ export function FuncaoForm({ funcao }: { funcao?: FuncaoFormDados }) {
     funcao ? atualizarFuncao : criarFuncao,
     {}
   )
+  const envio = useEnvioFormulario(action, estado)
   return (
     <Card>
       <CardHeader>
@@ -34,7 +36,7 @@ export function FuncaoForm({ funcao }: { funcao?: FuncaoFormDados }) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <form action={action} className="grid gap-4">
+        <form action={action} {...envio} className="grid gap-4">
           {estado.erro && (
             <Alert variant="destructive">
               <AlertDescription>{estado.erro}</AlertDescription>

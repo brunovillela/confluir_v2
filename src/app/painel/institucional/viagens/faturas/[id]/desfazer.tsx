@@ -8,16 +8,20 @@ import { Button } from "@/components/ui/button"
 
 import { desfazerFaturaAction } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /** Desfazer enquanto a ordem ainda está em autorização (lançou errado). */
 export function DesfazerFatura({ id }: { id: string }) {
   const [estado, formAction, pendente] = useActionState(desfazerFaturaAction, {})
+  const envio = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+        confirmarEnvio(e, "Desfazer esta fatura? A ordem de pagamento e a compra são apagadas e os itens voltam para “a faturar”.")
+      },
+  })
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Desfazer esta fatura? A ordem de pagamento e a compra são apagadas e os itens voltam para “a faturar”.")
-      }}
+      action={formAction} {...envio}
+     
       className="grid gap-2"
     >
       <input type="hidden" name="id" value={id} />

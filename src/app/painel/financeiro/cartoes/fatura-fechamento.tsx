@@ -14,6 +14,7 @@ import { formatarMoeda } from "@/lib/formato"
 import { parseValorBR } from "@/lib/valores"
 
 import { fecharFaturaAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -39,6 +40,20 @@ export function FaturaFechamento({
   centros: { id: string; rotulo: string }[]
 }) {
   const [estado, acao, pendente] = useActionState(fecharFaturaAction, {})
+  const envio2 = useEnvioFormulario(acao, estado, {
+    antes: (e) =>
+      confirmarEnvio(e, {
+        titulo: "Fechar a fatura e gerar a ordem de pagamento?",
+        descricao: `A ordem sai com ${valor === null ? "o valor informado" : formatarMoeda(valor)}, rateada pelos centros de custo das compras${
+          temDif ? ` e a diferença de ${formatarMoeda(dif!)} no centro escolhido` : ""
+        }. ${
+          vaiParaAlcada
+            ? "Ela vai para a autorização por alçada."
+            : "As compras já foram autorizadas uma a uma e o valor bate: a ordem já sai \"A pagar\"."
+        } As próximas compras no cartão entram na fatura seguinte.`,
+        confirmar: "Fechar a fatura",
+      }),
+  })
   const [valorTexto, setValorTexto] = useState("")
   const [forma, setForma] = useState("Boleto")
   const [erroArquivo, setErroArquivo] = useState<string | null>(null)
@@ -49,20 +64,7 @@ export function FaturaFechamento({
 
   return (
     <form
-      action={acao}
-      onSubmit={(e) =>
-        confirmarEnvio(e, {
-          titulo: "Fechar a fatura e gerar a ordem de pagamento?",
-          descricao: `A ordem sai com ${valor === null ? "o valor informado" : formatarMoeda(valor)}, rateada pelos centros de custo das compras${
-            temDif ? ` e a diferença de ${formatarMoeda(dif!)} no centro escolhido` : ""
-          }. ${
-            vaiParaAlcada
-              ? "Ela vai para a autorização por alçada."
-              : "As compras já foram autorizadas uma a uma e o valor bate: a ordem já sai \"A pagar\"."
-          } As próximas compras no cartão entram na fatura seguinte.`,
-          confirmar: "Fechar a fatura",
-        })
-      }
+      action={acao} {...envio2}
       className="grid gap-4"
     >
       <input type="hidden" name="fatura_id" value={faturaId} />

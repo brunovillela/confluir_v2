@@ -44,6 +44,11 @@ export function CentroCustoForm({
     excluirCentroCusto,
     {}
   )
+  const envio2 = useEnvioFormulario(excluirAction, estadoExcluir, {
+    antes: (e) => {
+        confirmarEnvio(e, "Excluir este centro de custo? Contas usadas em ordens ou contratos não podem ser excluídas.")
+      },
+  })
   const erro = estado.erro ?? estadoExcluir.erro
 
   if (!podeEditar) return null
@@ -159,10 +164,7 @@ export function CentroCustoForm({
 
       {centro && (
         <form
-          action={excluirAction}
-          onSubmit={(e) => {
-            confirmarEnvio(e, "Excluir este centro de custo? Contas usadas em ordens ou contratos não podem ser excluídas.")
-          }}
+          action={excluirAction} {...envio2}
           className="flex justify-end border-t pt-4"
         >
           <input type="hidden" name="centro_id" value={centro.id} />

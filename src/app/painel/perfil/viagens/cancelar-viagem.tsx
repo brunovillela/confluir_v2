@@ -7,16 +7,19 @@ import { Button } from "@/components/ui/button"
 
 import { cancelarViagemAction } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /** Cancelar a própria viagem enquanto ninguém começou a atender. */
 export function CancelarViagemBotao({ id }: { id: string }) {
   const [estado, formAction, pendente] = useActionState(cancelarViagemAction, {})
+  const envio = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+      confirmarEnvio(e, "Cancelar esta solicitação de viagem?")},
+  })
 
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Cancelar esta solicitação de viagem?")}}
+      action={formAction} {...envio}
       className="inline-flex items-center"
     >
       <input type="hidden" name="id" value={id} />

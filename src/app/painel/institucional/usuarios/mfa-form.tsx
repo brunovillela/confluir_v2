@@ -8,16 +8,19 @@ import { Button } from "@/components/ui/button"
 
 import { redefinirSegundoFatorAction } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /** Gestão: apaga o aplicativo autenticador da pessoa que perdeu o celular. */
 export function RedefinirSegundoFator({ usuarioId, acessoId }: { usuarioId: string; acessoId: string }) {
   const [estado, acao, pendente] = useActionState(redefinirSegundoFatorAction, {})
+  const envio = useEnvioFormulario(acao, estado, {
+    antes: (e) => {
+        confirmarEnvio(e, "Redefinir a verificação em duas etapas desta pessoa? O aplicativo atual deixa de valer e ela precisará cadastrar outro. Confirme só depois de ter certeza de quem está pedindo.")
+      },
+  })
   return (
     <form
-      action={acao}
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Redefinir a verificação em duas etapas desta pessoa? O aplicativo atual deixa de valer e ela precisará cadastrar outro. Confirme só depois de ter certeza de quem está pedindo.")
-      }}
+      action={acao} {...envio}
       className="grid gap-2"
     >
       <input type="hidden" name="usuario_id" value={usuarioId} />

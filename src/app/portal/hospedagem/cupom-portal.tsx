@@ -497,6 +497,11 @@ function BotaoAcao({
   icone: React.ReactNode
 }) {
   const [estado, formAction, pendente] = useActionState(acao, {})
+  const envio2 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+        if (confirmacao) confirmarEnvio(e, confirmacao)
+      },
+  })
   // role="status": o leitor de tela anuncia que deu certo sem interromper.
   if (estado.ok)
     return (
@@ -506,11 +511,8 @@ function BotaoAcao({
     )
   return (
     <form
-      action={formAction}
+      action={formAction} {...envio2}
       className="inline-flex flex-col items-start gap-1"
-      onSubmit={(e) => {
-        if (confirmacao) confirmarEnvio(e, confirmacao)
-      }}
     >
       <input type="hidden" name={campo} value={valor} />
       {/* Tamanho padrão (32 px, 44 px no toque pela extensão do Button):

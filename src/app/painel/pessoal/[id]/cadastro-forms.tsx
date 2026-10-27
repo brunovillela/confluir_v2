@@ -152,6 +152,10 @@ export function VinculoFuncionario({
     },
     {}
   )
+  const envio3 = useEnvioFormulario(acaoExcluir, estadoExc, {
+    antes: (e) => {
+      confirmarEnvio(e, "Excluir este vínculo? Use só para quem NUNCA fez parte da entidade (ex.: trabalhador de outra empresa cadastrado por engano). Para quem saiu, preencha a data de desligamento.")},
+  })
   const desligado = Boolean(vinculo.contrato_demissao)
   return (
     <div className="border-b py-3 last:border-b-0">
@@ -239,9 +243,7 @@ export function VinculoFuncionario({
           </form>
 
           <form
-            action={acaoExcluir}
-            onSubmit={(e) => {
-              confirmarEnvio(e, "Excluir este vínculo? Use só para quem NUNCA fez parte da entidade (ex.: trabalhador de outra empresa cadastrado por engano). Para quem saiu, preencha a data de desligamento.")}}
+            action={acaoExcluir} {...envio3}
             className="grid gap-1.5 border-t pt-3"
           >
             <input type="hidden" name="usuario_id" value={usuarioId} />
@@ -278,6 +280,13 @@ export function ExcluirFuncionario({
   impedimentos: string | null
 }) {
   const [estado, acao, pendente] = useActionState(excluirFuncionarioAction, {})
+  const envio4 = useEnvioFormulario(acao, estado, {
+    antes: (e) =>
+      confirmarEnvio(
+        e,
+        `Excluir ${nome} do Pessoal? Saem os vínculos com a entidade e a configuração do Pessoal (função, jornada, GHE, dependentes). O cadastro da pessoa continua — filiação, diretoria e login não mudam.`
+      ),
+  })
   return (
     <div className="border-destructive/30 grid gap-2 rounded-xl border border-dashed p-4">
       <p className="text-sm font-medium">Excluir funcionário</p>
@@ -288,13 +297,7 @@ export function ExcluirFuncionario({
         </p>
       ) : (
         <form
-          action={acao}
-          onSubmit={(e) =>
-            confirmarEnvio(
-              e,
-              `Excluir ${nome} do Pessoal? Saem os vínculos com a entidade e a configuração do Pessoal (função, jornada, GHE, dependentes). O cadastro da pessoa continua — filiação, diretoria e login não mudam.`
-            )
-          }
+          action={acao} {...envio4}
           className="grid gap-2"
         >
           <input type="hidden" name="usuario_id" value={usuarioId} />

@@ -54,14 +54,16 @@ export function InativarVeiculoBotao({
     alternarInatividadeAction,
     {}
   )
-  return (
-    <form
-      action={formAction}
-      onSubmit={(e) => {
+  const envio2 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
         confirmarEnvio(e, inativo
               ? "Reativar este veículo na frota?"
               : "Inativar este veículo? Ele sai da frota ativa e não poderá ser retirado.")
-      }}
+      },
+  })
+  return (
+    <form
+      action={formAction} {...envio2}
       className="grid gap-1"
     >
       <input type="hidden" name="veiculo_id" value={veiculoId} />

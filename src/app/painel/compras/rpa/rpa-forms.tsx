@@ -39,6 +39,7 @@ import {
   salvarConfigRpa,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT_CLS =
   "border-input bg-background h-9 rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -610,12 +611,14 @@ export function ExcluirRpa({
   compacto?: boolean
 }) {
   const [estado, action, pend] = useActionState(excluirRpa, {})
+  const envio2 = useEnvioFormulario(action, estado, {
+    antes: (e) => {
+        confirmarEnvio(e, `Excluir o RPA${numero ? ` nº ${numero}` : ""} e a ordem de pagamento dele? O número fica vago e o recibo deixa de existir. Não pode ser desfeito.`)
+      },
+  })
   return (
     <form
-      action={action}
-      onSubmit={(e) => {
-        confirmarEnvio(e, `Excluir o RPA${numero ? ` nº ${numero}` : ""} e a ordem de pagamento dele? O número fica vago e o recibo deixa de existir. Não pode ser desfeito.`)
-      }}
+      action={action} {...envio2}
       className={compacto ? "inline-flex flex-col items-end" : undefined}
     >
       {estado.erro &&
@@ -659,17 +662,19 @@ export function AnexarRpaAssinado({
   linkPendente?: boolean
 }) {
   const [estado, action, pend] = useActionState(anexarRpaAssinado, {})
-  const [erroArquivo, setErroArquivo] = useState<string | null>(null)
-  return (
-    <form
-      action={action}
-      onSubmit={(e) => {
+  const envio3 = useEnvioFormulario(action, estado, {
+    antes: (e) => {
         if (!substituir)
           confirmarEnvio(
             e,
             `Anexar o recibo assinado? Depois disso o RPA não pode mais ser excluído (o arquivo pode ser substituído).${linkPendente ? " O link de assinatura enviado por e-mail ao prestador será cancelado." : ""}`
           )
-      }}
+      },
+  })
+  const [erroArquivo, setErroArquivo] = useState<string | null>(null)
+  return (
+    <form
+      action={action} {...envio3}
       className="grid gap-3"
     >
       {estado.erro && (
@@ -724,8 +729,9 @@ export function EnviarRpaAssinaturaForm({
   cpf: string | null
 }) {
   const [estado, action, pend] = useActionState(enviarRpaAssinaturaAction, {})
+  const envio4 = useEnvioFormulario(action, estado)
   return (
-    <form action={action} className="grid gap-3">
+    <form action={action} {...envio4} className="grid gap-3">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -760,12 +766,16 @@ export function EnviarRpaAssinaturaForm({
 /** Link já enviado: reenviar o e-mail ou cancelar o link. */
 export function AcoesLinkRpa({ id }: { id: string }) {
   const [reenvio, reenviar, reenviando] = useActionState(reenviarLinkRpaAction, {})
+  const envio5 = useEnvioFormulario(reenviar, reenvio)
   const [cancel, cancelar, cancelando] = useActionState(cancelarLinkRpaAction, {})
+  const envio6 = useEnvioFormulario(cancelar, cancel, {
+    antes: (e) => confirmarEnvio(e, "Cancelar o link? O prestador não conseguirá mais assinar por ele."),
+  })
   const estado = cancel.erro || cancel.ok ? cancel : reenvio
   return (
     <div className="grid gap-2">
       <div className="flex flex-wrap gap-2">
-        <form action={reenviar}>
+        <form action={reenviar} {...envio5}>
           <input type="hidden" name="id" value={id} />
           <Button type="submit" variant="outline" size="sm" disabled={reenviando}>
             {reenviando ? <Loader2 className="animate-spin" /> : <Send />}
@@ -773,8 +783,7 @@ export function AcoesLinkRpa({ id }: { id: string }) {
           </Button>
         </form>
         <form
-          action={cancelar}
-          onSubmit={(e) => confirmarEnvio(e, "Cancelar o link? O prestador não conseguirá mais assinar por ele.")}
+          action={cancelar} {...envio6}
         >
           <input type="hidden" name="id" value={id} />
           <Button type="submit" variant="ghost" size="sm" disabled={cancelando}>
@@ -811,6 +820,7 @@ export function AnexarRpaAssinadoBotao({
     if (r.ok) setAberto(false)
     return r
   }, {})
+  const envio7 = useEnvioFormulario(action, estado)
   const [erroArquivo, setErroArquivo] = useState<string | null>(null)
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
@@ -830,7 +840,7 @@ export function AnexarRpaAssinadoBotao({
               {linkPendente ? " O link de assinatura enviado por e-mail ao prestador será cancelado." : ""}
             </DialogDescription>
           </DialogHeader>
-          <form action={action} className="grid gap-3">
+          <form action={action} {...envio7} className="grid gap-3">
             <input type="hidden" name="id" value={id} />
             <Input
               name="arquivo"

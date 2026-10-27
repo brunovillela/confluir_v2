@@ -272,13 +272,15 @@ export function FinalizarContratoForm({ contratoId }: { contratoId: string }) {
     finalizarContratoAction,
     {}
   )
+  const envio3 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+        confirmarEnvio(e, "Finalizar este contrato? Os veículos vinculados serão desvinculados.")
+      },
+  })
   return (
     <form
-      action={formAction}
+      action={formAction} {...envio3}
       className="inline-flex flex-col items-end gap-1"
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Finalizar este contrato? Os veículos vinculados serão desvinculados.")
-      }}
     >
       <input type="hidden" name="contrato_id" value={contratoId} />
       <Button type="submit" variant="outline" size="sm" disabled={pendente}>

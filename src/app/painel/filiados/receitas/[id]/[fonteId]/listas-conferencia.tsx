@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils"
 import { CondicaoBadge } from "../../../condicao-badge"
 import { cadastrarNaoEncontradosAction, definirCondicaoMarcados } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario";
 
 type Direcao = "asc" | "desc"
 
@@ -120,12 +121,14 @@ function BotaoAcaoMarcados({
     definirCondicaoMarcados,
     {}
   )
+  const envio = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+        confirmarEnvio(e, `${confirmacao} (${marcados.size} cadastro${marcados.size === 1 ? "" : "s"})?`)
+      },
+  });
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        confirmarEnvio(e, `${confirmacao} (${marcados.size} cadastro${marcados.size === 1 ? "" : "s"})?`)
-      }}
+      action={formAction} {...envio}
       className="flex flex-wrap items-center justify-end gap-2"
     >
       <input type="hidden" name="remessa_id" value={remessaId} />

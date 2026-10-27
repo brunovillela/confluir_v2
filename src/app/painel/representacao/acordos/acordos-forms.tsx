@@ -54,6 +54,9 @@ export function AcordoForm({
   )
   const selec = new Set(fonteIds)
   const formRef = useRef<HTMLFormElement>(null)
+  const envio2 = useEnvioFormulario(formAction, estado, {
+    ref: formRef,
+  })
   /** Acordo do grupo inteiro: marca todas as empresas representadas dele. */
   function marcarGrupo(ids: string[]) {
     const caixas = formRef.current?.querySelectorAll<HTMLInputElement>('input[name="fonte"]') ?? []
@@ -61,7 +64,7 @@ export function AcordoForm({
   }
 
   return (
-    <form ref={formRef} action={formAction} className="grid gap-5">
+    <form action={formAction} {...envio2} className="grid gap-5">
       {acordo && <input type="hidden" name="acordo_id" value={acordo.id} />}
       {estado.erro && (
         <Alert variant="destructive">

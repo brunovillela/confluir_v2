@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 import { mesclarFornecedoresAction } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export type CadastroDuplicado = {
   id: string
@@ -35,6 +36,15 @@ export function MesclaGrupoForm({
   podeEditar: boolean
 }) {
   const [estado, acao, pendente] = useActionState(mesclarFornecedoresAction, {})
+  const envio = useEnvioFormulario(acao, estado, {
+    antes: (e) =>
+      confirmarEnvio(e, {
+        titulo: `Mesclar ${incorporados.length} cadastro(s) em "${nomePrincipal}"?`,
+        descricao:
+          "Ordens de pagamento, contratos, propostas, contas bancárias, endereços e demais registros dos incorporados passam para o cadastro que fica — que herda o CPF/CNPJ válido do grupo, se não tiver um, e os dados que lhe faltarem. Os incorporados ficam inativos, apontando para ele. A operação não se desfaz pela tela.",
+        confirmar: "Mesclar",
+      }),
+  })
   const [principal, setPrincipal] = useState(sugerido)
   const [fora, setFora] = useState<string[]>([])
   const incorporados = cadastros.filter((c) => c.id !== principal && !fora.includes(c.id))
@@ -42,15 +52,7 @@ export function MesclaGrupoForm({
 
   return (
     <form
-      action={acao}
-      onSubmit={(e) =>
-        confirmarEnvio(e, {
-          titulo: `Mesclar ${incorporados.length} cadastro(s) em "${nomePrincipal}"?`,
-          descricao:
-            "Ordens de pagamento, contratos, propostas, contas bancárias, endereços e demais registros dos incorporados passam para o cadastro que fica — que herda o CPF/CNPJ válido do grupo, se não tiver um, e os dados que lhe faltarem. Os incorporados ficam inativos, apontando para ele. A operação não se desfaz pela tela.",
-          confirmar: "Mesclar",
-        })
-      }
+      action={acao} {...envio}
       className="grid gap-3"
     >
       {estado.erro && (

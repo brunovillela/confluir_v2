@@ -146,17 +146,19 @@ export function AutorizarGozoBotao({
     alternarAutorizacaoGozo,
     {}
   )
+  const envio3 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+      const pergunta = autorizado
+        ? "Desfazer a autorização deste gozo?"
+        : temAbono
+          ? "Autorizar este gozo E confirmar a venda de 1/3 (abono pecuniário)? O funcionário será avisado por notificação e email."
+          : "Autorizar este gozo de férias? O funcionário será avisado por notificação e email."
+      confirmarEnvio(e, pergunta)},
+  })
 
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        const pergunta = autorizado
-          ? "Desfazer a autorização deste gozo?"
-          : temAbono
-            ? "Autorizar este gozo E confirmar a venda de 1/3 (abono pecuniário)? O funcionário será avisado por notificação e email."
-            : "Autorizar este gozo de férias? O funcionário será avisado por notificação e email."
-        confirmarEnvio(e, pergunta)}}
+      action={formAction} {...envio3}
       className="inline-flex items-center"
     >
       <input type="hidden" name="periodo_id" value={periodoId} />
@@ -198,12 +200,14 @@ export function ExcluirGozoBotao({
   gozoId: string
 }) {
   const [estado, formAction, pendente] = useActionState(excluirGozoAction, {})
+  const envio4 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+      confirmarEnvio(e, "Excluir este gozo de férias?")},
+  })
 
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Excluir este gozo de férias?")}}
+      action={formAction} {...envio4}
       className="inline-flex items-center"
     >
       <input type="hidden" name="periodo_id" value={periodoId} />

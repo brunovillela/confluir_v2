@@ -47,6 +47,11 @@ export function PagamentoForm({
     removerPagamento,
     {}
   )
+  const envio2 = useEnvioFormulario(removerAction, estadoRemover, {
+    antes: (e) => {
+        confirmarEnvio(e, "Remover o registro de pagamento? Valor, data, comprovante e pagador serão limpos e a ordem deixa de constar como Paga.")
+      },
+  })
 
   const erro = estado.erro ?? estadoRemover.erro
 
@@ -135,10 +140,7 @@ export function PagamentoForm({
 
       {temPagamento && (
         <form
-          action={removerAction}
-          onSubmit={(e) => {
-            confirmarEnvio(e, "Remover o registro de pagamento? Valor, data, comprovante e pagador serão limpos e a ordem deixa de constar como Paga.")
-          }}
+          action={removerAction} {...envio2}
           className="flex justify-end border-t pt-3"
         >
           <input type="hidden" name="id" value={ordemId} />

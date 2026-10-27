@@ -39,6 +39,7 @@ import {
   revalidarExecutor,
   salvarExecutor,
 } from "../../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT_CLS =
   "border-input bg-background h-9 rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -121,6 +122,7 @@ export function SecaoExecutores({
   limiar: string
 }) {
   const [estado, action, pend] = useActionState(salvarExecutor, {})
+  const envio = useEnvioFormulario(action, estado)
   const [frequencia, setFrequencia] = useState("")
   const [recorrencia, setRecorrencia] = useState("")
   const [recTocada, setRecTocada] = useState(false)
@@ -181,7 +183,7 @@ export function SecaoExecutores({
         </p>
       )}
 
-      <form action={action} className="grid gap-2 rounded-lg border p-3">
+      <form action={action} {...envio} className="grid gap-2 rounded-lg border p-3">
         <input type="hidden" name="atividade_id" value={atividadeId} />
         <div className="flex flex-wrap items-end gap-2">
           <select name="executor" required defaultValue="" className={`${SELECT_CLS} flex-1`}>
@@ -313,6 +315,7 @@ export function SecaoFerramentas({
   ferramentas: { id: string; nome: string; tipo: string | null }[]
 }) {
   const [estado, action, pend] = useActionState(adicionarFerramenta, {})
+  const envio2 = useEnvioFormulario(action, estado)
   return (
     <div className="grid gap-3">
       {estado.erro && (
@@ -341,7 +344,7 @@ export function SecaoFerramentas({
           ))}
         </ul>
       )}
-      <form action={action} className="flex flex-wrap items-end gap-2">
+      <form action={action} {...envio2} className="flex flex-wrap items-end gap-2">
         <input type="hidden" name="atividade_id" value={atividadeId} />
         <Input name="nome" placeholder="Ferramenta/equipamento" required className="flex-1" />
         <select name="tipo" defaultValue="" className={SELECT_CLS}>
@@ -379,6 +382,7 @@ export function SecaoPerigos({
   perigos: Perigo[]
 }) {
   const [estado, action, pend] = useActionState(adicionarPerigo, {})
+  const envio3 = useEnvioFormulario(action, estado)
   return (
     <div className="grid gap-3">
       {estado.erro && (
@@ -406,7 +410,7 @@ export function SecaoPerigos({
           ))}
         </ul>
       )}
-      <form action={action} className="grid gap-2">
+      <form action={action} {...envio3} className="grid gap-2">
         <input type="hidden" name="atividade_id" value={atividadeId} />
         <Input name="descricao" placeholder="Perigo (ex.: contato com parte móvel)" required />
         <div className="flex flex-wrap items-end gap-2">
@@ -499,6 +503,7 @@ export function SecaoRiscos({
   executores: Executor[]
 }) {
   const [estado, action, pend] = useActionState(adicionarRisco, {})
+  const envio4 = useEnvioFormulario(action, estado)
   const semExecutor = riscos.filter((r) => !r.executor_id)
 
   return (
@@ -579,7 +584,7 @@ export function SecaoRiscos({
       )}
 
       {executores.length > 0 && (
-        <form action={action} className="grid gap-2 rounded-lg border p-3">
+        <form action={action} {...envio4} className="grid gap-2 rounded-lg border p-3">
           <input type="hidden" name="atividade_id" value={atividadeId} />
           <div className="flex flex-wrap items-end gap-2">
             <div className="grid flex-1 gap-1">
@@ -710,6 +715,7 @@ export function SecaoMedidas({
   treinamentos: { id: string; nome: string | null }[]
 }) {
   const [estado, action, pend] = useActionState(adicionarMedida, {})
+  const envio5 = useEnvioFormulario(action, estado)
   const treinos = medidas.filter((m) => m.tipo === "treinamento")
   const epis = medidas.filter((m) => m.tipo === "epi")
 
@@ -781,7 +787,7 @@ export function SecaoMedidas({
         </div>
       </div>
 
-      <form action={action} className="grid gap-2 rounded-lg border p-3 sm:grid-cols-2">
+      <form action={action} {...envio5} className="grid gap-2 rounded-lg border p-3 sm:grid-cols-2">
         <input type="hidden" name="atividade_id" value={atividadeId} />
         <div className="grid gap-1 sm:col-span-2">
           <div className="flex flex-wrap items-end gap-2">
@@ -828,6 +834,7 @@ export function SecaoMedidas({
 
 export function BotaoAnalisarIA({ atividadeId }: { atividadeId: string }) {
   const [estado, action, pend] = useActionState(analisarAtividadeComIA, {})
+  const envio6 = useEnvioFormulario(action, estado)
   return (
     <div className="grid gap-2">
       {estado.erro && (
@@ -840,7 +847,7 @@ export function BotaoAnalisarIA({ atividadeId }: { atividadeId: string }) {
           <AlertDescription>{estado.ok}</AlertDescription>
         </Alert>
       )}
-      <form action={action}>
+      <form action={action} {...envio6}>
         <input type="hidden" name="atividade_id" value={atividadeId} />
         <Button type="submit" variant="outline" disabled={pend}>
           {pend ? <Loader2 className="animate-spin" /> : <Sparkles className="size-4" />}
@@ -859,6 +866,7 @@ export function BotaoAvaliarAtividade({
   avaliadaEm: string | null
 }) {
   const [estado, action, pend] = useActionState(marcarAtividadeAvaliada, {})
+  const envio7 = useEnvioFormulario(action, estado)
   return (
     <div className="grid gap-2">
       {estado.ok && (
@@ -866,7 +874,7 @@ export function BotaoAvaliarAtividade({
           <AlertDescription>{estado.ok}</AlertDescription>
         </Alert>
       )}
-      <form action={action} className="flex items-center gap-2">
+      <form action={action} {...envio7} className="flex items-center gap-2">
         <input type="hidden" name="id" value={atividadeId} />
         <Button type="submit" variant="secondary" size="sm" disabled={pend}>
           {pend ? (

@@ -162,13 +162,15 @@ export function NivelBaseForm({
 
 export function ExcluirNivelBaseBotao({ id }: { id: string }) {
   const [estado, formAction, pendente] = useActionState(excluirNivelBase, {})
+  const envio2 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+        confirmarEnvio(e, "Excluir este degrau da tabela salarial?")
+      },
+  })
 
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Excluir este degrau da tabela salarial?")
-      }}
+      action={formAction} {...envio2}
       className="inline-flex items-center"
     >
       <input type="hidden" name="id" value={id} />

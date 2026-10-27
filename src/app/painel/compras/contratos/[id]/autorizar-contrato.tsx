@@ -8,21 +8,23 @@ import { Button } from "@/components/ui/button"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 import { autorizarContratoAction } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /** Botão de autorizar o contrato (permissão "Contratos — autorizar"). */
 export function AutorizarContrato({ contratoId }: { contratoId: string }) {
   const [estado, acao, pendente] = useActionState(autorizarContratoAction, {})
+  const envio = useEnvioFormulario(acao, estado, {
+    antes: (e) =>
+      confirmarEnvio(e, {
+        titulo: "Autorizar este contrato?",
+        descricao:
+          "As parcelas recorrentes passam a nascer autorizadas e esperam só o documento fiscal; com a nota no valor autorizado, seguem direto para pagamento. Pagamentos extraordinários continuam passando pela autorização pontual.",
+        confirmar: "Autorizar",
+      }),
+  })
   return (
     <form
-      action={acao}
-      onSubmit={(e) =>
-        confirmarEnvio(e, {
-          titulo: "Autorizar este contrato?",
-          descricao:
-            "As parcelas recorrentes passam a nascer autorizadas e esperam só o documento fiscal; com a nota no valor autorizado, seguem direto para pagamento. Pagamentos extraordinários continuam passando pela autorização pontual.",
-          confirmar: "Autorizar",
-        })
-      }
+      action={acao} {...envio}
       className="grid gap-2"
     >
       <input type="hidden" name="contrato_id" value={contratoId} />

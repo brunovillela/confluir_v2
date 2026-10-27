@@ -139,10 +139,20 @@ export function DecisaoPrestacao({
     aprovarPrestacao,
     {}
   )
+  const envio4 = useEnvioFormulario(aprovarAction, aprovar, {
+    antes: (e) => {
+        confirmarEnvio(e, "Aprovar a prestação de contas? O saldo remanescente vira acerto e a conta FECHA até o próximo aporte.")
+      },
+  })
   const [rejeitar, rejeitarAction, rejeitando] = useActionState(
     rejeitarPrestacao,
     {}
   )
+  const envio5 = useEnvioFormulario(rejeitarAction, rejeitar, {
+    antes: (e) => {
+        confirmarEnvio(e, "Rejeitar a prestação? A conta volta a ficar aberta.")
+      },
+  })
   const erro = aprovar.erro ?? rejeitar.erro
 
   return (
@@ -153,10 +163,7 @@ export function DecisaoPrestacao({
         </Alert>
       )}
       <form
-        action={aprovarAction}
-        onSubmit={(e) => {
-          confirmarEnvio(e, "Aprovar a prestação de contas? O saldo remanescente vira acerto e a conta FECHA até o próximo aporte.")
-        }}
+        action={aprovarAction} {...envio4}
         className="grid gap-2"
       >
         <input type="hidden" name="conta_id" value={contaId} />
@@ -179,10 +186,7 @@ export function DecisaoPrestacao({
         </div>
       </form>
       <form
-        action={rejeitarAction}
-        onSubmit={(e) => {
-          confirmarEnvio(e, "Rejeitar a prestação? A conta volta a ficar aberta.")
-        }}
+        action={rejeitarAction} {...envio5}
         className="grid gap-2 border-t pt-3"
       >
         <input type="hidden" name="conta_id" value={contaId} />
@@ -283,14 +287,16 @@ export function AlternarContaAtiva({
   ativa: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(alternarContaAtiva, {})
-  return (
-    <form
-      action={formAction}
-      onSubmit={(e) => {
+  const envio6 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
         confirmarEnvio(e, ativa
               ? "Desativar esta conta de caixa? Ela some das opções de pagamento."
               : "Reativar esta conta de caixa?")
-      }}
+      },
+  })
+  return (
+    <form
+      action={formAction} {...envio6}
       className="flex items-center justify-end gap-2"
     >
       <input type="hidden" name="conta_id" value={contaId} />

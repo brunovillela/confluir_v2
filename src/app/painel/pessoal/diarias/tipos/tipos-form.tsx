@@ -148,12 +148,14 @@ export function TipoDiariaForm({ tipo }: { tipo?: TipoDiariaFormDados }) {
 
 export function ExcluirTipoDiariaBotao({ id }: { id: string }) {
   const [estado, formAction, pendente] = useActionState(excluirTipoDiaria, {})
+  const envio2 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+      confirmarEnvio(e, "Excluir este tipo de diária?")},
+  })
 
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Excluir este tipo de diária?")}}
+      action={formAction} {...envio2}
       className="inline-flex items-center"
     >
       <input type="hidden" name="id" value={id} />

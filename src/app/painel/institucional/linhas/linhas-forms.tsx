@@ -190,11 +190,13 @@ export function BotaoExcluirLinha({
   comRotulo?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(excluirLinhaAction, {})
+  const envio3 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+      confirmarEnvio(e, `Remover a linha ${formatarTelefone(numero)} do cadastro?`)},
+  })
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        confirmarEnvio(e, `Remover a linha ${formatarTelefone(numero)} do cadastro?`)}}
+      action={formAction} {...envio3}
     >
       <input type="hidden" name="id" value={id} />
       {estado.erro && <p className="text-destructive mb-1 text-xs">{estado.erro}</p>}

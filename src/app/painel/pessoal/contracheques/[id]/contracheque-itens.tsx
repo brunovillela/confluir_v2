@@ -142,6 +142,10 @@ export function AcoesContracheque({
     excluirContracheque,
     {}
   )
+  const envio4 = useEnvioFormulario(excAction, estadoExc, {
+    antes: (e) => {
+      confirmarEnvio(e, "Excluir este contracheque? Se ele gerou ordem de pagamento, a ordem é cancelada.")},
+  })
   const [estadoOrdem, ordemAction, ordemPendente] = useActionState(
     gerarOrdemContrachequeAction,
     {}
@@ -181,9 +185,7 @@ export function AcoesContracheque({
           </Button>
         </form>
         <form
-          action={excAction}
-          onSubmit={(e) => {
-            confirmarEnvio(e, "Excluir este contracheque? Se ele gerou ordem de pagamento, a ordem é cancelada.")}}
+          action={excAction} {...envio4}
         >
           <input type="hidden" name="id" value={id} />
           <input type="hidden" name="remessa_id" value={remessaId} />

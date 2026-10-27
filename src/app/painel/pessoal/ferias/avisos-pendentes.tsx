@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 
 import { enviarAvisosPendentesAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /**
  * Gozos autorizados antes do aviso eletrônico existir (e que ainda vão
@@ -15,6 +16,13 @@ import { enviarAvisosPendentesAction } from "./actions"
  */
 export function AvisosPendentes({ quantidade }: { quantidade: number }) {
   const [estado, acao, pendente] = useActionState(enviarAvisosPendentesAction, {})
+  const envio = useEnvioFormulario(acao, estado, {
+    antes: (e) =>
+      confirmarEnvio(
+        e,
+        `Enviar o aviso de férias de ${quantidade} gozo(s)? Cada funcionário recebe um e-mail com o link para ler e assinar.`
+      ),
+  })
   if (quantidade === 0 && !estado.ok && !estado.erro) return null
   return (
     <Alert className="border-primary/30">
@@ -30,13 +38,7 @@ export function AvisosPendentes({ quantidade }: { quantidade: number }) {
         {estado.erro && <span className="text-destructive">{estado.erro}</span>}
         {quantidade > 0 && (
           <form
-            action={acao}
-            onSubmit={(e) =>
-              confirmarEnvio(
-                e,
-                `Enviar o aviso de férias de ${quantidade} gozo(s)? Cada funcionário recebe um e-mail com o link para ler e assinar.`
-              )
-            }
+            action={acao} {...envio}
           >
             <Button type="submit" size="sm" disabled={pendente}>
               {pendente ? <Loader2 className="animate-spin" /> : <FileSignature />}

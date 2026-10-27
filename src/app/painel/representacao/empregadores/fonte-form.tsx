@@ -30,6 +30,7 @@ import {
   excluirFontePagadora,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export type FonteFormDados = {
   id: string
@@ -58,11 +59,19 @@ export function FonteForm({
     excluirFontePagadora,
     {}
   )
+  const envio2 = useEnvioFormulario(excluirAction, estadoExcluir, {
+    antes: (e) => {
+        confirmarEnvio(e, "Excluir esta fonte da lista de fontes pagadoras? O cadastro da empresa é mantido; fontes com vínculos de filiação não podem ser excluídas.")
+      },
+  })
 
   const erro = estado.erro ?? estadoExcluir.erro
 
   // Preencher pelo CNPJ — o mesmo fluxo de Fornecedores (Receita + IA).
   const formRef = useRef<HTMLFormElement>(null)
+  const envio = useEnvioFormulario(formAction, estado, {
+    ref: formRef,
+  })
   const [consultando, iniciarConsulta] = useTransition()
   const [ficha, setFicha] = useState<DadosCnpj | null>(null)
   const [erroCnpj, setErroCnpj] = useState<string | null>(null)
@@ -98,7 +107,7 @@ export function FonteForm({
         </Alert>
       )}
 
-      <form ref={formRef} action={formAction} className="grid gap-4">
+      <form action={formAction} {...envio} className="grid gap-4">
         {fonte && <input type="hidden" name="id" value={fonte.id} />}
 
         <Card>
@@ -218,10 +227,7 @@ export function FonteForm({
 
       {fonte && (
         <form
-          action={excluirAction}
-          onSubmit={(e) => {
-            confirmarEnvio(e, "Excluir esta fonte da lista de fontes pagadoras? O cadastro da empresa é mantido; fontes com vínculos de filiação não podem ser excluídas.")
-          }}
+          action={excluirAction} {...envio2}
           className="flex justify-end border-t pt-4"
         >
           <input type="hidden" name="id" value={fonte.id} />

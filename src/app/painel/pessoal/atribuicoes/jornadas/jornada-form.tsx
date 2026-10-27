@@ -13,6 +13,7 @@ import {
 } from "@/lib/pessoal-sst-constantes"
 
 import { salvarJornada } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /** Editor da jornada semanal de UM funcionário (linha por dia da semana). */
 export function JornadaForm({
@@ -23,6 +24,7 @@ export function JornadaForm({
   dias: JornadaDia[]
 }) {
   const [estado, action, pend] = useActionState(salvarJornada, {})
+  const envio = useEnvioFormulario(action, estado)
   const porDia = new Map(dias.map((d) => [d.dia_semana, d]))
 
   const valor = (h: string | null) => {
@@ -31,7 +33,7 @@ export function JornadaForm({
   }
 
   return (
-    <form action={action} className="grid gap-3">
+    <form action={action} {...envio} className="grid gap-3">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

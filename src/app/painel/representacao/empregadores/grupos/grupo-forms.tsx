@@ -216,6 +216,9 @@ export function AdicionarEmpregador({ grupoId, opcoes }: { grupoId: string; opco
 export function AdicionarEmpresaExterna({ grupoId }: { grupoId: string }) {
   const [estado, acao, pendente] = useActionState(adicionarEmpresaExternaAction, {})
   const formRef = useRef<HTMLFormElement>(null)
+  const envio3 = useEnvioFormulario(acao, estado, {
+    ref: formRef,
+  })
   const [consultando, consultar] = useTransition()
   const [aviso, setAviso] = useState<string | null>(null)
 
@@ -244,7 +247,7 @@ export function AdicionarEmpresaExterna({ grupoId }: { grupoId: string }) {
   }
 
   return (
-    <form ref={formRef} action={acao} className="grid gap-2">
+    <form action={acao} {...envio3} className="grid gap-2">
       <input type="hidden" name="grupo_id" value={grupoId} />
       <Label htmlFor="cnpj">Empresa sem trabalhadores representados</Label>
       <div className="flex flex-wrap gap-2">
@@ -269,10 +272,12 @@ export function AdicionarEmpresaExterna({ grupoId }: { grupoId: string }) {
 
 export function RemoverMembro({ grupoId, membroId, nome }: { grupoId: string; membroId: string; nome: string }) {
   const [estado, acao, pendente] = useActionState(removerMembroAction, {})
+  const envio4 = useEnvioFormulario(acao, estado, {
+    antes: (e) => confirmarEnvio(e, `Retirar ${nome} do grupo?`),
+  })
   return (
     <form
-      action={acao}
-      onSubmit={(e) => confirmarEnvio(e, `Retirar ${nome} do grupo?`)}
+      action={acao} {...envio4}
       title={estado.erro}
     >
       <input type="hidden" name="grupo_id" value={grupoId} />
@@ -286,15 +291,16 @@ export function RemoverMembro({ grupoId, membroId, nome }: { grupoId: string; me
 
 export function ExcluirGrupo({ grupoId }: { grupoId: string }) {
   const [estado, acao, pendente] = useActionState(excluirGrupoAction, {})
+  const envio5 = useEnvioFormulario(acao, estado, {
+    antes: (e) =>
+      confirmarEnvio(
+        e,
+        "Excluir este grupo? As empresas continuam cadastradas em Empregadores; só o agrupamento some."
+      ),
+  })
   return (
     <form
-      action={acao}
-      onSubmit={(e) =>
-        confirmarEnvio(
-          e,
-          "Excluir este grupo? As empresas continuam cadastradas em Empregadores; só o agrupamento some."
-        )
-      }
+      action={acao} {...envio5}
       className="grid gap-2"
     >
       <input type="hidden" name="grupo_id" value={grupoId} />

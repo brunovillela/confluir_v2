@@ -65,13 +65,15 @@ export function BotaoAcaoFornecedor({
   acoes?: Record<string, AcaoServidor>
 }) {
   const [estado, formAction, pendente] = useActionState(acoes[acao], {})
+  const envio4 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+        if (confirmacao) confirmarEnvio(e, confirmacao)
+      },
+  })
   return (
     <form
-      action={formAction}
+      action={formAction} {...envio4}
       className="inline-flex flex-col items-end gap-1"
-      onSubmit={(e) => {
-        if (confirmacao) confirmarEnvio(e, confirmacao)
-      }}
     >
       {Object.entries(campos).map(([nome, valor]) => (
         <input key={nome} type="hidden" name={nome} value={valor} />
@@ -115,6 +117,9 @@ export function FornecedorForm({
     {}
   )
   const formRef = useRef<HTMLFormElement>(null)
+  const envio5 = useEnvioFormulario(formAction, estado, {
+    ref: formRef,
+  })
   const [consultando, iniciarConsulta] = useTransition()
   const [ficha, setFicha] = useState<DadosCnpj | null>(null)
   const [erroCnpj, setErroCnpj] = useState<string | null>(null)
@@ -153,7 +158,7 @@ export function FornecedorForm({
   const [marketplace, setMarketplace] = useState(fornecedor?.marketplace ?? false)
 
   return (
-    <form ref={formRef} action={formAction} className="grid gap-4">
+    <form action={formAction} {...envio5} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

@@ -55,6 +55,7 @@ export function RemessaPontoForm({ remessa }: { remessa?: RemessaPontoFormDados 
     excluirRemessaPonto,
     {}
   )
+  const { ref: refExcluir, onSubmit: enviarExcluir } = useEnvioFormulario(excluirAction, estadoExcluir)
 
   const erro = estado.erro ?? estadoExcluir.erro
   const voltar = remessa
@@ -133,6 +134,7 @@ export function RemessaPontoForm({ remessa }: { remessa?: RemessaPontoFormDados 
       {remessa && (
         <form
           action={excluirAction}
+          ref={refExcluir}
           onSubmit={(e) => {
             confirmarEnvio(
               e,
@@ -145,6 +147,7 @@ export function RemessaPontoForm({ remessa }: { remessa?: RemessaPontoFormDados 
                   }
                 : "Excluir esta remessa?"
             )
+            enviarExcluir(e)
           }}
           className="flex justify-end border-t pt-4"
         >

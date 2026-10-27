@@ -1,6 +1,6 @@
 "use client"
 
-import { startTransition, useEffect, useRef, type FormEvent } from "react"
+import { startTransition, useEffect, useRef, type FormEvent, type RefObject } from "react"
 
 /**
  * Envio de formulário com useActionState que NÃO apaga o que foi digitado
@@ -18,11 +18,24 @@ import { startTransition, useEffect, useRef, type FormEvent } from "react"
  * hidratar, o envio segue pela action do servidor (sem ele, o navegador faria
  * um GET com os campos na URL); depois, o onSubmit cancela o evento e o React
  * não roda a action por conta própria (o mesmo de que depende confirmarEnvio).
+ *
+ * Opções: `antes` é um onSubmit próprio (ex.: confirmarEnvio), que roda primeiro
+ * e, cancelando o evento, segura o envio; `ref` é a ref do formulário quando o
+ * componente já tem uma.
  */
-export function useEnvioFormulario(acao: (dados: FormData) => void, estado: unknown) {
-  const ref = useRef<HTMLFormElement>(null)
+export function useEnvioFormulario(
+  acao: (dados: FormData) => void,
+  estado: unknown,
+  opcoes: {
+    antes?: (e: FormEvent<HTMLFormElement>) => unknown
+    ref?: RefObject<HTMLFormElement | null>
+  } = {}
+) {
+  const refInterna = useRef<HTMLFormElement>(null)
+  const ref = opcoes.ref ?? refInterna
   const enviado = useRef(false)
   const anterior = useRef(estado)
+  const { antes } = opcoes
 
   useEffect(() => {
     if (estado === anterior.current) return
@@ -31,9 +44,10 @@ export function useEnvioFormulario(acao: (dados: FormData) => void, estado: unkn
     enviado.current = false
     const e = (estado ?? {}) as { erro?: unknown; apontamentos?: unknown[] }
     if (!e.erro && !e.apontamentos?.length) ref.current?.reset()
-  }, [estado])
+  }, [estado, ref])
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
+    antes?.(e)
     if (e.defaultPrevented) return
     e.preventDefault()
     const dados = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter)

@@ -9,11 +9,13 @@ import { Label } from "@/components/ui/label"
 import { FREQUENCIAS } from "@/lib/pessoal-sst-constantes"
 
 import { salvarLimiarRotina } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function LimiarForm({ atual }: { atual: string }) {
   const [estado, action, pendente] = useActionState(salvarLimiarRotina, {})
+  const envio = useEnvioFormulario(action, estado)
   return (
-    <form action={action} className="flex flex-wrap items-end gap-3">
+    <form action={action} {...envio} className="flex flex-wrap items-end gap-3">
       {estado.erro && (
         <Alert variant="destructive" className="w-full">
           <AlertDescription>{estado.erro}</AlertDescription>

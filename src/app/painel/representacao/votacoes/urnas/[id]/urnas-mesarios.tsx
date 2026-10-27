@@ -204,6 +204,10 @@ function UrnaItem({
   const [estSalvar, actSalvar, salvando] = useActionState(salvarUrnaAction, {})
   const envio2 = useEnvioFormulario(actSalvar, estSalvar)
   const [estApagar, actApagar, apagando] = useActionState(removerUrnaAction, {})
+  const envio8 = useEnvioFormulario(actApagar, estApagar, {
+    antes: (e) => {
+      confirmarEnvio(e, "Excluir esta urna?")},
+  })
   const erro = estSalvar.erro ?? estApagar.erro
 
   if (editando) {
@@ -287,9 +291,7 @@ function UrnaItem({
             <Pencil />
           </Button>
           <form
-            action={actApagar}
-            onSubmit={(e) => {
-              confirmarEnvio(e, "Excluir esta urna?")}}
+            action={actApagar} {...envio8}
           >
             <input type="hidden" name="assembleia_id" value={assembleiaId} />
             <input type="hidden" name="urna_id" value={urna.id} />
@@ -340,6 +342,9 @@ function LacresUrna({
     },
     {}
   )
+  const envio9 = useEnvioFormulario(formAction, estado, {
+    antes: () => setMostrarForm(true),
+  })
   const [estAnular, anularAction] = useActionState(anularLacreAction, {})
 
   return (
@@ -396,9 +401,8 @@ function LacresUrna({
 
           {mostrarForm ? (
             <form
-              action={formAction}
+              action={formAction} {...envio9}
               className="grid gap-3 rounded-md border p-3"
-              onSubmit={() => setMostrarForm(true)}
             >
               <input type="hidden" name="assembleia_id" value={assembleiaId} />
               <input type="hidden" name="urna_id" value={urna.id} />
@@ -682,6 +686,10 @@ function MesarioItem({
     removerMesarioAction,
     {}
   )
+  const envio10 = useEnvioFormulario(actApagar, estApagar, {
+    antes: (e) => {
+      confirmarEnvio(e, "Excluir este mesário?")},
+  })
   const erro = estSalvar.erro ?? estApagar.erro
 
   if (editando) {
@@ -747,9 +755,7 @@ function MesarioItem({
             <Pencil />
           </Button>
           <form
-            action={actApagar}
-            onSubmit={(e) => {
-              confirmarEnvio(e, "Excluir este mesário?")}}
+            action={actApagar} {...envio10}
           >
             <input type="hidden" name="assembleia_id" value={assembleiaId} />
             <input type="hidden" name="mesario_id" value={mesario.id} />
@@ -863,6 +869,10 @@ function ApuradorItem({
   const [estSalvar, actSalvar, salvando] = useActionState(salvarApuradorAction, {})
   const envio6 = useEnvioFormulario(actSalvar, estSalvar)
   const [estApagar, actApagar, apagando] = useActionState(removerApuradorAction, {})
+  const envio11 = useEnvioFormulario(actApagar, estApagar, {
+    antes: (e) => {
+      confirmarEnvio(e, "Excluir este apurador?")},
+  })
   const erro = estSalvar.erro ?? estApagar.erro
 
   if (editando) {
@@ -918,9 +928,7 @@ function ApuradorItem({
             <Pencil />
           </Button>
           <form
-            action={actApagar}
-            onSubmit={(e) => {
-              confirmarEnvio(e, "Excluir este apurador?")}}
+            action={actApagar} {...envio11}
           >
             <input type="hidden" name="assembleia_id" value={assembleiaId} />
             <input type="hidden" name="apurador_id" value={apurador.id} />

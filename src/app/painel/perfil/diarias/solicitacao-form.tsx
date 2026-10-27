@@ -147,12 +147,14 @@ export function SolicitarDiariaForm({
 
 export function CancelarDiariaBotao({ id }: { id: string }) {
   const [estado, formAction, pendente] = useActionState(cancelarMinhaDiaria, {})
+  const envio2 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+      confirmarEnvio(e, "Cancelar esta solicitação de diária?")},
+  })
 
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Cancelar esta solicitação de diária?")}}
+      action={formAction} {...envio2}
       className="inline-flex items-center"
     >
       <input type="hidden" name="id" value={id} />

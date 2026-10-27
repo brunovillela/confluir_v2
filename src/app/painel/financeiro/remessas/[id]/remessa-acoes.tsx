@@ -11,11 +11,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { cancelarRemessaAction, marcarEnviadaAction, processarRetornoAction } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function MarcarEnviadaBotao({ remessaId }: { remessaId: string }) {
   const [estado, action, pendente] = useActionState(marcarEnviadaAction, {})
+  const envio = useEnvioFormulario(action, estado)
   return (
-    <form action={action} className="flex items-center gap-2">
+    <form action={action} {...envio} className="flex items-center gap-2">
       <input type="hidden" name="remessa_id" value={remessaId} />
       <Button type="submit" variant="outline" size="sm" disabled={pendente}>
         {pendente ? <Loader2 className="animate-spin" /> : <Send />}
@@ -28,8 +30,11 @@ export function MarcarEnviadaBotao({ remessaId }: { remessaId: string }) {
 
 export function CancelarRemessaBotao({ remessaId, numero }: { remessaId: string; numero: number }) {
   const [estado, action, pendente] = useActionState(cancelarRemessaAction, {})
+  const envio2 = useEnvioFormulario(action, estado, {
+    antes: (e) => confirmarEnvio(e, `Cancelar a remessa ${numero}? Se o arquivo já foi enviado ao banco, cancele lá também — as ordens voltam a ficar disponíveis aqui.`),
+  })
   return (
-    <form action={action} className="flex items-center gap-2" onSubmit={(e) => confirmarEnvio(e, `Cancelar a remessa ${numero}? Se o arquivo já foi enviado ao banco, cancele lá também — as ordens voltam a ficar disponíveis aqui.`)}>
+    <form action={action} {...envio2} className="flex items-center gap-2">
       <input type="hidden" name="remessa_id" value={remessaId} />
       <Button type="submit" variant="ghost" size="sm" disabled={pendente}>
         {pendente ? <Loader2 className="animate-spin" /> : <Ban />}
@@ -42,8 +47,9 @@ export function CancelarRemessaBotao({ remessaId, numero }: { remessaId: string;
 
 export function RetornoForm({ remessaId }: { remessaId: string }) {
   const [estado, action, pendente] = useActionState(processarRetornoAction, {})
+  const envio3 = useEnvioFormulario(action, estado)
   return (
-    <form action={action} className="grid gap-3" key={estado.ok ?? "form"}>
+    <form action={action} {...envio3} className="grid gap-3" key={estado.ok ?? "form"}>
       <input type="hidden" name="remessa_id" value={remessaId} />
       <ErroNoCampo estado={estado} />
       <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">

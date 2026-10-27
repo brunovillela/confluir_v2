@@ -168,12 +168,14 @@ export function ExcluirAlunoBotao({
     excluirAlunoTreinamento,
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+      confirmarEnvio(e, "Excluir este aluno do treinamento?")},
+  })
 
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Excluir este aluno do treinamento?")}}
+      action={formAction} {...envio2}
       className="inline-flex items-center"
     >
       <input type="hidden" name="treinamento_id" value={treinamentoId} />

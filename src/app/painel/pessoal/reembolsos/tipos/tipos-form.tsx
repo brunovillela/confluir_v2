@@ -132,12 +132,14 @@ export function ExcluirTipoReembolsoBotao({ id }: { id: string }) {
     excluirTipoReembolso,
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+      confirmarEnvio(e, "Excluir este tipo de reembolso?")},
+  })
 
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Excluir este tipo de reembolso?")}}
+      action={formAction} {...envio2}
       className="inline-flex items-center"
     >
       <input type="hidden" name="id" value={id} />

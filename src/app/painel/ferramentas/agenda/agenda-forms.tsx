@@ -246,11 +246,13 @@ export function CompromissoForm({
 /** `compacto`: só o ícone, para a linha da lista. */
 export function ExcluirCompromissoBotao({ id, compacto = false }: { id: string; compacto?: boolean }) {
   const [estado, acao, pendente] = useActionState(excluirCompromissoAction, {})
+  const envio2 = useEnvioFormulario(acao, estado, {
+    antes: (e) => {
+      confirmarEnvio(e, "Excluir este compromisso da Agenda?")},
+  })
   return (
     <form
-      action={acao}
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Excluir este compromisso da Agenda?")}}
+      action={acao} {...envio2}
       className="inline-flex items-center"
     >
       <input type="hidden" name="id" value={id} />

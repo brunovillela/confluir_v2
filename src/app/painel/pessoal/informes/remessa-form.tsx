@@ -40,6 +40,11 @@ export function RemessaInformesForm({
     excluirRemessaInformes,
     {}
   )
+  const envio2 = useEnvioFormulario(excluirAction, estadoExcluir, {
+    antes: (e) => {
+        confirmarEnvio(e, "Excluir esta remessa? Só é possível excluir remessas sem informes.")
+      },
+  })
 
   const erro = estado.erro ?? estadoExcluir.erro
   const voltar = remessa
@@ -100,10 +105,7 @@ export function RemessaInformesForm({
 
       {remessa && (
         <form
-          action={excluirAction}
-          onSubmit={(e) => {
-            confirmarEnvio(e, "Excluir esta remessa? Só é possível excluir remessas sem informes.")
-          }}
+          action={excluirAction} {...envio2}
           className="flex justify-end border-t pt-4"
         >
           <input type="hidden" name="id" value={remessa.id} />

@@ -354,13 +354,15 @@ export function GerarOrdemMultaForm({
     gerarOrdemMultaAction,
     {}
   )
+  const envio5 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+        confirmarEnvio(e, `Gerar a ordem de pagamento da multa (${valorTexto}, 'Em autorização')?`)
+      },
+  })
   return (
     <form
-      action={formAction}
+      action={formAction} {...envio5}
       className="grid max-w-2xl gap-3"
-      onSubmit={(e) => {
-        confirmarEnvio(e, `Gerar a ordem de pagamento da multa (${valorTexto}, 'Em autorização')?`)
-      }}
     >
       <input type="hidden" name="infracao_id" value={infracaoId} />
       <div className="grid gap-4 sm:grid-cols-2">

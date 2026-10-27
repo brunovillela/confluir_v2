@@ -260,11 +260,13 @@ export function AdicionarFonteForm() {
 
 export function RemoverFonteBotao({ id }: { id: string }) {
   const [estado, formAction, pendente] = useActionState(removerFonteAction, {})
+  const envio3 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+      confirmarEnvio(e, "Remover este site?")},
+  })
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Remover este site?")}}
+      action={formAction} {...envio3}
       className="inline-flex items-center"
     >
       <input type="hidden" name="id" value={id} />

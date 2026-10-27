@@ -50,15 +50,17 @@ export function RemanejarForm({
 
 export function CancelarReservaEquipe({ cupomId }: { cupomId: string }) {
   const [estado, formAction, pendente] = useActionState(cancelarReservaEquipeAction, {})
+  const envio2 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+        confirmarEnvio(e, "Cancelar esta reserva? A vaga vai para a lista de espera.")
+      },
+  })
   if (estado.ok) return <span className="text-success-fg text-xs">{estado.ok}</span>
 
   return (
     <form
-      action={formAction}
+      action={formAction} {...envio2}
       className="inline-flex items-center gap-2"
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Cancelar esta reserva? A vaga vai para a lista de espera.")
-      }}
     >
       <input type="hidden" name="cupom_id" value={cupomId} />
       {estado.erro && <span className="text-destructive text-xs">{estado.erro}</span>}

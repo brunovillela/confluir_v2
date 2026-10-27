@@ -16,6 +16,7 @@ import {
   excluirGhe,
   removerMembroGhe,
 } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT_CLS =
   "border-input bg-background h-9 rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -30,8 +31,9 @@ export function GheForm({
     ghe ? atualizarGhe : criarGhe,
     {}
   )
+  const envio = useEnvioFormulario(action, estado)
   return (
-    <form action={action} className="grid gap-3">
+    <form action={action} {...envio} className="grid gap-3">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -84,8 +86,9 @@ export function CriarGheDaSugestao({
   membros: string[]
 }) {
   const [estado, action, pend] = useActionState(criarGhe, {})
+  const envio2 = useEnvioFormulario(action, estado)
   return (
-    <form action={action} className="flex items-center gap-2">
+    <form action={action} {...envio2} className="flex items-center gap-2">
       {estado.erro && (
         <span className="text-destructive text-xs">{estado.erro}</span>
       )}
@@ -111,6 +114,7 @@ export function MembrosGhe({
   opcoes: { usuarioId: string; nome: string | null }[]
 }) {
   const [estado, action, pend] = useActionState(adicionarMembroGhe, {})
+  const envio3 = useEnvioFormulario(action, estado)
   const ja = new Set(membros.map((m) => m.funcionarioId))
   const disponiveis = opcoes.filter((o) => !ja.has(o.usuarioId))
 
@@ -135,7 +139,7 @@ export function MembrosGhe({
           ))}
         </ul>
       )}
-      <form action={action} className="flex items-end gap-2">
+      <form action={action} {...envio3} className="flex items-end gap-2">
         <input type="hidden" name="ghe_id" value={gheId} />
         <select
           name="funcionario_id"
@@ -187,8 +191,9 @@ function BotaoRemoverMembro({ id, gheId }: { id: string; gheId: string }) {
 /** Excluir GHE (não apaga funcionários nem atividades). */
 export function ExcluirGhe({ id }: { id: string }) {
   const [estado, action, pend] = useActionState(excluirGhe, {})
+  const envio4 = useEnvioFormulario(action, estado)
   return (
-    <form action={action} className="grid gap-2">
+    <form action={action} {...envio4} className="grid gap-2">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

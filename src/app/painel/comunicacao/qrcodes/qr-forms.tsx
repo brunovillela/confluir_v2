@@ -17,11 +17,13 @@ import {
   excluirQrCode,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function QrNovoForm({ defaultDestino }: { defaultDestino?: string }) {
   const [estado, action, pend] = useActionState(criarQrCode, {})
+  const envio = useEnvioFormulario(action, estado)
   return (
-    <form action={action} className="grid gap-4">
+    <form action={action} {...envio} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -82,8 +84,9 @@ export function QrEditarForm({
   }
 }) {
   const [estado, action, pend] = useActionState(atualizarQrCode, {})
+  const envio2 = useEnvioFormulario(action, estado)
   return (
-    <form action={action} className="grid gap-4">
+    <form action={action} {...envio2} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -141,6 +144,7 @@ export function BotaoAlternarAtivo({
   ativo: boolean
 }) {
   const [estado, action, pend] = useActionState(alternarAtivoQrCode, {})
+  const envio3 = useEnvioFormulario(action, estado)
   return (
     <div className="grid gap-2">
       {estado.ok && (
@@ -153,7 +157,7 @@ export function BotaoAlternarAtivo({
           <AlertDescription>{estado.erro}</AlertDescription>
         </Alert>
       )}
-      <form action={action}>
+      <form action={action} {...envio3}>
         <input type="hidden" name="id" value={id} />
         <input type="hidden" name="ativar" value={ativo ? "0" : "1"} />
         <Button
@@ -171,12 +175,14 @@ export function BotaoAlternarAtivo({
 
 export function ExcluirQr({ id }: { id: string }) {
   const [estado, action, pend] = useActionState(excluirQrCode, {})
+  const envio4 = useEnvioFormulario(action, estado, {
+    antes: (e) => {
+        confirmarEnvio(e, "Excluir este QR Code? Peças já impressas com ele deixarão de funcionar e o histórico de leituras será perdido. Se a ideia é só tirá-lo do ar, prefira DESATIVAR.")
+      },
+  })
   return (
     <form
-      action={action}
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Excluir este QR Code? Peças já impressas com ele deixarão de funcionar e o histórico de leituras será perdido. Se a ideia é só tirá-lo do ar, prefira DESATIVAR.")
-      }}
+      action={action} {...envio4}
     >
       {estado.erro && (
         <Alert variant="destructive" className="mb-3">

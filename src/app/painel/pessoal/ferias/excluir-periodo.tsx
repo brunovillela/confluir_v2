@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 
 import { excluirPeriodoAction } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /**
  * Exclui um período de férias SEM gozos (o servidor confere de novo). Quem
@@ -23,13 +24,15 @@ export function ExcluirPeriodoBotao({
   compacto?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(excluirPeriodoAction, {})
+  const envio = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+        confirmarEnvio(e, "Excluir este período de férias? Ele não tem gozos registrados.")
+      },
+  })
 
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Excluir este período de férias? Ele não tem gozos registrados.")
-      }}
+      action={formAction} {...envio}
       className="inline-flex items-center"
     >
       <input type="hidden" name="id" value={periodoId} />

@@ -95,13 +95,15 @@ export function ExcluirDegrauBotao({ id }: { id: string }) {
     excluirNivelAnuenioBase,
     {}
   )
+  const envio2 = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+        confirmarEnvio(e, "Excluir este degrau da tabela de anuênios?")
+      },
+  })
 
   return (
     <form
-      action={formAction}
-      onSubmit={(e) => {
-        confirmarEnvio(e, "Excluir este degrau da tabela de anuênios?")
-      }}
+      action={formAction} {...envio2}
       className="inline-flex items-center"
     >
       <input type="hidden" name="id" value={id} />

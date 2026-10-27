@@ -11,6 +11,7 @@ import type { PreferenciasAviso } from "@/lib/db/avisos"
 import { EVENTOS_TELEGRAM, type EventoTelegram, type GrupoEvento } from "@/lib/telegram-eventos"
 
 import { salvarPreferenciasAvisoAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const GRUPOS: { grupo: GrupoEvento; titulo: string; nota: string }[] = [
   {
@@ -54,6 +55,7 @@ export function AvisosForm({
   celularAtivo: boolean
 }) {
   const [estado, action, salvando] = useActionState(salvarPreferenciasAvisoAction, {})
+  const envio = useEnvioFormulario(action, estado)
   const pode = new Set(permitidos)
   const grupos = GRUPOS.map((g) => ({
     ...g,
@@ -62,7 +64,7 @@ export function AvisosForm({
   const colunas = celular ? 4 : 3
 
   return (
-    <form action={action} className="grid gap-4">
+    <form action={action} {...envio} className="grid gap-4">
       {!telegramAtivo && (
         <p className="text-muted-foreground text-sm">
           O Telegram só entrega depois de{" "}

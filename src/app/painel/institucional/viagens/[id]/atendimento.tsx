@@ -56,6 +56,11 @@ export function AcoesViagem({
   const [iniciar, acaoIniciar, iniciando] = useActionState(iniciarAtendimentoAction, {})
   const envio1 = useEnvioFormulario(acaoIniciar, iniciar)
   const [concluir, acaoConcluir, concluindo] = useActionState(concluirAtendimentoAction, {})
+  const envio4 = useEnvioFormulario(acaoConcluir, concluir, {
+    antes: (e) => {
+        confirmarEnvio(e, "Concluir o atendimento e enviar o aviso por e-mail?")
+      },
+  })
   const [encerrar, acaoEncerrar, encerrando] = useActionState(encerrarViagemAction, {})
   const envio2 = useEnvioFormulario(acaoEncerrar, encerrar)
   const [motivoPara, setMotivoPara] = useState<"recusada" | "cancelada" | null>(null)
@@ -85,10 +90,8 @@ export function AcoesViagem({
         )}
         {aberta && (
           <form
-            action={acaoConcluir}
-            onSubmit={(e) => {
-              confirmarEnvio(e, "Concluir o atendimento e enviar o aviso por e-mail?")
-            }}
+            action={acaoConcluir} {...envio4}
+           
           >
             <input type="hidden" name="id" value={id} />
             <Button type="submit" disabled={concluindo || pendentes > 0}>

@@ -7,9 +7,11 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 
 import { importarFuncoesDosCargos } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function ImportarCargos() {
   const [estado, action, pend] = useActionState(importarFuncoesDosCargos, {})
+  const envio = useEnvioFormulario(action, estado)
   return (
     <div className="grid gap-2">
       {estado.erro && (
@@ -22,7 +24,7 @@ export function ImportarCargos() {
           <AlertDescription>{estado.ok}</AlertDescription>
         </Alert>
       )}
-      <form action={action}>
+      <form action={action} {...envio}>
         <Button type="submit" variant="outline" size="sm" disabled={pend}>
           {pend ? <Loader2 className="animate-spin" /> : <Wand2 className="size-4" />}
           Gerar funções a partir dos cargos dos funcionários
