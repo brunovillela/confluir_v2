@@ -4,32 +4,16 @@ import { startTransition, useActionState } from "react"
 import { Loader2, Save } from "lucide-react"
 
 import { CartaoEditavel } from "@/components/cartao-editavel"
+import { CamposDadosBancarios, type ValoresDadosBancarios } from "@/components/dados-bancarios-campos"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { type EstadoForm } from "@/lib/contas"
 import { lerDocumentoTitular } from "@/lib/cpf"
-import { rotuloTipoConta, TIPOS_CHAVE_PIX, TIPOS_CONTA } from "@/lib/contracheques-constantes"
+import { rotuloTipoConta } from "@/lib/contracheques-constantes"
 
 import { salvarDadosBancariosAction } from "./actions"
 
-const SELECT =
-  "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
-
-export type DadosBancariosTela = {
-  banco: string | null
-  bancoCodigo: string | null
-  agencia: string | null
-  conta: string | null
-  tipoConta: string | null
-  pix: string | null
-  pixTipo: string | null
-  favorecido: string | null
-  titularDocumento: string | null
-  preferePix: boolean
-}
+export type DadosBancariosTela = ValoresDadosBancarios
 
 function Campo({ rotulo, valor }: { rotulo: string; valor: string | null }) {
   return (
@@ -104,74 +88,10 @@ export function DadosBancariosFuncionario({
               <AlertDescription>{estado.ok}</AlertDescription>
             </Alert>
           )}
-          <div className="grid gap-3 sm:grid-cols-4">
-            <div className="grid gap-1.5 sm:col-span-2">
-              <Label htmlFor="db-banco">Banco</Label>
-              <Input id="db-banco" name="banco" defaultValue={dados?.banco ?? ""} placeholder="Banco do Brasil" />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="db-banco-codigo">Código</Label>
-              <Input
-                id="db-banco-codigo"
-                name="banco_codigo"
-                inputMode="numeric"
-                maxLength={3}
-                defaultValue={dados?.bancoCodigo ?? ""}
-                placeholder="001"
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="db-tipo-conta">Tipo de conta</Label>
-              <select id="db-tipo-conta" name="tipo_conta" defaultValue={dados?.tipoConta?.toLowerCase() ?? ""} className={SELECT}>
-                <option value="">—</option>
-                {TIPOS_CONTA.map((t) => (
-                  <option key={t.valor} value={t.valor}>
-                    {t.rotulo}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="db-agencia">Agência</Label>
-              <Input id="db-agencia" name="agencia" defaultValue={dados?.agencia ?? ""} placeholder="1234-5" />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="db-conta">Conta</Label>
-              <Input id="db-conta" name="conta" defaultValue={dados?.conta ?? ""} placeholder="12345-6" />
-            </div>
-            <div className="grid gap-1.5 sm:col-span-2">
-              <Label htmlFor="db-favorecido">Favorecido (se não for o próprio)</Label>
-              <Input id="db-favorecido" name="favorecido" defaultValue={dados?.favorecido ?? ""} />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="db-titular-doc">CPF/CNPJ do titular</Label>
-              <Input
-                id="db-titular-doc"
-                name="titular_documento"
-                inputMode="numeric"
-                defaultValue={dados?.titularDocumento ?? lerDocumentoTitular(cpfFuncionario).documento ?? ""}
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="db-pix-tipo">Tipo da chave Pix</Label>
-              <select id="db-pix-tipo" name="pix_tipo" defaultValue={dados?.pixTipo ?? ""} className={SELECT}>
-                <option value="">—</option>
-                {TIPOS_CHAVE_PIX.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="grid gap-1.5 sm:col-span-3">
-              <Label htmlFor="db-pix">Chave Pix</Label>
-              <Input id="db-pix" name="pix" defaultValue={dados?.pix ?? ""} />
-            </div>
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox name="prefere_pix" defaultChecked={dados?.preferePix ?? false} />
-            Pagar por Pix (em vez da conta)
-          </label>
+          <CamposDadosBancarios
+            valores={dados}
+            titularSugerido={lerDocumentoTitular(cpfFuncionario).documento}
+          />
           <div>
             <Button type="submit" disabled={pendente}>
               {pendente ? <Loader2 className="animate-spin" /> : <Save />}

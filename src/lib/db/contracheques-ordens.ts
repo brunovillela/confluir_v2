@@ -10,6 +10,7 @@ import {
   rotuloTipoConta,
   TIPO_ORDEM_FOLHA,
 } from "@/lib/contracheques-constantes"
+import type { EntradaDadosBancarios } from "@/lib/dados-bancarios"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -172,20 +173,6 @@ export async function dadosBancariosDosFuncionarios(
     }
   }
   return mapa
-}
-
-export type EntradaDadosBancarios = {
-  banco: string | null
-  bancoCodigo: string | null
-  agencia: string | null
-  conta: string | null
-  tipoConta: string | null
-  pix: string | null
-  pixTipo: string | null
-  favorecido: string | null
-  /** CPF/CNPJ do titular da conta (só dígitos). */
-  titularDocumento: string | null
-  preferePix: boolean
 }
 
 /** Uma conta por funcionário: atualiza a existente ou cria. */

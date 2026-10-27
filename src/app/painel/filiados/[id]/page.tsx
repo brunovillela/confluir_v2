@@ -47,6 +47,7 @@ import {
   type TermoAceito,
 } from "@/lib/db/filiacao-termos"
 import { listarContatosEmergencia } from "@/lib/db/filiacao-contatos-emergencia"
+import { listarDadosBancariosFiliado } from "@/lib/db/filiacao-dados-bancarios"
 import { buscarPerfilFiliado } from "@/lib/db/filiados"
 import { listarProntuario } from "@/lib/db/prontuario"
 import {
@@ -59,6 +60,7 @@ import { podeAcessar } from "@/lib/permissoes"
 import { ROTULO_ORIGEM_DESCADASTRO, type OrigemDescadastro } from "@/lib/db/comunicacao-descadastro"
 
 import { alterarComunicadosFichaAction } from "./comunicados-actions"
+import { DadosBancariosFiliado } from "./dados-bancarios"
 
 import { SituacaoBadge } from "../../financeiro/situacao-badge"
 import { MotivoDesfiliacaoForm } from "@/app/painel/indicadores/churn/motivo-form"
@@ -154,10 +156,15 @@ export default async function FiliadoPage({
     listarProntuario(id, 5),
   ])
   if (!perfil) notFound()
-  const emergencia = await listarContatosEmergencia({
-    filiadoId: perfil.filiacao.id as string,
-    cpf: typeof perfil.filiacao.cpf === "string" ? perfil.filiacao.cpf : null,
-  })
+  // Dado bancário é financeiro: só quem edita a filiação ou lança reembolso vê.
+  const verDadosBancarios = podeEditar || podeReembolsar
+  const [emergencia, dadosBancarios] = await Promise.all([
+    listarContatosEmergencia({
+      filiadoId: perfil.filiacao.id as string,
+      cpf: typeof perfil.filiacao.cpf === "string" ? perfil.filiacao.cpf : null,
+    }),
+    verDadosBancarios ? listarDadosBancariosFiliado(perfil.filiacao.id as string) : Promise.resolve([]),
+  ])
 
   const {
     filiacao: f,
@@ -480,6 +487,26 @@ export default async function FiliadoPage({
           )}
         </CardContent>
       </Card>
+
+      {verDadosBancarios && (
+        <Card id="dados-bancarios" className="scroll-mt-20">
+          <CardHeader>
+            <CardTitle className="text-base">Dados bancários</CardTitle>
+            <CardDescription>
+              Contas e chaves Pix do filiado — o destino dos reembolsos e de
+              outros pagamentos a ele. O principal é o usado primeiro.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DadosBancariosFiliado
+              filiadoId={String(f.id)}
+              dados={dadosBancarios}
+              podeEditar={podeEditar}
+              cpfFiliado={typeof f.cpf === "string" ? f.cpf : null}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {(contatos.emails.length > 0 || contatos.telefones.length > 0 || contatos.enderecos.length > 0) && (
         <Card>
