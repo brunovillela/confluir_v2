@@ -61,6 +61,8 @@ import { ROTULO_ORIGEM_DESCADASTRO, type OrigemDescadastro } from "@/lib/db/comu
 
 import { alterarComunicadosFichaAction } from "./comunicados-actions"
 import { DadosBancariosFiliado } from "./dados-bancarios"
+import { PedirDadosBancarios } from "@/components/pedir-dados-bancarios"
+import { pedidoPendente } from "@/lib/db/pedidos-dados-bancarios"
 
 import { SituacaoBadge } from "../../financeiro/situacao-badge"
 import { rotuloMotivoDesfiliacao } from "@/lib/churn-constantes"
@@ -87,6 +89,11 @@ function Campo({
       <dd className="mt-0.5 text-sm break-words">{children ?? "—"}</dd>
     </div>
   )
+}
+
+/** Texto do cadastro ou null (para sugerir e-mail/telefone). */
+function ouNulo(valor: unknown): string | null {
+  return typeof valor === "string" && valor.trim() ? valor.trim() : null
 }
 
 function texto(valor: unknown): string {
@@ -157,12 +164,13 @@ export default async function FiliadoPage({
   if (!perfil) notFound()
   // Dado bancário é financeiro: só quem edita a filiação ou lança reembolso vê.
   const verDadosBancarios = podeEditar || podeReembolsar
-  const [emergencia, dadosBancarios] = await Promise.all([
+  const [emergencia, dadosBancarios, pedidoBancario] = await Promise.all([
     listarContatosEmergencia({
       filiadoId: perfil.filiacao.id as string,
       cpf: typeof perfil.filiacao.cpf === "string" ? perfil.filiacao.cpf : null,
     }),
     verDadosBancarios ? listarDadosBancariosFiliado(perfil.filiacao.id as string) : Promise.resolve([]),
+    podeEditar ? pedidoPendente({ tipo: "filiado", id: perfil.filiacao.id as string }) : Promise.resolve(null),
   ])
 
   const {
@@ -483,11 +491,23 @@ export default async function FiliadoPage({
       {verDadosBancarios && (
         <Card id="dados-bancarios" className="scroll-mt-20">
           <CardHeader>
-            <CardTitle className="text-base">Dados bancários</CardTitle>
-            <CardDescription>
-              Contas e chaves Pix do filiado — o destino dos reembolsos e de
-              outros pagamentos a ele. O principal é o usado primeiro.
-            </CardDescription>
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="grid gap-1.5">
+                <CardTitle className="text-base">Dados bancários</CardTitle>
+                <CardDescription>
+                  Contas e chaves Pix do filiado — o destino dos reembolsos e de
+                  outros pagamentos a ele. O principal é o usado primeiro.
+                </CardDescription>
+              </div>
+              {podeEditar && (
+                <PedirDadosBancarios
+                  dono={{ tipo: "filiado", id: String(f.id) }}
+                  emailSugerido={ouNulo(f.email_pessoal) ?? ouNulo(f.email_corporativo)}
+                  telefoneSugerido={f.telefone_2_whatsapp === true && f.telefone_1_whatsapp !== true ? ouNulo(f.telefone_2) : ouNulo(f.telefone_1)}
+                  pendente={pedidoBancario}
+                />
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             <DadosBancariosFiliado

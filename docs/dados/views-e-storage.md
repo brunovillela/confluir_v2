@@ -294,7 +294,7 @@ Arquivos (documentos pessoais, comprovantes, fotos) ficam aqui, fora das tabelas
 | `hospedagem` | não | 5 MB | application/pdf, image/jpeg, image/png, image/webp |
 | `juridico` | não |  |  |
 | `noticias` | **sim** |  |  |
-| `oposicao` | não |  |  |
+| `oposicao` | não | 10 MB | application/pdf |
 | `organizacao` | **sim** |  |  |
 | `patrimonio` | não |  |  |
 | `pessoal` | não | 5 MB | application/pdf |

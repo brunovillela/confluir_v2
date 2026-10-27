@@ -107,6 +107,15 @@ erDiagram
     uuid id PK
     uuid centro_custo_id FK
   }
+  financeiro_pedidos_dados_bancarios {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid fornecedor_id FK
+    uuid usuario_id FK
+    uuid filiado_id FK
+    uuid criado_por_usuario_id FK
+    uuid dados_bancarios_id FK
+  }
   financeiro_remessa_itens {
     uuid id PK
     uuid remessa_id FK
@@ -218,6 +227,11 @@ erDiagram
   financeiro_meses_fechados }o--o| usuarios : "fechado_por_usuario_id"
   financeiro_meses_fechados }o--o| usuarios : "reaberto_por_usuario_id"
   financeiro_orcamentos }o--|| centros_de_custo : "centro_custo_id"
+  financeiro_pedidos_dados_bancarios }o--o| dados_bancarios : "dados_bancarios_id"
+  financeiro_pedidos_dados_bancarios }o--o| empresa : "fornecedor_id"
+  financeiro_pedidos_dados_bancarios }o--o| filiacoes : "filiado_id"
+  financeiro_pedidos_dados_bancarios }o--o| usuarios : "criado_por_usuario_id"
+  financeiro_pedidos_dados_bancarios }o--o| usuarios : "usuario_id"
   financeiro_remessa_itens }o--|| financeiro_remessas : "remessa_id"
   financeiro_remessa_itens }o--|| ordens_pagamento : "ordem_id"
   financeiro_remessas }o--|| financeiro_contas_bancarias : "conta_bancaria_id"

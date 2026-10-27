@@ -20,12 +20,15 @@ export function CartaoEditavel({
   resumo,
   children,
   abertoInicial = false,
+  acoes,
 }: {
   titulo: string
   descricao?: string
   resumo: ReactNode
   children: ReactNode
   abertoInicial?: boolean
+  /** Botões extras no cabeçalho, antes do lápis (ex.: Pedir dados bancários). */
+  acoes?: ReactNode
 }) {
   const [editando, setEditando] = useState(abertoInicial)
 
@@ -39,14 +42,17 @@ export function CartaoEditavel({
               <p className="text-muted-foreground mt-0.5 text-sm">{descricao}</p>
             )}
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setEditando((v) => !v)}
-            aria-label={editando ? "Fechar edição" : "Editar"}
-          >
-            {editando ? <X /> : <Pencil />}
-          </Button>
+          <div className="flex items-start gap-2">
+            {acoes}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setEditando((v) => !v)}
+              aria-label={editando ? "Fechar edição" : "Editar"}
+            >
+              {editando ? <X /> : <Pencil />}
+            </Button>
+          </div>
         </div>
         <div className="mt-3">{editando ? children : resumo}</div>
       </CardContent>

@@ -58,6 +58,7 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "financeiro_contas_bancarias",
   "financeiro_remessas",
   "financeiro_remessa_itens",
+  "financeiro_pedidos_dados_bancarios",
   "filiacao_cobranca_config",
   "filiacao_cobrancas",
   "api_chaves",

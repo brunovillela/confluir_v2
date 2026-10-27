@@ -249,7 +249,7 @@ export async function completarFormaPadrao(linhas: LinhaDestino[]): Promise<stri
     if (!escolha) {
       const quem = t(l.beneficiario_nome_avulso) ?? (chave ? "o favorecido" : null)
       return quem
-        ? `A ordem precisa de forma de pagamento e ${quem} não tem chave Pix nem conta bancária cadastrada. Cadastre os dados bancários do favorecido ou informe a forma na origem.`
+        ? `A ordem precisa de forma de pagamento e ${quem} não tem chave Pix nem conta bancária cadastrada. Cadastre os dados bancários do favorecido — ou peça a ele pelo botão "Pedir dados bancários" na ficha — ou informe a forma na origem.`
         : "A ordem precisa de forma de pagamento e de um favorecido — informe a forma na origem."
     }
     l.forma_pagamento = escolha.forma

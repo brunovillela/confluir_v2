@@ -29,11 +29,14 @@ export function CamposDadosBancarios({
   prefixo = "db",
   valores,
   titularSugerido,
+  semFavorecido = false,
 }: {
   prefixo?: string
   valores: ValoresDadosBancarios | null
   /** CPF/CNPJ sugerido quando a conta ainda não tem o documento do titular. */
   titularSugerido?: string | null
+  /** Esconde "Favorecido (se não for o próprio)" — ex.: o pedido por link, em que a conta é do próprio favorecido. */
+  semFavorecido?: boolean
 }) {
   const p = prefixo
   return (
@@ -78,10 +81,12 @@ export function CamposDadosBancarios({
           <Label htmlFor={`${p}-conta`}>Conta</Label>
           <Input id={`${p}-conta`} name="conta" defaultValue={valores?.conta ?? ""} placeholder="12345-6" />
         </div>
-        <div className="grid gap-1.5 sm:col-span-2">
-          <Label htmlFor={`${p}-favorecido`}>Favorecido (se não for o próprio)</Label>
-          <Input id={`${p}-favorecido`} name="favorecido" defaultValue={valores?.favorecido ?? ""} />
-        </div>
+        {!semFavorecido && (
+          <div className="grid gap-1.5 sm:col-span-2">
+            <Label htmlFor={`${p}-favorecido`}>Favorecido (se não for o próprio)</Label>
+            <Input id={`${p}-favorecido`} name="favorecido" defaultValue={valores?.favorecido ?? ""} />
+          </div>
+        )}
         <div className="grid gap-1.5">
           <Label htmlFor={`${p}-titular-doc`}>CPF/CNPJ do titular</Label>
           <Input

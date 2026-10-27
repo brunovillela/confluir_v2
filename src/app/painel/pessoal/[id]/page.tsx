@@ -33,6 +33,8 @@ import { buscarPerfilFuncionario } from "@/lib/db/pessoal"
 import { ResumoAreas } from "@/components/pessoal/resumo-areas"
 
 import { DadosBancariosFuncionario } from "./dados-bancarios"
+import { PedirDadosBancarios } from "@/components/pedir-dados-bancarios"
+import { pedidoPendente } from "@/lib/db/pedidos-dados-bancarios"
 import { DadosCadastrais, ExcluirFuncionario, VinculoFuncionario } from "./cadastro-forms"
 import { descreverLancamentos, lancamentosDoFuncionario, obterDadosCadastrais } from "@/lib/db/pessoal-cadastro"
 import { formatarData } from "@/lib/formato"
@@ -91,6 +93,7 @@ export default async function FuncionarioPage({
   const [carreira, dadosBancarios]: [CarreiraFuncionario, DadosBancarios | null] = temGestao
     ? await Promise.all([carreiraDoFuncionario(id), dadosBancariosDoFuncionario(id)])
     : [{ anuenios: [], niveis: [] }, null]
+  const pedidoBancario = temGestao ? await pedidoPendente({ tipo: "usuario", id }) : null
 
   const { usuario, vinculos, dependentes } = perfil
   // O que impede excluir o funcionário (lançamentos no Pessoal) — só a gestão vê.
@@ -180,7 +183,21 @@ export default async function FuncionarioPage({
         </CardContent>
       </Card>
 
-      {temGestao && <DadosBancariosFuncionario usuarioId={id} dados={dadosBancarios} cpfFuncionario={cadastro?.cpf ?? null} />}
+      {temGestao && (
+        <DadosBancariosFuncionario
+          usuarioId={id}
+          dados={dadosBancarios}
+          cpfFuncionario={cadastro?.cpf ?? null}
+          acoes={
+            <PedirDadosBancarios
+              dono={{ tipo: "usuario", id }}
+              emailSugerido={usuario.email ?? null}
+              telefoneSugerido={cadastro?.whatsapp ?? null}
+              pendente={pedidoBancario}
+            />
+          }
+        />
+      )}
 
       {/* 17/10: a ficha é o ponto de entrada — cada área tem a página da pessoa (padrão de 3 níveis). */}
       <ResumoAreas usuarioId={id} perfil={perfil} carreira={carreira} permissoes={sessao.permissoes} />

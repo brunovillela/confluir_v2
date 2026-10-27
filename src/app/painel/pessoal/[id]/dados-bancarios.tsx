@@ -1,6 +1,6 @@
 "use client"
 
-import { startTransition, useActionState } from "react"
+import { startTransition, useActionState, type ReactNode } from "react"
 import { Loader2, Save } from "lucide-react"
 
 import { CartaoEditavel } from "@/components/cartao-editavel"
@@ -29,11 +29,14 @@ export function DadosBancariosFuncionario({
   usuarioId,
   dados,
   cpfFuncionario,
+  acoes,
 }: {
   usuarioId: string
   dados: DadosBancariosTela | null
   /** Sugestão para o titular quando a conta ainda não tem o documento. */
   cpfFuncionario?: string | null
+  /** Botões extras no cabeçalho do cartão (ex.: Pedir dados bancários). */
+  acoes?: ReactNode
 }) {
   const [estado, formAction, pendente] = useActionState<EstadoForm, FormData>(
     salvarDadosBancariosAction,
@@ -46,6 +49,7 @@ export function DadosBancariosFuncionario({
         titulo="Dados bancários"
         descricao="Onde cai o pagamento das ordens geradas pelos contracheques"
         abertoInicial={!dados}
+        acoes={acoes}
         resumo={
           dados ? (
             <dl className="grid gap-3 sm:grid-cols-3">

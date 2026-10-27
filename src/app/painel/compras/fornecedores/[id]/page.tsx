@@ -49,6 +49,8 @@ import { mascaraTelefone } from "@/lib/mascaras"
 import { comprasViaMarketplace } from "@/lib/db/compras-marketplace"
 import { formatarCnpjCpf } from "@/lib/mascaras"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
+import { PedirDadosBancarios } from "@/components/pedir-dados-bancarios"
+import { pedidoPendente } from "@/lib/db/pedidos-dados-bancarios"
 
 import { consultarCnpjFornecedor } from "../actions"
 import {
@@ -153,11 +155,12 @@ export default async function FornecedorPage({
   const detalhe = await buscarFornecedor(id)
   if (!detalhe) notFound()
   const { fornecedor: f, enderecos, contas, ordens } = detalhe
-  const [incorporados, destinoMescla, viaMarketplace, contatos] = await Promise.all([
+  const [incorporados, destinoMescla, viaMarketplace, contatos, pedidoBancario] = await Promise.all([
     incorporadosPor(f.id),
     mescladoEm(f.id),
     comprasViaMarketplace(f.id, f.marketplace),
     listarContatos(f.id),
+    pedidoPendente({ tipo: "fornecedor", id: f.id }),
   ])
 
   const editando = brutos.editar === "1" && podeEditar
@@ -602,12 +605,20 @@ export default async function FornecedorPage({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="text-base">Dados bancários</CardTitle>
               {podeEditar && contaParam !== "novo" && (
-                <Button variant="outline" size="sm" asChild>
-                  <Link href={`${aqui}?conta=novo`}>
-                    <Plus />
-                    Adicionar
-                  </Link>
-                </Button>
+                <div className="flex flex-wrap items-start gap-2">
+                  <PedirDadosBancarios
+                    dono={{ tipo: "fornecedor", id: f.id }}
+                    emailSugerido={contatos?.find((c) => c.email)?.email ?? null}
+                    telefoneSugerido={contatos?.find((c) => c.telefone)?.telefone ?? null}
+                    pendente={pedidoBancario}
+                  />
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`${aqui}?conta=novo`}>
+                      <Plus />
+                      Adicionar
+                    </Link>
+                  </Button>
+                </div>
               )}
             </div>
           </CardHeader>

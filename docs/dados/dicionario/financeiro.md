@@ -2,7 +2,7 @@
 
 # Financeiro
 
-28 tabelas. Diagrama: [er/financeiro.md](../er/financeiro.md).
+29 tabelas. Diagrama: [er/financeiro.md](../er/financeiro.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -25,6 +25,7 @@
 | [financeiro_diarias](#financeiro_diarias) | — | Tipos de diária ou reembolso (alimentação, hospedagem, deslocamento) com valor de referência e quem pode lançar. Migrados do Bubble. |
 | [financeiro_meses_fechados](#financeiro_meses_fechados) | identificação | Meses fechados para a contabilidade (pela data do pagamento das ordens). Mês fechado trava a reclassificação do centro de custo, do departam… |
 | [financeiro_orcamentos](#financeiro_orcamentos) | — | Orçamento anual por centro de custo, informado na visão gerencial do Financeiro para comparar com o realizado. |
+| [financeiro_pedidos_dados_bancarios](#financeiro_pedidos_dados_bancarios) | identificação, financeiro | Pedidos de dados bancários ao favorecido (fornecedor, usuário ou filiado) por link de uso único, sem login: ele informa a chave Pix ou a con… |
 | [financeiro_remessa_itens](#financeiro_remessa_itens) | financeiro, identificação | Cada pagamento incluído numa remessa CNAB: favorecido, dados bancários ou Pix, valor e o retorno do banco (ocorrência, valor e data pagos). |
 | [financeiro_remessas](#financeiro_remessas) | financeiro, identificação | Arquivos de remessa CNAB 240 de pagamentos gerados pela entidade e o retorno do banco importado depois. |
 | [financeiro_tributos](#financeiro_tributos) | identificação | Tributos da entidade (DARF, FGTS, GPS, IPTU, alvará, DUDA…): o cadastro, como o contrato — órgão beneficiário, centro de custo, periodicidad… |
@@ -536,6 +537,39 @@ Orçamento anual por centro de custo, informado na visão gerencial do Financeir
 Checks: `financeiro_orcamentos_ano_check` `CHECK (((ano >= 2000) AND (ano <= 2100)))`; `financeiro_orcamentos_valor_anual_check` `CHECK ((valor_anual >= (0)::numeric))`
 
 Índices: `financeiro_orcamentos_emp_ano_idx`, `financeiro_orcamentos_emp_proprietaria_id_ano_centro_custo__key`, `financeiro_orcamentos_pkey`
+
+## financeiro_pedidos_dados_bancarios
+
+Pedidos de dados bancários ao favorecido (fornecedor, usuário ou filiado) por link de uso único, sem login: ele informa a chave Pix ou a conta, que entra como dado bancário novo e completa as ordens que a esperavam.
+
+- **LGPD:** identificação, financeiro · titulares: fornecedores, filiados e funcionários
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  |  |
+| `token` | uuid | não | `gen_random_uuid()` |  |  | Segredo do link /dados-bancarios/<token>; vale só no domínio da entidade, até expirar ou ser respondido. |
+| `fornecedor_id` | uuid | sim |  | → empresa (**cascade**) |  | Dono do pedido quando é fornecedor/entidade (empresa). |
+| `usuario_id` | uuid | sim |  | → usuarios (**cascade**) | identificação | Dono do pedido quando é usuário (funcionário, diretor). |
+| `filiado_id` | uuid | sim |  | → filiacoes (**cascade**) | identificação | Dono do pedido quando é filiado. |
+| `documento_esperado` | text | sim |  |  | identificação | CPF/CNPJ do dono (só dígitos) quando o pedido foi feito; o titular da conta informada tem de ser ele (mesma raiz de CNPJ vale). |
+| `enviado_para` | text | sim |  |  | identificação | E-mail ou telefone para onde o link foi mandado (nulo = link copiado). |
+| `canal` | text | não | `'link'::text` |  |  | Como o link foi mandado: link (copiado), email ou whatsapp. |
+| `criado_por_usuario_id` | uuid | sim |  | → usuarios | identificação | Quem pediu. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  | Quando o pedido foi feito. |
+| `expira_em` | timestamp with time zone | não | `(now() + '7 days'::interval)` |  |  | Até quando o link vale (7 dias). |
+| `aberto_em` | timestamp with time zone | sim |  |  |  | Primeira vez que o link foi aberto. |
+| `respondido_em` | timestamp with time zone | sim |  |  |  | Quando o favorecido enviou os dados (o link deixa de valer). |
+| `dados_bancarios_id` | uuid | sim |  | → dados_bancarios (set null) |  | O dado bancário criado pela resposta. |
+| `cancelado_em` | timestamp with time zone | sim |  |  |  | Pedido cancelado por quem pediu (o link deixa de valer). |
+
+Únicas: `UNIQUE (token)`
+
+Checks: `financeiro_pedidos_dados_bancarios_canal_check` `CHECK ((canal = ANY (ARRAY['link'::text, 'email'::text, 'whatsapp'::text])))`; `financeiro_pedidos_dados_bancarios_documento_check` `CHECK (((documento_esperado IS NULL) OR (documento_esperado ~ '^([0-9]{11}|[0-9]{14})$'::text)))`; `financeiro_pedidos_dados_bancarios_um_dono` `CHECK ((((((fornecedor_id IS NOT NULL))::integer + ((usuario_id IS NOT NULL))::integer) + ((filiado_id IS NOT NULL))::integer) = 1))`
+
+Índices: `financeiro_pedidos_dados_bancarios_filiado_idx`, `financeiro_pedidos_dados_bancarios_fornecedor_idx`, `financeiro_pedidos_dados_bancarios_pkey`, `financeiro_pedidos_dados_bancarios_token_key`, `financeiro_pedidos_dados_bancarios_usuario_idx`
 
 ## financeiro_remessa_itens
 

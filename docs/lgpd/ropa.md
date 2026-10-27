@@ -25,7 +25,7 @@
 | P08 | [Saúde do trabalhador (CAT, atendimentos, CIPA)](#p08) | 11 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, trabalhista | sim |
 | P09 | [Jurídico](#p09) | 4 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista | sim |
 | P10 | [Pessoal: RH dos funcionários da entidade](#p10) | 34 | identificação, **sensível: saúde**, financeiro, trabalhista | sim |
-| P11 | [Financeiro, compras, fornecedores e contratos](#p11) | 32 | identificação, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
+| P11 | [Financeiro, compras, fornecedores e contratos](#p11) | 33 | identificação, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P12 | [Institucional: custeios, viagens, linhas e patrimônio](#p12) | 8 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P13 | [Hospedagem conveniada e cessão de espaços](#p13) | 12 | identificação, **sensível: filiação/posição sindical**, financeiro, credencial (segredo de acesso, nunca exportar) | sim |
 | P14 | [Frota: veículos e condutores](#p14) | 12 | identificação, financeiro | sim |
@@ -505,7 +505,7 @@
 
 **Observações.** Pendência: `financeiro_remessas.conteudo` guarda o arquivo CNAB inteiro (nome, CPF e conta de cada favorecido).
 
-<details><summary>Tabelas (32) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (33) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -534,6 +534,7 @@
 | [financeiro_cartao_faturas](../dados/dicionario/financeiro.md#financeiro_cartao_faturas) | identificacao | `fechada_por_usuario_id` (identificacao) |
 | [financeiro_despesas](../dados/dicionario/financeiro.md#financeiro_despesas) | identificacao, financeiro | `favorecido` (identificacao), `comprovante_despesa` (financeiro), `comprovante_pagamento` (financeiro) |
 | [financeiro_meses_fechados](../dados/dicionario/financeiro.md#financeiro_meses_fechados) | identificacao | `fechado_por_usuario_id` (identificacao), `reaberto_por_usuario_id` (identificacao) |
+| [financeiro_pedidos_dados_bancarios](../dados/dicionario/financeiro.md#financeiro_pedidos_dados_bancarios) | identificacao, financeiro | `usuario_id` (identificacao), `filiado_id` (identificacao), `documento_esperado` (identificacao), `enviado_para` (identificacao), `criado_por_usuario_id` (identificacao) |
 | [financeiro_remessa_itens](../dados/dicionario/financeiro.md#financeiro_remessa_itens) | identificacao, financeiro | `favorecido_nome` (identificacao), `favorecido_documento` (identificacao), `banco_codigo` (financeiro), `agencia` (financeiro), `conta` (financeiro), `pix_chave` (financeiro), `valor` (financeiro) |
 | [financeiro_remessas](../dados/dicionario/financeiro.md#financeiro_remessas) | identificacao, financeiro | `conteudo` (financeiro), `retorno_conteudo` (financeiro) |
 | [financeiro_tributos](../dados/dicionario/financeiro.md#financeiro_tributos) | identificacao | `criado_por_usuario_id` (identificacao) |
@@ -544,7 +545,7 @@
 
 </details>
 
-<sub>Titulares registrados no banco para estas tabelas: autônomos contratados; beneficiários das ordens; contatos de fornecedores; convidados (beneficiários); diretores; diretores (favorecidos); empregadores (público externo); favorecidos pessoa física; filiados; filiados (favorecidos); fornecedores pf; fornecedores pf (autônomos); funcionários; funcionários (contrapartes de pix; público externo (assinantes); público externo (cessionários; signatários); transferências); usuários do sistema.</sub>
+<sub>Titulares registrados no banco para estas tabelas: autônomos contratados; beneficiários das ordens; contatos de fornecedores; convidados (beneficiários); diretores; diretores (favorecidos); empregadores (público externo); favorecidos pessoa física; filiados; filiados (favorecidos); fornecedores; fornecedores pf; fornecedores pf (autônomos); funcionários; funcionários (contrapartes de pix; público externo (assinantes); público externo (cessionários; signatários); transferências); usuários do sistema.</sub>
 
 <a id="p12"></a>
 ## P12. Institucional: custeios, viagens, linhas e patrimônio
@@ -810,4 +811,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 204 de 204 tabelas com dado pessoal atribuídas a 16 processos.
+Cobertura: 205 de 205 tabelas com dado pessoal atribuídas a 16 processos.
