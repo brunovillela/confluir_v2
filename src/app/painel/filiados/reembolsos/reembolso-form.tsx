@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { startTransition, useActionState } from "react"
 import Link from "next/link"
 import { Loader2 } from "lucide-react"
 
@@ -56,7 +56,17 @@ export function ReembolsoForm({
   const hoje = new Date().toISOString().slice(0, 10)
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form
+      className="grid gap-4"
+      onSubmit={(e) => {
+        // Envio sem `action=`: o React 19 reinicia o formulário depois de uma
+        // action de <form>, e uma recusa (ex.: teto mensal) apagaria o que foi
+        // digitado — a data voltava para hoje e a justificativa sumia.
+        e.preventDefault()
+        const dados = new FormData(e.currentTarget, (e.nativeEvent as SubmitEvent).submitter)
+        startTransition(() => formAction(dados))
+      }}
+    >
       {reembolso && <input type="hidden" name="reembolso_id" value={reembolso.id} />}
       {reembolso?.filiadoId && <input type="hidden" name="filiado_id" value={reembolso.filiadoId} />}
       {estado.erro && (
