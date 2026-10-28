@@ -6,12 +6,15 @@ import {
   CalendarPlus,
   FileCheck2,
   FileText,
+  Link2,
   Loader2,
   Paperclip,
   Pencil,
   Receipt,
+  RotateCcw,
   ScrollText,
   Sparkles,
+  Unlink,
 } from "lucide-react"
 
 import {
@@ -40,6 +43,9 @@ import {
   gerarOrdemAluguelAction,
   prorrogarContratoAction,
   anexarDocumentosOrdemAluguelAction,
+  desvincularVeiculoAction,
+  reabrirContratoAction,
+  vincularVeiculoAction,
 } from "./actions"
 import { lerFaturaLocacao, type LeituraFaturaLocacao } from "./ia-actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
@@ -63,6 +69,8 @@ export type ContratoAtual = {
   numero: string | null
   fornecedor_id: string | null
   responsavel_id: string | null
+  /** Nome do responsável atual, para quando ele não está mais na lista. */
+  responsavelNome?: string | null
   vigencia_inicio: string | null
   vigencia_termino: string | null
   valor_mensal: string
@@ -90,11 +98,27 @@ function CamposContrato({
   // O valor atual fica na lista mesmo fora dela (pessoa inativa, centro
   // desativado): sem isso o select pegaria outra opção e a edição gravaria
   // uma troca que ninguém fez.
-  const comAtual = (lista: Opcao[], atualId: string | null | undefined) =>
+  const comAtual = (
+    lista: Opcao[],
+    atualId: string | null | undefined,
+    nome?: string | null,
+  ) =>
     atualId && !lista.some((o) => o.id === atualId)
-      ? [{ id: atualId, rotulo: "(o atual, fora da lista)" }, ...lista]
+      ? [
+          {
+            id: atualId,
+            rotulo: nome
+              ? `${nome} (fora da lista)`
+              : "(o atual, fora da lista)",
+          },
+          ...lista,
+        ]
       : lista
-  const usuarios = comAtual(opcoes.usuarios, atual?.responsavel_id)
+  const usuarios = comAtual(
+    opcoes.usuarios,
+    atual?.responsavel_id,
+    atual?.responsavelNome,
+  )
   const departamentos = comAtual(opcoes.departamentos, atual?.departamento_id)
   const centrosCusto = comAtual(opcoes.centrosCusto, atual?.centro_custo_id)
   return (
@@ -844,6 +868,168 @@ export function DocumentosCobranca({
       )}
       {estado.ok && (
         <span className="text-success-fg text-xs">{estado.ok}</span>
+      )}
+    </div>
+  )
+}
+
+/** Liga um veículo ativo ao contrato, pela tela do contrato. */
+export function VincularVeiculoForm({
+  contratoId,
+  veiculos,
+}: {
+  contratoId: string
+  veiculos: { id: string; rotulo: string; outroContrato: boolean }[]
+}) {
+  const [estado, formAction, pendente] = useActionState(
+    vincularVeiculoAction,
+    {},
+  )
+  const envio = useEnvioFormulario(formAction, estado)
+  if (veiculos.length === 0) return null
+  return (
+    <form action={formAction} {...envio} className="grid gap-1">
+      <input type="hidden" name="contrato_id" value={contratoId} />
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          name="veiculo_id"
+          required
+          defaultValue=""
+          aria-label="Veículo para vincular"
+          className={`${SELECT} h-8 max-w-64 flex-1`}
+        >
+          <option value="" disabled>
+            Vincular veículo…
+          </option>
+          {veiculos.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.rotulo}
+              {v.outroContrato ? " (sai do outro contrato)" : ""}
+            </option>
+          ))}
+        </select>
+        <Button type="submit" size="sm" variant="outline" disabled={pendente}>
+          {pendente ? <Loader2 className="animate-spin" /> : <Link2 />}
+          Vincular
+        </Button>
+      </div>
+      {estado.erro && <p className="text-destructive text-xs">{estado.erro}</p>}
+      {estado.ok && <p className="text-success-fg text-xs">{estado.ok}</p>}
+    </form>
+  )
+}
+
+/** Tira o veículo do contrato (com confirmação). */
+export function DesvincularVeiculoBotao({
+  contratoId,
+  veiculoId,
+  placa,
+}: {
+  contratoId: string
+  veiculoId: string
+  placa: string | null
+}) {
+  const [estado, formAction, pendente] = useActionState(
+    desvincularVeiculoAction,
+    {},
+  )
+  const envio = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+      confirmarEnvio(e, `Desvincular o veículo ${placa ?? ""} deste contrato?`)
+    },
+  })
+  return (
+    <form
+      action={formAction}
+      {...envio}
+      className="inline-flex items-center gap-1"
+    >
+      <input type="hidden" name="contrato_id" value={contratoId} />
+      <input type="hidden" name="veiculo_id" value={veiculoId} />
+      <Button
+        type="submit"
+        variant="ghost"
+        size="icon"
+        className="text-muted-foreground hover:text-destructive size-6"
+        disabled={pendente}
+        title="Desvincular do contrato"
+        aria-label={`Desvincular o veículo ${placa ?? ""} do contrato`}
+      >
+        {pendente ? <Loader2 className="animate-spin" /> : <Unlink />}
+      </Button>
+      {estado.erro && (
+        <span className="text-destructive text-xs">{estado.erro}</span>
+      )}
+    </form>
+  )
+}
+
+/** Desfaz a finalização do contrato, com motivo (fica no histórico). */
+export function ReabrirContratoDialog({ contratoId }: { contratoId: string }) {
+  const [aberto, setAberto] = useState(false)
+  const [estado, formAction, pendente] = useAcaoDoDialogo(
+    reabrirContratoAction,
+    () => setAberto(false),
+  )
+  const envio = useEnvioFormulario(formAction, estado)
+  return (
+    <div className="inline-flex flex-col items-end gap-1">
+      <Dialog open={aberto} onOpenChange={setAberto}>
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm">
+            <RotateCcw />
+            Reabrir contrato
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reabrir contrato</DialogTitle>
+            <DialogDescription>
+              O contrato volta a vigente. Os veículos desvinculados ao finalizar
+              não voltam sozinhos — o histórico diz quais eram; vincule-os de
+              novo aqui.
+            </DialogDescription>
+          </DialogHeader>
+          <form action={formAction} {...envio} className="grid gap-3">
+            <input type="hidden" name="contrato_id" value={contratoId} />
+            {estado.erro && (
+              <Alert variant="destructive">
+                <AlertDescription>{estado.erro}</AlertDescription>
+              </Alert>
+            )}
+            <div className="grid gap-1.5">
+              <Label htmlFor={`re_motivo_${contratoId}`}>
+                Motivo da reabertura *
+              </Label>
+              <textarea
+                id={`re_motivo_${contratoId}`}
+                name="motivo"
+                rows={2}
+                required
+                placeholder="Ex.: finalizado por engano; a locação continua"
+                className={TEXTAREA}
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setAberto(false)}
+              >
+                Voltar
+              </Button>
+              <Button type="submit" disabled={pendente}>
+                {pendente && <Loader2 className="animate-spin" />}
+                Reabrir
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      {estado.ok && (
+        <span className="text-success-fg max-w-64 text-right text-xs">
+          {estado.ok}
+        </span>
       )}
     </div>
   )

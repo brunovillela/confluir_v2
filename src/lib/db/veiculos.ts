@@ -3205,6 +3205,7 @@ const CAMPOS_CONTRATO: Record<string, string> = {
   centro_custo_id: "Centro de custo",
   departamento_id: "Departamento",
   arquivo_contrato_url: "Contrato assinado",
+  finalizado: "Situação",
 }
 
 export type EdicaoContrato = Omit<NovoContrato, "arquivo_contrato_url" | "responsavel_id"> & {
@@ -3360,6 +3361,8 @@ export async function prorrogarContrato(
 export type EventoContrato = {
   id: string
   evento: "editado" | "prorrogado"
+  /** "Prorrogado", "Finalizado", "Reaberto" ou "Editado" — para a tela. */
+  titulo: string
   quando: string
   autor: string | null
   motivo: string | null
@@ -3413,6 +3416,7 @@ export async function historicoDoContrato(id: string): Promise<EventoContrato[]>
     if (coluna === "centro_custo_id") return centroNome.get(s) ?? "(centro)"
     if (coluna === "departamento_id") return deptoNome.get(s) ?? "(departamento)"
     if (coluna === "arquivo_contrato_url") return "novo arquivo"
+    if (coluna === "finalizado") return v === true ? "Finalizado" : "Vigente"
     return s
   }
 
@@ -3423,6 +3427,15 @@ export async function historicoDoContrato(id: string): Promise<EventoContrato[]>
       return {
         id: String(l.id),
         evento: l.evento === "prorrogado" ? ("prorrogado" as const) : ("editado" as const),
+        // Finalizar e reabrir gravam como edição só da Situação.
+        titulo:
+          l.evento === "prorrogado"
+            ? "Prorrogado"
+            : Object.keys(depois).join() === "finalizado"
+              ? depois.finalizado === true
+                ? "Finalizado"
+                : "Reaberto"
+              : "Editado",
         quando: String(l.created_at),
         autor: l.usuario_id ? (autores.get(String(l.usuario_id)) ?? null) : null,
         motivo: texto(l.motivo),
@@ -3435,25 +3448,117 @@ export async function historicoDoContrato(id: string): Promise<EventoContrato[]>
   )
 }
 
-/** Encerra o contrato e desvincula os veículos apontados para ele. */
+/**
+ * Encerra o contrato e desvincula os veículos apontados para ele. Fica na
+ * trilha como "Situação: Vigente → Finalizado" (os veículos desvinculados vão
+ * no motivo, para quem reabrir saber o que religar).
+ */
 export async function finalizarContrato(
+  id: string,
+  usuarioId: string
+): Promise<{ erro?: string }> {
+  const atual = await contratoBruto(id)
+  if (!atual) return { erro: "Contrato não encontrado." }
+  if (atual.finalizado === true) return { erro: "O contrato já está finalizado." }
+  const admin = await createAdminClient()
+  const { data: vinculados } = await admin
+    .from("veiculos")
+    .select("placa")
+    .eq("contrato_aluguel_id", id)
+  const placas = (vinculados ?? []).map((v) => texto(v.placa)).filter(Boolean)
+  const r = await aplicarComHistorico(
+    id,
+    "editado",
+    { antes: { finalizado: false }, depois: { finalizado: true } },
+    {
+      usuarioId,
+      motivo: placas.length ? `Finalizado; veículos desvinculados: ${placas.join(", ")}.` : "Finalizado.",
+    }
+  )
+  if (r.erro) return r
+  await admin
+    .from("veiculos")
+    .update({ contrato_aluguel_id: null, eh_alugado: false, updated_at: new Date().toISOString() })
+    .eq("contrato_aluguel_id", id)
+  return {}
+}
+
+/**
+ * Desfaz a finalização (finalizado por engano ou a locação voltou), com
+ * motivo na trilha. Os veículos desvinculados ao finalizar não voltam
+ * sozinhos: o motivo da finalização diz quais eram, e o vínculo se refaz na
+ * própria tela do contrato.
+ */
+export async function reabrirContrato(
+  id: string,
+  usuarioId: string,
+  motivo: string
+): Promise<{ erro?: string }> {
+  if (!motivo.trim()) return { erro: "Informe o motivo da reabertura." }
+  const atual = await contratoBruto(id)
+  if (!atual) return { erro: "Contrato não encontrado." }
+  if (atual.finalizado !== true) return { erro: "O contrato não está finalizado." }
+  return aplicarComHistorico(
+    id,
+    "editado",
+    { antes: { finalizado: true }, depois: { finalizado: false } },
+    { usuarioId, motivo: motivo.trim() }
+  )
+}
+
+// ── Veículos do contrato (vínculo pela tela do contrato) ────────────────────
+
+export type VeiculoParaVincular = {
   id: string
+  rotulo: string
+  /** Está em outro contrato: vincular aqui o tira de lá. */
+  outroContrato: boolean
+}
+
+/** Veículos ativos que ainda não estão neste contrato. */
+export async function veiculosParaVincular(contratoId: string): Promise<VeiculoParaVincular[]> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("veiculos")
+    .select("id, placa, marca_modelo, contrato_aluguel_id")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("inativo", false)
+    .order("placa", { ascending: true })
+  return ((data ?? []) as Record<string, unknown>[])
+    .filter((v) => texto(v.contrato_aluguel_id) !== contratoId)
+    .map((v) => ({
+      id: String(v.id),
+      rotulo: [texto(v.placa) ?? "s/ placa", texto(v.marca_modelo)].filter(Boolean).join(" — "),
+      outroContrato: Boolean(texto(v.contrato_aluguel_id)),
+    }))
+}
+
+/** Liga o veículo ao contrato vigente (e o marca como alugado). */
+export async function vincularVeiculoAoContrato(
+  contratoId: string,
+  veiculoId: string
+): Promise<{ erro?: string }> {
+  const atual = await contratoBruto(contratoId)
+  if (!atual) return { erro: "Contrato não encontrado." }
+  if (atual.finalizado === true) return { erro: "O contrato está finalizado — reabra antes de vincular." }
+  return atualizarVeiculo(veiculoId, { contrato_aluguel_id: contratoId, eh_alugado: true })
+}
+
+/** Tira o veículo do contrato (só se estiver neste contrato). */
+export async function desvincularVeiculoDoContrato(
+  contratoId: string,
+  veiculoId: string
 ): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
   const { data, error } = await admin
-    .from("veiculo_contratos_aluguel")
-    .update({ finalizado: true, updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .eq("finalizado", false)
-    .select("id")
-  if (error) return { erro: `Não foi possível finalizar: ${error.message}` }
-  if ((data ?? []).length === 0) {
-    return { erro: "Contrato não encontrado ou já finalizado." }
-  }
-  await admin
     .from("veiculos")
-    .update({ contrato_aluguel_id: null, updated_at: new Date().toISOString() })
-    .eq("contrato_aluguel_id", id)
+    .update({ contrato_aluguel_id: null, eh_alugado: false, updated_at: new Date().toISOString() })
+    .eq("id", veiculoId)
+    .eq("contrato_aluguel_id", contratoId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .select("id")
+  if (error) return { erro: `Não foi possível desvincular: ${error.message}` }
+  if ((data ?? []).length === 0) return { erro: "O veículo não está neste contrato." }
   return {}
 }
 

@@ -7,11 +7,14 @@ import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import {
   criarContrato,
+  desvincularVeiculoDoContrato,
   editarContrato,
   finalizarContrato,
   gerarOrdemAluguel,
   prorrogarContrato,
+  reabrirContrato,
   subirArquivoVeiculos,
+  vincularVeiculoAoContrato,
 } from "@/lib/db/veiculos"
 import {
   anexarDocumentosOrdemAluguel,
@@ -35,7 +38,7 @@ function dataISO(valor: string): string | null {
 
 export async function criarContratoAction(
   _prev: EstadoForm,
-  formData: FormData
+  formData: FormData,
 ): Promise<EstadoForm> {
   const sessao = await requirePermissao("veiculos_gestao")
   const numero = texto(formData, "numero")
@@ -72,12 +75,12 @@ export async function criarContratoAction(
 
 export async function finalizarContratoAction(
   _prev: EstadoForm,
-  formData: FormData
+  formData: FormData,
 ): Promise<EstadoForm> {
-  await requirePermissao("veiculos_gestao")
+  const sessao = await requirePermissao("veiculos_gestao")
   const id = texto(formData, "contrato_id")
   if (!id) return { erro: "Contrato inválido." }
-  const { erro } = await finalizarContrato(id)
+  const { erro } = await finalizarContrato(id, sessao.usuario.id)
   if (erro) return { erro }
   revalidatePath(`/painel/veiculos/contratos/${id}`)
   revalidatePath("/painel/veiculos/contratos")
@@ -87,7 +90,7 @@ export async function finalizarContratoAction(
 
 export async function gerarOrdemAluguelAction(
   _prev: EstadoForm,
-  formData: FormData
+  formData: FormData,
 ): Promise<EstadoForm> {
   await requirePermissao("veiculos_gestao")
   const id = texto(formData, "contrato_id")
@@ -97,7 +100,8 @@ export async function gerarOrdemAluguelAction(
   if (!id) return { erro: "Contrato inválido." }
   if (!de || !ate) return { erro: "Informe o período cobrado (de/até)." }
   if (ate < de) return { erro: "O fim do período é anterior ao início." }
-  if (valor === null || valor <= 0) return { erro: "Informe o valor da cobrança." }
+  if (valor === null || valor <= 0)
+    return { erro: "Informe o valor da cobrança." }
 
   const br = (iso: string) => iso.split("-").reverse().join("/")
   const { erro } = await gerarOrdemAluguel(id, {
@@ -106,7 +110,8 @@ export async function gerarOrdemAluguelAction(
     vencimento: dataISO(texto(formData, "vencimento")),
     fatura: arquivo(formData, "fatura"),
     boleto: arquivo(formData, "boleto"),
-    linhaDigitavel: texto(formData, "linha_digitavel").replace(/\D/g, "") || null,
+    linhaDigitavel:
+      texto(formData, "linha_digitavel").replace(/\D/g, "") || null,
   })
   if (erro) return { erro }
   revalidatePath(`/painel/veiculos/contratos/${id}`)
@@ -126,7 +131,7 @@ function revalidarOrdemAluguel(contratoId: string, ordemId: string) {
  */
 export async function editarOrdemAluguelAction(
   _prev: EstadoForm,
-  formData: FormData
+  formData: FormData,
 ): Promise<EstadoForm> {
   await requirePermissao("veiculos_gestao")
   const contratoId = texto(formData, "contrato_id")
@@ -134,9 +139,11 @@ export async function editarOrdemAluguelAction(
   if (!contratoId || !ordemId) return { erro: "Ordem inválida." }
   const valorTexto = texto(formData, "valor")
   const valor = valorTexto ? parseValorBR(valorTexto) : null
-  if (valorTexto && (valor === null || valor <= 0)) return { erro: "Valor inválido." }
+  if (valorTexto && (valor === null || valor <= 0))
+    return { erro: "Valor inválido." }
   const vencimento = texto(formData, "vencimento")
-  if (vencimento && !dataISO(vencimento)) return { erro: "Vencimento inválido." }
+  if (vencimento && !dataISO(vencimento))
+    return { erro: "Vencimento inválido." }
   const { erro, voltouParaAutorizacao } = await editarOrdemAluguel(
     contratoId,
     ordemId,
@@ -145,7 +152,7 @@ export async function editarOrdemAluguelAction(
       valor,
       vencimento: vencimento || null,
     },
-    texto(formData, "motivo")
+    texto(formData, "motivo"),
   )
   if (erro) return { erro }
   revalidarOrdemAluguel(contratoId, ordemId)
@@ -159,7 +166,7 @@ export async function editarOrdemAluguelAction(
 /** Exclui UMA cobrança da locação que ainda não foi paga nem está em processamento. */
 export async function excluirOrdemAluguelAction(
   _prev: EstadoForm,
-  formData: FormData
+  formData: FormData,
 ): Promise<EstadoForm> {
   await requirePermissao("veiculos_gestao")
   const contratoId = texto(formData, "contrato_id")
@@ -174,7 +181,7 @@ export async function excluirOrdemAluguelAction(
 /** Corrige os dados cadastrais do contrato; motivo obrigatório, antes/depois no histórico. */
 export async function editarContratoAction(
   _prev: EstadoForm,
-  formData: FormData
+  formData: FormData,
 ): Promise<EstadoForm> {
   const sessao = await requirePermissao("veiculos_gestao")
   const id = texto(formData, "contrato_id")
@@ -187,12 +194,16 @@ export async function editarContratoAction(
   if (!inicio) return { erro: "Informe o início da vigência." }
   const valorTexto = texto(formData, "valor_mensal")
   const valorMensal = valorTexto ? parseValorBR(valorTexto) : null
-  if (valorTexto && (valorMensal === null || valorMensal < 0)) return { erro: "Valor mensal inválido." }
+  if (valorTexto && (valorMensal === null || valorMensal < 0))
+    return { erro: "Valor mensal inválido." }
 
   let arquivoUrl: string | null = null
   const novoArquivo = arquivo(formData, "arquivo_contrato")
   if (novoArquivo) {
-    const { caminho, erro } = await subirArquivoVeiculos("contratos", novoArquivo)
+    const { caminho, erro } = await subirArquivoVeiculos(
+      "contratos",
+      novoArquivo,
+    )
     if (erro) return { erro }
     arquivoUrl = caminho ?? null
   }
@@ -212,7 +223,7 @@ export async function editarContratoAction(
       arquivo_contrato_url: arquivoUrl,
     },
     sessao.usuario.id,
-    texto(formData, "motivo")
+    texto(formData, "motivo"),
   )
   if (erro) return { erro }
   revalidatePath(`/painel/veiculos/contratos/${id}`)
@@ -224,7 +235,7 @@ export async function editarContratoAction(
 /** Prorroga o contrato vigente: novo término, valor (se mudou) e aditivo. */
 export async function prorrogarContratoAction(
   _prev: EstadoForm,
-  formData: FormData
+  formData: FormData,
 ): Promise<EstadoForm> {
   const sessao = await requirePermissao("veiculos_gestao")
   const id = texto(formData, "contrato_id")
@@ -233,12 +244,13 @@ export async function prorrogarContratoAction(
   if (!termino) return { erro: "Informe o novo término da vigência." }
   const valorTexto = texto(formData, "novo_valor_mensal")
   const valorMensal = valorTexto ? parseValorBR(valorTexto) : null
-  if (valorTexto && (valorMensal === null || valorMensal < 0)) return { erro: "Valor mensal inválido." }
+  if (valorTexto && (valorMensal === null || valorMensal < 0))
+    return { erro: "Valor mensal inválido." }
   const { erro } = await prorrogarContrato(
     id,
     { termino, valorMensal, aditivo: arquivo(formData, "aditivo") },
     sessao.usuario.id,
-    texto(formData, "motivo")
+    texto(formData, "motivo"),
   )
   if (erro) return { erro }
   revalidatePath(`/painel/veiculos/contratos/${id}`)
@@ -250,7 +262,7 @@ export async function prorrogarContratoAction(
 /** Anexa ou troca a fatura e/ou o boleto de uma cobrança ainda não paga nem em processamento. */
 export async function anexarDocumentosOrdemAluguelAction(
   _prev: EstadoForm,
-  formData: FormData
+  formData: FormData,
 ): Promise<EstadoForm> {
   await requirePermissao("veiculos_gestao")
   const contratoId = texto(formData, "contrato_id")
@@ -263,4 +275,63 @@ export async function anexarDocumentosOrdemAluguelAction(
   if (r.erro) return { erro: r.erro }
   revalidarOrdemAluguel(contratoId, ordemId)
   return { ok: r.ok }
+}
+
+function revalidarContrato(id: string) {
+  revalidatePath(`/painel/veiculos/contratos/${id}`)
+  revalidatePath("/painel/veiculos/contratos")
+  revalidatePath("/painel/veiculos")
+}
+
+/** Desfaz a finalização do contrato, com motivo no histórico. */
+export async function reabrirContratoAction(
+  _prev: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao("veiculos_gestao")
+  const id = texto(formData, "contrato_id")
+  if (!id) return { erro: "Contrato inválido." }
+  const { erro } = await reabrirContrato(
+    id,
+    sessao.usuario.id,
+    texto(formData, "motivo"),
+  )
+  if (erro) return { erro }
+  revalidarContrato(id)
+  return {
+    ok: "Contrato reaberto — registrado no histórico. Vincule de novo os veículos, se for o caso.",
+  }
+}
+
+/** Liga um veículo ao contrato vigente pela tela do contrato. */
+export async function vincularVeiculoAction(
+  _prev: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  await requirePermissao("veiculos_gestao")
+  const id = texto(formData, "contrato_id")
+  const veiculoId = texto(formData, "veiculo_id")
+  if (!id) return { erro: "Contrato inválido." }
+  if (!veiculoId) return { erro: "Escolha o veículo." }
+  const { erro } = await vincularVeiculoAoContrato(id, veiculoId)
+  if (erro) return { erro }
+  revalidarContrato(id)
+  revalidatePath(`/painel/veiculos/${veiculoId}`)
+  return { ok: "Veículo vinculado." }
+}
+
+/** Tira um veículo do contrato pela tela do contrato. */
+export async function desvincularVeiculoAction(
+  _prev: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  await requirePermissao("veiculos_gestao")
+  const id = texto(formData, "contrato_id")
+  const veiculoId = texto(formData, "veiculo_id")
+  if (!id || !veiculoId) return { erro: "Veículo inválido." }
+  const { erro } = await desvincularVeiculoDoContrato(id, veiculoId)
+  if (erro) return { erro }
+  revalidarContrato(id)
+  revalidatePath(`/painel/veiculos/${veiculoId}`)
+  return { ok: "Veículo desvinculado." }
 }

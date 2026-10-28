@@ -27,18 +27,31 @@ import {
   historicoDoContrato,
   listarUsuariosAtivos,
   urlArquivoVeiculos,
+  veiculosParaVincular,
 } from "@/lib/db/veiculos"
 import { hojeSP } from "@/lib/db/comum"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
-import { resumoLocacao } from "@/lib/locacao-periodo"
+import { periodoDaDescricao, resumoLocacao } from "@/lib/locacao-periodo"
+
+/** "10/11/2026 a 15/11/2026", "10/2026" (competência antiga) ou "—". */
+function rotuloPeriodo(descricao: string | null): string {
+  const p = periodoDaDescricao(descricao)
+  if (!p) return "—"
+  return p.rotulo.startsWith("Competência")
+    ? p.rotulo.replace("Competência ", "")
+    : `${formatarData(p.de)} a ${formatarData(p.ate)}`
+}
 
 import { editarOrdemAluguelAction, excluirOrdemAluguelAction } from "../actions"
 import {
+  DesvincularVeiculoBotao,
   DocumentosCobranca,
   EditarContratoDialog,
   FinalizarContratoForm,
   GerarOrdemAluguelForm,
   ProrrogarContratoDialog,
+  ReabrirContratoDialog,
+  VincularVeiculoForm,
 } from "../contrato-forms"
 
 export const metadata: Metadata = { title: "Contrato de aluguel — Confluir" }
@@ -62,6 +75,7 @@ export default async function ContratoPage({
   const [
     arquivoUrl,
     historico,
+    paraVincular,
     fornecedores,
     usuarios,
     departamentos,
@@ -69,6 +83,7 @@ export default async function ContratoPage({
   ] = await Promise.all([
     urlArquivoVeiculos(contrato.arquivo_contrato_url),
     historicoDoContrato(id),
+    veiculosParaVincular(id),
     listarFornecedores(),
     listarUsuariosAtivos(),
     listarDepartamentos(),
@@ -128,6 +143,7 @@ export default async function ContratoPage({
                 numero: contrato.numero,
                 fornecedor_id: contrato.fornecedor_id,
                 responsavel_id: contrato.responsavel_id,
+                responsavelNome: contrato.responsavelNome,
                 vigencia_inicio: contrato.vigencia_inicio,
                 vigencia_termino: contrato.vigencia_termino,
                 valor_mensal: valorMensalTexto,
@@ -164,7 +180,9 @@ export default async function ContratoPage({
                 valorAtual={valorMensalTexto}
               />
             )}
-            {!contrato.finalizado && (
+            {contrato.finalizado ? (
+              <ReabrirContratoDialog contratoId={contrato.id} />
+            ) : (
               <FinalizarContratoForm contratoId={contrato.id} />
             )}
           </div>
@@ -272,19 +290,32 @@ export default async function ContratoPage({
           <CardContent className="grid gap-2 text-sm">
             <p className="font-medium">Veículos vinculados</p>
             {contrato.veiculos.length === 0 ? (
-              <p className="text-muted-foreground">
-                Nenhum veículo vinculado — faça o vínculo na ficha do veículo.
-              </p>
+              <p className="text-muted-foreground">Nenhum veículo vinculado.</p>
             ) : (
               contrato.veiculos.map((v) => (
-                <Link
+                <div
                   key={v.id}
-                  href={`/painel/veiculos/${v.id}`}
-                  className="text-primary hover:underline"
+                  className="flex items-center justify-between gap-2"
                 >
-                  {v.placa ?? "s/ placa"} — {v.marca_modelo ?? ""}
-                </Link>
+                  <Link
+                    href={`/painel/veiculos/${v.id}`}
+                    className="text-primary hover:underline"
+                  >
+                    {v.placa ?? "s/ placa"} — {v.marca_modelo ?? ""}
+                  </Link>
+                  <DesvincularVeiculoBotao
+                    contratoId={contrato.id}
+                    veiculoId={v.id}
+                    placa={v.placa}
+                  />
+                </div>
               ))
+            )}
+            {!contrato.finalizado && (
+              <VincularVeiculoForm
+                contratoId={contrato.id}
+                veiculos={paraVincular}
+              />
             )}
             {arquivoUrl && (
               <a
@@ -338,6 +369,7 @@ export default async function ContratoPage({
             <TableHeader>
               <TableRow>
                 <TableHead>Código</TableHead>
+                <TableHead>Período</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
                 <TableHead>Vencimento</TableHead>
@@ -357,8 +389,19 @@ export default async function ContratoPage({
                       {o.codigo ?? "—"}
                     </Link>
                   </TableCell>
-                  <TableCell className="max-w-80">
-                    <span className="line-clamp-1">{o.descricao ?? "—"}</span>
+                  <TableCell className="text-xs whitespace-nowrap tabular-nums">
+                    {rotuloPeriodo(o.descricao)}
+                  </TableCell>
+                  <TableCell className="max-w-64">
+                    {/* O período já tem coluna: sai o "(…)" do fim da descrição. */}
+                    <span
+                      className="line-clamp-1"
+                      title={o.descricao ?? undefined}
+                    >
+                      {periodoDaDescricao(o.descricao)
+                        ? (o.descricao ?? "").replace(/\s*\([^()]*\)\s*$/, "")
+                        : (o.descricao ?? "—")}
+                    </span>
                   </TableCell>
                   <TableCell className="text-right whitespace-nowrap tabular-nums">
                     {formatarMoeda(o.valor)}
@@ -425,9 +468,7 @@ export default async function ContratoPage({
               <li key={h.id} className="grid gap-1 border-l-2 pl-3 text-sm">
                 <p className="flex flex-wrap items-center gap-2">
                   <History className="text-muted-foreground size-3.5" />
-                  <span className="font-medium">
-                    {h.evento === "prorrogado" ? "Prorrogado" : "Editado"}
-                  </span>
+                  <span className="font-medium">{h.titulo}</span>
                   <span className="text-muted-foreground text-xs">
                     {formatarDataHora(h.quando)}
                     {h.autor ? ` · ${h.autor}` : ""}
