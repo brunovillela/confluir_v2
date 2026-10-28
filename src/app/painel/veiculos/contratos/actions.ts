@@ -106,6 +106,7 @@ export async function gerarOrdemAluguelAction(
     vencimento: dataISO(texto(formData, "vencimento")),
     fatura: arquivo(formData, "fatura"),
     boleto: arquivo(formData, "boleto"),
+    linhaDigitavel: texto(formData, "linha_digitavel").replace(/\D/g, "") || null,
   })
   if (erro) return { erro }
   revalidatePath(`/painel/veiculos/contratos/${id}`)

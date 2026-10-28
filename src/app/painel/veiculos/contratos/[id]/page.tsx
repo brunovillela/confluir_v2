@@ -213,6 +213,9 @@ export default async function ContratoPage({
             </p>
             {!contrato.finalizado && (
               <GerarOrdemAluguelForm
+                // Cobrança nova = formulário novo: limpa campos, arquivos e a
+                // leitura da IA (a ação redireciona, o estado não volta).
+                key={contrato.ordens.length}
                 contratoId={contrato.id}
                 valorPadrao={valorMensalTexto}
               />

@@ -3467,6 +3467,8 @@ export async function gerarOrdemAluguel(
     vencimento: string | null
     fatura?: File | null
     boleto?: File | null
+    /** Só dígitos; com ela (ou o arquivo do boleto) a forma vira Boleto. */
+    linhaDigitavel?: string | null
   }
 ): Promise<{ erro?: string }> {
   const contrato = await buscarContrato(contratoId)
@@ -3529,7 +3531,9 @@ export async function gerarOrdemAluguel(
     valor_inicial_cobranca: dados.valor,
     vencimento: dados.vencimento,
     ...(fatura.caminho ? { arquivo_nota_fiscal: fatura.caminho } : {}),
-    ...(boleto.caminho ? { arquivo_boleto: boleto.caminho, forma_pagamento: "Boleto" } : {}),
+    ...(boleto.caminho ? { arquivo_boleto: boleto.caminho } : {}),
+    ...(dados.linhaDigitavel ? { boleto_linha_digitavel: dados.linhaDigitavel } : {}),
+    ...(boleto.caminho || dados.linhaDigitavel ? { forma_pagamento: "Boleto" } : {}),
     beneficiario_fornecedor_id: contrato.fornecedor_id,
     departamento_id: contrato.departamento_id,
     centro_custo_despesa_id: contrato.centro_custo_id,

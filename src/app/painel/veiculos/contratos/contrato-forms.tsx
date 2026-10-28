@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useState } from "react"
+import { useActionState, useRef, useState } from "react"
 import {
   Barcode,
   CalendarPlus,
@@ -11,6 +11,7 @@ import {
   Pencil,
   Receipt,
   ScrollText,
+  Sparkles,
 } from "lucide-react"
 
 import {
@@ -30,6 +31,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { ACEITA_NOTA, prepararArquivo } from "@/lib/arquivo-envio"
 
 import {
   criarContratoAction,
@@ -39,6 +41,7 @@ import {
   prorrogarContratoAction,
   anexarDocumentosOrdemAluguelAction,
 } from "./actions"
+import { lerFaturaLocacao, type LeituraFaturaLocacao } from "./ia-actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
@@ -260,15 +263,138 @@ export function GerarOrdemAluguelForm({
     {},
   )
   const envio2 = useEnvioFormulario(formAction, estado)
+  const [lendo, setLendo] = useState<"fatura" | "boleto" | null>(null)
+  const [leitura, setLeitura] = useState<
+    (LeituraFaturaLocacao & { papel: "fatura" | "boleto" }) | null
+  >(null)
+  const [erroArquivo, setErroArquivo] = useState<string | null>(null)
+  const refInicio = useRef<HTMLInputElement>(null)
+  const refFim = useRef<HTMLInputElement>(null)
+  const refValor = useRef<HTMLInputElement>(null)
+  const refVencimento = useRef<HTMLInputElement>(null)
+  const refLinha = useRef<HTMLInputElement>(null)
+  // A fatura manda no valor; o boleto lido depois só completa o que faltou.
+  const valorDaFatura = useRef(false)
+
+
+  /** A IA lê o arquivo escolhido e preenche o que achou (a pessoa confere). */
+  async function ler(arquivo: File, papel: "fatura" | "boleto") {
+    setLendo(papel)
+    setLeitura(null)
+    try {
+      const fd = new FormData()
+      fd.set("arquivo", arquivo)
+      fd.set("contrato_id", contratoId)
+      fd.set("papel", papel)
+      const r = await lerFaturaLocacao(fd)
+      setLeitura({ ...r, papel })
+      if (r.erro) return
+      const por = (
+        el: HTMLInputElement | null,
+        v: string | undefined,
+        soVazio = false,
+      ) => {
+        if (el && v && (!soVazio || !el.value)) el.value = v
+      }
+      if (papel === "fatura") {
+        por(refInicio.current, r.periodoInicio)
+        por(refFim.current, r.periodoFim)
+        por(refValor.current, r.valor)
+        por(refVencimento.current, r.vencimento)
+        por(refLinha.current, r.linhaDigitavel, true)
+        if (r.valor) valorDaFatura.current = true
+      } else {
+        por(refLinha.current, r.linhaDigitavel)
+        por(refVencimento.current, r.vencimento, true)
+        if (!valorDaFatura.current) por(refValor.current, r.valor)
+        por(refInicio.current, r.periodoInicio, true)
+        por(refFim.current, r.periodoFim, true)
+      }
+    } catch {
+      setLeitura({
+        papel,
+        erro: "Não foi possível ler o arquivo agora — preencha à mão.",
+      })
+    } finally {
+      setLendo(null)
+    }
+  }
+
+  async function aoEscolher(
+    e: React.ChangeEvent<HTMLInputElement>,
+    papel: "fatura" | "boleto",
+  ) {
+    const input = e.currentTarget
+    const { erro } = await prepararArquivo(input)
+    setErroArquivo(erro ?? null)
+    const arquivo = input.files?.[0]
+    if (!erro && arquivo) await ler(arquivo, papel)
+  }
+
   return (
     <form action={formAction} {...envio2} className="grid gap-2">
       <input type="hidden" name="contrato_id" value={contratoId} />
+      <div className="grid gap-2">
+        <div className="grid gap-1">
+          <Label htmlFor={`fatura-${contratoId}`} className="text-xs">
+            Fatura da locadora (PDF ou foto) — a IA preenche o resto
+          </Label>
+          <Input
+            id={`fatura-${contratoId}`}
+            name="fatura"
+            type="file"
+            accept={ACEITA_NOTA}
+            onChange={(e) => aoEscolher(e, "fatura")}
+            className="h-8 text-xs"
+          />
+        </div>
+        <div className="grid gap-1">
+          <Label htmlFor={`boleto-${contratoId}`} className="text-xs">
+            Boleto em PDF, se houver
+          </Label>
+          <Input
+            id={`boleto-${contratoId}`}
+            name="boleto"
+            type="file"
+            accept="application/pdf"
+            onChange={(e) => aoEscolher(e, "boleto")}
+            className="h-8 text-xs"
+          />
+        </div>
+      </div>
+      {erroArquivo && <p className="text-destructive text-xs">{erroArquivo}</p>}
+      {lendo && (
+        <p className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
+          <Loader2 className="size-3.5 animate-spin" />
+          Lendo {lendo === "boleto" ? "o boleto" : "a fatura"} com IA…
+        </p>
+      )}
+      {leitura && !lendo && (
+        <div className="grid gap-1 text-xs" role="status">
+          {leitura.erro ? (
+            <p className="text-warning-fg">{leitura.erro}</p>
+          ) : (
+            <p className="text-success-fg inline-flex items-center gap-1.5">
+              <Sparkles className="size-3.5" />
+              {leitura.papel === "boleto" ? "Boleto lido" : "Fatura lida"} pela
+              IA{leitura.resumo ? `: ${leitura.resumo}` : ""} — confira os
+              campos antes de gerar.
+            </p>
+          )}
+          {leitura.avisos?.map((a) => (
+            <p key={a} className="text-warning-fg">
+              • {a}
+            </p>
+          ))}
+        </div>
+      )}
       <div className="grid gap-2 sm:grid-cols-2">
         <div className="grid gap-1">
           <Label htmlFor={`periodo-inicio-${contratoId}`} className="text-xs">
             Período cobrado — de *
           </Label>
           <Input
+            ref={refInicio}
             id={`periodo-inicio-${contratoId}`}
             name="periodo_inicio"
             type="date"
@@ -281,6 +407,7 @@ export function GerarOrdemAluguelForm({
             até *
           </Label>
           <Input
+            ref={refFim}
             id={`periodo-fim-${contratoId}`}
             name="periodo_fim"
             type="date"
@@ -293,6 +420,7 @@ export function GerarOrdemAluguelForm({
             Valor (R$) *
           </Label>
           <Input
+            ref={refValor}
             id={`valor-${contratoId}`}
             name="valor"
             required
@@ -306,36 +434,24 @@ export function GerarOrdemAluguelForm({
             Vencimento
           </Label>
           <Input
+            ref={refVencimento}
             id={`vencimento-${contratoId}`}
             name="vencimento"
             type="date"
             className="h-8 text-sm [color-scheme:light] dark:[color-scheme:dark]"
           />
         </div>
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2">
-        <div className="grid gap-1">
-          <Label htmlFor={`fatura-${contratoId}`} className="text-xs">
-            Fatura da locadora (PDF/JPG/PNG)
+        <div className="grid gap-1 sm:col-span-2">
+          <Label htmlFor={`linha-${contratoId}`} className="text-xs">
+            Linha digitável do boleto
           </Label>
           <Input
-            id={`fatura-${contratoId}`}
-            name="fatura"
-            type="file"
-            accept="application/pdf,image/jpeg,image/png,image/webp"
-            className="h-8 text-xs"
-          />
-        </div>
-        <div className="grid gap-1">
-          <Label htmlFor={`boleto-${contratoId}`} className="text-xs">
-            Boleto em PDF, se houver
-          </Label>
-          <Input
-            id={`boleto-${contratoId}`}
-            name="boleto"
-            type="file"
-            accept="application/pdf"
-            className="h-8 text-xs"
+            ref={refLinha}
+            id={`linha-${contratoId}`}
+            name="linha_digitavel"
+            inputMode="numeric"
+            placeholder="Para pagar por remessa bancária"
+            className="h-8 text-sm tabular-nums"
           />
         </div>
       </div>
@@ -343,11 +459,12 @@ export function GerarOrdemAluguelForm({
         Uma cobrança por fatura: o período não precisa ser o mês inteiro —
         locação curta e prorrogação no mesmo mês saem em cobranças separadas. O
         vencimento pode cair depois do término do contrato e é corrigível depois
-        na ordem, no Financeiro. Com boleto, a forma de pagamento vira Boleto.
+        na ordem, no Financeiro. Com boleto (arquivo ou linha digitável), a
+        forma de pagamento vira Boleto.
       </p>
       {estado.erro && <p className="text-destructive text-xs">{estado.erro}</p>}
       <div>
-        <Button type="submit" size="sm" disabled={pendente}>
+        <Button type="submit" size="sm" disabled={pendente || lendo !== null}>
           {pendente ? <Loader2 className="animate-spin" /> : <Receipt />}
           Gerar cobrança
         </Button>
