@@ -29,6 +29,7 @@ export const RECURSOS_EXPORTACAO = {
   compras: { rotulo: "Compras", categorias: ["identificacao", "financeiro"] },
   contratos: { rotulo: "Contratos", categorias: ["identificacao", "financeiro"] },
   fornecedores: { rotulo: "Fornecedores", categorias: ["identificacao", "cpf", "financeiro"] },
+  reembolsos: { rotulo: "Reembolsos a filiados", categorias: ["identificacao", "cpf", "sindical", "financeiro"] },
   custeios: { rotulo: "Custeios institucionais", categorias: ["identificacao", "financeiro"] },
   viagens: { rotulo: "Viagens", categorias: ["identificacao"] },
   juridico_processos: { rotulo: "Processos jurídicos", categorias: ["identificacao", "trabalhista"] },

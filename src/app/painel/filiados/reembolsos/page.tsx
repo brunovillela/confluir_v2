@@ -3,6 +3,7 @@ import Link from "next/link"
 import { ArrowLeft, HandCoins, ListPlus, Plus, Settings2 } from "lucide-react"
 
 import { SituacaoBadge } from "@/app/painel/financeiro/situacao-badge"
+import { ExportarXlsx } from "@/components/exportar-xlsx"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,18 +17,18 @@ import {
   POR_PAGINA,
   lancadoNoMes,
   listarReembolsos,
-  type FiltroReembolsos,
+  totaisPorTipo,
 } from "@/lib/db/filiacao-reembolsos-edicao"
 import { formatarData, formatarMoeda } from "@/lib/formato"
-import { ehTipoReembolso, rotuloTipoReembolso, TIPOS_REEMBOLSO } from "@/lib/reembolsos-tipos"
+import { rotuloTipoReembolso, TIPOS_REEMBOLSO } from "@/lib/reembolsos-tipos"
+
+import { lerFiltroReembolsos } from "./filtro"
 
 export const metadata: Metadata = { title: "Reembolsos a filiados — Confluir" }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
 /**
- * Reembolsos por participação: a lista do que foi lançado, o quanto do mês já
- * foi, e o botão de lançar. Cada linha abre o reembolso; a situação é a da
+ * Reembolsos a filiados: a lista do que foi lançado, o quanto do mês já foi,
+ * os totais por tipo do filtro (e a planilha), e os botões de lançar. Cada linha abre o reembolso; a situação é a da
  * ordem de pagamento no Financeiro.
  */
 export default async function ReembolsosPage({
@@ -47,21 +48,27 @@ export default async function ReembolsosPage({
   await requirePermissao("filiacao_reembolsos", ["filiacao_gestao"])
   const sp = await searchParams
 
-  const filtro: FiltroReembolsos = {
-    busca: sp.busca ?? "",
-    de: sp.de && /^\d{4}-\d{2}-\d{2}$/.test(sp.de) ? sp.de : undefined,
-    ate: sp.ate && /^\d{4}-\d{2}-\d{2}$/.test(sp.ate) ? sp.ate : undefined,
-    situacao: sp.situacao === "pagos" || sp.situacao === "pendentes" ? sp.situacao : "todos",
-    tipo: ehTipoReembolso(sp.tipo) ? sp.tipo : undefined,
-    filiadoId: sp.filiado && UUID.test(sp.filiado) ? sp.filiado : undefined,
-    pagina: Math.max(1, Number(sp.pagina) || 1),
-  }
+  const filtro = lerFiltroReembolsos(sp)
 
   const hoje = hojeSP()
-  const [{ linhas, total }, mes] = await Promise.all([
+  const [{ linhas, total }, mes, totais] = await Promise.all([
     listarReembolsos(filtro),
     lancadoNoMes(hoje),
+    totaisPorTipo(filtro),
   ])
+  const soma = totais.reduce(
+    (a, t) => ({ quantidade: a.quantidade + t.quantidade, total: a.total + t.total, pago: a.pago + t.pago, aberto: a.aberto + t.aberto }),
+    { quantidade: 0, total: 0, pago: 0, aberto: 0 }
+  )
+  const periodo =
+    filtro.de && filtro.ate
+      ? `de ${formatarData(filtro.de)} a ${formatarData(filtro.ate)}`
+      : filtro.de
+        ? `desde ${formatarData(filtro.de)}`
+        : filtro.ate
+          ? `até ${formatarData(filtro.ate)}`
+          : "todo o período"
+  const filtrado = Boolean(filtro.busca || filtro.de || filtro.ate || filtro.situacao !== "todos" || filtro.tipo || filtro.filiadoId)
   const paginas = Math.max(1, Math.ceil(total / POR_PAGINA))
   const pagina = filtro.pagina ?? 1
 
@@ -126,25 +133,82 @@ export default async function ReembolsosPage({
         </Alert>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="self-start">
           <CardHeader>
             <CardDescription>Lançado neste mês</CardDescription>
             <CardTitle className="text-2xl tabular-nums">{formatarMoeda(mes.total)}</CardTitle>
             <p className="text-muted-foreground text-xs">{mes.quantidade} reembolso(s)</p>
           </CardHeader>
         </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-base">Totais por tipo</CardTitle>
+            <CardDescription>
+              Pela data de referência, {periodo}
+              {filtrado && " — com os filtros da lista abaixo"}. Pago é o que a ordem já pagou; em aberto, o que
+              ainda está no Financeiro.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {totais.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Nenhum reembolso com esses filtros.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead className="text-right">Qtde.</TableHead>
+                      <TableHead className="text-right">Lançado</TableHead>
+                      <TableHead className="text-right">Pago</TableHead>
+                      <TableHead className="text-right">Em aberto</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {totais.map((t) => (
+                      <TableRow key={t.tipo}>
+                        <TableCell>
+                          <Link href={url({ tipo: t.tipo, pagina: undefined })} className="hover:underline">
+                            {rotuloTipoReembolso(t.tipo)}
+                          </Link>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{t.quantidade.toLocaleString("pt-BR")}</TableCell>
+                        <TableCell className="text-right whitespace-nowrap tabular-nums">{formatarMoeda(t.total)}</TableCell>
+                        <TableCell className="text-right whitespace-nowrap tabular-nums">{formatarMoeda(t.pago)}</TableCell>
+                        <TableCell className="text-right whitespace-nowrap tabular-nums">{formatarMoeda(t.aberto)}</TableCell>
+                      </TableRow>
+                    ))}
+                    {totais.length > 1 && (
+                      <TableRow className="font-medium">
+                        <TableCell>Total</TableCell>
+                        <TableCell className="text-right tabular-nums">{soma.quantidade.toLocaleString("pt-BR")}</TableCell>
+                        <TableCell className="text-right whitespace-nowrap tabular-nums">{formatarMoeda(soma.total)}</TableCell>
+                        <TableCell className="text-right whitespace-nowrap tabular-nums">{formatarMoeda(soma.pago)}</TableCell>
+                        <TableCell className="text-right whitespace-nowrap tabular-nums">{formatarMoeda(soma.aberto)}</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">
-            Lançamentos
-            <span className="text-muted-foreground ml-2 text-sm font-normal">
-              {total.toLocaleString("pt-BR")}
-            </span>
-          </CardTitle>
-          <CardDescription>A situação é a da ordem de pagamento no Financeiro.</CardDescription>
+        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
+          <div className="grid gap-1.5">
+            <CardTitle className="text-base">
+              Lançamentos
+              <span className="text-muted-foreground ml-2 text-sm font-normal">
+                {total.toLocaleString("pt-BR")}
+              </span>
+            </CardTitle>
+            <CardDescription>A situação é a da ordem de pagamento no Financeiro.</CardDescription>
+          </div>
+          <ExportarXlsx href="/painel/filiados/reembolsos/exportar" />
         </CardHeader>
         <CardContent className="grid gap-4">
           <form className="grid gap-3 sm:grid-cols-6" method="get">
@@ -194,7 +258,7 @@ export default async function ReembolsosPage({
               <Button type="submit" variant="secondary" size="sm">
                 Filtrar
               </Button>
-              {(filtro.busca || filtro.de || filtro.ate || filtro.situacao !== "todos" || filtro.tipo || filtro.filiadoId) && (
+              {filtrado && (
                 <Button asChild variant="ghost" size="sm">
                   <Link href="/painel/filiados/reembolsos">Limpar</Link>
                 </Button>

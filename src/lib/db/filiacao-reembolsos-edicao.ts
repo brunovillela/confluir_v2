@@ -110,16 +110,17 @@ function paraLinha(r: Record<string, unknown>): ReembolsoLinha {
 
 // ── Leitura ────────────────────────────────────────────────────────────────
 
-export async function listarReembolsos(
-  filtro: FiltroReembolsos = {}
-): Promise<{ linhas: ReembolsoLinha[]; total: number }> {
-  const admin = await createAdminClient()
-  const emp = await tenantAtual()
-  const pagina = Math.max(1, filtro.pagina ?? 1)
-
+/** A consulta da lista com os filtros da tela — a página, os totais e a planilha. */
+function consultaFiltrada(
+  admin: Awaited<ReturnType<typeof createAdminClient>>,
+  emp: string,
+  filtro: FiltroReembolsos,
+  select: string,
+  contar = false
+) {
   let q = admin
     .from("filiacao_reembolsos")
-    .select(SELECT_LINHA, { count: "exact" })
+    .select(select, contar ? { count: "exact" } : undefined)
     .eq("emp_proprietaria_id", emp)
   if (filtro.filiadoId) q = q.eq("filiado_id", filtro.filiadoId)
   if (filtro.tipo) q = q.eq("tipo", filtro.tipo)
@@ -137,8 +138,17 @@ export async function listarReembolsos(
     q = q.not("filiado", "is", null)
   }
   if (filtro.situacao === "pagos" || filtro.situacao === "pendentes") q = q.not("ordem", "is", null)
+  return q
+}
 
-  const { data, error, count } = await q
+export async function listarReembolsos(
+  filtro: FiltroReembolsos = {}
+): Promise<{ linhas: ReembolsoLinha[]; total: number }> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const pagina = Math.max(1, filtro.pagina ?? 1)
+
+  const { data, error, count } = await consultaFiltrada(admin, emp, filtro, SELECT_LINHA, true)
     .order("data", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
     .range((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA - 1)
@@ -146,7 +156,83 @@ export async function listarReembolsos(
     if (/does not exist|schema cache/i.test(error.message)) return { linhas: [], total: 0 }
     throw new Error(`Falha ao listar reembolsos: ${error.message}`)
   }
-  return { linhas: (data ?? []).map((r) => paraLinha(r as Record<string, unknown>)), total: count ?? 0 }
+  return { linhas: (data ?? []).map((r) => paraLinha(r as unknown as Record<string, unknown>)), total: count ?? 0 }
+}
+
+/** Todas as linhas do filtro, sem paginar — a planilha da lista. */
+export async function todosReembolsos(filtro: FiltroReembolsos = {}): Promise<ReembolsoLinha[]> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const data = await lerEmLotes<Record<string, unknown>>((de, ate) =>
+    consultaFiltrada(admin, emp, filtro, SELECT_LINHA)
+      .order("data", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .order("id")
+      .range(de, ate)
+  )
+  return data.map(paraLinha)
+}
+
+/** Valor do reembolso: o pago na ordem, quando há; senão o lançado (como a lista mostra). */
+export const valorDoReembolso = (r: Pick<ReembolsoLinha, "valor" | "ordem">): number =>
+  Number(r.ordem?.valor_pago ?? r.valor ?? 0)
+
+/**
+ * Situação do dinheiro de um reembolso: pago (ordem Paga), em aberto (ordem
+ * viva ainda não paga) ou fora (sem ordem, ordem excluída, cancelada ou
+ * estornada — inclui o legado sem ordem ligada).
+ */
+export function andamentoDoReembolso(r: Pick<ReembolsoLinha, "ordem">): "pago" | "aberto" | "fora" {
+  const o = r.ordem
+  if (!o || o.excluido) return "fora"
+  if (o.situacao === "Paga") return "pago"
+  if (o.situacao === "Cancelada" || o.situacao === "Estornado") return "fora"
+  return "aberto"
+}
+
+export type TotalPorTipo = {
+  tipo: TipoReembolso
+  quantidade: number
+  total: number
+  pago: number
+  aberto: number
+}
+
+/**
+ * Totais do filtro da tela por tipo — "quanto devolvemos da greve de 2026":
+ * tipo Desconto de greve, período da greve. Lê todas as linhas (sem o teto de
+ * 1.000 do PostgREST), só com as colunas que a soma usa.
+ */
+export async function totaisPorTipo(filtro: FiltroReembolsos = {}): Promise<TotalPorTipo[]> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const data = await lerEmLotes<Record<string, unknown>>((de, ate) =>
+    consultaFiltrada(
+      admin,
+      emp,
+      filtro,
+      "id, tipo, valor, filiado:filiado_id(nome_completo, cpf), ordem:ordem_pagamento_id(situacao, valor_pago, excluido)"
+    )
+      .order("id")
+      .range(de, ate)
+  ).catch(() => [])
+  const porTipo = new Map<TipoReembolso, TotalPorTipo>()
+  for (const r of data) {
+    const tipo = ehTipoReembolso(r.tipo) ? r.tipo : "outro"
+    const linha = {
+      valor: r.valor == null ? null : Number(r.valor),
+      ordem: um(r.ordem as ReembolsoLinha["ordem"] | ReembolsoLinha["ordem"][] | null),
+    }
+    const valor = valorDoReembolso(linha)
+    const t = porTipo.get(tipo) ?? { tipo, quantidade: 0, total: 0, pago: 0, aberto: 0 }
+    t.quantidade++
+    t.total += valor
+    const andamento = andamentoDoReembolso(linha)
+    if (andamento === "pago") t.pago += valor
+    else if (andamento === "aberto") t.aberto += valor
+    porTipo.set(tipo, t)
+  }
+  return [...porTipo.values()].sort((a, b) => b.total - a.total)
 }
 
 export async function obterReembolso(id: string): Promise<ReembolsoLinha | null> {

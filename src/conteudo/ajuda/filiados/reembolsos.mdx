@@ -8,7 +8,7 @@ gera a **ordem de pagamento** no Financeiro.
 ## O que a tela mostra
 
 **Filiados → Reembolsos** abre com quanto já foi lançado no mês.
-Abaixo, a lista de lançamentos com filiado, justificativa, **tipo**, projeto,
+Ao lado, os **totais por tipo**; abaixo, a lista de lançamentos com filiado, justificativa, **tipo**, projeto,
 valor, o código da ordem e a **situação** — que é a situação da ordem no
 Financeiro: Em autorização, A pagar, Paga. Dá para filtrar por filiado,
 período, situação e tipo.
@@ -19,7 +19,22 @@ devolvemos da greve". Os reembolsos antigos foram classificados pelo texto da
 justificativa; um que tenha caído no tipo errado se corrige abrindo o
 lançamento.
 
-<Print src="filiados/reembolsos.png" alt="Tela Reembolsos a filiados: os botões Configuração, Lançar em lote e Lançar reembolso, o cartão do lançado no mês e a tabela de lançamentos com filiado, justificativa e tipo, valor, ordem e situação." legenda="O mês de relance e a lista de lançamentos, cada um com a situação da ordem de pagamento." />
+## Totais por tipo e planilha
+
+O quadro **Totais por tipo** soma os reembolsos do filtro da lista: quantos
+são, quanto foi **lançado**, quanto já foi **pago** (ordem Paga) e quanto está
+**em aberto** no Financeiro. A diferença entre lançado e a soma dos dois é o
+que ficou fora — sem ordem (parte do histórico), ordem cancelada ou
+estornada. O período é o da **data de referência**: para saber quanto se
+devolveu de uma greve, filtre o período dela (e, se quiser, o tipo **Desconto
+de greve**). Clicar num tipo filtra a lista por ele.
+
+**Exportar XLSX**, no alto da lista, baixa a planilha com **todas** as linhas
+do filtro (não só a página): data, filiado, CPF, tipo, justificativa,
+projeto, valor, ordem, situação, data do pagamento e andamento. A exportação
+fica registrada no livro de exportações da entidade.
+
+<Print src="filiados/reembolsos.png" alt="Tela Reembolsos a filiados: os botões Configuração, Lançar em lote e Lançar reembolso, o cartão do lançado no mês, o quadro de totais por tipo com lançado, pago e em aberto, e a tabela de lançamentos com o botão Exportar XLSX." legenda="O mês de relance, os totais por tipo do filtro e a lista de lançamentos, cada um com a situação da ordem de pagamento." />
 
 ## Lançar um reembolso
 
