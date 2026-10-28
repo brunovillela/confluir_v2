@@ -21,7 +21,8 @@ import { startTransition, useEffect, useRef, type FormEvent, type RefObject } fr
  *
  * Opções: `antes` é um onSubmit próprio (ex.: confirmarEnvio), que roda primeiro
  * e, cancelando o evento, segura o envio; `ref` é a ref do formulário quando o
- * componente já tem uma.
+ * componente já tem uma; `manter` nunca reinicia (formulário que continua em
+ * uso depois do sucesso, como a conferência do lote de reembolsos).
  */
 export function useEnvioFormulario(
   acao: (dados: FormData) => void,
@@ -29,13 +30,14 @@ export function useEnvioFormulario(
   opcoes: {
     antes?: (e: FormEvent<HTMLFormElement>) => unknown
     ref?: RefObject<HTMLFormElement | null>
+    manter?: boolean
   } = {}
 ) {
   const refInterna = useRef<HTMLFormElement>(null)
   const ref = opcoes.ref ?? refInterna
   const enviado = useRef(false)
   const anterior = useRef(estado)
-  const { antes } = opcoes
+  const { antes, manter } = opcoes
 
   useEffect(() => {
     if (estado === anterior.current) return
@@ -43,8 +45,8 @@ export function useEnvioFormulario(
     if (!enviado.current) return
     enviado.current = false
     const e = (estado ?? {}) as { erro?: unknown; apontamentos?: unknown[] }
-    if (!e.erro && !e.apontamentos?.length) ref.current?.reset()
-  }, [estado, ref])
+    if (!manter && !e.erro && !e.apontamentos?.length) ref.current?.reset()
+  }, [estado, ref, manter])
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     antes?.(e)

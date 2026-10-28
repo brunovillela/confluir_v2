@@ -2,7 +2,7 @@
 
 # Veículos e condutores
 
-21 tabelas. Diagrama: [er/veiculos.md](../er/veiculos.md).
+22 tabelas. Diagrama: [er/veiculos.md](../er/veiculos.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -20,6 +20,7 @@
 | [veiculos_condutores](#veiculos_condutores) | identificação | Cadastro de condutor autorizado da frota (usuário + CNH vigente + autorização), tela Veículos > Condutores. |
 | [veiculos_condutores_cnh](#veiculos_condutores_cnh) | identificação | Histórico das CNHs de um condutor (a anterior vai para cá ao ser substituída ou na unificação de cadastros). |
 | [veiculos_condutores_unificacoes](#veiculos_condutores_unificacoes) | identificação | Registro de cada unificação de dois cadastros de condutor da mesma pessoa, com o antes e os ids movidos, para conferir ou desfazer. |
+| [veiculos_contratos_historico](#veiculos_contratos_historico) | identificação | Trilha do contrato de locação de veículos: edições e prorrogações, com quem fez, motivo, antes/depois e o aditivo. |
 | [veiculos_disponibilidade](#veiculos_disponibilidade) | identificação | Espelho de "Veículos disponibilidade" do Bubble |
 | [veiculos_infracoes](#veiculos_infracoes) | identificação, financeiro | Multa de trânsito de veículo da frota: auto, condutor infrator, justificativa, reembolso e cobrança ao infrator. Migrada do Bubble; tela Veí… |
 | [veiculos_infracoes_config](#veiculos_infracoes_config) | identificação | Configuração das infrações por tenant: e-mails que recebem cópia das notificações. |
@@ -406,6 +407,31 @@ Registro de cada unificação de dois cadastros de condutor da mesma pessoa, com
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 
 Índices: `veiculos_condutores_unificacoes_pkey`
+
+## veiculos_contratos_historico
+
+Trilha do contrato de locação de veículos: edições e prorrogações, com quem fez, motivo, antes/depois e o aditivo.
+
+- **LGPD:** identificação · titulares: usuários do sistema
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `contrato_id` | uuid | não |  | → veiculo_contratos_aluguel (**cascade**) | nenhum | Contrato de locação (veiculo_contratos_aluguel). |
+| `evento` | text | não |  |  | nenhum | editado: correção dos dados cadastrais; prorrogado: novo término (e, se mudou, novo valor mensal). |
+| `usuario_id` | uuid | sim |  | → usuarios | identificação | Quem fez a alteração. |
+| `motivo` | text | sim |  |  | nenhum | Motivo informado (obrigatório na edição; opcional na prorrogação). |
+| `antes` | jsonb | sim |  |  | nenhum | Valores das colunas alteradas antes da mudança. |
+| `depois` | jsonb | sim |  |  | nenhum | Valores das colunas alteradas depois da mudança. |
+| `arquivo_aditivo_url` | text | sim |  |  | nenhum | Caminho do aditivo assinado no bucket veiculos (prorrogação). |
+| `created_at` | timestamp with time zone | não | `now()` |  | nenhum | Quando a alteração foi feita. |
+| `emp_proprietaria_id` | uuid | sim |  | → empresa | nenhum | Entidade dona (tenant). |
+
+Checks: `veiculos_contratos_historico_evento_check` `CHECK ((evento = ANY (ARRAY['editado'::text, 'prorrogado'::text])))`
+
+Índices: `idx_veiculos_contratos_historico`, `veiculos_contratos_historico_pkey`
 
 ## veiculos_disponibilidade
 

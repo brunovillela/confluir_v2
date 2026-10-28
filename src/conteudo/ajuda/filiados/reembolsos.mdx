@@ -8,11 +8,18 @@ gera a **ordem de pagamento** no Financeiro.
 ## O que a tela mostra
 
 **Filiados → Reembolsos** abre com quanto já foi lançado no mês.
-Abaixo, a lista de lançamentos com filiado, justificativa, projeto, valor,
-o código da ordem e a **situação** — que é a situação da ordem no
-Financeiro: Em autorização, A pagar, Paga.
+Abaixo, a lista de lançamentos com filiado, justificativa, **tipo**, projeto,
+valor, o código da ordem e a **situação** — que é a situação da ordem no
+Financeiro: Em autorização, A pagar, Paga. Dá para filtrar por filiado,
+período, situação e tipo.
 
-<Print src="filiados/reembolsos.png" alt="Tela Reembolsos a filiados: o cartão do lançado no mês; abaixo, a tabela de lançamentos com filiado, justificativa, valor, ordem e situação." legenda="O mês de relance e a lista de lançamentos, cada um com a situação da ordem de pagamento." />
+Cada reembolso tem um **tipo**: **Desconto de greve**, **Despesa em atividade
+sindical**, **Cobrança indevida** ou **Outro**. É ele que permite somar "quanto
+devolvemos da greve". Os reembolsos antigos foram classificados pelo texto da
+justificativa; um que tenha caído no tipo errado se corrige abrindo o
+lançamento.
+
+<Print src="filiados/reembolsos.png" alt="Tela Reembolsos a filiados: os botões Configuração, Lançar em lote e Lançar reembolso, o cartão do lançado no mês e a tabela de lançamentos com filiado, justificativa e tipo, valor, ordem e situação." legenda="O mês de relance e a lista de lançamentos, cada um com a situação da ordem de pagamento." />
 
 ## Lançar um reembolso
 
@@ -22,7 +29,9 @@ Financeiro: Em autorização, A pagar, Paga.
     mais rápido, pelo botão de mesmo nome no cartão Reembolsos do
     **perfil do filiado** — aí a pessoa já vem escolhida.
   </Passo>
-  <Passo titulo="Data, justificativa e projeto">
+  <Passo titulo="Tipo, data, justificativa e projeto">
+    O **tipo** diz a natureza do reembolso (desconto de greve, despesa em
+    atividade sindical, cobrança indevida ou outro).
     A data de referência situa o reembolso no tempo (o dia do desconto, da
     cobrança ou da atividade). A justificativa diz o motivo ("25% do desconto
     salarial da greve de março"). O projeto liga o gasto à campanha ou ao ato,
@@ -39,18 +48,57 @@ Financeiro: Em autorização, A pagar, Paga.
   <Passo titulo="Lançar">
     No mesmo ato nascem a **ordem de pagamento** (tipo Reembolso, Em
     autorização, com o filiado como favorecido, o centro de custo da
-    configuração, a chave Pix, se a entidade a tem, e o comprovante, se
-    anexado) e um apontamento no **prontuário** do filiado.
+    configuração e o comprovante, se anexado) e um apontamento no
+    **prontuário** do filiado.
   </Passo>
 </PassoAPasso>
 
-<Print src="filiados/reembolso-novo.png" alt="Formulário de novo reembolso com o filiado já escolhido, data, valor, justificativa e projeto." legenda="Lançar reembolso a partir do perfil: o filiado já vem escolhido." />
+**Para onde vai o dinheiro.** A ordem já sai com o destino do cadastro do
+filiado (de qualquer cadastro da pessoa com o mesmo CPF): a **chave Pix**
+quando ele prefere Pix; senão a **conta principal** (TED); sem conta, a chave
+Pix que houver. Sem chave nem conta, a ordem não nasce — cadastre os dados
+bancários na ficha ou peça-os ao filiado pelo link.
+
+<Print src="filiados/reembolso-novo.png" alt="Formulário de novo reembolso com o filiado já escolhido, data de referência, valor, tipo, justificativa e projeto." legenda="Lançar reembolso a partir do perfil: o filiado já vem escolhido." />
 
 <Aviso tipo="nota" titulo="A autorização continua sendo humana">
   O lançamento não paga ninguém. A ordem chega ao Financeiro **Em
   autorização** e segue pela alçada como qualquer outra. Quem lança
   reembolso não precisa ter alçada.
 </Aviso>
+
+## Lançar em lote
+
+Para vários filiados com a mesma justificativa — a devolução do desconto de
+uma greve, por exemplo —, use **Lançar em lote**.
+
+<PassoAPasso>
+  <Passo titulo="O que vale para todos">
+    Tipo, data de referência, justificativa e projeto entram iguais em cada
+    reembolso do lote.
+  </Passo>
+  <Passo titulo="A lista">
+    Uma linha por filiado com o **CPF e o valor**: copie as duas colunas do
+    Excel e cole, ou envie a planilha (.xlsx ou .csv). Outras colunas (nome,
+    matrícula) são ignoradas; o valor é o último número da linha, e o
+    cabeçalho é pulado sozinho. Até 1.000 linhas por lote.
+  </Passo>
+  <Passo titulo="Conferir">
+    Nada é gravado ainda. A tabela mostra cada linha com o filiado achado
+    pelo CPF ou o problema: CPF inválido ou de ninguém, CPF repetido na
+    lista, valor inválido, filiado **sem chave Pix nem conta** (a ordem não
+    nasceria) e reembolso **já lançado** com a mesma data e o mesmo valor.
+    Corrija a lista e confira de novo, ou siga só com as prontas.
+  </Passo>
+  <Passo titulo="Lançar">
+    Confirme o total. Os reembolsos são lançados em partes, com o progresso
+    na tela — não feche a página até terminar. Cada linha vira um lançamento
+    completo, igual ao individual. Se alguma falhar, o botão passa a lançar
+    de novo só as que falharam.
+  </Passo>
+</PassoAPasso>
+
+<Print src="filiados/reembolsos-lote.png" alt="Lançar reembolsos em lote: tipo, data, justificativa e projeto comuns; a lista colada com CPF, nome e valor; e a conferência com uma linha pronta e três com problema — sem chave Pix nem conta, CPF repetido e CPF inválido." legenda="A conferência mostra o que está pronto e o que impede cada linha, antes de gravar qualquer coisa." />
 
 ## Editar e desfazer
 

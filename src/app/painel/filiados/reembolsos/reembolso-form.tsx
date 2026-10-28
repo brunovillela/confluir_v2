@@ -17,7 +17,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { SelectNativo } from "@/components/ui/select-nativo"
 import { Textarea } from "@/components/ui/textarea"
+import { TIPOS_REEMBOLSO } from "@/lib/reembolsos-tipos"
 import type { ReembolsoLinha } from "@/lib/db/filiacao-reembolsos-edicao"
 
 import { atualizarReembolsoAction, criarReembolsoAction } from "./actions"
@@ -125,6 +127,20 @@ export function ReembolsoForm({
             {paga && reembolso?.valor != null && (
               <input type="hidden" name="valor" value={reembolso.valor.toFixed(2)} />
             )}
+          </div>
+
+          <div className="grid gap-1.5 sm:col-span-2">
+            <Label htmlFor="tipo">Tipo *</Label>
+            <SelectNativo id="tipo" name="tipo" required defaultValue={reembolso?.tipo ?? ""}>
+              <option value="" disabled>
+                Escolha o tipo
+              </option>
+              {TIPOS_REEMBOLSO.map((t) => (
+                <option key={t.valor} value={t.valor}>
+                  {t.rotulo}
+                </option>
+              ))}
+            </SelectNativo>
           </div>
 
           <div className="grid gap-1.5 sm:col-span-2">

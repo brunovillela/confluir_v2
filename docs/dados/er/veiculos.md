@@ -91,6 +91,12 @@ erDiagram
     uuid secundario_usuario_id FK
     uuid feito_por_id FK
   }
+  veiculos_contratos_historico {
+    uuid id PK
+    uuid contrato_id FK
+    uuid usuario_id FK
+    uuid emp_proprietaria_id FK
+  }
   veiculos_disponibilidade {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -172,6 +178,8 @@ erDiagram
   veiculos_condutores_unificacoes }o--o| usuarios : "feito_por_id"
   veiculos_condutores_unificacoes }o--o| usuarios : "principal_usuario_id"
   veiculos_condutores_unificacoes }o--o| usuarios : "secundario_usuario_id"
+  veiculos_contratos_historico }o--o| usuarios : "usuario_id"
+  veiculos_contratos_historico }o--|| veiculo_contratos_aluguel : "contrato_id"
   veiculos_disponibilidade }o--o| usuarios : "condutor_id"
   veiculos_disponibilidade }o--o| usuarios : "devolucao_registrada_por_id"
   veiculos_disponibilidade }o--o| usuarios : "registrado_por_id"

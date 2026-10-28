@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, HandCoins, Plus, Settings2 } from "lucide-react"
+import { ArrowLeft, HandCoins, ListPlus, Plus, Settings2 } from "lucide-react"
 
 import { SituacaoBadge } from "@/app/painel/financeiro/situacao-badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -19,6 +19,7 @@ import {
   type FiltroReembolsos,
 } from "@/lib/db/filiacao-reembolsos-edicao"
 import { formatarData, formatarMoeda } from "@/lib/formato"
+import { ehTipoReembolso, rotuloTipoReembolso, TIPOS_REEMBOLSO } from "@/lib/reembolsos-tipos"
 
 export const metadata: Metadata = { title: "Reembolsos a filiados — Confluir" }
 
@@ -37,6 +38,7 @@ export default async function ReembolsosPage({
     de?: string
     ate?: string
     situacao?: string
+    tipo?: string
     filiado?: string
     pagina?: string
     excluido?: string
@@ -50,6 +52,7 @@ export default async function ReembolsosPage({
     de: sp.de && /^\d{4}-\d{2}-\d{2}$/.test(sp.de) ? sp.de : undefined,
     ate: sp.ate && /^\d{4}-\d{2}-\d{2}$/.test(sp.ate) ? sp.ate : undefined,
     situacao: sp.situacao === "pagos" || sp.situacao === "pendentes" ? sp.situacao : "todos",
+    tipo: ehTipoReembolso(sp.tipo) ? sp.tipo : undefined,
     filiadoId: sp.filiado && UUID.test(sp.filiado) ? sp.filiado : undefined,
     pagina: Math.max(1, Number(sp.pagina) || 1),
   }
@@ -69,6 +72,7 @@ export default async function ReembolsosPage({
       de: filtro.de,
       ate: filtro.ate,
       situacao: filtro.situacao === "todos" ? undefined : filtro.situacao,
+      tipo: filtro.tipo,
       filiado: filtro.filiadoId,
       pagina: pagina > 1 ? pagina : undefined,
       ...mudancas,
@@ -99,6 +103,12 @@ export default async function ReembolsosPage({
             <Link href="/painel/filiados/reembolsos/configuracao">
               <Settings2 />
               Configuração
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/painel/filiados/reembolsos/lote">
+              <ListPlus />
+              Lançar em lote
             </Link>
           </Button>
           <Button asChild>
@@ -137,7 +147,7 @@ export default async function ReembolsosPage({
           <CardDescription>A situação é a da ordem de pagamento no Financeiro.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
-          <form className="grid gap-3 sm:grid-cols-5" method="get">
+          <form className="grid gap-3 sm:grid-cols-6" method="get">
             {filtro.filiadoId && <input type="hidden" name="filiado" value={filtro.filiadoId} />}
             <div className="grid gap-1.5 sm:col-span-2">
               <Label htmlFor="busca">Filiado</Label>
@@ -164,11 +174,27 @@ export default async function ReembolsosPage({
                 <option value="pagos">Pagos</option>
               </select>
             </div>
-            <div className="flex items-end gap-2 sm:col-span-5">
+            <div className="grid gap-1.5">
+              <Label htmlFor="tipo">Tipo</Label>
+              <select
+                id="tipo"
+                name="tipo"
+                defaultValue={filtro.tipo ?? ""}
+                className="border-input bg-background h-8 rounded-md border px-2 text-sm"
+              >
+                <option value="">Todos</option>
+                {TIPOS_REEMBOLSO.map((t) => (
+                  <option key={t.valor} value={t.valor}>
+                    {t.rotulo}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-end gap-2 sm:col-span-6">
               <Button type="submit" variant="secondary" size="sm">
                 Filtrar
               </Button>
-              {(filtro.busca || filtro.de || filtro.ate || filtro.situacao !== "todos" || filtro.filiadoId) && (
+              {(filtro.busca || filtro.de || filtro.ate || filtro.situacao !== "todos" || filtro.tipo || filtro.filiadoId) && (
                 <Button asChild variant="ghost" size="sm">
                   <Link href="/painel/filiados/reembolsos">Limpar</Link>
                 </Button>
@@ -220,6 +246,7 @@ export default async function ReembolsosPage({
                         <Link href={`/painel/filiados/reembolsos/${r.id}`} className="hover:underline">
                           {r.justificativa ?? "—"}
                         </Link>
+                        <span className="text-muted-foreground block text-xs">{rotuloTipoReembolso(r.tipo)}</span>
                         {r.projeto && (
                           <span className="text-muted-foreground block text-xs">{r.projeto}</span>
                         )}

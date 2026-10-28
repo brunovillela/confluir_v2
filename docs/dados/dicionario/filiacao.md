@@ -25,7 +25,7 @@
 | [filiacao_recebe](#filiacao_recebe) | **sensível: sindical**, financeiro, identificação, trabalhista | Cada linha é a contribuição de um trabalhador numa remessa (relação de descontos de uma fonte pagadora, Pix ou boleto), importada em Receita… |
 | [filiacao_recebe_comprovacao](#filiacao_recebe_comprovacao) | — | Comprovantes de repasse das contribuições pela fonte pagadora em cada remessa (data, valor, arquivo), usados na conciliação de Receitas. Mig… |
 | [filiacao_recebe_remessa](#filiacao_recebe_remessa) | — | Remessas de contribuições por fonte pagadora e competência (ano/mês), agrupando as linhas de filiacao_recebe. Migrado do Bubble. |
-| [filiacao_reembolsos](#filiacao_reembolsos) | financeiro, **sensível: sindical** | Reembolsos pagos ao filiado por participação em reunião, ato ou assembleia, com justificativa, projeto e ordem de pagamento. Migrado do Bubb… |
+| [filiacao_reembolsos](#filiacao_reembolsos) | financeiro, **sensível: sindical** | Reembolsos pagos ao filiado — desconto salarial de greve, cobrança indevida, despesa em atividade sindical —, com tipo, justificativa, proje… |
 | [filiacao_reembolsos_config](#filiacao_reembolsos_config) | — | Configuração dos reembolsos a filiados: valor padrão, centro de custo e orçamento mensal limite. |
 | [filiacao_registro](#filiacao_registro) | identificação, **sensível: sindical** | Registro de filiação com CPF, nome, sexo, matrícula e condição sindical. Sem uso encontrado no código (possível legado do Bubble, substituíd… |
 | [filiacao_solicitacao_eventos](#filiacao_solicitacao_eventos) | **sensível: sindical**, identificação | Trilha de eventos de cada solicitação de filiação pela ficha pública (criada, código enviado, e-mail verificado, assinada, avaliada...), com… |
@@ -584,7 +584,7 @@ Remessas de contribuições por fonte pagadora e competência (ano/mês), agrupa
 
 ## filiacao_reembolsos
 
-Reembolsos pagos ao filiado por participação em reunião, ato ou assembleia, com justificativa, projeto e ordem de pagamento. Migrado do Bubble (histórico do ACT).
+Reembolsos pagos ao filiado — desconto salarial de greve, cobrança indevida, despesa em atividade sindical —, com tipo, justificativa, projeto e ordem de pagamento. Migrado do Bubble (histórico do ACT).
 
 - **LGPD:** financeiro, **sensível: sindical** · titulares: filiados
 - **RLS:** ligado · policies: `tenant_isolation`
@@ -606,8 +606,11 @@ Reembolsos pagos ao filiado por participação em reunião, ato ou assembleia, c
 | `criado_por` | uuid | sim |  | → usuarios |  |  |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `updated_at` | timestamp with time zone | sim |  |  |  |  |
+| `tipo` | text | não | `'outro'::text` |  | **sensível: sindical** | Natureza do reembolso: desconto_greve, despesa_atividade, cobranca_indevida ou outro; o histórico foi classificado pelo texto da justificativa. |
 
-Índices: `filiacao_reembolsos_pkey`, `ix_filiacao_reembolsos_filiado`, `ux_filiacao_reembolsos_bubble`
+Checks: `filiacao_reembolsos_tipo_check` `CHECK ((tipo = ANY (ARRAY['desconto_greve'::text, 'despesa_atividade'::text, 'cobranca_indevida'::text, 'outro'::text])))`
+
+Índices: `filiacao_reembolsos_pkey`, `ix_filiacao_reembolsos_filiado`, `ix_filiacao_reembolsos_tipo`, `ux_filiacao_reembolsos_bubble`
 
 ## filiacao_reembolsos_config
 

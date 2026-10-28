@@ -28,7 +28,7 @@
 | P11 | [Financeiro, compras, fornecedores e contratos](#p11) | 33 | identificação, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P12 | [Institucional: custeios, viagens, linhas e patrimônio](#p12) | 8 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P13 | [Hospedagem conveniada e cessão de espaços](#p13) | 12 | identificação, **sensível: filiação/posição sindical**, financeiro, credencial (segredo de acesso, nunca exportar) | sim |
-| P14 | [Frota: veículos e condutores](#p14) | 12 | identificação, financeiro | sim |
+| P14 | [Frota: veículos e condutores](#p14) | 13 | identificação, financeiro | sim |
 | P15 | [Comunicação, eventos e avisos](#p15) | 9 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P16 | [Contas de acesso, segurança, auditoria e gestão interna](#p16) | 23 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 
@@ -114,7 +114,7 @@
 |---|---|---|
 | [filiacao_cobrancas](../dados/dicionario/filiacao.md#filiacao_cobrancas) | identificacao, sens. sindical, financeiro | `cpf` (identificacao), `valor` (financeiro), `situacao` (financeiro), `pago_em` (financeiro), `valor_pago` (financeiro) |
 | [filiacao_recebe](../dados/dicionario/filiacao.md#filiacao_recebe) | identificacao, sens. sindical, financeiro, trabalhista | `cpf` (identificacao), `valor` (financeiro), `matricula_sindical` (sens. sindical), `fonte_pg_matricula` (trabalhista), `filiado_raw` (sens. sindical), `forma_recebimento` (financeiro), `nome` (identificacao) |
-| [filiacao_reembolsos](../dados/dicionario/filiacao.md#filiacao_reembolsos) | sens. sindical, financeiro | `justificativa` (sens. sindical), `valor` (financeiro) |
+| [filiacao_reembolsos](../dados/dicionario/filiacao.md#filiacao_reembolsos) | sens. sindical, financeiro | `justificativa` (sens. sindical), `valor` (financeiro), `tipo` (sens. sindical) |
 
 </details>
 
@@ -662,7 +662,7 @@
 
 **Observações.** Pendência: cópias da CNH em jsonb de unificação de condutores.
 
-<details><summary>Tabelas (12) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (13) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -674,6 +674,7 @@
 | [veiculos_condutores](../dados/dicionario/veiculos.md#veiculos_condutores) | identificacao | `cnh_numero` (identificacao), `cnh_categoria` (identificacao), `cnh_validade` (identificacao), `cnh_arquivo_url` (identificacao), `observacao` (identificacao) |
 | [veiculos_condutores_cnh](../dados/dicionario/veiculos.md#veiculos_condutores_cnh) | identificacao | `cnh_numero` (identificacao), `cnh_categoria` (identificacao), `cnh_validade` (identificacao), `cnh_arquivo_url` (identificacao) |
 | [veiculos_condutores_unificacoes](../dados/dicionario/veiculos.md#veiculos_condutores_unificacoes) | identificacao | `cadastro_removido` (identificacao), `cadastro_principal_antes` (identificacao) |
+| [veiculos_contratos_historico](../dados/dicionario/veiculos.md#veiculos_contratos_historico) | identificacao | `contrato_id` (nenhum), `evento` (nenhum), `usuario_id` (identificacao), `motivo` (nenhum), `antes` (nenhum), `depois` (nenhum), `arquivo_aditivo_url` (nenhum), `created_at` (nenhum), `emp_proprietaria_id` (nenhum) |
 | [veiculos_disponibilidade](../dados/dicionario/veiculos.md#veiculos_disponibilidade) | identificacao | `motivo` (identificacao), `destino` (identificacao), `observacao_retorno` (identificacao) |
 | [veiculos_infracoes](../dados/dicionario/veiculos.md#veiculos_infracoes) | identificacao, financeiro | `infracao_local` (identificacao), `reembolso_obs_financeiro` (financeiro), `justificativa_descricao` (identificacao), `reembolso_infrator` (financeiro), `identificacao_real_infrator` (identificacao), `formaliz_real_infrator` (identificacao), `cobranca_forma` (financeiro), `cobranca_situacao` (financeiro), `cobranca_valor` (financeiro), `baixa_observacao` (financeiro), `baixa_comprovante_url` (financeiro) |
 | [veiculos_infracoes_config](../dados/dicionario/veiculos.md#veiculos_infracoes_config) | identificacao | `emails_copia` (identificacao) |
@@ -681,7 +682,7 @@
 
 </details>
 
-<sub>Titulares registrados no banco para estas tabelas: condutores; diretores; envolvidos; funcionários.</sub>
+<sub>Titulares registrados no banco para estas tabelas: condutores; diretores; envolvidos; funcionários; usuários do sistema.</sub>
 
 <a id="p15"></a>
 ## P15. Comunicação, eventos e avisos
@@ -812,4 +813,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 206 de 206 tabelas com dado pessoal atribuídas a 16 processos.
+Cobertura: 207 de 207 tabelas com dado pessoal atribuídas a 16 processos.
