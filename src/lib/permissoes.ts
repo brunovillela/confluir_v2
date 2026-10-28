@@ -728,7 +728,7 @@ export const MODULOS: Modulo[] = [
     icone: "Megaphone",
     descricao: "Votações, oposição, acordos coletivos, negociações e empregadores",
     chave: "assembleias",
-    chavesAlternativas: ["oposicao", "acordos_coletivos", "negociacoes", "empregadores"],
+    chavesAlternativas: ["oposicao", "oposicao_configurar", "oposicao_avaliar", "acordos_coletivos", "negociacoes", "empregadores"],
   },
   {
     titulo: "Votações",
@@ -744,6 +744,7 @@ export const MODULOS: Modulo[] = [
     icone: "Gavel",
     descricao: "Campanhas de oposição e fila de avaliação",
     chave: "oposicao",
+    chavesAlternativas: ["oposicao_configurar", "oposicao_avaliar"],
     oculto: true,
   },
   {

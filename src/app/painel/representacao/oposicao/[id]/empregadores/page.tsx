@@ -12,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { requirePermissao } from "@/lib/auth"
+import { podeNaOposicao, regrasDaCampanha, requireOposicao } from "@/lib/db/oposicao-regras"
 import { obterCampanha } from "@/lib/db/oposicao"
 import { relacaoPorEmpregador } from "@/lib/db/oposicao-gestao"
 import { formatarCnpjCpf, formatarData, formatarDataHora } from "@/lib/formato"
@@ -28,8 +28,10 @@ export const metadata: Metadata = { title: "Relação por empregador — Oposiç
  * saiu, por re-decisão) depois do último envio.
  */
 export default async function EmpregadoresOposicaoPage({ params }: { params: Promise<{ id: string }> }) {
-  await requirePermissao("oposicao")
   const { id } = await params
+  const sessao = await requireOposicao("consultar", id)
+  const { efetivas } = await regrasDaCampanha(id)
+  const podeConfigurar = podeNaOposicao(sessao.permissoes, "configurar", efetivas.segregacao)
   const [campanha, relacao] = await Promise.all([obterCampanha(id), relacaoPorEmpregador(id)])
   if (!campanha) notFound()
   const aqui = `/painel/representacao/oposicao/${id}`
@@ -116,7 +118,9 @@ export default async function EmpregadoresOposicaoPage({ params }: { params: Pro
                     </a>
                   </Button>
                 </div>
-                <RegistrarEnvio campanhaId={id} empresaId={r.empresaId} quantidade={r.aprovadas} />
+                {podeConfigurar && (
+                  <RegistrarEnvio campanhaId={id} empresaId={r.empresaId} quantidade={r.aprovadas} />
+                )}
                 {r.envios.length > 0 && (
                   <div>
                     <p className="text-muted-foreground mb-1 text-xs font-medium">Envios registrados</p>

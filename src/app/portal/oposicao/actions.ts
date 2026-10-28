@@ -24,7 +24,7 @@ import {
   opcoesFontes,
   vinculosAtivos,
 } from "@/lib/db/oposicao"
-import { estadoPrazo, exigeDocumento } from "@/lib/oposicao-constantes"
+import { estadoPrazo, exigeDocumentoComRegras } from "@/lib/oposicao-constantes"
 import { diagnosticarCodigoRecusado, emailDoCodigo } from "@/lib/auth-diagnostico"
 import { textoValidade } from "@/lib/auth-email-constantes"
 import { createClient } from "@/lib/supabase/server"
@@ -301,6 +301,8 @@ async function campanhaNoPrazo(
   if (!campanha || campanha.situacao !== "aberta") {
     return { erro: "Campanha indisponível." }
   }
+  // Sem as decisões jurídicas tomadas, a campanha não recebe oposição.
+  if (!campanha.regrasCompletas) return { erro: "Campanha indisponível." }
   if (estadoPrazo(campanha.prazo_inicio, campanha.prazo_fim, hojeSP()) !== "aberto") {
     return { erro: "Fora do prazo desta campanha." }
   }
@@ -347,9 +349,18 @@ export async function confirmarOposicao(
     perguntaId: p.id,
     resposta: texto(fd, `pergunta_${p.id}`),
   }))
-  const exigeDoc = exigeDocumento(
+  // Prova do não filiado (decisão jurídica): matrícula obrigatória.
+  if (
+    sessao.perfil !== "filiado" &&
+    campanha.regras.prova_nao_filiado === "matricula" &&
+    !texto(fd, "matricula")
+  ) {
+    return { erro: "Informe a sua matrícula na fonte pagadora." }
+  }
+  const exigeDoc = exigeDocumentoComRegras(
     campanha.modo_formalizacao,
-    sessao.perfil === "filiado"
+    sessao.perfil === "filiado",
+    campanha.regras
   )
   const { ip, ua } = await rastro()
 

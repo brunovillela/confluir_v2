@@ -233,6 +233,9 @@ erDiagram
     uuid campanha_id PK,FK
     uuid emp_proprietaria_id FK
   }
+  oposicao_regras {
+    uuid emp_proprietaria_id PK,FK
+  }
   oposicao_resposta {
     uuid id PK
     uuid opositor_id FK

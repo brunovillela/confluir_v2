@@ -691,6 +691,8 @@ ACL plana por usuário: uma coluna booleana por área/ação do sistema, mais al
 | `pessoal_contabilidade` | boolean | sim |  |  |  | Contabilidade: consultar, exportar e dar recebimento nas competências enviadas do movimento da folha. |
 | `pessoal_contabilidade_envio` | boolean | sim |  |  |  | Conferir e enviar à contabilidade o movimento da folha de cada competência. |
 | `pessoal_reembolsos` | boolean | sim |  |  |  | Reembolsos do ACT: avaliar os pedidos, tipos do ACT e o histórico por funcionário (sem a Gestão de Pessoal inteira). |
+| `oposicao_configurar` | boolean | sim | `false` |  | nenhum | Oposição com segregação: criar e editar campanhas, questionário, decisões jurídicas e relação ao empregador. |
+| `oposicao_avaliar` | boolean | sim | `false` |  | nenhum | Oposição com segregação: avaliar (uma a uma e em lote), encerrar sem carta e reverificar assinatura. |
 
 Únicas: `UNIQUE (bubble_id)`
 

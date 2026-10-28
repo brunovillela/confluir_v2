@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card"
 import { ExportarXlsx } from "@/components/exportar-xlsx"
 import { Paginacao } from "@/components/paginacao"
-import { requirePermissao } from "@/lib/auth"
+import { podeNaOposicao, regrasDaCampanha, requireOposicao } from "@/lib/db/oposicao-regras"
 import {
   fonteIdsDaCampanha,
   listarOpositores,
@@ -25,6 +25,9 @@ import { previsaoEncerramentoSemCarta } from "@/lib/db/oposicao-gestao"
 import { formatarData } from "@/lib/formato"
 import { lerPaginacao } from "@/lib/paginacao"
 import {
+  decisoesFaltando,
+  DECISOES_JURIDICAS,
+  rotuloOpcao,
   MODOS_FORMALIZACAO,
   ROTULO_SITUACAO_OPOSITOR,
   SITUACOES_OPOSITOR,
@@ -59,14 +62,17 @@ export default async function CampanhaOposicaoPage({
     fila?: string
   }>
 }) {
-  await requirePermissao("oposicao")
-
   const { id } = await params
+  const sessao = await requireOposicao("consultar", id)
+  const regrasCampanha = await regrasDaCampanha(id)
+  const podeConfigurar = podeNaOposicao(sessao.permissoes, "configurar", regrasCampanha.efetivas.segregacao)
+  const podeAvaliar = podeNaOposicao(sessao.permissoes, "avaliar", regrasCampanha.efetivas.segregacao)
+  const faltamDecisoes = decisoesFaltando(regrasCampanha.efetivas)
   const brutos = await searchParams
   const campanha = await obterCampanha(id)
   if (!campanha) notFound()
 
-  const editando = brutos.editar === "1"
+  const editando = brutos.editar === "1" && podeConfigurar
   // As fontes servem ao formulário de edição e ao filtro da lista.
   const [fontes, fonteIds, encerramento] = await Promise.all([
     opcoesFontes(),
@@ -131,7 +137,7 @@ export default async function CampanhaOposicaoPage({
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-base">Dados da campanha</CardTitle>
-            {!editando && (
+            {!editando && podeConfigurar && (
               <Button variant="outline" size="sm" asChild>
                 <Link href={`${aqui}?editar=1`}>
                   <Pencil />
@@ -148,6 +154,7 @@ export default async function CampanhaOposicaoPage({
               fontes={fontes}
               fonteIds={fonteIds}
               aoCancelarHref={aqui}
+              regrasEntidade={regrasCampanha.entidade}
             />
           ) : (
             <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -169,6 +176,44 @@ export default async function CampanhaOposicaoPage({
               />
             </dl>
           )}
+        </CardContent>
+      </Card>
+
+      <Card className={faltamDecisoes.length ? "border-warning/50" : undefined}>
+        <CardHeader>
+          <CardTitle className="text-base">Decisões jurídicas</CardTitle>
+          <CardDescription>
+            O que vale nesta campanha. “Padrão da entidade” segue{" "}
+            <Link href="/painel/representacao/oposicao/decisoes" className="text-primary hover:underline">
+              Decisões jurídicas da entidade
+            </Link>
+            ; ao abrir a campanha, as decisões vigentes ficam gravadas nela.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          {faltamDecisoes.length > 0 && (
+            <Alert variant="warning">
+              <AlertDescription>
+                A campanha não pode ser aberta (nem receber oposições) sem estas decisões: {faltamDecisoes.join("; ")}.
+                Defina na campanha (Editar) ou no padrão da entidade.
+              </AlertDescription>
+            </Alert>
+          )}
+          <dl className="grid gap-3 sm:grid-cols-2">
+            {DECISOES_JURIDICAS.map((d) => {
+              const propria = regrasCampanha.propria[d.chave]
+              const vale = regrasCampanha.efetivas[d.chave]
+              return (
+                <div key={d.chave}>
+                  <dt className="text-muted-foreground text-xs">{d.rotulo}</dt>
+                  <dd className="mt-0.5 text-sm">
+                    {vale ? rotuloOpcao(d.chave, vale) : <span className="text-warning-fg font-medium">Não decidido</span>}
+                    {vale && !propria && <span className="text-muted-foreground"> · padrão da entidade</span>}
+                  </dd>
+                </div>
+              )
+            })}
+          </dl>
         </CardContent>
       </Card>
 
@@ -197,12 +242,12 @@ export default async function CampanhaOposicaoPage({
                     </span>
                     {p.pergunta ?? "—"}
                   </span>
-                  <BotaoExcluirPergunta perguntaId={p.id} campanhaId={id} />
+                  {podeConfigurar && <BotaoExcluirPergunta perguntaId={p.id} campanhaId={id} />}
                 </li>
               ))}
             </ul>
           )}
-          <AdicionarPergunta campanhaId={id} />
+          {podeConfigurar && <AdicionarPergunta campanhaId={id} />}
         </CardContent>
       </Card>
 
@@ -223,7 +268,7 @@ export default async function CampanhaOposicaoPage({
         ))}
       </div>
 
-      {encerramento.quantidade > 0 && !encerramento.prazoAberto && (
+      {podeAvaliar && encerramento.quantidade > 0 && !encerramento.prazoAberto && (
         <Card className="border-warning/40">
           <CardHeader>
             <CardTitle className="text-base">Carta não enviada no prazo</CardTitle>
@@ -312,6 +357,7 @@ export default async function CampanhaOposicaoPage({
             linhas={lista.linhas}
             total={lista.total}
             filtros={{ situacao, busca, fonte }}
+            podeAvaliar={podeAvaliar}
           />
           <div className="mt-4">
             <Paginacao

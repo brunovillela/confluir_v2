@@ -10,8 +10,11 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import type { CampanhaDetalhe, OpcaoFonte } from "@/lib/db/oposicao"
 import {
+  DECISOES_JURIDICAS,
   MODOS_FORMALIZACAO,
+  rotuloOpcao,
   SITUACOES_CAMPANHA,
+  type RegrasOposicao,
 } from "@/lib/oposicao-constantes"
 
 import {
@@ -33,11 +36,14 @@ export function CampanhaForm({
   fontes,
   fonteIds,
   aoCancelarHref,
+  regrasEntidade,
 }: {
   campanha?: CampanhaDetalhe
   fontes: OpcaoFonte[]
   fonteIds: string[]
   aoCancelarHref: string
+  /** Padrão da entidade, para a opção "Padrão da entidade (…)". */
+  regrasEntidade: RegrasOposicao
 }) {
   const [estado, formAction, pendente] = useActionState(
     campanha ? atualizarCampanhaAction : criarCampanhaAction,
@@ -124,6 +130,38 @@ export function CampanhaForm({
           </select>
         </div>
       </div>
+
+      <fieldset className="grid gap-3">
+        <legend className="text-sm font-medium">Decisões jurídicas</legend>
+        <p className="text-muted-foreground text-xs">
+          Sem todas decididas (aqui ou no padrão da entidade), a campanha não abre. Ao abrir, as que valem ficam
+          gravadas nela; vídeo, assinaturas e prova do não filiado não mudam depois da primeira oposição.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {DECISOES_JURIDICAS.map((d) => {
+            const padrao = rotuloOpcao(d.chave, regrasEntidade[d.chave])
+            return (
+              <div key={d.chave} className="grid gap-1.5">
+                <Label htmlFor={`regra_${d.chave}`}>{d.rotulo}</Label>
+                <select
+                  id={`regra_${d.chave}`}
+                  name={`regra_${d.chave}`}
+                  className={SELECT}
+                  defaultValue={campanha?.regras[d.chave] ?? ""}
+                >
+                  <option value="">{padrao ? `Padrão da entidade (${padrao})` : "Padrão da entidade (não decidido)"}</option>
+                  {d.opcoes.map((o) => (
+                    <option key={o.chave} value={o.chave}>
+                      {o.rotulo}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-muted-foreground text-xs">{d.ajuda}</p>
+              </div>
+            )
+          })}
+        </div>
+      </fieldset>
 
       <fieldset className="grid gap-2">
         <legend className="text-sm font-medium">Fontes pagadoras</legend>

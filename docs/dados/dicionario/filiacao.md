@@ -2,7 +2,7 @@
 
 # Filiação e portal do associado
 
-49 tabelas. Diagrama: [er/filiacao.md](../er/filiacao.md).
+50 tabelas. Diagrama: [er/filiacao.md](../er/filiacao.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -44,6 +44,7 @@
 | [oposicao_opositor](#oposicao_opositor) | **sensível: sindical**, identificação, trabalhista | Cada trabalhador que se opôs à contribuição assistencial numa campanha: dados pessoais, vínculo, carta/documento assinado, avaliação e desis… |
 | [oposicao_perguntas](#oposicao_perguntas) | — | Perguntas do questionário de cada campanha de oposição. Migrado do Bubble. |
 | [oposicao_protocolos](#oposicao_protocolos) | — | Último protocolo emitido por campanha de oposição — contador atômico (oposicao_proximo_protocolo). |
+| [oposicao_regras](#oposicao_regras) | identificação | Decisões jurídicas padrão da entidade para as campanhas de oposição (carta fora do prazo, vídeo mínimo, assinaturas aceitas, prova do não fi… |
 | [oposicao_resposta](#oposicao_resposta) | **sensível: sindical** | Respostas do opositor às perguntas do questionário da campanha. Migrado do Bubble. |
 | [portal_atendimentos](#portal_atendimentos) | identificação, **sensível: sindical** | Atendimentos abertos pelo filiado no portal do associado (assunto, título, prazo, situação), ligados a uma demanda interna. |
 | [portal_atendimentos_mensagens](#portal_atendimentos_mensagens) | identificação, **sensível: sindical** | Mensagens trocadas entre filiado e entidade em cada atendimento do portal, com anexo opcional. |
@@ -1022,8 +1023,13 @@ Campanhas de oposição à contribuição assistencial: empresa, prazo, vídeos 
 | `situacao` | text | não | `'rascunho'::text` |  |  |  |
 | `emp_proprietaria_id` | uuid | sim |  | → empresa |  |  |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `regra_carta_fora_prazo` | text | sim |  |  | nenhum | Decisão da campanha sobre carta depois do prazo; nula = padrão da entidade (oposicao_regras). Gravada ao abrir. |
+| `regra_video_minimo` | text | sim |  |  | nenhum | Decisão da campanha sobre o vídeo com tempo mínimo; nula = padrão da entidade. |
+| `regra_assinaturas_aceitas` | text | sim |  |  | nenhum | Assinaturas que a campanha aceita na carta; nula = padrão da entidade. |
+| `regra_prova_nao_filiado` | text | sim |  |  | nenhum | Prova exigida do não filiado; nula = padrão da entidade. |
+| `regra_segregacao` | text | sim |  |  | nenhum | Segregação de permissões da campanha; nula = padrão da entidade. |
 
-Checks: `oposicao_campanha_modo_formalizacao_check` `CHECK ((modo_formalizacao = ANY (ARRAY['tela'::text, 'assinatura'::text, 'hibrido'::text])))`; `oposicao_campanha_situacao_check` `CHECK ((situacao = ANY (ARRAY['rascunho'::text, 'aberta'::text, 'encerrada'::text])))`
+Checks: `oposicao_campanha_modo_formalizacao_check` `CHECK ((modo_formalizacao = ANY (ARRAY['tela'::text, 'assinatura'::text, 'hibrido'::text])))`; `oposicao_campanha_regra_assinaturas_aceitas_check` `CHECK ((regra_assinaturas_aceitas = ANY (ARRAY['govbr'::text, 'govbr_icp'::text])))`; `oposicao_campanha_regra_carta_fora_prazo_check` `CHECK ((regra_carta_fora_prazo = ANY (ARRAY['aceitar'::text, 'recusar'::text])))`; `oposicao_campanha_regra_prova_nao_filiado_check` `CHECK ((regra_prova_nao_filiado = ANY (ARRAY['nenhuma'::text, 'matricula'::text, 'carta_govbr'::text])))`; `oposicao_campanha_regra_segregacao_check` `CHECK ((regra_segregacao = ANY (ARRAY['unica'::text, 'separada'::text])))`; `oposicao_campanha_regra_video_minimo_check` `CHECK ((regra_video_minimo = ANY (ARRAY['exigir'::text, 'dispensar'::text])))`; `oposicao_campanha_situacao_check` `CHECK ((situacao = ANY (ARRAY['rascunho'::text, 'aberta'::text, 'encerrada'::text])))`
 
 Índices: `idx_oposicao_campanha_bubble`, `idx_oposicao_campanha_emp`, `oposicao_campanha_pkey`
 
@@ -1189,6 +1195,30 @@ Perguntas do questionário de cada campanha de oposição. Migrado do Bubble.
 Checks: `oposicao_protocolos_ultimo_check` `CHECK ((ultimo >= 0))`
 
 Índices: `oposicao_protocolos_pkey`
+
+## oposicao_regras
+
+Decisões jurídicas padrão da entidade para as campanhas de oposição (carta fora do prazo, vídeo mínimo, assinaturas aceitas, prova do não filiado, segregação de permissões). Nulo = não decidido.
+
+- **LGPD:** identificação · titulares: usuários do sistema
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `carta_fora_prazo` | text | sim |  |  |  | aceitar: a carta assinada enviada depois do prazo é recebida e marcada no checklist; recusar: o portal não a recebe. |
+| `video_minimo` | text | sim |  |  |  | exigir: o vídeo da campanha precisa ser assistido pelo tempo mínimo antes de confirmar; dispensar: o vídeo aparece, sem tempo mínimo. |
+| `assinaturas_aceitas` | text | sim |  |  |  | govbr: só a assinatura do Assinador gov.br; govbr_icp: gov.br ou certificado ICP-Brasil (e-CPF). |
+| `prova_nao_filiado` | text | sim |  |  |  | nenhuma: nome, CPF e e-mail confirmado; matricula: matrícula obrigatória; carta_govbr: carta assinada obrigatória para o não filiado. |
+| `segregacao` | text | sim |  |  |  | unica: a permissão "oposicao" faz tudo; separada: configurar exige oposicao_configurar e avaliar exige oposicao_avaliar. |
+| `definido_por` | uuid | sim |  |  | identificação | Quem salvou as decisões por último. |
+| `definido_por_nome` | text | sim |  |  | identificação | Nome de quem salvou, no momento. |
+| `atualizado_em` | timestamp with time zone | não | `now()` |  |  |  |
+
+Checks: `oposicao_regras_assinaturas_aceitas_check` `CHECK ((assinaturas_aceitas = ANY (ARRAY['govbr'::text, 'govbr_icp'::text])))`; `oposicao_regras_carta_fora_prazo_check` `CHECK ((carta_fora_prazo = ANY (ARRAY['aceitar'::text, 'recusar'::text])))`; `oposicao_regras_prova_nao_filiado_check` `CHECK ((prova_nao_filiado = ANY (ARRAY['nenhuma'::text, 'matricula'::text, 'carta_govbr'::text])))`; `oposicao_regras_segregacao_check` `CHECK ((segregacao = ANY (ARRAY['unica'::text, 'separada'::text])))`; `oposicao_regras_video_minimo_check` `CHECK ((video_minimo = ANY (ARRAY['exigir'::text, 'dispensar'::text])))`
+
+Índices: `oposicao_regras_pkey`
 
 ## oposicao_resposta
 

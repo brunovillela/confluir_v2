@@ -33,6 +33,7 @@ import { formatarCnpjCpf, formatarData, formatarDataHora } from "@/lib/formato"
 import { mascaraCpf } from "@/lib/mascaras"
 import { estadoPrazo } from "@/lib/oposicao-constantes"
 import { origemAtual } from "@/lib/tenant-url"
+import { regrasDaCampanha } from "@/lib/db/oposicao-regras"
 import { getVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 import {
@@ -79,6 +80,9 @@ export default async function ComprovantePage({
   await registrarAcessoDoTitular(c.id, "comprovante_visto")
 
   const aguardando = c.situacao === "aguardando_documento"
+  // Decisões jurídicas da campanha: carta depois do prazo e assinaturas aceitas.
+  const { efetivas: regras } = await regrasDaCampanha(c.campanhaId)
+  const cartaForaRecusada = regras.carta_fora_prazo === "recusar"
   // "Não quero me opor" não é oposição: nada de "Oposição registrada" nem de
   // comprovante para imprimir — só a escolha e, no prazo, o caminho de volta.
   const desistente = c.situacao === "desistente"
@@ -208,9 +212,10 @@ export default async function ComprovantePage({
           <Alert variant="warning">
             <AlertDescription>
               O prazo da campanha terminou
-              {c.prazo_fim ? ` em ${formatarData(c.prazo_fim)}` : ""}. A carta
-              ainda pode ser enviada aqui, mas cabe à entidade decidir se aceita
-              o envio fora do prazo: fale com ela.
+              {c.prazo_fim ? ` em ${formatarData(c.prazo_fim)}` : ""}.{" "}
+              {cartaForaRecusada
+                ? "A carta assinada não pode mais ser enviada. Fale com a entidade."
+                : "A carta ainda pode ser enviada aqui; a entidade vai ver que chegou depois do prazo."}
             </AlertDescription>
           </Alert>
         )}
@@ -268,6 +273,9 @@ export default async function ComprovantePage({
               É gratuito e pede uma conta gov.br nível prata ou ouro. Assine com a
               SUA conta: o CPF da assinatura precisa ser o seu. O gov.br devolve
               um arquivo novo, já assinado — é ele que você envia.
+              {regras.assinaturas_aceitas === "govbr_icp"
+                ? " Sem conta prata ou ouro? A carta também pode ser assinada com certificado digital e-CPF (ICP-Brasil)."
+                : " Esta campanha aceita só a assinatura do gov.br."}
             </p>
           </li>
           <li>
@@ -276,7 +284,9 @@ export default async function ComprovantePage({
               {c.prazo_fim && prazo === "aberto" ? ` até ${formatarData(c.prazo_fim)}` : ""}.
             </p>
             <div className="mt-2">
-              <EnviarDocumento opositorId={c.id} campanhaId={c.campanhaId} />
+              {!(cartaForaRecusada && prazo === "depois") && (
+                <EnviarDocumento opositorId={c.id} campanhaId={c.campanhaId} />
+              )}
             </div>
           </li>
         </ol>

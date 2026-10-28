@@ -14,7 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { requirePermissao } from "@/lib/auth"
+import { podeNaOposicao, regrasDaCampanha, requireOposicao } from "@/lib/db/oposicao-regras"
 import { obterOpositorDetalhe } from "@/lib/db/oposicao"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { mascaraCpf } from "@/lib/mascaras"
@@ -32,16 +32,14 @@ export default async function OpositorPage({
   params: Promise<{ id: string; opositorId: string }>
   searchParams: Promise<{ avaliado?: string }>
 }) {
-  await requirePermissao("oposicao")
-
   const { id, opositorId } = await params
+  const sessao = await requireOposicao("consultar", id)
+  const podeAvaliar = podeNaOposicao(sessao.permissoes, "avaliar", (await regrasDaCampanha(id)).efetivas.segregacao)
   const { avaliado } = await searchParams
   const o = await obterOpositorDetalhe(opositorId)
   if (!o || o.campanhaId !== id) notFound()
 
-  const avaliavel = ["nao_avaliada", "aprovada", "reprovada"].includes(
-    o.situacao
-  )
+  const avaliavel = podeAvaliar && ["nao_avaliada", "aprovada", "reprovada"].includes(o.situacao)
   const q = o.requisitos
   // A coluna guarda só o dia; a hora da decisão vem da trilha (M13).
   const decisaoEm =
@@ -155,7 +153,7 @@ export default async function OpositorPage({
               <p className="text-muted-foreground text-sm">Não foi possível gerar o link do arquivo.</p>
             )}
             <SeloAssinatura validacao={o.validacao} />
-            <ReverificarAssinatura opositorId={o.id} campanhaId={id} />
+            {podeAvaliar && <ReverificarAssinatura opositorId={o.id} campanhaId={id} />}
           </CardContent>
         </Card>
       )}

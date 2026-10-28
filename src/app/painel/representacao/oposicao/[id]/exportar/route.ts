@@ -1,11 +1,11 @@
 import type { NextRequest } from "next/server"
 
 import { getSessaoPainel } from "@/lib/auth"
+import { podeNaOposicao } from "@/lib/db/oposicao-regras"
 import { exportarOpositores } from "@/lib/db/oposicao-gestao"
 import { registrarExportacao } from "@/lib/exportacoes"
 import { mascaraCpf } from "@/lib/mascaras"
 import { MODOS_FORMALIZACAO, ROTULO_SITUACAO_OPOSITOR, SITUACOES_OPOSITOR, type SituacaoOpositor } from "@/lib/oposicao-constantes"
-import { podeAcessar } from "@/lib/permissoes"
 import { dataXlsx, planilhaXlsx, respostaXlsx } from "@/lib/xlsx"
 
 /** Data e hora de São Paulo como texto ("27/10/2026 14:32"), para a planilha. */
@@ -24,7 +24,7 @@ function dataHoraSP(iso: string | null): string | null {
 /** Oposições da campanha em XLSX, com os filtros da tela (C7 da avaliação). */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   const sessao = await getSessaoPainel()
-  if (!sessao || !podeAcessar(sessao.permissoes, "oposicao")) {
+  if (!sessao || !podeNaOposicao(sessao.permissoes, "consultar", null)) {
     return new Response("Sem acesso", { status: 403 })
   }
   const { id } = await params

@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
-import { requirePermissao } from "@/lib/auth"
+import { type SessaoPainel } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
+import { regrasDoFormulario, salvarRegrasDaEntidade, sessaoParaOposicao } from "@/lib/db/oposicao-regras"
 import {
   adicionarPergunta,
   atualizarCampanha,
@@ -44,8 +45,16 @@ function numero(fd: FormData, campo: string): number | null {
   return v && !Number.isNaN(Number(v)) ? Number(v) : null
 }
 
-async function requireOposicao() {
-  return requirePermissao("oposicao")
+/**
+ * A permissão da ação na campanha (ou no padrão da entidade): com a decisão
+ * "permissões separadas", configurar e avaliar pedem permissões próprias.
+ */
+async function exigirNaOposicao(
+  acao: "configurar" | "avaliar",
+  campanhaId: string | null
+): Promise<{ sessao: SessaoPainel } | { erro: string }> {
+  const r = await sessaoParaOposicao(acao, campanhaId)
+  return r.erro !== undefined ? { erro: r.erro } : { sessao: r.sessao }
 }
 
 function revalidar(id?: string) {
@@ -92,14 +101,32 @@ function lerDados(fd: FormData): Omit<DadosCampanha, "documento_modelo_url"> {
     video_nao_filiado_tempo: numero(fd, "video_nao_filiado_tempo"),
     video_agradecimento_url: ouNull(texto(fd, "video_agradecimento_url")),
     fonteIds: fd.getAll("fonte").map(String).filter(Boolean),
+    // Decisões jurídicas da campanha ("" = padrão da entidade).
+    regras: regrasDoFormulario(fd),
   }
+}
+
+/** Salva as decisões jurídicas padrão da entidade. */
+export async function salvarRegrasEntidadeAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  const permissao = await exigirNaOposicao("configurar", null)
+  if ("erro" in permissao) return { erro: permissao.erro }
+  const { sessao } = permissao
+  const { erro } = await salvarRegrasDaEntidade(regrasDoFormulario(fd), {
+    id: sessao.usuario.id,
+    nome: sessao.usuario.nome_completo ?? sessao.usuario.nome_guerra ?? null,
+  })
+  if (erro) return { erro }
+  revalidatePath("/painel/representacao/oposicao")
+  return { ok: "Decisões salvas. Valem para as campanhas que seguem o padrão e ainda não foram abertas." }
 }
 
 export async function criarCampanhaAction(
   _prev: EstadoForm,
   fd: FormData
 ): Promise<EstadoForm> {
-  const sessao = await requireOposicao()
+  const permissao = await exigirNaOposicao("configurar", texto(fd, "campanha_id") || null)
+  if ("erro" in permissao) return { erro: permissao.erro }
+  const { sessao } = permissao
   const { caminho, erro: erroArq } = await lerModelo(fd)
   if (erroArq) return { erro: erroArq }
   const { id, erro } = await criarCampanha(
@@ -115,7 +142,9 @@ export async function atualizarCampanhaAction(
   _prev: EstadoForm,
   fd: FormData
 ): Promise<EstadoForm> {
-  const sessao = await requireOposicao()
+  const permissao = await exigirNaOposicao("configurar", texto(fd, "campanha_id") || null)
+  if ("erro" in permissao) return { erro: permissao.erro }
+  const { sessao } = permissao
   const id = texto(fd, "campanha_id")
   if (!id) return { erro: "Campanha inválida." }
   const { caminho, erro: erroArq } = await lerModelo(fd)
@@ -134,7 +163,9 @@ export async function adicionarPerguntaAction(
   _prev: EstadoForm,
   fd: FormData
 ): Promise<EstadoForm> {
-  const sessao = await requireOposicao()
+  const permissao = await exigirNaOposicao("configurar", texto(fd, "campanha_id") || null)
+  if ("erro" in permissao) return { erro: permissao.erro }
+  const { sessao } = permissao
   const id = texto(fd, "campanha_id")
   const { erro } = await adicionarPergunta(id, texto(fd, "pergunta"), sessao.usuario.id)
   if (erro) return { erro }
@@ -146,7 +177,9 @@ export async function excluirPerguntaAction(
   _prev: EstadoForm,
   fd: FormData
 ): Promise<EstadoForm> {
-  const sessao = await requireOposicao()
+  const permissao = await exigirNaOposicao("configurar", texto(fd, "campanha_id") || null)
+  if ("erro" in permissao) return { erro: permissao.erro }
+  const { sessao } = permissao
   const { erro } = await excluirPergunta(texto(fd, "pergunta_id"), sessao.usuario.id)
   if (erro) return { erro }
   revalidar(texto(fd, "campanha_id"))
@@ -160,7 +193,9 @@ export async function avaliarOpositorAction(
   _prev: EstadoAvaliar,
   fd: FormData
 ): Promise<EstadoAvaliar> {
-  const sessao = await requireOposicao()
+  const permissao = await exigirNaOposicao("avaliar", texto(fd, "campanha_id") || null)
+  if ("erro" in permissao) return { erro: permissao.erro }
+  const { sessao } = permissao
   const id = texto(fd, "opositor_id")
   if (!id) return { erro: "Oposição inválida." }
   const aprovar = texto(fd, "decisao") === "aprovar"
@@ -196,7 +231,9 @@ export type EstadoLote = EstadoForm & { puladas?: PuladaLote[] }
  * quem tem pendência no checklist e devolve a lista delas.
  */
 export async function avaliarEmLoteAction(_prev: EstadoLote, fd: FormData): Promise<EstadoLote> {
-  const sessao = await requireOposicao()
+  const permissao = await exigirNaOposicao("avaliar", texto(fd, "campanha_id") || null)
+  if ("erro" in permissao) return { erro: permissao.erro }
+  const { sessao } = permissao
   const campanhaId = texto(fd, "campanha_id")
   if (!campanhaId) return { erro: "Campanha inválida." }
   const aprovar = texto(fd, "decisao") === "aprovar"
@@ -231,7 +268,9 @@ export async function avaliarEmLoteAction(_prev: EstadoLote, fd: FormData): Prom
 
 /** Encerra, depois do prazo, as que não mandaram a carta (A12). */
 export async function encerrarSemCartaAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
-  const sessao = await requireOposicao()
+  const permissao = await exigirNaOposicao("avaliar", texto(fd, "campanha_id") || null)
+  if ("erro" in permissao) return { erro: permissao.erro }
+  const { sessao } = permissao
   const campanhaId = texto(fd, "campanha_id")
   if (!campanhaId) return { erro: "Campanha inválida." }
   const { encerradas, erro } = await encerrarSemCarta({ campanhaId, usuarioId: sessao.usuario.id })
@@ -245,7 +284,9 @@ export async function encerrarSemCartaAction(_prev: EstadoForm, fd: FormData): P
 
 /** Registra o envio da relação de aprovadas a um empregador (C7). */
 export async function registrarEnvioEmpregadorAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
-  const sessao = await requireOposicao()
+  const permissao = await exigirNaOposicao("configurar", texto(fd, "campanha_id") || null)
+  if ("erro" in permissao) return { erro: permissao.erro }
+  const { sessao } = permissao
   const campanhaId = texto(fd, "campanha_id")
   if (!campanhaId) return { erro: "Campanha inválida." }
   const empresa = texto(fd, "empresa_id")
@@ -266,7 +307,9 @@ export async function registrarEnvioEmpregadorAction(_prev: EstadoForm, fd: Form
 
 /** Passa a carta assinada de novo pelo validador (onda 3: legado e validador novo). */
 export async function reverificarAssinaturaAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
-  const sessao = await requireOposicao()
+  const permissao = await exigirNaOposicao("avaliar", texto(fd, "campanha_id") || null)
+  if ("erro" in permissao) return { erro: permissao.erro }
+  const { sessao } = permissao
   const id = texto(fd, "opositor_id")
   const campanhaId = texto(fd, "campanha_id")
   if (!id) return { erro: "Oposição inválida." }

@@ -22,7 +22,9 @@ import type { OpositorLinha } from "@/lib/db/oposicao"
 import { formatarDataHora } from "@/lib/formato"
 import { mascaraCpf } from "@/lib/mascaras"
 import {
+  DECISOES_JURIDICAS,
   MEIOS_ENVIO,
+  type RegrasOposicao,
   ROTULO_SITUACAO_OPOSITOR,
   type SituacaoOpositor,
 } from "@/lib/oposicao-constantes"
@@ -32,6 +34,7 @@ import {
   encerrarSemCartaAction,
   registrarEnvioEmpregadorAction,
   reverificarAssinaturaAction,
+  salvarRegrasEntidadeAction,
   type EstadoLote,
 } from "./actions"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
@@ -63,16 +66,19 @@ export function ListaOpositores({
   linhas,
   total,
   filtros,
+  podeAvaliar = true,
 }: {
   campanhaId: string
   linhas: OpositorLinha[]
   total: number
   filtros: { situacao: string; busca: string; fonte: string }
+  /** Sem a permissão de avaliar (segregação), a lista só mostra. */
+  podeAvaliar?: boolean
 }) {
   const [marcadas, setMarcadas] = useState<Set<string>>(new Set())
   const [estado, acao, pendente] = useActionState<EstadoLote, FormData>(avaliarEmLoteAction, {})
   const [alcance, setAlcance] = useState<"marcadas" | "filtradas">("marcadas")
-  const avaliaveis = linhas.filter((l) => l.situacao === "nao_avaliada")
+  const avaliaveis = podeAvaliar ? linhas.filter((l) => l.situacao === "nao_avaliada") : []
   const todasMarcadas = avaliaveis.length > 0 && avaliaveis.every((l) => marcadas.has(l.id))
   const alterna = (id: string) =>
     setMarcadas((m) => {
@@ -85,6 +91,7 @@ export function ListaOpositores({
 
   return (
     <div className="grid gap-4">
+      {podeAvaliar && (
       <form
         action={acao}
         onSubmit={(e) => {
@@ -192,6 +199,7 @@ export function ListaOpositores({
           </details>
         )}
       </form>
+      )}
 
       {linhas.length === 0 ? (
         <p className="text-muted-foreground py-8 text-center text-sm">Nenhum opositor com esses filtros.</p>
@@ -231,7 +239,7 @@ export function ListaOpositores({
             {linhas.map((o) => (
               <TableRow key={o.id} data-state={marcadas.has(o.id) ? "selected" : undefined}>
                 <TableCell>
-                  {o.situacao === "nao_avaliada" && (
+                  {podeAvaliar && o.situacao === "nao_avaliada" && (
                     <input
                       type="checkbox"
                       aria-label={`Marcar ${o.nome ?? "oposição"}`}
@@ -418,6 +426,59 @@ export function ReverificarAssinatura({ opositorId, campanhaId }: { opositorId: 
         <Button type="submit" variant="ghost" size="sm" disabled={pendente}>
           {pendente ? <Loader2 className="animate-spin" /> : <RotateCw />}
           Reverificar assinatura
+        </Button>
+      </div>
+    </form>
+  )
+}
+
+/**
+ * Decisões jurídicas padrão da entidade (28/10/2026). Cada decisão em rádio,
+ * com o efeito de cada opção dito na tela; deixar em branco é possível, mas
+ * aí nenhuma campanha que siga o padrão abre.
+ */
+export function RegrasEntidadeForm({ regras }: { regras: RegrasOposicao }) {
+  const [estado, acao, pendente] = useActionState(salvarRegrasEntidadeAction, {})
+  const envio = useEnvioFormulario(acao, estado)
+  return (
+    <form action={acao} {...envio} className="grid gap-5">
+      {DECISOES_JURIDICAS.map((d) => (
+        <fieldset key={d.chave} className="grid gap-2">
+          <legend className="text-sm font-medium">{d.rotulo}</legend>
+          <p className="text-muted-foreground text-xs">{d.ajuda}</p>
+          <div className="grid gap-2">
+            {d.opcoes.map((o) => (
+              <label key={o.chave} className="flex items-start gap-2 text-sm">
+                <input
+                  type="radio"
+                  name={`regra_${d.chave}`}
+                  value={o.chave}
+                  defaultChecked={regras[d.chave] === o.chave}
+                  className="mt-0.5 size-4"
+                />
+                <span>
+                  <span className="font-medium">{o.rotulo}</span>
+                  <span className="text-muted-foreground block text-xs">{o.efeito}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      ))}
+      {estado.erro && (
+        <Alert variant="destructive">
+          <AlertDescription>{estado.erro}</AlertDescription>
+        </Alert>
+      )}
+      {estado.ok && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>{estado.ok}</AlertDescription>
+        </Alert>
+      )}
+      <div>
+        <Button type="submit" disabled={pendente}>
+          {pendente && <Loader2 className="animate-spin" />}
+          Salvar decisões
         </Button>
       </div>
     </form>

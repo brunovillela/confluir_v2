@@ -140,6 +140,10 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
     flags: [
       { chave: "assembleias", rotulo: "Votações e assembleias" },
       { chave: "oposicao", rotulo: "Oposição à contribuição assistencial" },
+      // Valem quando a decisão jurídica "permissões separadas" está ligada
+      // (entidade ou campanha); sem ela, "oposicao" faz tudo.
+      { chave: "oposicao_configurar", rotulo: "Oposição — configurar campanhas (com permissões separadas)" },
+      { chave: "oposicao_avaliar", rotulo: "Oposição — avaliar oposições (com permissões separadas)" },
       { chave: "acordos_coletivos", rotulo: "Acordos coletivos" },
       {
         chave: "negociacoes",

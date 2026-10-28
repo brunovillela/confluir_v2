@@ -11,12 +11,14 @@ import {
 import type { ValidacaoAssinatura } from "@/lib/assinatura-pdf"
 import { formatarData } from "@/lib/formato"
 import {
-  exigeDocumento,
+  exigeDocumentoComRegras,
   MEIOS_ENVIO,
+  type RegrasOposicao,
   type MeioEnvio,
   type ModoFormalizacao,
   type SituacaoOpositor,
 } from "@/lib/oposicao-constantes"
+import { regrasDaCampanha } from "@/lib/db/oposicao-regras"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -71,10 +73,11 @@ type LinhaLote = {
   carta: string | null
   assinatura_validacao: unknown
   modo_formalizacao_ato: string | null
+  matricula: string | null
 }
 
 const COLUNAS_LOTE =
-  "id, nome_completo, cpf, cpf_digitos, situacao, empregador_id, filiacao_id, confirmado_em, prazo_fim_ato, documento_enviado_em, documento_assinado_url, carta, assinatura_validacao, modo_formalizacao_ato"
+  "id, nome_completo, cpf, cpf_digitos, situacao, empregador_id, filiacao_id, confirmado_em, prazo_fim_ato, documento_enviado_em, documento_assinado_url, carta, assinatura_validacao, modo_formalizacao_ato, matricula"
 
 type ContextoCampanha = {
   prazoFim: string | null
@@ -82,6 +85,8 @@ type ContextoCampanha = {
   fontes: Set<string>
   /** Quantas oposições cada CPF (dígitos) tem na campanha. */
   porCpf: Map<string, number>
+  /** Decisões jurídicas que valem na campanha. */
+  regras: RegrasOposicao
 }
 
 async function contextoDaCampanha(campanhaId: string): Promise<ContextoCampanha | null> {
@@ -112,6 +117,7 @@ async function contextoDaCampanha(campanhaId: string): Promise<ContextoCampanha 
     if (d) porCpf.set(d, (porCpf.get(d) ?? 0) + 1)
   }
   return {
+    regras: (await regrasDaCampanha(campanhaId)).efetivas,
     prazoFim: texto(c.prazo_fim)?.slice(0, 10) ?? null,
     modo: (texto(c.modo_formalizacao) ?? "tela") as ModoFormalizacao,
     fontes: new Set((fontes ?? []).map((f) => String(f.empresa_id))),
@@ -139,10 +145,11 @@ export function pendenciasParaAprovar(o: LinhaLote, ctx: ContextoCampanha): stri
     else if (!ctx.fontes.has(String(o.empregador_id))) p.push("fonte fora da campanha")
   }
   const modo = (texto(o.modo_formalizacao_ato) ?? ctx.modo) as ModoFormalizacao
+  if (!o.filiacao_id && ctx.regras.prova_nao_filiado === "matricula" && !texto(o.matricula)) p.push("sem a matrícula (exigida do não filiado)")
   const temCarta = Boolean(texto(o.documento_assinado_url) ?? texto(o.carta))
-  if (!temCarta && exigeDocumento(modo, Boolean(o.filiacao_id))) p.push("sem a carta assinada")
+  if (!temCarta && exigeDocumentoComRegras(modo, Boolean(o.filiacao_id), ctx.regras)) p.push("sem a carta assinada")
   if (temCarta) {
-    const problema = problemaDaAssinatura(o.assinatura_validacao as ValidacaoAssinatura | null)
+    const problema = problemaDaAssinatura(o.assinatura_validacao as ValidacaoAssinatura | null, ctx.regras.assinaturas_aceitas)
     if (problema) p.push(problema.replace(/\.$/, "").toLowerCase())
   }
   return p

@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { requirePermissao } from "@/lib/auth"
+import { regrasDaEntidade, requireOposicao } from "@/lib/db/oposicao-regras"
 import { opcoesFontes } from "@/lib/db/oposicao"
 
 import { CampanhaForm } from "../oposicao-forms"
@@ -12,8 +12,8 @@ import { CampanhaForm } from "../oposicao-forms"
 export const metadata: Metadata = { title: "Nova campanha — Confluir" }
 
 export default async function NovaCampanhaPage() {
-  await requirePermissao("oposicao")
-  const fontes = await opcoesFontes()
+  await requireOposicao("configurar")
+  const [fontes, { regras }] = await Promise.all([opcoesFontes(), regrasDaEntidade()])
 
   return (
     <>
@@ -38,6 +38,7 @@ export default async function NovaCampanhaPage() {
             fontes={fontes}
             fonteIds={[]}
             aoCancelarHref="/painel/representacao/oposicao"
+            regrasEntidade={regras}
           />
         </CardContent>
       </Card>

@@ -13,7 +13,7 @@ import { SelectNativo } from "@/components/ui/select-nativo"
 import { Textarea } from "@/components/ui/textarea"
 import type { CampanhaPublica, VinculoAtivo } from "@/lib/db/oposicao"
 import { formatarData } from "@/lib/formato"
-import { DECLARACAO_PADRAO, exigeDocumento } from "@/lib/oposicao-constantes"
+import { DECLARACAO_PADRAO, exigeDocumentoComRegras } from "@/lib/oposicao-constantes"
 import { cn } from "@/lib/utils"
 
 import { confirmarOposicao, desistir, sairDaOposicao } from "../actions"
@@ -83,7 +83,8 @@ export function OposicaoFlow({
   /** Campanha sem fonte e não filiado: as fontes pagadoras da entidade (M5). */
   fontesGerais?: { id: string; nome: string }[]
 }) {
-  const minimo = videoTempo && videoTempo > 0 ? videoTempo : 0
+  // Decisão jurídica: com o vídeo dispensado, ele aparece sem tempo mínimo.
+  const minimo = campanha.regras.video_minimo === "exigir" && videoTempo && videoTempo > 0 ? videoTempo : 0
   const comVideo = minimo > 0 || Boolean(videoUrl)
   const [restante, setRestante] = useState(minimo)
   const [etapa, setEtapa] = useState<"video" | "form">(comVideo ? "video" : "form")
@@ -259,7 +260,8 @@ export function OposicaoFlow({
     )
   }
 
-  const exigeCarta = exigeDocumento(campanha.modo_formalizacao, filiado)
+  const exigeCarta = exigeDocumentoComRegras(campanha.modo_formalizacao, filiado, campanha.regras)
+  const matriculaObrigatoria = !filiado && campanha.regras.prova_nao_filiado === "matricula"
 
   return (
     <div className="grid gap-5">
@@ -360,12 +362,15 @@ export function OposicaoFlow({
           )}
 
           <div className="grid gap-1.5">
-            <Label htmlFor="matricula">Matrícula na fonte pagadora (se souber)</Label>
+            <Label htmlFor="matricula">
+              {matriculaObrigatoria ? "Matrícula na fonte pagadora" : "Matrícula na fonte pagadora (se souber)"}
+            </Label>
             <Input
               id="matricula"
               name="matricula"
               autoComplete="off"
               maxLength={40}
+              required={matriculaObrigatoria}
               value={matricula}
               onChange={(e) => {
                 setMatricula(e.target.value)

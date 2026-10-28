@@ -19,8 +19,16 @@ import { botaoEmail, caixaAviso, escaparHtml, paragrafo, textoSuave, tituloEmail
 import { formatarData } from "@/lib/formato"
 import { somarDiasISO } from "@/lib/periodo-dias"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { colunasDasRegras, regrasDaCampanha, regrasDaEntidade, regrasDaLinhaCampanha } from "@/lib/db/oposicao-regras"
 import {
+  CHAVES_DECISAO,
+  DECISOES_JURIDICAS,
   DECLARACAO_PADRAO,
+  decisoesFaltando,
+  REGRAS_VAZIAS,
+  regrasEfetivas,
+  type ChaveDecisao,
+  type RegrasOposicao,
   estadoPrazo,
   TAMANHO_MAX_CARTA,
   MODOS_FORMALIZACAO,
@@ -117,6 +125,8 @@ export type CampanhaDetalhe = {
   contagem: Record<SituacaoOpositor, number>
   /** Oposições, sem os desistentes (M11). */
   total: number
+  /** Decisões jurídicas da própria campanha (nulo = padrão da entidade). */
+  regras: RegrasOposicao
 }
 
 const SITUACOES: SituacaoOpositor[] = [
@@ -198,6 +208,7 @@ export async function obterCampanha(
     })),
     contagem,
     total: SITUACOES.filter((k) => k !== "desistente").reduce((s, k) => s + contagem[k], 0),
+    regras: regrasDaLinhaCampanha(c as Record<string, unknown>),
   }
 }
 
@@ -373,6 +384,8 @@ export type DadosCampanha = {
   /** Caminho já gravável (upload feito na action); undefined = não mexer. */
   documento_modelo_url?: string | null
   fonteIds: string[]
+  /** Decisões jurídicas da campanha (nulo = padrão da entidade); undefined = não mexer. */
+  regras?: RegrasOposicao
 }
 
 function normalizar(dados: DadosCampanha): Record<string, unknown> {
@@ -397,7 +410,33 @@ function normalizar(dados: DadosCampanha): Record<string, unknown> {
   if (dados.documento_modelo_url !== undefined) {
     p.documento_modelo_url = dados.documento_modelo_url
   }
+  if (dados.regras) Object.assign(p, colunasDasRegras(dados.regras))
   return p
+}
+
+/** Decisões que mudam o que o trabalhador teve de fazer: travadas com oposições registradas. */
+const DECISOES_DO_ATO: ChaveDecisao[] = ["video_minimo", "assinaturas_aceitas", "prova_nao_filiado"]
+
+/**
+ * Campanha que vai ficar ABERTA: todas as decisões jurídicas precisam valer
+ * (as da campanha ou o padrão da entidade), e as vigentes são gravadas nela —
+ * mudar o padrão depois não muda campanha aberta. Devolve o erro ou as
+ * colunas a gravar.
+ */
+async function decisoesParaAbrir(
+  situacao: string,
+  propria: RegrasOposicao
+): Promise<{ erro?: string; colunas?: Record<string, string | null> }> {
+  if (situacao !== "aberta") return {}
+  const entidade = (await regrasDaEntidade()).regras
+  const efetivas = regrasEfetivas(propria, entidade)
+  const faltam = decisoesFaltando(efetivas)
+  if (faltam.length) {
+    return {
+      erro: `Para abrir a campanha, defina as decisões jurídicas (na campanha ou no padrão da entidade, em Oposição › Decisões jurídicas): ${faltam.join("; ")}.`,
+    }
+  }
+  return { colunas: colunasDasRegras(efetivas) }
 }
 
 /**
@@ -471,6 +510,7 @@ const ROTULOS_CAMPO_CAMPANHA: Record<string, string> = {
   video_nao_filiado_tempo: "tempo do vídeo do não filiado",
   video_agradecimento_url: "vídeo de agradecimento",
   documento_modelo_url: "documento-modelo",
+  ...Object.fromEntries(DECISOES_JURIDICAS.map((d) => [`regra_${d.chave}`, d.rotulo.toLowerCase()])),
 }
 
 /**
@@ -495,12 +535,15 @@ export async function criarCampanha(
   if (!dados.nome.trim()) return { erro: "Informe o nome da campanha." }
   const erroDatas = erroDeDatas(dados)
   if (erroDatas) return { erro: erroDatas }
+  const abrir = await decisoesParaAbrir(dados.situacao, dados.regras ?? { ...REGRAS_VAZIAS })
+  if (abrir.erro) return { erro: abrir.erro }
   const empId = await tenantAtual()
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("oposicao_campanha")
     .insert({
       ...normalizar(dados),
+      ...(abrir.colunas ?? {}),
       codigo: gerarCodigoProcesso(),
       emp_proprietaria_id: empId,
     })
@@ -536,13 +579,36 @@ export async function atualizarCampanha(
   const novo = normalizar(dados)
   const { data: atual, error: erroLer } = await admin
     .from("oposicao_campanha")
-    .select(Object.keys(novo).join(", "))
+    .select([...new Set([...Object.keys(novo), ...CHAVES_DECISAO.map((c) => `regra_${c}`)])].join(", "))
     .eq("id", id)
     .eq("emp_proprietaria_id", empId)
     .maybeSingle()
   if (erroLer || !atual) return { erro: "Campanha não encontrada." }
   const antes = atual as unknown as Record<string, unknown>
+  // Decisões jurídicas: as do formulário ou, sem elas, as que já estão gravadas.
+  const propriaNova = dados.regras ?? regrasDaLinhaCampanha(antes)
+  const abrir = await decisoesParaAbrir(String(novo.situacao), propriaNova)
+  if (abrir.erro) return { erro: abrir.erro }
+  if (abrir.colunas) Object.assign(novo, abrir.colunas)
   const mudou = Object.keys(novo).filter((k) => (antes[k] ?? null) !== (novo[k] ?? null))
+
+  // O que o trabalhador teve de fazer (vídeo, assinatura, prova) não muda
+  // depois de haver oposição registrada — comparado pelo que VALE, para que
+  // gravar na campanha o padrão que ela já seguia não conte como mudança.
+  const entidadeAgora = (await regrasDaEntidade()).regras
+  const valiaAntes = regrasEfetivas(regrasDaLinhaCampanha(antes), entidadeAgora)
+  const valeDepois = regrasEfetivas(abrir.colunas ? regrasDaLinhaCampanha(novo) : propriaNova, entidadeAgora)
+  const atoMudou = DECISOES_DO_ATO.filter((c) => valiaAntes[c] !== valeDepois[c])
+  if (atoMudou.length) {
+    const registradas = await oposicoesNovasDaCampanha(admin, empId, id)
+    if (registradas > 0) {
+      return {
+        erro: `Esta campanha já tem ${registradas.toLocaleString("pt-BR")} oposição(ões) registrada(s): ${atoMudou
+          .map((c) => DECISOES_JURIDICAS.find((d) => d.chave === c)?.rotulo.toLowerCase())
+          .join(", ")} não pode(m) mais mudar — quem se opôs seguiu as regras de agora.`,
+      }
+    }
+  }
 
   if (mudou.some((k) => k === "texto_declaracao" || k === "modo_formalizacao")) {
     const registradas = await oposicoesNovasDaCampanha(admin, empId, id)
@@ -856,6 +922,10 @@ export type CampanhaPublica = {
   video_agradecimento_url: string | null
   fontes: { id: string; nome: string }[]
   perguntas: { id: string; pergunta: string | null }[]
+  /** Decisões jurídicas que valem (campanha ou padrão da entidade). */
+  regras: RegrasOposicao
+  /** Todas decididas: sem isso a campanha não recebe oposição. */
+  regrasCompletas: boolean
 }
 
 export async function obterCampanhaPublica(
@@ -901,6 +971,7 @@ export async function obterCampanhaPublica(
     }
   }
 
+  const regras = regrasEfetivas(regrasDaLinhaCampanha(c as Record<string, unknown>), (await regrasDaEntidade()).regras)
   return {
     id: String(c.id),
     nome: texto(c.nome),
@@ -923,6 +994,8 @@ export async function obterCampanhaPublica(
       id: String(p.id),
       pergunta: texto(p.pergunta),
     })),
+    regras,
+    regrasCompletas: decisoesFaltando(regras).length === 0,
   }
 }
 
@@ -1378,7 +1451,7 @@ export async function subirDocumentoAssinado(
   // Confirma posse (mesmo CPF) antes de aceitar o upload.
   const { data: o } = await admin
     .from("oposicao_opositor")
-    .select("id, situacao, documento_assinado_url, campanha_id")
+    .select("id, situacao, documento_assinado_url, campanha_id, prazo_fim_ato")
     .eq("id", opositorId)
     .in("cpf", grafiasDoCpf(limparCpf(cpf) || cpf))
     .eq("emp_proprietaria_id", empId)
@@ -1394,6 +1467,20 @@ export async function subirDocumentoAssinado(
         situacao === "aprovada" || situacao === "reprovada"
           ? "Esta oposição já foi avaliada pela entidade; o documento não pode mais ser trocado."
           : "Esta oposição não recebe documento.",
+    }
+  }
+  // Decisão jurídica "carta depois do prazo = recusar": a primeira carta
+  // que chega depois do prazo do ato não é recebida.
+  if (!troca) {
+    const { efetivas } = await regrasDaCampanha(texto(o.campanha_id))
+    if (efetivas.carta_fora_prazo === "recusar") {
+      const { data: camp } = o.campanha_id
+        ? await admin.from("oposicao_campanha").select("prazo_fim").eq("id", o.campanha_id).eq("emp_proprietaria_id", empId).maybeSingle()
+        : { data: null }
+      const prazo = texto(o.prazo_fim_ato)?.slice(0, 10) ?? texto(camp?.prazo_fim)?.slice(0, 10) ?? null
+      if (prazo && hojeSP() > prazo) {
+        return { erro: `O prazo para enviar a carta assinada terminou em ${formatarData(prazo)}. Fale com a entidade.` }
+      }
     }
   }
   if (troca) {
@@ -1824,7 +1911,9 @@ export async function obterOpositorDetalhe(
     documentoLink,
     documentoEnviadoEm: texto(o.documento_enviado_em),
     validacao,
-    problemaAssinatura: caminhoDocumento ? problemaDaAssinatura(validacao) : null,
+    problemaAssinatura: caminhoDocumento
+      ? problemaDaAssinatura(validacao, (await regrasDaCampanha(texto(o.campanha_id))).efetivas.assinaturas_aceitas)
+      : null,
     userAgent: texto(o.user_agent),
     declaracaoAceita: texto(o.declaracao_aceita),
     declaracaoHash: texto(o.declaracao_hash),
@@ -1849,12 +1938,15 @@ export async function obterOpositorDetalhe(
 
 /**
  * O que impede aprovar sem olhar o PDF (item 13 da onda 2): assinatura
- * inválida, ausente, não verificada ou com CPF de outra pessoa. "Ressalva"
- * (íntegra, mas a raiz não confere com a lista ICP) não barra — enquanto a
- * lista de raízes não for testada com PDF real do gov.br (A8), toda carta
- * correta sai com ressalva. Null = sem impedimento.
+ * inválida, ausente, não verificada ou com CPF de outra pessoa — e, com a
+ * decisão jurídica "só gov.br" (`aceitas = "govbr"`), a carta assinada com
+ * e-CPF da ICP-Brasil. "Ressalva" (íntegra, raiz fora da lista) não barra.
+ * Null = sem impedimento.
  */
-export function problemaDaAssinatura(validacao: ValidacaoAssinatura | null | undefined): string | null {
+export function problemaDaAssinatura(
+  validacao: ValidacaoAssinatura | null | undefined,
+  aceitas: string | null = null
+): string | null {
   if (!validacao || typeof validacao !== "object" || !("situacao" in validacao)) {
     return "A assinatura do PDF não foi verificada."
   }
@@ -1862,6 +1954,12 @@ export function problemaDaAssinatura(validacao: ValidacaoAssinatura | null | und
   if (validacao.situacao === "sem_assinatura") return "O PDF não tem assinatura digital."
   if (validacao.situacao === "erro") return "Não foi possível verificar a assinatura do PDF."
   if (validacao.cpfConfere === false) return "O CPF do certificado não confere com o da oposição."
+  if (aceitas === "govbr") {
+    const valida = validacao.assinaturas.find((a) => a.integra && a.assinaturaOk && a.cobreArquivoTodo) ?? validacao.assinaturas[0]
+    if (valida?.raizTipo === "icp_brasil") {
+      return "A carta foi assinada com e-CPF (ICP-Brasil), e esta campanha aceita só a assinatura do gov.br."
+    }
+  }
   return null
 }
 
@@ -1944,7 +2042,10 @@ export async function avaliarOpositor(
   // Aprovar com a assinatura problemática só com a conferência declarada.
   const problemaAssinatura =
     aprovar && (texto(antes.documento_assinado_url) ?? texto(antes.carta))
-      ? problemaDaAssinatura(antes.assinatura_validacao as ValidacaoAssinatura | null)
+      ? problemaDaAssinatura(
+          antes.assinatura_validacao as ValidacaoAssinatura | null,
+          (await regrasDaCampanha(texto(antes.campanha_id))).efetivas.assinaturas_aceitas
+        )
       : null
   if (problemaAssinatura && !opcoes.confirmarAssinatura) {
     return {

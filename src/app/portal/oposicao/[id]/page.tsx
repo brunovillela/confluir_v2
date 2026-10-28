@@ -53,7 +53,8 @@ export default async function RegistrarOposicaoPage({
   const sessao = await requireSessaoTrabalhador(`/portal/oposicao/${(await params).id}`)
   const { id } = await params
   const campanha = await obterCampanhaPublica(id)
-  if (!campanha || campanha.situacao !== "aberta") notFound()
+  // Sem as decisões jurídicas tomadas, a campanha não recebe oposição.
+  if (!campanha || campanha.situacao !== "aberta" || !campanha.regrasCompletas) notFound()
 
   // Já se opôs → vai direto ao comprovante. Quem disse "não quero me opor"
   // continua podendo registrar enquanto o prazo estiver aberto (A14).

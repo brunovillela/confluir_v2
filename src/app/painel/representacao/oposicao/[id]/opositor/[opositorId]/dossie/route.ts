@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server"
 import { renderToBuffer } from "@react-pdf/renderer"
 
 import { getSessaoPainel } from "@/lib/auth"
+import { podeNaOposicao } from "@/lib/db/oposicao-regras"
 import { obterCampanha, obterOpositorDetalhe } from "@/lib/db/oposicao"
 import { obterOrganizacao } from "@/lib/db/organizacao"
 import { registrarExportacao } from "@/lib/exportacoes"
@@ -11,7 +12,6 @@ import { mascaraCpf } from "@/lib/mascaras"
 import { MODOS_FORMALIZACAO, ROTULO_SITUACAO_OPOSITOR } from "@/lib/oposicao-constantes"
 import { DossieOposicaoPDF } from "@/lib/pdf/dossie-oposicao"
 import { logoDataUri } from "@/lib/pdf/logo-pdf"
-import { podeAcessar } from "@/lib/permissoes"
 
 export const runtime = "nodejs"
 
@@ -29,7 +29,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string; opositorId: string }> }
 ): Promise<Response> {
   const sessao = await getSessaoPainel()
-  if (!sessao || !podeAcessar(sessao.permissoes, "oposicao")) {
+  if (!sessao || !podeNaOposicao(sessao.permissoes, "consultar", null)) {
     return new Response("Sem acesso", { status: 403 })
   }
   const { id, opositorId } = await params

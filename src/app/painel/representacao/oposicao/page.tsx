@@ -1,7 +1,8 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, ArrowRight, Gavel, Plus } from "lucide-react"
+import { ArrowLeft, ArrowRight, Gavel, Plus, Scale } from "lucide-react"
 
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -11,7 +12,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { requirePermissao } from "@/lib/auth"
+import { podeNaOposicao, regrasDaEntidade, requireOposicao } from "@/lib/db/oposicao-regras"
+import { decisoesFaltando } from "@/lib/oposicao-constantes"
 import { listarCampanhas } from "@/lib/db/oposicao"
 import { formatarData } from "@/lib/formato"
 
@@ -26,8 +28,10 @@ const ROTULO_CAMPANHA: Record<string, string> = {
 }
 
 export default async function OposicaoPage() {
-  await requirePermissao("oposicao")
-  const campanhas = await listarCampanhas()
+  const sessao = await requireOposicao("consultar")
+  const [campanhas, entidade] = await Promise.all([listarCampanhas(), regrasDaEntidade()])
+  const faltamPadrao = decisoesFaltando(entidade.regras)
+  const podeConfigurar = podeNaOposicao(sessao.permissoes, "configurar", entidade.regras.segregacao)
 
   return (
     <>
@@ -42,18 +46,40 @@ export default async function OposicaoPage() {
           <h1 className="text-2xl font-semibold tracking-tight">
             Oposição à contribuição assistencial
           </h1>
-          <Button asChild>
-            <Link href="/painel/representacao/oposicao/nova">
-              <Plus />
-              Nova campanha
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/painel/representacao/oposicao/decisoes">
+                <Scale />
+                Decisões jurídicas
+              </Link>
+            </Button>
+            {podeConfigurar && (
+              <Button asChild>
+                <Link href="/painel/representacao/oposicao/nova">
+                  <Plus />
+                  Nova campanha
+                </Link>
+              </Button>
+            )}
+          </div>
         </div>
         <p className="text-muted-foreground mt-1 text-xs">
           Campanhas de oposição vinculadas às fontes pagadoras e a fila de
           avaliação da Filiação.
         </p>
       </div>
+
+      {faltamPadrao.length > 0 && (
+        <Alert variant="warning">
+          <AlertDescription>
+            A entidade ainda não definiu as decisões jurídicas padrão ({faltamPadrao.join("; ")}). Sem elas — aqui ou em
+            cada campanha — nenhuma campanha abre.{" "}
+            <Link href="/painel/representacao/oposicao/decisoes" className="font-medium underline">
+              Definir agora
+            </Link>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {campanhas.length === 0 ? (
         <Card>
