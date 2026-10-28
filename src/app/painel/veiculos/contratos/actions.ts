@@ -13,7 +13,11 @@ import {
   prorrogarContrato,
   subirArquivoVeiculos,
 } from "@/lib/db/veiculos"
-import { editarOrdemAluguel, excluirOrdemAluguel } from "@/lib/db/veiculos-locacao-ordens"
+import {
+  anexarDocumentosOrdemAluguel,
+  editarOrdemAluguel,
+  excluirOrdemAluguel,
+} from "@/lib/db/veiculos-locacao-ordens"
 import { parseValorBR } from "@/lib/valores"
 
 function texto(formData: FormData, campo: string): string {
@@ -240,4 +244,22 @@ export async function prorrogarContratoAction(
   revalidatePath("/painel/veiculos/contratos")
   revalidatePath("/painel/veiculos")
   return { ok: "Contrato prorrogado — registrado no histórico." }
+}
+
+/** Anexa ou troca a fatura e/ou o boleto de uma cobrança ainda não paga nem em processamento. */
+export async function anexarDocumentosOrdemAluguelAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("veiculos_gestao")
+  const contratoId = texto(formData, "contrato_id")
+  const ordemId = texto(formData, "ordem_id")
+  if (!contratoId || !ordemId) return { erro: "Ordem inválida." }
+  const r = await anexarDocumentosOrdemAluguel(contratoId, ordemId, {
+    fatura: arquivo(formData, "fatura"),
+    boleto: arquivo(formData, "boleto"),
+  })
+  if (r.erro) return { erro: r.erro }
+  revalidarOrdemAluguel(contratoId, ordemId)
+  return { ok: r.ok }
 }

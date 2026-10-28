@@ -32,6 +32,7 @@ import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 
 import { editarOrdemAluguelAction, excluirOrdemAluguelAction } from "../actions"
 import {
+  DocumentosCobranca,
   EditarContratoDialog,
   FinalizarContratoForm,
   GerarOrdemAluguelForm,
@@ -56,17 +57,25 @@ export default async function ContratoPage({
   // Paga, em processamento ou encerrada: sem lápis (o servidor confere de novo).
   const temMexivel = contrato.ordens.some(ordemMexivelPeloContrato)
 
-  const [arquivoUrl, historico, fornecedores, usuarios, departamentos, centros] =
-    await Promise.all([
-      urlArquivoVeiculos(contrato.arquivo_contrato_url),
-      historicoDoContrato(id),
-      listarFornecedores(),
-      listarUsuariosAtivos(),
-      listarDepartamentos(),
-      listarCentrosCusto(),
-    ])
+  const [
+    arquivoUrl,
+    historico,
+    fornecedores,
+    usuarios,
+    departamentos,
+    centros,
+  ] = await Promise.all([
+    urlArquivoVeiculos(contrato.arquivo_contrato_url),
+    historicoDoContrato(id),
+    listarFornecedores(),
+    listarUsuariosAtivos(),
+    listarDepartamentos(),
+    listarCentrosCusto(),
+  ])
   const valorMensalTexto =
-    contrato.valor_mensal?.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) ?? ""
+    contrato.valor_mensal?.toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+    }) ?? ""
 
   return (
     <>
@@ -133,7 +142,10 @@ export default async function ContratoPage({
                   bloqueado: f.bloqueado,
                 })),
                 usuarios: usuarios.map((u) => ({ id: u.id, rotulo: u.nome })),
-                departamentos: departamentos.map((d) => ({ id: d.id, rotulo: d.nome })),
+                departamentos: departamentos.map((d) => ({
+                  id: d.id,
+                  rotulo: d.nome,
+                })),
                 centrosCusto: centros.map((c) => ({
                   id: String(c.id),
                   rotulo: rotuloCentroCusto(c),
@@ -232,6 +244,7 @@ export default async function ContratoPage({
                 <TableHead className="text-right">Valor</TableHead>
                 <TableHead>Vencimento</TableHead>
                 <TableHead>Situação</TableHead>
+                <TableHead>Documentos</TableHead>
                 {temMexivel && <TableHead className="w-24" />}
               </TableRow>
             </TableHeader>
@@ -257,6 +270,16 @@ export default async function ContratoPage({
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {o.situacao ?? "—"}
+                  </TableCell>
+                  <TableCell>
+                    <DocumentosCobranca
+                      contratoId={contrato.id}
+                      ordemId={o.id}
+                      codigo={o.codigo}
+                      faturaUrl={o.faturaUrl}
+                      boletoUrl={o.boletoUrl}
+                      podeAnexar={ordemMexivelPeloContrato(o)}
+                    />
                   </TableCell>
                   {temMexivel && (
                     <TableCell>

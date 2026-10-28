@@ -4,7 +4,7 @@ import { camposAutorizacaoInicial, motivoDispensaContrato, registrarEvento, usua
 import { esquemaAusente, hojeSP, lerEmLotes, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
-import { gerarCodigoProcesso, subirComprovanteCompras } from "@/lib/db/compras"
+import { gerarCodigoProcesso, subirComprovanteCompras, subirPdfCompras, urlArquivoCompras } from "@/lib/db/compras"
 import { rotuladorDeAutores } from "@/lib/db/contas-funcao"
 import { guardarCnhAnterior } from "@/lib/db/veiculos-condutores-cnh"
 import { criarNotificacao } from "@/lib/db/notificacoes"
@@ -3085,6 +3085,9 @@ export type ContratoDetalhe = ContratoLinha & {
     tipo: string | null
     processo_compra_id: string | null
     data_pagamento: string | null
+    /** Links assinados (1 h) da fatura e do boleto, no bucket das ordens. */
+    faturaUrl: string | null
+    boletoUrl: string | null
   }[]
 }
 
@@ -3109,7 +3112,7 @@ export async function buscarContrato(
       .order("placa", { ascending: true }),
     admin
       .from("ordens_pagamento")
-      .select("id, codigo, descricao, situacao, valor_inicial_cobranca, vencimento, tipo, processo_compra_id, data_pagamento")
+      .select("id, codigo, descricao, situacao, valor_inicial_cobranca, vencimento, tipo, processo_compra_id, data_pagamento, arquivo_nota_fiscal, arquivo_boleto")
       .eq("contrato_aluguel_id", id)
       .eq("excluido", false)
       .order("vencimento", { ascending: false }),
@@ -3129,7 +3132,7 @@ export async function buscarContrato(
         })),
     ordens: ordensRes.error
       ? []
-      : ((ordensRes.data ?? []) as Record<string, unknown>[]).map((o) => ({
+      : await Promise.all(((ordensRes.data ?? []) as Record<string, unknown>[]).map(async (o) => ({
           id: String(o.id),
           codigo: texto(o.codigo),
           descricao: texto(o.descricao),
@@ -3139,7 +3142,9 @@ export async function buscarContrato(
           tipo: texto(o.tipo),
           processo_compra_id: texto(o.processo_compra_id),
           data_pagamento: texto(o.data_pagamento),
-        })),
+          faturaUrl: await urlArquivoCompras(texto(o.arquivo_nota_fiscal)),
+          boletoUrl: await urlArquivoCompras(texto(o.arquivo_boleto)),
+        }))),
   }
 }
 
@@ -3487,11 +3492,15 @@ export async function gerarOrdemAluguel(
     return { erro: `Já existe ordem deste contrato para o período ${dados.periodo}.` }
   }
   // Fatura = documento fiscal da locação; boleto, quando houver, define a forma.
-  // Ficam no bucket das ordens (compras), onde o Financeiro os abre.
+  // Ficam no bucket das ordens (compras), onde o Financeiro os abre. Boleto só
+  // em PDF, como em Documentos da ordem.
   const subidos: string[] = []
-  const subir = async (pasta: string, arquivo: File | null | undefined) => {
+  const subir = async (pasta: "notas" | "boletos", arquivo: File | null | undefined) => {
     if (!arquivo || arquivo.size === 0) return { caminho: null as string | null }
-    const r = await subirComprovanteCompras(`${pasta}/locacao/${contratoId}`, arquivo)
+    const r = await (pasta === "boletos" ? subirPdfCompras : subirComprovanteCompras)(
+      `${pasta}/locacao/${contratoId}`,
+      arquivo
+    )
     if (r.caminho) subidos.push(r.caminho)
     return { caminho: r.caminho ?? null, erro: r.erro }
   }

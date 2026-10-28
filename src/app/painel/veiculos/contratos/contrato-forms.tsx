@@ -2,9 +2,12 @@
 
 import { useActionState, useState } from "react"
 import {
+  Barcode,
   CalendarPlus,
   FileCheck2,
+  FileText,
   Loader2,
+  Paperclip,
   Pencil,
   Receipt,
   ScrollText,
@@ -34,6 +37,7 @@ import {
   finalizarContratoAction,
   gerarOrdemAluguelAction,
   prorrogarContratoAction,
+  anexarDocumentosOrdemAluguelAction,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
@@ -147,7 +151,9 @@ function CamposContrato({
         <select
           id={id("responsavel_id")}
           name="responsavel_id"
-          defaultValue={atual ? (atual.responsavel_id ?? "") : responsavelPadraoId}
+          defaultValue={
+            atual ? (atual.responsavel_id ?? "") : responsavelPadraoId
+          }
           className={SELECT}
         >
           {atual && !atual.responsavel_id && (
@@ -322,13 +328,13 @@ export function GerarOrdemAluguelForm({
         </div>
         <div className="grid gap-1">
           <Label htmlFor={`boleto-${contratoId}`} className="text-xs">
-            Boleto, se houver
+            Boleto em PDF, se houver
           </Label>
           <Input
             id={`boleto-${contratoId}`}
             name="boleto"
             type="file"
-            accept="application/pdf,image/jpeg,image/png,image/webp"
+            accept="application/pdf"
             className="h-8 text-xs"
           />
         </div>
@@ -587,6 +593,137 @@ export function ProrrogarContratoDialog({
           </form>
         </DialogContent>
       </Dialog>
+      {estado.ok && (
+        <span className="text-success-fg text-xs">{estado.ok}</span>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Fatura e boleto na linha da cobrança: abrir o que já foi anexado e, enquanto
+ * a ordem não foi paga nem entrou em processamento, anexar ou trocar.
+ */
+export function DocumentosCobranca({
+  contratoId,
+  ordemId,
+  codigo,
+  faturaUrl,
+  boletoUrl,
+  podeAnexar,
+}: {
+  contratoId: string
+  ordemId: string
+  codigo: string | null
+  faturaUrl: string | null
+  boletoUrl: string | null
+  podeAnexar: boolean
+}) {
+  const [aberto, setAberto] = useState(false)
+  const [estado, formAction, pendente] = useAcaoDoDialogo(
+    anexarDocumentosOrdemAluguelAction,
+    () => setAberto(false),
+  )
+  const envio = useEnvioFormulario(formAction, estado)
+  const link =
+    "text-primary inline-flex items-center gap-1 text-xs hover:underline"
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {faturaUrl ? (
+        <a
+          href={faturaUrl}
+          target="_blank"
+          rel="noreferrer"
+          className={link}
+          title="Abrir a fatura"
+        >
+          <FileText className="size-3.5" />
+          Fatura
+        </a>
+      ) : (
+        <span className="text-muted-foreground text-xs">sem fatura</span>
+      )}
+      {boletoUrl && (
+        <a
+          href={boletoUrl}
+          target="_blank"
+          rel="noreferrer"
+          className={link}
+          title="Abrir o boleto"
+        >
+          <Barcode className="size-3.5" />
+          Boleto
+        </a>
+      )}
+      {podeAnexar && (
+        <Dialog open={aberto} onOpenChange={setAberto}>
+          <DialogTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              title="Anexar ou trocar fatura e boleto"
+              aria-label={`Anexar ou trocar fatura e boleto da ordem ${codigo ?? ""}`}
+            >
+              <Paperclip />
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Fatura e boleto — ordem {codigo ?? ""}</DialogTitle>
+              <DialogDescription>
+                Anexe o que faltou ou troque um arquivo errado. O anterior fica
+                registrado no histórico da ordem.
+              </DialogDescription>
+            </DialogHeader>
+            <form action={formAction} {...envio} className="grid gap-3">
+              <input type="hidden" name="contrato_id" value={contratoId} />
+              <input type="hidden" name="ordem_id" value={ordemId} />
+              {estado.erro && (
+                <Alert variant="destructive">
+                  <AlertDescription>{estado.erro}</AlertDescription>
+                </Alert>
+              )}
+              <div className="grid gap-1.5">
+                <Label htmlFor={`dc_fatura_${ordemId}`}>
+                  {faturaUrl ? "Trocar a fatura" : "Fatura da locadora"}{" "}
+                  (PDF/JPG/PNG)
+                </Label>
+                <Input
+                  id={`dc_fatura_${ordemId}`}
+                  name="fatura"
+                  type="file"
+                  accept="application/pdf,image/jpeg,image/png,image/webp"
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor={`dc_boleto_${ordemId}`}>
+                  {boletoUrl ? "Trocar o boleto" : "Boleto"} (PDF)
+                </Label>
+                <Input
+                  id={`dc_boleto_${ordemId}`}
+                  name="boleto"
+                  type="file"
+                  accept="application/pdf"
+                />
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setAberto(false)}
+                >
+                  Voltar
+                </Button>
+                <Button type="submit" disabled={pendente}>
+                  {pendente && <Loader2 className="animate-spin" />}
+                  Salvar
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
       {estado.ok && (
         <span className="text-success-fg text-xs">{estado.ok}</span>
       )}
