@@ -51,6 +51,12 @@ function Conta({ c }: { c: ContaRevisao }) {
       <span className="text-muted-foreground">
         {" "}
         · {c.ordens} ordem(ns)
+        {c.abertas > 0 && (
+          <span className="text-warning-fg font-medium">
+            {" "}
+            · {c.abertas} a pagar{c.valorAberto > 0 ? `, ${formatarMoeda(c.valorAberto)}` : ""}
+          </span>
+        )}
         {c.titularDocumento ? ` · titular ${mascararDocumento(c.titularDocumento)}` : ""}
         {c.favorito ? " · principal" : ""}
       </span>
@@ -106,7 +112,7 @@ export default async function ContasBancariasPage() {
         </div>
         <p className="text-muted-foreground mt-1 text-xs">
           {s.total} contas e chaves Pix de fornecedores, filiados e funcionários. Aqui ficam as que pedem atenção antes de virar
-          pagamento errado ou recusado pelo banco.
+          pagamento errado ou recusado pelo banco. Em cada seção vêm primeiro as contas com ordens a pagar (maior valor no topo).
         </p>
       </div>
 

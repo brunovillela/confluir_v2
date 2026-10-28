@@ -29,6 +29,9 @@ export type ContaRevisao = {
   titularDocumento: string | null
   favorito: boolean
   ordens: number
+  /** Ordens ainda por pagar com esta conta e o valor delas: o que está em jogo agora. */
+  abertas: number
+  valorAberto: number
 }
 
 export type GrupoRepetido = { fica: ContaRevisao; copias: ContaRevisao[] }
@@ -89,6 +92,11 @@ async function todas(tabela: string, colunas: string, filtro: (q: any) => any = 
   return saida
 }
 
+const SITUACOES_ABERTAS = ["Em autorização", "A pagar", "Aguardando informações", "Aguardando documento fiscal"]
+
+/** Peso para ordenar: valor das ordens abertas; sem valor informado, conta pelo número delas. */
+const emJogo = (cs: ContaRevisao[]) => cs.reduce((s, c) => s + c.valorAberto + c.abertas * 0.01, 0)
+
 /** Ordena para escolher a que fica: favorita, mais usada, com documento, mais antiga. */
 const melhor = (a: ContaRevisao & { criada: string }, b: ContaRevisao & { criada: string }) =>
   Number(b.favorito) - Number(a.favorito) ||
@@ -103,10 +111,21 @@ export async function saudeDasContas(): Promise<SaudeContas> {
     todas("empresa", "id, empresa, nome_fantasia, nome_razao, cnpj_cpf", (q) => q.eq("emp_proprietaria_id", emp)),
     todas("usuarios", "id, nome_completo, nome_guerra, cpf", (q) => q.eq("emp_proprietaria_id", emp)),
     todas("filiacoes", "id, nome_completo, cpf", (q) => q.eq("emp_proprietaria_id", emp)),
-    todas("ordens_pagamento", "id, dados_bancarios_id", (q) => q.eq("emp_proprietaria_id", emp).not("dados_bancarios_id", "is", null)),
+    todas("ordens_pagamento", "id, dados_bancarios_id, situacao, excluido, valor, valor_inicial_cobranca", (q) =>
+      q.eq("emp_proprietaria_id", emp).not("dados_bancarios_id", "is", null)
+    ),
   ])
-  const ordensPorConta = new Map<string, number>()
-  for (const o of usos) ordensPorConta.set(String(o.dados_bancarios_id), (ordensPorConta.get(String(o.dados_bancarios_id)) ?? 0) + 1)
+  const ordensPorConta = new Map<string, { ordens: number; abertas: number; valorAberto: number }>()
+  for (const o of usos) {
+    const k = String(o.dados_bancarios_id)
+    const u = ordensPorConta.get(k) ?? { ordens: 0, abertas: 0, valorAberto: 0 }
+    u.ordens += 1
+    if (o.excluido !== true && SITUACOES_ABERTAS.includes(String(o.situacao))) {
+      u.abertas += 1
+      u.valorAberto += Number(o.valor_inicial_cobranca ?? o.valor ?? 0) || 0
+    }
+    ordensPorConta.set(k, u)
+  }
   const doc = (v: unknown) => limparCpf(texto(v) ?? "") || null
   const donos = new Map<string, DonoConta>()
   for (const e of empresas) donos.set(`f:${e.id}`, { tipo: "fornecedor", id: String(e.id), nome: texto(e.nome_fantasia) ?? texto(e.empresa) ?? texto(e.nome_razao) ?? "Fornecedor", documento: doc(e.cnpj_cpf) })
@@ -131,7 +150,9 @@ export async function saudeDasContas(): Promise<SaudeContas> {
       favorecido: texto(c.favorecido),
       titularDocumento: texto(c.titular_documento),
       favorito: c.favorito === true,
-      ordens: ordensPorConta.get(String(c.id)) ?? 0,
+      ordens: ordensPorConta.get(String(c.id))?.ordens ?? 0,
+      abertas: ordensPorConta.get(String(c.id))?.abertas ?? 0,
+      valorAberto: ordensPorConta.get(String(c.id))?.valorAberto ?? 0,
       criada: String(c.created_at ?? ""),
       // a mesma pessoa: o CPF (todos os papéis) ou o próprio cadastro
       pessoa: cpf ? `cpf:${cpf}` : `dono:${k}`,
@@ -150,12 +171,20 @@ export async function saudeDasContas(): Promise<SaudeContas> {
       const [fica, ...copias] = [...g].sort(melhor)
       return { fica: limpa(fica), copias: copias.map(limpa) }
     })
-    .sort((a, b) => b.copias.length - a.copias.length || a.fica.dono.nome.localeCompare(b.fica.dono.nome))
+    .sort(
+      (a, b) =>
+        emJogo([b.fica, ...b.copias]) - emJogo([a.fica, ...a.copias]) ||
+        b.copias.length - a.copias.length ||
+        a.fica.dono.nome.localeCompare(b.fica.dono.nome)
+    )
 
   // A mesma agência+conta em pessoas diferentes.
   const porConta = new Map<string, typeof linhas>()
   for (const l of linhas) if (l.chave && !l.chave.startsWith("pix|")) porConta.set(l.chave, [...(porConta.get(l.chave) ?? []), l])
-  const cruzadas = [...porConta.values()].filter((g) => new Set(g.map((l) => l.pessoa)).size > 1).map((g) => g.map(limpa))
+  const cruzadas = [...porConta.values()]
+    .filter((g) => new Set(g.map((l) => l.pessoa)).size > 1)
+    .map((g) => g.map(limpa))
+    .sort((a, b) => emJogo(b) - emJogo(a))
 
   const outroTitular: OutroTitular[] = []
   const semDocumento: SemDocumento[] = []
@@ -173,8 +202,16 @@ export async function saudeDasContas(): Promise<SaudeContas> {
       semDocumento.push({ conta: limpa(l), dica })
     }
   }
-  const porNome = (a: { conta: ContaRevisao }, b: { conta: ContaRevisao }) => a.conta.dono.nome.localeCompare(b.conta.dono.nome)
-  return { total: linhas.length, repetidas, cruzadas, outroTitular: outroTitular.sort(porNome), semDocumento: semDocumento.sort(porNome) }
+  // Primeiro o dinheiro em jogo (ordens abertas), depois o nome.
+  const porPrioridade = (a: { conta: ContaRevisao }, b: { conta: ContaRevisao }) =>
+    emJogo([b.conta]) - emJogo([a.conta]) || a.conta.dono.nome.localeCompare(b.conta.dono.nome)
+  return {
+    total: linhas.length,
+    repetidas,
+    cruzadas,
+    outroTitular: outroTitular.sort(porPrioridade),
+    semDocumento: semDocumento.sort(porPrioridade),
+  }
 }
 
 /**
@@ -245,8 +282,6 @@ export type OrdemEsperandoConta = {
   telefone: string | null
   pedido: { id: string; criadoEm: string; abertoEm: string | null; enviadoPara: string | null } | null
 }
-
-const SITUACOES_ABERTAS = ["Em autorização", "A pagar", "Aguardando informações", "Aguardando documento fiscal"]
 
 /**
  * ORDENS ESPERANDO CONTA (28/10/2026): as ordens abertas que ainda estão sem
