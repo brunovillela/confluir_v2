@@ -4,6 +4,7 @@ import { lerDocumentoTitular, mesmoTitular } from "@/lib/cpf"
 import type { EntradaDadosBancarios } from "@/lib/dados-bancarios"
 import { texto } from "@/lib/db/comum"
 import { dadoRepetido } from "@/lib/db/dados-bancarios-repetida"
+import { donosDaPessoa } from "@/lib/db/dados-bancarios-pessoa"
 import { ligarOrdensSemForma } from "@/lib/db/ordens-destino"
 import { nomeEntidade } from "@/lib/db/organizacao"
 import { enviarEmail } from "@/lib/email"
@@ -249,7 +250,8 @@ export async function responderPedido(token: string, dados: EntradaDadosBancario
   const admin = await createAdminClient()
 
   // A mesma conta (ou chave) já está no cadastro: o pedido fecha com ela.
-  const existente = await dadoRepetido({ coluna, ids: [dono.id] }, dados)
+  const repetida = await dadoRepetido(await donosDaPessoa(dono.tipo, dono.id), dados)
+  const existente = repetida?.id ?? null
   if (existente) {
     await admin
       .from("dados_bancarios")

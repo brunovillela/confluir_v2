@@ -605,11 +605,14 @@ export async function corrigirOrdem(
   if ("forma_pagamento" in mudancas && !nova.formaPagamento) {
     return { erro: "Toda ordem precisa de forma de pagamento — escolha uma." }
   }
+  // Conta do cadastro que passa a valer na ordem (a remessa paga nela).
+  let dadoDaForma: string | null = null
   if ("forma_pagamento" in mudancas) {
     // Trocar para Pix/TED exige a conta do favorecido registrada (ordens-destino.ts).
-    const { faltaDestinoBancario } = await import("@/lib/db/ordens-destino")
+    const { dadoDoCadastroPara, faltaDestinoBancario } = await import("@/lib/db/ordens-destino")
     const semDestino = await faltaDestinoBancario([{ ...o, forma_pagamento: nova.formaPagamento }])
     if (semDestino) return { erro: semDestino }
+    if (!o.pix_codigo) dadoDaForma = await dadoDoCadastroPara(o, nova.formaPagamento)
   }
 
   const mudouValor = "valor_inicial_cobranca" in mudancas
@@ -628,6 +631,7 @@ export async function corrigirOrdem(
     .from("ordens_pagamento")
     .update({
       ...mudancas,
+      ...(dadoDaForma && dadoDaForma !== o.dados_bancarios_id ? { dados_bancarios_id: dadoDaForma } : {}),
       ...(voltou
         ? {
             situacao: SITUACAO_EM_AUTORIZACAO,

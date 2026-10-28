@@ -1,6 +1,8 @@
 import "server-only"
 import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
 import { ligarOrdensSemForma } from "@/lib/db/ordens-destino"
+import { avisoRepetida, dadoRepetido } from "@/lib/db/dados-bancarios-repetida"
+import { donosDaPessoa } from "@/lib/db/dados-bancarios-pessoa"
 import { camposAutorizacaoInicial, MOTIVO_DISPENSA_FOLHA, registrarEvento, usuarioDaTrilha } from "@/lib/db/ordens-ciclo"
 
 import { esquemaAusente, nomesDosUsuarios, texto } from "@/lib/db/comum"
@@ -196,6 +198,9 @@ export async function salvarDadosBancariosFuncionario(
     prefere_pix: dados.preferePix,
     favorito: true,
   }
+  // A mesma conta já em outro cadastro da pessoa (filiado, fornecedor PF) já vale aqui.
+  const repetida = await dadoRepetido(await donosDaPessoa("usuario", usuarioId), linha, atual?.id ?? null)
+  if (repetida) return { erro: avisoRepetida(repetida, "usuario") }
   const { data, error } = atual
     ? await admin.from("dados_bancarios").update(linha).eq("id", atual.id).eq("usuario_id", usuarioId).select("id").maybeSingle()
     : await admin.from("dados_bancarios").insert({ ...linha, usuario_id: usuarioId }).select("id").single()

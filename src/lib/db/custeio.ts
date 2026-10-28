@@ -32,6 +32,8 @@ import {
   situacaoExibidaCusteio,
   type Periodicidade,
 } from "@/lib/custeio-constantes"
+import { dadoRepetido } from "@/lib/db/dados-bancarios-repetida"
+import { donosDaPessoa } from "@/lib/db/dados-bancarios-pessoa"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
@@ -1544,6 +1546,14 @@ async function dadoBancarioDoCusteio(
         : texto(d.conta) === pag.conta && texto(d.banco) === pag.banco
     )
     if (igual) return { dados_bancarios_id: String(igual.id) }
+    // Uma conta por pessoa: a mesma conta/chave em outro cadastro dela (mesmo CPF) serve.
+    const tipoDono = coluna === "fornecedor_id" ? "fornecedor" : coluna === "usuario_id" ? "usuario" : "filiado"
+    const daPessoa = await dadoRepetido(await donosDaPessoa(tipoDono, String(valor)), {
+      agencia: ehConta ? pag.agencia : null,
+      conta: ehConta ? pag.conta : null,
+      pix: ehPix ? pag.pix : null,
+    })
+    if (daPessoa) return { dados_bancarios_id: daPessoa.id }
   }
   const { data: novo, error } = await admin
     .from("dados_bancarios")

@@ -2,6 +2,7 @@ import "server-only"
 import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
 import { registrarEvento, usuarioDaTrilha } from "@/lib/db/ordens-ciclo"
 import { cpfConfiavel } from "@/lib/cpf"
+import { donosDaPessoa, filtroDosDonos } from "@/lib/db/dados-bancarios-pessoa"
 
 import { gerarCodigoProcesso, subirComprovanteCompras } from "@/lib/db/compras"
 import { hojeSP, lerEmLotes, texto } from "@/lib/db/comum"
@@ -225,30 +226,15 @@ export async function criarReembolso(dados: DadosReembolso, atorId: string): Pro
   }
 
   // Pix do filiado, se a entidade guarda: já vai na ordem, para o Financeiro
-  // não pedir de novo. `dados_bancarios` não tem emp_proprietaria_id (o tenant
-  // vem do registro pai, pela RLS) e a conta pode estar em qualquer registro
-  // da pessoa — busca por todos os do CPF.
-  let registrosDaPessoa = [String(filiado.id)]
-  if (cpf) {
-    const { data: outros } = await admin
-      .from("filiacoes")
-      .select("id, cpf")
-      .eq("emp_proprietaria_id", emp)
-      .ilike("cpf", `%${cpf.slice(-6)}%`)
-    registrosDaPessoa = [
-      ...new Set([
-        ...registrosDaPessoa,
-        ...(outros ?? [])
-          .filter((o) => String(o.cpf ?? "").replace(/\D/g, "") === cpf)
-          .map((o) => String(o.id)),
-      ]),
-    ]
-  }
+  // não pedir de novo. A conta pode estar em qualquer cadastro da pessoa
+  // (fichas de filiado, Pessoal, fornecedor PF — mesmo CPF): uma conta por
+  // pessoa, não por papel (lib/db/dados-bancarios-pessoa).
   // Sem chave Pix, a conta (TED): toda ordem nasce com forma (26/10/2026).
+  const filtroPessoa = filtroDosDonos(await donosDaPessoa("filiado", String(filiado.id))) ?? `filiado_id.eq.${filiado.id}`
   const { data: bancos, error: erroBancos } = await admin
     .from("dados_bancarios")
     .select("id, pix, banco, agencia, conta, favorito, prefere_pix, created_at")
-    .in("filiado_id", registrosDaPessoa)
+    .or(filtroPessoa)
     .order("favorito", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
   if (erroBancos) console.error("Falha ao ler o Pix do filiado para o reembolso:", erroBancos.message)

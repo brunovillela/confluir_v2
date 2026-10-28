@@ -4,7 +4,8 @@ import { limparCpf } from "@/lib/cpf"
 import type { EntradaDadosBancarios } from "@/lib/dados-bancarios"
 import { texto } from "@/lib/db/comum"
 import { ligarOrdensSemForma } from "@/lib/db/ordens-destino"
-import { AVISO_REPETIDA, dadoRepetido } from "@/lib/db/dados-bancarios-repetida"
+import { avisoRepetida, dadoRepetido } from "@/lib/db/dados-bancarios-repetida"
+import { donosDaPessoa } from "@/lib/db/dados-bancarios-pessoa"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -107,7 +108,9 @@ export async function salvarDadoBancarioFiliado({
   const atuais = await listarDadosBancariosFiliado(filiadoId)
   if (id && !atuais.some((d) => d.id === id)) return { erro: "Dado bancário não encontrado neste filiado." }
   const ehPrincipal = principal || atuais.length === 0 || (atuais.length === 1 && atuais[0].id === id)
-  if (await dadoRepetido({ coluna: "filiado_id", ids: registros }, dados, id)) return { erro: AVISO_REPETIDA }
+  const pessoa = await donosDaPessoa("filiado", filiadoId)
+  const repetida = await dadoRepetido({ ...pessoa, filiado_id: [...new Set([...pessoa.filiado_id, ...registros])] }, dados, id)
+  if (repetida) return { erro: avisoRepetida(repetida, "filiado") }
 
   const admin = await createAdminClient()
   const linha = {

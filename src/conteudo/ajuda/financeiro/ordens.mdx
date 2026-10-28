@@ -157,6 +157,23 @@ ou a mesma chave Pix não entra duas vezes para o mesmo favorecido: o sistema
 pede para editar a que já existe. Na compra direta e no pedido por link, a conta
 que já existe é reaproveitada.
 
+### Uma conta por pessoa
+
+A mesma pessoa pode estar no sistema em mais de um papel: funcionário ou
+diretor (Pessoal), filiado e fornecedor pessoa física. Pelo **CPF**, o sistema
+reconhece que é a mesma pessoa, e a conta cadastrada em qualquer um desses
+papéis vale para todos:
+
+- a ficha de cada papel mostra, no cartão **Dados bancários**, o bloco
+  **Também valem aqui**, com as contas dos outros cadastros (para mudar,
+  edite no cadastro onde a conta está);
+- a ordem de pagamento, a correção da ordem, o reembolso de filiado e o custeio
+  usam a conta de qualquer papel da pessoa;
+- cadastrar de novo a mesma conta em outro papel é recusado, com o aviso de onde
+  ela já está.
+
+Fornecedor com CNPJ é só ele mesmo.
+
 ## Pix e TED só com a conta registrada
 
 Nenhuma ordem nasce — nem passa a ser — **Pix** ou **TED** sem o destino

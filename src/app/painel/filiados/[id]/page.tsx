@@ -61,6 +61,7 @@ import { ROTULO_ORIGEM_DESCADASTRO, type OrigemDescadastro } from "@/lib/db/comu
 
 import { alterarComunicadosFichaAction } from "./comunicados-actions"
 import { DadosBancariosFiliado } from "./dados-bancarios"
+import { ContasOutrosCadastros } from "@/components/contas-outros-cadastros"
 import { PedirDadosBancarios } from "@/components/pedir-dados-bancarios"
 import { pedidoPendente } from "@/lib/db/pedidos-dados-bancarios"
 
@@ -516,6 +517,9 @@ export default async function FiliadoPage({
               podeEditar={podeEditar}
               cpfFiliado={typeof f.cpf === "string" ? f.cpf : null}
             />
+            <div className="mt-3">
+              <ContasOutrosCadastros tipo="filiado" id={String(f.id)} />
+            </div>
           </CardContent>
         </Card>
       )}

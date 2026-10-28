@@ -33,6 +33,7 @@ import { buscarPerfilFuncionario } from "@/lib/db/pessoal"
 import { ResumoAreas } from "@/components/pessoal/resumo-areas"
 
 import { DadosBancariosFuncionario } from "./dados-bancarios"
+import { ContasOutrosCadastros } from "@/components/contas-outros-cadastros"
 import { PedirDadosBancarios } from "@/components/pedir-dados-bancarios"
 import { pedidoPendente } from "@/lib/db/pedidos-dados-bancarios"
 import { DadosCadastrais, ExcluirFuncionario, VinculoFuncionario } from "./cadastro-forms"
@@ -198,6 +199,7 @@ export default async function FuncionarioPage({
           }
         />
       )}
+      {temGestao && <ContasOutrosCadastros tipo="usuario" id={id} />}
 
       {/* 17/10: a ficha é o ponto de entrada — cada área tem a página da pessoa (padrão de 3 níveis). */}
       <ResumoAreas usuarioId={id} perfil={perfil} carreira={carreira} permissoes={sessao.permissoes} />

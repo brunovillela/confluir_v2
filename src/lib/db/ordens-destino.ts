@@ -1,6 +1,7 @@
 import "server-only"
 
 import { cpfConfiavel, grafiasDoCpf } from "@/lib/cpf"
+import { donosDaPessoa } from "@/lib/db/dados-bancarios-pessoa"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -149,6 +150,55 @@ async function cadastroDosFavorecidos(linhas: LinhaDestino[]): Promise<Map<strin
     }
   }
 
+  // Uma conta por pessoa (27/10): o usuário vê a conta do cadastro de
+  // fornecedor PF com o mesmo CPF, e o fornecedor PF vê a do usuário e a da
+  // filiação dele.
+  const { data: empresasDosFornecedores } = fornecedores.length
+    ? await admin.from("empresa").select("id, cnpj_cpf").in("id", fornecedores)
+    : { data: [] as Record<string, unknown>[] }
+  const cpfDoFornecedor = new Map<string, string>()
+  for (const e of (empresasDosFornecedores ?? []) as Record<string, unknown>[]) {
+    const cpf = cpfConfiavel(t(e.cnpj_cpf))
+    if (cpf) cpfDoFornecedor.set(String(e.id), cpf)
+  }
+  const grafiasPessoas = [...new Set([...cpfDe.values(), ...cpfDoFornecedor.values()].flatMap((c) => grafiasDoCpf(c)))]
+  if (grafiasPessoas.length) {
+    const [{ data: fPf }, { data: uPf }, { data: filPf }] = await Promise.all([
+      cpfDe.size ? admin.from("empresa").select("id, cnpj_cpf").eq("emp_proprietaria_id", emp).in("cnpj_cpf", grafiasPessoas) : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+      cpfDoFornecedor.size ? admin.from("usuarios").select("id, cpf").eq("emp_proprietaria_id", emp).in("cpf", grafiasPessoas) : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+      cpfDoFornecedor.size ? admin.from("filiacoes").select("id, cpf").eq("emp_proprietaria_id", emp).in("cpf", grafiasPessoas) : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+    ])
+    // dono da conta → chaves de favorecido que a enxergam
+    const destinos = new Map<string, string[]>()
+    const ligar = (dono: string, chave: string) => destinos.set(dono, [...new Set([...(destinos.get(dono) ?? []), chave])])
+    for (const e of (fPf ?? []) as Record<string, unknown>[]) {
+      const cpf = cpfConfiavel(t(e.cnpj_cpf))
+      for (const [u, c] of cpfDe) if (c === cpf) ligar(`f:${e.id}`, `u:${u}`)
+    }
+    const pessoasPf: { k: string; id: unknown; cpf: unknown }[] = [
+      ...((uPf ?? []) as Record<string, unknown>[]).map((x) => ({ k: "u", id: x.id, cpf: x.cpf })),
+      ...((filPf ?? []) as Record<string, unknown>[]).map((x) => ({ k: "p", id: x.id, cpf: x.cpf })),
+    ]
+    for (const p of pessoasPf) {
+      const cpf = cpfConfiavel(t(p.cpf))
+      for (const [f, c] of cpfDoFornecedor) if (c === cpf) ligar(`${p.k}:${p.id}`, `f:${f}`)
+    }
+    const ids = (k: string) => [...destinos.keys()].filter((d) => d.startsWith(`${k}:`)).map((d) => d.slice(2))
+    const [{ data: dF }, { data: dU }, { data: dP }] = await Promise.all([
+      ids("f").length ? admin.from("dados_bancarios").select(COLUNAS).in("fornecedor_id", ids("f")) : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+      ids("u").length ? admin.from("dados_bancarios").select(COLUNAS).in("usuario_id", ids("u")) : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+      ids("p").length ? admin.from("dados_bancarios").select(COLUNAS).in("filiado_id", ids("p")) : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+    ])
+    for (const [k, lista] of [["f", dF], ["u", dU], ["p", dP]] as const) {
+      const col = k === "f" ? "fornecedor_id" : k === "u" ? "usuario_id" : "filiado_id"
+      for (const d of (lista ?? []) as Record<string, unknown>[]) {
+        for (const chave of destinos.get(`${k}:${d[col]}`) ?? []) {
+          if (!(saida.get(chave) ?? []).some((x) => x.id === String(d.id))) juntar(chave, comoCadastro(d))
+        }
+      }
+    }
+  }
+
   // A ficha antiga do diretor (só quando a pessoa não tem outro dado).
   const integrantePorUsuario = new Map(
     ((integrantes.data ?? []) as Record<string, unknown>[]).map((i) => [String(i.id), String(i.usuario_id)])
@@ -262,6 +312,24 @@ export async function completarFormaPadrao(linhas: LinhaDestino[]): Promise<stri
   return null
 }
 
+/**
+ * O dado bancário do cadastro do favorecido (de qualquer papel dele) que a
+ * ordem deve usar na forma dada: o já escolhido, se serve; senão o favorito
+ * que serve (Pix: o que prefere Pix primeiro). null = forma sem destino
+ * bancário ou nenhum serve. Usado na correção, para a remessa achar a conta.
+ */
+export async function dadoDoCadastroPara(linha: LinhaDestino, forma: unknown): Promise<string | null> {
+  const destino = destinoDaForma(forma)
+  if (!destino) return null
+  const chave = chaveDe(linha)
+  const meus = chave ? ((await cadastroDosFavorecidos([linha])).get(chave) ?? []) : []
+  const escolhido = t(linha.dados_bancarios_id)
+  if (escolhido && meus.some((d) => d.id === escolhido && serve(d, destino))) return escolhido
+  const servem = meus.filter((d) => d.id && serve(d, destino))
+  const melhor = (destino === "pix" ? servem.find((d) => d.prefere_pix) : null) ?? servem[0]
+  return melhor?.id ?? null
+}
+
 /** Situações em que a ordem ainda não foi paga nem entrou em remessa. */
 const SITUACOES_ABERTAS = ["Em autorização", "A pagar", "Aguardando informações", "Aguardando documento fiscal"]
 
@@ -286,30 +354,13 @@ export async function ligarOrdensSemForma(dadoId: string): Promise<number> {
   const forma = temPix && (dado.prefere_pix || !temConta) ? "Pix" : temConta ? "Depósito bancário (TED)" : null
   if (!forma) return 0
 
-  const fornecedor = t(d.fornecedor_id)
-  const usuarios = new Set<string>()
-  const filiacoes = new Set<string>()
-  if (t(d.usuario_id)) usuarios.add(String(d.usuario_id))
-  if (t(d.filiado_id)) filiacoes.add(String(d.filiado_id))
-  // A mesma pessoa do outro lado (usuário ↔ filiação), pelo CPF.
-  if (!fornecedor) {
-    const [{ data: us }, { data: fs }] = await Promise.all([
-      usuarios.size ? admin.from("usuarios").select("cpf").in("id", [...usuarios]) : Promise.resolve({ data: [] as Record<string, unknown>[] }),
-      filiacoes.size ? admin.from("filiacoes").select("cpf").in("id", [...filiacoes]) : Promise.resolve({ data: [] as Record<string, unknown>[] }),
-    ])
-    const cpf = [...((us ?? []) as Record<string, unknown>[]), ...((fs ?? []) as Record<string, unknown>[])]
-      .map((p) => cpfConfiavel(t(p.cpf)))
-      .find(Boolean)
-    if (cpf) {
-      const grafias = grafiasDoCpf(cpf)
-      const [{ data: outrosU }, { data: outrasF }] = await Promise.all([
-        admin.from("usuarios").select("id").eq("emp_proprietaria_id", emp).in("cpf", grafias),
-        admin.from("filiacoes").select("id").eq("emp_proprietaria_id", emp).in("cpf", grafias),
-      ])
-      for (const u of (outrosU ?? []) as Record<string, unknown>[]) usuarios.add(String(u.id))
-      for (const f of (outrasF ?? []) as Record<string, unknown>[]) filiacoes.add(String(f.id))
-    }
-  }
+  // A mesma pessoa em todos os papéis (usuário, filiado, fornecedor PF), pelo CPF.
+  const tipo = t(d.fornecedor_id) ? "fornecedor" : t(d.usuario_id) ? "usuario" : "filiado"
+  const donoId = String(d.fornecedor_id ?? d.usuario_id ?? d.filiado_id)
+  const pessoa = await donosDaPessoa(tipo, donoId)
+  const fornecedores = pessoa.fornecedor_id
+  const usuarios = new Set(pessoa.usuario_id)
+  const filiacoes = new Set(pessoa.filiado_id)
 
   const abertasSemForma = () =>
     admin
@@ -321,7 +372,9 @@ export async function ligarOrdensSemForma(dadoId: string): Promise<number> {
       .in("situacao", SITUACOES_ABERTAS)
   const vazio = Promise.resolve({ data: [] as Record<string, unknown>[] })
   const [porFornecedor, porUsuario, reembolsos] = await Promise.all([
-    fornecedor ? abertasSemForma().or(`fornecedor_id.eq.${fornecedor},beneficiario_fornecedor_id.eq.${fornecedor}`) : vazio,
+    fornecedores.length
+      ? abertasSemForma().or(`fornecedor_id.in.(${fornecedores.join(",")}),beneficiario_fornecedor_id.in.(${fornecedores.join(",")})`)
+      : vazio,
     usuarios.size
       ? abertasSemForma().is("fornecedor_id", null).is("beneficiario_fornecedor_id", null).in("beneficiario_usuario_id", [...usuarios])
       : vazio,

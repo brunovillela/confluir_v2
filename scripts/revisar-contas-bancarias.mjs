@@ -239,3 +239,52 @@ if (process.argv.includes("--juntar")) {
   }
   console.error(`\nJuntadas: ${repetidas.length} grupos, ${removidas} cópias removidas, ${ordensMovidas} ordens repassadas.`)
 }
+
+// --juntar-pessoa (27/10, item "uma conta por pessoa"): a mesma agência+conta
+// em cadastros de papéis diferentes da MESMA pessoa (todos os donos com o
+// mesmo CPF válido de 11 dígitos) vira uma só: fica a ✅ (favorita, mais usada,
+// com documento), as ordens das outras passam para ela e as outras saem —
+// todos os papéis da pessoa enxergam a que ficou (lib/db/dados-bancarios-pessoa).
+// Sem --apply só simula. Pede --backup=<arquivo.json> para gravar.
+if (process.argv.includes("--juntar-pessoa")) {
+  const gravar = process.argv.includes("--apply")
+  const arq = process.argv.find((a) => a.startsWith("--backup="))?.slice(9)
+  if (gravar && !arq) throw new Error("--juntar-pessoa --apply pede --backup=<arquivo.json>")
+  const grupos = cruzadas.filter((g) => {
+    const docs = new Set(g.map((l) => l.donoDoc))
+    return docs.size === 1 && [...docs][0].length === 11
+  })
+  const backup = []
+  let removidas = 0
+  let movidas = 0
+  for (const g of grupos) {
+    const [fica, ...copias] = [...g].sort(melhor)
+    const idsCopias = copias.map((c) => c.id)
+    console.error(`${fica.donoNome}: fica ${fica.tipo} ${fica.id.slice(0, 8)}; sai(em) ${copias.map((c) => `${c.tipo} ${c.id.slice(0, 8)} (${c.ordens} ordens)`).join(", ")}`)
+    if (!gravar) continue
+    const { data: ordens, error: e1 } = await s.from("ordens_pagamento").select("id, dados_bancarios_id").in("dados_bancarios_id", idsCopias)
+    if (e1) throw e1
+    backup.push({ fica: fica.id, copias: copias.map(({ tipo, donoId, donoNome, nomes, donoDoc, chaveConta, chavePix, ordens: _o, ...c }) => c), ordens })
+    fs.writeFileSync(arq, JSON.stringify(backup, null, 1))
+    const patch = {}
+    for (const campo of ["banco", "banco_codigo", "tipo_conta", "pix", "pix_tipo", "titular_documento"]) {
+      if (!t(fica[campo])) {
+        const de = copias.find((c) => t(c[campo]))
+        if (de) patch[campo] = de[campo]
+      }
+    }
+    if (ordens.length) {
+      const { error } = await s.from("ordens_pagamento").update({ dados_bancarios_id: fica.id }).in("dados_bancarios_id", idsCopias)
+      if (error) throw error
+      movidas += ordens.length
+    }
+    const { error: e2 } = await s.from("dados_bancarios").delete().in("id", idsCopias)
+    if (e2) throw e2
+    removidas += idsCopias.length
+    if (Object.keys(patch).length) {
+      const { error } = await s.from("dados_bancarios").update(patch).eq("id", fica.id)
+      if (error) throw error
+    }
+  }
+  console.error(`\n${grupos.length} grupo(s) da mesma pessoa${gravar ? `: ${removidas} cópias removidas, ${movidas} ordens repassadas.` : " (simulação; use --apply --backup=…)."}`)
+}

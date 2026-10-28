@@ -49,6 +49,7 @@ import { mascaraTelefone } from "@/lib/mascaras"
 import { comprasViaMarketplace } from "@/lib/db/compras-marketplace"
 import { formatarCnpjCpf } from "@/lib/mascaras"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
+import { ContasOutrosCadastros } from "@/components/contas-outros-cadastros"
 import { PedirDadosBancarios } from "@/components/pedir-dados-bancarios"
 import { pedidoPendente } from "@/lib/db/pedidos-dados-bancarios"
 
@@ -684,6 +685,7 @@ export default async function FornecedorPage({
             {contaParam === "novo" && (
               <ContaForm fornecedorId={f.id} documentoPadrao={f.cnpj_cpf} aoCancelarHref={aqui} />
             )}
+            <ContasOutrosCadastros tipo="fornecedor" id={f.id} />
           </CardContent>
         </Card>
         )}

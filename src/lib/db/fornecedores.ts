@@ -12,7 +12,8 @@ function documentoValido(d: string): boolean {
 import { createAdminClient } from "@/lib/supabase/admin"
 import { esquemaAusente } from "@/lib/db/comum"
 import { ligarOrdensSemForma } from "@/lib/db/ordens-destino"
-import { AVISO_REPETIDA, dadoRepetido } from "@/lib/db/dados-bancarios-repetida"
+import { avisoRepetida, dadoRepetido } from "@/lib/db/dados-bancarios-repetida"
+import { donosDaPessoa } from "@/lib/db/dados-bancarios-pessoa"
 import { normalizarBanco, validarAgencia, validarConta } from "@/lib/bancos"
 
 /**
@@ -850,9 +851,8 @@ export async function salvarConta(
   if (numero.erro) return { erro: numero.erro }
   const banco = normalizarBanco(dados.banco)
   const linha = { ...dados, banco: banco.banco, banco_codigo: banco.codigo, agencia: agencia.valor, conta: numero.valor }
-  if (await dadoRepetido({ coluna: "fornecedor_id", ids: [fornecedorId] }, linha, contaId ?? null)) {
-    return { erro: AVISO_REPETIDA }
-  }
+  const repetida = await dadoRepetido(await donosDaPessoa("fornecedor", fornecedorId), linha, contaId ?? null)
+  if (repetida) return { erro: avisoRepetida(repetida, "fornecedor") }
   const admin = await createAdminClient()
   const { data, error } = contaId
     ? await admin
