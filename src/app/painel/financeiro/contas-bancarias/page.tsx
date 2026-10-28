@@ -6,8 +6,17 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
-import { mascararDocumento, mascararTexto, saudeDasContas, type ContaRevisao, type DonoConta } from "@/lib/db/contas-saude"
+import { PedirDadosBancarios } from "@/components/pedir-dados-bancarios"
+import {
+  mascararDocumento,
+  mascararTexto,
+  ordensEsperandoConta,
+  saudeDasContas,
+  type ContaRevisao,
+  type DonoConta,
+} from "@/lib/db/contas-saude"
 import { ROTULO_ORIGEM } from "@/lib/db/dados-bancarios-pessoa"
+import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
 import { BotaoJuntar, CorrigirTitular } from "./acoes"
@@ -72,7 +81,14 @@ function Secao({ titulo, descricao, vazio, children, total }: { titulo: string; 
 export default async function ContasBancariasPage() {
   const sessao = await requirePermissao("financeiro_pagamento", ["financeiro_leitura"])
   const podeAgir = podeAcessar(sessao.permissoes, "financeiro_pagamento")
-  const s = await saudeDasContas()
+  const [s, esperando] = await Promise.all([saudeDasContas(), ordensEsperandoConta()])
+  // Um pedido serve a todas as ordens do mesmo favorecido.
+  const grupos = new Map<string, typeof esperando>()
+  for (const o of esperando) {
+    const k = o.dono ? `${o.dono.tipo}:${o.dono.id}` : o.id
+    grupos.set(k, [...(grupos.get(k) ?? []), o])
+  }
+  const porFavorecido = [...grupos.values()]
   const sobrando = s.repetidas.reduce((n, g) => n + g.copias.length, 0)
 
   return (
@@ -93,6 +109,52 @@ export default async function ContasBancariasPage() {
           pagamento errado ou recusado pelo banco.
         </p>
       </div>
+
+      <Secao
+        titulo="Ordens esperando conta"
+        total={esperando.length}
+        descricao={'Agrupadas por favorecido. Ordens abertas sem forma de pagamento porque o favorecido não tem chave Pix nem conta cadastrada. "Pedir dados bancários" manda a ele um link; quando ele responde, a ordem recebe a forma e a conta sozinha.'}
+        vazio="Nenhuma ordem esperando conta."
+      >
+        {porFavorecido.map(([o, ...outras]) => (
+          <div key={o.id} className="grid gap-1.5 rounded-lg border p-3">
+            {[o, ...outras].map((x) => (
+              <div key={x.id} className="flex flex-wrap items-center gap-2 text-sm">
+                <Link href={`/painel/financeiro/ordens/${x.id}`} className="font-medium hover:underline">
+                  {x.codigo ?? "Ordem"}
+                </Link>
+                {x.tipo && <Badge variant="outline">{x.tipo}</Badge>}
+                <span className="text-muted-foreground">
+                  {x.situacao}
+                  {x.valor != null ? ` · ${formatarMoeda(x.valor)}` : ""}
+                  {x.vencimento ? ` · vence ${formatarData(x.vencimento)}` : ""}
+                </span>
+              </div>
+            ))}
+            {o.dono ? (
+              <Dono dono={o.dono} />
+            ) : (
+              <span className="text-sm">
+                {o.favorecido}
+                <span className="text-warning-fg text-xs"> · sem cadastro: corrija a ordem com a chave Pix ou cadastre o favorecido.</span>
+              </span>
+            )}
+            {o.pedido?.abertoEm && (
+              <span className="text-muted-foreground text-xs">O favorecido abriu o link em {formatarData(o.pedido.abertoEm)}, mas ainda não respondeu.</span>
+            )}
+            {podeAgir && o.dono && (
+              <div>
+                <PedirDadosBancarios
+                  dono={{ tipo: o.dono.tipo, id: o.dono.id }}
+                  emailSugerido={o.email}
+                  telefoneSugerido={o.telefone}
+                  pendente={o.pedido}
+                />
+              </div>
+            )}
+          </div>
+        ))}
+      </Secao>
 
       <Secao
         titulo="Repetidas"

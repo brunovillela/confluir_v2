@@ -3,7 +3,7 @@ import "server-only"
 import { chaveDaConta, chaveDoPix } from "@/lib/bancos"
 import { cpfConfiavel, lerDocumentoTitular, limparCpf, mesmoTitular } from "@/lib/cpf"
 import { texto } from "@/lib/db/comum"
-import { donosDaPessoa, type TipoDono } from "@/lib/db/dados-bancarios-pessoa"
+import { donosDaPessoa, donosPorCpf, type TipoDono } from "@/lib/db/dados-bancarios-pessoa"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -228,4 +228,150 @@ export async function corrigirTitular(contaId: string, documento: string): Promi
   if (error) return { erro: `Não foi possível gravar: ${error.message}` }
   if (!data?.length) return { erro: "Conta não encontrada." }
   return {}
+}
+
+/** Ordem aberta sem forma nem conta: espera o favorecido mandar os dados bancários. */
+export type OrdemEsperandoConta = {
+  id: string
+  codigo: string | null
+  tipo: string | null
+  situacao: string
+  valor: number | null
+  vencimento: string | null
+  favorecido: string
+  /** O cadastro a quem pedir a conta (null: favorecido avulso sem cadastro). */
+  dono: DonoConta | null
+  email: string | null
+  telefone: string | null
+  pedido: { id: string; criadoEm: string; abertoEm: string | null; enviadoPara: string | null } | null
+}
+
+const SITUACOES_ABERTAS = ["Em autorização", "A pagar", "Aguardando informações", "Aguardando documento fiscal"]
+
+/**
+ * ORDENS ESPERANDO CONTA (28/10/2026): as ordens abertas que ainda estão sem
+ * forma e sem dado bancário (anteriores à forma obrigatória). O dono é o
+ * favorecido da ordem — fornecedor, usuário, filiado do reembolso, favorecido
+ * do custeio ou, no avulso, quem tem o CPF informado. Quando ele responde ao
+ * pedido, ligarOrdensSemForma completa a ordem.
+ */
+export async function ordensEsperandoConta(): Promise<OrdemEsperandoConta[]> {
+  const emp = await tenantAtual()
+  const admin = await createAdminClient()
+  const ordens = await todas(
+    "ordens_pagamento",
+    "id, codigo, tipo, situacao, valor, valor_inicial_cobranca, vencimento, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso, beneficiario_doc_avulso, custeio_id",
+    (q) =>
+      q
+        .eq("emp_proprietaria_id", emp)
+        .or("excluido.is.null,excluido.eq.false")
+        .is("forma_pagamento", null)
+        .is("dados_bancarios_id", null)
+        .in("situacao", SITUACOES_ABERTAS)
+  )
+  if (ordens.length === 0) return []
+  const ids = ordens.map((o) => String(o.id))
+  const custeioIds = [...new Set(ordens.map((o) => texto(o.custeio_id)).filter((v): v is string => Boolean(v)))]
+  const vazio = Promise.resolve({ data: [] as Record<string, unknown>[] })
+  const [{ data: reembolsos }, { data: custeios }] = await Promise.all([
+    admin.from("filiacao_reembolsos").select("ordem_pagamento_id, filiado_id").in("ordem_pagamento_id", ids),
+    custeioIds.length ? admin.from("institucional_custeios").select("id, filiacao_id, fornecedor_id").in("id", custeioIds) : vazio,
+  ])
+  const filiadoDaOrdem = new Map(((reembolsos ?? []) as Record<string, unknown>[]).map((r) => [String(r.ordem_pagamento_id), String(r.filiado_id)]))
+  const custeioPorId = new Map(((custeios ?? []) as Record<string, unknown>[]).map((c) => [String(c.id), c]))
+
+  type Alvo = { tipo: TipoDono; id: string } | null
+  const alvos: Alvo[] = await Promise.all(
+    ordens.map(async (o): Promise<Alvo> => {
+      const fornecedor = texto(o.beneficiario_fornecedor_id) ?? texto(o.fornecedor_id)
+      if (fornecedor) return { tipo: "fornecedor", id: fornecedor }
+      const usuario = texto(o.beneficiario_usuario_id)
+      if (usuario) return { tipo: "usuario", id: usuario }
+      const filiado = filiadoDaOrdem.get(String(o.id))
+      if (filiado) return { tipo: "filiado", id: filiado }
+      const c = custeioPorId.get(String(o.custeio_id))
+      if (c && texto(c.filiacao_id)) return { tipo: "filiado", id: String(c.filiacao_id) }
+      if (c && texto(c.fornecedor_id)) return { tipo: "fornecedor", id: String(c.fornecedor_id) }
+      const cpf = cpfConfiavel(limparCpf(texto(o.beneficiario_doc_avulso) ?? ""))
+      if (!cpf) return null
+      const d = await donosPorCpf(cpf)
+      if (d.filiado_id[0]) return { tipo: "filiado", id: d.filiado_id[0] }
+      if (d.usuario_id[0]) return { tipo: "usuario", id: d.usuario_id[0] }
+      if (d.fornecedor_id[0]) return { tipo: "fornecedor", id: d.fornecedor_id[0] }
+      return null
+    })
+  )
+
+  const deTipo = (tipo: TipoDono) => [...new Set(alvos.flatMap((a) => (a?.tipo === tipo ? [a.id] : [])))]
+  const [fornecedores, usuarios, filiados] = [deTipo("fornecedor"), deTipo("usuario"), deTipo("filiado")]
+  const [{ data: empresas }, { data: contatos }, { data: pessoas }, { data: fichas }, { data: pedidos }] = await Promise.all([
+    fornecedores.length ? admin.from("empresa").select("id, empresa, nome_fantasia, nome_razao, cnpj_cpf").in("id", fornecedores) : vazio,
+    fornecedores.length ? admin.from("empresa_contatos").select("empresa_id, email, telefone, principal").in("empresa_id", fornecedores) : vazio,
+    usuarios.length ? admin.from("usuarios").select("id, nome_completo, nome_guerra, cpf, email").in("id", usuarios) : vazio,
+    filiados.length
+      ? admin
+          .from("filiacoes")
+          .select("id, nome_completo, cpf, email_pessoal, email_corporativo, telefone_1, telefone_2, telefone_1_whatsapp, telefone_2_whatsapp")
+          .in("id", filiados)
+      : vazio,
+    admin
+      .from("financeiro_pedidos_dados_bancarios")
+      .select("id, fornecedor_id, usuario_id, filiado_id, enviado_para, created_at, aberto_em")
+      .is("respondido_em", null)
+      .is("cancelado_em", null)
+      .gt("expira_em", new Date().toISOString())
+      .order("created_at", { ascending: false }),
+  ])
+
+  const doc = (v: unknown) => limparCpf(texto(v) ?? "") || null
+  const contato = new Map<string, { email: string | null; telefone: string | null }>()
+  const donos = new Map<string, DonoConta>()
+  for (const e of (empresas ?? []) as Record<string, unknown>[]) {
+    const k = `fornecedor:${e.id}`
+    donos.set(k, { tipo: "fornecedor", id: String(e.id), nome: texto(e.nome_fantasia) ?? texto(e.empresa) ?? texto(e.nome_razao) ?? "Fornecedor", documento: doc(e.cnpj_cpf) })
+    const cs = ((contatos ?? []) as Record<string, unknown>[])
+      .filter((c) => c.empresa_id === e.id)
+      .sort((a, b) => Number(Boolean(b.principal)) - Number(Boolean(a.principal)))
+    contato.set(k, { email: texto(cs.find((c) => texto(c.email))?.email), telefone: texto(cs.find((c) => texto(c.telefone))?.telefone) })
+  }
+  for (const u of (pessoas ?? []) as Record<string, unknown>[]) {
+    const k = `usuario:${u.id}`
+    donos.set(k, { tipo: "usuario", id: String(u.id), nome: texto(u.nome_completo) ?? texto(u.nome_guerra) ?? "Usuário", documento: doc(u.cpf) })
+    contato.set(k, { email: texto(u.email), telefone: null })
+  }
+  for (const f of (fichas ?? []) as Record<string, unknown>[]) {
+    const k = `filiado:${f.id}`
+    donos.set(k, { tipo: "filiado", id: String(f.id), nome: texto(f.nome_completo) ?? "Filiado", documento: doc(f.cpf) })
+    contato.set(k, {
+      email: texto(f.email_pessoal) ?? texto(f.email_corporativo),
+      telefone: f.telefone_2_whatsapp === true && f.telefone_1_whatsapp !== true ? texto(f.telefone_2) : texto(f.telefone_1),
+    })
+  }
+  const pedidoDo = new Map<string, OrdemEsperandoConta["pedido"]>()
+  for (const p of (pedidos ?? []) as Record<string, unknown>[]) {
+    const k = p.fornecedor_id ? `fornecedor:${p.fornecedor_id}` : p.usuario_id ? `usuario:${p.usuario_id}` : `filiado:${p.filiado_id}`
+    if (!pedidoDo.has(k)) pedidoDo.set(k, { id: String(p.id), criadoEm: String(p.created_at), abertoEm: texto(p.aberto_em), enviadoPara: texto(p.enviado_para) })
+  }
+
+  return ordens
+    .map((o, i): OrdemEsperandoConta => {
+      const a = alvos[i]
+      const k = a ? `${a.tipo}:${a.id}` : null
+      const dono = k ? (donos.get(k) ?? null) : null
+      const valor = o.valor_inicial_cobranca ?? o.valor
+      return {
+        id: String(o.id),
+        codigo: texto(o.codigo),
+        tipo: texto(o.tipo),
+        situacao: String(o.situacao),
+        valor: valor == null ? null : Number(valor),
+        vencimento: texto(o.vencimento),
+        favorecido: dono?.nome ?? texto(o.beneficiario_nome_avulso) ?? "Favorecido sem cadastro",
+        dono,
+        email: k ? (contato.get(k)?.email ?? null) : null,
+        telefone: k ? (contato.get(k)?.telefone ?? null) : null,
+        pedido: k ? (pedidoDo.get(k) ?? null) : null,
+      }
+    })
+    .sort((x, y) => (x.vencimento ?? "9999").localeCompare(y.vencimento ?? "9999"))
 }

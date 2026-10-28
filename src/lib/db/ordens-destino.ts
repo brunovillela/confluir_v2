@@ -339,7 +339,8 @@ const SITUACOES_ABERTAS = ["Em autorização", "A pagar", "Aguardando informaç�
  * obrigatória) recebem a forma — Pix quando ele prefere Pix ou só tem chave,
  * senão TED — e ficam ligadas ao dado bancário, com "corrigida" na trilha
  * (a auditoria reavalia). O dono da ordem é o fornecedor, o usuário
- * beneficiário ou o filiado do pedido de reembolso; pessoa é cruzada pelo CPF
+ * beneficiário, o filiado do pedido de reembolso ou o favorecido do custeio
+ * (filiado ou fornecedor); pessoa é cruzada pelo CPF
  * (usuário ↔ filiação). Devolve quantas ordens foram ligadas; falha aqui não
  * desfaz o cadastro da conta (quem chama ignora o erro).
  */
@@ -371,7 +372,11 @@ export async function ligarOrdensSemForma(dadoId: string): Promise<number> {
       .is("dados_bancarios_id", null)
       .in("situacao", SITUACOES_ABERTAS)
   const vazio = Promise.resolve({ data: [] as Record<string, unknown>[] })
-  const [porFornecedor, porUsuario, reembolsos] = await Promise.all([
+  const doCusteio = [
+    fornecedores.length ? `fornecedor_id.in.(${fornecedores.join(",")})` : null,
+    filiacoes.size ? `filiacao_id.in.(${[...filiacoes].join(",")})` : null,
+  ].filter(Boolean)
+  const [porFornecedor, porUsuario, reembolsos, custeios] = await Promise.all([
     fornecedores.length
       ? abertasSemForma().or(`fornecedor_id.in.(${fornecedores.join(",")}),beneficiario_fornecedor_id.in.(${fornecedores.join(",")})`)
       : vazio,
@@ -381,16 +386,19 @@ export async function ligarOrdensSemForma(dadoId: string): Promise<number> {
     filiacoes.size
       ? admin.from("filiacao_reembolsos").select("ordem_pagamento_id").in("filiado_id", [...filiacoes]).not("ordem_pagamento_id", "is", null)
       : vazio,
+    doCusteio.length ? admin.from("institucional_custeios").select("id").or(doCusteio.join(",")) : vazio,
   ])
   const ids = new Set<string>()
   for (const o of [...((porFornecedor.data ?? []) as Record<string, unknown>[]), ...((porUsuario.data ?? []) as Record<string, unknown>[])]) {
     ids.add(String(o.id))
   }
   const doReembolso = ((reembolsos.data ?? []) as Record<string, unknown>[]).map((r) => String(r.ordem_pagamento_id))
-  if (doReembolso.length) {
-    const { data } = await abertasSemForma().in("id", doReembolso)
-    for (const o of (data ?? []) as Record<string, unknown>[]) ids.add(String(o.id))
-  }
+  const custeioIds = ((custeios.data ?? []) as Record<string, unknown>[]).map((c) => String(c.id))
+  const [{ data: deReembolso }, { data: deCusteio }] = await Promise.all([
+    doReembolso.length ? abertasSemForma().in("id", doReembolso) : vazio,
+    custeioIds.length ? abertasSemForma().in("custeio_id", custeioIds) : vazio,
+  ])
+  for (const o of [...((deReembolso ?? []) as Record<string, unknown>[]), ...((deCusteio ?? []) as Record<string, unknown>[])]) ids.add(String(o.id))
   if (ids.size === 0) return 0
 
   const { data: ligadas, error } = await admin
