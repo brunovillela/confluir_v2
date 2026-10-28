@@ -1,9 +1,10 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, Landmark } from "lucide-react"
+import { ArrowLeft, Landmark, Search } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { PedirDadosBancarios } from "@/components/pedir-dados-bancarios"
@@ -20,6 +21,7 @@ import {
 import { ROTULO_ORIGEM } from "@/lib/db/dados-bancarios-pessoa"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
+import { semAcento } from "@/lib/texto"
 
 import { BotaoConferir, BotaoDesfazerConferencia, BotaoJuntar, CorrigirTitular } from "./acoes"
 
@@ -86,10 +88,40 @@ function Secao({ titulo, descricao, vazio, children, total }: { titulo: string; 
  * pessoas diferentes, titular de outra pessoa e conta sem documento (com o
  * campo para gravar). Ver lib/db/contas-saude.ts.
  */
-export default async function ContasBancariasPage() {
+export default async function ContasBancariasPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; tipo?: string }>
+}) {
   const sessao = await requirePermissao("financeiro_pagamento", ["financeiro_leitura"])
   const podeAgir = podeAcessar(sessao.permissoes, "financeiro_pagamento")
-  const [s, esperando] = await Promise.all([saudeDasContas(), ordensEsperandoConta()])
+  const [bruto, todasEsperando] = await Promise.all([saudeDasContas(), ordensEsperandoConta()])
+
+  // Busca (nome, CPF/CNPJ, conta, chave Pix ou código da ordem) e filtro pelo tipo de cadastro.
+  const filtro = await searchParams
+  const q = semAcento(String(filtro.q ?? "").trim()).toLowerCase()
+  const digitosQ = q.replace(/\D/g, "")
+  const tipo = (["fornecedor", "usuario", "filiado"] as const).find((t) => t === filtro.tipo) ?? null
+  const bateTexto = (...partes: (string | null | undefined)[]) => {
+    if (!q) return true
+    const texto = semAcento(partes.filter(Boolean).join(" ")).toLowerCase()
+    return texto.includes(q) || (digitosQ.length >= 3 && texto.replace(/\D/g, "").includes(digitosQ))
+  }
+  const bateDono = (d: DonoConta | null) => !tipo || d?.tipo === tipo
+  const bateConta = (c: ContaRevisao) =>
+    bateDono(c.dono) && bateTexto(c.dono.nome, c.dono.documento, c.banco, c.agencia, c.conta, c.pix, c.favorecido, c.titularDocumento)
+  const filtrando = Boolean(q || tipo)
+  const s = {
+    ...bruto,
+    repetidas: bruto.repetidas.filter((g) => [g.fica, ...g.copias].some(bateConta)),
+    cruzadas: bruto.cruzadas.filter((g) => g.some(bateConta)),
+    outroTitular: bruto.outroTitular.filter((x) => bateConta(x.conta)),
+    semDocumento: bruto.semDocumento.filter((x) => bateConta(x.conta)),
+    conferidas: bruto.conferidas.filter(bateConta),
+  }
+  const esperando = todasEsperando.filter(
+    (o) => bateDono(o.dono) && bateTexto(o.favorecido, o.dono?.documento, o.codigo, o.tipo)
+  )
   // Um pedido serve a todas as ordens do mesmo favorecido.
   const grupos = new Map<string, typeof esperando>()
   for (const o of esperando) {
@@ -130,6 +162,35 @@ export default async function ContasBancariasPage() {
           pagamento errado ou recusado pelo banco. Em cada seção vêm primeiro as contas com ordens a pagar (maior valor no topo).
         </p>
       </div>
+
+      <form method="get" className="flex flex-wrap items-center gap-2">
+        <Input
+          name="q"
+          defaultValue={String(filtro.q ?? "")}
+          placeholder="Nome, CPF/CNPJ, conta, chave Pix ou ordem"
+          className="h-9 min-w-56 flex-1 sm:max-w-sm"
+        />
+        <select
+          name="tipo"
+          defaultValue={tipo ?? ""}
+          aria-label="Tipo de cadastro"
+          className="border-input bg-background h-9 rounded-md border px-2 text-sm"
+        >
+          <option value="">Todos os cadastros</option>
+          <option value="fornecedor">Fornecedores</option>
+          <option value="filiado">Filiados</option>
+          <option value="usuario">Funcionários e diretores</option>
+        </select>
+        <Button type="submit" size="sm" variant="outline">
+          <Search />
+          Buscar
+        </Button>
+        {filtrando && (
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/painel/financeiro/contas-bancarias">Limpar</Link>
+          </Button>
+        )}
+      </form>
 
       <Secao
         titulo="Ordens esperando conta"
