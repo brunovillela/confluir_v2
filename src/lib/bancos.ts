@@ -155,3 +155,16 @@ export function chaveDoPix(pix: string | null | undefined): string | null {
   const d = s.replace(/[\s.()/+-]/g, "")
   return /^55\d{10,11}$/.test(d) ? d.slice(2) : d
 }
+
+/** O titular da conta como foi conferido (documento|nome): se mudar, a conferência deixa de valer. */
+export function assinaturaTitular(documento: unknown, nome: unknown): string {
+  const d = String(documento ?? "").replace(/\D/g, "")
+  const n = String(nome ?? "").trim().replace(/\s+/g, " ").toLowerCase()
+  return `${d}|${n}`
+}
+
+/** A conta foi marcada como conferida em Contas bancárias e o titular não mudou desde então. */
+export function contaConferida(c: { conferida_em?: unknown; conferida_titular?: unknown; titular_documento?: unknown; favorecido?: unknown } | null | undefined): boolean {
+  if (!c?.conferida_em) return false
+  return c.conferida_titular === assinaturaTitular(c.titular_documento, c.favorecido)
+}

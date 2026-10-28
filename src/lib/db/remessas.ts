@@ -1,6 +1,7 @@
 import "server-only"
 
 import { mesmoTitular } from "@/lib/cpf"
+import { contaConferida } from "@/lib/bancos"
 import { bancoPorCodigo, codigoPorNome } from "@/lib/cnab/bancos"
 import { codigoDeBarrasDe, gerarRemessa240, lerRetorno240, type ContaRemessa, type ItemRemessa } from "@/lib/cnab/febraban240"
 import { esquemaAusente, hojeSP, texto } from "@/lib/db/comum"
@@ -254,7 +255,7 @@ export async function ordensParaRemessa(): Promise<{ disponivel: boolean; ordens
   const [empresas, usuarios, dados] = await Promise.all([
     empIds.length ? admin.from("empresa").select("id, empresa, nome_fantasia, nome_razao, cnpj_cpf").in("id", empIds) : Promise.resolve({ data: [] }),
     usuIds.length ? admin.from("usuarios").select("id, nome_completo, nome_guerra, cpf").in("id", usuIds) : Promise.resolve({ data: [] }),
-    dbIds.length ? admin.from("dados_bancarios").select("id, banco, banco_codigo, agencia, conta, tipo_conta, pix, pix_tipo, favorecido, titular_documento, fornecedor_id, usuario_id").in("id", dbIds) : Promise.resolve({ data: [] }),
+    dbIds.length ? admin.from("dados_bancarios").select("id, banco, banco_codigo, agencia, conta, tipo_conta, pix, pix_tipo, favorecido, titular_documento, conferida_em, conferida_titular, fornecedor_id, usuario_id").in("id", dbIds) : Promise.resolve({ data: [] }),
   ])
   const empresaPorId = new Map((empresas.data ?? []).map((e) => [String(e.id), e]))
   const usuarioPorId = new Map((usuarios.data ?? []).map((u) => [String(u.id), u]))
@@ -262,7 +263,7 @@ export async function ordensParaRemessa(): Promise<{ disponivel: boolean; ordens
   // Meios cadastrados do fornecedor/usuário, para sugerir quando a ordem não escolheu um.
   const { data: meiosTodos } = await admin
     .from("dados_bancarios")
-    .select("id, banco, banco_codigo, agencia, conta, tipo_conta, pix, pix_tipo, favorecido, titular_documento, fornecedor_id, usuario_id, favorito, prefere_pix")
+    .select("id, banco, banco_codigo, agencia, conta, tipo_conta, pix, pix_tipo, favorecido, titular_documento, conferida_em, conferida_titular, fornecedor_id, usuario_id, favorito, prefere_pix")
     .or([empIds.length ? `fornecedor_id.in.(${empIds.join(",")})` : null, usuIds.length ? `usuario_id.in.(${usuIds.join(",")})` : null].filter(Boolean).join(","))
     .limit(2000)
     .then((r) => r, () => ({ data: [] as Record<string, unknown>[] }))
@@ -347,7 +348,8 @@ export async function ordensParaRemessa(): Promise<{ disponivel: boolean; ordens
             const i = pendencias.indexOf("favorecido sem CPF/CNPJ")
             if (i >= 0) pendencias.splice(i, 1)
             // Matriz/filial (mesma raiz de CNPJ) é o mesmo titular.
-            if (favorecidoDocumento && !mesmoTitular(docTitular, favorecidoDocumento)) {
+            // Conta conferida no Financeiro (titular aceito) não avisa.
+            if (favorecidoDocumento && !mesmoTitular(docTitular, favorecidoDocumento) && !contaConferida(usar)) {
               avisos.push(`conta de outro titular: ${nomeTitular ?? "titular"} (${docTitular})`)
             }
           }

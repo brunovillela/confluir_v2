@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 
 import { requirePermissao } from "@/lib/auth"
-import { corrigirTitular, juntarContas } from "@/lib/db/contas-saude"
+import { conferirContas, corrigirTitular, desfazerConferencia, juntarContas } from "@/lib/db/contas-saude"
 
 /** Ações da tela Saúde das contas bancárias — só quem paga ordens mexe. */
 
@@ -30,4 +30,26 @@ export async function corrigirTitularAction(_prev: EstadoAcao, formData: FormDat
   if (r.erro) return { erro: r.erro }
   revalidatePath("/painel/financeiro/contas-bancarias")
   return { ok: "Documento do titular gravado." }
+}
+
+export async function conferirContasAction(_prev: EstadoAcao, formData: FormData): Promise<EstadoAcao> {
+  const sessao = await requirePermissao("financeiro_pagamento")
+  const ids = String(formData.get("contas") ?? "").split(",").filter((id) => UUID.test(id))
+  if (ids.length === 0) return { erro: "Contas inválidas." }
+  const obs = String(formData.get("obs") ?? "").trim().slice(0, 500)
+  if (!obs) return { erro: "Diga por que a conta está certa (ex.: conta do cônjuge)." }
+  const r = await conferirContas(ids, obs, sessao.usuario.id)
+  if (r.erro) return { erro: r.erro }
+  revalidatePath("/painel/financeiro/contas-bancarias")
+  return { ok: "Conta marcada como conferida." }
+}
+
+export async function desfazerConferenciaAction(_prev: EstadoAcao, formData: FormData): Promise<EstadoAcao> {
+  await requirePermissao("financeiro_pagamento")
+  const conta = String(formData.get("conta") ?? "")
+  if (!UUID.test(conta)) return { erro: "Conta inválida." }
+  const r = await desfazerConferencia(conta)
+  if (r.erro) return { erro: r.erro }
+  revalidatePath("/painel/financeiro/contas-bancarias")
+  return { ok: "Conferência desfeita." }
 }

@@ -21,7 +21,7 @@ import { ROTULO_ORIGEM } from "@/lib/db/dados-bancarios-pessoa"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
-import { BotaoJuntar, CorrigirTitular } from "./acoes"
+import { BotaoConferir, BotaoDesfazerConferencia, BotaoJuntar, CorrigirTitular } from "./acoes"
 
 export const metadata: Metadata = { title: "Contas bancárias — Confluir" }
 
@@ -214,6 +214,7 @@ export default async function ContasBancariasPage() {
             {g.map((c) => (
               <Dono key={c.id} dono={c.dono} />
             ))}
+            {podeAgir && <BotaoConferir contas={g.map((c) => c.id)} />}
           </div>
         ))}
       </Secao>
@@ -237,6 +238,7 @@ export default async function ContasBancariasPage() {
             )}
             {podeAgir && motivo === "digitacao" && <CorrigirTitular conta={conta.id} sugestao={conta.dono.documento} />}
             {pedir(conta.dono)}
+            {podeAgir && <BotaoConferir contas={[conta.id]} />}
           </div>
         ))}
       </Secao>
@@ -255,9 +257,37 @@ export default async function ContasBancariasPage() {
             {dica && <span className="text-warning-fg text-xs">{dica}</span>}
             {podeAgir && <CorrigirTitular conta={conta.id} />}
             {pedir(conta.dono)}
+            {podeAgir && <BotaoConferir contas={[conta.id]} />}
           </div>
         ))}
       </Secao>
+
+      {s.conferidas.length > 0 && (
+        <details className="rounded-lg border p-4">
+          <summary className="cursor-pointer text-sm font-medium">
+            Conferidas <Badge variant="outline">{s.conferidas.length}</Badge>
+            <span className="text-muted-foreground ml-2 text-xs font-normal">
+              aceitas como estão; saem das listas e a auditoria não alerta. Se o titular mudar, voltam sozinhas.
+            </span>
+          </summary>
+          <div className="mt-3 grid gap-3">
+            {s.conferidas.map((c) => (
+              <div key={c.id} className="grid gap-1.5 rounded-lg border p-3">
+                <Dono dono={c.dono} />
+                <Conta c={c} />
+                {c.conferida && (
+                  <span className="text-muted-foreground text-xs">
+                    Conferida em {formatarData(c.conferida.em)}
+                    {c.conferida.por ? ` por ${c.conferida.por}` : ""}
+                    {c.conferida.obs ? `: ${c.conferida.obs}` : ""}
+                  </span>
+                )}
+                {podeAgir && <BotaoDesfazerConferencia conta={c.id} />}
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
     </>
   )
 }

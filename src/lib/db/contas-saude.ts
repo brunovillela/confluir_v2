@@ -1,6 +1,6 @@
 import "server-only"
 
-import { chaveDaConta, chaveDoPix } from "@/lib/bancos"
+import { assinaturaTitular, chaveDaConta, chaveDoPix, contaConferida } from "@/lib/bancos"
 import { cpfConfiavel, lerDocumentoTitular, limparCpf, mesmoTitular } from "@/lib/cpf"
 import { texto } from "@/lib/db/comum"
 import { donosDaPessoa, donosPorCpf, type TipoDono } from "@/lib/db/dados-bancarios-pessoa"
@@ -32,6 +32,8 @@ export type ContaRevisao = {
   /** Ordens ainda por pagar com esta conta e o valor delas: o que está em jogo agora. */
   abertas: number
   valorAberto: number
+  /** Marcada como conferida (e o titular não mudou desde então). */
+  conferida: { em: string; por: string | null; obs: string | null } | null
 }
 
 export type GrupoRepetido = { fica: ContaRevisao; copias: ContaRevisao[] }
@@ -44,6 +46,8 @@ export type SaudeContas = {
   cruzadas: ContaRevisao[][]
   outroTitular: OutroTitular[]
   semDocumento: SemDocumento[]
+  /** Contas que sairiam nas listas acima, mas alguém conferiu e aceitou. */
+  conferidas: ContaRevisao[]
 }
 
 export function mascararDocumento(d: string | null): string {
@@ -107,7 +111,10 @@ const melhor = (a: ContaRevisao & { criada: string }, b: ContaRevisao & { criada
 export async function saudeDasContas(): Promise<SaudeContas> {
   const emp = await tenantAtual()
   const [contas, empresas, usuarios, filiacoes, usos] = await Promise.all([
-    todas("dados_bancarios", "id, favorecido, banco, agencia, conta, pix, pix_tipo, fornecedor_id, usuario_id, filiado_id, favorito, titular_documento, created_at"),
+    todas(
+      "dados_bancarios",
+      "id, favorecido, banco, agencia, conta, pix, pix_tipo, fornecedor_id, usuario_id, filiado_id, favorito, titular_documento, created_at, conferida_em, conferida_por_usuario_id, conferida_obs, conferida_titular"
+    ),
     todas("empresa", "id, empresa, nome_fantasia, nome_razao, cnpj_cpf", (q) => q.eq("emp_proprietaria_id", emp)),
     todas("usuarios", "id, nome_completo, nome_guerra, cpf", (q) => q.eq("emp_proprietaria_id", emp)),
     todas("filiacoes", "id, nome_completo, cpf", (q) => q.eq("emp_proprietaria_id", emp)),
@@ -153,6 +160,13 @@ export async function saudeDasContas(): Promise<SaudeContas> {
       ordens: ordensPorConta.get(String(c.id))?.ordens ?? 0,
       abertas: ordensPorConta.get(String(c.id))?.abertas ?? 0,
       valorAberto: ordensPorConta.get(String(c.id))?.valorAberto ?? 0,
+      conferida: contaConferida(c)
+        ? {
+            em: String(c.conferida_em),
+            por: donos.get(`u:${c.conferida_por_usuario_id}`)?.nome ?? null,
+            obs: texto(c.conferida_obs),
+          }
+        : null,
       criada: String(c.created_at ?? ""),
       // a mesma pessoa: o CPF (todos os papéis) ou o próprio cadastro
       pessoa: cpf ? `cpf:${cpf}` : `dono:${k}`,
@@ -181,8 +195,15 @@ export async function saudeDasContas(): Promise<SaudeContas> {
   // A mesma agência+conta em pessoas diferentes.
   const porConta = new Map<string, typeof linhas>()
   for (const l of linhas) if (l.chave && !l.chave.startsWith("pix|")) porConta.set(l.chave, [...(porConta.get(l.chave) ?? []), l])
+  // Conferida: sai das listas e vai para "Conferidas" (com Desfazer).
+  const conferidas = new Map<string, ContaRevisao>()
   const cruzadas = [...porConta.values()]
     .filter((g) => new Set(g.map((l) => l.pessoa)).size > 1)
+    .filter((g) => {
+      if (!g.every((l) => l.conferida)) return true
+      for (const l of g) conferidas.set(l.id, limpa(l))
+      return false
+    })
     .map((g) => g.map(limpa))
     .sort((a, b) => emJogo(b) - emJogo(a))
 
@@ -191,6 +212,13 @@ export async function saudeDasContas(): Promise<SaudeContas> {
   for (const l of linhas) {
     if (!texto(l.conta)) continue
     const dono = l.dono.documento
+    const pediria = l.titularDocumento
+      ? Boolean(dono && !mesmoTitular(l.titularDocumento, dono))
+      : Boolean(l.favorecido && (limparCpf(l.favorecido).length >= 9 || !nomeBate(l.favorecido, l.dono.nome)))
+    if (pediria && l.conferida) {
+      conferidas.set(l.id, limpa(l))
+      continue
+    }
     if (l.titularDocumento) {
       if (dono && !mesmoTitular(l.titularDocumento, dono)) {
         const incompleto = dono.length < l.titularDocumento.length && (l.titularDocumento.startsWith(dono) || l.titularDocumento.endsWith(dono))
@@ -211,7 +239,48 @@ export async function saudeDasContas(): Promise<SaudeContas> {
     cruzadas,
     outroTitular: outroTitular.sort(porPrioridade),
     semDocumento: semDocumento.sort(porPrioridade),
+    conferidas: [...conferidas.values()].sort((a, b) => (b.conferida?.em ?? "").localeCompare(a.conferida?.em ?? "")),
   }
+}
+
+/**
+ * CONFERIDA (28/10/2026): quem paga ordens aceita a conta como está (conta do
+ * cônjuge, do MEI, de terceiro autorizado). Guarda o titular do momento: se
+ * ele mudar, a conferência deixa de valer sozinha (contaConferida).
+ */
+export async function conferirContas(ids: string[], obs: string | null, usuarioId: string | null): Promise<{ erro?: string }> {
+  if (ids.length === 0) return { erro: "Nenhuma conta." }
+  const admin = await createAdminClient()
+  const { data: contas, error } = await admin.from("dados_bancarios").select("id, titular_documento, favorecido").in("id", ids)
+  if (error) return { erro: `Não foi possível ler as contas: ${error.message}` }
+  if ((contas ?? []).length !== ids.length) return { erro: "Conta não encontrada." }
+  const em = new Date().toISOString()
+  for (const c of contas as Record<string, unknown>[]) {
+    const { error: e } = await admin
+      .from("dados_bancarios")
+      .update({
+        conferida_em: em,
+        conferida_por_usuario_id: usuarioId,
+        conferida_obs: obs,
+        conferida_titular: assinaturaTitular(c.titular_documento, c.favorecido),
+      })
+      .eq("id", String(c.id))
+    if (e) return { erro: `Não foi possível gravar: ${e.message}` }
+  }
+  return {}
+}
+
+/** Desfaz a conferência: a conta volta para a lista. */
+export async function desfazerConferencia(id: string): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("dados_bancarios")
+    .update({ conferida_em: null, conferida_por_usuario_id: null, conferida_obs: null, conferida_titular: null })
+    .eq("id", id)
+    .select("id")
+  if (error) return { erro: `Não foi possível desfazer: ${error.message}` }
+  if (!data?.length) return { erro: "Conta não encontrada." }
+  return {}
 }
 
 /**

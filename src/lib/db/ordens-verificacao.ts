@@ -8,6 +8,7 @@ import {
   type Severidade,
 } from "@/lib/auditoria-regras-catalogo"
 import type { Apontamento } from "@/lib/auditoria-confirmacao"
+import { contaConferida } from "@/lib/bancos"
 import { mesmoTitular, validarCnpj, validarCpf } from "@/lib/cpf"
 import { regrasConfiguradas, type RegraConfigurada } from "@/lib/db/auditoria-regras"
 import { avisarOrdensEmAutorizacao, depoisDaResposta } from "@/lib/db/avisos"
@@ -533,7 +534,7 @@ async function verificarLinha(
           if (dono) {
             const { data } = await admin
               .from("dados_bancarios")
-              .select("conta, favorecido, titular_documento, favorito")
+              .select("conta, favorecido, titular_documento, favorito, conferida_em, conferida_titular, conferida_obs")
               .eq(dono[0], dono[1])
               .not("conta", "is", null)
               .order("favorito", { ascending: false, nullsFirst: false })
@@ -543,6 +544,11 @@ async function verificarLinha(
         }
         const titular = t(conta?.favorecido)
         const docTitular = digitos(t(conta?.titular_documento))
+        // Conferida em Financeiro › Contas bancárias (e o titular não mudou): aceita.
+        if (contaConferida(conta)) {
+          r("ok", `Conta conferida no Financeiro em ${formatarData(t(conta?.conferida_em))}${t(conta?.conferida_obs) ? `: ${t(conta?.conferida_obs)}` : ""}.`)
+          break
+        }
         // Com o CPF/CNPJ do titular no cadastro da conta, a comparação é exata.
         if (conta && docTitular && docFavorecido) {
           if (docTitular === docFavorecido) r("ok", `Titular da conta: ${titular ?? docTitular} (mesmo CPF/CNPJ do favorecido).`)
