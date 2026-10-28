@@ -22,6 +22,7 @@ import {
 } from "@/lib/db/ordens-ciclo"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { gerarJsonIA } from "@/lib/ia"
+import { periodoDaDescricao } from "@/lib/locacao-periodo"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -459,13 +460,9 @@ async function verificarLinha(
         // Locação cobra o período já rodado: a fatura vence depois do término.
         // Vale o período da descrição — "(dd/mm/aaaa a dd/mm/aaaa)", ou a
         // competência "(MM/AAAA)" das ordens antigas —, não o vencimento.
-        const desc = aluguel ? t(linha.descricao) ?? "" : ""
-        const per = /\((\d{2})\/(\d{2})\/(\d{4}) a (\d{2})\/(\d{2})\/(\d{4})\)\s*$/.exec(desc)
-        const comp = per ? null : /\((\d{2})\/(\d{4})\)\s*$/.exec(desc)
-        if (per || comp) {
-          const de = per ? `${per[3]}-${per[2]}-${per[1]}` : `${comp![2]}-${comp![1]}-01`
-          const ate = per ? `${per[6]}-${per[5]}-${per[4]}` : somarDias(somarDias(de, 32).slice(0, 7) + "-01", -1)
-          const rotulo = per ? `Período ${formatarData(de)} a ${formatarData(ate)}` : `Competência ${comp![1]}/${comp![2]}`
+        const periodo = aluguel ? periodoDaDescricao(t(linha.descricao)) : null
+        if (periodo) {
+          const { de, ate, rotulo } = periodo
           if (aluguel?.finalizado === true) r("falha", "O contrato de locação está finalizado.")
           else if (fim && de > somarDias(fim, tol)) r("falha", `${rotulo} depois do fim da vigência (${formatarData(fim)}).`)
           else if (inicio && ate < inicio) r("falha", `${rotulo} antes do início da vigência (${formatarData(inicio)}).`)

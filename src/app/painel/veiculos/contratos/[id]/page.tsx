@@ -28,7 +28,9 @@ import {
   listarUsuariosAtivos,
   urlArquivoVeiculos,
 } from "@/lib/db/veiculos"
+import { hojeSP } from "@/lib/db/comum"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
+import { resumoLocacao } from "@/lib/locacao-periodo"
 
 import { editarOrdemAluguelAction, excluirOrdemAluguelAction } from "../actions"
 import {
@@ -76,6 +78,7 @@ export default async function ContratoPage({
     contrato.valor_mensal?.toLocaleString("pt-BR", {
       minimumFractionDigits: 2,
     }) ?? ""
+  const resumo = resumoLocacao(contrato, contrato.ordens, hojeSP())
 
   return (
     <>
@@ -171,6 +174,96 @@ export default async function ContratoPage({
           <AlertDescription>Registro salvo.</AlertDescription>
         </Alert>
       )}
+
+      <Card>
+        <CardContent className="grid gap-4 text-sm">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div>
+              <p className="text-muted-foreground text-xs">Cobrado</p>
+              <p className="text-lg font-semibold tabular-nums">
+                {formatarMoeda(resumo.cobrado)}
+              </p>
+              <p className="text-muted-foreground text-xs">
+                {resumo.qtdCobrancas} cobrança
+                {resumo.qtdCobrancas === 1 ? "" : "s"}
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-xs">Pago</p>
+              <p className="text-lg font-semibold tabular-nums">
+                {formatarMoeda(resumo.pago)}
+              </p>
+              <p className="text-muted-foreground text-xs">
+                {resumo.qtdPagas} paga{resumo.qtdPagas === 1 ? "" : "s"}
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-xs">Em aberto</p>
+              <p className="text-lg font-semibold tabular-nums">
+                {formatarMoeda(resumo.emAberto)}
+              </p>
+              <p className="text-muted-foreground text-xs">
+                cobrado e não pago
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-xs">
+                Previsto pela vigência
+              </p>
+              <p className="text-lg font-semibold tabular-nums">
+                {resumo.previsto === null
+                  ? "—"
+                  : `≈ ${formatarMoeda(resumo.previsto)}`}
+              </p>
+              <p className="text-muted-foreground text-xs">
+                {resumo.previsto === null
+                  ? "sem término ou sem valor mensal"
+                  : `${resumo.diasVigencia} dias × mensal ÷ 30`}
+              </p>
+            </div>
+          </div>
+          {contrato.vigencia_inicio && (
+            <div className="grid gap-1 border-t pt-3">
+              <p className="font-medium">
+                Dias da vigência sem cobrança{" "}
+                <span className="text-muted-foreground text-xs font-normal">
+                  (até hoje{contrato.vigencia_termino ? " ou o término" : ""})
+                </span>
+              </p>
+              {resumo.semCobranca.length === 0 ? (
+                <p className="text-success-fg text-xs">
+                  Todos os dias da vigência até aqui têm cobrança lançada.
+                </p>
+              ) : (
+                <ul className="grid gap-0.5 text-xs">
+                  {resumo.semCobranca.map((t) => (
+                    <li
+                      key={t.de}
+                      className={
+                        t.atrasado ? "text-warning-fg" : "text-muted-foreground"
+                      }
+                    >
+                      {formatarData(t.de)} a {formatarData(t.ate)} · {t.dias}{" "}
+                      dia{t.dias === 1 ? "" : "s"}
+                      {t.atrasado
+                        ? " — há mais de 30 dias: confira se a fatura chegou"
+                        : ""}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {resumo.semPeriodo > 0 && (
+                <p className="text-muted-foreground text-xs">
+                  {resumo.semPeriodo} ordem{resumo.semPeriodo === 1 ? "" : "s"}{" "}
+                  antiga
+                  {resumo.semPeriodo === 1 ? "" : "s"} sem período na descrição
+                  — entram nos totais, não nos dias.
+                </p>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
