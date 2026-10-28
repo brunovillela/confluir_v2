@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense, type ReactNode } from "react";
 import { BookText, ChartColumn, FileOutput, Landmark, CircleDollarSign, ClipboardCheck, CreditCard, Receipt, ShieldCheck, Undo2, Wallet } from "lucide-react";
 
 import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area";
@@ -16,6 +17,8 @@ import { resumoFinanceiro } from "@/lib/db/financeiro";
 import { contarEstornosPendentes } from "@/lib/db/ordens-estorno";
 import { formatarMoeda } from "@/lib/formato";
 import { podeAcessar } from "@/lib/permissoes";
+
+import { SeloContasBancarias } from "./selo-contas-bancarias";
 
 export const metadata: Metadata = { title: "Financeiro — Confluir" };
 
@@ -150,9 +153,14 @@ export default async function FinanceiroPage() {
     },
     veOrdens && {
       titulo: "Contas bancárias",
-      descricao: "Contas repetidas, titular de outra pessoa e conta sem documento, com juntar e corrigir",
+      descricao: "Ordens esperando conta, contas repetidas, titular de outra pessoa e conta sem documento",
       href: "/painel/financeiro/contas-bancarias",
       icone: Landmark,
+      selo: (
+        <Suspense fallback={null}>
+          <SeloContasBancarias />
+        </Suspense>
+      ),
     },
     veOrdens && {
       titulo: "Conciliação bancária",
@@ -177,6 +185,7 @@ export default async function FinanceiroPage() {
     descricao: string;
     href: string;
     icone: typeof Receipt;
+    selo?: ReactNode;
   }[];
 
   return (
@@ -196,6 +205,7 @@ export default async function FinanceiroPage() {
             descricao={a.descricao}
             href={a.href}
             icone={a.icone}
+            selo={a.selo}
           />
         ))}
       </div>

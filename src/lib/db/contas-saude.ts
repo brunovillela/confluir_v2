@@ -267,6 +267,12 @@ export async function corrigirTitular(contaId: string, documento: string): Promi
   return {}
 }
 
+/** Quantos casos a tela Contas bancárias tem para resolver (o selo do card no Financeiro). */
+export async function contarPendenciasContas(): Promise<number> {
+  const [s, esperando] = await Promise.all([saudeDasContas(), ordensEsperandoConta()])
+  return esperando.length + s.repetidas.length + s.cruzadas.length + s.outroTitular.length + s.semDocumento.length
+}
+
 /** Ordem aberta sem forma nem conta: espera o favorecido mandar os dados bancários. */
 export type OrdemEsperandoConta = {
   id: string
