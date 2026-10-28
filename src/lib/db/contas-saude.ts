@@ -337,7 +337,45 @@ export async function ordensEsperandoConta(): Promise<OrdemEsperandoConta[]> {
     })
   )
 
-  const deTipo = (tipo: TipoDono) => [...new Set(alvos.flatMap((a) => (a?.tipo === tipo ? [a.id] : [])))]
+  const contatos = await contatosDosDonos(alvos.filter((a): a is NonNullable<Alvo> => a !== null))
+
+  return ordens
+    .map((o, i): OrdemEsperandoConta => {
+      const a = alvos[i]
+      const c = a ? contatos.get(`${a.tipo}:${a.id}`) : undefined
+      const valor = o.valor_inicial_cobranca ?? o.valor
+      return {
+        id: String(o.id),
+        codigo: texto(o.codigo),
+        tipo: texto(o.tipo),
+        situacao: String(o.situacao),
+        valor: valor == null ? null : Number(valor),
+        vencimento: texto(o.vencimento),
+        favorecido: c?.dono.nome ?? texto(o.beneficiario_nome_avulso) ?? "Favorecido sem cadastro",
+        dono: c?.dono ?? null,
+        email: c?.email ?? null,
+        telefone: c?.telefone ?? null,
+        pedido: c?.pedido ?? null,
+      }
+    })
+    .sort((x, y) => (x.vencimento ?? "9999").localeCompare(y.vencimento ?? "9999"))
+}
+
+/** O cadastro de quem recebe, com o e-mail/WhatsApp sugeridos e o pedido de dados bancários em aberto. */
+export type ContatoDono = {
+  dono: DonoConta
+  email: string | null
+  telefone: string | null
+  pedido: { id: string; criadoEm: string; abertoEm: string | null; enviadoPara: string | null } | null
+}
+
+/** Contatos e pedido pendente de cada dono, pela chave "tipo:id" — para o botão "Pedir dados bancários". */
+export async function contatosDosDonos(alvos: { tipo: TipoDono; id: string }[]): Promise<Map<string, ContatoDono>> {
+  const saida = new Map<string, ContatoDono>()
+  if (alvos.length === 0) return saida
+  const admin = await createAdminClient()
+  const vazio = Promise.resolve({ data: [] as Record<string, unknown>[] })
+  const deTipo = (tipo: TipoDono) => [...new Set(alvos.flatMap((a) => (a.tipo === tipo ? [a.id] : [])))]
   const [fornecedores, usuarios, filiados] = [deTipo("fornecedor"), deTipo("usuario"), deTipo("filiado")]
   const [{ data: empresas }, { data: contatos }, { data: pessoas }, { data: fichas }, { data: pedidos }] = await Promise.all([
     fornecedores.length ? admin.from("empresa").select("id, empresa, nome_fantasia, nome_razao, cnpj_cpf").in("id", fornecedores) : vazio,
@@ -382,31 +420,13 @@ export async function ordensEsperandoConta(): Promise<OrdemEsperandoConta[]> {
       telefone: f.telefone_2_whatsapp === true && f.telefone_1_whatsapp !== true ? texto(f.telefone_2) : texto(f.telefone_1),
     })
   }
-  const pedidoDo = new Map<string, OrdemEsperandoConta["pedido"]>()
+  const pedidoDo = new Map<string, ContatoDono["pedido"]>()
   for (const p of (pedidos ?? []) as Record<string, unknown>[]) {
     const k = p.fornecedor_id ? `fornecedor:${p.fornecedor_id}` : p.usuario_id ? `usuario:${p.usuario_id}` : `filiado:${p.filiado_id}`
     if (!pedidoDo.has(k)) pedidoDo.set(k, { id: String(p.id), criadoEm: String(p.created_at), abertoEm: texto(p.aberto_em), enviadoPara: texto(p.enviado_para) })
   }
-
-  return ordens
-    .map((o, i): OrdemEsperandoConta => {
-      const a = alvos[i]
-      const k = a ? `${a.tipo}:${a.id}` : null
-      const dono = k ? (donos.get(k) ?? null) : null
-      const valor = o.valor_inicial_cobranca ?? o.valor
-      return {
-        id: String(o.id),
-        codigo: texto(o.codigo),
-        tipo: texto(o.tipo),
-        situacao: String(o.situacao),
-        valor: valor == null ? null : Number(valor),
-        vencimento: texto(o.vencimento),
-        favorecido: dono?.nome ?? texto(o.beneficiario_nome_avulso) ?? "Favorecido sem cadastro",
-        dono,
-        email: k ? (contato.get(k)?.email ?? null) : null,
-        telefone: k ? (contato.get(k)?.telefone ?? null) : null,
-        pedido: k ? (pedidoDo.get(k) ?? null) : null,
-      }
-    })
-    .sort((x, y) => (x.vencimento ?? "9999").localeCompare(y.vencimento ?? "9999"))
+  for (const [k, dono] of donos) {
+    saida.set(k, { dono, email: contato.get(k)?.email ?? null, telefone: contato.get(k)?.telefone ?? null, pedido: pedidoDo.get(k) ?? null })
+  }
+  return saida
 }

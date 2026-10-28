@@ -8,10 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requirePermissao } from "@/lib/auth"
 import { PedirDadosBancarios } from "@/components/pedir-dados-bancarios"
 import {
+  contatosDosDonos,
   mascararDocumento,
   mascararTexto,
   ordensEsperandoConta,
   saudeDasContas,
+  type ContatoDono,
   type ContaRevisao,
   type DonoConta,
 } from "@/lib/db/contas-saude"
@@ -95,6 +97,19 @@ export default async function ContasBancariasPage() {
     grupos.set(k, [...(grupos.get(k) ?? []), o])
   }
   const porFavorecido = [...grupos.values()]
+  // Titular errado ou sem documento: pedir a conta certa ao próprio favorecido.
+  const contatos = podeAgir
+    ? await contatosDosDonos([...s.outroTitular, ...s.semDocumento].map(({ conta }) => ({ tipo: conta.dono.tipo, id: conta.dono.id })))
+    : new Map<string, ContatoDono>()
+  const pedir = (dono: DonoConta) => {
+    const c = contatos.get(`${dono.tipo}:${dono.id}`)
+    if (!c) return null
+    return (
+      <div>
+        <PedirDadosBancarios dono={{ tipo: dono.tipo, id: dono.id }} emailSugerido={c.email} telefoneSugerido={c.telefone} pendente={c.pedido} />
+      </div>
+    )
+  }
   const sobrando = s.repetidas.reduce((n, g) => n + g.copias.length, 0)
 
   return (
@@ -206,7 +221,7 @@ export default async function ContasBancariasPage() {
       <Secao
         titulo="Titular de outra pessoa"
         total={s.outroTitular.length}
-        descricao="O CPF/CNPJ do titular da conta não é o do cadastro (matriz e filial contam como o mesmo). A regra de auditoria alerta nas ordens e a remessa avisa."
+        descricao="O CPF/CNPJ do titular da conta não é o do cadastro (matriz e filial contam como o mesmo). A regra de auditoria alerta nas ordens e a remessa avisa. Na dúvida, peça os dados bancários ao próprio favorecido."
         vazio="Nenhuma."
       >
         {s.outroTitular.map(({ conta, motivo }) => (
@@ -221,6 +236,7 @@ export default async function ContasBancariasPage() {
               </span>
             )}
             {podeAgir && motivo === "digitacao" && <CorrigirTitular conta={conta.id} sugestao={conta.dono.documento} />}
+            {pedir(conta.dono)}
           </div>
         ))}
       </Secao>
@@ -228,7 +244,7 @@ export default async function ContasBancariasPage() {
       <Secao
         titulo="Sem documento do titular"
         total={s.semDocumento.length}
-        descricao="Conta sem o CPF/CNPJ do titular e com titular de outro nome (ou um número que não passa na validação). Grave o documento certo."
+        descricao="Conta sem o CPF/CNPJ do titular e com titular de outro nome (ou um número que não passa na validação). Grave o documento certo ou peça os dados bancários ao favorecido."
         vazio="Nenhuma."
       >
         {s.semDocumento.map(({ conta, dica }) => (
@@ -238,6 +254,7 @@ export default async function ContasBancariasPage() {
             {conta.favorecido && <span className="text-muted-foreground text-xs">Titular informado: {mascararTexto(conta.favorecido)}</span>}
             {dica && <span className="text-warning-fg text-xs">{dica}</span>}
             {podeAgir && <CorrigirTitular conta={conta.id} />}
+            {pedir(conta.dono)}
           </div>
         ))}
       </Secao>
