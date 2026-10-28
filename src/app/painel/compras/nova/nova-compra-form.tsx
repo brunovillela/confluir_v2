@@ -31,7 +31,8 @@ import {
   FORMAS_PAGAMENTO_COMPRAS,
   hojeLocalISO,
 } from "@/lib/compras-constantes"
-import { FORMAS_PAGAMENTO_RPA } from "@/lib/rpa-calculo"
+import { calcularRpaPadrao, FORMAS_PAGAMENTO_RPA, type ConfigRpa } from "@/lib/rpa-calculo"
+import { parseValorBR } from "@/lib/valores"
 import { formatarCnpjCpf } from "@/lib/mascaras"
 import { cn } from "@/lib/utils"
 
@@ -59,6 +60,17 @@ type Opcao = { id: string; nome: string }
 type CentroOpcao = { id: string; nome: string; departamentoId: string | null }
 type ProjetoOpcao = { id: string; nome: string; centroCustoId: string | null }
 type Modo = "manual" | "semi"
+export type RpaAvulsoOpcao = {
+  id: string
+  numero: number | null
+  fornecedorId: string
+  descricao: string | null
+  valorBruto: number
+  valorLiquido: number
+  assinado: boolean
+}
+
+const moedaBR = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -74,6 +86,8 @@ export function NovaCompraForm({
   caixas,
   compradores = [],
   compradorPadrao = null,
+  rpaConfig = null,
+  rpasAvulsos = [],
   permiteViaCompras = true,
   permiteDireta = true,
 }: {
@@ -93,6 +107,10 @@ export function NovaCompraForm({
   compradores?: { id: string; nome: string; origem: string }[]
   /** Quem lança — vem selecionado, mas pode ser trocado. */
   compradorPadrao?: string | null
+  /** Tabelas do RPA (prévia do RPA com as alíquotas padrão). */
+  rpaConfig?: ConfigRpa | null
+  /** RPAs avulsos (sem ordem) — escolhidos pelo fornecedor da compra. */
+  rpasAvulsos?: RpaAvulsoOpcao[]
 }) {
   const [estado, formAction, pendente] = useActionState(criarCompra, {})
   const formRef = useRef<HTMLFormElement>(null)
@@ -177,6 +195,19 @@ export function NovaCompraForm({
   )
   const rpaDisponivel = direta && !semi && tipo === "servico" && fornecedorPf
   const porRpa = rpaDisponivel && rpaMarcado
+  // Documento fiscal do RPA: um novo (alíquotas padrão, a partir do bruto ou
+  // do líquido) ou um RPA avulso já emitido para este fornecedor.
+  const [rpaOrigem, setRpaOrigem] = useState<"novo" | "avulso">("novo")
+  const [rpaBase, setRpaBase] = useState<"liquido" | "bruto">("liquido")
+  const [rpaId, setRpaId] = useState("")
+  const [valorTxt, setValorTxt] = useState("")
+  const avulsosDoFornecedor = rpasAvulsos.filter((r) => r.fornecedorId === fornecedorId)
+  const rpaEscolhido = porRpa && rpaOrigem === "avulso" ? avulsosDoFornecedor.find((r) => r.id === rpaId) : undefined
+  const valorDigitado = parseValorBR(valorTxt)
+  const previaRpa =
+    porRpa && rpaOrigem === "novo" && rpaConfig && valorDigitado && valorDigitado > 0
+      ? calcularRpaPadrao(valorDigitado, rpaBase, rpaConfig)
+      : null
   // Marketplace: a nota costuma chegar depois, emitida pelo vendedor.
   const [notaDepois, setNotaDepois] = useState(true)
   const ehMarketplace =
@@ -869,16 +900,36 @@ export function NovaCompraForm({
                 </div>
                 <div className="grid gap-1.5">
                   <Label htmlFor="valor">
-                    {porRpa ? "Valor da compra (líquido do RPA) *" : "Valor da compra *"}
+                    {!porRpa
+                      ? "Valor da compra *"
+                      : rpaOrigem === "avulso"
+                        ? "Valor (líquido do RPA)"
+                        : rpaBase === "bruto"
+                          ? "Valor bruto do RPA *"
+                          : "Valor líquido do RPA *"}
                   </Label>
-                  <Input
-                    id="valor"
-                    name="valor"
-                    inputMode="decimal"
-                    required
-                    placeholder="0,00"
-                    defaultValue={semi ? leitura?.valor : undefined}
-                  />
+                  {porRpa && rpaOrigem === "avulso" ? (
+                    <>
+                      <input
+                        type="hidden"
+                        name="valor"
+                        value={rpaEscolhido ? String(rpaEscolhido.valorLiquido).replace(".", ",") : ""}
+                      />
+                      <p className="text-muted-foreground pt-2 text-sm tabular-nums">
+                        {rpaEscolhido ? moedaBR(rpaEscolhido.valorLiquido) : "Escolha o RPA"}
+                      </p>
+                    </>
+                  ) : (
+                    <Input
+                      id="valor"
+                      name="valor"
+                      inputMode="decimal"
+                      required
+                      placeholder="0,00"
+                      defaultValue={semi ? leitura?.valor : undefined}
+                      onChange={(e) => setValorTxt(e.target.value)}
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -904,6 +955,120 @@ export function NovaCompraForm({
                   </span>
                 </span>
               </label>
+            )}
+            {porRpa && (
+              <fieldset className="grid gap-3 rounded-md border p-3 text-sm">
+                <legend className="px-1 font-medium">Documento fiscal: o RPA</legend>
+                <input type="hidden" name="rpa_origem" value={rpaOrigem} />
+                <label className="flex items-start gap-2">
+                  <input
+                    type="radio"
+                    checked={rpaOrigem === "novo"}
+                    onChange={() => setRpaOrigem("novo")}
+                    className="mt-0.5 size-4"
+                  />
+                  <span>
+                    <strong>Criar o RPA agora, com as alíquotas padrão</strong>
+                    <span className="text-muted-foreground block text-xs">
+                      INSS{rpaConfig ? ` ${rpaConfig.inss_aliquota}%` : ""}, IRRF pela tabela e ISS
+                      {rpaConfig ? ` ${rpaConfig.iss_aliquota_padrao}%` : ""} retidos, sem dependentes. Para outro
+                      ajuste, emita pela área de RPA (aba Sem compra) e use a opção abaixo.
+                    </span>
+                  </span>
+                </label>
+                {rpaOrigem === "novo" && (
+                  <div className="ml-6 grid gap-2">
+                    <input type="hidden" name="rpa_base" value={rpaBase} />
+                    <div className="flex flex-wrap gap-4">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          checked={rpaBase === "liquido"}
+                          onChange={() => setRpaBase("liquido")}
+                          className="size-4"
+                        />
+                        <span>
+                          O valor informado é o <strong>líquido</strong> (o que o prestador recebe)
+                        </span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          checked={rpaBase === "bruto"}
+                          onChange={() => setRpaBase("bruto")}
+                          className="size-4"
+                        />
+                        <span>
+                          É o <strong>bruto</strong> (antes das retenções)
+                        </span>
+                      </label>
+                    </div>
+                    {previaRpa && (
+                      <p className="text-muted-foreground text-xs tabular-nums">
+                        Bruto {moedaBR(previaRpa.valorBruto)} - INSS {moedaBR(previaRpa.inss)} - IRRF{" "}
+                        {moedaBR(previaRpa.irrf)} - ISS {moedaBR(previaRpa.iss)} ={" "}
+                        <strong className="text-foreground">líquido {moedaBR(previaRpa.valorLiquido)}</strong>, o
+                        valor da compra e da ordem.
+                      </p>
+                    )}
+                  </div>
+                )}
+                <label className="flex items-start gap-2">
+                  <input
+                    type="radio"
+                    checked={rpaOrigem === "avulso"}
+                    onChange={() => setRpaOrigem("avulso")}
+                    className="mt-0.5 size-4"
+                  />
+                  <span>
+                    <strong>Usar um RPA já emitido</strong>
+                    <span className="text-muted-foreground block text-xs">
+                      Um RPA deste fornecedor emitido sem compra (área de RPA › Sem compra) e ainda sem ordem de
+                      pagamento.
+                    </span>
+                  </span>
+                </label>
+                {rpaOrigem === "avulso" && (
+                  <div className="ml-6 grid gap-1.5">
+                    {avulsosDoFornecedor.length === 0 ? (
+                      <p className="text-muted-foreground text-xs">
+                        Nenhum RPA avulso deste fornecedor.{" "}
+                        <a
+                          href="/painel/compras/rpa/novo?modo=avulso"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          Emitir um RPA sem compra
+                        </a>{" "}
+                        (abre em outra aba) e recarregar esta página.
+                      </p>
+                    ) : (
+                      <select
+                        name="rpa_id"
+                        required
+                        value={rpaId}
+                        onChange={(e) => setRpaId(e.target.value)}
+                        className={SELECT}
+                      >
+                        <option value="" disabled>
+                          Escolha o RPA
+                        </option>
+                        {avulsosDoFornecedor.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {`RPA nº ${r.numero ?? "—"} — líquido ${moedaBR(r.valorLiquido)} (bruto ${moedaBR(r.valorBruto)})${r.assinado ? " · assinado" : ""}${r.descricao ? ` — ${r.descricao}` : ""}`}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    {rpaEscolhido?.assinado && (
+                      <p className="text-muted-foreground text-xs">
+                        Já assinado pelo prestador: a ordem segue direto para autorização.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </fieldset>
             )}
             {compradores.length > 0 && (
               <div className="grid gap-4 md:grid-cols-2">

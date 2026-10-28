@@ -5,6 +5,7 @@ import { useActionState } from "react"
 import { FileCheck2, Loader2, Send, Trash2, Upload } from "lucide-react"
 
 import { ConfirmacaoAuditoria } from "@/components/confirmacao-auditoria"
+import { EmpresaCombobox, type EmpresaOpcao } from "@/components/empresa-combobox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -89,12 +90,15 @@ export type CompraDoForm = {
 export function RpaNovoForm({
   contrato,
   compra,
+  avulso = null,
   hoje,
   config,
   caixas,
 }: {
   contrato: ContratoDoForm | null
   compra: CompraDoForm | null
+  /** RPA avulso: escolhe-se o prestador; sem pagamento (a ordem nasce na compra que o usar). */
+  avulso?: { prestadores: EmpresaOpcao[] } | null
   hoje: string
   config: ConfigRpa
   caixas: CaixaOpcao[]
@@ -113,7 +117,8 @@ export function RpaNovoForm({
   const [issTxt, setIssTxt] = useState(String(config.iss_aliquota_padrao))
   const [forma, setForma] = useState("")
 
-  const fornecedorId = contrato?.fornecedorId ?? compra?.fornecedorId ?? ""
+  const [prestadorId, setPrestadorId] = useState("")
+  const fornecedorId = contrato?.fornecedorId ?? compra?.fornecedorId ?? prestadorId
 
   const previa = useMemo(() => {
     const valor = lerValor(valorTxt)
@@ -151,13 +156,28 @@ export function RpaNovoForm({
           <input type="hidden" name="fornecimento_id" value={compra.fornecimentoId} />
         </>
       )}
+      {avulso && <input type="hidden" name="modo" value="avulso" />}
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
         </Alert>
       )}
 
-      {contrato ? (
+      {avulso ? (
+        <div className="grid gap-1.5">
+          <Label>Prestador (fornecedor pessoa física) *</Label>
+          <EmpresaCombobox
+            empresas={avulso.prestadores}
+            name="fornecedor_id"
+            onChange={(id) => setPrestadorId(id ?? "")}
+          />
+          <p className="text-muted-foreground text-xs">
+            Só fornecedores com CPF no cadastro. Sem ordem de pagamento: o recibo fica disponível na{" "}
+            <strong>Nova compra</strong> (aquisição direta, pagar por RPA → usar um RPA já emitido), que cria a
+            ordem.
+          </p>
+        </div>
+      ) : contrato ? (
         <dl className="bg-muted/40 grid gap-2 rounded-lg border p-3 text-sm sm:grid-cols-2">
           <div>
             <dt className="text-muted-foreground text-xs">Contrato</dt>
@@ -340,7 +360,7 @@ export function RpaNovoForm({
         </div>
       )}
 
-      {compra?.pagamento ? (
+      {avulso ? null : compra?.pagamento ? (
         <fieldset className="grid gap-2 rounded-lg border p-3 text-sm">
           <legend className="px-1 text-sm font-medium">Pagamento (definido na compra)</legend>
           <dl className="grid gap-3 sm:grid-cols-3">
@@ -442,7 +462,7 @@ export function RpaNovoForm({
       <div className="flex justify-end">
         <Button type="submit" disabled={pend}>
           {pend && <Loader2 className="animate-spin" />}
-          {compra?.pagamento ? "Emitir RPA" : "Emitir RPA e gerar a ordem"}
+          {compra?.pagamento || avulso ? "Emitir RPA" : "Emitir RPA e gerar a ordem"}
         </Button>
       </div>
     </form>

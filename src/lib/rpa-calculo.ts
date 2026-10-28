@@ -84,6 +84,21 @@ export type ResultadoRpa = {
   valorLiquido: number
 }
 
+/**
+ * Alíquotas padrão do RPA emitido na própria compra (aquisição direta):
+ * INSS, IRRF e ISS retidos, sem dependentes, ISS da configuração. Para
+ * ajustar, emite-se pela área de RPA.
+ */
+export function opcoesPadraoRpa(cfg: ConfigRpa): OpcoesRpa {
+  return { dependentes: 0, reterInss: true, reterIrrf: true, reterIss: true, issAliquota: cfg.iss_aliquota_padrao }
+}
+
+/** O recibo com as alíquotas padrão, a partir do valor bruto ou do líquido. */
+export function calcularRpaPadrao(valor: number, base: "bruto" | "liquido", cfg: ConfigRpa): ResultadoRpa {
+  const op = opcoesPadraoRpa(cfg)
+  return base === "liquido" ? calcularPorLiquido(valor, cfg, op) : calcularPorBruto(valor, cfg, op)
+}
+
 const arred = (v: number) => Math.round(v * 100) / 100
 
 /** Retenções e líquido a partir do BRUTO. */

@@ -22,6 +22,7 @@ import {
   buscarRpa,
   compraDoRpa,
   contratoDoRpa,
+  impedimentoDoPrestador,
   obterConfigRpa,
   proximoNumeroRpa,
 } from "@/lib/db/compras-rpa"
@@ -102,6 +103,8 @@ type OrigemRpa = {
   fornecedorId: string
   departamentoId: string | null
   centroCustoId: string | null
+  /** RPA AVULSO: sem contrato, sem compra e sem ordem — usado depois numa aquisição direta. */
+  avulso?: boolean
   /** RPA de compra de serviço: o fornecimento que ele paga. */
   compra?: {
     processoId: string
@@ -181,6 +184,19 @@ async function origemDaCompra(
 }
 
 /**
+ * RPA AVULSO (volta em 28/10/2026): emitido para o prestador antes da compra,
+ * sem ordem. Fica disponível na nova compra (aquisição direta, "pagar por
+ * RPA" → "Usar um RPA já emitido"), que cria a ordem.
+ */
+async function origemAvulsa(fd: FormData): Promise<{ origem?: OrigemRpa; erro?: string }> {
+  const fornecedorId = txt(fd, "fornecedor_id")
+  if (!fornecedorId) return { erro: "Escolha o prestador (fornecedor pessoa física)." }
+  const impedimento = await impedimentoDoPrestador(fornecedorId)
+  if (impedimento) return { erro: impedimento }
+  return { origem: { contratoId: null, fornecedorId, departamentoId: null, centroCustoId: null, avulso: true } }
+}
+
+/**
  * Emite o RPA — de um contrato ou de uma compra de serviço — e, junto com o recibo, a ordem de
  * pagamento do valor LÍQUIDO, Em autorização, com a forma de pagamento e o
  * "para onde" completos (chave/conta do prestador, código Pix, boleto ou
@@ -194,13 +210,17 @@ export async function emitirRpa(
   fd: FormData
 ): Promise<EstadoComApontamentos> {
   const sessao = await exigirEdicao()
-  const daCompra = txt(fd, "modo") === "compra"
-  if (!daCompra && !editaContratos(sessao)) {
+  const modo = txt(fd, "modo")
+  const daCompra = modo === "compra"
+  const avulso = modo === "avulso"
+  if (!daCompra && !avulso && !editaContratos(sessao)) {
     return { erro: "Emitir RPA de contrato exige a permissão de edição de contratos." }
   }
   const { origem, erro: erroOrigem } = daCompra
     ? await origemDaCompra(fd, sessao)
-    : await origemDoContrato(fd)
+    : avulso
+      ? await origemAvulsa(fd)
+      : await origemDoContrato(fd)
   if (!origem) return { erro: erroOrigem ?? "Dados do RPA inválidos." }
 
   const descricao = txt(fd, "descricao_servico")
@@ -213,7 +233,7 @@ export async function emitirRpa(
   const ordemDaCompra = origem.compra?.ordemPendenteId ?? null
   if (!descricao) return { erro: "Descreva o serviço prestado." }
   if (valor === null || valor <= 0) return { erro: "Informe o valor (ex.: 1.500,00)." }
-  if (!ordemDaCompra) {
+  if (!ordemDaCompra && !avulso) {
     if (!pagarEm || !/^\d{4}-\d{2}-\d{2}$/.test(pagarEm)) {
       return { erro: "Informe a data do pagamento (Pagar em)." }
     }
@@ -239,7 +259,7 @@ export async function emitirRpa(
 
   // Por último: chave/conta NOVA do prestador vai para o cadastro dele aqui.
   // Valor 0 na conferência do caixa: ele só é debitado no pagamento da ordem.
-  const { detalhe, boleto, erro: erroDetalhe } = ordemDaCompra
+  const { detalhe, boleto, erro: erroDetalhe } = ordemDaCompra || avulso
     ? {
         detalhe: { cartao_id: null, caixa_conta_id: null, dados_bancarios_id: null, pix_codigo: null, arquivo_boleto: null },
         boleto: undefined,
@@ -306,6 +326,12 @@ export async function emitirRpa(
   if (!rpaId) {
     await apagarBoleto()
     return { erro: `Não foi possível emitir: ${ultimoErro}` }
+  }
+
+  // Avulso: só o recibo — a ordem nasce na compra que o usar.
+  if (avulso) {
+    revalidatePath("/painel/compras/rpa")
+    redirect(`/painel/compras/rpa/${rpaId}?salvo=1`)
   }
 
   if (ordemDaCompra && origem.compra) {

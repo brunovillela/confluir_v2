@@ -18,7 +18,9 @@ import {
 } from "@/lib/db/compras"
 import { escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
 import { compradoresPossiveis } from "@/lib/db/compras-compradores"
-import { impedimentoDoPrestador } from "@/lib/db/compras-rpa"
+import { impedimentoDoPrestador, obterConfigRpa } from "@/lib/db/compras-rpa"
+import { emitirRpaPadraoNaCompra, listarRpasAvulsos, usarRpaAvulsoNaCompra } from "@/lib/db/rpa-compra-direta"
+import { calcularRpaPadrao } from "@/lib/rpa-calculo"
 import { lerDetalhePagamento } from "@/lib/db/compras-pagamento-form"
 import { FORMA_PAGA_NO_ATO } from "@/lib/compras-constantes"
 import { lerConfirmacao } from "@/lib/db/ordens-verificacao"
@@ -142,6 +144,25 @@ export async function criarCompra(
     }
     const vencimentoRpa = dataISO(texto(formData, "vencimento"))
     if (!vencimentoRpa) return { erro: "Informe a data de pagamento (Pagar em).", campo: "vencimento" }
+    // O documento fiscal: um RPA novo com as alíquotas padrão (o valor
+    // informado é o bruto ou o líquido) ou um RPA avulso já emitido para o
+    // fornecedor. A ordem nasce no LÍQUIDO do recibo.
+    const usarAvulso = texto(formData, "rpa_origem") === "avulso"
+    const baseRpa = texto(formData, "rpa_base") === "bruto" ? "bruto" : "liquido"
+    let valorOrdem = valor
+    let rpaAvulsoId: string | null = null
+    if (usarAvulso) {
+      rpaAvulsoId = texto(formData, "rpa_id") || null
+      const avulso = rpaAvulsoId
+        ? (await listarRpasAvulsos(fornecedorId)).find((r) => r.id === rpaAvulsoId)
+        : undefined
+      if (!avulso) return { erro: "Escolha um RPA emitido para este fornecedor e ainda sem ordem.", campo: "rpa_id" }
+      valorOrdem = avulso.valorLiquido
+    } else {
+      const r = calcularRpaPadrao(valor, baseRpa, await obterConfigRpa())
+      if (!(r.valorLiquido > 0)) return { erro: "O valor líquido do RPA ficou zerado — confira o valor.", campo: "valor" }
+      valorOrdem = r.valorLiquido
+    }
     // Valor 0 na conferência do caixa: em dinheiro, ele é debitado no pagamento.
     const { detalhe, boleto, erro: erroDetalhe } = await lerDetalhePagamento(
       formData,
@@ -159,7 +180,7 @@ export async function criarCompra(
       ...base,
       confirmacao: lerConfirmacao(formData),
       fornecedor_id: fornecedorId,
-      valor,
+      valor: valorOrdem,
       forma_pagamento: formaRpa,
       data_compra: dataCompra,
       vencimento: vencimentoRpa,
@@ -176,7 +197,32 @@ export async function criarCompra(
     }
     if (erro || !id || !fornecimentoId) return { erro: erro ?? "Falha ao registrar." }
     revalidatePath("/painel/compras")
-    redirect(`/painel/compras/rpa/novo?fornecimento=${fornecimentoId}`)
+    revalidatePath(`/painel/compras/${id}`)
+    const { data: forn } = await (await createAdminClient())
+      .from("compras_fornecimentos")
+      .select("ordem_pagamento_id")
+      .eq("id", fornecimentoId)
+      .maybeSingle()
+    const ordemId = forn?.ordem_pagamento_id ? String(forn.ordem_pagamento_id) : null
+    const vinculo = { processoId: id, fornecimentoId, ordemId: ordemId ?? "", usuarioId: String(sessao.usuario.id) }
+    const rpa = !ordemId
+      ? { erro: "a compra ficou sem a ordem de pagamento" }
+      : rpaAvulsoId
+        ? await usarRpaAvulsoNaCompra({ ...vinculo, rpaId: rpaAvulsoId, fornecedorId })
+        : await emitirRpaPadraoNaCompra({
+            ...vinculo,
+            fornecedorId,
+            descricao: produto,
+            dataServico: dataCompra,
+            base: baseRpa,
+            valor,
+          })
+    // A compra já foi gravada: se o RPA falhar, ele é emitido pela tela
+    // de sempre, a partir da compra (o erro vai junto no endereço).
+    if (rpa.erro || !rpa.rpaId) {
+      redirect(`/painel/compras/rpa/novo?fornecimento=${fornecimentoId}&falha=${encodeURIComponent(rpa.erro ?? "erro")}`)
+    }
+    redirect(`/painel/compras/rpa/${rpa.rpaId}?salvo=1`)
   }
 
   const formaBruta = texto(formData, "forma_pagamento")

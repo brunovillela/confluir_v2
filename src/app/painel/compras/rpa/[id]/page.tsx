@@ -47,9 +47,12 @@ export default async function RpaDetalhePage({
   if (!rpa) notFound()
   const operaCompra = permissoesCompra.some((p) => podeAcessar(sessao.permissoes, p))
   const veContratos = podeAcessar(sessao.permissoes, "aquisicoes_contratos", ["aquisicoes_contratos_edicao"])
-  if (!veContratos && !(rpa.compraId && operaCompra)) notFound()
+  // Quem opera compras vê o RPA de compra e o avulso (sem contrato).
+  const daCompraOuAvulso = Boolean(rpa.compraId) || !rpa.contratoId
+  if (!veContratos && !(daCompraOuAvulso && operaCompra)) notFound()
   const podeEditar =
-    podeAcessar(sessao.permissoes, "aquisicoes_contratos_edicao") || Boolean(rpa.compraId && operaCompra)
+    podeAcessar(sessao.permissoes, "aquisicoes_contratos_edicao") || Boolean(daCompraOuAvulso && operaCompra)
+  const avulso = !rpa.contratoId && !rpa.compraId && !rpa.ordemId
 
   const retencoes = (rpa.inss ?? 0) + (rpa.irrf ?? 0) + (rpa.iss ?? 0)
   const urlAssinado = await urlArquivoCompras(rpa.arquivoAssinado)
@@ -125,7 +128,9 @@ export default async function RpaDetalhePage({
               ? "O RPA é uma forma de pagamento do contrato: a ordem do valor líquido nasce junto com o recibo."
               : rpa.compraId
                 ? "RPA da compra de serviço: a ordem do valor líquido é a ordem da compra, e o recibo assinado vale como a nota dela."
-                : "RPA anterior aos contratos e às compras de serviço."}
+                : avulso
+                  ? "RPA avulso, sem ordem de pagamento: escolha-o numa Nova compra (aquisição direta, pagar por RPA → usar um RPA já emitido), que cria a ordem."
+                  : "RPA anterior aos contratos e às compras de serviço."}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
@@ -145,7 +150,7 @@ export default async function RpaDetalhePage({
                   {rpa.contratoObjeto ? ` — ${rpa.contratoObjeto}` : ""}
                 </Link>
               ) : (
-                <span className="text-muted-foreground">Sem contrato (anterior)</span>
+                <span className="text-muted-foreground">{avulso ? "Avulso — ainda sem compra" : "Sem contrato (anterior)"}</span>
               )}
             </span>
           </div>

@@ -9,6 +9,8 @@ import { escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
 import { contasAbertasParaCompras } from "@/lib/db/caixa"
 import { compradoresPossiveis } from "@/lib/db/compras-compradores"
 import { listarCartoes, nomeCartao } from "@/lib/db/compras-pagamento"
+import { obterConfigRpa } from "@/lib/db/compras-rpa"
+import { listarRpasAvulsos } from "@/lib/db/rpa-compra-direta"
 import { podeAcessar } from "@/lib/permissoes"
 import {
   listarCentrosCustoParaCompra,
@@ -26,7 +28,7 @@ export default async function NovaCompraPage() {
   const viaCompras = podeAcessar(sessao.permissoes, "aquisicoes_compras_edicao")
   const direta = podeAcessar(sessao.permissoes, "aquisicoes_compra_direta")
 
-  const [todosDepartamentos, centros, projetos, fornecedores, escopo, cartoes, caixas, compradores] = await Promise.all([
+  const [todosDepartamentos, centros, projetos, fornecedores, escopo, cartoes, caixas, compradores, rpaConfig, rpasAvulsos] = await Promise.all([
     listarDepartamentos(),
     listarCentrosCustoParaCompra(),
     listarProjetosAbertos(),
@@ -35,6 +37,9 @@ export default async function NovaCompraPage() {
     direta ? listarCartoes() : Promise.resolve({ disponivel: false, cartoes: [] }),
     direta ? contasAbertasParaCompras() : Promise.resolve([]),
     direta ? compradoresPossiveis(sessao.usuario.id as string) : Promise.resolve([]),
+    // RPA na aquisição direta: prévia das alíquotas padrão e os RPAs avulsos.
+    direta ? obterConfigRpa() : Promise.resolve(null),
+    direta ? listarRpasAvulsos() : Promise.resolve([]),
   ])
   // Só os departamentos pelos quais a pessoa compra (sem restrição: todos).
   const departamentos = escopo.todos
@@ -85,6 +90,8 @@ export default async function NovaCompraPage() {
         caixas={caixas}
         compradores={compradores}
         compradorPadrao={sessao.usuario.id as string}
+        rpaConfig={rpaConfig}
+        rpasAvulsos={rpasAvulsos}
       />
     </>
   )

@@ -24,6 +24,7 @@ import {
   obterConfigRpa,
 } from "@/lib/db/compras-rpa"
 import { descreverPagoCom } from "@/lib/db/compras-pagamento"
+import { listarFornecedores } from "@/lib/db/compras"
 import { formatarMoeda } from "@/lib/formato"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { podeAcessar } from "@/lib/permissoes"
@@ -41,12 +42,14 @@ const SELECT_CLS =
  * COMPRA DE SERVIÇO (`?fornecimento=`: prestador, serviço, departamento,
  * centro de custo e valor vêm da compra; falta só o pagamento). Sem nenhum
  * dos dois, pede o contrato ou lista as compras de serviço aguardando RPA.
- * O RPA avulso saiu em 02/10/2026: a porta de entrada dele é a compra.
+ * O RPA AVULSO (`?modo=avulso`) voltou em 28/10/2026: emitido para o
+ * prestador sem compra nem ordem, ele é escolhido depois na nova compra
+ * (aquisição direta, pagar por RPA), que cria a ordem.
  */
 export default async function NovoRpaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ contrato?: string; fornecimento?: string; modo?: string }>
+  searchParams: Promise<{ contrato?: string; fornecimento?: string; modo?: string; falha?: string }>
 }) {
   const sessao = await requirePermissao("aquisicoes_contratos_edicao", [
     "aquisicoes_compras_edicao",
@@ -54,9 +57,10 @@ export default async function NovoRpaPage({
     "aquisicoes_compra_direta",
   ])
   const editaContratos = podeAcessar(sessao.permissoes, "aquisicoes_contratos_edicao")
-  const { contrato: contratoId, fornecimento: fornecimentoId, modo } = await searchParams
+  const { contrato: contratoId, fornecimento: fornecimentoId, modo, falha } = await searchParams
   const compra = fornecimentoId ? await compraDoRpa(fornecimentoId) : null
-  const abaCompra = Boolean(fornecimentoId) || modo === "compra" || !editaContratos
+  const abaAvulso = !fornecimentoId && modo === "avulso"
+  const abaCompra = !abaAvulso && (Boolean(fornecimentoId) || modo === "compra" || !editaContratos)
   const contrato = !abaCompra && contratoId ? await contratoDoRpa(contratoId) : null
 
   const voltar = compra
@@ -76,14 +80,41 @@ export default async function NovoRpaPage({
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">Novo RPA</h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Recibo de pagamento a autônomo (pessoa física): de um contrato com ele ou de uma compra
-          de serviço. O recibo gera a ordem de pagamento do valor líquido.
+          Recibo de pagamento a autônomo (pessoa física): de um contrato com ele, de uma compra de
+          serviço ou sem compra (avulso, para usar depois numa aquisição direta). Com contrato ou
+          compra, o recibo gera a ordem de pagamento do valor líquido.
         </p>
       </div>
 
-      {!contrato && !compra && editaContratos && <EscolherModo daCompra={abaCompra} />}
+      {!contrato && !compra && (
+        <EscolherModo aba={abaAvulso ? "avulso" : abaCompra ? "compra" : "contrato"} editaContratos={editaContratos} />
+      )}
 
-      {fornecimentoId ? (
+      {falha && compra && (
+        <Alert variant="warning" className="max-w-3xl">
+          <AlertDescription>
+            A compra {compra.processoCodigo ?? ""} foi registrada, mas o RPA não saiu automaticamente ({falha}).
+            Emita-o aqui.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {abaAvulso ? (
+        <CartaoRecibo>
+          <RpaNovoForm
+            contrato={null}
+            compra={null}
+            avulso={{
+              prestadores: (await listarFornecedores())
+                .filter((f) => !f.bloqueado && (f.cnpj_cpf ?? "").replace(/\D/g, "").length === 11)
+                .map((f) => ({ id: f.id, nome: f.nome, cnpj_cpf: f.cnpj_cpf, razao: f.nome_razao ?? null, bloqueado: false })),
+            }}
+            hoje={hojeLocalISO()}
+            config={await obterConfigRpa()}
+            caixas={[]}
+          />
+        </CartaoRecibo>
+      ) : fornecimentoId ? (
         !compra ? (
           <Alert variant="warning" className="max-w-3xl">
             <AlertDescription>Compra não encontrada.</AlertDescription>
@@ -145,11 +176,12 @@ export default async function NovoRpaPage({
   )
 }
 
-/** "De um contrato" × "De uma compra de serviço" — links, para o modo ficar no endereço. */
-function EscolherModo({ daCompra }: { daCompra: boolean }) {
+/** Contrato × compra de serviço × avulso — links, para o modo ficar no endereço. */
+function EscolherModo({ aba, editaContratos }: { aba: "contrato" | "compra" | "avulso"; editaContratos: boolean }) {
   const opcoes = [
-    { href: "/painel/compras/rpa/novo", rotulo: "De um contrato", ativo: !daCompra },
-    { href: "/painel/compras/rpa/novo?modo=compra", rotulo: "De uma compra de serviço", ativo: daCompra },
+    ...(editaContratos ? [{ href: "/painel/compras/rpa/novo", rotulo: "De um contrato", ativo: aba === "contrato" }] : []),
+    { href: "/painel/compras/rpa/novo?modo=compra", rotulo: "De uma compra de serviço", ativo: aba === "compra" },
+    { href: "/painel/compras/rpa/novo?modo=avulso", rotulo: "Sem compra (lançar depois)", ativo: aba === "avulso" },
   ]
   return (
     <div className="bg-muted inline-flex w-fit gap-1 rounded-lg p-1" role="tablist">
