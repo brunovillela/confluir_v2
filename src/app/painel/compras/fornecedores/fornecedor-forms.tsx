@@ -252,6 +252,25 @@ export function FornecedorForm({
         </label>
       )}
       {comMarketplace && <input type="hidden" name="marketplace" value={marketplace ? "on" : ""} />}
+      {/* NIT/PIS: do autônomo (pessoa física) pago por RPA — eSocial/DCTFWeb. */}
+      {comMarketplace &&
+        (pj ? (
+          <input type="hidden" name="nit_pis" value="" />
+        ) : (
+          <div className="grid gap-1.5 md:max-w-xs">
+            <Label htmlFor="nit_pis">NIT/PIS</Label>
+            <Input
+              id="nit_pis"
+              name="nit_pis"
+              inputMode="numeric"
+              defaultValue={fornecedor?.nit_pis ?? ""}
+              placeholder="11 dígitos"
+            />
+            <p className="text-muted-foreground text-xs">
+              Do autônomo pago por RPA: vai para o relatório de RPAs da contabilidade (eSocial e DCTFWeb).
+            </p>
+          </div>
+        ))}
       {ficha && (
         <FichaReceita
           ficha={ficha}

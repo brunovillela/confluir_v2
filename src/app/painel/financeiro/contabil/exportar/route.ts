@@ -3,6 +3,8 @@ import type { NextRequest } from "next/server"
 import { getSessaoPainel } from "@/lib/auth"
 import { lancamentosContabeis, type LancamentoDespesa, type LancamentoReceita } from "@/lib/db/contabil"
 import { rpasPagosNoPeriodo, totalizarRpas, type LinhaRpaContabil } from "@/lib/db/contabil-rpa"
+import { formatarNitPis } from "@/lib/cpf"
+import { formatarCnpjCpf } from "@/lib/formato"
 import { registrarExportacao } from "@/lib/exportacoes"
 import { podeAcessar } from "@/lib/permissoes"
 import { type ColunaXlsx, dataXlsx, planilhaXlsxAbas, respostaXlsx } from "@/lib/xlsx"
@@ -53,7 +55,8 @@ export async function GET(request: NextRequest): Promise<Response> {
     { titulo: "Competência", valor: (r) => r.competencia, largura: 12 },
     { titulo: "RPA nº", valor: (r) => r.numero, largura: 8 },
     { titulo: "Prestador", valor: (r) => r.prestador, largura: 36 },
-    { titulo: "CPF", valor: (r) => r.cpf, largura: 16 },
+    { titulo: "CPF", valor: (r) => (r.cpf ? formatarCnpjCpf(r.cpf) : null), largura: 16 },
+    { titulo: "NIT/PIS", valor: (r) => (r.nitPis ? formatarNitPis(r.nitPis) : r.rpaId ? "não informado" : null), largura: 16 },
     { titulo: "Serviço", valor: (r) => r.servico, largura: 50 },
     { titulo: "Origem", valor: (r) => r.origem, largura: 26 },
     { titulo: "Ordem", valor: (r) => r.ordemCodigo, largura: 20 },
@@ -79,6 +82,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     competencia: "",
     prestador: `TOTAL (${t.quantidade} RPA${t.quantidade === 1 ? "" : "s"})`,
     cpf: null,
+    nitPis: null,
     servico: null,
     origem: "",
     ordemCodigo: null,

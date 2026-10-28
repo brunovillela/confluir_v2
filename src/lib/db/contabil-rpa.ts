@@ -21,6 +21,8 @@ export type LinhaRpaContabil = {
   competencia: string
   prestador: string | null
   cpf: string | null
+  /** NIT/PIS do cadastro do fornecedor (eSocial/DCTFWeb). */
+  nitPis: string | null
   servico: string | null
   origem: string
   ordemCodigo: string | null
@@ -74,7 +76,7 @@ export async function rpasPagosNoPeriodo(de: string, ate: string): Promise<Linha
       .from("compras_rpa")
       .select(
         "id, numero, descricao_servico, valor_bruto, inss, irrf, iss, valor_liquido, arquivo_assinado, " +
-          "fornecedor:fornecedor_id (nome_fantasia, nome_razao, cnpj_cpf), " +
+          "fornecedor:fornecedor_id (nome_fantasia, nome_razao, cnpj_cpf, nit_pis), " +
           "contrato:contrato_id (codigo), compra:processo_compra_id (codigo), " +
           "ordem:ordem_pagamento_id!inner (codigo, situacao, data_pagamento, valor_pago, centro_custo_despesa_id, departamento_id)"
       )
@@ -115,7 +117,7 @@ export async function rpasPagosNoPeriodo(de: string, ate: string): Promise<Linha
 
   return brutas.map((r) => {
     const o = ordem(r)
-    const f = (r.fornecedor ?? null) as { nome_fantasia?: string | null; nome_razao?: string | null; cnpj_cpf?: string | null } | null
+    const f = (r.fornecedor ?? null) as { nome_fantasia?: string | null; nome_razao?: string | null; cnpj_cpf?: string | null; nit_pis?: string | null } | null
     const contrato = texto((r.contrato as { codigo?: string | null } | null)?.codigo)
     const compra = texto((r.compra as { codigo?: string | null } | null)?.codigo)
     const centro = centroDe.get(texto(o.centro_custo_despesa_id) ?? "")
@@ -129,6 +131,7 @@ export async function rpasPagosNoPeriodo(de: string, ate: string): Promise<Linha
       competencia: pago.slice(0, 7),
       prestador: texto(f?.nome_razao) ?? texto(f?.nome_fantasia),
       cpf: texto(f?.cnpj_cpf),
+      nitPis: texto(f?.nit_pis),
       servico: texto(r.descricao_servico),
       origem: contrato ? `Contrato ${contrato}` : compra ? `Compra ${compra}` : "Avulso",
       ordemCodigo: texto(o.codigo),

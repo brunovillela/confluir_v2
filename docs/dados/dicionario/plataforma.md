@@ -266,6 +266,7 @@ Cadastro único de organizações: tenants (sindicatos), empregadores e fontes p
 | `lgpd_encarregado_nome` | text | sim |  |  | identificação | Nome do encarregado pelo tratamento de dados pessoais (DPO) da entidade, divulgado na política de privacidade (LGPD art. 41). |
 | `lgpd_encarregado_email` | text | sim |  |  | identificação | Canal de contato do encarregado, divulgado na política de privacidade e usado pelos titulares para exercer direitos. |
 | `lgpd_politica_atualizada_em` | date | sim |  |  |  | Data da última revisão da política de privacidade da entidade, mostrada no topo de /privacidade. |
+| `nit_pis` | text | sim |  |  | identificação | NIT/PIS/PASEP do fornecedor pessoa física (autônomo pago por RPA), só os 11 dígitos — vai para o relatório de RPAs da contabilidade (eSocial/DCTFWeb). |
 
 Únicas: `UNIQUE (bubble_id)`
 

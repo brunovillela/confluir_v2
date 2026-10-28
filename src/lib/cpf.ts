@@ -107,3 +107,22 @@ export function mesmoTitular(a: string, b: string): boolean {
   if (a === b) return true
   return a.length === 14 && b.length === 14 && a.slice(0, 8) === b.slice(0, 8)
 }
+
+/**
+ * NIT/PIS/PASEP (11 dígitos): pesos 3,2,9,8,7,6,5,4,3,2 nos dez primeiros;
+ * dígito = 11 − (soma mod 11), e vira 0 quando dá 10 ou 11.
+ */
+export function validarNitPis(valor: string): boolean {
+  const d = valor.replace(/\D/g, "")
+  if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false
+  const pesos = [3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+  const soma = pesos.reduce((s, p, i) => s + p * Number(d[i]), 0)
+  const resto = 11 - (soma % 11)
+  return (resto >= 10 ? 0 : resto) === Number(d[10])
+}
+
+/** 000.00000.00-0 */
+export function formatarNitPis(valor: string): string {
+  const d = valor.replace(/\D/g, "")
+  return d.length === 11 ? `${d.slice(0, 3)}.${d.slice(3, 8)}.${d.slice(8, 10)}-${d[10]}` : valor
+}

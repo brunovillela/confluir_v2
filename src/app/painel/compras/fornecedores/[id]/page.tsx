@@ -45,6 +45,7 @@ import {
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import { formatarData, formatarMoeda } from "@/lib/formato"
+import { formatarNitPis } from "@/lib/cpf"
 import { mascaraTelefone } from "@/lib/mascaras"
 import { comprasViaMarketplace } from "@/lib/db/compras-marketplace"
 import { formatarCnpjCpf } from "@/lib/mascaras"
@@ -410,6 +411,12 @@ export default async function FornecedorPage({
                   {f.cnpj_cpf ? formatarCnpjCpf(f.cnpj_cpf) : "—"}
                 </dd>
               </div>
+              {!f.pessoa_juridica && (
+                <div>
+                  <dt className="text-muted-foreground text-xs">NIT/PIS</dt>
+                  <dd className="mt-0.5 text-sm tabular-nums">{f.nit_pis ? formatarNitPis(f.nit_pis) : "—"}</dd>
+                </div>
+              )}
               <div>
                 <dt className="text-muted-foreground text-xs">Situação</dt>
                 <dd className="mt-0.5 text-sm">

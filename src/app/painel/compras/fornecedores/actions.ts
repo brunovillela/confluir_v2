@@ -51,6 +51,7 @@ function lerDados(formData: FormData): DadosFornecedor {
     fornecedor_bloqueado: texto(formData, "fornecedor_bloqueado") === "on",
     // Só o formulário de fornecedor traz a marcação (entidades apoiadas não).
     ...(formData.has("marketplace") ? { marketplace: texto(formData, "marketplace") === "on" } : {}),
+    ...(formData.has("nit_pis") ? { nit_pis: ouNull(texto(formData, "nit_pis").replace(/\D/g, "")) } : {}),
   }
 }
 

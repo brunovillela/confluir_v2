@@ -1,6 +1,6 @@
 import "server-only"
 import { hojeSP, lerEmLotes } from "@/lib/db/comum"
-import { validarCnpj, validarCpf, lerDocumentoTitular } from "@/lib/cpf"
+import { validarCnpj, validarCpf, validarNitPis, lerDocumentoTitular } from "@/lib/cpf"
 import { formatarCnpjCpf } from "@/lib/formato"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -40,6 +40,8 @@ export type Fornecedor = {
   fornecedor_bloqueado: boolean
   /** Plataforma de venda (Mercado Livre, Amazon…): a nota vem depois, do vendedor. */
   marketplace: boolean
+  /** NIT/PIS do autônomo (pessoa física), 11 dígitos — relatório de RPAs da contabilidade. */
+  nit_pis: string | null
   inativa: boolean
   inativa_data: string | null
   created_at: string | null
@@ -119,6 +121,7 @@ function normalizarFornecedor(e: Record<string, unknown>): Fornecedor {
     pessoa_juridica: e.pessoa_juridica === true,
     fornecedor_bloqueado: e.fornecedor_bloqueado === true || e.bloqueado === true,
     marketplace: e.marketplace === true,
+    nit_pis: (e.nit_pis as string | null) ?? null,
     inativa: e.inativa === true,
     inativa_data: (e.inativa_data as string | null) ?? null,
     created_at: (e.created_at as string | null) ?? null,
@@ -275,6 +278,14 @@ export type DadosFornecedor = {
   fornecedor_bloqueado: boolean
   /** Marketplace (supabase/compras-marketplace.sql). Ausente = não mexe. */
   marketplace?: boolean
+  /** NIT/PIS (só dígitos) da pessoa física. Ausente = não mexe; PJ grava nulo. */
+  nit_pis?: string | null
+}
+
+/** Coluna do NIT/PIS: só para pessoa física; ausente no formulário = não mexe. */
+function camposNit(dados: DadosFornecedor): { nit_pis?: string | null } {
+  if (dados.nit_pis === undefined) return {}
+  return { nit_pis: dados.pessoa_juridica ? null : dados.nit_pis }
 }
 
 function validarDados(dados: DadosFornecedor): string | null {
@@ -286,6 +297,9 @@ function validarDados(dados: DadosFornecedor): string | null {
     if (n !== 11 && n !== 14) {
       return "CNPJ/CPF deve ter 14 ou 11 dígitos."
     }
+  }
+  if (dados.nit_pis && !dados.pessoa_juridica && !validarNitPis(dados.nit_pis)) {
+    return "NIT/PIS inválido — confira os 11 dígitos (o último é o verificador)."
   }
   return null
 }
@@ -407,6 +421,7 @@ export async function criarFornecedor(
       pessoa_juridica: dados.pessoa_juridica,
       fornecedor_bloqueado: dados.fornecedor_bloqueado,
       ...(dados.marketplace ? { marketplace: true } : {}),
+      ...camposNit(dados),
       empresa: false,
       bloqueado: false,
       inativa: false,
@@ -573,6 +588,7 @@ export async function atualizarFornecedor(
       pessoa_juridica: dados.pessoa_juridica,
       fornecedor_bloqueado: dados.fornecedor_bloqueado,
       ...(dados.marketplace === undefined ? {} : { marketplace: dados.marketplace }),
+      ...camposNit(dados),
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
