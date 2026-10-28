@@ -67,12 +67,14 @@ type LinhaLote = {
   prazo_fim_ato: string | null
   documento_enviado_em: string | null
   documento_assinado_url: string | null
+  /** Carta do legado do Bubble (URL da CDN dele). */
+  carta: string | null
   assinatura_validacao: unknown
   modo_formalizacao_ato: string | null
 }
 
 const COLUNAS_LOTE =
-  "id, nome_completo, cpf, cpf_digitos, situacao, empregador_id, filiacao_id, confirmado_em, prazo_fim_ato, documento_enviado_em, documento_assinado_url, assinatura_validacao, modo_formalizacao_ato"
+  "id, nome_completo, cpf, cpf_digitos, situacao, empregador_id, filiacao_id, confirmado_em, prazo_fim_ato, documento_enviado_em, documento_assinado_url, carta, assinatura_validacao, modo_formalizacao_ato"
 
 type ContextoCampanha = {
   prazoFim: string | null
@@ -137,7 +139,7 @@ export function pendenciasParaAprovar(o: LinhaLote, ctx: ContextoCampanha): stri
     else if (!ctx.fontes.has(String(o.empregador_id))) p.push("fonte fora da campanha")
   }
   const modo = (texto(o.modo_formalizacao_ato) ?? ctx.modo) as ModoFormalizacao
-  const temCarta = Boolean(texto(o.documento_assinado_url))
+  const temCarta = Boolean(texto(o.documento_assinado_url) ?? texto(o.carta))
   if (!temCarta && exigeDocumento(modo, Boolean(o.filiacao_id))) p.push("sem a carta assinada")
   if (temCarta) {
     const problema = problemaDaAssinatura(o.assinatura_validacao as ValidacaoAssinatura | null)

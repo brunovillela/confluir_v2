@@ -92,7 +92,9 @@ export type OposicaoDoEmpregador = {
   criadoEm: string | null
 }
 
-export const ORDENS_OPOSICAO = { data: "created_at", nome: "nome_completo", situacao: "situacao" } as const
+// "Enviada em" é quando a pessoa se opôs (confirmado_em), não a criação da linha:
+// no legado do Bubble, created_at é a data da migração (oposição, onda 3).
+export const ORDENS_OPOSICAO = { data: "confirmado_em", nome: "nome_completo", situacao: "situacao" } as const
 
 /** Campanhas com carta de trabalhador desta empresa (para o filtro e o resumo). */
 export async function campanhasDeOposicaoDoEmpregador(
@@ -146,7 +148,7 @@ export async function oposicoesDoEmpregador(
   const admin = await createAdminClient()
   let q = admin
     .from("oposicao_opositor")
-    .select("id, campanha_id, nome_completo, cpf, matricula, lotacao, situacao, filiacao_id, protocolo, created_at", { count: "exact" })
+    .select("id, campanha_id, nome_completo, cpf, matricula, lotacao, situacao, filiacao_id, protocolo, confirmado_em", { count: "exact" })
     .eq("emp_proprietaria_id", await tenantAtual())
     .eq("empregador_id", empresaId)
   if (f.campanhaId) q = q.eq("campanha_id", f.campanhaId)
@@ -172,7 +174,7 @@ export async function oposicoesDoEmpregador(
       situacao: (o.situacao ?? "nao_avaliada") as SituacaoOpositor,
       ehFiliado: Boolean(o.filiacao_id),
       protocolo: texto(o.protocolo),
-      criadoEm: texto(o.created_at),
+      criadoEm: texto(o.confirmado_em),
     })),
   }
 }

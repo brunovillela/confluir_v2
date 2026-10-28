@@ -2,8 +2,9 @@ import { createElement } from "react"
 import { renderToBuffer } from "@react-pdf/renderer"
 
 import { requireSessaoTrabalhador } from "@/lib/auth"
-import { obterComprovante } from "@/lib/db/oposicao"
+import { obterComprovante, registrarAcessoDoTitular } from "@/lib/db/oposicao"
 import { obterOrganizacao } from "@/lib/db/organizacao"
+import { formatarCnpjCpf } from "@/lib/formato"
 import { CartaOposicaoPDF } from "@/lib/pdf/carta-oposicao"
 
 import { logoDataUri } from "@/lib/pdf/logo-pdf"
@@ -14,10 +15,11 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const sessao = await requireSessaoTrabalhador()
+  const sessao = await requireSessaoTrabalhador(`/portal/oposicao/comprovante/${(await params).id}`)
   const { id } = await params
   const c = await obterComprovante(id, sessao.cpf)
   if (!c) return new Response("Não encontrado", { status: 404 })
+  await registrarAcessoDoTitular(c.id, "carta_baixada")
   // "Não quero me opor" não gera carta de oposição.
   if (c.situacao === "desistente") {
     return new Response(
@@ -36,6 +38,7 @@ export async function GET(
       cpf: c.cpf,
       matricula: c.matricula,
       empregador: c.empregadorNome,
+      empregadorCnpj: c.empregadorCnpj ? formatarCnpjCpf(c.empregadorCnpj) : null,
       campanha: c.campanhaNome,
       detalhe: c.detalhe_desconto,
       declaracao: c.texto_declaracao,

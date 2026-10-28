@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import { ArrowRight, CheckCircle2, CircleHelp, Clock, FileWarning, LogOut, ScrollText, XCircle } from "lucide-react"
 
 import { AcaoVisualizacao } from "@/components/acao-visualizacao"
@@ -18,10 +19,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { getSessaoTrabalhador } from "@/lib/auth"
+import { destinoDaOposicao, getSessaoTrabalhador } from "@/lib/auth"
 import { mensagemLinkRecusado } from "@/lib/auth-email-constantes"
 import { hojeSP } from "@/lib/db/comum"
-import { campanhasAbertas, minhaOposicao, type MinhaOposicao } from "@/lib/db/oposicao"
+import { campanhasDoTrabalhador, minhaOposicao, type MinhaOposicao } from "@/lib/db/oposicao"
 import { nomeEntidade } from "@/lib/db/organizacao"
 import { formatarData } from "@/lib/formato"
 import { estadoPrazo } from "@/lib/oposicao-constantes"
@@ -38,9 +39,9 @@ export const metadata: Metadata = { title: "Oposição à contribuição assiste
 export default async function OposicaoPortalPage({
   searchParams,
 }: {
-  searchParams: Promise<{ desistiu?: string; erro?: string }>
+  searchParams: Promise<{ desistiu?: string; erro?: string; voltar?: string }>
 }) {
-  const [sessao, { desistiu, erro }, vis] = await Promise.all([
+  const [sessao, { desistiu, erro, voltar }, vis] = await Promise.all([
     getSessaoTrabalhador(),
     searchParams,
     // "Ver como filiado": a visualização vem ANTES da sessão do trabalhador.
@@ -49,6 +50,9 @@ export default async function OposicaoPortalPage({
     getVisualizacaoPortal(),
   ])
   const preview = vis?.preview ? vis : null
+  // Já com sessão e vindo de um link (comprovante): vai direto (M7).
+  const destino = voltar ? destinoDaOposicao(voltar) : null
+  if (sessao && !preview && destino && destino !== "/portal/oposicao") redirect(destino)
   // Link de e-mail antigo recusado em /auth/confirm volta para cá (A3).
   const erroLink = sessao ? undefined : mensagemLinkRecusado(erro, "portal")
 
@@ -122,7 +126,7 @@ export default async function OposicaoPortalPage({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <AcessoNaoFiliado />
+              <AcessoNaoFiliado voltar={destino && destino !== "/portal/oposicao" ? destino : undefined} />
             </CardContent>
           </Card>
           <p className="text-muted-foreground text-center text-sm">
@@ -240,7 +244,7 @@ async function ListaCampanhas({
   /** Visualização da gestão: mostra a situação, não deixa agir. */
   preview?: boolean
 }) {
-  const campanhas = await campanhasAbertas()
+  const campanhas = await campanhasDoTrabalhador(cpf)
   const hoje = hojeSP()
 
   const itens = await Promise.all(

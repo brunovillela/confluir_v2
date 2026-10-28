@@ -26,7 +26,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { ValidacaoAssinatura } from "@/lib/assinatura-pdf"
 import { requireSessaoTrabalhador } from "@/lib/auth"
 import { hojeSP } from "@/lib/db/comum"
-import { minhaOposicao, obterComprovante, type Comprovante } from "@/lib/db/oposicao"
+import { minhaOposicao, obterComprovante, registrarAcessoDoTitular, type Comprovante } from "@/lib/db/oposicao"
 import { nomeEntidade, obterOrganizacao } from "@/lib/db/organizacao"
 import { configDoPortal } from "@/lib/db/portal-partes"
 import { formatarCnpjCpf, formatarData, formatarDataHora } from "@/lib/formato"
@@ -48,10 +48,21 @@ export const metadata: Metadata = { title: "Comprovante de oposição" }
 /** Assinador gratuito do governo — o mesmo da ficha de filiação. */
 const ASSINADOR_GOVBR = "https://assinador.iti.br"
 
+/** Extrai o id do YouTube de um id cru ou URL (o mesmo do fluxo da oposição). */
+function idYoutube(v: string | null): string | null {
+  if (!v) return null
+  const s = v.trim()
+  if (/^[\w-]{11}$/.test(s)) return s
+  const m = s.match(/(?:v=|youtu\.be\/|embed\/)([\w-]{11})/)
+  return m ? m[1] : null
+}
+
 export default async function ComprovantePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ registrada?: string }>
 }) {
   // Na visualização da gestão, a sessão de trabalhador seria a de QUEM ATENDE:
   // a tela mostraria o comprovante dele sob a faixa "Visualizando a área
@@ -60,10 +71,12 @@ export default async function ComprovantePage({
   const vis = await getVisualizacaoPortal()
   if (vis?.preview) redirect("/portal/oposicao")
 
-  const sessao = await requireSessaoTrabalhador()
+  const sessao = await requireSessaoTrabalhador(`/portal/oposicao/comprovante/${(await params).id}`)
   const { id } = await params
   const c = await obterComprovante(id, sessao.cpf)
   if (!c) notFound()
+  // Prova de que a pessoa viu o resultado (M9).
+  await registrarAcessoDoTitular(c.id, "comprovante_visto")
 
   const aguardando = c.situacao === "aguardando_documento"
   // "Não quero me opor" não é oposição: nada de "Oposição registrada" nem de
@@ -106,6 +119,22 @@ export default async function ComprovantePage({
         protocolo={c.protocolo}
       />
     ) : null
+
+  // Vídeo de agradecimento da campanha (baixo da avaliação): só logo depois
+  // de registrar a oposição, não a cada visita ao comprovante.
+  const { registrada } = await searchParams
+  const embedAgradecimento = registrada === "1" && !desistente ? idYoutube(c.videoAgradecimentoUrl) : null
+  const videoAgradecimento = embedAgradecimento ? (
+    <div className="aspect-video w-full overflow-hidden rounded-lg border print:hidden">
+      <iframe
+        src={`https://www.youtube.com/embed/${embedAgradecimento}`}
+        title="Vídeo de agradecimento da entidade"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
+        allowFullScreen
+        className="h-full w-full"
+      />
+    </div>
+  ) : null
 
   const conteudo = desistente ? (
     <Card>
@@ -360,6 +389,7 @@ export default async function ComprovantePage({
             </Link>
           </Button>
         </div>
+        {videoAgradecimento}
         {conteudo}
       </div>
     )
@@ -379,6 +409,7 @@ export default async function ComprovantePage({
         </Button>
       </header>
       <main id="conteudo" className="grid gap-6">
+        {videoAgradecimento}
         {conteudo}
       </main>
     </div>

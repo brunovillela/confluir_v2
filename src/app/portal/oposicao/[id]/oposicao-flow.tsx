@@ -69,6 +69,7 @@ export function OposicaoFlow({
   identidade,
   filiado,
   vinculos,
+  fontesGerais = [],
 }: {
   campanha: CampanhaPublica
   videoUrl: string | null
@@ -78,6 +79,8 @@ export function OposicaoFlow({
   filiado: boolean
   /** Vínculos ativos do cadastro do filiado (A103); vazio para o não filiado. */
   vinculos: VinculoAtivo[]
+  /** Campanha sem fonte e não filiado: as fontes pagadoras da entidade (M5). */
+  fontesGerais?: { id: string; nome: string }[]
 }) {
   const minimo = videoTempo && videoTempo > 0 ? videoTempo : 0
   const comVideo = minimo > 0 || Boolean(videoUrl)
@@ -95,7 +98,9 @@ export function OposicaoFlow({
   const usaFontesCampanha = fontesCampanha.length > 0
   const opcoesFonte = usaFontesCampanha
     ? fontesCampanha
-    : vinculos.map((v) => ({ id: v.fonteId, nome: v.fonteNome }))
+    : vinculos.length > 0
+      ? vinculos.map((v) => ({ id: v.fonteId, nome: v.fonteNome }))
+      : fontesGerais
   const doCadastro = usaFontesCampanha
     ? vinculos.filter((v) => fontesCampanha.some((f) => f.id === v.fonteId))
     : vinculos
@@ -344,8 +349,9 @@ export function OposicaoFlow({
               </SelectNativo>
               {!usaFontesCampanha && (
                 <p id="empregador-dica" className="text-muted-foreground text-xs">
-                  São as fontes pagadoras do seu cadastro. Se a atual não está na
-                  lista, escolha “Outra”.
+                  {filiado
+                    ? "São as fontes pagadoras do seu cadastro. Se a atual não está na lista, escolha “Outra”."
+                    : "Escolha a empresa onde você trabalha. Se ela não está na lista, escolha “Outra”."}
                 </p>
               )}
             </div>

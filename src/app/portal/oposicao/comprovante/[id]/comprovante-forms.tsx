@@ -1,12 +1,14 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
 import { Loader2, Printer, Upload } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+
+import { TAMANHO_MAX_CARTA } from "@/lib/oposicao-constantes"
 
 import { enviarDocumento } from "../../actions"
 
@@ -39,14 +41,31 @@ export function EnviarDocumento({
   rotulo?: string
 }) {
   const [estado, formAction, pendente] = useActionState(enviarDocumento, {})
+  // Barrado aqui, antes de subir (M3): acima do limite o servidor nem recebe.
+  const [erroLocal, setErroLocal] = useState<string | null>(null)
   const idCampo = `documento-${opositorId.slice(0, 8)}`
+  const erro = erroLocal ?? estado.erro
   return (
-    <form action={formAction} className="grid gap-3 print:hidden">
+    <form
+      action={formAction}
+      onSubmit={(e) => {
+        const arquivo = (e.currentTarget.elements.namedItem("documento") as HTMLInputElement | null)?.files?.[0]
+        if (arquivo && arquivo.size > TAMANHO_MAX_CARTA) {
+          e.preventDefault()
+          setErroLocal(
+            `O arquivo tem ${(arquivo.size / 1024 / 1024).toFixed(1).replace(".", ",")} MB; o limite é 3,8 MB. Baixe de novo a carta assinada no gov.br (o PDF dele é pequeno) — fotos e PDFs escaneados ficam grandes demais.`
+          )
+          return
+        }
+        setErroLocal(null)
+      }}
+      className="grid gap-3 print:hidden"
+    >
       <input type="hidden" name="opositor_id" value={opositorId} />
       <input type="hidden" name="campanha_id" value={campanhaId ?? ""} />
-      {estado.erro && (
+      {erro && (
         <Alert id={`${idCampo}-erro`} variant="destructive">
-          <AlertDescription>{estado.erro}</AlertDescription>
+          <AlertDescription>{erro}</AlertDescription>
         </Alert>
       )}
       <div className="grid gap-1.5">
@@ -57,7 +76,8 @@ export function EnviarDocumento({
           type="file"
           accept="application/pdf"
           required
-          aria-describedby={estado.erro ? `${idCampo}-erro` : undefined}
+          onChange={() => setErroLocal(null)}
+          aria-describedby={erro ? `${idCampo}-erro` : undefined}
         />
       </div>
       <div>

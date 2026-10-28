@@ -19,6 +19,8 @@ export type DadosCartaOposicao = {
   cpf: string | null
   matricula: string | null
   empregador: string | null
+  /** "12.345.678/0001-90", já formatado. */
+  empregadorCnpj?: string | null
   campanha: string | null
   detalhe: string | null
   declaracao: string | null
@@ -97,7 +99,9 @@ export function CartaOposicaoPDF({
   dados: DadosCartaOposicao
   logoDataUri: string | null
 }) {
-  const alvo = dados.detalhe || dados.campanha || "a contribuição assistencial"
+  // Sem o detalhe do desconto, a frase não repete o nome da campanha
+  // ("ao desconto de X (X)"): fica "da contribuição assistencial (X)".
+  const alvo = dados.detalhe || "contribuição assistencial"
   return (
     <Document>
       <Page size="A4" style={s.page}>
@@ -123,11 +127,12 @@ export function CartaOposicaoPDF({
             <>
               {" "}vinculado(a) à fonte pagadora{" "}
               <Text style={s.rotulo}>{dados.empregador}</Text>
+              {dados.empregadorCnpj ? `, CNPJ ${dados.empregadorCnpj}` : ""}
             </>
           ) : null}
           , venho, pela
           presente, manifestar de forma livre e expressa a minha{" "}
-          <Text style={s.rotulo}>OPOSIÇÃO</Text> ao desconto de {alvo}
+          <Text style={s.rotulo}>OPOSIÇÃO</Text> ao desconto {dados.detalhe ? `de ${alvo}` : `da ${alvo}`}
           {dados.campanha ? ` (${dados.campanha})` : ""}, nos termos da legislação
           vigente.
         </Text>

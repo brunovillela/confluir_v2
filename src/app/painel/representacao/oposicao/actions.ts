@@ -11,6 +11,7 @@ import {
   avaliarOpositor,
   criarCampanha,
   excluirPergunta,
+  reverificarAssinaturaOposicao,
   subirDocumentoModelo,
   type DadosCampanha,
 } from "@/lib/db/oposicao"
@@ -261,4 +262,16 @@ export async function registrarEnvioEmpregadorAction(_prev: EstadoForm, fd: Form
   if (erro) return { erro }
   revalidatePath(`/painel/representacao/oposicao/${campanhaId}/empregadores`)
   return { ok: `Envio registrado com ${(quantidade ?? 0).toLocaleString("pt-BR")} oposição(ões).` }
+}
+
+/** Passa a carta assinada de novo pelo validador (onda 3: legado e validador novo). */
+export async function reverificarAssinaturaAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  const sessao = await requireOposicao()
+  const id = texto(fd, "opositor_id")
+  const campanhaId = texto(fd, "campanha_id")
+  if (!id) return { erro: "Oposição inválida." }
+  const { erro, resumo } = await reverificarAssinaturaOposicao(id, sessao.usuario.id)
+  if (erro) return { erro }
+  revalidatePath(`/painel/representacao/oposicao/${campanhaId}/opositor/${id}`)
+  return { ok: resumo }
 }

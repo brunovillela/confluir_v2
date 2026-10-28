@@ -1,20 +1,168 @@
 /**
- * Raízes confiadas para a validação de assinatura (onda 5, A4).
+ * Raízes confiadas e cadeias embutidas para a validação de assinatura (onda 5,
+ * A4; preenchidas na onda 3 da oposição, 27/10/2026).
  *
- * A cadeia do certificado do signatário é verificada criptograficamente até
- * o último certificado que vier dentro da própria assinatura (quase sempre a
- * raiz ICP-Brasil). Para dizer "esta raiz é a da ICP-Brasil" com certeza,
- * comparamos o SHA-256 do certificado-raiz com esta lista. Enquanto a lista
- * estiver vazia, o resultado diz "cadeia fecha numa raiz com nome ICP-Brasil,
- * não conferida contra a lista" — íntegra, mas com ressalva.
+ * A cadeia do certificado do signatário é verificada criptograficamente até a
+ * raiz. A raiz só é "confiada" se o SHA-256 do certificado estiver nesta lista.
  *
- * Para preencher: baixe as raízes em https://acraiz.icpbrasil.gov.br
- * (ICP-Brasil v5, v10, v11…), rode `openssl x509 -in RAIZ.crt -noout
- * -fingerprint -sha256` e cole aqui o nome e o fingerprint (sem ":").
+ *  - ICP-Brasil (e-CPF A1/A3): raízes v5, v10, v11 e v12, baixadas de
+ *    http://acraiz.icpbrasil.gov.br/credenciadas/RAIZ/ICP-Brasil<versão>.crt.
+ *    A assinatura com e-CPF costuma trazer a cadeia inteira.
+ *  - gov.br (Assinador gov.br, assinatura eletrônica avançada — Lei 14.063/2020):
+ *    a assinatura traz SÓ o certificado da pessoa, emitido pela "AC Final do
+ *    Governo Federal do Brasil v1". A cadeia (AC Final → AC Intermediária →
+ *    AC Raiz do Governo Federal v1) vem de http://repo.iti.br/docs/Cadeia_GovBr-der.p7b
+ *    (endereço que o próprio certificado indica na extensão AIA) e fica embutida
+ *    em CADEIA_GOVBR_PEM para completar a cadeia.
+ *
+ * Testado com 30 cartas reais do legado do Bubble: 23 do Assinador gov.br.
+ * Para renovar (as raízes vencem entre 2029 e 2037): baixe de novo e confira
+ * o fingerprint com `openssl x509 -in RAIZ.crt -noout -fingerprint -sha256`.
  */
-export const RAIZES_CONFIADAS: { nome: string; sha256: string }[] = []
 
-export function raizConfiada(sha256: string): boolean {
+export type TipoRaiz = "icp_brasil" | "gov_br"
+
+export type RaizConfiada = { nome: string; sha256: string; tipo: TipoRaiz }
+
+export const RAIZES_CONFIADAS: RaizConfiada[] = [
+  // válida até 2029-03-02
+  { nome: "Autoridade Certificadora Raiz Brasileira v5", sha256: "CAA53FC6091C6951887C976E378F6EF89AA6377C55D97B6475422B71ED7E9B17", tipo: "icp_brasil" },
+  // válida até 2032-07-01
+  { nome: "Autoridade Certificadora Raiz Brasileira v10", sha256: "6E0BFF069A26994C15DE2C4888CC54AF84882E5495B7FBF66BE9CCFFEC7489F6", tipo: "icp_brasil" },
+  // válida até 2032-07-01
+  { nome: "Autoridade Certificadora Raiz Brasileira v11", sha256: "1406710058180FA4081AAB3F246F1702429C552A11FA3143B84C88CB3AB8E5E7", tipo: "icp_brasil" },
+  // válida até 2037-10-22
+  { nome: "Autoridade Certificadora Raiz Brasileira v12", sha256: "D8478E37CE19C690CF657381E68FE600E4E1A042536830F06847E03E554C4B01", tipo: "icp_brasil" },
+  // válida até 2033-06-10
+  { nome: "Autoridade Certificadora Raiz do Governo Federal do Brasil v1", sha256: "163BD003BC0DF2BEAB88174B6D5B450B6E1DC973A64B2DC2A33218544F49EF4E", tipo: "gov_br" },
+]
+
+export function raizConfiada(sha256: string): RaizConfiada | null {
   const f = sha256.replace(/:/g, "").toUpperCase()
-  return RAIZES_CONFIADAS.some((r) => r.sha256.replace(/:/g, "").toUpperCase() === f)
+  return RAIZES_CONFIADAS.find((r) => r.sha256.replace(/:/g, "").toUpperCase() === f) ?? null
 }
+
+/** Cadeia do Assinador gov.br, da AC Final até a raiz (PEM). */
+export const CADEIA_GOVBR_PEM: string[] = [
+  // AC Final do Governo Federal do Brasil v1 — válido até 2033-06-09
+  `-----BEGIN CERTIFICATE-----
+MIIHcDCCBVigAwIBAgIHKNnOaHkk+jANBgkqhkiG9w0BAQ0FADCBoTELMAkGA1UE
+BhMCQlIxDzANBgNVBAoMBkdvdi1CcjFGMEQGA1UECww9QXV0b3JpZGFkZSBDZXJ0
+aWZpY2Fkb3JhIFJhaXogZG8gR292ZXJubyBGZWRlcmFsIGRvIEJyYXNpbCB2MTE5
+MDcGA1UEAwwwQUMgSW50ZXJtZWRpYXJpYSBkbyBHb3Zlcm5vIEZlZGVyYWwgZG8g
+QnJhc2lsIHYxMB4XDTIwMDYxNzIwNTAyN1oXDTMzMDYwOTEyMDA0N1owgYwxCzAJ
+BgNVBAYTAkJSMQ8wDQYDVQQKDAZHb3YtQnIxOTA3BgNVBAsMMEFDIEludGVybWVk
+aWFyaWEgZG8gR292ZXJubyBGZWRlcmFsIGRvIEJyYXNpbCB2MTExMC8GA1UEAwwo
+QUMgRmluYWwgZG8gR292ZXJubyBGZWRlcmFsIGRvIEJyYXNpbCB2MTCCAiIwDQYJ
+KoZIhvcNAQEBBQADggIPADCCAgoCggIBAN9NUSO+TdYEt6inU8GEbzfdvjEq5sBG
+T+UZxLUJWG64qS3fdyTa9vQyBhGCJmyorTwOgimcwq5NR5a/mnRSKSx6fU9O0vfQ
+gZExYiuovu14EJP5hJh5MNJI79mc+BbrDFm9KbSMZBUsUY0qoxoCIgSgMINFy8fF
+H8Q4Zw1uNvtSLks9ZzsR1SWkCwtXpxONAP8qPJ8CBM5FBwnymu3tuyLvjKIeqfKA
+QXc0Np8IVfc0atnUdk+RNpCfjMvXagRGU0yfwksjY9Ad3Hv2KzZfsvzqFqoJVg+J
+om6Jh7PhsmG8Gavu5FZ1XA1OTKhQ7iH2+24k3lu8mYmeKTfpfAJJ6pJD3Qx/dLcx
+QQ7/z4zKn5POp+AJ/pI4I/A2smnDFF1Lgrg+sxr0SnKE9L6rWf8iq4yVNrg8g59C
+PvFczsGgyULhN9rov+hvwiznNWJeEF9sHu5b5LHnQq9OpkJdyNwY/jOZPolw0ljj
+EpVHeiJ/yUQt2wJGaOfQSJCzYh9rEtvSN+aOg31LXk3DX4au/Wa6lTGlVlq2jhkK
+D3UjGK2DlsrrkVXnNhdkx/itk3RbwgJ/DqOY8y+Rf+uI8T16LLO2OFBJdbsXY+x9
+q1X2L8CCPd3OWfSGPPXdCs0DBWpc7MKSHoIvtj80MXE8hH59pVSltmPGQkTU3RD4
+XXLOUTZE7mUVAgMBAAGjggG+MIIBujAdBgNVHQ4EFgQUPCpoXJmEe1BQtz5BGqCt
+SDdhtScwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMCAQYwggERBgNVHSAE
+ggEIMIIBBDA/BgZgTAMCAQEwNTAzBggrBgEFBQcCARYnaHR0cDovL3JlcG8uaXRp
+LmJyL2RvY3MvRFBDYWNpR292QnIucGRmMD8GBmBMAwICATA1MDMGCCsGAQUFBwIB
+FidodHRwOi8vcmVwby5pdGkuYnIvZG9jcy9EUENhY2lHb3ZCci5wZGYwPwYGYEwD
+AgMBMDUwMwYIKwYBBQUHAgEWJ2h0dHA6Ly9yZXBvLml0aS5ici9kb2NzL0RQQ2Fj
+aUdvdkJyLnBkZjA/BgZgTAMCBAEwNTAzBggrBgEFBQcCARYnaHR0cDovL3JlcG8u
+aXRpLmJyL2RvY3MvRFBDYWNpR292QnIucGRmMEIGA1UdHwQ7MDkwN6A1oDOGMWh0
+dHA6Ly9yZXBvLml0aS5ici9sY3IvcHVibGljL2FjaS9MQ1JhY2lHb3ZCci5jcmww
+HwYDVR0jBBgwFoAUiL9dAn28Wa3bWniVGwC9dzqE6u0wDQYJKoZIhvcNAQENBQAD
+ggIBACMN+/N5BhuPcz+2hcZrNijrw7PQLNf7yT8EJRO+czsYL63uip5Eb42J8kKL
+ebXUpwdtKE96S+gKz9wMVHiS9lid+4iVag1q5QtsRwAOQlE4Nio/ah8W5wMkWCiI
+6bfPNasgrQW3AXV6kkavOHaOwRtZpyCRTxyP95PSP31njynZs9dOx/VLP4KCSCc+
+Ob9nN/jf8e7qkkL0vLVOML3kvsfIzIw/RPtNwrEIuUq15E9hyLhlwyZ+1oV56FXJ
+jEUnWKBWuY81a2pxzoCEW5Du4ToWsvRyiq78ZG7MB+Nf1dA1DymXz+5jj8XvjZym
+uCOBPwbPFqV2wCS+VIlR1bK7jLmVdqJZVs41xY2w2o1bqVlEKCYW8WeEtywZrPE7
+xjTTgCOxEgpijUXi6ePRIOVSjKX+C53BLAq/graGzrSqo1iq2JbeqnMRRmyg+yUI
+30ZVP2XQAKIZXRRCHrfcp5cMwr6L7vGCi8vjxO0mBRxXJY2SN23Sa9Ehkdc7WGLk
+XSSzPGLx/YnEXyE2do7LM7lPqHkm2QfBZfc3HiJ9SKHkcTcp3Em3UBScjdvYZMbg
+r6pfuWLYo7MB7TfvvqcLnhwwHtaEUBJxvowKZh3JesSfmmKpzdpm0oKB1aEsfGwL
+AB5uj/oRhYYIEjUPRiyP36PU9nU8OgIvbQf8NiK4YrorQrsS
+-----END CERTIFICATE-----`,
+  // AC Intermediaria do Governo Federal do Brasil v1 — válido até 2033-06-09
+  `-----BEGIN CERTIFICATE-----
+MIIGiTCCBHGgAwIBAgIJAO8So2Z4IzJlMA0GCSqGSIb3DQEBDQUAMIGlMQswCQYD
+VQQGEwJCUjEPMA0GA1UECgwGR292LUJyMT0wOwYDVQQLDDRJbnN0aXR1dG8gTmFj
+aW9uYWwgZGUgVGVjbm9sb2dpYSBkYSBJbmZvcm1hY2FvIC0gSVRJMUYwRAYDVQQD
+DD1BdXRvcmlkYWRlIENlcnRpZmljYWRvcmEgUmFpeiBkbyBHb3Zlcm5vIEZlZGVy
+YWwgZG8gQnJhc2lsIHYxMB4XDTIwMDYxNjIwMDM0N1oXDTMzMDYwOTEyMDA0N1ow
+gaExCzAJBgNVBAYTAkJSMQ8wDQYDVQQKDAZHb3YtQnIxRjBEBgNVBAsMPUF1dG9y
+aWRhZGUgQ2VydGlmaWNhZG9yYSBSYWl6IGRvIEdvdmVybm8gRmVkZXJhbCBkbyBC
+cmFzaWwgdjExOTA3BgNVBAMMMEFDIEludGVybWVkaWFyaWEgZG8gR292ZXJubyBG
+ZWRlcmFsIGRvIEJyYXNpbCB2MTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoC
+ggIBAKYtBCNDGDOgzedtZy80THW+vdsAQTffDdmKsYM0knbaLlGV5keAVOMLYTZx
+K+bl5/myajpwDbKTojj1WNRouHrGGd1rYRNNDLJMN+9ApnZD8tZAqV8NsdLSrqa4
+hf3e1U1bQ2e962XzrfOhes5xlBPopD3B9tprkbkqP9xRUbPWhUd49vm+mJwna7Ff
+ExxwDvSXiDzExCHtaGA+zoBfhJ5W1MWYXX8DEdgZXue6pJBC2gMECV+u3P0CjKGT
+Bl1Ic+xk1c/ZNnRI1iMSZACbEqbjgDh/fxY/ioDSFpFB9UZh4gWHZxtM4T/gI+xf
+iT8nsCP+eA8zaAlEUi2u7vQFeLdps/uVl8oAVQ/xBQLfn/WX+bqvcc0o+4CZI8WW
+3vqtcZ1cLbm3rI7y4SgLO8hpmTbYP9tRRxZ0wSRAC8cp6Kh3Z2cgPjPmFnq6Ok+l
+7wWfaEco9waPT6u7oFCGqddAinTYnaQzM4BQ8LZxDRv8HTU6KoLcUASk78nqHbHP
+VM9TyU6e9E17gbStkZF9OGRj5r7iU2H2RM/vzy6EYVDeuZ7m7FdH2LKdialYIln8
+yqEa+yieksqM0BqSr+JqQII7REKnvxh1EJKHNdq45NG1TPmrjGfG4KGjSReFWa5F
+GceIatAQIsIlr1B4lnYa6nMpCBDLFC749mLQNs6ox6HxsO0NAgMBAAGjgb0wgbow
+HQYDVR0OBBYEFIi/XQJ9vFmt21p4lRsAvXc6hOrtMA8GA1UdEwEB/wQFMAMBAf8w
+DgYDVR0PAQH/BAQDAgEGMBQGA1UdIAQNMAswCQYFYEwDAQEwADBBBgNVHR8EOjA4
+MDagNKAyhjBodHRwOi8vcmVwby5pdGkuYnIvbGNyL3B1YmxpYy9MQ1JhY3JhaXpH
+b3ZCci5jcmwwHwYDVR0jBBgwFoAUkjUtbil+kdrvhvMKTNXI1X2PrIgwDQYJKoZI
+hvcNAQENBQADggIBAKPp/CrTLaj2hlNiMucR0hvic1g9eRpxgo6q/IS+W+gPWM2m
+Nsfq9Ek3Krzvv7ps9ESMUxt1WBbp2sFttsYIPDQP5b7DqJwa7RFhzDAAXGxe6uGs
+ae6up+OfB/Kkf164IXqg2pd1y5xJ44vMInm1epXcgqXZUuCFu5ZmXJt48/yYwx1b
+F+fAjezUzWro2B5yVA9MHYkSA4mWMfNtm4Wv8EkplVK95pX1Vugyx8GVz4Yg6+uU
+5YWEKgaQmB/fW/EZNbsasFqvbaN8ooYgjcjWJsPOCPPQ7HLB8/n2ZTU6tGX6utrm
+WSLHgCzdCOdaiij+6/+iQDZ42vfAskKnC800SSsjiIK4Ol0jadr6y+7jc8PFHsPT
+TERx2IygyEUPpAHy0Y72MD77/ysWuNFCntROB+084DtuFMraqLiOoJopfsXjA4Nu
+eG1EhIPAXVKCSiE71eDBnW8gbs4yPhvd8DgpaUwY4bY/Slqt2g8Gp4j2mO+4T1tJ
+CL1VCKDZFcGrAV+4hpUCgO+w9ixcZ2BZDWVAUarVXxxREQtaTrpaVr05pfFUrVK0
+LCnDgmU+b14ePGjjxxSSIZTG150Vosn+dcvXerjT3JHqBeZikF8Uxn10QEDYC0Vs
+c3Lc4ydnbffc294dmI44Fj9m27QyzqgMQICe2uRtefTWs9mjBsgn/TU9EWmm
+-----END CERTIFICATE-----`,
+  // Autoridade Certificadora Raiz do Governo Federal do Brasil v1 — válido até 2033-06-10
+  `-----BEGIN CERTIFICATE-----
+MIIGwDCCBKigAwIBAgIJAPsqtBqKrfHlMA0GCSqGSIb3DQEBDQUAMIGlMQswCQYD
+VQQGEwJCUjEPMA0GA1UECgwGR292LUJyMT0wOwYDVQQLDDRJbnN0aXR1dG8gTmFj
+aW9uYWwgZGUgVGVjbm9sb2dpYSBkYSBJbmZvcm1hY2FvIC0gSVRJMUYwRAYDVQQD
+DD1BdXRvcmlkYWRlIENlcnRpZmljYWRvcmEgUmFpeiBkbyBHb3Zlcm5vIEZlZGVy
+YWwgZG8gQnJhc2lsIHYxMB4XDTIwMDYxMDE1NDUyOVoXDTMzMDYxMDE1MDAyOVow
+gaUxCzAJBgNVBAYTAkJSMQ8wDQYDVQQKDAZHb3YtQnIxPTA7BgNVBAsMNEluc3Rp
+dHV0byBOYWNpb25hbCBkZSBUZWNub2xvZ2lhIGRhIEluZm9ybWFjYW8gLSBJVEkx
+RjBEBgNVBAMMPUF1dG9yaWRhZGUgQ2VydGlmaWNhZG9yYSBSYWl6IGRvIEdvdmVy
+bm8gRmVkZXJhbCBkbyBCcmFzaWwgdjEwggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAw
+ggIKAoICAQDUAtHX7fuIU9xrGTgOckAjHVbFCDNUNJD/Falhxwy8mtLLKdLvgHiV
+JA20XmL5WcZkSQqxPYIfMRD5mKwRa4m5zn8rOtuQrC1bpiv9joxsJEXvnqAgkkoh
+hRKG/pvutRQ37p1TINyXhMcLFi0Mw56777djh5WAyADql8UYAuZPVzTFCoQHYhLq
+8GQ1IxD16+gn2mPY4NrFkm4FuH/0M7FDADY9xKKHCtMapz6zy/TIB53GxgC1HofM
+EKph0wfvcyUDJiGWZrz+R54i7C4yR3rSZKqJMD5fPxt3Y8FSh0nogf1c+1fyb47p
+Byr5tNnuVElNfuD2vAneuECQcD4/Jlvd+tFUYgzy/+iH5oQNyLvD9kSEQRhoEG7n
+rsDLwKBgvp2xEDjUBUSDxvXFbJeGJ0JPZbtxoHX2uZt1y5bqMM0K4KjatZ52ZrK3
+nUSWCbVbX16VATVM0O9SOgAliTk7DiStVslCSzRlZ8dS5KUMnLLXUo7w0Fy/xzVv
+aBhimpre9p4heLQyCiD0QBU1XtyuYAkb9gQdHuYBcgBFauSK0CBgJjbZyj8XFNGy
+6ePHZQykO7sAA8HAMa/KJePFvLNXhYelB7OwwfSUflRv0pVEG0iaFn8lxdzeuR2c
+kGXHF7Wd6HhVXF+b5cwC2HnX+u7XJuJpJvz1JEbregfrQjmRMBjtbwIDAQABo4Hw
+MIHtMEcGA1UdIARAMD4wPAYFYEwDAQAwMzAxBggrBgEFBQcCARYlaHR0cDovL3Jl
+cG8uaXRpLmJyL0RQQ2FjcmFpekdvdkJyLnBkZjBBBgNVHR8EOjA4MDagNKAyhjBo
+dHRwOi8vcmVwby5pdGkuYnIvbGNyL3B1YmxpYy9MQ1JhY3JhaXpHb3ZCci5jcmww
+HwYDVR0jBBgwFoAUkjUtbil+kdrvhvMKTNXI1X2PrIgwHQYDVR0OBBYEFJI1LW4p
+fpHa74bzCkzVyNV9j6yIMA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgEG
+MA0GCSqGSIb3DQEBDQUAA4ICAQDQS9jW0HWu79OsUEZkckEnkh0LSqFhDVy5W/CA
+oMeW282C1cNElci1t0xscmtwyh8iPSK7YEsaEiWx7Bp8rndF1Qe/rmYo1AiVuaJL
+tg8UsOXc5M0SGO9zDE+PWqRFSNEvQ9KU+h4MDIZ5xlH0TfdkTkexjafXAVxlvSuJ
+Kl1h+4ctMdCOLJWkjHKFnhzIy8qaKOmOGPL2jotqniIdtJpXXvkpVwHBBpRLlAEY
+jm6+zw8aefSpW5ARQipbuhkmMDwCpoLB71Gm84xmAFu8p72HTTks+y804G8IcfXv
+6EwllAs1ePqFfzERkgIIsfD15xI1vXrHIS7zfZXOdOFpphc+LBa3apwnCGHqicje
+I5cqvKp5bUMHBEzDc/7x/YvnfsTK/O0LWxoXVuyWMXP/twZgy3SaQbt/aWu+NR/0
+fQVQ8FlJSc+zkryt90oso8e40BZW5QUR+uFTXC7fAbWgVQOyK0k4rr4llabdxmtv
+u6wHRTQKfIty7kqGP6Xjekto8mGoUr7iorOgbftwVjhVj88FRVwXEvkDmgRrl6HN
+tEQgicyaZ5foIkZDN8r18xk204Ys2qPls/hN3LV6dWaDljIWQg4cfs98j1N3I/8e
+mPzmersOtIo6/Wac6ZPMecFI3nAJnFJnKHyWexb8fUfDuvfnvqRJf00IxJKdP/mn
+//A8FA==
+-----END CERTIFICATE-----`,
+]

@@ -23,6 +23,7 @@ import {
 } from "@/lib/db/oposicao"
 import { previsaoEncerramentoSemCarta } from "@/lib/db/oposicao-gestao"
 import { formatarData } from "@/lib/formato"
+import { lerPaginacao } from "@/lib/paginacao"
 import {
   MODOS_FORMALIZACAO,
   ROTULO_SITUACAO_OPOSITOR,
@@ -51,6 +52,7 @@ export default async function CampanhaOposicaoPage({
     situacao?: string
     busca?: string
     pagina?: string
+    porPagina?: string
     editar?: string
     salvo?: string
     fonte?: string
@@ -78,7 +80,7 @@ export default async function CampanhaOposicaoPage({
     ? (brutos.situacao as SituacaoOpositor)
     : "todas"
   const busca = (brutos.busca ?? "").trim()
-  const pagina = Math.max(1, Number(brutos.pagina) || 1)
+  const { pagina, porPagina } = lerPaginacao(brutos, 50)
 
   const lista = await listarOpositores({
     campanhaId: id,
@@ -86,6 +88,7 @@ export default async function CampanhaOposicaoPage({
     busca,
     fonteId: fonte || undefined,
     pagina,
+    porPagina,
   })
 
   const modo = MODOS_FORMALIZACAO.find(
@@ -315,7 +318,7 @@ export default async function CampanhaOposicaoPage({
               total={lista.total}
               pagina={lista.pagina}
               totalPaginas={lista.totalPaginas}
-              porPagina={50}
+              porPagina={lista.porPagina}
               padrao={50}
             />
           </div>

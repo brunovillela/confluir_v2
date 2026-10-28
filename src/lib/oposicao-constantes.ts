@@ -98,3 +98,10 @@ export const MEIOS_ENVIO = [
   { chave: "outro", rotulo: "Outro" },
 ] as const
 export type MeioEnvio = (typeof MEIOS_ENVIO)[number]["chave"]
+
+/**
+ * Tamanho máximo da carta assinada (onda 3, M3): o corpo de uma server action
+ * vai até 4 MB (next.config.ts) e o formulário leva mais que o arquivo. Acima
+ * disso, o envio falhava com erro genérico; agora a tela avisa antes.
+ */
+export const TAMANHO_MAX_CARTA = 3.8 * 1024 * 1024

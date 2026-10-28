@@ -38,7 +38,7 @@ const ESPERA_REENVIO_S = 60
  * entrada do portal: o Turnstile de cada um é desenhado no carregamento e o
  * código já pedido não se perde ao olhar a outra aba.
  */
-export function AcessoNaoFiliado() {
+export function AcessoNaoFiliado({ voltar }: { voltar?: string } = {}) {
   const [aba, setAba] = useState<Aba>("trabalhador")
 
   return (
@@ -56,10 +56,10 @@ export function AcessoNaoFiliado() {
         </TabsTrigger>
       </TabsList>
       <TabsContent value="trabalhador" forceMount className="pt-2 data-[state=inactive]:hidden">
-        <FormTrabalhador />
+        <FormTrabalhador voltar={voltar} />
       </TabsContent>
       <TabsContent value="filiado" forceMount className="pt-2 data-[state=inactive]:hidden">
-        <FormFiliado />
+        <FormFiliado voltar={voltar} />
       </TabsContent>
     </Tabs>
   )
@@ -330,7 +330,7 @@ function ConferenciaEmail({
   )
 }
 
-function FormTrabalhador() {
+function FormTrabalhador({ voltar }: { voltar?: string }) {
   const [nome, setNome] = useState("")
   const [cpf, setCpf] = useState("")
   const [email, setEmail] = useState("")
@@ -422,7 +422,7 @@ function FormTrabalhador() {
           idPrefixo="t"
           aviso={pedido.aviso}
           confirmar={confirmarCodigoTrabalhador}
-          ocultos={{ nome: pedido.nome, cpf: pedido.cpf, email: pedido.email }}
+          ocultos={{ nome: pedido.nome, cpf: pedido.cpf, email: pedido.email, voltar: voltar ?? "" }}
           email={pedido.email}
         />
       )}
@@ -430,7 +430,7 @@ function FormTrabalhador() {
   )
 }
 
-function FormFiliado() {
+function FormFiliado({ voltar }: { voltar?: string }) {
   const [cpf, setCpf] = useState("")
   const [cpfTocado, setCpfTocado] = useState(false)
   const [pedido, setPedido] = useState<{ cpf: string; aviso?: string; serie: number } | null>(null)
@@ -478,7 +478,7 @@ function FormFiliado() {
           idPrefixo="f"
           aviso={pedido.aviso}
           confirmar={confirmarCodigoFiliado}
-          ocultos={{ cpf: pedido.cpf }}
+          ocultos={{ cpf: pedido.cpf, voltar: voltar ?? "" }}
           ajuda={
             <>
               <li>Olhe o e-mail pessoal e também o da empresa, se ele estiver no seu cadastro.</li>

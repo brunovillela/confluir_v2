@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useActionState, useState } from "react"
-import { Check, Loader2, Send, X } from "lucide-react"
+import { Check, Loader2, RotateCw, Send, X } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -31,11 +31,18 @@ import {
   avaliarEmLoteAction,
   encerrarSemCartaAction,
   registrarEnvioEmpregadorAction,
+  reverificarAssinaturaAction,
   type EstadoLote,
 } from "./actions"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
+
+/** "123.***.***-01": a lista não expõe o CPF inteiro; a página da oposição, sim. */
+function cpfParcial(cpf: string): string {
+  const m = mascaraCpf(cpf)
+  return /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(m) ? `${m.slice(0, 3)}.***.***-${m.slice(-2)}` : m
+}
 
 const VARIANTE: Record<SituacaoOpositor, "secondary" | "outline"> = {
   aprovada: "secondary",
@@ -239,7 +246,7 @@ export function ListaOpositores({
                   </Link>
                 </TableCell>
                 <TableCell className="tabular-nums">{o.protocolo ?? "—"}</TableCell>
-                <TableCell className="whitespace-nowrap tabular-nums">{o.cpf ? mascaraCpf(o.cpf) : "—"}</TableCell>
+                <TableCell className="whitespace-nowrap tabular-nums">{o.cpf ? cpfParcial(o.cpf) : "—"}</TableCell>
                 <TableCell className="max-w-40">
                   <span className="line-clamp-1">{o.empregadorNome ?? "—"}</span>
                 </TableCell>
@@ -384,6 +391,28 @@ export function RegistrarEnvio({
         )}
         <Button type="button" size="sm" variant="ghost" onClick={() => setAberto(false)}>
           {estado.ok ? "Fechar" : "Cancelar"}
+        </Button>
+      </div>
+    </form>
+  )
+}
+
+/** "Reverificar assinatura" da carta (onda 3): baixa o PDF e passa pelo validador de novo. */
+export function ReverificarAssinatura({ opositorId, campanhaId }: { opositorId: string; campanhaId: string }) {
+  const [estado, acao, pendente] = useActionState(reverificarAssinaturaAction, {})
+  return (
+    <form action={acao} className="grid gap-2">
+      <input type="hidden" name="opositor_id" value={opositorId} />
+      <input type="hidden" name="campanha_id" value={campanhaId} />
+      {estado.erro && (
+        <Alert variant="destructive">
+          <AlertDescription>{estado.erro}</AlertDescription>
+        </Alert>
+      )}
+      <div>
+        <Button type="submit" variant="ghost" size="sm" disabled={pendente}>
+          {pendente ? <Loader2 className="animate-spin" /> : <RotateCw />}
+          Reverificar assinatura
         </Button>
       </div>
     </form>

@@ -20,6 +20,7 @@ import { formatarData, formatarDataHora } from "@/lib/formato"
 import { mascaraCpf } from "@/lib/mascaras"
 import { ROTULO_SITUACAO_OPOSITOR } from "@/lib/oposicao-constantes"
 
+import { ReverificarAssinatura } from "../../../gestao-forms"
 import { AvaliarForm } from "../../../oposicao-forms"
 
 export const metadata: Metadata = { title: "Avaliar oposição — Confluir" }
@@ -42,6 +43,9 @@ export default async function OpositorPage({
     o.situacao
   )
   const q = o.requisitos
+  // A coluna guarda só o dia; a hora da decisão vem da trilha (M13).
+  const decisaoEm =
+    [...o.eventos].reverse().find((e) => e.evento === "aprovada" || e.evento === "reprovada")?.created_at ?? null
   const algumProblema =
     q.noPrazo === false ||
     q.cartaNoPrazo === false ||
@@ -151,6 +155,7 @@ export default async function OpositorPage({
               <p className="text-muted-foreground text-sm">Não foi possível gerar o link do arquivo.</p>
             )}
             <SeloAssinatura validacao={o.validacao} />
+            <ReverificarAssinatura opositorId={o.id} campanhaId={id} />
           </CardContent>
         </Card>
       )}
@@ -239,7 +244,7 @@ export default async function OpositorPage({
               <AlertDescription>
                 {o.situacao === "aprovada" ? "Aprovada" : "Reprovada"}
                 {o.avaliadorNome && <> por {o.avaliadorNome}</>}
-                {o.avaliacao_data && <> em {formatarData(o.avaliacao_data)}</>}.
+                {decisaoEm ? <> em {formatarDataHora(decisaoEm)}</> : o.avaliacao_data && <> em {formatarData(o.avaliacao_data)}</>}.
                 {o.reprovacao_motivo && <> Motivo: {o.reprovacao_motivo}</>}
               </AlertDescription>
             </Alert>

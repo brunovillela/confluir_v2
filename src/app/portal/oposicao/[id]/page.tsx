@@ -18,6 +18,7 @@ import { hojeSP } from "@/lib/db/comum"
 import {
   minhaOposicao,
   obterCampanhaPublica,
+  opcoesFontes,
   vinculosAtivos,
   type VinculoAtivo,
 } from "@/lib/db/oposicao"
@@ -49,7 +50,7 @@ export default async function RegistrarOposicaoPage({
   const vis = await getVisualizacaoPortal()
   if (vis?.preview) redirect("/portal/oposicao")
 
-  const sessao = await requireSessaoTrabalhador()
+  const sessao = await requireSessaoTrabalhador(`/portal/oposicao/${(await params).id}`)
   const { id } = await params
   const campanha = await obterCampanhaPublica(id)
   if (!campanha || campanha.situacao !== "aberta") notFound()
@@ -79,6 +80,16 @@ export default async function RegistrarOposicaoPage({
       return []
     })
   }
+  // Campanha sem fonte marcada e quem não é filiado (M5): escolhe entre as
+  // fontes pagadoras da entidade — antes nem via o campo e a oposição saía
+  // sem empregador, fora da relação que vai ao RH.
+  const fontesGerais =
+    !ehFiliado && prazo === "aberto" && campanha.fontes.length === 0
+      ? await opcoesFontes().catch((e) => {
+          console.error("oposição: fontes pagadoras", e)
+          return []
+        })
+      : []
 
   const cartao = (
     <Card>
@@ -131,6 +142,7 @@ export default async function RegistrarOposicaoPage({
               }}
               filiado={ehFiliado}
               vinculos={vinculos}
+              fontesGerais={fontesGerais}
             />
           </div>
         )}

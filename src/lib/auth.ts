@@ -263,10 +263,21 @@ export async function garantirCadastroNaoFiliado(dados: {
   return { id: String(criado.id), nome: dados.nome, email: dados.email }
 }
 
-export async function requireSessaoTrabalhador(): Promise<SessaoTrabalhador> {
+/**
+ * `voltar`: a página pedida (o comprovante do link do e-mail). Sem sessão, a
+ * entrada da Oposição recebe o destino e, depois do código, leva a pessoa
+ * de volta para ele (M7) — antes ela caía na lista.
+ */
+export async function requireSessaoTrabalhador(voltar?: string): Promise<SessaoTrabalhador> {
   const sessao = await getSessaoTrabalhador()
-  if (!sessao) redirect("/portal/oposicao")
+  if (!sessao) redirect(voltar ? `/portal/oposicao?voltar=${encodeURIComponent(voltar)}` : "/portal/oposicao")
   return sessao
+}
+
+/** O destino depois da entrada: só uma página da própria Oposição (sem open redirect). */
+export function destinoDaOposicao(voltar: string | null | undefined): string {
+  const v = (voltar ?? "").trim()
+  return /^\/portal\/oposicao\/[A-Za-z0-9/_-]+$/.test(v) ? v : "/portal/oposicao"
 }
 
 export type SessaoHotel = {

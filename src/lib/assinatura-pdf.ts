@@ -1,6 +1,6 @@
 import { createHash, verify as verificarAssinatura, X509Certificate, constants as cryptoConstants } from "node:crypto"
 
-import { raizConfiada } from "@/lib/icp-brasil/raizes"
+import { CADEIA_GOVBR_PEM, raizConfiada, type TipoRaiz } from "@/lib/icp-brasil/raizes"
 
 /**
  * VALIDAÇÃO DE ASSINATURA EM PDF (onda 5, A4) — PAdES / CMS, só com o
@@ -33,6 +33,8 @@ export type AssinaturaVerificada = {
   icpBrasilPeloNome: boolean
   /** A raiz confere com a lista de raízes confiadas. */
   raizConfiada: boolean
+  /** De quem é a raiz confiada: ICP-Brasil (e-CPF) ou gov.br (Assinador gov.br). */
+  raizTipo?: TipoRaiz | null
   assinadoEm: string | null
   integra: boolean
   assinaturaOk: boolean
@@ -56,9 +58,19 @@ export type ValidacaoAssinatura = {
 
 // ── DER ──────────────────────────────────────────────────────────────────────
 
-type Tlv = { tag: number; constructed: boolean; start: number; valueStart: number; end: number }
+/**
+ * `end` é o fim do elemento inteiro. Em BER de comprimento indefinido (0x80),
+ * `valueEnd` é onde começa o marcador de fim (00 00) e `end` vem depois dele.
+ */
+type Tlv = { tag: number; constructed: boolean; start: number; valueStart: number; valueEnd: number; end: number }
 
-function lerTlv(b: Uint8Array, off: number): Tlv {
+/**
+ * Lê um elemento DER ou BER. O Assinador gov.br (onda 3, 27/10/2026) grava o
+ * CMS em BER com comprimento INDEFINIDO (`30 80 … 00 00`): lido como DER, o
+ * comprimento virava 0 e 23 de 24 cartas reais do legado saíam "inválidas".
+ */
+function lerTlv(b: Uint8Array, off: number, profundidade = 0): Tlv {
+  if (profundidade > 64) throw new Error("BER aninhado demais")
   if (off >= b.length) throw new Error("DER truncado")
   const tagByte = b[off]
   let p = off + 1
@@ -72,20 +84,32 @@ function lerTlv(b: Uint8Array, off: number): Tlv {
     tag = (tag << 7) | (b[p] & 0x7f)
     p++
   }
+  // `tag` guarda o byte inteiro (classe + construído + número): as comparações abaixo usam 0x30, 0x31, 0xA0…
+  const tagFinal = (tagByte & 0x1f) === 0x1f ? tag : tagByte
+  const constructed = (tagByte & 0x20) !== 0
+  if (p >= b.length) throw new Error("DER truncado")
   let len = b[p++]
+  if (len === 0x80) {
+    // BER indefinido: os filhos vão até o marcador 00 00.
+    if (!constructed) throw new Error("comprimento indefinido em elemento primitivo")
+    let q = p
+    while (q + 1 < b.length && !(b[q] === 0 && b[q + 1] === 0)) q = lerTlv(b, q, profundidade + 1).end
+    if (q + 1 >= b.length) throw new Error("BER sem marcador de fim")
+    return { tag: tagFinal, constructed, start: off, valueStart: p, valueEnd: q, end: q + 2 }
+  }
   if (len & 0x80) {
     const n = len & 0x7f
     len = 0
-    for (let i = 0; i < n; i++) len = (len << 8) | b[p++]
+    for (let i = 0; i < n; i++) len = len * 256 + b[p++]
   }
-  // `tag` guarda o byte inteiro (classe + construído + número): as comparações abaixo usam 0x30, 0x31, 0xA0…
-  return { tag: (tagByte & 0x1f) === 0x1f ? tag : tagByte, constructed: (tagByte & 0x20) !== 0, start: off, valueStart: p, end: p + len }
+  if (p + len > b.length) throw new Error("DER truncado")
+  return { tag: tagFinal, constructed, start: off, valueStart: p, valueEnd: p + len, end: p + len }
 }
 
 function filhos(b: Uint8Array, t: Tlv): Tlv[] {
   const saida: Tlv[] = []
   let p = t.valueStart
-  while (p < t.end) {
+  while (p < t.valueEnd) {
     const f = lerTlv(b, p)
     saida.push(f)
     p = f.end
@@ -94,7 +118,7 @@ function filhos(b: Uint8Array, t: Tlv): Tlv[] {
 }
 
 function oidDe(b: Uint8Array, t: Tlv): string {
-  const v = b.subarray(t.valueStart, t.end)
+  const v = b.subarray(t.valueStart, t.valueEnd)
   if (v.length === 0) return ""
   const partes: number[] = [Math.floor(v[0] / 40), v[0] % 40]
   let acc = 0
@@ -118,11 +142,11 @@ function hex(v: Uint8Array): string {
 }
 
 function textoDe(b: Uint8Array, t: Tlv): string {
-  return new TextDecoder("utf-8", { fatal: false }).decode(b.subarray(t.valueStart, t.end))
+  return new TextDecoder("utf-8", { fatal: false }).decode(b.subarray(t.valueStart, t.valueEnd))
 }
 
 function dataAsn1(b: Uint8Array, t: Tlv): string | null {
-  const s = new TextDecoder("latin1").decode(b.subarray(t.valueStart, t.end))
+  const s = new TextDecoder("latin1").decode(b.subarray(t.valueStart, t.valueEnd))
   // UTCTime YYMMDDhhmmssZ · GeneralizedTime YYYYMMDDhhmmssZ
   const m = t.tag === 0x17 ? /^(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})?Z?$/.exec(s) : /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})?/.exec(s)
   if (!m) return null
@@ -208,6 +232,25 @@ function serialNormal(s: string): string {
 
 // ── CMS ──────────────────────────────────────────────────────────────────────
 
+let cadeiaGovbr: X509Certificate[] | null = null
+/**
+ * A cadeia do Assinador gov.br, para completar a da assinatura: o PDF traz só
+ * o certificado da pessoa (lib/icp-brasil/raizes.ts).
+ */
+function cadeiasEmbutidas(): X509Certificate[] {
+  if (!cadeiaGovbr) {
+    cadeiaGovbr = []
+    for (const pem of CADEIA_GOVBR_PEM) {
+      try {
+        cadeiaGovbr.push(new X509Certificate(pem))
+      } catch {
+        // certificado embutido ilegível: a cadeia fica incompleta (ressalva), nunca quebra
+      }
+    }
+  }
+  return cadeiaGovbr
+}
+
 function verificarCms(cms: Uint8Array, dadosCobertos: Uint8Array): Omit<AssinaturaVerificada, "subFilter" | "cobreArquivoTodo"> {
   const base: Omit<AssinaturaVerificada, "subFilter" | "cobreArquivoTodo"> = {
     nome: null,
@@ -263,13 +306,13 @@ function verificarCms(cms: Uint8Array, dadosCobertos: Uint8Array): Omit<Assinatu
     }
     const sigAlg = si[idx]
     const sigAlgOid = oidDe(cms, filhos(cms, sigAlg)[0])
-    const assinatura = cms.subarray(si[idx + 1].valueStart, si[idx + 1].end)
+    const assinatura = cms.subarray(si[idx + 1].valueStart, si[idx + 1].valueEnd)
 
     // Signatário pelo serial.
     let signer: X509Certificate | null = null
     if (sid.tag === 0x30) {
       const [, serialT] = filhos(cms, sid)
-      const serial = serialNormal(hex(cms.subarray(serialT.valueStart, serialT.end)))
+      const serial = serialNormal(hex(cms.subarray(serialT.valueStart, serialT.valueEnd)))
       signer = certs.find((c) => serialNormal(c.serialNumber) === serial) ?? null
     }
     if (!signer) signer = certs[0] ?? null
@@ -289,7 +332,7 @@ function verificarCms(cms: Uint8Array, dadosCobertos: Uint8Array): Omit<Assinatu
       const [oidT, setT] = filhos(cms, attr)
       const oid = oidDe(cms, oidT)
       const valor = filhos(cms, setT)[0]
-      if (oid === OID.messageDigest) messageDigest = cms.subarray(valor.valueStart, valor.end)
+      if (oid === OID.messageDigest) messageDigest = cms.subarray(valor.valueStart, valor.valueEnd)
       if (oid === OID.signingTime) base.assinadoEm = dataAsn1(cms, valor)
     }
     if (!messageDigest) return { ...base, erro: "Sem messageDigest nos atributos assinados." }
@@ -315,7 +358,8 @@ function verificarCms(cms: Uint8Array, dadosCobertos: Uint8Array): Omit<Assinatu
     const quando = base.assinadoEm ? new Date(base.assinadoEm) : null
     if (quando) base.dentroDaValidade = quando >= new Date(signer.validFrom) && quando <= new Date(signer.validTo)
 
-    // Cadeia.
+    // Cadeia: os certificados da assinatura e, se faltarem, os embutidos.
+    const candidatos = [...certs, ...cadeiasEmbutidas()]
     const cadeia: X509Certificate[] = [signer]
     const vistos = new Set<string>([signer.fingerprint256])
     let atual = signer
@@ -324,7 +368,7 @@ function verificarCms(cms: Uint8Array, dadosCobertos: Uint8Array): Omit<Assinatu
         base.cadeiaFecha = true
         break
       }
-      const emissor = certs.find((c) => !vistos.has(c.fingerprint256) && atual.checkIssued(c) && atual.verify(c.publicKey))
+      const emissor = candidatos.find((c) => !vistos.has(c.fingerprint256) && atual.checkIssued(c) && atual.verify(c.publicKey))
       if (!emissor) break
       cadeia.push(emissor)
       vistos.add(emissor.fingerprint256)
@@ -334,7 +378,9 @@ function verificarCms(cms: Uint8Array, dadosCobertos: Uint8Array): Omit<Assinatu
     base.raiz = cnDe(base.cadeiaFecha ? topo.subject : topo.issuer)
     base.raizSha256 = base.cadeiaFecha ? topo.fingerprint256.replace(/:/g, "") : null
     base.icpBrasilPeloNome = cadeia.some((c) => /ICP-Brasil|Autoridade Certificadora Raiz Brasileira/i.test(c.issuer) || /ICP-Brasil|Autoridade Certificadora Raiz Brasileira/i.test(c.subject))
-    base.raizConfiada = Boolean(base.raizSha256 && raizConfiada(base.raizSha256))
+    const confiada = base.raizSha256 ? raizConfiada(base.raizSha256) : null
+    base.raizConfiada = Boolean(confiada)
+    base.raizTipo = confiada?.tipo ?? null
     return base
   } catch (e) {
     return { ...base, erro: `Assinatura ilegível: ${(e as Error).message}` }
@@ -363,7 +409,8 @@ export function validarAssinaturasPdf(bytes: Uint8Array, cpfEsperado?: string | 
     vistos.add(chave)
     if (a !== 0 || c < b || c + d > bytes.length) continue
     const janela = texto.slice(Math.max(0, m.index - 4000), Math.min(texto.length, m.index + 200_000))
-    const sub = /\/SubFilter\s*\/([A-Za-z0-9.]+)/.exec(janela)
+    // O dicionário /Sig pode ficar longe do /ByteRange (Assinador gov.br): sem achar perto, vale o do arquivo.
+    const sub = /\/SubFilter\s*\/([A-Za-z0-9.]+)/.exec(janela) ?? /\/SubFilter\s*\/([A-Za-z0-9.]+)/.exec(texto)
     // /Contents: o hex fica entre o fim do primeiro trecho e o começo do segundo.
     const trechoContents = texto.slice(b, c)
     const hexMatch = /<([0-9A-Fa-f\s]+)>/.exec(trechoContents)
@@ -371,6 +418,8 @@ export function validarAssinaturasPdf(bytes: Uint8Array, cpfEsperado?: string | 
       assinaturas.push({ subFilter: sub?.[1] ?? null, nome: null, cpf: null, emissor: null, raiz: null, raizSha256: null, cadeiaFecha: false, icpBrasilPeloNome: false, raizConfiada: false, assinadoEm: null, integra: false, assinaturaOk: false, dentroDaValidade: null, cobreArquivoTodo: c + d === bytes.length, algoritmo: null, erro: "Não achei o /Contents da assinatura." })
       continue
     }
+    // Campo de assinatura vazio (só zeros, reservado e nunca assinado): não é assinatura.
+    if (/^[0\s]*$/.test(hexMatch[1])) continue
     const hexLimpo = hexMatch[1].replace(/\s/g, "").replace(/0+$/, (z) => (z.length % 2 ? z.slice(1) : z))
     const cms = new Uint8Array(Buffer.from(hexLimpo, "hex"))
     const cobertos = Buffer.concat([bytes.subarray(a, a + b), bytes.subarray(c, c + d)])
@@ -395,11 +444,15 @@ export function validarAssinaturasPdf(bytes: Uint8Array, cpfEsperado?: string | 
   const ressalvas: string[] = []
   const principal = boas.find((s) => s.cobreArquivoTodo) ?? boas[0]
   if (!principal.cadeiaFecha) ressalvas.push("a cadeia de certificados não veio completa na assinatura")
-  else if (!principal.raizConfiada) ressalvas.push(principal.icpBrasilPeloNome ? `cadeia fecha em "${principal.raiz}" (ICP-Brasil pelo nome), raiz não conferida contra a lista de raízes confiadas` : `cadeia fecha em "${principal.raiz}", que não é ICP-Brasil`)
+  else if (!principal.raizConfiada) ressalvas.push(principal.icpBrasilPeloNome ? `cadeia fecha em "${principal.raiz}" (ICP-Brasil pelo nome), raiz não conferida contra a lista de raízes confiadas` : `cadeia fecha em "${principal.raiz}", que não é ICP-Brasil nem gov.br`)
   if (!principal.cpf) ressalvas.push("o certificado não traz CPF")
   const quem = `${principal.nome ?? "signatário"}${principal.cpf ? ` (CPF ${principal.cpf})` : ""}${principal.assinadoEm ? ` em ${principal.assinadoEm.slice(0, 10).split("-").reverse().join("/")}` : ""}`
-  if (ressalvas.length || (principal.icpBrasilPeloNome === false && !principal.raizConfiada)) {
+  if (ressalvas.length || !principal.raizConfiada) {
     return { situacao: "ressalva", resumo: `Assinatura íntegra de ${quem}; ${ressalvas.join("; ")}.`, assinaturas, cpfEsperado: esperado, cpfConfere, verificadoEm, versao: 1 }
   }
-  return { situacao: "valida", resumo: `Assinatura válida de ${quem}, cadeia ICP-Brasil conferida.`, assinaturas, cpfEsperado: esperado, cpfConfere, verificadoEm, versao: 1 }
+  const cadeiaConferida =
+    principal.raizTipo === "gov_br"
+      ? "assinatura eletrônica gov.br, cadeia do Governo Federal conferida"
+      : "cadeia ICP-Brasil conferida"
+  return { situacao: "valida", resumo: `Assinatura válida de ${quem}, ${cadeiaConferida}.`, assinaturas, cpfEsperado: esperado, cpfConfere, verificadoEm, versao: 1 }
 }

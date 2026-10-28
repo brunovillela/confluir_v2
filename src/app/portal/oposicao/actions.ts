@@ -5,7 +5,7 @@ import { redirect } from "next/navigation"
 
 import type { User } from "@supabase/supabase-js"
 
-import { garantirCadastroNaoFiliado, requireSessaoTrabalhador } from "@/lib/auth"
+import { destinoDaOposicao, garantirCadastroNaoFiliado, requireSessaoTrabalhador } from "@/lib/auth"
 import { consumirVinculoPendente, registrarVinculoPendente } from "@/lib/auth-identidade"
 import {
   buscarFiliadoPorCpf,
@@ -21,6 +21,7 @@ import {
   registrarDesistencia,
   registrarOposicao,
   subirDocumentoAssinado,
+  opcoesFontes,
   vinculosAtivos,
 } from "@/lib/db/oposicao"
 import { estadoPrazo, exigeDocumento } from "@/lib/oposicao-constantes"
@@ -166,7 +167,7 @@ export async function confirmarCodigoFiliado(
     await supabase.auth.signOut()
     return { erro: vinculo.erro }
   }
-  redirect("/portal/oposicao")
+  redirect(destinoDaOposicao(texto(fd, "voltar")))
 }
 
 /**
@@ -274,7 +275,7 @@ export async function confirmarCodigoTrabalhador(
     await supabase.auth.signOut()
     return { erro: "O pedido do código expirou. Peça um novo código." }
   }
-  if (vinculo.identidade.tipo === "filiado") redirect("/portal/oposicao")
+  if (vinculo.identidade.tipo === "filiado") redirect(destinoDaOposicao(texto(fd, "voltar")))
 
   // Cadastro do trabalhador — pelo CPF da IDENTIDADE da conta; o nome e o
   // e-mail informados agora prevalecem.
@@ -285,7 +286,7 @@ export async function confirmarCodigoTrabalhador(
     atualizar: true,
   })
   if (!cadastro) return { erro: "Não foi possível concluir o seu acesso. Tente de novo." }
-  redirect("/portal/oposicao")
+  redirect(destinoDaOposicao(texto(fd, "voltar")))
 }
 
 // ── Fluxo da oposição ────────────────────────────────────────────────────────
@@ -333,8 +334,13 @@ export async function confirmarOposicao(
     // Campanha sem fontes marcadas: o filiado escolhe entre os vínculos ativos
     // do cadastro (A103), para a carta não sair com a fonte em branco. Fora
     // deles, nada é gravado.
-    const vinculos = sessao.perfil === "filiado" ? await vinculosAtivos(sessao.cpf) : []
-    if (!vinculos.some((v) => v.fonteId === empregadorId)) empregadorId = null
+    // O não filiado escolhe entre as fontes da entidade (M5). Fora das
+    // opções oferecidas, nada é gravado.
+    const permitidas =
+      sessao.perfil === "filiado"
+        ? (await vinculosAtivos(sessao.cpf)).map((v) => v.fonteId)
+        : (await opcoesFontes()).map((f) => f.id)
+    if (!permitidas.includes(empregadorId)) empregadorId = null
   }
 
   const respostas = campanha.perguntas.map((p) => ({
@@ -380,7 +386,8 @@ export async function confirmarOposicao(
       filiado: sessao.perfil === "filiado",
     },
   })
-  redirect(`/portal/oposicao/comprovante/${id}`)
+  // ?registrada=1: o comprovante mostra, uma vez, o vídeo de agradecimento.
+  redirect(`/portal/oposicao/comprovante/${id}?registrada=1`)
 }
 
 /** "Não quero me opor" — dentro do prazo, a pessoa ainda pode voltar e se opor. */

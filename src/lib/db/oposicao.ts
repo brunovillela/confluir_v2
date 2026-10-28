@@ -22,6 +22,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import {
   DECLARACAO_PADRAO,
   estadoPrazo,
+  TAMANHO_MAX_CARTA,
   MODOS_FORMALIZACAO,
   SITUACOES_CAMPANHA,
   type ModoFormalizacao,
@@ -220,6 +221,7 @@ export type ListaOpositores = {
   total: number
   pagina: number
   totalPaginas: number
+  porPagina: number
 }
 
 export type FiltrosOpositores = {
@@ -230,6 +232,8 @@ export type FiltrosOpositores = {
   /** Fonte pagadora; "sem" = sem fonte informada. */
   fonteId?: string
   pagina?: number
+  /** Itens por página (padrão 50). */
+  porPagina?: number
 }
 
 /**
@@ -274,6 +278,7 @@ export async function listarOpositores(
   const empId = await tenantAtual()
   const admin = await createAdminClient()
   const pagina = filtros.pagina && filtros.pagina > 0 ? filtros.pagina : 1
+  const porPagina = filtros.porPagina && filtros.porPagina > 0 ? Math.min(filtros.porPagina, 200) : OPOSITORES_POR_PAGINA
 
   const q = aplicarFiltrosOpositores(
     admin
@@ -286,13 +291,18 @@ export async function listarOpositores(
     filtros
   )
 
-  const de = (pagina - 1) * OPOSITORES_POR_PAGINA
+  const de = (pagina - 1) * porPagina
   // Ordem estável (M10): no legado, `created_at` se repete (data da migração)
   // e as linhas pulavam de uma página para outra; o id desempata.
   const { data, count, error } = await q
     .order("created_at", { ascending: false, nullsFirst: false })
     .order("id", { ascending: false })
-    .range(de, de + OPOSITORES_POR_PAGINA - 1)
+    .range(de, de + porPagina - 1)
+  // Página além do total (link antigo, filtro que encolheu): volta à primeira
+  // em vez de quebrar a tela (o PostgREST responde 416).
+  if (error && pagina > 1 && (error.code === "PGRST103" || /range/i.test(error.message))) {
+    return listarOpositores({ ...filtros, pagina: 1 })
+  }
   if (error) throw new Error(`Falha ao listar opositores: ${error.message}`)
 
   const linhas = (data ?? []) as Record<string, unknown>[]
@@ -329,7 +339,8 @@ export async function listarOpositores(
     })),
     total,
     pagina,
-    totalPaginas: Math.max(1, Math.ceil(total / OPOSITORES_POR_PAGINA)),
+    totalPaginas: Math.max(1, Math.ceil(total / porPagina)),
+    porPagina,
   }
 }
 
@@ -462,11 +473,28 @@ const ROTULOS_CAMPO_CAMPANHA: Record<string, string> = {
   documento_modelo_url: "documento-modelo",
 }
 
+/**
+ * Situação e prazo coerentes (M12): a campanha aberta precisa do início e do
+ * fim do prazo, e o fim não vem antes do início. Reabrir uma encerrada segue
+ * possível (prorrogação), e fica na trilha como toda edição.
+ */
+function erroDeDatas(dados: Pick<DadosCampanha, "situacao" | "prazo_inicio" | "prazo_fim">): string | null {
+  if (dados.prazo_inicio && dados.prazo_fim && dados.prazo_fim < dados.prazo_inicio) {
+    return "O fim do prazo não pode ser antes do início."
+  }
+  if (dados.situacao === "aberta" && (!dados.prazo_inicio || !dados.prazo_fim)) {
+    return "Para abrir a campanha, informe o início e o fim do prazo."
+  }
+  return null
+}
+
 export async function criarCampanha(
   dados: DadosCampanha,
   usuarioId?: string | null
 ): Promise<{ id?: string; erro?: string }> {
   if (!dados.nome.trim()) return { erro: "Informe o nome da campanha." }
+  const erroDatas = erroDeDatas(dados)
+  if (erroDatas) return { erro: erroDatas }
   const empId = await tenantAtual()
   const admin = await createAdminClient()
   const { data, error } = await admin
@@ -501,6 +529,8 @@ export async function atualizarCampanha(
   usuarioId?: string | null
 ): Promise<{ erro?: string }> {
   if (!dados.nome.trim()) return { erro: "Informe o nome da campanha." }
+  const erroDatas = erroDeDatas(dados)
+  if (erroDatas) return { erro: erroDatas }
   const empId = await tenantAtual()
   const admin = await createAdminClient()
   const novo = normalizar(dados)
@@ -545,14 +575,15 @@ export async function atualizarCampanha(
 export async function subirDocumentoModelo(
   arquivo: File
 ): Promise<{ caminho?: string; erro?: string }> {
-  if (arquivo.type !== "application/pdf") {
+  const bytes = new Uint8Array(await arquivo.arrayBuffer())
+  if (!ehPdf(bytes)) {
     return { erro: "O modelo deve ser um PDF." }
   }
   const admin = await createAdminClient()
   const caminho = `modelos/${randomUUID()}.pdf`
   const { error } = await admin.storage
     .from("oposicao")
-    .upload(caminho, arquivo, { contentType: "application/pdf", upsert: false })
+    .upload(caminho, bytes, { contentType: "application/pdf", upsert: false })
   if (error) return { erro: `Falha ao subir o modelo: ${error.message}` }
   return { caminho }
 }
@@ -663,6 +694,44 @@ export async function campanhasAbertas(): Promise<CampanhaAberta[]> {
 }
 
 /**
+ * As campanhas da lista do trabalhador (M6): as abertas e, mesmo depois de
+ * encerradas, aquelas em que ele tem registro — o comprovante não some
+ * quando a entidade encerra a campanha.
+ */
+export async function campanhasDoTrabalhador(cpf: string): Promise<CampanhaAberta[]> {
+  const abertas = await campanhasAbertas()
+  const cpfLimpo = cpfConfiavel(cpf)
+  if (!cpfLimpo) return abertas
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: minhas } = await admin
+    .from("oposicao_opositor")
+    .select("campanha_id")
+    .eq("emp_proprietaria_id", emp)
+    .in("cpf", grafiasDoCpf(cpfLimpo))
+    .neq("situacao", "desistente")
+  const faltam = [
+    ...new Set((minhas ?? []).map((m) => texto(m.campanha_id)).filter((v): v is string => Boolean(v))),
+  ].filter((id) => !abertas.some((c) => c.id === id))
+  if (faltam.length === 0) return abertas
+  const { data: outras } = await admin
+    .from("oposicao_campanha")
+    .select("id, nome, detalhe_desconto, prazo_inicio, prazo_fim")
+    .eq("emp_proprietaria_id", emp)
+    .in("id", faltam)
+  return [
+    ...abertas,
+    ...(outras ?? []).map((c) => ({
+      id: String(c.id),
+      nome: texto(c.nome),
+      detalhe_desconto: texto(c.detalhe_desconto),
+      prazo_inicio: texto(c.prazo_inicio),
+      prazo_fim: texto(c.prazo_fim),
+    })),
+  ].sort((a, b) => (b.prazo_inicio ?? "").localeCompare(a.prazo_inicio ?? ""))
+}
+
+/**
  * Campanhas de oposição ABERTAS relevantes para o banner do filiado na home:
  * dentro do prazo e onde ele ainda NÃO concluiu (não se opôs, ou se opôs mas
  * falta enviar o documento assinado). Espelha o banner de votação.
@@ -680,16 +749,36 @@ export type OposicaoDoFiliado = {
 export async function oposicoesParaFiliado(
   cpf: string
 ): Promise<OposicaoDoFiliado[]> {
-  const campanhas = await campanhasAbertas()
   const hoje = hojeSP()
+  const campanhas = (await campanhasAbertas()).filter(
+    (c) => estadoPrazo(c.prazo_inicio, c.prazo_fim, hoje) === "aberto"
+  )
+  if (campanhas.length === 0) return []
+  // Só a campanha da empresa do filiado (M4): a de outra empresa aparecia no
+  // banner de todos. Campanha sem fonte marcada vale para todos, como na aba.
+  const admin = await createAdminClient()
+  const { data: escopo } = await admin
+    .from("oposicao_campanha_fontes")
+    .select("campanha_id, empresa_id")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .in("campanha_id", campanhas.map((c) => c.id))
+  const fontesPorCampanha = new Map<string, Set<string>>()
+  for (const f of escopo ?? []) {
+    const k = String(f.campanha_id)
+    if (!fontesPorCampanha.has(k)) fontesPorCampanha.set(k, new Set())
+    fontesPorCampanha.get(k)!.add(String(f.empresa_id))
+  }
+  const cpfLimpo = cpfConfiavel(cpf)
+  const minhasFontes = cpfLimpo && fontesPorCampanha.size > 0 ? await empregadoresAtivos(cpfLimpo) : new Set<string>()
   const out: OposicaoDoFiliado[] = []
   for (const c of campanhas) {
-    if (estadoPrazo(c.prazo_inicio, c.prazo_fim, hoje) !== "aberto") continue
     const minha = await minhaOposicao(c.id, cpf)
     const pendente = minha?.situacao === "aguardando_documento"
     // Já concluída → fora do banner. 'desistente' também: a pessoa já
     // escolheu, e a página da oposição segue deixando mudar de ideia no prazo.
     if (minha && !pendente) continue
+    const fontes = fontesPorCampanha.get(c.id)
+    if (!minha && fontes && ![...fontes].some((f) => minhasFontes.has(f))) continue
     out.push({
       campanhaId: c.id,
       nome: c.nome,
@@ -983,6 +1072,37 @@ export async function registrarEvento(
   }
 }
 
+/** Eventos do próprio trabalhador sobre a sua oposição (M9). */
+export type AcessoDoTitular = "comprovante_visto" | "comprovante_pdf_baixado" | "carta_baixada"
+
+/**
+ * Registra na trilha que o trabalhador viu o comprovante ou baixou o PDF ou a
+ * carta (M9), com IP e navegador. O mesmo evento repetido em 30 minutos conta
+ * uma vez só — recarregar a página não enche a trilha. Nunca atrapalha a tela.
+ */
+export async function registrarAcessoDoTitular(opositorId: string, evento: AcessoDoTitular): Promise<void> {
+  try {
+    const admin = await createAdminClient()
+    const emp = await tenantAtual()
+    const desde = new Date(Date.now() - 30 * 60_000).toISOString()
+    const { data: recente } = await admin
+      .from("oposicao_eventos")
+      .select("id")
+      .eq("emp_proprietaria_id", emp)
+      .eq("opositor_id", opositorId)
+      .eq("evento", evento)
+      .gte("created_at", desde)
+      .limit(1)
+    if ((recente ?? []).length > 0) return
+    const { headers } = await import("next/headers")
+    const h = await headers()
+    const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || null
+    await registrarEvento(opositorId, evento, null, ip, h.get("user-agent"))
+  } catch (e) {
+    console.error("[oposicao] acesso não registrado:", evento, e instanceof Error ? e.message : e)
+  }
+}
+
 export type DadosOposicao = {
   campanhaId: string
   cpf: string
@@ -1232,6 +1352,12 @@ export async function registrarDesistencia(
  * uma já avaliada. Na troca, o arquivo anterior fica no bucket e o caminho
  * dele vai para a trilha ('documento_reenviado'), para a auditoria.
  */
+/** Os bytes começam com "%PDF-" (até 1 KB de lixo antes é tolerado, como nos leitores). */
+function ehPdf(bytes: Uint8Array): boolean {
+  const inicio = new TextDecoder("latin1").decode(bytes.subarray(0, 1024))
+  return inicio.includes("%PDF-")
+}
+
 export async function subirDocumentoAssinado(
   opositorId: string,
   cpf: string,
@@ -1239,7 +1365,14 @@ export async function subirDocumentoAssinado(
   ip: string | null,
   userAgent: string | null
 ): Promise<{ erro?: string; validacao?: ValidacaoAssinatura | null }> {
-  if (arquivo.type !== "application/pdf") return { erro: "Envie o PDF assinado." }
+  // O que vale é o conteúdo, não o tipo que o navegador informa (M3): um
+  // JPEG renomeado para .pdf passava; um PDF que o celular manda como
+  // "octet-stream" era recusado.
+  if (arquivo.size > TAMANHO_MAX_CARTA) {
+    return { erro: `O arquivo tem ${(arquivo.size / 1024 / 1024).toFixed(1).replace(".", ",")} MB; o limite é 3,8 MB.` }
+  }
+  const bytes = new Uint8Array(await arquivo.arrayBuffer())
+  if (!ehPdf(bytes)) return { erro: "O arquivo enviado não é um PDF. Envie o PDF assinado no gov.br." }
   const empId = await tenantAtual()
   const admin = await createAdminClient()
   // Confirma posse (mesmo CPF) antes de aceitar o upload.
@@ -1247,7 +1380,7 @@ export async function subirDocumentoAssinado(
     .from("oposicao_opositor")
     .select("id, situacao, documento_assinado_url, campanha_id")
     .eq("id", opositorId)
-    .eq("cpf", cpf)
+    .in("cpf", grafiasDoCpf(limparCpf(cpf) || cpf))
     .eq("emp_proprietaria_id", empId)
     .maybeSingle()
   if (!o) return { erro: "Oposição não encontrada." }
@@ -1281,7 +1414,7 @@ export async function subirDocumentoAssinado(
   // Validação PAdES/ICP-Brasil (onda 5, A4): CPF do certificado × CPF do opositor.
   let validacao: ValidacaoAssinatura | null = null
   try {
-    validacao = validarAssinaturasPdf(new Uint8Array(await arquivo.arrayBuffer()), cpf)
+    validacao = validarAssinaturasPdf(bytes, cpf)
   } catch (e) {
     console.error("validação da assinatura:", e)
   }
@@ -1289,7 +1422,7 @@ export async function subirDocumentoAssinado(
   const caminho = `assinados/${randomUUID()}.pdf`
   const up = await admin.storage
     .from("oposicao")
-    .upload(caminho, arquivo, { contentType: "application/pdf", upsert: false })
+    .upload(caminho, bytes, { contentType: "application/pdf", upsert: false })
   if (up.error) return { erro: `Falha ao subir o documento: ${up.error.message}` }
 
   // Só grava se a situação ainda é a que foi lida: uma avaliação no meio do
@@ -1341,6 +1474,10 @@ export type Comprovante = {
   cpf: string | null
   matricula: string | null
   empregadorNome: string | null
+  /** CNPJ da fonte pagadora, para a carta identificar a empresa (onda 3). */
+  empregadorCnpj: string | null
+  /** Vídeo de agradecimento da campanha, mostrado logo depois do registro. */
+  videoAgradecimentoUrl: string | null
   situacao: SituacaoOpositor
   texto_declaracao: string | null
   confirmado_em: string | null
@@ -1380,7 +1517,7 @@ export async function obterComprovante(
       .from("oposicao_opositor")
       .select(colunas)
       .eq("id", id)
-      .eq("cpf", cpf)
+      .in("cpf", grafiasDoCpf(limparCpf(cpf) || cpf))
       .eq("emp_proprietaria_id", empId)
       .maybeSingle()
   // A validação da assinatura é coluna de supabase/assinatura-validacao.sql:
@@ -1396,7 +1533,7 @@ export async function obterComprovante(
       ? admin
           .from("oposicao_campanha")
           .select(
-            "nome, detalhe_desconto, texto_declaracao, documento_modelo_url, situacao, prazo_inicio, prazo_fim"
+            "nome, detalhe_desconto, texto_declaracao, documento_modelo_url, situacao, prazo_inicio, prazo_fim, video_agradecimento_url"
           )
           .eq("id", String(o.campanha_id))
           .eq("emp_proprietaria_id", empId)
@@ -1405,7 +1542,7 @@ export async function obterComprovante(
     o.empregador_id
       ? admin
           .from("empresa")
-          .select("nome_fantasia, nome_razao")
+          .select("nome_fantasia, nome_razao, cnpj_cpf")
           .eq("id", String(o.empregador_id))
           .maybeSingle()
       : Promise.resolve({ data: null }),
@@ -1446,6 +1583,8 @@ export async function obterComprovante(
     cpf: texto(o.cpf),
     matricula: texto(o.matricula),
     empregadorNome: e ? (texto(e.nome_fantasia) ?? texto(e.nome_razao)) : null,
+    empregadorCnpj: e ? texto(e.cnpj_cpf) : null,
+    videoAgradecimentoUrl: c ? texto(c.video_agradecimento_url) : null,
     situacao: (o.situacao ?? "nao_avaliada") as SituacaoOpositor,
     // O texto que a pessoa aceitou (gravado no ato); o legado e as oposições
     // de antes da onda 0 não o têm, e caem no texto atual da campanha.
@@ -1646,7 +1785,8 @@ export async function obterOpositorDetalhe(
 
   const e = empRes.data as Record<string, unknown> | null
   const av = avalRes.data as Record<string, unknown> | null
-  const caminhoDocumento = texto(o.documento_assinado_url)
+  // A carta do legado do Bubble ficou na coluna `carta` (URL da CDN dele).
+  const caminhoDocumento = texto(o.documento_assinado_url) ?? texto(o.carta)
   let documentoLink: string | null = null
   if (caminhoDocumento) {
     // Legado do Bubble guardou a URL pública; o novo, o caminho no bucket.
@@ -1725,6 +1865,54 @@ export function problemaDaAssinatura(validacao: ValidacaoAssinatura | null | und
   return null
 }
 
+/** Hosts de onde a carta do legado pode ser baixada (o resto do caminho vem do banco). */
+const HOST_CARTA_LEGADO = /^[0-9a-f]+\.cdn\.bubble\.io$/
+
+/**
+ * Baixa a carta assinada (Storage ou, no legado, a CDN do Bubble), passa de
+ * novo pelo validador e grava o resultado (onda 3): serve à carta do legado,
+ * que nunca foi verificada, e a qualquer carta depois de o validador mudar.
+ */
+export async function reverificarAssinaturaOposicao(
+  id: string,
+  usuarioId: string
+): Promise<{ erro?: string; resumo?: string }> {
+  const empId = await tenantAtual()
+  const admin = await createAdminClient()
+  const { data: o } = await admin
+    .from("oposicao_opositor")
+    .select("id, cpf, campanha_id, documento_assinado_url, carta")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", empId)
+    .maybeSingle()
+  const caminho = texto(o?.documento_assinado_url) ?? texto(o?.carta)
+  if (!o || !caminho) return { erro: "Esta oposição não tem carta assinada." }
+  let bytes: Uint8Array
+  if (/^(https?:)?\/\//.test(caminho)) {
+    const url = new URL(caminho.startsWith("//") ? `https:${caminho}` : caminho)
+    if (!HOST_CARTA_LEGADO.test(url.hostname)) return { erro: "Endereço da carta fora do armazenamento conhecido." }
+    const r = await fetch(url).catch(() => null)
+    if (!r?.ok) return { erro: "Não foi possível baixar a carta do armazenamento antigo." }
+    bytes = new Uint8Array(await r.arrayBuffer())
+  } else {
+    const { data: arquivo, error } = await admin.storage.from("oposicao").download(caminho)
+    if (error || !arquivo) return { erro: `Não foi possível ler o PDF: ${error?.message ?? "?"}` }
+    bytes = new Uint8Array(await arquivo.arrayBuffer())
+  }
+  const validacao = validarAssinaturasPdf(bytes, texto(o.cpf))
+  const { error } = await admin
+    .from("oposicao_opositor")
+    .update({ assinatura_validacao: validacao })
+    .eq("id", id)
+    .eq("emp_proprietaria_id", empId)
+  if (error) return { erro: error.message }
+  await registrarEvento(id, "assinatura_reverificada", validacao.resumo, null, null, {
+    usuarioId,
+    campanhaId: texto(o.campanha_id),
+  })
+  return { resumo: validacao.resumo }
+}
+
 /** Aprova (procedente) ou reprova (improcedente + motivo) a oposição. */
 export async function avaliarOpositor(
   id: string,
@@ -1745,7 +1933,7 @@ export async function avaliarOpositor(
   // re-decidir, e o mesmo "Reprovar" salvo duas vezes não é um fato novo.
   const { data: antes } = await admin
     .from("oposicao_opositor")
-    .select("situacao, reprovacao_motivo, cpf, email, nome_completo, filiacao_id, protocolo, campanha_id, documento_assinado_url, assinatura_validacao")
+    .select("situacao, reprovacao_motivo, cpf, email, nome_completo, filiacao_id, protocolo, campanha_id, documento_assinado_url, carta, assinatura_validacao")
     .eq("id", id)
     .eq("emp_proprietaria_id", empId)
     .maybeSingle()
@@ -1755,7 +1943,7 @@ export async function avaliarOpositor(
   }
   // Aprovar com a assinatura problemática só com a conferência declarada.
   const problemaAssinatura =
-    aprovar && texto(antes.documento_assinado_url)
+    aprovar && (texto(antes.documento_assinado_url) ?? texto(antes.carta))
       ? problemaDaAssinatura(antes.assinatura_validacao as ValidacaoAssinatura | null)
       : null
   if (problemaAssinatura && !opcoes.confirmarAssinatura) {
@@ -1792,7 +1980,8 @@ export async function avaliarOpositor(
     [
       redecisao ? `re-decisão: ${situacaoAntes} → ${aprovar ? "aprovada" : "reprovada"}` : null,
       problemaAssinatura ? `aprovada após conferência manual do PDF (${problemaAssinatura})` : null,
-      aprovar ? null : (motivo?.trim() ?? null),
+      // Texto escrito no campo do motivo e "Aprovar": não se perde, vai como observação.
+      aprovar ? (motivo?.trim() ? `observação do avaliador: ${motivo.trim()}` : null) : (motivo?.trim() ?? null),
     ]
       .filter(Boolean)
       .join("; ") || null,

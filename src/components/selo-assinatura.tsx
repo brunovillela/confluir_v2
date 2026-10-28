@@ -41,7 +41,7 @@ export function SeloAssinatura({ validacao, compacto = false }: { validacao: Val
                 <li key={i} className="font-mono">
                   {a.nome ?? "?"}
                   {a.cpf ? ` · CPF ${a.cpf}` : " · sem CPF"} · emissor {a.emissor ?? "?"} · raiz {a.raiz ?? "?"}
-                  {a.raizConfiada ? " (confiada)" : a.icpBrasilPeloNome ? " (ICP-Brasil pelo nome)" : ""} · {a.integra ? "íntegra" : "ADULTERADA"} · {a.assinaturaOk ? "assinatura ok" : "assinatura NÃO confere"}
+                  {a.raizConfiada ? (a.raizTipo === "gov_br" ? " (gov.br, confiada)" : " (ICP-Brasil, confiada)") : a.icpBrasilPeloNome ? " (ICP-Brasil pelo nome)" : ""} · {a.integra ? "íntegra" : "ADULTERADA"} · {a.assinaturaOk ? "assinatura ok" : "assinatura NÃO confere"}
                   {a.dentroDaValidade === false ? " · certificado vencido" : ""} · {a.cobreArquivoTodo ? "cobre o arquivo todo" : "cobre versão anterior"} · {a.algoritmo ?? ""}
                   {a.assinadoEm ? ` · ${formatarDataHora(a.assinadoEm)}` : ""}
                   {a.erro ? ` · ${a.erro}` : ""}
