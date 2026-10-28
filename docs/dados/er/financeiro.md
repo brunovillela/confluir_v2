@@ -140,6 +140,13 @@ erDiagram
     uuid ordem_pagamento_id FK
     uuid criado_por_usuario_id FK
   }
+  financeiro_tributos_retencoes {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid tributo_id FK
+    uuid rpa_id FK
+    uuid ordem_pagamento_id FK
+  }
   ordens_pagamento {
     uuid id PK
     uuid fornecedor_id FK
@@ -242,6 +249,9 @@ erDiagram
   financeiro_tributos_lancamentos }o--o| ordens_pagamento : "ordem_pagamento_id"
   financeiro_tributos_lancamentos }o--o| usuarios : "criado_por_usuario_id"
   financeiro_tributos_lancamentos }o--|| financeiro_tributos : "tributo_id"
+  financeiro_tributos_retencoes }o--o| ordens_pagamento : "ordem_pagamento_id"
+  financeiro_tributos_retencoes }o--|| compras_rpa : "rpa_id"
+  financeiro_tributos_retencoes }o--|| financeiro_tributos : "tributo_id"
   ordens_pagamento }o--o| caixa_contas : "caixa_conta_id"
   ordens_pagamento }o--o| cartoes : "cartao_id"
   ordens_pagamento }o--o| centros_de_custo : "centro_custo_despesa_id"

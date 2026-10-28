@@ -2,7 +2,7 @@
 
 # Dicionário de dados do Confluir
 
-Gerado a partir do banco de produção (catálogo do Postgres + comentários). **367 tabelas** no schema `public`, **207** com dado pessoal (1005 colunas etiquetadas).
+Gerado a partir do banco de produção (catálogo do Postgres + comentários). **368 tabelas** no schema `public`, **208** com dado pessoal (1011 colunas etiquetadas).
 
 - Etiquetas LGPD: cada tabela termina o comentário com `[lgpd:<categorias>|titulares:<quem>]` e cada coluna com dado pessoal com `[lgpd:<categoria>]` (Onda A4).
 - Para mudar uma descrição ou classificação: migração com `comment on …` (`npm run db:nova`), aplicar, e `npm run db:dicionario`.
@@ -17,7 +17,7 @@ Gerado a partir do banco de produção (catálogo do Postgres + comentários). *
 | identificação | 161 |
 | **sensível: sindical** | 53 |
 | trabalhista | 49 |
-| financeiro | 45 |
+| financeiro | 46 |
 | **credencial (nunca exportar)** | 19 |
 | **sensível: saúde** | 17 |
 
@@ -33,7 +33,7 @@ Gerado a partir do banco de produção (catálogo do Postgres + comentários). *
 | Pessoal (RH da entidade) | 52 | 33 | [dicionario/pessoal.md](dicionario/pessoal.md) | [er/pessoal.md](er/pessoal.md) |
 | Saúde do trabalhador | 13 | 11 | [dicionario/saude.md](dicionario/saude.md) | [er/saude.md](er/saude.md) |
 | Jurídico | 5 | 4 | [dicionario/juridico.md](dicionario/juridico.md) | [er/juridico.md](er/juridico.md) |
-| Financeiro | 29 | 20 | [dicionario/financeiro.md](dicionario/financeiro.md) | [er/financeiro.md](er/financeiro.md) |
+| Financeiro | 30 | 21 | [dicionario/financeiro.md](dicionario/financeiro.md) | [er/financeiro.md](er/financeiro.md) |
 | Compras, fornecedores e contratos | 22 | 11 | [dicionario/compras.md](dicionario/compras.md) | [er/compras.md](er/compras.md) |
 | Institucional, diárias, viagens e patrimônio | 14 | 8 | [dicionario/institucional.md](dicionario/institucional.md) | [er/institucional.md](er/institucional.md) |
 | Hospedagem | 18 | 10 | [dicionario/hospedagem.md](dicionario/hospedagem.md) | [er/hospedagem.md](er/hospedagem.md) |

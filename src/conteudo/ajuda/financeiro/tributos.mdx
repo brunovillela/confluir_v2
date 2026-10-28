@@ -63,6 +63,47 @@ guia se refere):
 Uma **segunda guia na mesma competência** (complemento, reemissão) também vai
 para a alçada, mesmo no valor esperado.
 
+## Retenções do RPA
+
+O RPA (recibo do autônomo) retém **INSS**, **IRRF** e **ISS** do prestador, e a
+entidade ainda deve o **INSS patronal** — 20% sobre o bruto, que não sai do
+prestador. Esses valores vão sozinhos para três tributos que o sistema cria
+ao abrir a área:
+
+| Tributo | Recebe | Vencimento padrão |
+|---|---|---|
+| **INSS RPA** | INSS retido (11%) + INSS patronal (20% do bruto) | dia 20 |
+| **IRRF RPA** | IRRF retido (DARF 0588) | dia 20 |
+| **ISS RPA** | ISS retido | dia 10 |
+
+<PassoAPasso>
+  <Passo titulo="O RPA é pago">
+    Quando a **ordem do RPA** fica **Paga**, cada retenção entra no tributo
+    certo, na **competência do mês do pagamento**. A cota patronal usa a
+    alíquota das tabelas do RPA (Aquisição → RPA → Tabelas de retenção).
+  </Passo>
+  <Passo titulo="A guia do mês já sabe o valor">
+    A guia **prevista** daquela competência nasce (ou é atualizada) com a
+    **soma das retenções**, vencendo no mês seguinte. Na página do tributo, o
+    quadro **Retenções de RPA** mostra, por competência, cada RPA, o
+    prestador, a base e o valor.
+  </Passo>
+  <Passo titulo="Lance a guia">
+    Guia lançada **no valor da soma** dispensa a autorização; em outro valor,
+    vai para a alçada.
+  </Passo>
+</PassoAPasso>
+
+Pagamento desfeito (voltar para "A pagar", estorno, cancelamento) tira as
+retenções e refaz a soma — sem retenção na competência, a guia prevista é
+cancelada. Guia **já lançada** não muda: a diferença aparece no quadro.
+
+<Aviso tipo="atencao" titulo="Complete os tributos criados">
+  Informe o **centro de custo** dos três e, no **ISS RPA**, a **prefeitura**
+  como órgão e o dia de vencimento do município — sem órgão, a guia não pode
+  ser lançada. INSS e IRRF já vêm com a Receita Federal.
+</Aviso>
+
 ## Na ordem de pagamento
 
 A ordem mostra, em **Procedência**, o tributo, o órgão, a competência e a guia,

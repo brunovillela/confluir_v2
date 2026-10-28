@@ -145,6 +145,16 @@ export const ROTULO_EVENTO: Record<TipoEvento, string> = {
  */
 /** Eventos de ordem que mudam o conteúdo dela — a auditoria reavalia. */
 const EVENTOS_QUE_REAVALIAM: TipoEvento[] = ["corrigida", "documento_fiscal", "estorno_corrigido", "reclassificada"]
+/** Eventos que pagam ou desfazem o pagamento — sincronizam as retenções do RPA. */
+const EVENTOS_DE_PAGAMENTO: TipoEvento[] = [
+  "paga",
+  "pagamento_removido",
+  "estornada",
+  "cancelada",
+  "excluida",
+  "situacao_alterada",
+  "cancelamento_desfeito",
+]
 
 export async function registrarEvento(
   ordemIds: string | string[],
@@ -177,6 +187,12 @@ export async function registrarEvento(
     await reavaliarOrdens(ids, descricao?.trim() || ROTULO_EVENTO[tipo], usuarioId).catch((e) =>
       console.error("reavaliarOrdens:", e)
     )
+  }
+  // Ordem de RPA paga (ou pagamento desfeito): as retenções entram (ou saem)
+  // da guia do tributo na competência do pagamento.
+  if (EVENTOS_DE_PAGAMENTO.includes(tipo)) {
+    const { sincronizarRetencoesDasOrdens } = await import("@/lib/db/rpa-retencoes")
+    await sincronizarRetencoesDasOrdens(ids).catch((e) => console.error("retenções do RPA:", e))
   }
   // Webhooks de saída (onda 5, A9): os marcos que outros sistemas querem saber.
   const eventoWebhook = ({ paga: "ordem.paga", autorizada: "ordem.autorizada", devolvida: "ordem.devolvida" } as const)[tipo as "paga" | "autorizada" | "devolvida"]

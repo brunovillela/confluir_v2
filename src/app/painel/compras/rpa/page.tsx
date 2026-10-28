@@ -23,6 +23,7 @@ import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { Badge } from "@/components/ui/badge"
 import { requirePermissao } from "@/lib/auth"
 import { listarRpas, obterConfigRpa } from "@/lib/db/compras-rpa"
+import { aliquotaPatronalRpa } from "@/lib/db/rpa-retencoes"
 import { Paginacao } from "@/components/paginacao"
 import { LembrarLista } from "@/components/voltar-lista"
 import { formatarData, formatarMoeda } from "@/lib/formato"
@@ -73,11 +74,13 @@ export default async function RpaPage({
   const origem = ORIGENS.some((o) => o.valor === sp.origem) ? sp.origem! : ""
   const pag = lerPaginacao(sp, PADRAO_POR_PAGINA)
 
-  const [{ ativo, linhas: todosOsRpas }, config] = await Promise.all([
+  const [{ ativo, linhas: todosOsRpas }, config, patronal] = await Promise.all([
     listarRpas(),
     obterConfigRpa(),
+    aliquotaPatronalRpa(),
   ])
-  const todas = veContratos ? todosOsRpas : todosOsRpas.filter((r) => r.compraId)
+  // Sem acesso a contratos: os RPAs de compra e os avulsos (sem contrato).
+  const todas = veContratos ? todosOsRpas : todosOsRpas.filter((r) => r.compraId || !r.contratoId)
 
   const termo = semAcento(busca.toLowerCase())
   const filtradas = todas.filter((r) => {
@@ -324,7 +327,7 @@ export default async function RpaPage({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ConfigRpaForm config={config} />
+              <ConfigRpaForm config={config} inssPatronal={patronal} />
             </CardContent>
           </Card>
         </GrupoColapsavel>

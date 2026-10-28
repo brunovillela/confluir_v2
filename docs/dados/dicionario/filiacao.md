@@ -86,6 +86,10 @@ Dados bancários e chaves Pix de usuários, filiados e fornecedores (migrado do 
 | `favorito` | boolean | não | `false` |  |  |  |
 | `tipo_dados` | text | sim |  |  |  | Campo trazido do Bubble que diferencia o tipo do registro (conta ou Pix). |
 | `titular_documento` | text | sim |  |  | identificação | CPF (11 dígitos) ou CNPJ (14) do titular da conta, só dígitos. Comparado com o favorecido da ordem na regra "Conta de outro titular". |
+| `conferida_em` | timestamp with time zone | sim |  |  | nenhum | Quando a conta foi marcada como conferida em Financeiro › Contas bancárias (titular de outra pessoa, conta em pessoas diferentes ou sem documento aceitos). |
+| `conferida_por_usuario_id` | uuid | sim |  | → usuarios (set null) | identificação | Quem marcou a conta como conferida. |
+| `conferida_obs` | text | sim |  |  | financeiro | Observação da conferência (ex.: conta do cônjuge, autorizada por e-mail). |
+| `conferida_titular` | text | sim |  |  | financeiro | Titular da conta (documento\|nome) na hora da conferência; se mudar, a conferência deixa de valer. |
 
 Únicas: `UNIQUE (bubble_id)`
 

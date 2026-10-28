@@ -260,6 +260,7 @@ Parâmetros fiscais por tenant para o cálculo do RPA: alíquota e teto do INSS,
 | `iss_aliquota_padrao` | numeric | sim |  |  |  |  |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `updated_at` | timestamp with time zone | sim |  |  |  |  |
+| `inss_patronal_aliquota` | numeric(5,2) | não | `20` |  |  | Cota patronal do INSS sobre o bruto do RPA (20%), devida pela entidade e somada na guia do INSS. |
 
 Índices: `compras_rpa_config_pkey`, `ux_compras_rpa_config_emp`
 

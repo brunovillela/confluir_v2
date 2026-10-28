@@ -490,7 +490,7 @@ function Linha({
   )
 }
 
-export function ConfigRpaForm({ config }: { config: ConfigRpa }) {
+export function ConfigRpaForm({ config, inssPatronal = null }: { config: ConfigRpa; inssPatronal?: number | null }) {
   const [estado, action, pend] = useActionState(salvarConfigRpa, {})
   const envio8 = useEnvioFormulario(action, estado)
   return (
@@ -544,6 +544,20 @@ export function ConfigRpaForm({ config }: { config: ConfigRpa }) {
             defaultValue={String(config.iss_aliquota_padrao)}
           />
         </div>
+        {inssPatronal !== null && (
+          <div className="grid gap-1.5">
+            <Label htmlFor="inss_patronal_aliquota">INSS patronal da entidade (%)</Label>
+            <Input
+              id="inss_patronal_aliquota"
+              name="inss_patronal_aliquota"
+              inputMode="decimal"
+              defaultValue={String(inssPatronal)}
+            />
+            <p className="text-muted-foreground text-xs">
+              Sobre o bruto, não é descontado do prestador: soma na guia do INSS dos RPAs (Financeiro › Tributos).
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="grid gap-2">

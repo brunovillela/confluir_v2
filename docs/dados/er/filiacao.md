@@ -11,6 +11,7 @@ erDiagram
     uuid fornecedor_id FK
     uuid usuario_id FK
     uuid filiado_id FK
+    uuid conferida_por_usuario_id FK
   }
   emails {
     uuid id PK
@@ -290,6 +291,7 @@ erDiagram
   }
   dados_bancarios }o--o| empresa : "fornecedor_id"
   dados_bancarios }o--o| filiacoes : "filiado_id"
+  dados_bancarios }o--o| usuarios : "conferida_por_usuario_id"
   dados_bancarios }o--o| usuarios : "usuario_id"
   emails }o--o| filiacoes : "filiado_id"
   emails }o--o| usuarios : "usuario_id"

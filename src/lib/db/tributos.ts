@@ -8,6 +8,7 @@ import { camposAutorizacaoInicial, registrarEvento } from "@/lib/db/ordens-ciclo
 import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
 import { formatarMoeda } from "@/lib/formato"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { carregarRetencoesPendentes, garantirTributosRpa, somaRetencoes } from "@/lib/db/rpa-retencoes"
 import { tenantAtual } from "@/lib/tenant"
 import {
   rotuloCompetencia,
@@ -52,6 +53,8 @@ export type Tributo = {
   formaPagamento: string | null
   ativo: boolean
   observacoes: string | null
+  /** Recebe as retenções do RPA (criado pelo sistema): a guia espera a soma delas. */
+  retencaoRpa: "inss" | "irrf" | "iss" | null
 }
 
 export type GuiaTributo = {
@@ -98,6 +101,7 @@ function paraTributo(r: Record<string, unknown>): Tributo {
     formaPagamento: texto(r.forma_pagamento),
     ativo: r.ativo !== false,
     observacoes: texto(r.observacoes),
+    retencaoRpa: (texto(r.retencao_rpa) as Tributo["retencaoRpa"]) ?? null,
   }
 }
 
@@ -148,6 +152,11 @@ async function todasAsGuias(tributoId?: string): Promise<GuiaTributo[]> {
 
 export async function listarTributos(): Promise<{ disponivel: boolean; tributos: TributoResumo[] }> {
   const admin = await createAdminClient()
+  // Os tributos das retenções do RPA nascem (e recebem os RPAs já pagos) ao
+  // abrir a área.
+  await garantirTributosRpa()
+    .then(() => carregarRetencoesPendentes())
+    .catch((e) => console.error("tributos do RPA:", e))
   const { data, error } = await admin
     .from("financeiro_tributos")
     .select(SELECT_TRIBUTO)
@@ -298,15 +307,22 @@ export async function garantirGuiasPrevistas(
 ): Promise<number> {
   const admin = ambiente?.admin ?? (await createAdminClient())
   const emp = ambiente?.emp ?? (await tenantAtual())
-  let q = admin
-    .from("financeiro_tributos")
-    .select("id, dia_vencimento, valor_esperado")
-    .eq("emp_proprietaria_id", emp)
-    .eq("ativo", true)
-    .eq("periodicidade", "mensal")
-    .not("dia_vencimento", "is", null)
-  if (tributoId) q = q.eq("id", tributoId)
-  const { data: tributos, error } = await q
+  // Os tributos das retenções do RPA não têm guia todo mês: a prevista nasce
+  // quando um RPA é pago (lib/db/rpa-retencoes.ts).
+  const consulta = (semRetencao: boolean) => {
+    let q = admin
+      .from("financeiro_tributos")
+      .select("id, dia_vencimento, valor_esperado")
+      .eq("emp_proprietaria_id", emp)
+      .eq("ativo", true)
+      .eq("periodicidade", "mensal")
+      .not("dia_vencimento", "is", null)
+    if (semRetencao) q = q.is("retencao_rpa", null)
+    if (tributoId) q = q.eq("id", tributoId)
+    return q
+  }
+  let { data: tributos, error } = await consulta(true)
+  if (error?.code === "42703") ({ data: tributos, error } = await consulta(false))
   if (error || !tributos?.length) return 0
   const hoje = hojeSP()
   const limite = somarDias(hoje, DIAS_PREVISAO)
@@ -414,11 +430,13 @@ export async function lancarGuia(d: DadosGuia, usuarioId: string): Promise<{ err
       g.ordemSituacao !== "Cancelada" &&
       g.ordemSituacao !== "Estornado"
   )
-  const noValor = !repetida && t.valorEsperado !== null && Math.abs(d.valor - t.valorEsperado) < 0.005
+  // Tributo das retenções do RPA: o esperado é a soma retida na competência.
+  const esperado = t.retencaoRpa ? (await somaRetencoes(t.id, competencia.competencia_inicio)) || null : t.valorEsperado
+  const noValor = !repetida && esperado !== null && Math.abs(d.valor - esperado) < 0.005
   const nome = t.abreviacao ?? t.nome
   const rotulo = rotuloCompetencia(competencia.competencia_inicio, competencia.competencia_fim)
   const motivo = recorrente && noValor
-    ? `Autorização dispensada: guia do tributo recorrente ${nome} no valor esperado (${formatarMoeda(t.valorEsperado!)}).`
+    ? `Autorização dispensada: guia do tributo recorrente ${nome} no valor esperado (${formatarMoeda(esperado!)}${t.retencaoRpa ? ", a soma das retenções de RPA da competência" : ""}).`
     : null
 
   const { data: ordem, error: erroOrdem } = await inserirOrdemVerificada({
@@ -441,7 +459,7 @@ export async function lancarGuia(d: DadosGuia, usuarioId: string): Promise<{ err
     // Auditoria (origem "tributo"): a guia é o documento; o tributo e a
     // competência ainda não estão ligados à ordem neste momento.
     notaFiscal: up.caminho,
-    tributo: { tributoId: t.id, competenciaInicio: competencia.competencia_inicio, valorEsperado: t.valorEsperado, guiaId: prevista?.id ?? null },
+    tributo: { tributoId: t.id, competenciaInicio: competencia.competencia_inicio, valorEsperado: esperado, guiaId: prevista?.id ?? null },
   })
   if (erroOrdem || !ordem) {
     await descartar()

@@ -2,7 +2,7 @@
 
 # Financeiro
 
-29 tabelas. Diagrama: [er/financeiro.md](../er/financeiro.md).
+30 tabelas. Diagrama: [er/financeiro.md](../er/financeiro.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -30,6 +30,7 @@
 | [financeiro_remessas](#financeiro_remessas) | financeiro, identificação | Arquivos de remessa CNAB 240 de pagamentos gerados pela entidade e o retorno do banco importado depois. |
 | [financeiro_tributos](#financeiro_tributos) | identificação | Tributos da entidade (DARF, FGTS, GPS, IPTU, alvará, DUDA…): o cadastro, como o contrato — órgão beneficiário, centro de custo, periodicidad… |
 | [financeiro_tributos_lancamentos](#financeiro_tributos_lancamentos) | identificação | Guias dos tributos, uma por competência (como a parcela do contrato): prevista, lançada — com a ordem de pagamento — ou cancelada. Migrado d… |
+| [financeiro_tributos_retencoes](#financeiro_tributos_retencoes) | financeiro | Retenções de cada RPA pago, na competência do pagamento, no tributo que as recolhe (INSS retido e patronal, IRRF, ISS). A guia da competênci… |
 | [ordens_pagamento](#ordens_pagamento) | financeiro, identificação, trabalhista | Ordens de pagamento da entidade (compras, contratos, diárias, reembolsos, RPA, folha, custeios): beneficiário, valor, forma, autorização, pa… |
 | [ordens_pagamento_estornos](#ordens_pagamento_estornos) | financeiro, identificação | Estorno de um pagamento já feito (devolvido pelo banco ou pelo favorecido): comunicado, responsável e como foi resolvido. |
 | [ordens_pagamento_eventos](#ordens_pagamento_eventos) | financeiro, identificação | Linha do tempo de uma ordem de pagamento: criada, editada, autorizada, devolvida, paga, cancelada, com quem fez e detalhes. |
@@ -672,10 +673,11 @@ Tributos da entidade (DARF, FGTS, GPS, IPTU, alvará, DUDA…): o cadastro, como
 | `bubble_id` | text | sim |  |  |  | Id do registro em tributos-configurações no Bubble (migração). |
 | `created_at` | timestamp with time zone | não | `now()` |  |  | Criação do registro. |
 | `updated_at` | timestamp with time zone | não | `now()` |  |  | Última alteração. |
+| `retencao_rpa` | text | sim |  |  |  | Retenção do RPA que este tributo recebe: inss (11% retido + 20% patronal), irrf ou iss. Criado pelo sistema; um por tenant. |
 
-Checks: `financeiro_tributos_dia_check` `CHECK (((dia_vencimento IS NULL) OR ((dia_vencimento >= 1) AND (dia_vencimento <= 31))))`; `financeiro_tributos_esfera_check` `CHECK ((esfera = ANY (ARRAY['federal'::text, 'estadual'::text, 'municipal'::text, 'trabalhista'::text])))`; `financeiro_tributos_periodicidade_check` `CHECK ((periodicidade = ANY (ARRAY['mensal'::text, 'anual'::text, 'eventual'::text])))`
+Checks: `financeiro_tributos_dia_check` `CHECK (((dia_vencimento IS NULL) OR ((dia_vencimento >= 1) AND (dia_vencimento <= 31))))`; `financeiro_tributos_esfera_check` `CHECK ((esfera = ANY (ARRAY['federal'::text, 'estadual'::text, 'municipal'::text, 'trabalhista'::text])))`; `financeiro_tributos_periodicidade_check` `CHECK ((periodicidade = ANY (ARRAY['mensal'::text, 'anual'::text, 'eventual'::text])))`; `financeiro_tributos_retencao_rpa_check` `CHECK (((retencao_rpa IS NULL) OR (retencao_rpa = ANY (ARRAY['inss'::text, 'irrf'::text, 'iss'::text]))))`
 
-Índices: `financeiro_tributos_bubble_idx`, `financeiro_tributos_pkey`, `financeiro_tributos_tenant_idx`
+Índices: `financeiro_tributos_bubble_idx`, `financeiro_tributos_pkey`, `financeiro_tributos_retencao_rpa_idx`, `financeiro_tributos_tenant_idx`
 
 ## financeiro_tributos_lancamentos
 
@@ -706,6 +708,33 @@ Guias dos tributos, uma por competência (como a parcela do contrato): prevista,
 Checks: `financeiro_tributos_lancamentos_situacao_check` `CHECK ((situacao = ANY (ARRAY['aguardando_guia'::text, 'lancado'::text, 'cancelado'::text])))`
 
 Índices: `financeiro_tributos_lancamentos_bubble_idx`, `financeiro_tributos_lancamentos_pkey`, `financeiro_tributos_lancamentos_tenant_idx`, `financeiro_tributos_lancamentos_tributo_idx`
+
+## financeiro_tributos_retencoes
+
+Retenções de cada RPA pago, na competência do pagamento, no tributo que as recolhe (INSS retido e patronal, IRRF, ISS). A guia da competência espera a soma delas.
+
+- **LGPD:** financeiro · titulares: fornecedores PF
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  |  |
+| `tributo_id` | uuid | não |  | → financeiro_tributos (**cascade**) |  |  |
+| `rpa_id` | uuid | não |  | → compras_rpa (**cascade**) |  | RPA que originou a retenção (o prestador é o fornecedor dele). |
+| `ordem_pagamento_id` | uuid | sim |  | → ordens_pagamento (set null) |  | Ordem do líquido do RPA, cujo pagamento define a competência. |
+| `tipo` | text | não |  |  |  | inss_retido (do prestador), inss_patronal (cota da entidade), irrf ou iss. |
+| `competencia` | date | não |  |  |  | Primeiro dia do mês do pagamento da ordem do RPA. |
+| `base` | numeric(12,2) | sim |  |  | financeiro | Base de cálculo: o valor bruto do RPA. |
+| `aliquota` | numeric(6,2) | sim |  |  |  | Alíquota em % (patronal e ISS); nula quando segue tabela (IRRF) ou teto (INSS retido). |
+| `valor` | numeric(12,2) | não |  |  | financeiro | Valor retido ou devido. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Checks: `financeiro_tributos_retencoes_tipo_check` `CHECK ((tipo = ANY (ARRAY['inss_retido'::text, 'inss_patronal'::text, 'irrf'::text, 'iss'::text])))`
+
+Índices: `financeiro_tributos_retencoes_competencia_idx`, `financeiro_tributos_retencoes_pkey`, `financeiro_tributos_retencoes_rpa_tipo_idx`, `financeiro_tributos_retencoes_tenant_idx`
 
 ## ordens_pagamento
 

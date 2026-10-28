@@ -15,6 +15,7 @@ import { listarDepartamentos, listarFornecedores } from "@/lib/db/compras"
 import { listarCentrosCusto } from "@/lib/db/financeiro"
 import { urlArquivoOrdem } from "@/lib/db/ordens-extrato"
 import { garantirGuiasPrevistas, obterTributo } from "@/lib/db/tributos"
+import { retencoesDoTributo, type TipoRetencao } from "@/lib/db/rpa-retencoes"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 import { ROTULO_SITUACAO_GUIA, rotuloEsfera, rotuloPeriodicidade } from "@/lib/tributos-constantes"
@@ -24,6 +25,13 @@ import { cancelarGuiaAction } from "../actions"
 import { LancarGuiaDialog, TributoDialog } from "../tributo-forms"
 
 export const metadata: Metadata = { title: "Tributo — Confluir" }
+
+const ROTULO_RETENCAO: Record<TipoRetencao, string> = {
+  inss_retido: "INSS retido (prestador)",
+  inss_patronal: "INSS patronal (entidade)",
+  irrf: "IRRF retido",
+  iss: "ISS retido",
+}
 
 export default async function TributoPage({
   params,
@@ -46,6 +54,13 @@ export default async function TributoPage({
     podeEditar ? listarDepartamentos() : Promise.resolve([]),
   ])
   const centro = centros.find((c) => c.id === t.centroCustoId)
+  const retencoes = t.retencaoRpa ? await retencoesDoTributo(t.id) : []
+  // Por competência (mais recente primeiro), com o total de cada uma.
+  const porCompetencia = [...new Set(retencoes.map((r) => r.competencia))].map((c) => ({
+    competencia: c,
+    linhas: retencoes.filter((r) => r.competencia === c),
+    total: Math.round(retencoes.filter((r) => r.competencia === c).reduce((a, r) => a + r.valor, 0) * 100) / 100,
+  }))
   const hoje = hojeSP()
   const ano = hoje.slice(0, 4)
   const pagoNoAno = guias
@@ -75,7 +90,7 @@ export default async function TributoPage({
           {!t.ativo && <Badge variant="secondary">Desativado</Badge>}
           {podeEditar && (
             <div className="ml-auto flex flex-wrap gap-2">
-              <LancarGuiaDialog tributoId={t.id} valorEsperado={t.valorEsperado} />
+              <LancarGuiaDialog tributoId={t.id} valorEsperado={t.retencaoRpa ? null : t.valorEsperado} />
               <TributoDialog
                 tributo={{ ...t }}
                 orgaos={orgaos}
@@ -126,10 +141,16 @@ export default async function TributoPage({
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Valor esperado</CardDescription>
-            <CardTitle className="text-base">{t.valorEsperado != null ? formatarMoeda(t.valorEsperado) : "Variável"}</CardTitle>
+            <CardTitle className="text-base">
+              {t.retencaoRpa ? "Soma das retenções" : t.valorEsperado != null ? formatarMoeda(t.valorEsperado) : "Variável"}
+            </CardTitle>
           </CardHeader>
           <CardContent className="text-muted-foreground text-xs">
-            {t.valorEsperado != null ? "Guia nesse valor dispensa a autorização" : "Toda guia passa pela alçada"}
+            {t.retencaoRpa
+              ? "Dos RPAs pagos na competência — guia nesse valor dispensa a autorização"
+              : t.valorEsperado != null
+                ? "Guia nesse valor dispensa a autorização"
+                : "Toda guia passa pela alçada"}
           </CardContent>
         </Card>
         <Card>
@@ -229,6 +250,62 @@ export default async function TributoPage({
           </Table>
         </CardContent>
       </Card>
+
+      {t.retencaoRpa && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Retenções de RPA</CardTitle>
+            <CardDescription>
+              Entram quando a ordem do RPA é paga, na competência do pagamento
+              {t.retencaoRpa === "inss" ? " — o INSS retido do prestador e a cota patronal da entidade sobre o bruto" : ""}.
+              A guia prevista da competência já nasce com a soma; guia lançada em outro valor vai para a alçada.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            {porCompetencia.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Nenhum RPA pago ainda.</p>
+            ) : (
+              porCompetencia.map((c) => (
+                <div key={c.competencia} className="grid gap-1">
+                  <p className="text-sm font-medium">
+                    {c.competencia.slice(5, 7)}/{c.competencia.slice(0, 4)} ·{" "}
+                    <span className="tabular-nums">{formatarMoeda(c.total)}</span>
+                  </p>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>RPA</TableHead>
+                        <TableHead>Prestador</TableHead>
+                        <TableHead>Retenção</TableHead>
+                        <TableHead className="text-right">Base (bruto)</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {c.linhas.map((r) => (
+                        <TableRow key={r.id}>
+                          <TableCell>
+                            <Link href={`/painel/compras/rpa/${r.rpaId}`} className="text-primary hover:underline">
+                              nº {r.rpaNumero ?? "—"}
+                            </Link>
+                          </TableCell>
+                          <TableCell className="max-w-64">{r.prestador ?? "—"}</TableCell>
+                          <TableCell>
+                            {ROTULO_RETENCAO[r.tipo]}
+                            {r.aliquota != null ? ` (${String(r.aliquota).replace(".", ",")}%)` : ""}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">{r.base != null ? formatarMoeda(r.base) : "—"}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatarMoeda(r.valor)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
     </>
   )
 }

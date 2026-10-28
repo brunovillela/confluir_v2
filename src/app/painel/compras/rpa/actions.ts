@@ -704,6 +704,15 @@ export async function salvarConfigRpa(
     { onConflict: "emp_proprietaria_id" }
   )
   if (error) return { erro: `Não foi possível salvar: ${error.message}` }
+  // Cota patronal: coluna da migração 20261028231154 (à parte, para o resto
+  // salvar mesmo antes dela).
+  const patronal = numSolto(fd, "inss_patronal_aliquota")
+  if (patronal !== null) {
+    await admin
+      .from("compras_rpa_config")
+      .update({ inss_patronal_aliquota: patronal })
+      .eq("emp_proprietaria_id", await tenantAtual())
+  }
   revalidatePath("/painel/compras/rpa")
   return { ok: "Tabelas de retenção salvas — valem para os próximos RPAs." }
 }

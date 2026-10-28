@@ -25,7 +25,7 @@
 | P08 | [Saúde do trabalhador (CAT, atendimentos, CIPA)](#p08) | 11 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, trabalhista | sim |
 | P09 | [Jurídico](#p09) | 4 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista | sim |
 | P10 | [Pessoal: RH dos funcionários da entidade](#p10) | 34 | identificação, **sensível: saúde**, financeiro, trabalhista | sim |
-| P11 | [Financeiro, compras, fornecedores e contratos](#p11) | 33 | identificação, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
+| P11 | [Financeiro, compras, fornecedores e contratos](#p11) | 34 | identificação, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P12 | [Institucional: custeios, viagens, linhas e patrimônio](#p12) | 8 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P13 | [Hospedagem conveniada e cessão de espaços](#p13) | 12 | identificação, **sensível: filiação/posição sindical**, financeiro, credencial (segredo de acesso, nunca exportar) | sim |
 | P14 | [Frota: veículos e condutores](#p14) | 13 | identificação, financeiro | sim |
@@ -61,7 +61,7 @@
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
-| [dados_bancarios](../dados/dicionario/filiacao.md#dados_bancarios) | identificacao, financeiro | `banco` (financeiro), `agencia` (financeiro), `conta` (financeiro), `tipo_conta` (financeiro), `pix` (financeiro), `favorecido` (identificacao), `banco_codigo` (financeiro), `pix_tipo` (financeiro), `pix_beneficiario` (identificacao), `titular_documento` (identificacao) |
+| [dados_bancarios](../dados/dicionario/filiacao.md#dados_bancarios) | identificacao, financeiro | `banco` (financeiro), `agencia` (financeiro), `conta` (financeiro), `tipo_conta` (financeiro), `pix` (financeiro), `favorecido` (identificacao), `banco_codigo` (financeiro), `pix_tipo` (financeiro), `pix_beneficiario` (identificacao), `titular_documento` (identificacao), `conferida_em` (nenhum), `conferida_por_usuario_id` (identificacao), `conferida_obs` (financeiro), `conferida_titular` (financeiro) |
 | [emails](../dados/dicionario/filiacao.md#emails) | identificacao | `email` (identificacao), `pessoa_contato` (identificacao) |
 | [enderecos](../dados/dicionario/filiacao.md#enderecos) | identificacao | `cep` (identificacao), `logradouro` (identificacao), `numero` (identificacao), `complemento` (identificacao), `complemento_correios` (identificacao), `bairro` (identificacao), `cidade` (identificacao), `estado` (identificacao) |
 | [filiacao_coletiva_itens](../dados/dicionario/filiacao.md#filiacao_coletiva_itens) | identificacao, sens. sindical, trabalhista | `cpf` (identificacao), `nome_completo` (identificacao), `matricula` (trabalhista), `email` (identificacao), `resultado` (sens. sindical), `condicao_anterior` (sens. sindical), `observacao` (sens. sindical), `desistencia_em` (sens. sindical) |
@@ -506,7 +506,7 @@
 
 **Observações.** Pendência: `financeiro_remessas.conteudo` guarda o arquivo CNAB inteiro (nome, CPF e conta de cada favorecido).
 
-<details><summary>Tabelas (33) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (34) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -540,6 +540,7 @@
 | [financeiro_remessas](../dados/dicionario/financeiro.md#financeiro_remessas) | identificacao, financeiro | `conteudo` (financeiro), `retorno_conteudo` (financeiro) |
 | [financeiro_tributos](../dados/dicionario/financeiro.md#financeiro_tributos) | identificacao | `criado_por_usuario_id` (identificacao) |
 | [financeiro_tributos_lancamentos](../dados/dicionario/financeiro.md#financeiro_tributos_lancamentos) | identificacao | `criado_por_usuario_id` (identificacao) |
+| [financeiro_tributos_retencoes](../dados/dicionario/financeiro.md#financeiro_tributos_retencoes) | financeiro | `base` (financeiro), `valor` (financeiro) |
 | [ordens_pagamento](../dados/dicionario/financeiro.md#ordens_pagamento) | identificacao, financeiro, trabalhista | `descricao` (financeiro), `valor` (financeiro), `arquivo_nota_fiscal` (financeiro), `arquivo_orcamento` (financeiro), `arquivo_pagamento` (financeiro), `arquivo_boleto` (financeiro), `autorizacao_observacao` (identificacao), `pix_codigo` (financeiro), `reembolso_pagamento` (financeiro), `tipo` (trabalhista), `valor_pago` (financeiro), `beneficiario_usuario_id` (identificacao), `pagador_id` (identificacao), `beneficiario_nome_avulso` (identificacao), `beneficiario_doc_avulso` (identificacao), `dados_bancarios_id` (financeiro), `forma_detalhe` (financeiro), `cancelamento_motivo` (identificacao), `boleto_linha_digitavel` (financeiro) |
 | [ordens_pagamento_estornos](../dados/dicionario/financeiro.md#ordens_pagamento_estornos) | identificacao, financeiro | `motivo` (identificacao), `arquivo_comunicado` (financeiro), `pagamento` (financeiro), `resolucao` (identificacao), `correcao` (financeiro) |
 | [ordens_pagamento_eventos](../dados/dicionario/financeiro.md#ordens_pagamento_eventos) | identificacao, financeiro | `usuario_id` (identificacao), `descricao` (identificacao), `dados` (financeiro) |
@@ -813,4 +814,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 207 de 207 tabelas com dado pessoal atribuídas a 16 processos.
+Cobertura: 208 de 208 tabelas com dado pessoal atribuídas a 16 processos.
