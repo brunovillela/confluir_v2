@@ -5,7 +5,7 @@ import { formatarCnpjCpf, formatarData } from "@/lib/formato"
 
 /**
  * Aviso de Férias (CLT art. 135) — a comunicação por escrito ao empregado,
- * com a ciência dele. Assinado eletronicamente pelo link, ganha a página de
+ * com a ciência dele (só ele assina; a entidade emissora fica no cabeçalho). Assinado eletronicamente pelo link, ganha a página de
  * certificado com a trilha da assinatura.
  */
 
@@ -30,8 +30,8 @@ const s = StyleSheet.create({
   rotulo: { fontFamily: "Helvetica-Bold" },
   texto: { lineHeight: 1.5, textAlign: "justify", marginBottom: 10 },
   dataLocal: { marginTop: 18 },
-  assinaturas: { marginTop: 44, flexDirection: "row", justifyContent: "space-between", gap: 24 },
-  assinatura: { flex: 1, alignItems: "center" },
+  assinaturas: { marginTop: 44, flexDirection: "row", justifyContent: "center" },
+  assinatura: { width: "60%", alignItems: "center" },
   assinaturaLinha: { borderTopWidth: 1, borderTopColor: "#111827", alignSelf: "stretch", marginBottom: 4 },
   assinaturaNome: { fontFamily: "Helvetica-Bold", fontSize: 9.5, textAlign: "center" },
   assinaturaSub: { fontSize: 8, color: "#444444", textAlign: "center" },
@@ -148,12 +148,9 @@ export function AvisoFeriasPDF({
           {porExtenso(dataDocumento)}.
         </Text>
 
+        {/* Só o empregado assina: o art. 135 pede a comunicação por escrito e o
+            recibo dele; o empregador fica identificado no cabeçalho. */}
         <View style={s.assinaturas}>
-          <View style={s.assinatura}>
-            <View style={s.assinaturaLinha} />
-            <Text style={s.assinaturaNome}>{organizacao.nome}</Text>
-            <Text style={s.assinaturaSub}>Empregador</Text>
-          </View>
           <View style={s.assinatura}>
             {assinado ? (
               <Text style={[s.assinaturaSub, { marginBottom: 4 }]}>
