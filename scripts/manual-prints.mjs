@@ -263,6 +263,9 @@ const SHOTS_ANTIGOS = [
   ["/painel/compras/contratos/c1100000-0000-4000-8000-000000000010", "compras/rpa-anexar.png", { esperar: "Anexar RPA assinado", scrollTo: "RPA — pagamento a autônomo", altura: 760, passos: [{ clicar: "css=button:has-text(\"Anexar RPA assinado\")" }, { aguardar: "RPA nº 1 assinado" }] }],
   ["/painel/compras/contratos/c1100000-0000-4000-8000-000000000010", "compras/contrato-hierarquia.png", { esperar: "RPA — pagamento a autônomo", scrollTo: "Dados do contrato", altura: 1100 }],
   // O Chromium headless não exibe PDF embutido: o print foca o passo a passo.
+  // Aviso de férias (28/10): pede gozo autorizado da Ana + envelope documento_assinaturas
+  // pendente (TOKEN_FERIAS), desfeitos depois; o passo pdfComoImagem desenha o PDF.
+  // [`/assinar/${TOKEN_FERIAS}`, "pessoal/ferias-aviso-assinar.png", { anon: true, esperar: "Receba o código", passos: [{ pdfComoImagem: true }, { pausa: 800 }], fullPage: true }],
   [`/assinar/${TOKEN_RPA}`, "compras/rpa-assinar.png", { anon: true, esperar: "Receba o código", ocultarCartao: "Confira o serviço", altura: 920 }],
   */
 
@@ -905,6 +908,28 @@ for (const [route, file, opts] of SHOTS) {
       await p.waitForTimeout(passo.pausa)
     } else if (passo.aguardar) {
       await p.getByText(passo.aguardar, { exact: false }).first().waitFor({ timeout: 120000 })
+    } else if (passo.pdfComoImagem) {
+      // O Chromium headless não exibe PDF embutido (<object>): baixa o PDF de
+      // cada visor e desenha a 1ª página com o PDF.js, como o leitor mostraria.
+      await p.addScriptTag({ url: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" })
+      await p.evaluate(async () => {
+        const lib = window.pdfjsLib
+        lib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"
+        for (const o of document.querySelectorAll('object[type="application/pdf"]')) {
+          const doc = await lib.getDocument({ data: await (await fetch(o.data)).arrayBuffer() }).promise
+          const pagina = await doc.getPage(1)
+          const vp = pagina.getViewport({ scale: 2 })
+          const canvas = document.createElement("canvas")
+          canvas.width = vp.width
+          canvas.height = vp.height
+          canvas.style.cssText = "display:block;width:min(100%,640px);margin:0 auto;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.25)"
+          await pagina.render({ canvasContext: canvas.getContext("2d"), viewport: vp }).promise
+          const visor = document.createElement("div")
+          visor.style.cssText = "background:#525659;border-radius:6px;padding:16px"
+          visor.appendChild(canvas)
+          o.replaceWith(visor)
+        }
+      })
     }
     await p.waitForTimeout(700)
   }
