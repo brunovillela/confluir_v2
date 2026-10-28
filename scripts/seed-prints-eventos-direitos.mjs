@@ -755,7 +755,7 @@ if (antonio) {
     "reembolsos"
   )
   ok(
-    await c.from("filiacao_reembolsos_config").insert({ emp_proprietaria_id: DEMO, valor_reembolso: 35, orcamento_limite: true, orcamento_mensal: 3500 }),
+    await c.from("filiacao_reembolsos_config").insert({ emp_proprietaria_id: DEMO }),
     "config de reembolso"
   )
 

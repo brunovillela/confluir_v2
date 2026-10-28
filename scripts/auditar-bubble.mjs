@@ -251,10 +251,11 @@ const PARES = [
     tipo: "filiaçãoreembolsoconfig",
     tabela: "filiacao_reembolsos_config",
     campos: {
-      "Valor do reembolso": "valor_reembolso",
+      // valor fixo e teto mensal saíram do Confluir (28/10/2026)
+      "Valor do reembolso": null,
       "CENTRO DE CUSTO": "centro_custo_id",
-      "Orçamento limite?": "orcamento_limite",
-      "Orçamento mensal": "orcamento_mensal",
+      "Orçamento limite?": null,
+      "Orçamento mensal": null,
       "SINDICATO": null,
     },
   },

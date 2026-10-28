@@ -268,12 +268,10 @@ if (roda("reembolsos")) {
     const linha = {
       bubble_id: c._id,
       emp_proprietaria_id: TENANT,
-      valor_reembolso: c["Valor do reembolso"] ?? null,
+      // valor fixo e teto mensal saíram do Confluir (28/10/2026): só o centro de custo
       centro_custo_id: centroDe.get(c["CENTRO DE CUSTO"]) ?? null,
-      orcamento_limite: c["Orçamento limite?"] === true,
-      orcamento_mensal: c["Orçamento mensal"] ?? null,
     }
-    console.log(`  config: R$ ${linha.valor_reembolso} por reembolso, orçamento mensal ${linha.orcamento_mensal}, centro de custo ${linha.centro_custo_id ? "resolvido" : "NÃO resolvido"}`)
+    console.log(`  config: centro de custo ${linha.centro_custo_id ? "resolvido" : "NÃO resolvido"}`)
     // uma por tenant: o índice único é em emp_proprietaria_id, não em bubble_id
     await gravar("filiacao_reembolsos_config", [linha], "config", "emp_proprietaria_id")
   }

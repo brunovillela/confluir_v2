@@ -621,10 +621,7 @@ Configuração dos reembolsos a filiados: valor padrão, centro de custo e orça
 | 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
 | `bubble_id` | text | sim |  |  |  |  |
 | `emp_proprietaria_id` | uuid | sim |  | → empresa |  |  |
-| `valor_reembolso` | numeric(12,2) | sim |  |  |  |  |
 | `centro_custo_id` | uuid | sim |  | → centros_de_custo (set null) |  |  |
-| `orcamento_limite` | boolean | não | `false` |  |  |  |
-| `orcamento_mensal` | numeric(12,2) | sim |  |  |  |  |
 | `atualizada_por` | uuid | sim |  | → usuarios |  |  |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `updated_at` | timestamp with time zone | sim |  |  |  |  |
