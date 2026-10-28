@@ -127,7 +127,7 @@ export default async function PessoalPage() {
   }
   if (veGestao && r.feriasVencendo120 > 0) {
     alertas.push({
-      href: "/painel/pessoal/ferias",
+      href: "/painel/pessoal/ferias?aba=periodos&situacao=terminando",
       icone: TreePalm,
       texto: `${plural(r.feriasVencendo120, "período de férias em aberto", "períodos de férias em aberto")} com 120 dias ou menos para o fim do concessivo.`,
     });

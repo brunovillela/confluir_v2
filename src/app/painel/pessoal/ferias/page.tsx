@@ -39,6 +39,7 @@ import {
   anosComGozo,
   DIAS_ALERTA_CONCESSIVO,
   distribuicaoPorMes,
+  faseDoPeriodo,
   gozoAguardandoAutorizacao,
   ORDEM_SITUACAO,
   ROTULO_SITUACAO,
@@ -285,7 +286,7 @@ export default async function FeriasPage({
       />
 
       {aba === "periodos" ? (
-        <ListaPeriodos periodos={periodos} brutos={brutos} />
+        <ListaPeriodos periodos={periodos} brutos={brutos} hoje={hoje} />
       ) : aba === "distribuicao" ? (
         <Distribuicao periodos={periodos} brutos={brutos} hoje={hoje} />
       ) : (
@@ -468,21 +469,30 @@ function Distribuicao({ periodos, brutos, hoje }: { periodos: PeriodoFerias[]; b
 
 // ── Todos os períodos ───────────────────────────────────────────────────────
 
+const SITUACOES_PERIODO = ["abertos", "concessivo", "terminando", "finalizados"] as const
+
 function ListaPeriodos({
   periodos,
   brutos,
+  hoje,
 }: {
   periodos: PeriodoFerias[]
   brutos: ParamsLista
+  hoje: string
 }) {
   const params = {
     busca: (brutos.busca ?? "").trim(),
-    situacao: ["abertos", "finalizados"].includes(brutos.situacao ?? "")
+    situacao: (SITUACOES_PERIODO as readonly string[]).includes(brutos.situacao ?? "")
       ? brutos.situacao!
       : "todos",
   }
+  const fases = new Map(periodos.map((p) => [p.id, faseDoPeriodo(p, hoje)]))
+  // "Em período concessivo" inclui os que estão terminando; "terminando" é o
+  // recorte do alerta do painel do Pessoal (≤ 120 dias ou já vencido).
+  const emConcessivo = (id: string) => ["concessivo", "terminando"].includes(fases.get(id)?.fase ?? "")
+  const terminando = (id: string) => ["terminando", "vencido"].includes(fases.get(id)?.fase ?? "")
 
-  const filtrados = periodos.filter((p) => {
+  const selecionados = periodos.filter((p) => {
     if (
       params.busca &&
       !(p.funcionarioNome ?? "")
@@ -493,8 +503,17 @@ function ListaPeriodos({
     }
     if (params.situacao === "abertos" && p.finalizado === true) return false
     if (params.situacao === "finalizados" && p.finalizado !== true) return false
+    if (params.situacao === "concessivo" && !emConcessivo(p.id)) return false
+    if (params.situacao === "terminando" && !terminando(p.id)) return false
     return true
   })
+  // Nos recortes de prazo, o que vence primeiro vem primeiro.
+  const filtrados =
+    params.situacao === "concessivo" || params.situacao === "terminando"
+      ? [...selecionados].sort((a, b) => (a.concessivo_termino ?? "").localeCompare(b.concessivo_termino ?? ""))
+      : selecionados
+  const nConcessivo = periodos.filter((p) => emConcessivo(p.id)).length
+  const nTerminando = periodos.filter((p) => terminando(p.id)).length
 
   const paginacao = lerPaginacao(brutos, 30)
   const paginaAtual = paginar(filtrados, paginacao)
@@ -518,6 +537,8 @@ function ListaPeriodos({
         >
           <option value="todos">Todas as situações</option>
           <option value="abertos">Em aberto</option>
+          <option value="concessivo">Em período concessivo ({nConcessivo})</option>
+          <option value="terminando">Concessivo terminando ou vencido ({nTerminando})</option>
           <option value="finalizados">Finalizados</option>
         </select>
         <Button type="submit" variant="secondary" size="sm">
@@ -527,6 +548,15 @@ function ListaPeriodos({
           {filtrados.length} período{filtrados.length === 1 ? "" : "s"}
         </span>
       </form>
+
+      {params.situacao === "terminando" && (
+        <Alert className="border-warning/40">
+          <AlertDescription>
+            Períodos em aberto com {DIAS_ALERTA_CONCESSIVO} dias ou menos para o fim do concessivo, ou com ele já
+            vencido — os do alerta do painel do Pessoal. O que vence primeiro aparece primeiro.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="overflow-hidden rounded-xl border">
         <div className="overflow-x-auto">
@@ -560,8 +590,16 @@ function ListaPeriodos({
               )}
               {paginaAtual.linhas.map((p) => {
                 const r = resumoPeriodo(p)
+                const fase = fases.get(p.id)
                 return (
-                  <TableRow key={p.id}>
+                  <TableRow
+                    key={p.id}
+                    className={cn(
+                      fase?.fase === "concessivo" && "bg-info/5",
+                      fase?.fase === "terminando" && "bg-warning/10",
+                      fase?.fase === "vencido" && "bg-destructive/5"
+                    )}
+                  >
                     <TableCell className="max-w-56 font-medium">
                       {p.trabalhador_id ? (
                         <Link
@@ -580,9 +618,26 @@ function ListaPeriodos({
                       {formatarData(p.aquisitivo_inicio)} –{" "}
                       {formatarData(p.aquisitivo_termino)}
                     </TableCell>
-                    <TableCell className="text-muted-foreground hidden whitespace-nowrap md:table-cell">
-                      {formatarData(p.concessivo_inicio)} –{" "}
-                      {formatarData(p.concessivo_termino)}
+                    <TableCell className="hidden whitespace-nowrap md:table-cell">
+                      <span className={cn(!fase || fase.fase === "aquisitivo" ? "text-muted-foreground" : "font-medium")}>
+                        {formatarData(p.concessivo_inicio)} – {formatarData(p.concessivo_termino)}
+                      </span>
+                      {fase && fase.fase !== "aquisitivo" && (
+                        <span
+                          className={cn(
+                            "block text-xs",
+                            fase.fase === "concessivo" && "text-info-fg",
+                            fase.fase === "terminando" && "text-warning-fg",
+                            fase.fase === "vencido" && "text-destructive"
+                          )}
+                        >
+                          {fase.fase === "vencido"
+                            ? `vencido há ${fase.dias} dia(s)`
+                            : fase.dias === 0
+                              ? "termina hoje"
+                              : `faltam ${fase.dias} dia(s)`}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{r.direito}</TableCell>
                     <TableCell className="text-right tabular-nums">
@@ -607,6 +662,18 @@ function ListaPeriodos({
                       {p.finalizado === true ? (
                         <Badge variant="outline" className="text-muted-foreground">
                           Finalizado
+                        </Badge>
+                      ) : fase?.fase === "vencido" ? (
+                        <Badge variant="outline" className="border-destructive/40 text-destructive">
+                          Concessivo vencido
+                        </Badge>
+                      ) : fase?.fase === "terminando" ? (
+                        <Badge variant="outline" className="border-warning/40 text-warning-fg">
+                          Concessivo terminando
+                        </Badge>
+                      ) : fase?.fase === "concessivo" ? (
+                        <Badge variant="outline" className="border-info/40 text-info-fg">
+                          Em concessivo
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="border-success/40 text-success-fg">

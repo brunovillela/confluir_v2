@@ -234,3 +234,22 @@ export function anosComGozo(periodos: PeriodoBase[], anoAtual: number): number[]
   }
   return [...anos].sort((a, b) => b - a)
 }
+
+/**
+ * Em que fase está o período hoje (só os em aberto): ainda no aquisitivo, no
+ * concessivo, no concessivo terminando (≤ DIAS_ALERTA_CONCESSIVO dias — o
+ * mesmo corte do alerta do painel do Pessoal) ou com o concessivo vencido.
+ */
+export type FasePeriodo = "aquisitivo" | "concessivo" | "terminando" | "vencido"
+
+export function faseDoPeriodo(
+  p: { finalizado: boolean | null; concessivo_inicio: string | null; concessivo_termino: string | null },
+  hoje: string
+): { fase: FasePeriodo; dias: number } | null {
+  if (p.finalizado === true || !p.concessivo_termino) return null
+  const dias = diasEntre(hoje, p.concessivo_termino)
+  if (dias < 0) return { fase: "vencido", dias: -dias }
+  if (dias <= DIAS_ALERTA_CONCESSIVO) return { fase: "terminando", dias }
+  if (p.concessivo_inicio && p.concessivo_inicio > hoje) return { fase: "aquisitivo", dias }
+  return { fase: "concessivo", dias }
+}
