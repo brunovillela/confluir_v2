@@ -149,6 +149,12 @@ export default async function FinanceiroPage() {
       icone: FileOutput,
     },
     veOrdens && {
+      titulo: "Contas bancárias",
+      descricao: "Contas repetidas, titular de outra pessoa e conta sem documento, com juntar e corrigir",
+      href: "/painel/financeiro/contas-bancarias",
+      icone: Landmark,
+    },
+    veOrdens && {
       titulo: "Conciliação bancária",
       descricao: "Importe o extrato e case cada lançamento com a ordem paga ou o depósito da fonte",
       href: "/painel/financeiro/conciliacao",

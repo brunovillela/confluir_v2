@@ -1047,6 +1047,15 @@ export const MODULOS: Modulo[] = [
     oculto: true,
   },
   {
+    titulo: "Contas bancárias",
+    href: "/painel/financeiro/contas-bancarias",
+    icone: "Landmark",
+    descricao: "Contas repetidas, titular de outra pessoa e conta sem documento — com juntar e corrigir",
+    chave: "financeiro_pagamento",
+    chavesAlternativas: ["financeiro_leitura"],
+    oculto: true,
+  },
+  {
     titulo: "Exportação contábil",
     href: "/painel/financeiro/contabil",
     icone: "BookText",
