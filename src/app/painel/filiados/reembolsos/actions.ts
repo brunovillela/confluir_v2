@@ -13,6 +13,9 @@ import {
   salvarConfigReembolso,
   type LinhaLoteConferida,
 } from "@/lib/db/filiacao-reembolsos-edicao"
+import { criarPedido, pedidoPendente } from "@/lib/db/pedidos-dados-bancarios"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { tenantAtual } from "@/lib/tenant"
 import { lerListaLote } from "@/lib/reembolsos-lote"
 import { ehTipoReembolso, type TipoReembolso } from "@/lib/reembolsos-tipos"
 
@@ -222,5 +225,73 @@ export async function lancarLoteParteAction(
   }
   revalidatePath(LISTA)
   revalidatePath("/painel/financeiro/ordens")
+  return saida
+}
+
+export type ResultadoPedidoLote = {
+  filiadoId: string
+  nome: string | null
+  /** e-mail: o pedido saiu por e-mail; link: sem e-mail, o link vai à mão (WhatsApp); ja_pedido: havia um aberto. */
+  situacao: "email" | "link" | "ja_pedido" | "erro"
+  link?: string
+  email?: string
+  /** Celular com WhatsApp do cadastro, só dígitos (com 55), para o link wa.me. */
+  whatsapp?: string
+  erro?: string
+}
+
+/**
+ * "Pedir dados bancários" para os filiados do lote sem chave Pix nem conta:
+ * o mesmo pedido por link da ficha (pedidos-dados-bancarios.ts — uso único, 7
+ * dias, conta no CPF do próprio filiado). Com e-mail no cadastro, já sai por
+ * e-mail; sem e-mail, devolve o link para mandar pelo WhatsApp. Quem já tem
+ * pedido em aberto não recebe outro. Pode quem lança reembolso, além de quem
+ * já podia pedir na ficha (gestão da filiação, pagamentos).
+ */
+export async function pedirDadosLoteAction(filiadoIds: string[]): Promise<ResultadoPedidoLote[]> {
+  const sessao = await requirePermissao("filiacao_reembolsos", ["filiacao_gestao", "financeiro_pagamento"])
+  const ids = [...new Set(filiadoIds.filter((id) => UUID.test(id)))].slice(0, 300)
+  if (ids.length === 0) return []
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: cadastros } = await admin
+    .from("filiacoes")
+    .select("id, nome_completo, email_pessoal, email_corporativo, telefone_1, telefone_1_whatsapp, telefone_2, telefone_2_whatsapp")
+    .eq("emp_proprietaria_id", emp)
+    .in("id", ids)
+  const porId = new Map(((cadastros ?? []) as Record<string, unknown>[]).map((c) => [String(c.id), c]))
+  const limpo = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null)
+  const emailValido = (v: string | null) => (v && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? v : null)
+
+  const saida: ResultadoPedidoLote[] = []
+  for (const id of ids) {
+    const c = porId.get(id)
+    const nome = limpo(c?.nome_completo)
+    if (!c) {
+      saida.push({ filiadoId: id, nome, situacao: "erro", erro: "Filiado não encontrado." })
+      continue
+    }
+    if (await pedidoPendente({ tipo: "filiado", id })) {
+      saida.push({ filiadoId: id, nome, situacao: "ja_pedido" })
+      continue
+    }
+    const email = emailValido(limpo(c.email_pessoal)) ?? emailValido(limpo(c.email_corporativo))
+    const fone = [
+      c.telefone_1_whatsapp === true ? limpo(c.telefone_1) : null,
+      c.telefone_2_whatsapp === true ? limpo(c.telefone_2) : null,
+    ]
+      .map((t) => (t ?? "").replace(/\D/g, ""))
+      .find((t) => t.length >= 10)
+    const whatsapp = fone ? (fone.startsWith("55") && fone.length >= 12 ? fone : `55${fone}`) : undefined
+    const r = await criarPedido({ tipo: "filiado", id }, email ? "email" : "link", email, sessao.usuario.id)
+    if (!r.link) {
+      saida.push({ filiadoId: id, nome, situacao: "erro", erro: r.erro ?? "Não foi possível criar o pedido." })
+    } else if (email && !r.erro) {
+      saida.push({ filiadoId: id, nome, situacao: "email", email, link: r.link })
+    } else {
+      // Sem e-mail, ou o e-mail não saiu: o link vai à mão.
+      saida.push({ filiadoId: id, nome, situacao: "link", link: r.link, whatsapp, erro: r.erro })
+    }
+  }
   return saida
 }

@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react"
 import Link from "next/link"
-import { CircleAlert, CircleCheck, Loader2, Search, Send } from "lucide-react"
+import { CircleAlert, CircleCheck, Copy, Landmark, Loader2, MessageCircle, Search, Send } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -19,7 +19,13 @@ import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { rotuloTipoReembolso, TIPOS_REEMBOLSO } from "@/lib/reembolsos-tipos"
 
-import { conferirLoteAction, lancarLoteParteAction, type EstadoLote } from "../actions"
+import {
+  conferirLoteAction,
+  lancarLoteParteAction,
+  pedirDadosLoteAction,
+  type EstadoLote,
+  type ResultadoPedidoLote,
+} from "../actions"
 
 const PARTE = 10
 
@@ -44,6 +50,7 @@ export function LoteForm({ hoje, projetos }: { hoje: string; projetos: { id: str
   const linhas = estado.linhas ?? []
   const prontas = linhas.filter((l) => !l.problema && l.filiadoId && l.valor)
   const comProblema = linhas.filter((l) => l.problema)
+  const semContaSemPedido = linhas.filter((l) => l.semConta && !l.pedidoEm && l.filiadoId)
   const totalProntas = prontas.reduce((t, l) => t + (l.valor ?? 0), 0)
   const lancadas = Object.values(resultados).filter((r) => r.id).length
   const falhas = Object.values(resultados).filter((r) => r.erro).length
@@ -201,6 +208,13 @@ export function LoteForm({ hoje, projetos }: { hoje: string; projetos: { id: str
               {falhas > 0 && <Badge variant="destructive">{falhas} falharam</Badge>}
             </div>
 
+            {semContaSemPedido.length > 0 && (
+              <PedirDadosLote
+                key={semContaSemPedido.map((l) => l.filiadoId).join(",")}
+                filiados={semContaSemPedido.map((l) => ({ id: l.filiadoId as string, nome: l.nome }))}
+              />
+            )}
+
             {(lancando || progresso > 0) && <Progress value={progresso} />}
 
             {terminou ? (
@@ -288,6 +302,111 @@ export function LoteForm({ hoje, projetos }: { hoje: string; projetos: { id: str
             </div>
           </CardContent>
         </Card>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Pede os dados bancários a quem está sem chave Pix nem conta: por e-mail
+ * quando o cadastro tem um; sem e-mail, mostra o link para copiar ou mandar
+ * pelo WhatsApp. Depois que responderem, basta conferir a lista de novo.
+ */
+function PedirDadosLote({ filiados }: { filiados: { id: string; nome: string | null }[] }) {
+  const [enviando, setEnviando] = useState(false)
+  const [resultado, setResultado] = useState<ResultadoPedidoLote[] | null>(null)
+  const [copiado, setCopiado] = useState<string | null>(null)
+
+  async function pedir() {
+    const ok = await confirmar({
+      titulo: `Pedir os dados bancários a ${filiados.length} filiado(s)?`,
+      descricao:
+        "Cada um recebe um link de uso único, válido por 7 dias, para informar a chave Pix ou a conta no próprio CPF. Quem tem e-mail no cadastro recebe por e-mail; para os outros, o link aparece aqui para você mandar pelo WhatsApp.",
+      confirmar: "Pedir",
+    })
+    if (!ok) return
+    setEnviando(true)
+    try {
+      setResultado(await pedirDadosLoteAction(filiados.map((f) => f.id)))
+    } catch {
+      setResultado(filiados.map((f) => ({ filiadoId: f.id, nome: f.nome, situacao: "erro", erro: "Falha de comunicação." })))
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  async function copiar(link: string) {
+    try {
+      await navigator.clipboard.writeText(link)
+      setCopiado(link)
+    } catch {
+      window.prompt("Copie o link:", link)
+    }
+  }
+
+  if (!resultado) {
+    return (
+      <div className="border-warning/40 bg-warning/5 flex flex-wrap items-center justify-between gap-3 rounded-md border p-3 text-sm">
+        <span>
+          <strong>{filiados.length}</strong> filiado(s) sem chave Pix nem conta — a ordem não nasce sem o destino.
+        </span>
+        <Button type="button" size="sm" variant="outline" onClick={pedir} disabled={enviando}>
+          {enviando ? <Loader2 className="animate-spin" /> : <Landmark />}
+          Pedir dados bancários
+        </Button>
+      </div>
+    )
+  }
+
+  const porEmail = resultado.filter((r) => r.situacao === "email")
+  const jaPedidos = resultado.filter((r) => r.situacao === "ja_pedido")
+  const aMao = resultado.filter((r) => r.situacao === "link")
+  const erros = resultado.filter((r) => r.situacao === "erro")
+  const mensagem = (nome: string | null, link: string) =>
+    `Olá${nome ? `, ${nome.split(" ")[0]}` : ""}. Para receber o seu reembolso, informe a sua chave Pix ou conta bancária neste link (vale por 7 dias): ${link}`
+
+  return (
+    <div className="border-border grid gap-3 rounded-md border p-3 text-sm">
+      <p>
+        Pedidos de dados bancários: <strong>{porEmail.length}</strong> por e-mail
+        {jaPedidos.length > 0 && <>, {jaPedidos.length} já tinham pedido em aberto</>}
+        {aMao.length > 0 && <>, {aMao.length} sem e-mail (mande o link abaixo)</>}
+        {erros.length > 0 && <>, {erros.length} com erro</>}. Quando responderem, confira a lista de novo.
+      </p>
+      {aMao.length > 0 && (
+        <ul className="grid gap-2">
+          {aMao.map((r) => (
+            <li key={r.filiadoId} className="flex flex-wrap items-center gap-2">
+              <span className="min-w-48 font-medium">{r.nome ?? "Filiado"}</span>
+              {r.erro && <span className="text-warning-fg text-xs">{r.erro}</span>}
+              <Button type="button" size="sm" variant="outline" onClick={() => copiar(r.link as string)}>
+                <Copy />
+                {copiado === r.link ? "Copiado" : "Copiar link"}
+              </Button>
+              {r.whatsapp && (
+                <Button asChild size="sm" variant="outline">
+                  <a
+                    href={`https://wa.me/${r.whatsapp}?text=${encodeURIComponent(mensagem(r.nome, r.link as string))}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <MessageCircle />
+                    WhatsApp
+                  </a>
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {erros.length > 0 && (
+        <ul className="text-destructive grid gap-1 text-xs">
+          {erros.map((r) => (
+            <li key={r.filiadoId}>
+              {r.nome ?? "Filiado"}: {r.erro}
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   )

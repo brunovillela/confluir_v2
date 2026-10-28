@@ -480,6 +480,10 @@ export type LinhaLoteConferida = {
   filiadoId: string | null
   nome: string | null
   problema: string | null
+  /** Sem chave Pix nem conta: dá para pedir os dados pelo link. */
+  semConta: boolean
+  /** Pedido de dados bancários em aberto (quando foi criado). */
+  pedidoEm: string | null
 }
 
 const emPartes = <T,>(lista: T[], tamanho = 200): T[][] =>
@@ -546,6 +550,23 @@ export async function conferirLoteReembolsos(linhas: LinhaLote[], data: string):
     }
   }
 
+  // Pedido de dados bancários ainda em aberto, por cadastro de filiado.
+  const pedidoAberto = new Map<string, string>()
+  for (const parte of emPartes(filiacoes.map((f) => f.id))) {
+    const { data: pedidos } = await admin
+      .from("financeiro_pedidos_dados_bancarios")
+      .select("filiado_id, created_at")
+      .in("filiado_id", parte)
+      .is("respondido_em", null)
+      .is("cancelado_em", null)
+      .gt("expira_em", new Date().toISOString())
+    for (const d of (pedidos ?? []) as { filiado_id: string; created_at: string }[]) {
+      if (!pedidoAberto.has(d.filiado_id) || d.created_at > (pedidoAberto.get(d.filiado_id) ?? "")) {
+        pedidoAberto.set(d.filiado_id, d.created_at)
+      }
+    }
+  }
+
   // Já lançado: mesma pessoa, mesma data de referência, mesmo valor.
   const lancados = new Set<string>()
   for (const parte of emPartes(filiacoes.map((f) => f.id))) {
@@ -564,7 +585,15 @@ export async function conferirLoteReembolsos(linhas: LinhaLote[], data: string):
   const vistos = new Map<string, number>()
   return linhas.map((l) => {
     const cpf = cpfConfiavel(l.cpf)
-    const base = { linha: l.linha, cpf: cpf ? formatarCpf(cpf) : l.cpf, valor: l.valor, filiadoId: null, nome: null }
+    const base = {
+      linha: l.linha,
+      cpf: cpf ? formatarCpf(cpf) : l.cpf,
+      valor: l.valor,
+      filiadoId: null,
+      nome: null,
+      semConta: false,
+      pedidoEm: null,
+    }
     if (l.valor == null || !(l.valor > 0)) return { ...base, problema: "Valor inválido." }
     if (!cpf) return { ...base, problema: "CPF inválido." }
     const anterior = vistos.get(cpf)
@@ -575,7 +604,15 @@ export async function conferirLoteReembolsos(linhas: LinhaLote[], data: string):
     if (!filiado) return { ...base, problema: "Nenhum filiado com este CPF." }
     const achado = { ...base, filiadoId: filiado.id, nome: texto(filiado.nome_completo) }
     if (!comDestino.has(cpf)) {
-      return { ...achado, problema: "Sem chave Pix nem conta cadastrada — cadastre na ficha ou peça os dados bancários." }
+      const pedido = pedidoAberto.get(filiado.id)
+      return {
+        ...achado,
+        semConta: true,
+        pedidoEm: pedido ?? null,
+        problema: pedido
+          ? `Sem chave Pix nem conta — dados bancários pedidos em ${new Date(pedido).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}, aguardando resposta.`
+          : "Sem chave Pix nem conta cadastrada — peça os dados bancários (botão acima) ou cadastre na ficha.",
+      }
     }
     if (lancados.has(`${cpf}|${l.valor.toFixed(2)}`)) {
       return { ...achado, problema: "Já lançado com esta data e este valor." }
