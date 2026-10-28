@@ -30,6 +30,7 @@ import {
 import { EmUsoBadge } from "@/components/veiculos";
 import { requirePermissao } from "@/lib/auth";
 import {
+  alertasLocacao,
   listarVeiculos,
   resumoVeiculos,
   type VeiculoLinha,
@@ -69,19 +70,23 @@ export default async function VeiculosPage({
       : "ativos";
   const busca = (brutos.busca ?? "").trim();
 
-  const [resumo, veiculos, checklistsVencidos, preventivas] =
+  const [resumo, veiculos, checklistsVencidos, preventivas, locacao] =
     await Promise.all([
       resumoVeiculos(),
       listarVeiculos({ busca, situacao }),
       totalVencidos(),
       preventivasEmAlerta(),
+      // Contratos de aluguel são da gestão: quem não vê os alertas não paga a consulta.
+      gestor ? alertasLocacao() : Promise.resolve([]),
     ]);
   const fotos = await fotosDosUsuarios(veiculos.map((v) => v.condutorEmUsoId));
   const preventivasVencidas = preventivas.filter((p) => p.vencido).length;
   const preventivasProximas = preventivas.length - preventivasVencidas;
 
   const hoje = new Date().toISOString().slice(0, 10);
-  const alertas = [
+  const alertas: { chave: string; texto: string; href: string; grave?: boolean }[] = [
+    // Locação já atrasada (contrato vencido, fatura que não chegou) vem primeiro.
+    ...locacao.filter((a) => a.grave),
     ...resumo.cnhsVencendo.map((c) => ({
       chave: `cnh-${c.id}`,
       texto: `CNH de ${c.usuarioNome ?? "condutor"} ${c.cnh_validade && c.cnh_validade < hoje ? "vencida" : "vence"} em ${formatarData(c.cnh_validade)}`,
@@ -99,9 +104,10 @@ export default async function VeiculosPage({
     })),
     ...resumo.contratosVencendo.map((c) => ({
       chave: `contrato-${c.id}`,
-      texto: `Contrato de aluguel ${c.numero ?? ""} (${c.fornecedorNome ?? ""}) termina em ${formatarData(c.vigencia_termino)}`,
-      href: `/painel/veiculos/contratos/${c.id}`,
+      texto: `Contrato de aluguel ${c.numero ?? ""} (${c.fornecedorNome ?? ""}) termina em ${formatarData(c.vigencia_termino)} — prorrogar?`,
+      href: `/painel/veiculos/contratos/${c.id}?prorrogar=1`,
     })),
+    ...locacao.filter((a) => !a.grave),
   ];
 
   const areasVeiculos = [
@@ -240,11 +246,11 @@ export default async function VeiculosPage({
           <CardContent>
             <p className="mb-2 flex items-center gap-2 text-sm font-medium">
               <TriangleAlert className="text-warning-fg size-4" />
-              Alertas dos próximos 30 dias
+              Alertas
             </p>
             <ul className="grid gap-1.5">
               {alertas.map((a) => (
-                <li key={a.chave} className="text-sm">
+                <li key={a.chave} className={`text-sm ${a.grave ? "text-warning-fg" : ""}`}>
                   <Link href={a.href} className="hover:underline">
                     {a.texto}
                   </Link>

@@ -48,11 +48,11 @@ export default async function ContratoPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ salvo?: string }>
+  searchParams: Promise<{ salvo?: string; prorrogar?: string }>
 }) {
   await requirePermissao("veiculos_gestao")
   const { id } = await params
-  const { salvo } = await searchParams
+  const { salvo, prorrogar } = await searchParams
 
   const contrato = await buscarContrato(id)
   if (!contrato) notFound()
@@ -159,6 +159,8 @@ export default async function ContratoPage({
               <ProrrogarContratoDialog
                 contratoId={contrato.id}
                 terminoAtual={contrato.vigencia_termino}
+                // Atalho do alerta do painel: já abre o diálogo.
+                abertoAoEntrar={prorrogar === "1"}
                 valorAtual={valorMensalTexto}
               />
             )}

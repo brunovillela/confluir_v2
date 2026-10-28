@@ -1,7 +1,7 @@
 import "server-only"
 import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
 import { camposAutorizacaoInicial, motivoDispensaContrato, registrarEvento, usuarioDaTrilha } from "@/lib/db/ordens-ciclo"
-import { esquemaAusente, hojeSP, lerEmLotes, nomesDosUsuarios, texto } from "@/lib/db/comum"
+import { esquemaAusente, hojeSP, lerEmLotes, lerEmLotesPorIds, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { gerarCodigoProcesso, subirComprovanteCompras, subirPdfCompras, urlArquivoCompras } from "@/lib/db/compras"
@@ -21,6 +21,7 @@ import {
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { origemAtual } from "@/lib/tenant-url"
 import { rotuloCentroCusto } from "@/lib/centros-custo-rotulo"
+import { resumoLocacao } from "@/lib/locacao-periodo"
 import { createAdminClient } from "@/lib/supabase/admin"
 import {
   duracaoBR,
@@ -3548,6 +3549,97 @@ export async function gerarOrdemAluguel(
   }
   await registrarEvento(String(criada.id), "criada", await usuarioDaTrilha(), `Cobrança do período ${dados.periodo} do contrato de locação.`)
   return {}
+}
+
+// ── Alertas da locação (painel de Veículos) ─────────────────────────────────
+
+export type AlertaLocacao = {
+  chave: string
+  texto: string
+  href: string
+  /** Já passou do ponto (contrato vencido, fatura atrasada) — em destaque. */
+  grave: boolean
+}
+
+/**
+ * O que pede atenção nos contratos de locação vigentes: contrato que já
+ * terminou sem prorrogação nem finalização, trecho da vigência sem cobrança
+ * há mais de 30 dias (mesmo cálculo do resumo do contrato) e cobrança não
+ * paga sem a fatura anexada. "Termina em breve" continua em resumoVeiculos.
+ */
+export async function alertasLocacao(): Promise<AlertaLocacao[]> {
+  const { contratos } = await listarContratos({ situacao: "vigentes" })
+  if (contratos.length === 0) return []
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const ordens = await lerEmLotesPorIds<Record<string, unknown>>(
+    contratos.map((c) => c.id),
+    (fatia, de, ate) =>
+      admin
+        .from("ordens_pagamento")
+        .select("id, contrato_aluguel_id, descricao, situacao, valor_inicial_cobranca, data_pagamento, arquivo_nota_fiscal")
+        .eq("emp_proprietaria_id", emp)
+        .in("contrato_aluguel_id", fatia)
+        .not("excluido", "is", true)
+        .order("vencimento", { ascending: true })
+        .order("id")
+        .range(de, ate)
+  )
+  const porContrato = new Map<string, Record<string, unknown>[]>()
+  for (const o of ordens) {
+    const chave = String(o.contrato_aluguel_id)
+    porContrato.set(chave, [...(porContrato.get(chave) ?? []), o])
+  }
+
+  const hoje = hojeSP()
+  const alertas: AlertaLocacao[] = []
+  for (const c of contratos) {
+    const nome = `Contrato de aluguel ${c.numero ?? ""}${c.fornecedorNome ? ` (${c.fornecedorNome})` : ""}`
+    const href = `/painel/veiculos/contratos/${c.id}`
+    const termino = c.vigencia_termino?.slice(0, 10) ?? null
+    if (termino && termino < hoje) {
+      alertas.push({
+        chave: `locacao-vencido-${c.id}`,
+        texto: `${nome} terminou em ${formatarData(termino)} e não foi prorrogado nem finalizado`,
+        href: `${href}?prorrogar=1`,
+        grave: true,
+      })
+    }
+    const lista = porContrato.get(c.id) ?? []
+    const resumo = resumoLocacao(
+      c,
+      lista.map((o) => ({
+        descricao: texto(o.descricao),
+        situacao: texto(o.situacao),
+        valor: numero(o.valor_inicial_cobranca),
+        data_pagamento: texto(o.data_pagamento),
+      })),
+      hoje
+    )
+    for (const t of resumo.semCobranca.filter((t) => t.atrasado)) {
+      alertas.push({
+        chave: `locacao-lacuna-${c.id}-${t.de}`,
+        texto: `${nome}: ${formatarData(t.de)} a ${formatarData(t.ate)} sem cobrança (${t.dias} dia${t.dias === 1 ? "" : "s"}) — a fatura chegou?`,
+        href,
+        grave: true,
+      })
+    }
+    const semFatura = lista.filter(
+      (o) =>
+        !["Cancelada", "Estornado", "Paga"].includes(String(o.situacao ?? "")) &&
+        !o.data_pagamento &&
+        !texto(o.arquivo_nota_fiscal)
+    ).length
+    if (semFatura > 0) {
+      alertas.push({
+        chave: `locacao-sem-fatura-${c.id}`,
+        texto: `${nome}: ${semFatura} cobrança${semFatura === 1 ? "" : "s"} sem fatura anexada`,
+        href,
+        grave: false,
+      })
+    }
+  }
+  return alertas
 }
 
 // ── Resumo (dashboard) ─────────────────────────────────────────────────────

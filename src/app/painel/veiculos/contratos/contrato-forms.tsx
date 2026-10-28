@@ -276,7 +276,6 @@ export function GerarOrdemAluguelForm({
   // A fatura manda no valor; o boleto lido depois só completa o que faltou.
   const valorDaFatura = useRef(false)
 
-
   /** A IA lê o arquivo escolhido e preenche o que achou (a pessoa confere). */
   async function ler(arquivo: File, papel: "fatura" | "boleto") {
     setLendo(papel)
@@ -606,12 +605,14 @@ export function ProrrogarContratoDialog({
   contratoId,
   terminoAtual,
   valorAtual,
+  abertoAoEntrar = false,
 }: {
   contratoId: string
   terminoAtual: string | null
   valorAtual: string
+  abertoAoEntrar?: boolean
 }) {
-  const [aberto, setAberto] = useState(false)
+  const [aberto, setAberto] = useState(abertoAoEntrar)
   const [estado, formAction, pendente] = useAcaoDoDialogo(
     prorrogarContratoAction,
     () => setAberto(false),
