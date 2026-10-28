@@ -54,6 +54,30 @@ sai numa linha por conta, com o valor pago dividido na proporção do rateio.
 Ordens sem centro de custo aparecem em vermelho na conferência: reclassifique-as
 antes de mandar para a contabilidade.
 
+### Relatório mensal dos RPAs
+
+A planilha tem uma terceira aba, **RPAs**: os recibos de autônomo cuja ordem
+foi **paga** no período (pela data do pagamento, o mesmo recorte das
+despesas). Na aba Despesas, a ordem do RPA aparece só pelo **líquido** pago; a
+aba RPAs traz o que a contabilidade precisa para lançar a despesa e as
+obrigações:
+
+| Coluna | O que é |
+|---|---|
+| Pagamento, Competência | Data do pagamento da ordem e o mês (a competência das guias) |
+| RPA nº, Prestador, CPF, Serviço | O recibo e o autônomo |
+| Origem, Ordem | Contrato, compra ou avulso; o código da ordem do líquido |
+| Classificador, Centro de custo, Departamento | Os da ordem |
+| Bruto, INSS retido, IRRF retido, ISS retido, Líquido, Valor pago | O recibo; as retenções são a recolher |
+| INSS patronal | 20% sobre o bruto, encargo da entidade (não sai do prestador) |
+| Custo total | Bruto + INSS patronal: o custo do serviço para a entidade |
+| Recibo assinado | Se o RPA assinado já foi anexado |
+
+A última linha soma tudo. Na página, o cartão **RPAs pagos no período** mostra
+os mesmos totais e avisa quantos foram pagos sem o recibo assinado. As
+retenções e a cota patronal são as mesmas que formam as guias do mês em
+[Tributos](/painel/ajuda/financeiro/tributos).
+
 ### Fechamento do mês
 
 No fim da página, o cartão **Fechamento do mês** lista os últimos doze meses.

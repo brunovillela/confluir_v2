@@ -12,6 +12,7 @@ import { requirePermissao } from "@/lib/auth"
 import { avisoAnalitica } from "@/lib/db/analitica"
 import { hojeSP } from "@/lib/db/comum"
 import { lancamentosContabeis } from "@/lib/db/contabil"
+import { rpasPagosNoPeriodo, totalizarRpas } from "@/lib/db/contabil-rpa"
 import { listarMesesFechados } from "@/lib/db/meses-fechados"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
@@ -27,7 +28,8 @@ export default async function ContabilPage({ searchParams }: { searchParams: Pro
   const sessao = await requirePermissao("financeiro_leitura", ["financeiro_pagamento"])
   const sp = await searchParams
   const { de, ate } = periodoContabil(sp.de, sp.ate)
-  const [l, fechados] = await Promise.all([lancamentosContabeis(de, ate), listarMesesFechados()])
+  const [l, fechados, rpas] = await Promise.all([lancamentosContabeis(de, ate), listarMesesFechados(), rpasPagosNoPeriodo(de, ate)])
+  const tr = totalizarRpas(rpas)
   const ordensPagas = new Set(l.despesas.map((d) => d.id.split(":")[0])).size
   // Os últimos 12 meses, do atual para trás, mais os fechados mais antigos.
   const [ano, mesAtual] = hojeSP().split("-").map(Number)
@@ -54,7 +56,7 @@ export default async function ContabilPage({ searchParams }: { searchParams: Pro
           <h1 className="text-2xl font-semibold tracking-tight">Exportação contábil</h1>
         </div>
         <p className="text-muted-foreground mt-1 text-xs">
-          Os lançamentos de um período em planilha, com centro de custo, departamento, favorecido e CNPJ/CPF: a aba Despesas traz as ordens pagas pela data do pagamento; a aba Receitas, a arrecadação por competência, tipo e fonte.
+          Os lançamentos de um período em planilha, com centro de custo, departamento, favorecido e CNPJ/CPF: a aba Despesas traz as ordens pagas pela data do pagamento; a aba Receitas, a arrecadação por competência, tipo e fonte; a aba RPAs, os recibos de autônomo pagos no período com bruto, retenções e INSS patronal.
         </p>
       </div>
 
@@ -158,6 +160,55 @@ export default async function ContabilPage({ searchParams }: { searchParams: Pro
           </CardContent>
         </Card>
       </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">RPAs pagos no período</CardTitle>
+          <CardDescription className="text-xs">
+            Na aba Despesas, a ordem do RPA aparece pelo líquido pago. Para a contabilidade lançar a despesa e as
+            obrigações, a aba RPAs traz cada recibo com o bruto, as retenções a recolher e a cota patronal do INSS
+            (encargo da entidade) — as mesmas que formam as guias do mês em Financeiro › Tributos.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {rpas.length === 0 ? (
+            <p className="text-muted-foreground text-sm">Nenhum RPA pago no período.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>RPAs</TableHead>
+                  <TableHead className="text-right">Bruto</TableHead>
+                  <TableHead className="text-right">INSS retido</TableHead>
+                  <TableHead className="text-right">IRRF</TableHead>
+                  <TableHead className="text-right">ISS</TableHead>
+                  <TableHead className="text-right">Líquido</TableHead>
+                  <TableHead className="text-right">INSS patronal</TableHead>
+                  <TableHead className="text-right">Custo total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="tabular-nums">{tr.quantidade}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatarMoeda(tr.bruto)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatarMoeda(tr.inss)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatarMoeda(tr.irrf)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatarMoeda(tr.iss)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatarMoeda(tr.liquido)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatarMoeda(tr.inssPatronal)}</TableCell>
+                  <TableCell className="text-right font-medium tabular-nums">{formatarMoeda(tr.custoTotal)}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          )}
+          {rpas.some((r) => !r.assinado) && (
+            <p className="text-warning-fg mt-2 text-xs">
+              {rpas.filter((r) => !r.assinado).length} RPA(s) pago(s) sem o recibo assinado anexado — a planilha
+              marca quais.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
