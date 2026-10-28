@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { criarServico } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -70,6 +71,7 @@ export function ServicoForm({
   preview?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(action, {})
+  const envio2 = useEnvioFormulario(formAction, estado)
   const [hotelId, setHotelId] = useState(hotelFixo ?? "")
   const [coletivo, setColetivo] = useState(false)
   const [marcados, setMarcados] = useState<Set<string>>(new Set())
@@ -99,7 +101,7 @@ export function ServicoForm({
   }
 
   return (
-    <form {...formVisualizacao(preview, formAction)} className="grid gap-4">
+    <form {...formVisualizacao(preview, formAction)} {...(preview ? {} : envio2)} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

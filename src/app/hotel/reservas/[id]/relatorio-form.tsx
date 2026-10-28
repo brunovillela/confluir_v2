@@ -9,6 +9,7 @@ import { AcaoVisualizacao, formVisualizacao } from "@/components/acao-visualizac
 import { Input } from "@/components/ui/input"
 
 import { subirRelatorioHotel } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /** Upload (ou substituição) do relatório/extrato assinado pelos hóspedes. */
 export function RelatorioForm({
@@ -21,9 +22,10 @@ export function RelatorioForm({
   preview?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(subirRelatorioHotel, {})
+  const envio = useEnvioFormulario(formAction, estado)
 
   return (
-    <form {...formVisualizacao(preview, formAction)} className="grid gap-2">
+    <form {...formVisualizacao(preview, formAction)} {...(preview ? {} : envio)} className="grid gap-2">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

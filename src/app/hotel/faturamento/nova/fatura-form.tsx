@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { criarFaturaHotel } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -65,6 +66,7 @@ export function FaturaForm({
   preview?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(criarFaturaHotel, {})
+  const envio = useEnvioFormulario(formAction, estado)
   const [marcados, setMarcados] = useState<Set<string>>(new Set())
   const [forma, setForma] = useState<Forma>("Pix")
 
@@ -86,7 +88,7 @@ export function FaturaForm({
   }
 
   return (
-    <form {...formVisualizacao(preview, formAction)} className="grid gap-4">
+    <form {...formVisualizacao(preview, formAction)} {...(preview ? {} : envio)} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

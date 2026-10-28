@@ -514,6 +514,7 @@ export function SlideForm({
   slide?: SlideTv
 }) {
   const [estado, action, pend] = useActionState(salvarSlide, {})
+  const envio6 = useEnvioFormulario(action, estado);
   const [previa, setPrevia] = useState<string | null>(null)
   const [preparando, setPreparando] = useState(false)
   const [titulo, setTitulo] = useState(slide?.titulo ?? "")
@@ -609,7 +610,7 @@ export function SlideForm({
         : null
 
   return (
-    <form action={action} className="grid gap-4">
+    <form action={action} {...envio6} className="grid gap-4">
       <Recado estado={estado} />
       <input type="hidden" name="conjunto_id" value={conjuntoId} />
       {slide && <input type="hidden" name="id" value={slide.id} />}

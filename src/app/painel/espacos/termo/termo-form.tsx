@@ -22,6 +22,7 @@ export function TermoForm({ textoInicial }: { textoInicial: string }) {
   const [texto, setTexto] = useState(textoInicial)
   const [verPrevia, setVerPrevia] = useState(false)
   const [salvo, salvar, salvando] = useActionState(salvarTermoAction, {})
+  const envio2 = useEnvioFormulario(salvar, salvo)
   const [ia, redigir, redigindo] = useActionState(redigirComIAAction, {})
   const envio = useEnvioFormulario(redigir, ia)
 
@@ -111,7 +112,7 @@ export function TermoForm({ textoInicial }: { textoInicial: string }) {
               {renderizarTermo(texto, EXEMPLO)}
             </pre>
           ) : (
-            <form action={salvar} className="grid gap-3">
+            <form action={salvar} {...envio2} className="grid gap-3">
               <Textarea
                 name="texto"
                 value={texto}

@@ -11,6 +11,7 @@ import { ErroNoCampo } from "@/components/ui/erro-no-campo"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import type { EstadoForm } from "@/lib/contas"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /**
  * Confirmação da desistência (digitar CONFIRMO). O mesmo formulário serve à
@@ -30,6 +31,7 @@ export function DesistirForm({
 }) {
   const [aberto, setAberto] = useState(false)
   const [estado, formAction, pend] = useActionState(action, {})
+  const envio = useEnvioFormulario(formAction, estado)
 
   if (!aberto) {
     return (
@@ -43,7 +45,7 @@ export function DesistirForm({
   }
 
   return (
-    <form {...formVisualizacao(preview, formAction)} className="grid max-w-md gap-3">
+    <form {...formVisualizacao(preview, formAction)} {...(preview ? {} : envio)} className="grid max-w-md gap-3">
       {estado.erro && !estado.campo && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

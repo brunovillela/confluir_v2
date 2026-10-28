@@ -34,6 +34,7 @@ import {
   reverificarAssinaturaAction,
   type EstadoLote,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -284,10 +285,8 @@ export function EncerrarSemCarta({
   quantidade: number
 }) {
   const [estado, acao, pendente] = useActionState(encerrarSemCartaAction, {})
-  return (
-    <form
-      action={acao}
-      onSubmit={(e) => {
+  const envio2 = useEnvioFormulario(acao, estado, {
+    antes: (e) => {
         if (
           !window.confirm(
             `Encerrar ${quantidade.toLocaleString("pt-BR")} oposição(ões) como “carta não enviada”? Elas passam a reprovadas, com esse motivo, e cada trabalhador recebe o aviso.`
@@ -295,7 +294,11 @@ export function EncerrarSemCarta({
         ) {
           e.preventDefault()
         }
-      }}
+      },
+  })
+  return (
+    <form
+      action={acao} {...envio2}
       className="grid gap-2"
     >
       <input type="hidden" name="campanha_id" value={campanhaId} />
@@ -330,6 +333,7 @@ export function RegistrarEnvio({
   quantidade: number
 }) {
   const [estado, acao, pendente] = useActionState(registrarEnvioEmpregadorAction, {})
+  const envio3 = useEnvioFormulario(acao, estado)
   const [aberto, setAberto] = useState(false)
   if (!aberto) {
     return (
@@ -342,7 +346,7 @@ export function RegistrarEnvio({
     )
   }
   return (
-    <form action={acao} className="bg-muted/40 grid gap-3 rounded-md border p-3">
+    <form action={acao} {...envio3} className="bg-muted/40 grid gap-3 rounded-md border p-3">
       <input type="hidden" name="campanha_id" value={campanhaId} />
       <input type="hidden" name="empresa_id" value={empresaId ?? "sem"} />
       <p className="text-sm">
@@ -400,8 +404,9 @@ export function RegistrarEnvio({
 /** "Reverificar assinatura" da carta (onda 3): baixa o PDF e passa pelo validador de novo. */
 export function ReverificarAssinatura({ opositorId, campanhaId }: { opositorId: string; campanhaId: string }) {
   const [estado, acao, pendente] = useActionState(reverificarAssinaturaAction, {})
+  const envio4 = useEnvioFormulario(acao, estado)
   return (
-    <form action={acao} className="grid gap-2">
+    <form action={acao} {...envio4} className="grid gap-2">
       <input type="hidden" name="opositor_id" value={opositorId} />
       <input type="hidden" name="campanha_id" value={campanhaId} />
       {estado.erro && (

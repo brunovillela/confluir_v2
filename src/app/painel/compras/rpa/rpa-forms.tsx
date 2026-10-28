@@ -472,8 +472,9 @@ function Linha({
 
 export function ConfigRpaForm({ config }: { config: ConfigRpa }) {
   const [estado, action, pend] = useActionState(salvarConfigRpa, {})
+  const envio8 = useEnvioFormulario(action, estado)
   return (
-    <form action={action} className="grid gap-4">
+    <form action={action} {...envio8} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

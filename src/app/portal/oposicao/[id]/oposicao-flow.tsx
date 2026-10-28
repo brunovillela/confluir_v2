@@ -17,6 +17,7 @@ import { DECLARACAO_PADRAO, exigeDocumento } from "@/lib/oposicao-constantes"
 import { cn } from "@/lib/utils"
 
 import { confirmarOposicao, desistir, sairDaOposicao } from "../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario";
 
 /** Extrai o id do YouTube de um id cru ou URL. */
 function idYoutube(v: string | null): string | null {
@@ -88,6 +89,18 @@ export function OposicaoFlow({
   const [etapa, setEtapa] = useState<"video" | "form">(comVideo ? "video" : "form")
   const [estado, formAction, pendente] = useActionState(confirmarOposicao, {})
   const [estDesistir, desistirAction, pendDesistir] = useActionState(desistir, {})
+  const envio = useEnvioFormulario(desistirAction, estDesistir, {
+    antes: (e) =>
+      confirmarEnvio(e, {
+        titulo: "Seguir sem registrar oposição?",
+        descricao: `Nenhuma oposição será registrada agora. Enquanto o prazo estiver aberto${
+          campanha.prazo_fim ? ` (até ${formatarData(campanha.prazo_fim)})` : ""
+        }, você pode voltar e registrar a sua oposição.`,
+        confirmar: "Não quero me opor",
+        cancelar: "Voltar",
+        destrutivo: false,
+      }),
+  });
 
   // ── Fonte pagadora e matrícula (A103) ──────────────────────────────────────
   // Com fontes na campanha, a lista é a delas (a action só aceita essas,
@@ -228,18 +241,7 @@ export function OposicaoFlow({
             Prosseguir com a oposição
           </Button>
           <form
-            action={desistirAction}
-            onSubmit={(e) =>
-              confirmarEnvio(e, {
-                titulo: "Seguir sem registrar oposição?",
-                descricao: `Nenhuma oposição será registrada agora. Enquanto o prazo estiver aberto${
-                  campanha.prazo_fim ? ` (até ${formatarData(campanha.prazo_fim)})` : ""
-                }, você pode voltar e registrar a sua oposição.`,
-                confirmar: "Não quero me opor",
-                cancelar: "Voltar",
-                destrutivo: false,
-              })
-            }
+            action={desistirAction} {...envio}
           >
             <input type="hidden" name="campanha_id" value={campanha.id} />
             <Button

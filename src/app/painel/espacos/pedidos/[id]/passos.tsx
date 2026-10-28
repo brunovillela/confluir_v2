@@ -471,6 +471,7 @@ export function Fechamento({
   podeGerir: boolean
 }) {
   const [conf, confirmar, confirmando] = useActionState(confirmarAction, {})
+  const envio9 = useEnvioFormulario(confirmar, conf)
   const [rec, recusar, recusando] = useActionState(recusarAction, {})
   const envio6 = useEnvioFormulario(recusar, rec)
   const [can, cancelar, cancelando] = useActionState(cancelarAction, {})
@@ -493,7 +494,7 @@ export function Fechamento({
             </AlertDescription>
           </Alert>
         ) : (
-          <form action={confirmar}>
+          <form action={confirmar} {...envio9}>
             <input type="hidden" name="id" value={id} />
             <Button type="submit" disabled={confirmando}>
               {confirmando && <Loader2 className="animate-spin" />}

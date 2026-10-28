@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { TAMANHO_MAX_CARTA } from "@/lib/oposicao-constantes"
 
 import { enviarDocumento } from "../../actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function BotaoImprimir() {
   return (
@@ -41,14 +42,8 @@ export function EnviarDocumento({
   rotulo?: string
 }) {
   const [estado, formAction, pendente] = useActionState(enviarDocumento, {})
-  // Barrado aqui, antes de subir (M3): acima do limite o servidor nem recebe.
-  const [erroLocal, setErroLocal] = useState<string | null>(null)
-  const idCampo = `documento-${opositorId.slice(0, 8)}`
-  const erro = erroLocal ?? estado.erro
-  return (
-    <form
-      action={formAction}
-      onSubmit={(e) => {
+  const envio = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
         const arquivo = (e.currentTarget.elements.namedItem("documento") as HTMLInputElement | null)?.files?.[0]
         if (arquivo && arquivo.size > TAMANHO_MAX_CARTA) {
           e.preventDefault()
@@ -58,7 +53,15 @@ export function EnviarDocumento({
           return
         }
         setErroLocal(null)
-      }}
+      },
+  })
+  // Barrado aqui, antes de subir (M3): acima do limite o servidor nem recebe.
+  const [erroLocal, setErroLocal] = useState<string | null>(null)
+  const idCampo = `documento-${opositorId.slice(0, 8)}`
+  const erro = erroLocal ?? estado.erro
+  return (
+    <form
+      action={formAction} {...envio}
       className="grid gap-3 print:hidden"
     >
       <input type="hidden" name="opositor_id" value={opositorId} />

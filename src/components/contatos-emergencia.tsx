@@ -4,6 +4,7 @@ import { useActionState, useState } from "react"
 import { Loader2, Pencil, Phone, Plus, Trash2, X } from "lucide-react"
 
 import { AcaoVisualizacao, formVisualizacao } from "@/components/acao-visualizacao"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -182,12 +183,14 @@ function ContatoForm({
     if (r.ok) aoFechar()
     return r
   }, {})
+  const envio = useEnvioFormulario(formAction, estado)
   const [telefone, setTelefone] = useState(contato ? mascaraTelefone(contato.telefone) : "")
   const p = contato ? `ce-${contato.id}` : "ce-novo"
 
   return (
     <form
       {...formVisualizacao(preview, formAction)}
+      {...(preview ? {} : envio)}
       className="bg-muted/30 grid gap-3 rounded-lg border p-3"
     >
       {ocultos}

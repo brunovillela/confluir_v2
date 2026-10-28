@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 
 import { alterarComunicadosPortal } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /**
  * Receber ou não os comunicados da mala direta. Mora aqui (LGPD) e aparece
@@ -24,9 +25,10 @@ export function ComunicadosForm({
   voltar?: "preferencias"
 }) {
   const [estado, formAction, pendente] = useActionState(alterarComunicadosPortal, {})
+  const envio = useEnvioFormulario(formAction, estado)
 
   return (
-    <form {...formVisualizacao(preview, formAction)} className="grid gap-3">
+    <form {...formVisualizacao(preview, formAction)} {...(preview ? {} : envio)} className="grid gap-3">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

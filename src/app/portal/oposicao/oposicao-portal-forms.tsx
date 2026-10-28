@@ -22,6 +22,7 @@ import {
   enviarCodigoTrabalhador,
   type EstadoAcessoOposicao,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario";
 
 type Estado = EstadoAcessoOposicao
 type Aba = "trabalhador" | "filiado"
@@ -165,6 +166,7 @@ function PassoCodigo({
   // Cada pedido aceito monta um passo novo (key): o erro do código anterior
   // não vale para o que acabou de ser pedido.
   const [estado, acao, pendente] = useActionState(confirmar, {})
+  const envio2 = useEnvioFormulario(acao, estado);
   const [codigo, setCodigo] = useState("")
   const campo = useRef<HTMLInputElement>(null)
 
@@ -177,7 +179,7 @@ function PassoCodigo({
 
   const idCampo = `${idPrefixo}-token`
   return (
-    <form action={acao} className="grid gap-3 border-t pt-4">
+    <form action={acao} {...envio2} className="grid gap-3 border-t pt-4">
       {Object.entries(ocultos).map(([nome, valor]) => (
         <input key={nome} type="hidden" name={nome} value={valor} />
       ))}

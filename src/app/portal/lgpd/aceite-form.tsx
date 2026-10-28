@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 
 import { registrarAceiteLgpd } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function AceiteLgpdForm({
   preview = false,
@@ -28,9 +29,10 @@ export function AceiteLgpdForm({
   voltar?: string
 }) {
   const [estado, formAction, pendente] = useActionState(registrarAceiteLgpd, {})
+  const envio = useEnvioFormulario(formAction, estado)
 
   return (
-    <form {...formVisualizacao(preview, formAction)} className="grid gap-3">
+    <form {...formVisualizacao(preview, formAction)} {...(preview ? {} : envio)} className="grid gap-3">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

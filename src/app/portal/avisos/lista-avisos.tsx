@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 import { type EstadoMarcarTodos, marcarAvisosLidosAction, marcarTodosAvisosLidosAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export type ItemAviso = {
   id: string
@@ -65,6 +66,7 @@ export function ListaAvisos({
     if (r.ok) setNovosDaVisita(new Set())
     return r
   }, {})
+  const envio = useEnvioFormulario(marcarTodos, estado)
 
   // ── Lido ao aparecer na tela (avisos sem link) ──────────────────────────────
   const lista = useRef<HTMLDivElement>(null)
@@ -175,7 +177,7 @@ export function ListaAvisos({
             {estado.ok && !temOQueMarcar ? "Pronto: todos os avisos estão lidos." : ""}
           </p>
           {temOQueMarcar && (
-            <form {...formVisualizacao(preview, marcarTodos)}>
+            <form {...formVisualizacao(preview, marcarTodos)} {...(preview ? {} : envio)}>
               <AcaoVisualizacao preview={preview} nota="Só o próprio associado marca os avisos como lidos.">
                 <Button
                   type="submit"

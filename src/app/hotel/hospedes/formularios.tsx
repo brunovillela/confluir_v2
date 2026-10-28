@@ -8,6 +8,7 @@ import { AcaoVisualizacao, formVisualizacao } from "@/components/acao-visualizac
 import { Input } from "@/components/ui/input"
 
 import { anotarQuartoAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function AnotarQuartoForm({
   noite,
@@ -21,10 +22,12 @@ export function AnotarQuartoForm({
   preview?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(anotarQuartoAction, {})
+  const envio = useEnvioFormulario(formAction, estado)
 
   return (
     <form
       {...formVisualizacao(preview, formAction)}
+      {...(preview ? {} : envio)}
       className="flex flex-wrap items-center gap-2 print:hidden"
     >
       <input type="hidden" name="noite" value={noite} />

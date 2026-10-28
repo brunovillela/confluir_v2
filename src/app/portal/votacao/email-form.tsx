@@ -14,6 +14,7 @@ import {
   confirmarCodigoEmailVotacao,
   enviarCodigoEmailVotacao,
 } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /**
  * E-mail de votação verificado. Quando a empresa não cede CPF nas listas de
@@ -54,6 +55,7 @@ export function EmailVotacaoForm({
     confirmarCodigoEmailVotacao,
     {}
   )
+  const envio2 = useEnvioFormulario(actConf, estConf)
   // O e-mail que se está trocando: quando o novo é verificado, ele muda e o
   // formulário fecha sozinho.
   const [trocandoDe, setTrocandoDe] = useState<string | null>(null)
@@ -175,7 +177,7 @@ export function EmailVotacaoForm({
       )}
 
       {aguardandoCodigo && (
-        <form {...formVisualizacao(preview, actConf)} className="grid gap-2 sm:max-w-md">
+        <form {...formVisualizacao(preview, actConf)} {...(preview ? {} : envio2)} className="grid gap-2 sm:max-w-md">
           {/* Com o formulário do e-mail fechado (já há um verificado), só o
               rótulo diz para onde o código foi. */}
           <Label htmlFor="codigo" className="wrap-anywhere">

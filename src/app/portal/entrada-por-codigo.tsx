@@ -19,6 +19,7 @@ import {
   renovarTurnstile,
   type EstadoEntrada,
 } from "./campos-entrada"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /** Espera para reenviar: a cadência de lib/codigo-acesso.ts (1 código por minuto). */
 const ESPERA_REENVIO_S = 60
@@ -80,6 +81,9 @@ export function EntradaPorCodigo({
     },
     {}
   )
+  const envio = useEnvioFormulario(pedir, estadoPedido, {
+    ref: formPedido,
+  })
 
   // Contagem do "Reenviar código".
   useEffect(() => {
@@ -115,7 +119,7 @@ export function EntradaPorCodigo({
         />
       )}
 
-      <form ref={formPedido} action={pedir} className="grid gap-4">
+      <form action={pedir} {...envio} className="grid gap-4">
         {next && <input type="hidden" name="next" value={next} />}
         {etapa === "cpf" ? (
           <>

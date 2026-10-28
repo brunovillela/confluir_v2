@@ -160,13 +160,14 @@ export function VincularCupomForm({
   vazio?: string
 }) {
   const [estado, formAction, pendente] = useActionState(action, {})
+  const envio4 = useEnvioFormulario(formAction, estado)
 
   if (disponiveis.length === 0) {
     return <p className="text-muted-foreground text-sm">{vazio}</p>
   }
 
   return (
-    <form {...formVisualizacao(preview, formAction)} className="grid gap-2">
+    <form {...formVisualizacao(preview, formAction)} {...(preview ? {} : envio4)} className="grid gap-2">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

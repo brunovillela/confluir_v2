@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch"
 import { EVENTOS_PORTAL, type EventoPortal, type PreferenciasPortal } from "@/lib/portal-avisos-eventos"
 
 import { salvarPreferenciasPortalAction } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /**
  * Um interruptor por tipo de aviso; o nome do campo é a chave do evento. O
@@ -35,13 +36,14 @@ export function PreferenciasForm({
   ocultos?: readonly EventoPortal[]
 }) {
   const [estado, action, salvando] = useActionState(salvarPreferenciasPortalAction, {})
+  const envio2 = useEnvioFormulario(action, estado)
   const eventos = EVENTOS_PORTAL.filter(
     (e) => (celular || !("semEmail" in e && e.semEmail)) && !ocultos.includes(e.chave)
   )
   const guardados = EVENTOS_PORTAL.filter((e) => ocultos.includes(e.chave) && prefs[e.chave])
 
   return (
-    <form {...formVisualizacao(preview, action)} className="grid gap-4">
+    <form {...formVisualizacao(preview, action)} {...(preview ? {} : envio2)} className="grid gap-4">
       {guardados.map((e) => (
         <input key={e.chave} type="hidden" name={e.chave} value="on" />
       ))}

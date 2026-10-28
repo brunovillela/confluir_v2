@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table"
 
 import { alternarContaHotel, criarContaHotel } from "./actions"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -45,7 +46,9 @@ export function ContasHotel({
   preview?: boolean
 }) {
   const [estadoCriar, criarAction, criando] = useActionState(criarContaHotel, {})
+  const envio2 = useEnvioFormulario(criarAction, estadoCriar)
   const [estadoAlt, altAction, alternando] = useActionState(alternarContaHotel, {})
+  const envio = useEnvioFormulario(altAction, estadoAlt)
   const [tipo, setTipo] = useState<"pix" | "deposito">("pix")
 
   const erro = estadoCriar.erro ?? estadoAlt.erro
@@ -125,7 +128,7 @@ export function ContasHotel({
                       )}
                     </TableCell>
                     <TableCell>
-                      <form {...formVisualizacao(preview, altAction)}>
+                      <form {...formVisualizacao(preview, altAction)} {...(preview ? {} : envio)}>
                         <input type="hidden" name="id" value={c.id} />
                         <input type="hidden" name="ativo" value={String(!c.ativo)} />
                         <AcaoVisualizacao preview={preview} nota="">
@@ -159,7 +162,7 @@ export function ContasHotel({
           <CardTitle className="text-base">Nova conta</CardTitle>
         </CardHeader>
         <CardContent>
-          <form {...formVisualizacao(preview, criarAction)} className="grid gap-4 sm:grid-cols-2">
+          <form {...formVisualizacao(preview, criarAction)} {...(preview ? {} : envio2)} className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-1.5">
               <Label htmlFor="tipo">Tipo *</Label>
               <select

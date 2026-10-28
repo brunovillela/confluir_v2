@@ -17,6 +17,7 @@ export function AssinarRpaForm({ token }: { token: string }) {
   const [codigo, pedir, pedindo] = useActionState(pedirCodigoRpaAction, {})
   const envio1 = useEnvioFormulario(pedir, codigo)
   const [assin, assinar, assinando] = useActionState(assinarRpaAction, {})
+  const envio3 = useEnvioFormulario(assinar, assin)
 
   return (
     <div className="grid gap-5">
@@ -41,7 +42,7 @@ export function AssinarRpaForm({ token }: { token: string }) {
         </form>
       </div>
 
-      <form action={assinar} className="grid gap-3">
+      <form action={assinar} {...envio3} className="grid gap-3">
         <p className="text-sm font-medium">2. Confirme sua identidade e assine</p>
         <input type="hidden" name="token" value={token} />
         <div className="grid gap-3 sm:grid-cols-[9rem_1fr_11rem]">
