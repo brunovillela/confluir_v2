@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, ExternalLink } from "lucide-react"
+import { ArrowLeft, ExternalLink, History } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -18,12 +18,25 @@ import {
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { AcoesLinhaOrdem } from "@/app/painel/compras/contratos/[id]/ordens-contrato"
 import { requirePermissao } from "@/lib/auth"
+import { rotuloCentroCusto } from "@/lib/centros-custo-rotulo"
+import { listarDepartamentos, listarFornecedores } from "@/lib/db/compras"
 import { ordemMexivelPeloContrato } from "@/lib/db/contratos"
-import { buscarContrato, urlArquivoVeiculos } from "@/lib/db/veiculos"
-import { formatarData, formatarMoeda } from "@/lib/formato"
+import { listarCentrosCusto } from "@/lib/db/financeiro"
+import {
+  buscarContrato,
+  historicoDoContrato,
+  listarUsuariosAtivos,
+  urlArquivoVeiculos,
+} from "@/lib/db/veiculos"
+import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 
 import { editarOrdemAluguelAction, excluirOrdemAluguelAction } from "../actions"
-import { FinalizarContratoForm, GerarOrdemAluguelForm } from "../contrato-forms"
+import {
+  EditarContratoDialog,
+  FinalizarContratoForm,
+  GerarOrdemAluguelForm,
+  ProrrogarContratoDialog,
+} from "../contrato-forms"
 
 export const metadata: Metadata = { title: "Contrato de aluguel — Confluir" }
 
@@ -43,7 +56,17 @@ export default async function ContratoPage({
   // Paga, em processamento ou encerrada: sem lápis (o servidor confere de novo).
   const temMexivel = contrato.ordens.some(ordemMexivelPeloContrato)
 
-  const arquivoUrl = await urlArquivoVeiculos(contrato.arquivo_contrato_url)
+  const [arquivoUrl, historico, fornecedores, usuarios, departamentos, centros] =
+    await Promise.all([
+      urlArquivoVeiculos(contrato.arquivo_contrato_url),
+      historicoDoContrato(id),
+      listarFornecedores(),
+      listarUsuariosAtivos(),
+      listarDepartamentos(),
+      listarCentrosCusto(),
+    ])
+  const valorMensalTexto =
+    contrato.valor_mensal?.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) ?? ""
 
   return (
     <>
@@ -86,9 +109,48 @@ export default async function ContratoPage({
               </p>
             )}
           </div>
-          {!contrato.finalizado && (
-            <FinalizarContratoForm contratoId={contrato.id} />
-          )}
+          <div className="flex flex-wrap items-start gap-2">
+            <EditarContratoDialog
+              contratoId={contrato.id}
+              atual={{
+                numero: contrato.numero,
+                fornecedor_id: contrato.fornecedor_id,
+                responsavel_id: contrato.responsavel_id,
+                vigencia_inicio: contrato.vigencia_inicio,
+                vigencia_termino: contrato.vigencia_termino,
+                valor_mensal: valorMensalTexto,
+                finalidade: contrato.finalidade,
+                centro_custo_id: contrato.centro_custo_id,
+                departamento_id: contrato.departamento_id,
+                temArquivo: Boolean(contrato.arquivo_contrato_url),
+              }}
+              opcoes={{
+                fornecedores: fornecedores.map((f) => ({
+                  id: f.id,
+                  nome: f.nome,
+                  cnpj_cpf: f.cnpj_cpf,
+                  razao: f.nome_razao ?? null,
+                  bloqueado: f.bloqueado,
+                })),
+                usuarios: usuarios.map((u) => ({ id: u.id, rotulo: u.nome })),
+                departamentos: departamentos.map((d) => ({ id: d.id, rotulo: d.nome })),
+                centrosCusto: centros.map((c) => ({
+                  id: String(c.id),
+                  rotulo: rotuloCentroCusto(c),
+                })),
+              }}
+            />
+            {!contrato.finalizado && (
+              <ProrrogarContratoDialog
+                contratoId={contrato.id}
+                terminoAtual={contrato.vigencia_termino}
+                valorAtual={valorMensalTexto}
+              />
+            )}
+            {!contrato.finalizado && (
+              <FinalizarContratoForm contratoId={contrato.id} />
+            )}
+          </div>
         </div>
       </div>
 
@@ -140,11 +202,7 @@ export default async function ContratoPage({
             {!contrato.finalizado && (
               <GerarOrdemAluguelForm
                 contratoId={contrato.id}
-                valorPadrao={
-                  contrato.valor_mensal?.toLocaleString("pt-BR", {
-                    minimumFractionDigits: 2,
-                  }) ?? ""
-                }
+                valorPadrao={valorMensalTexto}
               />
             )}
           </CardContent>
@@ -224,6 +282,56 @@ export default async function ContratoPage({
               ))}
             </TableBody>
           </Table>
+        )}
+      </GrupoColapsavel>
+
+      <GrupoColapsavel
+        titulo="Histórico do contrato"
+        descricao="Edições e prorrogações, com quem fez, o antes e o depois e o aditivo"
+        resumo={
+          <span className="text-muted-foreground text-sm tabular-nums">
+            {historico.length}
+          </span>
+        }
+      >
+        {historico.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            Nenhuma edição ou prorrogação registrada.
+          </p>
+        ) : (
+          <ul className="grid gap-3">
+            {historico.map((h) => (
+              <li key={h.id} className="grid gap-1 border-l-2 pl-3 text-sm">
+                <p className="flex flex-wrap items-center gap-2">
+                  <History className="text-muted-foreground size-3.5" />
+                  <span className="font-medium">
+                    {h.evento === "prorrogado" ? "Prorrogado" : "Editado"}
+                  </span>
+                  <span className="text-muted-foreground text-xs">
+                    {formatarDataHora(h.quando)}
+                    {h.autor ? ` · ${h.autor}` : ""}
+                  </span>
+                </p>
+                {h.mudancas.map((m) => (
+                  <p key={m} className="text-muted-foreground text-xs">
+                    {m}
+                  </p>
+                ))}
+                {h.motivo && <p className="text-xs">{h.motivo}</p>}
+                {h.aditivoUrl && (
+                  <a
+                    href={h.aditivoUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary flex items-center gap-1.5 text-xs hover:underline"
+                  >
+                    <ExternalLink className="size-3.5" />
+                    Aditivo assinado
+                  </a>
+                )}
+              </li>
+            ))}
+          </ul>
         )}
       </GrupoColapsavel>
     </>

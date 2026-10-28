@@ -20,6 +20,7 @@ import {
 } from "@/lib/email-layout"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { origemAtual } from "@/lib/tenant-url"
+import { rotuloCentroCusto } from "@/lib/centros-custo-rotulo"
 import { createAdminClient } from "@/lib/supabase/admin"
 import {
   duracaoBR,
@@ -3071,6 +3072,7 @@ export async function listarContratos(filtros: {
 export type ContratoDetalhe = ContratoLinha & {
   centro_custo_id: string | null
   departamento_id: string | null
+  responsavel_id: string | null
   veiculos: { id: string; placa: string | null; marca_modelo: string | null }[]
   ordens: {
     id: string
@@ -3097,7 +3099,7 @@ export async function buscarContrato(
   const [bruto, veiculosRes, ordensRes] = await Promise.all([
     admin
       .from("veiculo_contratos_aluguel")
-      .select("centro_custo_id, departamento_id")
+      .select("centro_custo_id, departamento_id, responsavel_id")
       .eq("id", id)
       .maybeSingle(),
     admin
@@ -3117,6 +3119,7 @@ export async function buscarContrato(
     ...contrato,
     centro_custo_id: texto(bruto.data?.centro_custo_id),
     departamento_id: texto(bruto.data?.departamento_id),
+    responsavel_id: texto(bruto.data?.responsavel_id),
     veiculos: veiculosRes.error
       ? []
       : ((veiculosRes.data ?? []) as Record<string, unknown>[]).map((v) => ({
@@ -3180,6 +3183,250 @@ export async function criarContrato(
     return { erro: `Não foi possível registrar o contrato: ${error.message}` }
   }
   return { id: data.id }
+}
+
+// ── Edição e prorrogação (trilha em veiculos_contratos_historico) ───────────
+
+/** Colunas do contrato que a edição mexe, com o rótulo do histórico. */
+const CAMPOS_CONTRATO: Record<string, string> = {
+  numero_contrato_locadora: "Nº do contrato",
+  fornecedor_id: "Locadora",
+  responsavel_id: "Responsável",
+  vigencia_inicio: "Início da vigência",
+  vigencia_termino: "Término da vigência",
+  valor_mensal: "Valor mensal",
+  finalidade: "Finalidade",
+  centro_custo_id: "Centro de custo",
+  departamento_id: "Departamento",
+  arquivo_contrato_url: "Contrato assinado",
+}
+
+export type EdicaoContrato = Omit<NovoContrato, "arquivo_contrato_url" | "responsavel_id"> & {
+  responsavel_id: string | null
+  /** Nulo = mantém o arquivo atual. */
+  arquivo_contrato_url: string | null
+}
+
+type Mudanca = { antes: Record<string, unknown>; depois: Record<string, unknown> }
+
+/** Valor comparável: datas pelo dia, dinheiro em centavos, vazio = nulo. */
+function normalizado(coluna: string, v: unknown): string | null {
+  if (v === null || v === undefined || v === "") return null
+  if (coluna === "valor_mensal") return Number(v).toFixed(2)
+  if (coluna.startsWith("vigencia_")) return String(v).slice(0, 10)
+  return String(v)
+}
+
+function diferencas(atual: Record<string, unknown>, novo: Record<string, unknown>): Mudanca {
+  const antes: Record<string, unknown> = {}
+  const depois: Record<string, unknown> = {}
+  for (const [coluna, valor] of Object.entries(novo)) {
+    if (normalizado(coluna, atual[coluna]) !== normalizado(coluna, valor)) {
+      antes[coluna] = atual[coluna] ?? null
+      depois[coluna] = valor ?? null
+    }
+  }
+  return { antes, depois }
+}
+
+/**
+ * Grava a mudança e a trilha juntas: se a trilha não grava, a mudança é
+ * desfeita — alteração de contrato sem rastro não fica.
+ */
+async function aplicarComHistorico(
+  contratoId: string,
+  evento: "editado" | "prorrogado",
+  mudanca: Mudanca,
+  extra: { usuarioId: string; motivo: string | null; aditivo?: string | null }
+): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data, error } = await admin
+    .from("veiculo_contratos_aluguel")
+    .update({ ...mudanca.depois, updated_at: new Date().toISOString() })
+    .eq("id", contratoId)
+    .eq("emp_proprietaria_id", emp)
+    .select("id")
+  if (error) return { erro: `Não foi possível salvar o contrato: ${error.message}` }
+  if ((data ?? []).length === 0) return { erro: "Contrato não encontrado." }
+  const { error: erroTrilha } = await admin.from("veiculos_contratos_historico").insert({
+    contrato_id: contratoId,
+    evento,
+    usuario_id: extra.usuarioId,
+    motivo: extra.motivo,
+    antes: mudanca.antes,
+    depois: mudanca.depois,
+    arquivo_aditivo_url: extra.aditivo ?? null,
+    emp_proprietaria_id: emp,
+  })
+  if (erroTrilha) {
+    await admin.from("veiculo_contratos_aluguel").update(mudanca.antes).eq("id", contratoId)
+    if (esquemaAusente(erroTrilha)) return { erro: AVISO_SQL }
+    return { erro: `Não foi possível registrar o histórico: ${erroTrilha.message}` }
+  }
+  return {}
+}
+
+async function contratoBruto(id: string): Promise<Record<string, unknown> | null> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("veiculo_contratos_aluguel")
+    .select("*")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  return (data as Record<string, unknown> | null) ?? null
+}
+
+/** Corrige os dados cadastrais do contrato, com motivo e antes/depois na trilha. */
+export async function editarContrato(
+  id: string,
+  nova: EdicaoContrato,
+  usuarioId: string,
+  motivo: string
+): Promise<{ erro?: string }> {
+  if (!motivo.trim()) return { erro: "Informe o motivo da alteração." }
+  const atual = await contratoBruto(id)
+  if (!atual) return { erro: "Contrato não encontrado." }
+  if (nova.vigencia_termino && nova.vigencia_termino < nova.vigencia_inicio) {
+    return { erro: "O término é anterior ao início da vigência." }
+  }
+  const novo: Record<string, unknown> = {
+    numero_contrato_locadora: nova.numero,
+    fornecedor_id: nova.fornecedor_id,
+    responsavel_id: nova.responsavel_id,
+    vigencia_inicio: nova.vigencia_inicio,
+    vigencia_termino: nova.vigencia_termino,
+    valor_mensal: nova.valor_mensal,
+    finalidade: nova.finalidade,
+    centro_custo_id: nova.centro_custo_id,
+    departamento_id: nova.departamento_id,
+    ...(nova.arquivo_contrato_url ? { arquivo_contrato_url: nova.arquivo_contrato_url } : {}),
+  }
+  const mudanca = diferencas(atual, novo)
+  if (Object.keys(mudanca.depois).length === 0) return { erro: "Nada foi alterado." }
+  return aplicarComHistorico(id, "editado", mudanca, { usuarioId, motivo: motivo.trim() })
+}
+
+/**
+ * Prorroga o contrato vigente: novo término (depois do atual) e, se mudou, novo
+ * valor mensal, com o aditivo assinado anexado quando houver.
+ */
+export async function prorrogarContrato(
+  id: string,
+  dados: { termino: string; valorMensal: number | null; aditivo: File | null },
+  usuarioId: string,
+  motivo: string
+): Promise<{ erro?: string }> {
+  const atual = await contratoBruto(id)
+  if (!atual) return { erro: "Contrato não encontrado." }
+  if (atual.finalizado === true) return { erro: "O contrato está finalizado." }
+  const inicio = texto(atual.vigencia_inicio)
+  const termino = texto(atual.vigencia_termino)
+  if (termino && dados.termino <= termino.slice(0, 10)) {
+    return { erro: `O novo término precisa ser depois do atual (${formatarData(termino)}).` }
+  }
+  if (inicio && dados.termino < inicio.slice(0, 10)) {
+    return { erro: "O novo término é anterior ao início da vigência." }
+  }
+  let aditivo: string | null = null
+  if (dados.aditivo) {
+    const r = await subirArquivoVeiculos("contratos/aditivos", dados.aditivo)
+    if (r.erro) return { erro: `Aditivo: ${r.erro}` }
+    aditivo = r.caminho ?? null
+  }
+  const mudanca = diferencas(atual, {
+    vigencia_termino: dados.termino,
+    ...(dados.valorMensal !== null ? { valor_mensal: dados.valorMensal } : {}),
+  })
+  const r = await aplicarComHistorico(id, "prorrogado", mudanca, {
+    usuarioId,
+    motivo: motivo.trim() || null,
+    aditivo,
+  })
+  if (r.erro && aditivo) {
+    const admin = await createAdminClient()
+    await admin.storage.from("veiculos").remove([aditivo])
+  }
+  return r
+}
+
+export type EventoContrato = {
+  id: string
+  evento: "editado" | "prorrogado"
+  quando: string
+  autor: string | null
+  motivo: string | null
+  /** "Rótulo: antes → depois", já formatado para a tela. */
+  mudancas: string[]
+  aditivoUrl: string | null
+}
+
+/** Trilha do contrato, mais recente primeiro (vazia antes da migração). */
+export async function historicoDoContrato(id: string): Promise<EventoContrato[]> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("veiculos_contratos_historico")
+    .select("id, evento, usuario_id, motivo, antes, depois, arquivo_aditivo_url, created_at")
+    .eq("contrato_id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .order("created_at", { ascending: false })
+  if (error) return []
+  const linhas = (data ?? []) as Record<string, unknown>[]
+
+  // Ids (locadora, pessoas, centro, depto) viram nomes na trilha.
+  const objeto = (v: unknown) => (v && typeof v === "object" ? (v as Record<string, unknown>) : {})
+  const ids = (coluna: string) =>
+    [...new Set(linhas.flatMap((l) => [objeto(l.antes)[coluna], objeto(l.depois)[coluna]]).filter((v): v is string => typeof v === "string"))]
+  const [autores, responsaveis, empresas, centros, deptos] = await Promise.all([
+    nomesDosUsuarios(linhas.map((l) => String(l.usuario_id ?? "")).filter(Boolean)),
+    nomesDosUsuarios(ids("responsavel_id")),
+    ids("fornecedor_id").length
+      ? admin.from("empresa").select("id, nome_fantasia, nome_razao").in("id", ids("fornecedor_id"))
+      : Promise.resolve({ data: [] }),
+    ids("centro_custo_id").length
+      ? admin.from("centros_de_custo").select("id, acesso, nome_da_conta").in("id", ids("centro_custo_id"))
+      : Promise.resolve({ data: [] }),
+    ids("departamento_id").length
+      ? admin.from("empresa_departamentos").select("id, nome").in("id", ids("departamento_id"))
+      : Promise.resolve({ data: [] }),
+  ])
+  const nomePor = (rows: unknown, rotulo: (r: Record<string, unknown>) => string) =>
+    new Map(((rows ?? []) as Record<string, unknown>[]).map((r) => [String(r.id), rotulo(r)]))
+  const empresaNome = nomePor(empresas.data, (r) => String(r.nome_fantasia || r.nome_razao || "(sem nome)"))
+  const centroNome = nomePor(centros.data, rotuloCentroCusto)
+  const deptoNome = nomePor(deptos.data, (r) => String(r.nome ?? ""))
+
+  const mostrar = (coluna: string, v: unknown): string => {
+    if (v === null || v === undefined || v === "") return "—"
+    const s = String(v)
+    if (coluna === "vigencia_inicio" || coluna === "vigencia_termino") return formatarData(s)
+    if (coluna === "valor_mensal") return formatarMoeda(Number(v))
+    if (coluna === "fornecedor_id") return empresaNome.get(s) ?? "(locadora)"
+    if (coluna === "responsavel_id") return responsaveis.get(s) ?? "(pessoa)"
+    if (coluna === "centro_custo_id") return centroNome.get(s) ?? "(centro)"
+    if (coluna === "departamento_id") return deptoNome.get(s) ?? "(departamento)"
+    if (coluna === "arquivo_contrato_url") return "novo arquivo"
+    return s
+  }
+
+  return Promise.all(
+    linhas.map(async (l) => {
+      const antes = objeto(l.antes)
+      const depois = objeto(l.depois)
+      return {
+        id: String(l.id),
+        evento: l.evento === "prorrogado" ? ("prorrogado" as const) : ("editado" as const),
+        quando: String(l.created_at),
+        autor: l.usuario_id ? (autores.get(String(l.usuario_id)) ?? null) : null,
+        motivo: texto(l.motivo),
+        mudancas: Object.keys(depois).map(
+          (c) => `${CAMPOS_CONTRATO[c] ?? c}: ${mostrar(c, antes[c])} → ${mostrar(c, depois[c])}`
+        ),
+        aditivoUrl: await urlArquivoVeiculos(texto(l.arquivo_aditivo_url)),
+      }
+    })
+  )
 }
 
 /** Encerra o contrato e desvincula os veículos apontados para ele. */

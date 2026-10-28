@@ -7,8 +7,10 @@ import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import {
   criarContrato,
+  editarContrato,
   finalizarContrato,
   gerarOrdemAluguel,
+  prorrogarContrato,
   subirArquivoVeiculos,
 } from "@/lib/db/veiculos"
 import { editarOrdemAluguel, excluirOrdemAluguel } from "@/lib/db/veiculos-locacao-ordens"
@@ -162,4 +164,80 @@ export async function excluirOrdemAluguelAction(
   if (erro) return { erro }
   revalidarOrdemAluguel(contratoId, ordemId)
   return { ok: `Ordem ${codigo ?? ""} excluída.` }
+}
+
+/** Corrige os dados cadastrais do contrato; motivo obrigatório, antes/depois no histórico. */
+export async function editarContratoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao("veiculos_gestao")
+  const id = texto(formData, "contrato_id")
+  const numero = texto(formData, "numero")
+  const fornecedorId = texto(formData, "fornecedor_id")
+  const inicio = dataISO(texto(formData, "vigencia_inicio"))
+  if (!id) return { erro: "Contrato inválido." }
+  if (!numero) return { erro: "Informe o número do contrato na locadora." }
+  if (!fornecedorId) return { erro: "Busque e selecione a locadora." }
+  if (!inicio) return { erro: "Informe o início da vigência." }
+  const valorTexto = texto(formData, "valor_mensal")
+  const valorMensal = valorTexto ? parseValorBR(valorTexto) : null
+  if (valorTexto && (valorMensal === null || valorMensal < 0)) return { erro: "Valor mensal inválido." }
+
+  let arquivoUrl: string | null = null
+  const novoArquivo = arquivo(formData, "arquivo_contrato")
+  if (novoArquivo) {
+    const { caminho, erro } = await subirArquivoVeiculos("contratos", novoArquivo)
+    if (erro) return { erro }
+    arquivoUrl = caminho ?? null
+  }
+
+  const { erro } = await editarContrato(
+    id,
+    {
+      numero,
+      fornecedor_id: fornecedorId,
+      responsavel_id: texto(formData, "responsavel_id") || null,
+      vigencia_inicio: inicio,
+      vigencia_termino: dataISO(texto(formData, "vigencia_termino")),
+      valor_mensal: valorMensal,
+      finalidade: texto(formData, "finalidade") || null,
+      centro_custo_id: texto(formData, "centro_custo_id") || null,
+      departamento_id: texto(formData, "departamento_id") || null,
+      arquivo_contrato_url: arquivoUrl,
+    },
+    sessao.usuario.id,
+    texto(formData, "motivo")
+  )
+  if (erro) return { erro }
+  revalidatePath(`/painel/veiculos/contratos/${id}`)
+  revalidatePath("/painel/veiculos/contratos")
+  revalidatePath("/painel/veiculos")
+  return { ok: "Contrato alterado — o antes e o depois ficaram no histórico." }
+}
+
+/** Prorroga o contrato vigente: novo término, valor (se mudou) e aditivo. */
+export async function prorrogarContratoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao("veiculos_gestao")
+  const id = texto(formData, "contrato_id")
+  const termino = dataISO(texto(formData, "novo_termino"))
+  if (!id) return { erro: "Contrato inválido." }
+  if (!termino) return { erro: "Informe o novo término da vigência." }
+  const valorTexto = texto(formData, "novo_valor_mensal")
+  const valorMensal = valorTexto ? parseValorBR(valorTexto) : null
+  if (valorTexto && (valorMensal === null || valorMensal < 0)) return { erro: "Valor mensal inválido." }
+  const { erro } = await prorrogarContrato(
+    id,
+    { termino, valorMensal, aditivo: arquivo(formData, "aditivo") },
+    sessao.usuario.id,
+    texto(formData, "motivo")
+  )
+  if (erro) return { erro }
+  revalidatePath(`/painel/veiculos/contratos/${id}`)
+  revalidatePath("/painel/veiculos/contratos")
+  revalidatePath("/painel/veiculos")
+  return { ok: "Contrato prorrogado — registrado no histórico." }
 }
