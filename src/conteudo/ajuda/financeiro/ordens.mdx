@@ -140,6 +140,23 @@ como descrito acima. Enquanto o pedido não é respondido, a ficha mostra quando
 ele foi enviado e se o link já foi aberto, com a opção de cancelar. Um pedido
 novo cancela o anterior.
 
+### Banco, agência, conta e chave Pix conferidos
+
+Em todo cadastro de conta (fornecedor, filiado, funcionário, pedido por link e
+conta nova na compra), o campo **Banco** sugere a lista dos bancos pelo nome ou
+pelo código; escolhida a opção, o código se preenche sozinho. Nome escrito de
+outro jeito ("BB", "B BRASIL", "Itau") é gravado com o nome e o código
+padronizados; banco fora da lista continua aceito como digitado.
+
+Agência e conta aceitam só números e o dígito (ex.: 1234-5 e 12345-6). A chave
+Pix é conferida pelo tipo: CPF/CNPJ válido, telefone com DDD (gravado como
++55…), e-mail ou chave aleatória de 32 caracteres.
+
+A mesma conta (mesma agência e conta, ignorando zeros à esquerda e pontuação)
+ou a mesma chave Pix não entra duas vezes para o mesmo favorecido: o sistema
+pede para editar a que já existe. Na compra direta e no pedido por link, a conta
+que já existe é reaproveitada.
+
 ## Pix e TED só com a conta registrada
 
 Nenhuma ordem nasce — nem passa a ser — **Pix** ou **TED** sem o destino

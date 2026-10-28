@@ -7,6 +7,7 @@ import {
 } from "@/lib/compras-constantes"
 import { TIPOS_CHAVE_PIX, TIPOS_CONTA } from "@/lib/contracheques-constantes"
 import { lerDocumentoTitular } from "@/lib/cpf"
+import { chaveDaConta, chaveDoPix, normalizarBanco, validarAgencia, validarChavePix, validarConta } from "@/lib/bancos"
 import { TIPOS_COMPROVANTE_COMPRAS } from "@/lib/db/compras"
 import {
   inserirMeioFornecedor,
@@ -64,7 +65,9 @@ export async function lerDetalhePagamento(
           return { erro: "Escolha o tipo da chave Pix." }
         }
         if (chave.length < 5) return { erro: "Informe a chave Pix do fornecedor." }
-        novoMeio = { pix: chave, pix_tipo: tipo }
+        const pix = validarChavePix(tipo, chave)
+        if (pix.erro || !pix.valor) return { erro: pix.erro ?? "Informe a chave Pix do fornecedor." }
+        novoMeio = { pix: pix.valor, pix_tipo: tipo }
       } else {
         detalhe.dados_bancarios_id = escolha
       }
@@ -90,7 +93,19 @@ export async function lerDetalhePagamento(
         if (!TIPOS_CONTA.some((t) => t.valor === conta.tipo_conta)) {
           return { erro: "Escolha o tipo da conta do fornecedor." }
         }
-        novoMeio = { ...conta, titular_documento: conta.titular_documento.documento }
+        const agencia = validarAgencia(conta.agencia)
+        if (agencia.erro || !agencia.valor) return { erro: agencia.erro ?? "Informe a agência." }
+        const numero = validarConta(conta.conta)
+        if (numero.erro || !numero.valor) return { erro: numero.erro ?? "Informe a conta." }
+        const banco = normalizarBanco(conta.banco)
+        novoMeio = {
+          ...conta,
+          banco: banco.banco ?? conta.banco,
+          banco_codigo: banco.codigo,
+          agencia: agencia.valor,
+          conta: numero.valor,
+          titular_documento: conta.titular_documento.documento,
+        }
       } else {
         detalhe.dados_bancarios_id = escolha
       }
@@ -126,11 +141,11 @@ export async function lerDetalhePagamento(
     const meios = await meiosPagamentoFornecedor(fornecedorId)
     const existente =
       "pix" in novoMeio
-        ? meios.pix.find((p) => p.chave === (novoMeio as { pix: string }).pix)
+        ? meios.pix.find((p) => chaveDoPix(p.chave) === chaveDoPix((novoMeio as { pix: string }).pix))
         : meios.contas.find(
             (c) =>
-              c.banco === (novoMeio as { banco: string }).banco &&
-              c.conta === (novoMeio as { conta: string }).conta
+              chaveDaConta(c.agencia, c.conta) ===
+              chaveDaConta((novoMeio as { agencia: string }).agencia, (novoMeio as { conta: string }).conta)
           )
     if (existente) {
       detalhe.dados_bancarios_id = existente.id

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Loader2 } from "lucide-react"
 
+import { CampoBanco } from "@/components/campo-banco"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -335,7 +336,7 @@ export function DetalhePagamento({
           <div className="grid gap-3 md:grid-cols-5">
             <div className="grid gap-1.5">
               <Label htmlFor="conta_banco">Banco *</Label>
-              <Input id="conta_banco" name="conta_banco" required placeholder="Ex.: 001 Banco do Brasil" />
+              <CampoBanco id="conta_banco" name="conta_banco" required />
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="conta_agencia">Agência *</Label>

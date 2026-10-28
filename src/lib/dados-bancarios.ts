@@ -1,3 +1,4 @@
+import { normalizarBanco, validarAgencia, validarChavePix, validarConta } from "@/lib/bancos"
 import { lerDocumentoTitular } from "@/lib/cpf"
 import { TIPOS_CHAVE_PIX, TIPOS_CONTA } from "@/lib/contracheques-constantes"
 
@@ -41,6 +42,19 @@ export function lerDadosBancariosForm(
     preferePix: formData.get("prefere_pix") === "on",
   }
   if (titular.erro) return { erro: "CPF/CNPJ do titular da conta inválido." }
+  // Banco pelo código (ou apelido), agência/conta só com números e dígito, chave Pix conferida pelo tipo.
+  const banco = normalizarBanco(dados.banco, dados.bancoCodigo)
+  dados.banco = banco.banco
+  dados.bancoCodigo = banco.codigo
+  const agencia = validarAgencia(dados.agencia)
+  if (agencia.erro) return { erro: agencia.erro }
+  dados.agencia = agencia.valor
+  const conta = validarConta(dados.conta)
+  if (conta.erro) return { erro: conta.erro }
+  dados.conta = conta.valor
+  const pix = validarChavePix(dados.pixTipo, dados.pix)
+  if (pix.erro) return { erro: pix.erro }
+  dados.pix = pix.valor
   if (dados.conta && !dados.agencia) return { erro: "Informe a agência da conta." }
   if (dados.agencia && !dados.conta) return { erro: "Informe o número da conta." }
   if (dados.conta && !dados.banco && !dados.bancoCodigo) return { erro: "Informe o banco da conta." }

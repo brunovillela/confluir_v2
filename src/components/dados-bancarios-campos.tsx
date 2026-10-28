@@ -1,4 +1,5 @@
 import { Checkbox } from "@/components/ui/checkbox"
+import { CampoBanco } from "@/components/campo-banco"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { TIPOS_CHAVE_PIX, TIPOS_CONTA } from "@/lib/contracheques-constantes"
@@ -44,7 +45,7 @@ export function CamposDadosBancarios({
       <div className="grid gap-3 sm:grid-cols-4">
         <div className="grid gap-1.5 sm:col-span-2">
           <Label htmlFor={`${p}-banco`}>Banco</Label>
-          <Input id={`${p}-banco`} name="banco" defaultValue={valores?.banco ?? ""} placeholder="Banco do Brasil" />
+          <CampoBanco id={`${p}-banco`} defaultValue={valores?.banco} campoCodigo="banco_codigo" />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor={`${p}-banco-codigo`}>Código</Label>

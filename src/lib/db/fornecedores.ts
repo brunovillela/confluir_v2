@@ -12,6 +12,8 @@ function documentoValido(d: string): boolean {
 import { createAdminClient } from "@/lib/supabase/admin"
 import { esquemaAusente } from "@/lib/db/comum"
 import { ligarOrdensSemForma } from "@/lib/db/ordens-destino"
+import { AVISO_REPETIDA, dadoRepetido } from "@/lib/db/dados-bancarios-repetida"
+import { normalizarBanco, validarAgencia, validarConta } from "@/lib/bancos"
 
 /**
  * Fornecedores — cadastro completo sobre linhas de `empresa`, com:
@@ -841,18 +843,28 @@ export async function salvarConta(
   const titular = lerDocumentoTitular(dados.titular_documento)
   if (titular.erro) return { erro: titular.erro }
   dados = { ...dados, titular_documento: titular.documento }
+  // Banco padronizado (com o código), agência/conta só com números e dígito.
+  const agencia = validarAgencia(dados.agencia)
+  if (agencia.erro) return { erro: agencia.erro }
+  const numero = validarConta(dados.conta)
+  if (numero.erro) return { erro: numero.erro }
+  const banco = normalizarBanco(dados.banco)
+  const linha = { ...dados, banco: banco.banco, banco_codigo: banco.codigo, agencia: agencia.valor, conta: numero.valor }
+  if (await dadoRepetido({ coluna: "fornecedor_id", ids: [fornecedorId] }, linha, contaId ?? null)) {
+    return { erro: AVISO_REPETIDA }
+  }
   const admin = await createAdminClient()
   const { data, error } = contaId
     ? await admin
         .from("dados_bancarios")
-        .update({ ...dados })
+        .update(linha)
         .eq("id", contaId)
         .eq("fornecedor_id", fornecedorId)
         .select("id")
         .maybeSingle()
     : await admin
         .from("dados_bancarios")
-        .insert({ ...dados, fornecedor_id: fornecedorId })
+        .insert({ ...linha, fornecedor_id: fornecedorId })
         .select("id")
         .single()
   if (error) {

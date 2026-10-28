@@ -3,6 +3,7 @@
 import { useActionState, useRef, useState, useTransition } from "react"
 import { Loader2, Sparkles } from "lucide-react"
 
+import { CampoBanco } from "@/components/campo-banco"
 import { FichaReceita } from "@/components/ficha-receita"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -524,12 +525,7 @@ export function ContaForm({
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="grid gap-1.5">
           <Label htmlFor="cb-banco">Banco</Label>
-          <Input
-            id="cb-banco"
-            name="banco"
-            defaultValue={conta?.banco ?? ""}
-            placeholder="Ex.: 001 - Banco do Brasil"
-          />
+          <CampoBanco id="cb-banco" defaultValue={conta?.banco} />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="cb-agencia">Agência</Label>

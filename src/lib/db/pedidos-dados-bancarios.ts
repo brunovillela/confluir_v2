@@ -3,6 +3,7 @@ import "server-only"
 import { lerDocumentoTitular, mesmoTitular } from "@/lib/cpf"
 import type { EntradaDadosBancarios } from "@/lib/dados-bancarios"
 import { texto } from "@/lib/db/comum"
+import { dadoRepetido } from "@/lib/db/dados-bancarios-repetida"
 import { ligarOrdensSemForma } from "@/lib/db/ordens-destino"
 import { nomeEntidade } from "@/lib/db/organizacao"
 import { enviarEmail } from "@/lib/email"
@@ -246,6 +247,26 @@ export async function responderPedido(token: string, dados: EntradaDadosBancario
   const dono = donoDaLinha(l)
   const coluna = COLUNA_DO_DONO[dono.tipo]
   const admin = await createAdminClient()
+
+  // A mesma conta (ou chave) já está no cadastro: o pedido fecha com ela.
+  const existente = await dadoRepetido({ coluna, ids: [dono.id] }, dados)
+  if (existente) {
+    await admin
+      .from("dados_bancarios")
+      .update({ titular_documento: dados.titularDocumento })
+      .eq("id", existente)
+      .is("titular_documento", null)
+    const { data: fechou } = await admin
+      .from("financeiro_pedidos_dados_bancarios")
+      .update({ respondido_em: new Date().toISOString(), dados_bancarios_id: existente })
+      .eq("id", String(l.id))
+      .is("respondido_em", null)
+      .select("id")
+    if (!fechou?.length) return { erro: "Este link já foi usado." }
+    await ligarOrdensSemForma(existente).catch((e) => console.error("ligarOrdensSemForma:", e))
+    return {}
+  }
+
   const { count } = await admin
     .from("dados_bancarios")
     .select("id", { count: "exact", head: true })

@@ -221,6 +221,7 @@ export async function inserirMeioFornecedor(
     | { pix: string; pix_tipo: string }
     | {
         banco: string
+        banco_codigo?: string | null
         agencia: string
         conta: string
         tipo_conta: string
