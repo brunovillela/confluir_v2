@@ -13,6 +13,7 @@ import {
   removerFoto,
   removerTelefone,
 } from "@/lib/db/perfil"
+import { adicionarEmail, removerEmail } from "@/lib/db/perfil-contatos"
 
 function texto(formData: FormData, campo: string): string {
   return String(formData.get(campo) ?? "").trim()
@@ -33,7 +34,6 @@ export async function salvarPerfilAction(
   const { erro } = await atualizarPerfil(usuario.id, {
     nome_guerra: texto(formData, "nome_guerra") || null,
     email: texto(formData, "email") || null,
-    whatsapp: texto(formData, "whatsapp") || null,
     data_nascimento: dataISO(texto(formData, "data_nascimento")),
     sexo: texto(formData, "sexo") || null,
     estado_civil: texto(formData, "estado_civil") || null,
@@ -132,4 +132,30 @@ export async function removerEnderecoAction(
   if (erro) return { erro }
   revalidatePath(ROTA)
   return { ok: "Endereço removido." }
+}
+
+export async function adicionarEmailAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const { usuario } = await requireSessaoPainel()
+  const email = texto(formData, "email")
+  if (!email) return { erro: "Informe o e-mail." }
+  const { erro } = await adicionarEmail(usuario.id, email, texto(formData, "tipo") || null)
+  if (erro) return { erro }
+  revalidatePath(ROTA)
+  return { ok: "E-mail adicionado." }
+}
+
+export async function removerEmailAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const { usuario } = await requireSessaoPainel()
+  const id = texto(formData, "email_id")
+  if (!id) return { erro: "E-mail inválido." }
+  const { erro } = await removerEmail(id, usuario.id)
+  if (erro) return { erro }
+  revalidatePath(ROTA)
+  return { ok: "E-mail removido." }
 }

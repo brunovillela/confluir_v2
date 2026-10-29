@@ -939,6 +939,15 @@ export const MODULOS: Modulo[] = [
     oculto: true,
   },
   {
+    titulo: "Ramais e telefones diretos",
+    href: "/painel/institucional/ramais",
+    icone: "PhoneCall",
+    descricao: "Linhas fixas da entidade e quem atende em cada uma",
+    chave: "ferramentas_linhas_telefone",
+    chavesAlternativas: ["configuracoes"],
+    oculto: true,
+  },
+  {
     titulo: "Usuários e permissões",
     href: "/painel/institucional/usuarios",
     icone: "Users",

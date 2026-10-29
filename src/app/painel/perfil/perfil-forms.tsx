@@ -17,7 +17,9 @@ import {
 
 import {
   adicionarEnderecoAction,
+  adicionarEmailAction,
   adicionarTelefoneAction,
+  removerEmailAction,
   removerEnderecoAction,
   removerTelefoneAction,
   salvarPerfilAction,
@@ -35,7 +37,6 @@ function opcoes(lista: readonly string[], atual: string | null) {
 export type PerfilFormDados = {
   nomeGuerra: string | null
   email: string | null
-  whatsapp: string | null
   dataNascimento: string | null
   sexo: string | null
   estadoCivil: string | null
@@ -60,12 +61,8 @@ export function PerfilForm({ dados }: { dados: PerfilFormDados }) {
           />
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor="email">E-mail</Label>
+          <Label htmlFor="email">E-mail principal (recebe os avisos)</Label>
           <Input id="email" name="email" type="email" defaultValue={dados.email ?? ""} />
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="whatsapp">WhatsApp</Label>
-          <Input id="whatsapp" name="whatsapp" defaultValue={dados.whatsapp ?? ""} />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="data_nascimento">Data de nascimento</Label>
@@ -130,6 +127,49 @@ export function PerfilForm({ dados }: { dados: PerfilFormDados }) {
           Salvar perfil
         </Button>
       </div>
+    </form>
+  )
+}
+
+// ── E-mails ─────────────────────────────────────────────────────────────────
+
+const TIPOS_EMAIL = ["Pessoal", "Trabalho", "Outro"]
+
+export function AdicionarEmail() {
+  const [estado, formAction, pendente] = useActionState<EstadoForm, FormData>(adicionarEmailAction, {})
+  return (
+    <form action={formAction} className="flex flex-wrap items-end gap-2">
+      <div className="grid min-w-48 flex-1 gap-1.5">
+        <Label htmlFor="email-novo">E-mail</Label>
+        <Input id="email-novo" name="email" type="email" required placeholder="nome@exemplo.com" />
+      </div>
+      <div className="grid gap-1.5">
+        <Label htmlFor="email-tipo">Tipo</Label>
+        <select id="email-tipo" name="tipo" defaultValue="Pessoal" className={SELECT}>
+          {TIPOS_EMAIL.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+      </div>
+      <Button type="submit" size="sm" variant="outline" disabled={pendente}>
+        {pendente ? <Loader2 className="animate-spin" /> : <Plus />}
+        Adicionar
+      </Button>
+      {estado.erro && <p className="text-destructive w-full text-sm">{estado.erro}</p>}
+    </form>
+  )
+}
+
+export function RemoverEmail({ emailId }: { emailId: string }) {
+  const [, formAction, pendente] = useActionState<EstadoForm, FormData>(removerEmailAction, {})
+  return (
+    <form action={formAction}>
+      <input type="hidden" name="email_id" value={emailId} />
+      <Button type="submit" variant="ghost" size="sm" disabled={pendente} aria-label="Remover e-mail">
+        {pendente ? <Loader2 className="animate-spin" /> : <Trash2 className="text-destructive size-4" />}
+      </Button>
     </form>
   )
 }

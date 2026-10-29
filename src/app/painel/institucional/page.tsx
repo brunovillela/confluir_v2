@@ -11,6 +11,7 @@ import {
   Plug,
   ShieldCheck,
   Smartphone,
+  PhoneCall,
   Users,
   type LucideIcon,
 } from "lucide-react"
@@ -82,6 +83,14 @@ const AREAS: Area[] = [
     descricao: "Celulares da entidade: número, operadora, chip e com quem está",
     href: "/painel/institucional/linhas",
     icone: Smartphone,
+    chave: "ferramentas_linhas_telefone",
+    chavesAlternativas: ["configuracoes"],
+  },
+  {
+    titulo: "Ramais e telefones diretos",
+    descricao: "Linhas fixas da entidade: ramal, telefone direto e quem atende",
+    href: "/painel/institucional/ramais",
+    icone: PhoneCall,
     chave: "ferramentas_linhas_telefone",
     chavesAlternativas: ["configuracoes"],
   },

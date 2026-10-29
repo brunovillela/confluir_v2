@@ -122,7 +122,6 @@ export async function obterPerfil(usuarioId: string): Promise<Perfil | null> {
 export type DadosPerfil = {
   nome_guerra: string | null
   email: string | null
-  whatsapp: string | null
   data_nascimento: string | null
   sexo: string | null
   estado_civil: string | null

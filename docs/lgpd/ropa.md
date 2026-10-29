@@ -26,7 +26,7 @@
 | P09 | [Jurídico](#p09) | 4 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista | sim |
 | P10 | [Pessoal: RH dos funcionários da entidade](#p10) | 34 | identificação, **sensível: saúde**, financeiro, trabalhista | sim |
 | P11 | [Financeiro, compras, fornecedores e contratos](#p11) | 35 | identificação, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
-| P12 | [Institucional: custeios, viagens, linhas e patrimônio](#p12) | 8 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
+| P12 | [Institucional: custeios, viagens, linhas e patrimônio](#p12) | 9 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P13 | [Hospedagem conveniada e cessão de espaços](#p13) | 12 | identificação, **sensível: filiação/posição sindical**, financeiro, credencial (segredo de acesso, nunca exportar) | sim |
 | P14 | [Frota: veículos e condutores](#p14) | 15 | identificação, financeiro | sim |
 | P15 | [Comunicação, eventos e avisos](#p15) | 9 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
@@ -578,12 +578,13 @@
 
 **Observações.** CPF e dados bancários do beneficiário são repetidos em cada custeio.
 
-<details><summary>Tabelas (8) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (9) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
 | [institucional_custeio_convidados](../dados/dicionario/institucional.md#institucional_custeio_convidados) | identificacao, financeiro | `nome` (identificacao), `cpf` (identificacao), `email` (identificacao), `telefone` (identificacao), `banco` (financeiro), `agencia` (financeiro), `conta` (financeiro), `tipo_conta` (financeiro), `pix` (financeiro), `tipo_chave_pix` (financeiro), `observacoes` (identificacao) |
 | [institucional_custeios](../dados/dicionario/institucional.md#institucional_custeios) | identificacao, sens. sindical, financeiro | `filiacao_id` (sens. sindical), `beneficiario_nome` (identificacao), `beneficiario_cpf` (identificacao), `banco` (financeiro), `agencia` (financeiro), `conta` (financeiro), `tipo_conta` (financeiro), `pix` (financeiro), `tipo_chave_pix` (financeiro), `descricao` (identificacao), `valor_parcela` (financeiro), `pix_codigo` (financeiro), `arquivo_boleto` (financeiro), `conta_favorecido` (financeiro) |
+| [institucional_ramais](../dados/dicionario/institucional.md#institucional_ramais) | identificacao | `usuario_id` (identificacao) |
 | [linhas_institucionais](../dados/dicionario/institucional.md#linhas_institucionais) | identificacao | `numero` (identificacao), `observacao` (identificacao) |
 | [patrimonio_item_responsavel](../dados/dicionario/institucional.md#patrimonio_item_responsavel) | identificacao | `arquivo_cautela` (identificacao) |
 | [patrimonio_recinto_responsavel](../dados/dicionario/institucional.md#patrimonio_recinto_responsavel) | trabalhista | `funcionario_id` (trabalhista) |
@@ -819,4 +820,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 213 de 213 tabelas com dado pessoal atribuídas a 16 processos.
+Cobertura: 214 de 214 tabelas com dado pessoal atribuídas a 16 processos.

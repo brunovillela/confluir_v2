@@ -2,7 +2,7 @@
 
 # Dicionário de dados do Confluir
 
-Gerado a partir do banco de produção (catálogo do Postgres + comentários). **372 tabelas** no schema `public`, **213** com dado pessoal (1051 colunas etiquetadas).
+Gerado a partir do banco de produção (catálogo do Postgres + comentários). **373 tabelas** no schema `public`, **214** com dado pessoal (1052 colunas etiquetadas).
 
 - Etiquetas LGPD: cada tabela termina o comentário com `[lgpd:<categorias>|titulares:<quem>]` e cada coluna com dado pessoal com `[lgpd:<categoria>]` (Onda A4).
 - Para mudar uma descrição ou classificação: migração com `comment on …` (`npm run db:nova`), aplicar, e `npm run db:dicionario`.
@@ -14,7 +14,7 @@ Gerado a partir do banco de produção (catálogo do Postgres + comentários). *
 
 | Categoria | Tabelas |
 |---|---|
-| identificação | 166 |
+| identificação | 167 |
 | **sensível: sindical** | 53 |
 | trabalhista | 51 |
 | financeiro | 47 |
@@ -35,7 +35,7 @@ Gerado a partir do banco de produção (catálogo do Postgres + comentários). *
 | Jurídico | 5 | 4 | [dicionario/juridico.md](dicionario/juridico.md) | [er/juridico.md](er/juridico.md) |
 | Financeiro | 31 | 22 | [dicionario/financeiro.md](dicionario/financeiro.md) | [er/financeiro.md](er/financeiro.md) |
 | Compras, fornecedores e contratos | 22 | 11 | [dicionario/compras.md](dicionario/compras.md) | [er/compras.md](er/compras.md) |
-| Institucional, diárias, viagens e patrimônio | 14 | 8 | [dicionario/institucional.md](dicionario/institucional.md) | [er/institucional.md](er/institucional.md) |
+| Institucional, diárias, viagens e patrimônio | 15 | 9 | [dicionario/institucional.md](dicionario/institucional.md) | [er/institucional.md](er/institucional.md) |
 | Hospedagem | 18 | 10 | [dicionario/hospedagem.md](dicionario/hospedagem.md) | [er/hospedagem.md](er/hospedagem.md) |
 | Cessão de espaços | 10 | 2 | [dicionario/cessao.md](dicionario/cessao.md) | [er/cessao.md](er/cessao.md) |
 | Veículos e condutores | 23 | 14 | [dicionario/veiculos.md](dicionario/veiculos.md) | [er/veiculos.md](er/veiculos.md) |

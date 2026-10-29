@@ -2,7 +2,7 @@
 
 # Institucional, diárias, viagens e patrimônio
 
-14 tabelas. Diagrama: [er/institucional.md](../er/institucional.md).
+15 tabelas. Diagrama: [er/institucional.md](../er/institucional.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -10,6 +10,7 @@
 | [institucional_custeio_convidados](#institucional_custeio_convidados) | identificação, financeiro | Cadastro de convidados que recebem custeio institucional (palestrantes, apoiadores), com dados de contato e bancários para pagamento. |
 | [institucional_custeio_finalidades](#institucional_custeio_finalidades) | — | Finalidades do custeio institucional (ex.: transporte, alimentação, assessoria) com conta contábil e tipo de beneficiário sugerido. |
 | [institucional_custeios](#institucional_custeios) | identificação, financeiro, **sensível: sindical** | Custeio institucional pago a diretor, filiado, convidado ou fornecedor: finalidade, parcelas, dados de pagamento, autorização e formalização… |
+| [institucional_ramais](#institucional_ramais) | identificação | Ramais e telefones diretos (linhas fixas) da entidade, com o local e a pessoa que atende; espelhados nos Contatos corporativos do Meu perfil… |
 | [linhas_institucionais](#linhas_institucionais) | identificação | Linhas de celular da entidade (número, operadora, chip) e com quem estão. Cadastro da área Institucional; parte migrada do Bubble. |
 | [patrimonio_item](#patrimonio_item) | — | Bem patrimonial (número de patrimônio, recinto, notas de entrada e saída, responsável pela cautela). Migrado do Bubble. |
 | [patrimonio_item_responsavel](#patrimonio_item_responsavel) | identificação | Histórico de cautela de bens: quem foi responsável por cada item e em que período, com o termo de cautela. Migrado do Bubble. |
@@ -149,6 +150,30 @@ Custeio institucional pago a diretor, filiado, convidado ou fornecedor: finalida
 | `cancelado_por_id` | uuid | sim |  | → usuarios |  | Quem cancelou o custeio (ou a última ordem dele no Financeiro). |
 
 Índices: `idx_custeios_emp`, `idx_custeios_finalidade`, `idx_custeios_fornecedor`, `idx_custeios_situacao`, `institucional_custeios_pkey`
+
+## institucional_ramais
+
+Ramais e telefones diretos (linhas fixas) da entidade, com o local e a pessoa que atende; espelhados nos Contatos corporativos do Meu perfil.
+
+- **LGPD:** identificação · titulares: funcionários e diretores
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  |  |
+| `ramal` | text | sim |  |  |  | Número do ramal (só dígitos, 2 a 6). |
+| `telefone_direto` | text | sim |  |  |  | Telefone fixo direto com DDD (só dígitos, 10 ou 11). |
+| `local` | text | sim |  |  |  | Onde fica: sala, setor, recepção. |
+| `usuario_id` | uuid | sim |  | → usuarios (set null) | identificação | Quem atende neste ramal/telefone (nulo = de uso geral). |
+| `observacao` | text | sim |  |  |  | Observação livre. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  | Quando foi cadastrado. |
+| `updated_at` | timestamp with time zone | não | `now()` |  |  | Última alteração. |
+
+Checks: `institucional_ramais_algum_numero` `CHECK (((ramal IS NOT NULL) OR (telefone_direto IS NOT NULL)))`; `institucional_ramais_direto_check` `CHECK (((telefone_direto IS NULL) OR (telefone_direto ~ '^[0-9]{10,11}$'::text)))`; `institucional_ramais_ramal_check` `CHECK (((ramal IS NULL) OR (ramal ~ '^[0-9]{2,6}$'::text)))`
+
+Índices: `institucional_ramais_emp_idx`, `institucional_ramais_pkey`, `institucional_ramais_usuario_idx`
 
 ## linhas_institucionais
 

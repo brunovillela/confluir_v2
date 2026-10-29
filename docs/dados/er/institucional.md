@@ -33,6 +33,11 @@ erDiagram
     uuid fornecedor_id FK
     uuid cancelado_por_id FK
   }
+  institucional_ramais {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid usuario_id FK
+  }
   linhas_institucionais {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -110,6 +115,7 @@ erDiagram
   institucional_custeios }o--o| usuarios : "autorizador_id"
   institucional_custeios }o--o| usuarios : "cancelado_por_id"
   institucional_custeios }o--o| usuarios : "criado_por_id"
+  institucional_ramais }o--o| usuarios : "usuario_id"
   linhas_institucionais }o--o| usuarios : "usuario_id"
   patrimonio_item }o--o| patrimonio_nota_fiscal : "nota_fiscal_entrada_id"
   patrimonio_item }o--o| patrimonio_nota_fiscal : "nota_fiscal_saida_id"

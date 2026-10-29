@@ -582,6 +582,8 @@ modulo,tabela,coluna,categoria,titulares,descricao
 "institucional","institucional_custeios","pix_codigo","financeiro","diretores, filiados, convidados, fornecedores PF","Código Pix copia e cola."
 "institucional","institucional_custeios","arquivo_boleto","financeiro","diretores, filiados, convidados, fornecedores PF",""
 "institucional","institucional_custeios","conta_favorecido","financeiro","diretores, filiados, convidados, fornecedores PF",""
+"institucional","institucional_ramais","","identificacao","funcionários e diretores","Ramais e telefones diretos (linhas fixas) da entidade, com o local e a pessoa que atende; espelhados nos Contatos corporativos do Meu perfil."
+"institucional","institucional_ramais","usuario_id","identificacao","funcionários e diretores","Quem atende neste ramal/telefone (nulo = de uso geral)."
 "juridico","juridico_homologacoes","","identificacao;trabalhista;sensivel_sindical","filiados e trabalhadores não filiados","Homologações de rescisão acompanhadas pelo Jurídico, de filiados ou não filiados: data, demissão, motivo e parecer. Espelho de Jurídico - Homologações do Bubble."
 "juridico","juridico_homologacoes","data_demissao","trabalhista","filiados e trabalhadores não filiados",""
 "juridico","juridico_homologacoes","motivo","trabalhista","filiados e trabalhadores não filiados",""

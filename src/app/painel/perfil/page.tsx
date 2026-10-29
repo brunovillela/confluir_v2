@@ -23,10 +23,18 @@ import {
   Wallet,
   type LucideIcon,
   History,
+  BadgeCheck,
+  Building2,
+  Mail,
+  Pencil,
+  Star,
 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { ContaBancariaResumo } from "@/components/conta-bancaria-resumo"
 import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
 import { CartaoEditavel } from "@/components/cartao-editavel"
 import { requireSessaoPainel } from "@/lib/auth"
@@ -40,12 +48,17 @@ import {
   meusAlertas,
   obterPerfil,
 } from "@/lib/db/perfil"
-import { formatarCnpjCpf, formatarData } from "@/lib/formato"
+import { hojeSP } from "@/lib/db/comum"
+import { minhasAlteracoes, minhasContas } from "@/lib/db/meus-dados-bancarios"
+import { admissaoAtual, contatosCorporativos, listarEmails, mandatosDaPessoa, tempoDeCasa } from "@/lib/db/perfil-contatos"
+import { formatarCep, formatarCnpjCpf, formatarData, formatarTelefone } from "@/lib/formato"
 
 import {
+  AdicionarEmail,
   AdicionarEndereco,
   AdicionarTelefone,
   PerfilForm,
+  RemoverEmail,
   RemoverEndereco,
   RemoverTelefone,
 } from "./perfil-forms"
@@ -164,12 +177,6 @@ const SEGURANCA: AreaPerfil = {
   href: "/conta/seguranca?voltar=/painel/perfil",
   icone: ShieldCheck,
 }
-const DADOS_BANCARIOS: AreaPerfil = {
-  titulo: "Dados bancários",
-  descricao: "Suas contas para pagamentos — cada mudança é confirmada pelo Financeiro",
-  href: "/painel/perfil/dados-bancarios",
-  icone: Landmark,
-}
 const AVISOS: AreaPerfil = {
   titulo: "Avisos e Telegram",
   descricao: "Vincule o Telegram e escolha o que recebe por e-mail, Telegram e celular",
@@ -229,10 +236,28 @@ export default async function PerfilPage({
   // Diretor (integrante do mandato vigente) tem outra área: mandato,
   // liberação, custeios — não contracheque, ponto ou nível salarial.
   const diretoria = await diretoriaDoUsuario(usuario.id, perfil.cpf).catch(() => null)
-  const [alertas, areaDiretor] = await Promise.all([
+  const contaPropria = perfil.ehFuncionario || Boolean(diretoria)
+  const [alertas, areaDiretor, emails, corporativos, admissao, mandatos, bancarios] = await Promise.all([
     perfil.funcionarioAtivo ? meusAlertas(usuario.id) : Promise.resolve([]),
     diretoria ? areaDoDiretor(diretoria.integranteId) : Promise.resolve(null),
+    listarEmails(usuario.id),
+    contatosCorporativos(usuario.id, perfil.emailEmpresa),
+    perfil.funcionarioAtivo ? admissaoAtual(usuario.id) : Promise.resolve(null),
+    diretoria ? mandatosDaPessoa(usuario.id, perfil.cpf) : Promise.resolve(0),
+    contaPropria
+      ? minhasAlteracoes(usuario.id)
+          .then(async ({ lista }) => ({ lista, contas: await minhasContas(usuario.id, lista) }))
+          .catch(() => null)
+      : Promise.resolve(null),
   ])
+  const casa = admissao ? tempoDeCasa(admissao, hojeSP()) : null
+  // O WhatsApp do cadastro (usuarios.whatsapp) aparece entre os telefones
+  // quando ainda não está na lista — o Pessoal e a Comunicação o usam.
+  const digitosTel = (v: string | null) => (v ?? "").replace(/D/g, "").replace(/^55(?=d{10,11}$)/, "")
+  const whatsappAvulso =
+    perfil.whatsapp && !telefones.some((t) => digitosTel(t.numero) === digitosTel(perfil.whatsapp)) ? perfil.whatsapp : null
+  const contaPrincipal = bancarios?.contas.find((c) => c.principal) ?? bancarios?.contas[0] ?? null
+  const pedidosAguardando = bancarios?.lista.filter((a) => a.situacao === "aguardando").length ?? 0
   const papeis = [
     perfil.ehFuncionario
       ? `${perfil.cargo ?? "Funcionário(a)"}${perfil.funcionarioAtivo ? "" : " (desligado)"}`
@@ -247,6 +272,7 @@ export default async function PerfilPage({
   return (
     <>
       <FotoPerfil nome={perfil.nomeCompleto} fotoUrl={perfil.fotoUrl}>
+        <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-6 gap-y-2">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
             {perfil.nomeCompleto ?? "Meu perfil"}
@@ -255,6 +281,32 @@ export default async function PerfilPage({
             {papeis.length ? papeis.join(" · ") : "Usuário"}
             {perfil.ehFuncionario && perfil.matricula ? ` · Matrícula ${perfil.matricula}` : ""}
           </p>
+        </div>
+        {(casa || diretoria) && (
+          <div className="grid gap-1 text-sm sm:text-right">
+            {casa && admissao && (
+              <div className="flex flex-wrap items-center gap-2 sm:justify-end" title={`Admissão em ${formatarData(admissao)}`}>
+                <Estrelas quantidade={Math.floor(casa.anos / 10)} rotulo="década de casa" />
+                <span>
+                  <span className="font-medium">{textoTempo(casa)}</span>
+                  <span className="text-muted-foreground"> de casa · desde {formatarData(admissao)}</span>
+                </span>
+              </div>
+            )}
+            {diretoria && (
+              <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                <Estrelas quantidade={mandatos} rotulo="mandato" />
+                <span>
+                  <span className="font-medium">Mandato {diretoria.mandatoNome ?? "vigente"}</span>
+                  <span className="text-muted-foreground">
+                    {" "}
+                    · {mandatos} mandato{mandatos === 1 ? "" : "s"} na diretoria
+                  </span>
+                </span>
+              </div>
+            )}
+          </div>
+        )}
         </div>
       </FotoPerfil>
 
@@ -306,9 +358,6 @@ export default async function PerfilPage({
             <Campo rotulo="Sexo" valor={perfil.sexo} />
             <Campo rotulo="Estado civil" valor={perfil.estadoCivil} />
             <Campo rotulo="Escolaridade" valor={perfil.escolaridade} />
-            <Campo rotulo="WhatsApp" valor={perfil.whatsapp} />
-            <Campo rotulo="E-mail" valor={perfil.email} className="col-span-2 md:col-span-1 xl:col-span-2" />
-            <Campo rotulo="E-mail corporativo" valor={perfil.emailEmpresa} className="col-span-2 md:col-span-1" />
           </dl>
         }
       >
@@ -316,7 +365,6 @@ export default async function PerfilPage({
           dados={{
             nomeGuerra: perfil.nomeGuerra,
             email: perfil.email,
-            whatsapp: perfil.whatsapp,
             dataNascimento: perfil.dataNascimento,
             sexo: perfil.sexo,
             estadoCivil: perfil.estadoCivil,
@@ -333,10 +381,19 @@ export default async function PerfilPage({
           icone={<Phone className="text-muted-foreground size-4" />}
           formulario={<AdicionarTelefone />}
         >
-          {telefones.length === 0 ? (
+          {telefones.length === 0 && !whatsappAvulso ? (
             <p className="text-muted-foreground text-sm">Nenhum telefone cadastrado.</p>
           ) : (
             <ul className="divide-y">
+              {whatsappAvulso && (
+                <li className="flex items-center justify-between gap-3 py-1.5 first:pt-0 last:pb-0">
+                  <span className="text-sm">
+                    <span className="font-medium tabular-nums">{formatarTelefone(whatsappAvulso)}</span>
+                    <Badge variant="secondary" className="ml-2">WhatsApp</Badge>
+                  </span>
+                  <span className="text-muted-foreground text-xs">do cadastro</span>
+                </li>
+              )}
               {telefones.map((t) => (
                 <li key={t.id} className="flex items-center justify-between gap-3 py-1.5 first:pt-0 last:pb-0">
                   <span className="text-sm">
@@ -349,6 +406,36 @@ export default async function PerfilPage({
               ))}
             </ul>
           )}
+        </CartaoLista>
+
+        <CartaoLista
+          titulo="E-mails"
+          item="e-mail"
+          icone={<Mail className="text-muted-foreground size-4" />}
+          formulario={<AdicionarEmail />}
+        >
+          <ul className="divide-y">
+            {perfil.email && (
+              <li className="flex items-center justify-between gap-3 py-1.5 first:pt-0 last:pb-0">
+                <span className="min-w-0 truncate text-sm font-medium">{perfil.email}</span>
+                <Badge variant="secondary" title="Altere pelo lápis de Dados pessoais">
+                  Principal · recebe os avisos
+                </Badge>
+              </li>
+            )}
+            {emails
+              .filter((e) => e.email.toLowerCase() !== (perfil.email ?? "").toLowerCase())
+              .map((e) => (
+                <li key={e.id} className="flex items-center justify-between gap-3 py-1.5 first:pt-0 last:pb-0">
+                  <span className="min-w-0 truncate text-sm">
+                    <span className="font-medium">{e.email}</span>
+                    {e.tipo ? <span className="text-muted-foreground"> · {e.tipo}</span> : ""}
+                  </span>
+                  <RemoverEmail emailId={e.id} />
+                </li>
+              ))}
+          </ul>
+          {!perfil.email && emails.length === 0 && <p className="text-muted-foreground text-sm">Nenhum e-mail cadastrado.</p>}
         </CartaoLista>
 
         <CartaoLista
@@ -368,6 +455,7 @@ export default async function PerfilPage({
                       [e.logradouro, e.numero].filter(Boolean).join(", "),
                       e.bairro,
                       [e.cidade, e.estado].filter(Boolean).join("/"),
+                      e.cep ? `CEP ${formatarCep(e.cep)}` : null,
                     ]
                       .filter(Boolean)
                       .join(" — ") || "(endereço)"}
@@ -379,6 +467,85 @@ export default async function PerfilPage({
             </ul>
           )}
         </CartaoLista>
+
+        {/* Espelho das áreas do Institucional: só leitura aqui. */}
+        <Card className="gap-0 py-4">
+          <CardContent className="grid gap-3 px-4">
+            <div>
+              <p className="flex items-center gap-2 font-medium">
+                <Building2 className="text-muted-foreground size-4" />
+                Contatos corporativos
+              </p>
+              <p className="text-muted-foreground mt-0.5 text-xs">Mantidos pela entidade, no Institucional</p>
+            </div>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+              <dt className="text-muted-foreground text-xs leading-5">E-mail corporativo</dt>
+              <dd className="min-w-0 break-words">{corporativos.emails.join(", ") || "—"}</dd>
+              <dt className="text-muted-foreground text-xs leading-5">Telefone corporativo</dt>
+              <dd className="tabular-nums">
+                {corporativos.celulares.map((c) => [formatarTelefone(c.numero), c.operadora].filter(Boolean).join(" · ")).join(", ") ||
+                  "—"}
+              </dd>
+              <dt className="text-muted-foreground text-xs leading-5">Telefone direto</dt>
+              <dd className="tabular-nums">
+                {corporativos.ramais
+                  .filter((r) => r.telefoneDireto)
+                  .map((r) => formatarTelefone(r.telefoneDireto))
+                  .join(", ") || "—"}
+              </dd>
+              <dt className="text-muted-foreground text-xs leading-5">Ramal</dt>
+              <dd className="tabular-nums">
+                {corporativos.ramais
+                  .filter((r) => r.ramal)
+                  .map((r) => [r.ramal, r.local].filter(Boolean).join(" · "))
+                  .join(", ") || "—"}
+              </dd>
+            </dl>
+          </CardContent>
+        </Card>
+
+        {bancarios && (
+          <Card className="gap-0 py-4">
+            <CardContent className="grid gap-3 px-4">
+              <div className="flex items-center justify-between gap-2">
+                <p className="flex items-center gap-2 font-medium">
+                  <Landmark className="text-muted-foreground size-4" />
+                  Dados bancários
+                </p>
+                <Button variant="ghost" size="sm" className="h-7" asChild>
+                  <Link href="/painel/perfil/dados-bancarios">
+                    <Pencil />
+                    Gerenciar
+                  </Link>
+                </Button>
+              </div>
+              {contaPrincipal ? (
+                <div className="grid gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">Principal</Badge>
+                    {contaPrincipal.ciente && (
+                      <Badge variant="outline" className="border-success/40 text-success-fg">
+                        <BadgeCheck />
+                        Financeiro ciente
+                      </Badge>
+                    )}
+                    {bancarios.contas.length > 1 && (
+                      <span className="text-muted-foreground text-xs">+{bancarios.contas.length - 1} outra(s)</span>
+                    )}
+                  </div>
+                  <ContaBancariaResumo conta={contaPrincipal} />
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-sm">Nenhuma conta cadastrada — inclua a sua para receber os pagamentos.</p>
+              )}
+              {pedidosAguardando > 0 && (
+                <p className="text-warning-fg text-xs">
+                  {pedidosAguardando} pedido{pedidosAguardando === 1 ? "" : "s"} aguardando o Financeiro.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {diretoria && areaDiretor && <MinhaDiretoria diretoria={diretoria} area={areaDiretor} />}
@@ -426,14 +593,6 @@ export default async function PerfilPage({
               icone={MINHAS_VIAGENS.icone}
             />
           )}
-          {(perfil.ehFuncionario || diretoria) && (
-            <CartaoArea
-              titulo={DADOS_BANCARIOS.titulo}
-              descricao={DADOS_BANCARIOS.descricao}
-              href={DADOS_BANCARIOS.href}
-              icone={DADOS_BANCARIOS.icone}
-            />
-          )}
           {remessasAnteriores > 0 && (
             <CartaoArea
               titulo={DIARIAS_ANTERIORES.titulo}
@@ -472,5 +631,24 @@ function Campo({ rotulo, valor, className }: { rotulo: string; valor: string | n
       </dt>
       <dd className="mt-0.5 truncate" title={valor ?? undefined}>{valor ?? "—"}</dd>
     </div>
+  )
+}
+
+/** "12 anos e 3 meses", "8 meses", "1 ano". */
+function textoTempo({ anos, meses }: { anos: number; meses: number }): string {
+  const a = anos ? `${anos} ano${anos === 1 ? "" : "s"}` : ""
+  const m = meses ? `${meses} ${meses === 1 ? "mês" : "meses"}` : ""
+  return [a, m].filter(Boolean).join(" e ") || "menos de 1 mês"
+}
+
+/** Uma estrela por década de casa (funcionário) ou por mandato (diretor). */
+function Estrelas({ quantidade, rotulo }: { quantidade: number; rotulo: string }) {
+  if (quantidade <= 0) return null
+  return (
+    <span className="flex items-center gap-0.5" role="img" aria-label={`${quantidade} estrela${quantidade === 1 ? "" : "s"}: ${quantidade} ${rotulo}${quantidade === 1 ? "" : "s"}`}>
+      {Array.from({ length: quantidade }, (_, i) => (
+        <Star key={i} className="fill-primary text-primary size-4" aria-hidden />
+      ))}
+    </span>
   )
 }
