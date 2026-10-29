@@ -23,6 +23,7 @@ erDiagram
     uuid departamento_id FK
     uuid fornecedor_id FK
     uuid responsavel_id FK
+    uuid condutor_dedicado_id FK
   }
   veiculos {
     uuid id PK
@@ -164,6 +165,7 @@ erDiagram
   veiculo_contratos_aluguel }o--o| centros_de_custo : "centro_custo_id"
   veiculo_contratos_aluguel }o--o| empresa : "fornecedor_id"
   veiculo_contratos_aluguel }o--o| empresa_departamentos : "departamento_id"
+  veiculo_contratos_aluguel }o--o| usuarios : "condutor_dedicado_id"
   veiculo_contratos_aluguel }o--o| usuarios : "responsavel_id"
   veiculos }o--o| veiculo_contratos_aluguel : "contrato_aluguel_id"
   veiculos_abastecimentos }o--o| usuarios : "usuario_id"

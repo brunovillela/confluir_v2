@@ -18,7 +18,13 @@ import { PessoaNome } from "@/components/pessoa-nome";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -82,6 +88,9 @@ export default async function VeiculosPage({
       gestor ? alertasApontamentos() : Promise.resolve([]),
     ]);
   const fotos = await fotosDosUsuarios(veiculos.map((v) => v.condutorEmUsoId));
+  const frotaPropria = veiculos.filter((v) => !v.usoLocacao);
+  const coletivos = veiculos.filter((v) => v.usoLocacao === "coletivo");
+  const dedicados = veiculos.filter((v) => v.usoLocacao === "dedicado");
   const preventivasVencidas = preventivas.filter((p) => p.vencido).length;
   const preventivasProximas = preventivas.length - preventivasVencidas;
 
@@ -293,96 +302,148 @@ export default async function VeiculosPage({
 
       <Card>
         <CardContent>
-          {veiculos.length === 0 ? (
+          {frotaPropria.length === 0 ? (
             <p className="text-muted-foreground py-8 text-center text-sm">
               <Car className="mx-auto mb-2 size-5" />
               Nenhum veículo encontrado com estes filtros.
             </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Placa</TableHead>
-                  <TableHead>Modelo</TableHead>
-                  <TableHead>Lotação</TableHead>
-                  <TableHead>Vínculo</TableHead>
-                  <TableHead>Situação</TableHead>
-                  <TableHead>Onde está</TableHead>
-                  <TableHead>Condutor atual</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {veiculos.map((v) => (
-                  <TableRow key={v.id}>
-                    <TableCell>
-                      <Link
-                        href={`/painel/veiculos/${v.id}`}
-                        className="text-primary font-medium whitespace-nowrap tabular-nums hover:underline"
-                      >
-                        {v.placa ?? "(sem placa)"}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="max-w-64">
-                      <span className="line-clamp-1">
-                        {v.marca_modelo ?? "—"}
-                      </span>
-                      {v.cor && (
-                        <span className="text-muted-foreground block text-xs">
-                          {v.cor}
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell>{v.lotacao ?? "—"}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="whitespace-nowrap">
-                        {v.eh_alugado ? "Alugado" : "Próprio"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {v.inativo ? (
-                        <Badge
-                          variant="outline"
-                          className="text-muted-foreground"
-                        >
-                          Inativo
-                        </Badge>
-                      ) : v.manutencao ? (
-                        <Badge
-                          variant="outline"
-                          className="border-warning/40 text-warning-fg"
-                        >
-                          Manutenção
-                        </Badge>
-                      ) : (
-                        <EmUsoBadge emUso={v.emUso} />
-                      )}
-                      {v.desde && (v.desde.data || v.desde.em) && (
-                        <span className="text-muted-foreground mt-1 block text-xs whitespace-nowrap">
-                          desde {momentoBR(v.desde.data, v.desde.em)}
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="max-w-56">
-                      <OndeEsta veiculo={v} />
-                    </TableCell>
-                    <TableCell>
-                      {v.condutorEmUsoNome ? (
-                        <PessoaNome
-                          nome={v.condutorEmUsoNome}
-                          fotoUrl={v.condutorEmUsoId ? fotos.get(v.condutorEmUsoId) : null}
-                        />
-                      ) : (
-                        "—"
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <TabelaFrota veiculos={frotaPropria} fotos={fotos} />
           )}
         </CardContent>
       </Card>
+
+      {/* Locados ficam em listas próprias: o coletivo entra na escala como a
+          frota; o dedicado é de um condutor e não vai para a recepção. */}
+      {coletivos.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Locados — uso coletivo</CardTitle>
+            <CardDescription>
+              Carros de contrato de locação sem condutor fixo. Entram na escala da recepção como os da frota.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <TabelaFrota veiculos={coletivos} fotos={fotos} />
+          </CardContent>
+        </Card>
+      )}
+      {dedicados.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Locados — uso dedicado</CardTitle>
+            <CardDescription>
+              Carros de contrato de locação vinculados a um condutor. Não são oferecidos a quem pede carro na recepção.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <TabelaFrota veiculos={dedicados} fotos={fotos} />
+          </CardContent>
+        </Card>
+      )}
     </>
+  );
+}
+
+function TabelaFrota({
+  veiculos,
+  fotos,
+}: {
+  veiculos: VeiculoLinha[];
+  fotos: Map<string, string | null>;
+}) {
+  return (
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Placa</TableHead>
+            <TableHead>Modelo</TableHead>
+            <TableHead>Lotação</TableHead>
+            <TableHead>Vínculo</TableHead>
+            <TableHead>Situação</TableHead>
+            <TableHead>Onde está</TableHead>
+            <TableHead>Condutor atual</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {veiculos.map((v) => (
+            <TableRow key={v.id}>
+              <TableCell>
+                <Link
+                  href={`/painel/veiculos/${v.id}`}
+                  className="text-primary font-medium whitespace-nowrap tabular-nums hover:underline"
+                >
+                  {v.placa ?? "(sem placa)"}
+                </Link>
+              </TableCell>
+              <TableCell className="max-w-64">
+                <span className="line-clamp-1">
+                  {v.marca_modelo ?? "—"}
+                </span>
+                {v.cor && (
+                  <span className="text-muted-foreground block text-xs">
+                    {v.cor}
+                  </span>
+                )}
+              </TableCell>
+              <TableCell>{v.lotacao ?? "—"}</TableCell>
+              <TableCell>
+                <Badge variant="outline" className="whitespace-nowrap">
+                  {v.usoLocacao === "dedicado"
+                    ? "Alugado · dedicado"
+                    : v.usoLocacao === "coletivo"
+                      ? "Alugado · coletivo"
+                      : v.eh_alugado
+                        ? "Alugado"
+                        : "Próprio"}
+                </Badge>
+                {v.condutorDedicadoNome && (
+                  <span className="text-muted-foreground mt-1 block text-xs whitespace-nowrap">
+                    com {v.condutorDedicadoNome}
+                  </span>
+                )}
+              </TableCell>
+              <TableCell>
+                {v.inativo ? (
+                  <Badge
+                    variant="outline"
+                    className="text-muted-foreground"
+                  >
+                    Inativo
+                  </Badge>
+                ) : v.manutencao ? (
+                  <Badge
+                    variant="outline"
+                    className="border-warning/40 text-warning-fg"
+                  >
+                    Manutenção
+                  </Badge>
+                ) : (
+                  <EmUsoBadge emUso={v.emUso} />
+                )}
+                {v.desde && (v.desde.data || v.desde.em) && (
+                  <span className="text-muted-foreground mt-1 block text-xs whitespace-nowrap">
+                    desde {momentoBR(v.desde.data, v.desde.em)}
+                  </span>
+                )}
+              </TableCell>
+              <TableCell className="max-w-56">
+                <OndeEsta veiculo={v} />
+              </TableCell>
+              <TableCell>
+                {v.condutorEmUsoNome ? (
+                  <PessoaNome
+                    nome={v.condutorEmUsoNome}
+                    fotoUrl={v.condutorEmUsoId ? fotos.get(v.condutorEmUsoId) : null}
+                  />
+                ) : (
+                  "—"
+                )}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
   );
 }
 

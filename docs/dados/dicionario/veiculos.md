@@ -8,7 +8,7 @@
 |---|---|---|
 | [cnh](#cnh) | identificação | CNH de usuário (número, categoria, vencimento, arquivo), herdada do Bubble. Tabela vazia e sem uso no código; substituída por veiculos_condu… |
 | [veiculo_contrato_aluguel_vinculo](#veiculo_contrato_aluguel_vinculo) | — | Histórico dos veículos de cada contrato de locação: um vínculo por período em que o veículo esteve no contrato (início, término, franquia de… |
-| [veiculo_contratos_aluguel](#veiculo_contratos_aluguel) | — | Espelho de "Veículos Contratos de aluguel" do Bubble (slug ve_culo_contratos_de_aluguel) |
+| [veiculo_contratos_aluguel](#veiculo_contratos_aluguel) | identificação | Contrato de locação de veículos: locadora, vigência, valor mensal, uso (dedicado a um condutor ou coletivo) e a justificativa. Migrado do Bu… |
 | [veiculos](#veiculos) | identificação | Veículo da frota da entidade (próprio ou alugado): placa, RENAVAM, documentos, seguro, situação e condutor dedicado. Migrado do Bubble; tela… |
 | [veiculos_abastecimentos](#veiculos_abastecimentos) | identificação | Espelho de "Veículos Abastecimentos" do Bubble |
 | [veiculos_abastecimentos_lotes](#veiculos_abastecimentos_lotes) | — | Lote de importação de abastecimentos a partir de relatório/fatura lido por IA: arquivo, quem importou e quantas linhas. |
@@ -81,9 +81,9 @@ Histórico dos veículos de cada contrato de locação: um vínculo por período
 
 ## veiculo_contratos_aluguel
 
-Espelho de "Veículos Contratos de aluguel" do Bubble (slug ve_culo_contratos_de_aluguel)
+Contrato de locação de veículos: locadora, vigência, valor mensal, uso (dedicado a um condutor ou coletivo) e a justificativa. Migrado do Bubble ("Veículos Contratos de aluguel"); tela Veículos › Contratos de aluguel.
 
-- **LGPD:** nenhum dado pessoal
+- **LGPD:** identificação · titulares: condutores
 - **RLS:** ligado · policies: `tenant_isolation`
 - **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
 
@@ -107,10 +107,15 @@ Espelho de "Veículos Contratos de aluguel" do Bubble (slug ve_culo_contratos_de
 | `updated_at` | timestamp with time zone | sim | `now()` |  |  |  |
 | `valor_mensal` | numeric | sim |  |  |  |  |
 | `finalidade` | text | sim |  |  |  |  |
+| `uso` | text | sim |  |  | nenhum | dedicado (um condutor fixo; fora das opções da recepção) ou coletivo (sem vínculo fixo; lista própria na página de Veículos). Nulo nos contratos antigos. |
+| `uso_justificativa` | text | sim |  |  | nenhum | Por que a entidade precisa do carro nesse uso (obrigatória nos contratos novos). |
+| `condutor_dedicado_id` | uuid | sim |  | → usuarios | identificação | Condutor a quem o carro do contrato dedicado fica vinculado; a troca fica no histórico do contrato. |
 
 Únicas: `UNIQUE (bubble_id)`
 
-Índices: `veiculo_contratos_aluguel_bubble_id_key1`, `veiculo_contratos_aluguel_pkey1`
+Checks: `veiculo_contratos_aluguel_uso_check` `CHECK ((uso = ANY (ARRAY['dedicado'::text, 'coletivo'::text])))`
+
+Índices: `idx_veiculo_contratos_aluguel_condutor`, `veiculo_contratos_aluguel_bubble_id_key1`, `veiculo_contratos_aluguel_pkey1`
 
 ## veiculos
 

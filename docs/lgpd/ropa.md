@@ -28,7 +28,7 @@
 | P11 | [Financeiro, compras, fornecedores e contratos](#p11) | 34 | identificação, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P12 | [Institucional: custeios, viagens, linhas e patrimônio](#p12) | 8 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P13 | [Hospedagem conveniada e cessão de espaços](#p13) | 12 | identificação, **sensível: filiação/posição sindical**, financeiro, credencial (segredo de acesso, nunca exportar) | sim |
-| P14 | [Frota: veículos e condutores](#p14) | 14 | identificação, financeiro | sim |
+| P14 | [Frota: veículos e condutores](#p14) | 15 | identificação, financeiro | sim |
 | P15 | [Comunicação, eventos e avisos](#p15) | 9 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P16 | [Contas de acesso, segurança, auditoria e gestão interna](#p16) | 23 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 
@@ -76,7 +76,7 @@
 | [filiacao_suspensoes](../dados/dicionario/filiacao.md#filiacao_suspensoes) | identificacao, sens. sindical, financeiro | `cpf` (identificacao), `escopo` (financeiro), `motivo` (financeiro) |
 | [filiacao_tl_aceites](../dados/dicionario/filiacao.md#filiacao_tl_aceites) | identificacao, sens. sindical | `cpf` (identificacao), `tipo` (sens. sindical), `ip` (identificacao), `user_agent` (identificacao) |
 | [filiacao_vinculos](../dados/dicionario/filiacao.md#filiacao_vinculos) | identificacao, sens. sindical, trabalhista | `cargo` (trabalhista), `lotacao` (trabalhista), `matricula` (trabalhista), `data_entrada_admissao` (trabalhista), `data_saida_demissao` (trabalhista), `data_filiacao` (sens. sindical), `data_desfiliacao` (sens. sindical), `ficha_filiacao` (sens. sindical), `ficha_filiacao_aceita` (sens. sindical), `carta_desfiliacao` (sens. sindical), `carta_desfiliacao_aceita` (sens. sindical), `filiacao_data_adesao` (sens. sindical), `filiacao_data_saida` (sens. sindical), `filiacao_desfiliacao_carta` (sens. sindical), `filiacao_desfiliacao_comprovante` (sens. sindical), `filiacao_ficha` (sens. sindical), `filiacao_coletiva` (sens. sindical), `fonte_pg_cargo` (trabalhista), `fonte_pg_matricula` (trabalhista), `fonte_pg_admissao` (trabalhista), `fonte_pg_demissao` (trabalhista), `fonte_pg_lotacao` (trabalhista), `fonte_pg_regime` (trabalhista), `regime_trabalho` (trabalhista), `lotacao_offshore` (trabalhista), `condicao_na_fonte` (trabalhista), `desfiliacao_motivo` (sens. sindical), `desfiliacao_motivo_detalhe` (sens. sindical) |
-| [filiacoes](../dados/dicionario/filiacao.md#filiacoes) | identificacao, sens. sindical, financeiro, trabalhista, credencial | `cpf` (identificacao), `nome_completo` (identificacao), `nome_social` (identificacao), `foto` (identificacao), `sexo` (identificacao), `nascimento_data` (identificacao), `nascimento_dia` (identificacao), `nascimento_mes` (identificacao), `telefone_1` (identificacao), `telefone_2` (identificacao), `email_pessoal` (identificacao), `email_corporativo` (identificacao), `endereco_cep` (identificacao), `endereco_logradouro` (identificacao), `endereco_numero` (identificacao), `endereco_complemento` (identificacao), `endereco_bairro` (identificacao), `endereco_cidade` (identificacao), `endereco_estado` (identificacao), `matricula_sindical` (sens. sindical), `matricula_sindical_numero` (sens. sindical), `filiacao_excluida` (sens. sindical), `valido` (sens. sindical), `filiacao_lotacao` (trabalhista), `filiacao_fonte_pg_admissao` (trabalhista), `outra_filiacao_entidade` (sens. sindical), `outra_filiacao_desfiliar` (sens. sindical), `tl_desconto_data` (sens. sindical), `codigo_verificacao` (credencial), `outra_filiacao_desfiliada` (sens. sindical), `outra_filiacao_solicitacao` (sens. sindical), `slug` (identificacao), `votoonline2026` (sens. sindical), `filiacao_condicao` (sens. sindical), `nome_completo_norm` (identificacao), `condicao_desde` (sens. sindical), `ficha_assinada_em` (sens. sindical), `filiacao_informada_fonte_em` (sens. sindical), `ativo_em` (sens. sindical), `desfiliacao_informada_fonte_em` (sens. sindical), `inativo_em` (sens. sindical), `filiacao_coletiva_prazo` (sens. sindical), `filiacao_coletiva_em` (sens. sindical), `condicao_na_fonte` (trabalhista), `fonte_pg_offshore` (trabalhista), `forma_recebimento` (financeiro), `forma_recebimento_ordem` (financeiro), `desfiliacao_motivo` (sens. sindical), `desfiliacao_motivo_detalhe` (sens. sindical), `contribuicao_valor` (financeiro) |
+| [filiacoes](../dados/dicionario/filiacao.md#filiacoes) | identificacao, sens. sindical, financeiro, trabalhista, credencial | `cpf` (identificacao), `nome_completo` (identificacao), `nome_social` (identificacao), `foto` (identificacao), `sexo` (identificacao), `nascimento_data` (identificacao), `nascimento_dia` (identificacao), `nascimento_mes` (identificacao), `telefone_1` (identificacao), `telefone_2` (identificacao), `email_pessoal` (identificacao), `email_corporativo` (identificacao), `endereco_cep` (identificacao), `endereco_logradouro` (identificacao), `endereco_numero` (identificacao), `endereco_complemento` (identificacao), `endereco_bairro` (identificacao), `endereco_cidade` (identificacao), `endereco_estado` (identificacao), `matricula_sindical` (sens. sindical), `matricula_sindical_numero` (sens. sindical), `filiacao_excluida` (sens. sindical), `valido` (sens. sindical), `filiacao_lotacao` (trabalhista), `filiacao_fonte_pg_admissao` (trabalhista), `outra_filiacao_entidade` (sens. sindical), `outra_filiacao_desfiliar` (sens. sindical), `tl_desconto_data` (sens. sindical), `codigo_verificacao` (credencial), `outra_filiacao_desfiliada` (sens. sindical), `outra_filiacao_solicitacao` (sens. sindical), `slug` (identificacao), `votoonline2026` (sens. sindical), `filiacao_condicao` (sens. sindical), `nome_completo_norm` (identificacao), `condicao_desde` (sens. sindical), `ficha_assinada_em` (sens. sindical), `filiacao_informada_fonte_em` (sens. sindical), `ativo_em` (sens. sindical), `desfiliacao_informada_fonte_em` (sens. sindical), `inativo_em` (sens. sindical), `filiacao_coletiva_prazo` (sens. sindical), `filiacao_coletiva_em` (sens. sindical), `condicao_na_fonte` (trabalhista), `fonte_pg_offshore` (trabalhista), `forma_recebimento` (financeiro), `forma_recebimento_ordem` (financeiro), `contribuicao_valor` (financeiro) |
 | [telefones](../dados/dicionario/filiacao.md#telefones) | identificacao | `numero` (identificacao) |
 | [vinculos_trabalhistas](../dados/dicionario/filiacao.md#vinculos_trabalhistas) | identificacao, trabalhista | `cbo_numero` (trabalhista), `cargo` (trabalhista), `lotacao` (trabalhista), `matricula` (trabalhista), `email_corporativo` (identificacao), `regime_trabalho` (trabalhista), `regime_trabalho_os` (trabalhista), `contrato_trabalho` (trabalhista), `contrato_admissao` (trabalhista), `contrato_demissao` (trabalhista), `cipa_ou_ciplat` (trabalhista) |
 
@@ -642,7 +642,7 @@
 <a id="p14"></a>
 ## P14. Frota: veículos e condutores
 
-**Finalidade.** Reservar e usar veículos da entidade, controlar condutores habilitados, abastecimentos, quilometragem, manutenções e infrações (indicação de condutor).
+**Finalidade.** Reservar e usar veículos da entidade, controlar condutores habilitados, abastecimentos, quilometragem, manutenções e infrações (indicação de condutor), e vincular o carro alugado de uso dedicado ao seu condutor.
 
 **Titulares.** Condutores (funcionários, diretores, terceiros autorizados).
 
@@ -665,12 +665,13 @@
 
 **Observações.** Pendência: cópias da CNH em jsonb de unificação de condutores.
 
-<details><summary>Tabelas (14) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (15) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
 | [cnh](../dados/dicionario/veiculos.md#cnh) | identificacao | `numero` (identificacao), `categoria` (identificacao), `registro` (identificacao), `vencimento` (identificacao), `arquivo` (identificacao) |
 | [ferramentas_anomalias](../dados/dicionario/ferramentas.md#ferramentas_anomalias) | identificacao | `descricao_detalhada` (identificacao), `envolvidos_raw` (identificacao), `fato` (identificacao) |
+| [veiculo_contratos_aluguel](../dados/dicionario/veiculos.md#veiculo_contratos_aluguel) | identificacao | `uso` (nenhum), `uso_justificativa` (nenhum), `condutor_dedicado_id` (identificacao) |
 | [veiculos](../dados/dicionario/veiculos.md#veiculos) | identificacao | `condutor` (identificacao) |
 | [veiculos_abastecimentos](../dados/dicionario/veiculos.md#veiculos_abastecimentos) | identificacao | `condutor_informado` (identificacao) |
 | [veiculos_agendamentos](../dados/dicionario/veiculos.md#veiculos_agendamentos) | identificacao | `motivo` (identificacao), `destino` (identificacao) |
@@ -817,4 +818,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 211 de 211 tabelas com dado pessoal atribuídas a 16 processos.
+Cobertura: 212 de 212 tabelas com dado pessoal atribuídas a 16 processos.

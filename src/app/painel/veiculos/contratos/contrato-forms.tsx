@@ -2,6 +2,7 @@
 
 import { useActionState, useRef, useState } from "react"
 import {
+  ArrowLeftRight,
   Barcode,
   CalendarPlus,
   FileCheck2,
@@ -34,6 +35,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { ACEITA_NOTA, prepararArquivo } from "@/lib/arquivo-envio"
 
 import {
@@ -42,6 +44,7 @@ import {
   finalizarContratoAction,
   gerarOrdemAluguelAction,
   prorrogarContratoAction,
+  trocarCondutorAction,
   anexarDocumentosOrdemAluguelAction,
   desvincularVeiculoAction,
   reabrirContratoAction,
@@ -57,12 +60,19 @@ const SELECT =
 
 export type Opcao = { id: string; rotulo: string }
 
+const USOS = [
+  { valor: "dedicado", rotulo: "Dedicado", ajuda: "Fica com um condutor. Não é oferecido a quem pede carro na recepção." },
+  { valor: "coletivo", rotulo: "Coletivo", ajuda: "Sem condutor fixo. Entra na escala, em lista própria na página de Veículos." },
+] as const
+
 /** Opções dos selects do contrato (novo e edição). */
 export type OpcoesContrato = {
   fornecedores: FornecedorOpcao[]
   usuarios: Opcao[]
   departamentos: Opcao[]
   centrosCusto: Opcao[]
+  /** Condutores aptos — o condutor do uso dedicado. */
+  condutores: Opcao[]
 }
 
 /** Valores atuais, na edição. */
@@ -79,6 +89,12 @@ export type ContratoAtual = {
   centro_custo_id: string | null
   departamento_id: string | null
   temArquivo: boolean
+  uso: "dedicado" | "coletivo" | null
+  uso_justificativa: string | null
+  condutor_dedicado_id: string | null
+  condutorDedicadoNome: string | null
+  /** Contrato vigente: o uso é obrigatório também na edição. */
+  usoObrigatorio: boolean
 }
 
 /** Campos do contrato, iguais no registro e na edição. */
@@ -96,6 +112,8 @@ function CamposContrato({
 }) {
   const id = (campo: string) => `${prefixo}${campo}`
   const data = (v: string | null | undefined) => (v ?? "").slice(0, 10)
+  const [uso, setUso] = useState<string>(atual?.uso ?? "")
+  const usoExigido = !atual || atual.usoObrigatorio
   // O valor atual fica na lista mesmo fora dela (pessoa inativa, centro
   // desativado): sem isso o select pegaria outra opção e a edição gravaria
   // uma troca que ninguém fez.
@@ -235,6 +253,69 @@ function CamposContrato({
           placeholder="Ex.: transporte da diretoria; deslocamento para assembleias…"
         />
       </div>
+      <fieldset className="grid gap-2 rounded-md border p-3 sm:col-span-2">
+        <legend className="px-1 text-sm font-medium">Uso do carro{usoExigido ? " *" : ""}</legend>
+        {usoExigido && <input type="hidden" name="uso_obrigatorio" value="1" />}
+        <div className="grid gap-2 sm:grid-cols-2">
+          {USOS.map((u) => (
+            <label
+              key={u.valor}
+              className={`cursor-pointer rounded-md border px-3 py-2 text-sm ${uso === u.valor ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
+            >
+              <input
+                type="radio"
+                name="uso"
+                value={u.valor}
+                checked={uso === u.valor}
+                onChange={() => setUso(u.valor)}
+                required={usoExigido}
+                className="mr-2"
+              />
+              <span className="font-medium">{u.rotulo}</span>
+              <span className="text-muted-foreground block text-xs">{u.ajuda}</span>
+            </label>
+          ))}
+        </div>
+        {uso === "dedicado" && (
+          <div className="grid gap-1.5">
+            <Label htmlFor={id("condutor_dedicado_id")}>Condutor dedicado *</Label>
+            <select
+              id={id("condutor_dedicado_id")}
+              name="condutor_dedicado_id"
+              required
+              defaultValue={atual?.condutor_dedicado_id ?? ""}
+              className={SELECT}
+            >
+              <option value="" disabled>
+                Escolha o condutor…
+              </option>
+              {comAtual(opcoes.condutores, atual?.condutor_dedicado_id, atual?.condutorDedicadoNome).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.rotulo}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        <div className="grid gap-1.5">
+          <Label htmlFor={id("uso_justificativa")}>
+            Justificativa da necessidade{usoExigido || uso ? " *" : ""}
+          </Label>
+          <Textarea
+            id={id("uso_justificativa")}
+            name="uso_justificativa"
+            rows={2}
+            required={usoExigido || Boolean(uso)}
+            minLength={10}
+            defaultValue={atual?.uso_justificativa ?? ""}
+            placeholder={
+              uso === "dedicado"
+                ? "Ex.: o diretor de base percorre as unidades do interior toda semana"
+                : "Ex.: a frota própria não cobre as viagens das assembleias de novembro"
+            }
+          />
+        </div>
+      </fieldset>
       <div className="grid gap-1.5 sm:col-span-2">
         <Label htmlFor={id("arquivo_contrato")}>
           {atual?.temArquivo
@@ -1060,6 +1141,90 @@ export function ReabrirContratoDialog({ contratoId }: { contratoId: string }) {
           {estado.ok}
         </span>
       )}
+    </div>
+  )
+}
+
+/** Troca o condutor do contrato de uso dedicado (com motivo, no histórico). */
+export function TrocarCondutorDialog({
+  contratoId,
+  condutorAtualNome,
+  condutores,
+}: {
+  contratoId: string
+  condutorAtualNome: string | null
+  condutores: Opcao[]
+}) {
+  const [aberto, setAberto] = useState(false)
+  const [estado, formAction, pendente] = useAcaoDoDialogo(trocarCondutorAction, () => setAberto(false))
+  const envio = useEnvioFormulario(formAction, estado)
+  return (
+    <div className="inline-flex flex-col items-start gap-1">
+      <Dialog open={aberto} onOpenChange={setAberto}>
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm">
+            <ArrowLeftRight />
+            Trocar condutor
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Trocar o condutor dedicado</DialogTitle>
+            <DialogDescription>
+              {condutorAtualNome ? `Hoje o carro está com ${condutorAtualNome}. ` : ""}A troca fica no histórico do
+              contrato, com o motivo.
+            </DialogDescription>
+          </DialogHeader>
+          <form action={formAction} {...envio} className="grid gap-3">
+            <input type="hidden" name="contrato_id" value={contratoId} />
+            {estado.erro && (
+              <Alert variant="destructive">
+                <AlertDescription>{estado.erro}</AlertDescription>
+              </Alert>
+            )}
+            <div className="grid gap-1.5">
+              <Label htmlFor={`tc_condutor_${contratoId}`}>Novo condutor *</Label>
+              <select
+                id={`tc_condutor_${contratoId}`}
+                name="condutor_dedicado_id"
+                required
+                defaultValue=""
+                className={SELECT}
+              >
+                <option value="" disabled>
+                  Escolha o condutor…
+                </option>
+                {condutores.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.rotulo}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor={`tc_motivo_${contratoId}`}>Motivo *</Label>
+              <textarea
+                id={`tc_motivo_${contratoId}`}
+                name="motivo"
+                rows={2}
+                required
+                placeholder="Ex.: o diretor saiu de licença; o carro passa ao suplente"
+                className={TEXTAREA}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setAberto(false)}>
+                Voltar
+              </Button>
+              <Button type="submit" disabled={pendente}>
+                {pendente && <Loader2 className="animate-spin" />}
+                Trocar
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      {estado.ok && <span className="text-success-fg text-xs">{estado.ok}</span>}
     </div>
   )
 }

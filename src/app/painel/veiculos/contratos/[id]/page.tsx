@@ -25,6 +25,7 @@ import { listarCentrosCusto } from "@/lib/db/financeiro"
 import {
   buscarContrato,
   historicoDoContrato,
+  listarCondutores,
   listarUsuariosAtivos,
   urlArquivoVeiculos,
   veiculosParaVincular,
@@ -51,6 +52,7 @@ import {
   GerarOrdemAluguelForm,
   ProrrogarContratoDialog,
   ReabrirContratoDialog,
+  TrocarCondutorDialog,
   VincularVeiculoForm,
 } from "../contrato-forms"
 
@@ -80,6 +82,7 @@ export default async function ContratoPage({
     usuarios,
     departamentos,
     centros,
+    condutoresRes,
   ] = await Promise.all([
     urlArquivoVeiculos(contrato.arquivo_contrato_url),
     historicoDoContrato(id),
@@ -88,7 +91,11 @@ export default async function ContratoPage({
     listarUsuariosAtivos(),
     listarDepartamentos(),
     listarCentrosCusto(),
+    listarCondutores(),
   ])
+  const condutores = condutoresRes.condutores
+    .filter((c) => c.apto)
+    .map((c) => ({ id: c.usuario_id, rotulo: c.usuarioNome ?? "(sem nome)" }))
   const valorMensalTexto =
     contrato.valor_mensal?.toLocaleString("pt-BR", {
       minimumFractionDigits: 2,
@@ -135,6 +142,32 @@ export default async function ContratoPage({
                 {contrato.finalidade}
               </p>
             )}
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+              <span className="text-foreground font-medium">Uso:</span>
+              {contrato.uso ? (
+                <Badge variant="outline" className={contrato.uso === "dedicado" ? "border-primary/40" : ""}>
+                  {contrato.uso === "dedicado" ? "Dedicado" : "Coletivo"}
+                  {contrato.uso === "dedicado" && contrato.condutorDedicadoNome
+                    ? ` · ${contrato.condutorDedicadoNome}`
+                    : ""}
+                </Badge>
+              ) : (
+                <span className="text-muted-foreground">não informado (contrato antigo)</span>
+              )}
+              {contrato.uso === "dedicado" && !contrato.finalizado && (
+                <TrocarCondutorDialog
+                  contratoId={contrato.id}
+                  condutorAtualNome={contrato.condutorDedicadoNome}
+                  condutores={condutores}
+                />
+              )}
+            </div>
+            {contrato.uso_justificativa && (
+              <p className="text-muted-foreground mt-1 max-w-2xl text-xs">
+                <span className="text-foreground font-medium">Justificativa:</span>{" "}
+                {contrato.uso_justificativa}
+              </p>
+            )}
           </div>
           <div className="flex flex-wrap items-start gap-2">
             <EditarContratoDialog
@@ -151,6 +184,12 @@ export default async function ContratoPage({
                 centro_custo_id: contrato.centro_custo_id,
                 departamento_id: contrato.departamento_id,
                 temArquivo: Boolean(contrato.arquivo_contrato_url),
+                uso: contrato.uso,
+                uso_justificativa: contrato.uso_justificativa,
+                condutor_dedicado_id: contrato.condutor_dedicado_id,
+                condutorDedicadoNome: contrato.condutorDedicadoNome,
+                // Contrato antigo finalizado sem uso pode ser corrigido sem isso.
+                usoObrigatorio: !contrato.finalizado || Boolean(contrato.uso),
               }}
               opcoes={{
                 fornecedores: fornecedores.map((f) => ({
@@ -169,6 +208,7 @@ export default async function ContratoPage({
                   id: String(c.id),
                   rotulo: rotuloCentroCusto(c),
                 })),
+                condutores,
               }}
             />
             {!contrato.finalizado && (

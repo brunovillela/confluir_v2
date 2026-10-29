@@ -722,10 +722,21 @@ export async function frotaTelegram(empId: string): Promise<FrotaTelegram> {
   const svc = createServiceClient()
   const { data: veiculos, error } = await svc
     .from("veiculos")
-    .select("id, codigo, placa, marca_modelo, inativo, manutencao")
+    .select("id, codigo, placa, marca_modelo, inativo, manutencao, contrato_aluguel_id")
     .eq("emp_proprietaria_id", empId)
     .eq("inativo", false)
   if (error) return { ...vazio, disponivel: !esquemaAusente(error) }
+  // Carro de locação de uso dedicado não está "disponível": é do condutor dele.
+  const contratoIds = [...new Set((veiculos ?? []).map((v) => String(v.contrato_aluguel_id ?? "")).filter(Boolean))]
+  const { data: dedicadosRes } = contratoIds.length
+    ? await svc
+        .from("veiculo_contratos_aluguel")
+        .select("id")
+        .in("id", contratoIds)
+        .eq("uso", "dedicado")
+        .not("finalizado", "is", true)
+    : { data: [] }
+  const contratosDedicados = new Set((dedicadosRes ?? []).map((c) => String(c.id)))
 
   const ultimas = await svc
     .from("veiculos_ultima_movimentacao")
@@ -792,6 +803,7 @@ export async function frotaTelegram(empId: string): Promise<FrotaTelegram> {
       frota.emManutencao.push(ficha(v))
       continue
     }
+    if (contratosDedicados.has(String(v.contrato_aluguel_id ?? ""))) continue
     const sede = texto(m?.sede_devolucao_os) ?? texto(m?.sede_devolucao) ?? ""
     sedes.set(sede, [...(sedes.get(sede) ?? []), ficha(v)])
   }

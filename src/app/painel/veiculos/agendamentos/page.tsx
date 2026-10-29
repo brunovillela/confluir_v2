@@ -66,8 +66,10 @@ export default async function AgendamentosPage({
     .filter((c) => c.apto)
     .map((c) => ({ id: c.usuario_id, nome: c.usuarioNome ?? "(sem nome)" }))
 
+  // Carro de locação de uso dedicado é do condutor dele: não vai para quem
+  // pede carro avulso (o servidor também recusa — atenderAgendamento).
   const veiculosDisponiveis = frota
-    .filter((v) => !v.inativo && !v.manutencao && v.emUso === false)
+    .filter((v) => !v.inativo && !v.manutencao && v.emUso === false && v.usoLocacao !== "dedicado")
     .map((v) => ({
       id: v.id,
       rotulo: `${v.placa ?? "s/ placa"} — ${v.marca_modelo ?? ""}${v.lotacao ? ` (${v.lotacao})` : ""}`,

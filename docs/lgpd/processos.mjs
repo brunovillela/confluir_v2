@@ -208,8 +208,9 @@ export const PROCESSOS = [
   {
     id: "P14",
     nome: "Frota: veículos e condutores",
-    tabelas: /^(cnh$|veiculos|ferramentas_anomalias$)/,
-    finalidade: "Reservar e usar veículos da entidade, controlar condutores habilitados, abastecimentos, quilometragem, manutenções e infrações (indicação de condutor).",
+    // veiculo_: contratos de locação (condutor dedicado) e vínculos de veículo.
+    tabelas: /^(cnh$|veiculos|veiculo_|ferramentas_anomalias$)/,
+    finalidade: "Reservar e usar veículos da entidade, controlar condutores habilitados, abastecimentos, quilometragem, manutenções e infrações (indicação de condutor), e vincular o carro alugado de uso dedicado ao seu condutor.",
     titulares: "Condutores (funcionários, diretores, terceiros autorizados)",
     baseLegal: ["Art. 7º, II: obrigação legal (CTB: indicação do condutor infrator).", "Art. 7º, V: uso do veículo pelo condutor."],
     compartilhamento: "Órgãos de trânsito (indicação de condutor); locadoras.",

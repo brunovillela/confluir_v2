@@ -18,7 +18,7 @@ import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { requirePermissao } from "@/lib/auth"
 import { listarDepartamentos, listarFornecedores } from "@/lib/db/compras"
 import { listarCentrosCusto } from "@/lib/db/financeiro"
-import { listarContratos, listarUsuariosAtivos } from "@/lib/db/veiculos"
+import { listarCondutores, listarContratos, listarUsuariosAtivos } from "@/lib/db/veiculos"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
 import { NovoContratoForm } from "./contrato-forms"
@@ -38,14 +38,18 @@ export default async function ContratosPage({
       ? brutos.situacao
       : "vigentes"
 
-  const [{ contratos }, fornecedores, usuarios, departamentos, centros] =
+  const [{ contratos }, fornecedores, usuarios, departamentos, centros, condutoresRes] =
     await Promise.all([
       listarContratos({ situacao }),
       listarFornecedores(),
       listarUsuariosAtivos(),
       listarDepartamentos(),
       listarCentrosCusto(),
+      listarCondutores(),
     ])
+  const condutores = condutoresRes.condutores
+    .filter((c) => c.apto)
+    .map((c) => ({ id: c.usuario_id, rotulo: c.usuarioNome ?? "(sem nome)" }))
 
   return (
     <>
@@ -93,6 +97,7 @@ export default async function ContratosPage({
             id: String(c.id),
             rotulo: rotuloCentroCusto(c),
           }))}
+          condutores={condutores}
           responsavelPadraoId={sessao.usuario.id}
         />
       </GrupoColapsavel>
@@ -128,6 +133,7 @@ export default async function ContratosPage({
                 <TableRow>
                   <TableHead>Contrato</TableHead>
                   <TableHead>Locadora</TableHead>
+                  <TableHead>Uso</TableHead>
                   <TableHead>Finalidade</TableHead>
                   <TableHead>Vigência</TableHead>
                   <TableHead className="text-right">Mensalidade</TableHead>
@@ -150,6 +156,13 @@ export default async function ContratosPage({
                       <span className="line-clamp-1">
                         {c.fornecedorNome ?? "—"}
                       </span>
+                    </TableCell>
+                    <TableCell className="text-sm whitespace-nowrap">
+                      {c.uso === "dedicado"
+                        ? `Dedicado${c.condutorDedicadoNome ? ` · ${c.condutorDedicadoNome}` : ""}`
+                        : c.uso === "coletivo"
+                          ? "Coletivo"
+                          : "—"}
                     </TableCell>
                     <TableCell className="max-w-48">
                       <span className="text-muted-foreground line-clamp-1 text-sm">

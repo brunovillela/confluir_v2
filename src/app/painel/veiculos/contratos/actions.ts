@@ -12,6 +12,9 @@ import {
   finalizarContrato,
   gerarOrdemAluguel,
   prorrogarContrato,
+  trocarCondutorDedicado,
+  validarUso,
+  type UsoLocacao,
   reabrirContrato,
   subirArquivoVeiculos,
   vincularVeiculoAoContrato,
@@ -37,6 +40,16 @@ function lerCategoria(valor: string): CategoriaLocacao {
   return CATEGORIAS_LOCACAO.some((c) => c.valor === valor) ? (valor as CategoriaLocacao) : "locacao"
 }
 
+/** Uso do carro (dedicado/coletivo), justificativa e condutor do formulário. */
+function lerUso(formData: FormData) {
+  const uso = texto(formData, "uso")
+  return {
+    uso: uso === "dedicado" || uso === "coletivo" ? uso : null,
+    uso_justificativa: texto(formData, "uso_justificativa") || null,
+    condutor_dedicado_id: uso === "dedicado" ? texto(formData, "condutor_dedicado_id") || null : null,
+  }
+}
+
 function dataISO(valor: string): string | null {
   return /^\d{4}-\d{2}-\d{2}$/.test(valor) ? valor : null
 }
@@ -52,6 +65,9 @@ export async function criarContratoAction(
   if (!numero) return { erro: "Informe o número do contrato na locadora." }
   if (!fornecedorId) return { erro: "Busque e selecione a locadora." }
   if (!inicio) return { erro: "Informe o início da vigência." }
+  const uso = lerUso(formData)
+  const erroUso = validarUso(uso)
+  if (erroUso) return { erro: erroUso }
 
   let arquivoUrl: string | null = null
   const arquivo = formData.get("arquivo_contrato")
@@ -72,6 +88,9 @@ export async function criarContratoAction(
     centro_custo_id: texto(formData, "centro_custo_id") || null,
     departamento_id: texto(formData, "departamento_id") || null,
     arquivo_contrato_url: arquivoUrl,
+    uso: uso.uso as UsoLocacao,
+    uso_justificativa: uso.uso_justificativa ?? "",
+    condutor_dedicado_id: uso.condutor_dedicado_id,
   })
   if (erro) return { erro }
   revalidatePath("/painel/veiculos/contratos")
@@ -198,6 +217,11 @@ export async function editarContratoAction(
   if (!numero) return { erro: "Informe o número do contrato na locadora." }
   if (!fornecedorId) return { erro: "Busque e selecione a locadora." }
   if (!inicio) return { erro: "Informe o início da vigência." }
+  // Contrato antigo (Bubble) sem uso informado pode ser corrigido sem isso;
+  // escolhido o uso, valem as mesmas regras do cadastro.
+  const uso = lerUso(formData)
+  const erroUso = uso.uso || formData.get("uso_obrigatorio") === "1" ? validarUso(uso) : null
+  if (erroUso) return { erro: erroUso }
   const valorTexto = texto(formData, "valor_mensal")
   const valorMensal = valorTexto ? parseValorBR(valorTexto) : null
   if (valorTexto && (valorMensal === null || valorMensal < 0))
@@ -227,6 +251,9 @@ export async function editarContratoAction(
       centro_custo_id: texto(formData, "centro_custo_id") || null,
       departamento_id: texto(formData, "departamento_id") || null,
       arquivo_contrato_url: arquivoUrl,
+      uso: (uso.uso as UsoLocacao) || null,
+      uso_justificativa: uso.uso_justificativa,
+      condutor_dedicado_id: uso.condutor_dedicado_id,
     },
     sessao.usuario.id,
     texto(formData, "motivo"),
@@ -340,4 +367,20 @@ export async function desvincularVeiculoAction(
   revalidarContrato(id)
   revalidatePath(`/painel/veiculos/${veiculoId}`)
   return { ok: "Veículo desvinculado." }
+}
+
+/** Troca o condutor do contrato de uso dedicado, com motivo no histórico. */
+export async function trocarCondutorAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao("veiculos_gestao")
+  const id = texto(formData, "contrato_id")
+  const condutorId = texto(formData, "condutor_dedicado_id")
+  if (!id) return { erro: "Contrato inválido." }
+  if (!condutorId) return { erro: "Escolha o novo condutor." }
+  const { erro } = await trocarCondutorDedicado(id, condutorId, sessao.usuario.id, texto(formData, "motivo"))
+  if (erro) return { erro }
+  revalidarContrato(id)
+  return { ok: "Condutor trocado — registrado no histórico." }
 }

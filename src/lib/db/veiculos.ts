@@ -134,7 +134,13 @@ export type VeiculoLinha = {
   /** Em uso: sede de onde saiu e destino informado. */
   saiuDe: string | null
   destino: string | null
+  /** Uso do contrato de locação ATUAL (vigente): dedicado, coletivo ou nulo. */
+  usoLocacao: UsoLocacao | null
+  condutorDedicadoId: string | null
+  condutorDedicadoNome: string | null
 }
+
+const semUso = { usoLocacao: null, condutorDedicadoId: null, condutorDedicadoNome: null } as const
 
 export type FiltrosFrota = {
   busca?: string
@@ -168,7 +174,38 @@ export async function listarVeiculos(
   const brutos = (data ?? []) as Record<string, unknown>[]
 
   const ultimas = await ultimasMovimentacoes()
-  return brutos.map((v) => montarLinhaVeiculo(v, ultimas))
+  const usos = await usoDosContratos(brutos.map((v) => String(v.contrato_aluguel_id ?? "")))
+  return brutos.map((v) => ({
+    ...montarLinhaVeiculo(v, ultimas),
+    ...(usos.get(String(v.contrato_aluguel_id ?? "")) ?? semUso),
+  }))
+}
+
+
+/** Uso (e condutor dedicado) dos contratos de locação VIGENTES, por id. */
+async function usoDosContratos(
+  ids: string[]
+): Promise<Map<string, Pick<VeiculoLinha, "usoLocacao" | "condutorDedicadoId" | "condutorDedicadoNome">>> {
+  const unicos = [...new Set(ids.filter(Boolean))]
+  if (unicos.length === 0) return new Map()
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("veiculo_contratos_aluguel")
+    .select("id, uso, condutor_dedicado_id, finalizado")
+    .in("id", unicos)
+  if (error) return new Map()
+  const linhas = ((data ?? []) as Record<string, unknown>[]).filter((c) => c.finalizado !== true)
+  const nomes = await nomesDosUsuarios(linhas.map((c) => String(c.condutor_dedicado_id ?? "")).filter(Boolean))
+  return new Map(
+    linhas.map((c) => [
+      String(c.id),
+      {
+        usoLocacao: c.uso === "dedicado" || c.uso === "coletivo" ? (c.uso as UsoLocacao) : null,
+        condutorDedicadoId: texto(c.condutor_dedicado_id),
+        condutorDedicadoNome: c.condutor_dedicado_id ? (nomes.get(String(c.condutor_dedicado_id)) ?? null) : null,
+      },
+    ])
+  )
 }
 
 function montarLinhaVeiculo(
@@ -213,6 +250,8 @@ function montarLinhaVeiculo(
     onde,
     saiuDe: aberta?.sedeRetirada ?? null,
     destino: aberta?.destino ?? null,
+    // O uso vem do contrato: quem lista preenche (usoDosContratos).
+    ...semUso,
   }
 }
 
@@ -325,8 +364,10 @@ export async function buscarVeiculo(
     contrato = contratos.contratos[0] ?? null
   }
 
+  const uso = contratoId ? (await usoDosContratos([contratoId])).get(contratoId) : undefined
   return {
     ...montarLinhaVeiculo(v, ultimas),
+    ...(uso ?? semUso),
     movimentacaoAbertaId: ultima?.aberta ? ultima.id : null,
     renavan: texto(v.renavan),
     ano_fabricacao: texto(v.ano_fabricacao),
@@ -1023,9 +1064,24 @@ export async function atenderAgendamento(
   }
   const { data: anterior } = await admin
     .from("veiculos_agendamentos")
-    .select("veiculo_id")
+    .select("veiculo_id, condutor_id")
     .eq("id", id)
     .maybeSingle()
+  // Carro de locação de uso DEDICADO não atende pedido avulso: só o próprio
+  // condutor dedicado.
+  const { data: comContrato } = await admin
+    .from("veiculos")
+    .select("contrato_aluguel_id")
+    .eq("id", veiculoId)
+    .maybeSingle()
+  const uso = (await usoDosContratos([String(comContrato?.contrato_aluguel_id ?? "")])).get(
+    String(comContrato?.contrato_aluguel_id ?? "")
+  )
+  if (uso?.usoLocacao === "dedicado" && uso.condutorDedicadoId !== texto(anterior?.condutor_id)) {
+    return {
+      erro: `Este carro é de uso dedicado${uso.condutorDedicadoNome ? ` (${uso.condutorDedicadoNome})` : ""} — não atende solicitação de outra pessoa.`,
+    }
+  }
   const transferencia =
     Boolean(anterior?.veiculo_id) && String(anterior?.veiculo_id) !== veiculoId
 
@@ -3029,6 +3085,13 @@ export async function baixarCobranca(
 
 // ── Contratos de aluguel ───────────────────────────────────────────────────
 
+export type UsoLocacao = "dedicado" | "coletivo"
+
+export const USOS_LOCACAO: { valor: UsoLocacao; rotulo: string; ajuda: string }[] = [
+  { valor: "dedicado", rotulo: "Dedicado", ajuda: "fica com um condutor; não é oferecido a quem pede carro na recepção" },
+  { valor: "coletivo", rotulo: "Coletivo", ajuda: "sem condutor fixo; entra na escala, em lista própria na página de Veículos" },
+]
+
 export type ContratoLinha = {
   id: string
   numero: string | null
@@ -3043,6 +3106,11 @@ export type ContratoLinha = {
   arquivo_contrato_url: string | null
   qtdVeiculos: number
   legado: boolean
+  /** dedicado | coletivo; nulo nos contratos antigos. */
+  uso: UsoLocacao | null
+  uso_justificativa: string | null
+  condutor_dedicado_id: string | null
+  condutorDedicadoNome: string | null
 }
 
 export async function listarContratos(filtros: {
@@ -3063,7 +3131,9 @@ export async function listarContratos(filtros: {
   const brutos = (data ?? []) as Record<string, unknown>[]
 
   const nomes = await nomesDosUsuarios(
-    brutos.map((c) => String(c.responsavel_id ?? "")).filter(Boolean)
+    brutos
+      .flatMap((c) => [String(c.responsavel_id ?? ""), String(c.condutor_dedicado_id ?? "")])
+      .filter(Boolean)
   )
   const fornecedorIds = [
     ...new Set(brutos.map((c) => String(c.fornecedor_id ?? "")).filter(Boolean)),
@@ -3126,6 +3196,12 @@ export async function listarContratos(filtros: {
       arquivo_contrato_url: texto(c.arquivo_contrato_url),
       qtdVeiculos: contagem.get(String(c.id)) ?? 0,
       legado: Boolean(c.bubble_id),
+      uso: c.uso === "dedicado" || c.uso === "coletivo" ? c.uso : null,
+      uso_justificativa: texto(c.uso_justificativa),
+      condutor_dedicado_id: texto(c.condutor_dedicado_id),
+      condutorDedicadoNome: c.condutor_dedicado_id
+        ? (nomes.get(String(c.condutor_dedicado_id)) ?? null)
+        : null,
     })),
   }
 }
@@ -3283,6 +3359,20 @@ export type NovoContrato = {
   centro_custo_id: string | null
   departamento_id: string | null
   arquivo_contrato_url: string | null
+  uso: UsoLocacao
+  uso_justificativa: string
+  /** Só no uso dedicado. */
+  condutor_dedicado_id: string | null
+}
+
+/** Regras do uso: justificativa sempre; condutor só (e obrigatório) no dedicado. */
+export function validarUso(d: { uso: string | null; uso_justificativa: string | null; condutor_dedicado_id: string | null }): string | null {
+  if (d.uso !== "dedicado" && d.uso !== "coletivo") return "Escolha o uso do carro: dedicado ou coletivo."
+  if (!d.uso_justificativa || d.uso_justificativa.trim().length < 10) {
+    return "Justifique a necessidade do carro (o porquê do uso dedicado ou coletivo)."
+  }
+  if (d.uso === "dedicado" && !d.condutor_dedicado_id) return "No uso dedicado, escolha o condutor."
+  return null
 }
 
 export async function criarContrato(
@@ -3302,6 +3392,9 @@ export async function criarContrato(
       centro_custo_id: novo.centro_custo_id,
       departamento_id: novo.departamento_id,
       arquivo_contrato_url: novo.arquivo_contrato_url,
+      uso: novo.uso,
+      uso_justificativa: novo.uso_justificativa.trim(),
+      condutor_dedicado_id: novo.uso === "dedicado" ? novo.condutor_dedicado_id : null,
       finalizado: false,
       emp_proprietaria_id: await tenantAtual(),
     })
@@ -3329,10 +3422,16 @@ const CAMPOS_CONTRATO: Record<string, string> = {
   departamento_id: "Departamento",
   arquivo_contrato_url: "Contrato assinado",
   finalizado: "Situação",
+  uso: "Uso",
+  uso_justificativa: "Justificativa do uso",
+  condutor_dedicado_id: "Condutor dedicado",
 }
 
-export type EdicaoContrato = Omit<NovoContrato, "arquivo_contrato_url" | "responsavel_id"> & {
+export type EdicaoContrato = Omit<NovoContrato, "arquivo_contrato_url" | "responsavel_id" | "uso" | "uso_justificativa"> & {
   responsavel_id: string | null
+  /** Nulo só em contrato antigo (Bubble) que segue sem uso informado. */
+  uso: UsoLocacao | null
+  uso_justificativa: string | null
   /** Nulo = mantém o arquivo atual. */
   arquivo_contrato_url: string | null
 }
@@ -3432,10 +3531,37 @@ export async function editarContrato(
     centro_custo_id: nova.centro_custo_id,
     departamento_id: nova.departamento_id,
     ...(nova.arquivo_contrato_url ? { arquivo_contrato_url: nova.arquivo_contrato_url } : {}),
+    uso: nova.uso,
+    uso_justificativa: nova.uso_justificativa?.trim() || null,
+    condutor_dedicado_id: nova.uso === "dedicado" ? nova.condutor_dedicado_id : null,
   }
   const mudanca = diferencas(atual, novo)
   if (Object.keys(mudanca.depois).length === 0) return { erro: "Nada foi alterado." }
   return aplicarComHistorico(id, "editado", mudanca, { usuarioId, motivo: motivo.trim() })
+}
+
+/**
+ * Troca o condutor do contrato de uso dedicado, com motivo na trilha
+ * ("Condutor dedicado: antes → depois").
+ */
+export async function trocarCondutorDedicado(
+  id: string,
+  novoCondutorId: string,
+  usuarioId: string,
+  motivo: string
+): Promise<{ erro?: string }> {
+  if (!motivo.trim()) return { erro: "Informe o motivo da troca." }
+  const atual = await contratoBruto(id)
+  if (!atual) return { erro: "Contrato não encontrado." }
+  if (atual.finalizado === true) return { erro: "O contrato está finalizado." }
+  if (atual.uso !== "dedicado") return { erro: "Só o contrato de uso dedicado tem condutor." }
+  if (texto(atual.condutor_dedicado_id) === novoCondutorId) return { erro: "Esse já é o condutor do contrato." }
+  return aplicarComHistorico(
+    id,
+    "editado",
+    { antes: { condutor_dedicado_id: atual.condutor_dedicado_id ?? null }, depois: { condutor_dedicado_id: novoCondutorId } },
+    { usuarioId, motivo: motivo.trim() }
+  )
 }
 
 /**
@@ -3512,7 +3638,7 @@ export async function historicoDoContrato(id: string): Promise<EventoContrato[]>
     [...new Set(linhas.flatMap((l) => [objeto(l.antes)[coluna], objeto(l.depois)[coluna]]).filter((v): v is string => typeof v === "string"))]
   const [autores, responsaveis, empresas, centros, deptos] = await Promise.all([
     nomesDosUsuarios(linhas.map((l) => String(l.usuario_id ?? "")).filter(Boolean)),
-    nomesDosUsuarios(ids("responsavel_id")),
+    nomesDosUsuarios([...ids("responsavel_id"), ...ids("condutor_dedicado_id")]),
     ids("fornecedor_id").length
       ? admin.from("empresa").select("id, nome_fantasia, nome_razao").in("id", ids("fornecedor_id"))
       : Promise.resolve({ data: [] }),
@@ -3540,6 +3666,8 @@ export async function historicoDoContrato(id: string): Promise<EventoContrato[]>
     if (coluna === "departamento_id") return deptoNome.get(s) ?? "(departamento)"
     if (coluna === "arquivo_contrato_url") return "novo arquivo"
     if (coluna === "finalizado") return v === true ? "Finalizado" : "Vigente"
+    if (coluna === "uso") return v === "dedicado" ? "Dedicado" : v === "coletivo" ? "Coletivo" : s
+    if (coluna === "condutor_dedicado_id") return responsaveis.get(s) ?? "(pessoa)"
     return s
   }
 
