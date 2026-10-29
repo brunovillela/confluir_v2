@@ -735,7 +735,7 @@ const SHOTS_ANTIGOS = [
   // ["/painel/pessoal/33333333-3333-4333-8333-000000000001", "pessoal/funcionarios-ficha.png"],
   // ["/painel/pessoal/contracheques/44444444-4444-4444-8444-000000000001", "pessoal/contracheques-remessa.png"],
   // ["/painel/pessoal/ponto", "pessoal/ponto-remessas.png"],
-  // ["/painel/pessoal/ferias", "pessoal/ferias-periodos.png"],
+  // ["/painel/pessoal/ferias?aba=periodos", "pessoal/ferias-periodos.png", { esperar: "Em concessivo", scrollTo: "Distribuição por mês", altura: 1000 }],
 ]
 
 const env = Object.fromEntries(
@@ -774,7 +774,8 @@ const page = await ctx.newPage()
 
 await page.goto(
   `${BASE}/auth/confirm?token_hash=${tokenHash}&type=magiclink&next=/painel`,
-  { waitUntil: "networkidle" }
+  // "load", não "networkidle": o painel mantém pedidos abertos e a rede não para.
+  { waitUntil: "load", timeout: 120000 }
 )
 if (page.url().includes("/login")) {
   console.error("Login falhou — confira o usuário no Supabase Auth e o seed.")
