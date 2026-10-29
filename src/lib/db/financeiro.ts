@@ -182,7 +182,8 @@ export async function filiadosDasOrdens(
     ),
   ])
   const filiadoDaOrdem = new Map<string, string>()
-  for (const r of reembolsos) filiadoDaOrdem.set(String(r.ordem_pagamento_id), String(r.filiado_id))
+  // Reembolso legado sem filiado fica de fora (null não pode ir ao .in() de uuid).
+  for (const r of reembolsos) if (texto(r.filiado_id)) filiadoDaOrdem.set(String(r.ordem_pagamento_id), String(r.filiado_id))
   const filiadoDoCusteio = new Map(custeios.map((c) => [String(c.id), String(c.filiacao_id)]))
   for (const o of ordens) {
     if (!filiadoDaOrdem.has(o.id) && o.custeio_id && filiadoDoCusteio.has(o.custeio_id)) filiadoDaOrdem.set(o.id, filiadoDoCusteio.get(o.custeio_id)!)
@@ -432,7 +433,12 @@ export async function opcoesFiltrosOrdens(): Promise<OpcoesFiltrosOrdens> {
     ),
   ].sort((a, b) => a.localeCompare(b, "pt-BR"))
 
-  return { fornecedores, pessoasFavorecidas: await pessoasFavorecidas(emp), centrosCusto, departamentos, projetos, formasPagamento }
+  // Opção do filtro não derruba a lista: em falha, só as empresas.
+  const pessoas = await pessoasFavorecidas(emp).catch((e) => {
+    console.error("pessoasFavorecidas:", e instanceof Error ? e.message : e)
+    return [] as OpcoesFiltrosOrdens["pessoasFavorecidas"]
+  })
+  return { fornecedores, pessoasFavorecidas: pessoas, centrosCusto, departamentos, projetos, formasPagamento }
 }
 
 /** Quem do quadro e quais filiados já receberam ordem (opções do filtro Favorecido). */
@@ -468,8 +474,10 @@ async function pessoasFavorecidas(emp: string): Promise<OpcoesFiltrosOrdens["pes
         .range(de, ate)
     ).catch(() => [] as Record<string, unknown>[]),
   ])
-  const usuarioIds = [...new Set(usos.map((o) => String(o.beneficiario_usuario_id)))]
-  const filiadoIds = [...new Set([...reembolsos.map((r) => String(r.filiado_id)), ...custeios.map((c) => String(c.filiacao_id))])]
+  // Há reembolso legado sem filiado: o null não pode virar "null" no .in() de uuid.
+  const ids = (vs: unknown[]) => [...new Set(vs.map((v) => texto(v)).filter((v): v is string => Boolean(v)))]
+  const usuarioIds = ids(usos.map((o) => o.beneficiario_usuario_id))
+  const filiadoIds = ids([...reembolsos.map((r) => r.filiado_id), ...custeios.map((c) => c.filiacao_id)])
   const [usuarios, filiados] = await Promise.all([
     lerEmLotesPorIds(usuarioIds, (fatia, de, ate) =>
       admin.from("usuarios").select("id, nome_completo, nome_guerra, cpf").in("id", fatia).order("id").range(de, ate)
