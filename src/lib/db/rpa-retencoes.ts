@@ -368,3 +368,80 @@ export async function aliquotaPatronalRpa(): Promise<number | null> {
   if (error) return null
   return Number(data?.inss_patronal_aliquota ?? 20)
 }
+
+export type CustoRpa = {
+  rpaId: string
+  numero: number | null
+  prestador: string | null
+  bruto: number
+  inss: number
+  irrf: number
+  iss: number
+  issAliquota: number | null
+  liquido: number
+  inssAliquota: number
+  patronal: number
+  patronalAliquota: number
+  /** A cota patronal já registrada em Tributos (ordem paga) ou só prevista. */
+  patronalRegistrado: boolean
+  custoTotal: number
+  ordemSituacao: string | null
+  dataPagamento: string | null
+}
+
+/**
+ * A composição do custo de cada RPA dos fornecimentos (página da compra):
+ * líquido ao prestador + retenções = bruto; + INSS patronal = custo total.
+ */
+export async function custosDosRpas(fornecimentoIds: string[]): Promise<Map<string, CustoRpa>> {
+  const mapa = new Map<string, CustoRpa>()
+  if (!fornecimentoIds.length) return mapa
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data, error } = await admin
+    .from("compras_rpa")
+    .select(
+      "id, numero, fornecimento_id, valor_bruto, inss, irrf, iss, iss_aliquota, valor_liquido, " +
+        "fornecedor:fornecedor_id (nome_fantasia, nome_razao), ordem:ordem_pagamento_id (situacao, data_pagamento)"
+    )
+    .eq("emp_proprietaria_id", emp)
+    .in("fornecimento_id", fornecimentoIds)
+  if (error || !data?.length) return mapa
+  const linhas = data as unknown as Record<string, unknown>[]
+  const [{ data: cfg }, { data: pat }] = await Promise.all([
+    admin.from("compras_rpa_config").select("inss_aliquota, inss_patronal_aliquota").eq("emp_proprietaria_id", emp).maybeSingle(),
+    admin
+      .from("financeiro_tributos_retencoes")
+      .select("rpa_id, valor, aliquota")
+      .eq("tipo", "inss_patronal")
+      .in("rpa_id", linhas.map((r) => String(r.id))),
+  ])
+  const aliquota = Number(cfg?.inss_patronal_aliquota ?? 20)
+  const registrado = new Map((pat ?? []).map((p) => [String(p.rpa_id), p]))
+  for (const r of linhas) {
+    const bruto = Number(r.valor_bruto ?? 0)
+    const reg = registrado.get(String(r.id))
+    const patronal = reg ? Number(reg.valor ?? 0) : arred((bruto * aliquota) / 100)
+    const f = r.fornecedor as { nome_fantasia?: string | null; nome_razao?: string | null } | null
+    const o = r.ordem as { situacao?: string | null; data_pagamento?: string | null } | null
+    mapa.set(String(r.fornecimento_id), {
+      rpaId: String(r.id),
+      numero: r.numero == null ? null : Number(r.numero),
+      prestador: texto(f?.nome_fantasia) ?? texto(f?.nome_razao),
+      bruto,
+      inss: Number(r.inss ?? 0),
+      irrf: Number(r.irrf ?? 0),
+      iss: Number(r.iss ?? 0),
+      issAliquota: r.iss_aliquota == null ? null : Number(r.iss_aliquota),
+      liquido: Number(r.valor_liquido ?? 0),
+      inssAliquota: Number(cfg?.inss_aliquota ?? 11),
+      patronal,
+      patronalAliquota: reg?.aliquota != null ? Number(reg.aliquota) : aliquota,
+      patronalRegistrado: Boolean(reg),
+      custoTotal: arred(bruto + patronal),
+      ordemSituacao: texto(o?.situacao),
+      dataPagamento: texto(o?.data_pagamento),
+    })
+  }
+  return mapa
+}

@@ -54,6 +54,12 @@ export type RpaDetalhe = RpaLinha & {
   /** E-mail de contato do cadastro do fornecedor (sugestão para o envio da assinatura). */
   fornecedorEmail: string | null
   fornecedorCnpjCpf: string | null
+  /**
+   * NIT/PIS do prestador — só nos RPAs emitidos a partir de 28/10/2026, 21h06
+   * (RPA_COM_NIT_DESDE): nos anteriores fica nulo, para o recibo e a
+   * impressão da assinatura eletrônica continuarem como foram emitidos.
+   */
+  fornecedorNitPis: string | null
   fornecedorEndereco: string | null
   descricao_servico: string | null
   iss_aliquota: number | null
@@ -200,6 +206,19 @@ export async function listarRpas(
   }
 }
 
+/**
+ * Emitido a partir deste instante, o RPA leva o NIT/PIS do prestador no PDF e
+ * na impressão da assinatura (28/10/2026, 21h06 em Brasília). Os anteriores
+ * ficam como foram emitidos — links de assinatura já enviados seguem válidos.
+ */
+export const RPA_COM_NIT_DESDE = "2026-10-29T00:06:00Z"
+
+/** O RPA foi emitido já com o NIT/PIS no recibo? */
+export function rpaComNit(createdAt: string | null | undefined): boolean {
+  if (!createdAt) return false
+  return new Date(createdAt).getTime() >= new Date(RPA_COM_NIT_DESDE).getTime()
+}
+
 export async function buscarRpa(id: string): Promise<RpaDetalhe | null> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
@@ -213,13 +232,14 @@ export async function buscarRpa(id: string): Promise<RpaDetalhe | null> {
 
   let fornecedorNome: string | null = null
   let fornecedorCnpjCpf: string | null = null
+  let fornecedorNitPis: string | null = null
   let fornecedorEndereco: string | null = null
   let fornecedorEmail: string | null = null
   if (r.fornecedor_id) {
     const [{ data: f }, { data: ends }] = await Promise.all([
       admin
         .from("empresa")
-        .select("nome_fantasia, nome_razao, cnpj_cpf, email_contato")
+        .select("nome_fantasia, nome_razao, cnpj_cpf, email_contato, nit_pis")
         .eq("id", r.fornecedor_id)
         .maybeSingle(),
       admin
@@ -233,6 +253,7 @@ export async function buscarRpa(id: string): Promise<RpaDetalhe | null> {
         (v): v is string => typeof v === "string" && v.trim() !== ""
       ) ?? null
     fornecedorCnpjCpf = texto(f?.cnpj_cpf)
+    fornecedorNitPis = rpaComNit(r.created_at as string) ? texto(f?.nit_pis) : null
     fornecedorEmail = texto(f?.email_contato)
     const e = ends?.[0]
     if (e) {
@@ -259,6 +280,7 @@ export async function buscarRpa(id: string): Promise<RpaDetalhe | null> {
     fornecedor_id: r.fornecedor_id as string | null,
     fornecedorNome,
     fornecedorCnpjCpf,
+    fornecedorNitPis,
     fornecedorEndereco,
     fornecedorEmail,
     descricao_servico: r.descricao_servico as string | null,

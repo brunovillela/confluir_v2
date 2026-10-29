@@ -128,20 +128,23 @@ function normalizar(l: Record<string, unknown>, eventos: AssinaturaRpa["eventos"
  * emitindo outro); a data impressa no recibo fica de fora porque muda.
  */
 export function hashDoRpa(rpa: RpaDetalhe): string {
-  return hashTexto(
-    JSON.stringify([
-      rpa.numero,
-      rpa.fornecedorNome,
-      (rpa.fornecedorCnpjCpf ?? "").replace(/\D/g, ""),
-      rpa.descricao_servico,
-      rpa.data_servico,
-      rpa.valor_bruto,
-      rpa.inss,
-      rpa.irrf,
-      rpa.iss,
-      rpa.valor_liquido,
-    ])
-  )
+  const campos: unknown[] = [
+    rpa.numero,
+    rpa.fornecedorNome,
+    (rpa.fornecedorCnpjCpf ?? "").replace(/\D/g, ""),
+    rpa.descricao_servico,
+    rpa.data_servico,
+    rpa.valor_bruto,
+    rpa.inss,
+    rpa.irrf,
+    rpa.iss,
+    rpa.valor_liquido,
+  ]
+  // RPAs com o NIT/PIS no recibo (emitidos desde 28/10/2026, 21h06): ele entra no que
+  // a assinatura cobre. Nos anteriores a lista fica igual — links já enviados
+  // seguem válidos.
+  if (rpa.fornecedorNitPis) campos.push((rpa.fornecedorNitPis ?? "").replace(/\D/g, ""))
+  return hashTexto(JSON.stringify(campos))
 }
 
 /** CPF do prestador (só dígitos) — o que a pessoa precisa digitar para assinar. */

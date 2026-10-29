@@ -3,6 +3,7 @@ import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/render
 import type { RpaDetalhe } from "@/lib/db/compras-rpa"
 import type { CertificacaoPDF } from "@/lib/db/minuta-assinatura"
 import { formatarCnpjCpf, formatarData } from "@/lib/formato"
+import { formatarNitPis } from "@/lib/cpf"
 
 /**
  * PDF do RPA (Recibo de Pagamento a Autônomo) — baixado pelo painel, assinado
@@ -137,6 +138,13 @@ export function RpaPDF({
               ? formatarCnpjCpf(rpa.fornecedorCnpjCpf)
               : "—"}
           </Text>
+          {/* Só nos RPAs emitidos com o NIT (ver RPA_COM_NIT_DESDE). */}
+          {rpa.fornecedorNitPis && (
+            <Text style={s.linha}>
+              <Text style={s.rotulo}>NIT/PIS: </Text>
+              {formatarNitPis(rpa.fornecedorNitPis)}
+            </Text>
+          )}
           {rpa.fornecedorEndereco && (
             <Text style={s.linha}>
               <Text style={s.rotulo}>Endereço: </Text>

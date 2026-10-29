@@ -375,6 +375,26 @@ entra como a nota fiscal da compra e leva
 a ordem para **autorização**. Excluir um RPA ainda não assinado mantém a ordem
 da compra esperando um novo recibo. Ver [RPA](/painel/ajuda/compras/contratos).
 
+### Quanto o serviço custa à entidade
+
+No quadro do fornecimento pago por RPA aparece **Quanto este serviço custa à
+entidade**, a conta linha a linha — cada uma diz de quem sai o valor e para
+onde vai:
+
+| Linha | O que é |
+|---|---|
+| Valor líquido pago ao prestador | O que cai na conta dele: o valor da compra e da ordem |
+| + INSS retido | Descontado do prestador; a entidade recolhe na guia **INSS RPA** |
+| + IRRF retido | Descontado do prestador (zero na faixa de isenção); guia **IRRF RPA** (DARF 0588) |
+| + ISS retido | Descontado do prestador; guia **ISS RPA**, à prefeitura |
+| = Valor bruto do serviço | O valor do recibo: o que o prestador ganhou antes dos descontos |
+| + INSS patronal | Encargo da **entidade** sobre o bruto (20%), não descontado do prestador; mesma guia do INSS |
+| = Custo total para a entidade | O que o serviço realmente custa |
+
+Enquanto a ordem não é paga, o INSS patronal aparece como **previsto**; paga a
+ordem, o quadro diz em que competência os impostos entraram em
+[Tributos](/painel/ajuda/financeiro/tributos).
+
 ## Depois da ordem: Pix expirado e nota fiscal
 
 <RequerPermissao>Operar compras, Comprador ou Compra direta</RequerPermissao>

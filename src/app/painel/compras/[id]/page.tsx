@@ -30,6 +30,7 @@ import {
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { compraNoEscopo, escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
 import { compraDoRpa, rpasDosFornecimentos } from "@/lib/db/compras-rpa"
+import { custosDosRpas } from "@/lib/db/rpa-retencoes"
 import { rpasComLinkPendente } from "@/lib/db/rpa-assinatura"
 import { situacaoOrdensCompra } from "@/lib/db/ordem-compra"
 import { edicaoDaCompra } from "@/lib/db/compras-edicao"
@@ -46,6 +47,7 @@ import {
 } from "./processo-forms"
 import { NotaFiscalIcone, NovoCodigoPix } from "./ajustes-pagamento"
 import { OrdemCompraAcoes } from "./ordem-compra"
+import { CustoDoRpa } from "./custo-rpa"
 import { AnexarNotaMarketplace, VincularVendedor } from "./marketplace-nota"
 import { AnexarRpaAssinadoBotao } from "../rpa/rpa-forms"
 
@@ -300,6 +302,8 @@ export default async function ProcessoCompraPage({
     : new Map<string, { id: string; numero: number | null; assinado: boolean }>()
   // RPA emitido e ainda sem o recibo assinado: a compra recebe o anexo aqui.
   const rpasALinkar = [...rpaPorFornecimento.values()].filter((r) => !r.assinado).map((r) => r.id)
+  // Composição do custo de cada RPA (líquido + retenções + INSS patronal).
+  const custoRpa = rpaPorFornecimento.size ? await custosDosRpas([...rpaPorFornecimento.keys()]) : new Map()
   const rpaComLink = await rpasComLinkPendente(rpasALinkar)
   const situacaoOc = await situacaoOrdensCompra(fornecimentosComUrl.map((f) => f.id))
   const emitirRpa = new Set<string>()
@@ -770,6 +774,7 @@ export default async function ProcessoCompraPage({
                   />
                 </div>
               )}
+              {custoRpa.get(f.id) && !processo.cancelado && <CustoDoRpa custo={custoRpa.get(f.id)!} />}
               {(() => {
                 const r = rpaPorFornecimento.get(f.id)
                 if (!r || r.assinado || !podeAjustar || processo.cancelado) return null
