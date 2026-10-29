@@ -735,6 +735,7 @@ const SHOTS_ANTIGOS = [
   // ["/painel/pessoal/33333333-3333-4333-8333-000000000001", "pessoal/funcionarios-ficha.png"],
   // ["/painel/pessoal/contracheques/44444444-4444-4444-8444-000000000001", "pessoal/contracheques-remessa.png"],
   // ["/painel/pessoal/ponto", "pessoal/ponto-remessas.png"],
+  // ["/painel/pessoal/ferias/novo?funcionario=33333333-3333-4333-8333-000000000001&inicio=2025-03-01", "pessoal/ferias-periodo-form.png", { esperar: "Ao informar o início do aquisitivo", altura: 560 }],
   // Pede um período temporário (Débora, concessivo até hoje + 60 dias) para a cor amarela; apagado depois.
   // ["/painel/pessoal/ferias?aba=periodos", "pessoal/ferias-periodos.png", { esperar: "Em concessivo", scrollTo: "Distribuição por mês", altura: 1000 }],
 ]
