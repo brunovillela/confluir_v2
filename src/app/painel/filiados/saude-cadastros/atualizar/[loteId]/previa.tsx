@@ -18,13 +18,18 @@ export type CampoPrevia = { seq: number; campo: string; anterior: string | null;
 export type PessoaPrevia = {
   filiadoId: string
   nome: string | null
-  via: "cpf" | "matricula" | "nome"
+  via: "cpf" | "matricula" | "nome_nascimento" | "nome"
   linha: number | null
   campos: CampoPrevia[]
 }
 
 const POR_PAGINA = 50
-const ROTULO_VIA = { cpf: "pelo CPF", matricula: "pela matrícula", nome: "sugestão pelo nome" } as const
+const ROTULO_VIA = {
+  cpf: "pelo CPF",
+  matricula: "pela matrícula",
+  nome_nascimento: "pelo nome e nascimento",
+  nome: "sugestão pelo nome",
+} as const
 
 type Filtro = "todos" | "trocas" | "nome"
 

@@ -293,6 +293,7 @@ Arquivos (documentos pessoais, comprovantes, fotos) ficam aqui, fora das tabelas
 | `filiacao` | não |  |  |
 | `hospedagem` | não | 5 MB | application/pdf, image/jpeg, image/png, image/webp |
 | `juridico` | não |  |  |
+| `listas-trabalhadores` | não | 25 MB | application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, application/vnd.oasis.opendocument.spreadsheet, text/csv, text/plain, application/pdf, image/jpeg, image/png, image/webp, image/gif |
 | `noticias` | **sim** |  |  |
 | `oposicao` | não | 10 MB | application/pdf |
 | `organizacao` | **sim** |  |  |

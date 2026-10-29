@@ -2,12 +2,12 @@
 
 # Dicionário de dados do Confluir
 
-Gerado a partir do banco de produção (catálogo do Postgres + comentários). **373 tabelas** no schema `public`, **214** com dado pessoal (1052 colunas etiquetadas).
+Gerado a partir do banco de produção (catálogo do Postgres + comentários). **373 tabelas** no schema `public`, **214** com dado pessoal (1056 colunas etiquetadas).
 
 - Etiquetas LGPD: cada tabela termina o comentário com `[lgpd:<categorias>|titulares:<quem>]` e cada coluna com dado pessoal com `[lgpd:<categoria>]` (Onda A4).
 - Para mudar uma descrição ou classificação: migração com `comment on …` (`npm run db:nova`), aplicar, e `npm run db:dicionario`.
 - [rls.md](rls.md): políticas de acesso por tabela e alertas.
-- [views-e-storage.md](views-e-storage.md): 6 views e 21 buckets de arquivos.
+- [views-e-storage.md](views-e-storage.md): 6 views e 22 buckets de arquivos.
 - [dados-pessoais.csv](dados-pessoais.csv): uma linha por tabela e por coluna com dado pessoal. É insumo do ROPA (Onda B).
 
 ## Tabelas com dado pessoal, por categoria

@@ -37,8 +37,9 @@ export default async function AtualizarPorListaPage() {
         <p className="text-muted-foreground mt-1 max-w-3xl text-sm">
           Envie a lista de trabalhadores que a empresa mandou — planilha, CSV,
           PDF ou foto. A IA lê o arquivo, o sistema padroniza os dados, acha
-          quem já tem cadastro (CPF, matrícula na fonte ou, como sugestão, o
-          nome) e mostra, campo a campo, o que mudaria. Nada é gravado antes
+          quem já tem cadastro (CPF, matrícula na fonte, nome com nascimento
+          ou, como sugestão, só o nome) e mostra, campo a campo, o que
+          mudaria. A leitura roda em segundo plano. Nada é gravado antes
           da sua conferência, e um lote aplicado pode ser desfeito.
         </p>
       </div>

@@ -2,72 +2,56 @@
 
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
+import { after } from "next/server"
 
-import { padronizarLinha, type LinhaLista } from "@/lib/atualizacao-lista"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import {
   aplicarLote,
   cadastrarNaoEncontrados,
-  type Descartada,
+  criarEnvioLista,
   descartarRascunho,
   desfazerLote,
-  montarRascunho,
+  iniciarLeitura,
+  MAX_ARQUIVO_LISTA,
+  processarLeitura,
 } from "@/lib/db/filiacao-atualizacao-lista"
-import { lerListaTrabalhadores, MAX_LINHAS_LISTA } from "@/lib/ia-lista-trabalhadores"
 
 /** Atualização de cadastros por lista de trabalhadores — só a gestão da filiação. */
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const BASE = "/painel/filiados/saude-cadastros/atualizar"
 
-export async function lerListaAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+/** 1º passo do envio: URL assinada para o navegador subir o arquivo direto ao armazenamento. */
+export async function prepararEnvioListaAction(
+  nomeArquivo: string,
+  tamanho: number
+): Promise<{ caminho?: string; token?: string; erro?: string }> {
+  await requirePermissao("filiacao_gestao")
+  if (!(tamanho > 0)) return { erro: "Escolha o arquivo da lista (planilha, CSV, PDF ou imagem)." }
+  if (tamanho > MAX_ARQUIVO_LISTA) return { erro: "Arquivo grande demais — até 25 MB. Divida a lista." }
+  return criarEnvioLista(nomeArquivo)
+}
+
+/**
+ * 2º passo: com o arquivo no armazenamento, cria o lote em 'lendo' e agenda a
+ * leitura para depois da resposta — a tela do lote acompanha o andamento.
+ */
+export async function iniciarLeituraAction(entrada: {
+  caminho: string
+  arquivo: string
+  fonteId: string
+}): Promise<{ erro?: string }> {
   const sessao = await requirePermissao("filiacao_gestao")
-  const arquivo = formData.get("arquivo")
-  if (!(arquivo instanceof File) || arquivo.size === 0) {
-    return { erro: "Escolha o arquivo da lista (planilha, CSV, PDF ou imagem)." }
-  }
-  // O envio por server action tem teto de 4 MB (next.config: bodySizeLimit).
-  if (arquivo.size > 4 * 1024 * 1024) return { erro: "Arquivo grande demais — máximo de 4 MB. Divida a lista ou reduza a imagem." }
-  const fonte = String(formData.get("fonte_id") ?? "")
-  const fonteId = UUID.test(fonte) ? fonte : null
-
-  const leitura = await lerListaTrabalhadores(arquivo)
-  if (leitura.erro || !leitura.linhas) return { erro: leitura.erro ?? "Falha na leitura." }
-  if (leitura.linhas.length === 0) return { erro: "A IA não encontrou trabalhadores neste arquivo." }
-  if (leitura.linhas.length > MAX_LINHAS_LISTA) {
-    return { erro: `Lista grande demais (${leitura.linhas.length} trabalhadores). Divida em arquivos de até ${MAX_LINHAS_LISTA}.` }
-  }
-
-  const linhas: LinhaLista[] = []
-  const descartadas: Descartada[] = []
-  const invalidos = new Map<string, number>()
-  leitura.linhas.forEach((bruta, i) => {
-    const l = padronizarLinha(bruta, i + 1)
-    if (!l) {
-      descartadas.push({ linha: i + 1, nome: String(bruta.nome ?? "").trim() || null, motivo: "Sem CPF válido, matrícula ou nome." })
-      return
-    }
-    for (const c of l.invalidos) invalidos.set(c, (invalidos.get(c) ?? 0) + 1)
-    linhas.push(l)
-  })
-  const avisos = [...(leitura.avisos ?? [])]
-  if (invalidos.size) {
-    avisos.push(
-      `Valores ignorados por estarem fora do padrão: ${[...invalidos].map(([c, n]) => `${c} (${n})`).join(", ")}. O resto da linha foi aproveitado.`
-    )
-  }
-
-  const { loteId, erro } = await montarRascunho({
-    fonteId,
-    arquivo: arquivo.name,
-    linhas,
-    descartadas,
-    avisos,
-    linhasLidas: leitura.linhas.length,
+  const { loteId, erro } = await iniciarLeitura({
+    caminho: entrada.caminho,
+    arquivo: entrada.arquivo,
+    fonteId: UUID.test(entrada.fonteId) ? entrada.fonteId : null,
     usuario: { id: sessao.usuario.id, nome: sessao.usuario.nome_completo ?? sessao.usuario.email ?? null },
   })
-  if (erro || !loteId) return { erro: erro ?? "Falha ao montar a prévia." }
+  if (erro || !loteId) return { erro: erro ?? "Falha ao registrar a lista." }
+  // Roda até o maxDuration da página (300 s), depois da resposta.
+  after(() => processarLeitura(loteId))
   revalidatePath(BASE)
   redirect(`${BASE}/${loteId}`)
 }

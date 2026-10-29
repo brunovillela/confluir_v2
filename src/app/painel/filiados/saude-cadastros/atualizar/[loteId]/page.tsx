@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, TriangleAlert } from "lucide-react"
+import { ArrowLeft, TriangleAlert, UserMinus } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -15,6 +15,7 @@ import { formatarDataHora } from "@/lib/formato"
 
 import { SituacaoLote } from "../situacao-lote"
 import { DescartarRascunho, DesfazerLote } from "./acoes-lote"
+import { AcompanharLeitura } from "./acompanhar-leitura"
 import { NaoEncontrados } from "./nao-encontrados"
 import { Previa, type PessoaPrevia } from "./previa"
 
@@ -68,26 +69,54 @@ export default async function LoteListaPage({
   const encontrados = new Set(itens.map((i) => i.filiadoId)).size
   const camposAplicados = itens.filter((i) => i.aplicado && i.acompanha === null).length
 
+  const cabecalho = (
+    <div>
+      <Button asChild variant="ghost" size="sm" className="-ml-2 mb-3">
+        <Link href="/painel/filiados/saude-cadastros/atualizar">
+          <ArrowLeft />
+          Atualizar cadastros por lista
+        </Link>
+      </Button>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="min-w-0 text-2xl font-semibold tracking-tight break-words">{lote.arquivo}</h1>
+        <SituacaoLote situacao={lote.situacao} />
+      </div>
+      <p className="text-muted-foreground mt-1 text-sm">
+        {lote.fonteNome ? `Fonte: ${lote.fonteNome}` : "Sem fonte pagadora"} · enviada em {formatarDataHora(lote.criadoEm)}
+        {lote.criadoPorNome ? ` por ${lote.criadoPorNome}` : ""}
+        {lote.aplicadoEm ? ` · aplicada em ${formatarDataHora(lote.aplicadoEm)}` : ""}
+        {lote.desfeitoEm ? ` · desfeita em ${formatarDataHora(lote.desfeitoEm)}` : ""}
+      </p>
+    </div>
+  )
+
+  // A IA ainda lê (segundo plano) ou a leitura falhou: não há prévia ainda.
+  if (lote.situacao === "lendo" || lote.situacao === "erro") {
+    return (
+      <>
+        {cabecalho}
+        {lote.situacao === "lendo" ? (
+          <AcompanharLeitura progresso={lote.progresso} />
+        ) : (
+          <Alert variant="destructive">
+            <AlertDescription className="grid gap-2">
+              <span>
+                <strong>A leitura falhou.</strong> {lote.erro ?? "Envie a lista de novo."} Nada foi gravado nos
+                cadastros.
+              </span>
+              <span>
+                <DescartarRascunho loteId={lote.id} rotulo="Descartar" />
+              </span>
+            </AlertDescription>
+          </Alert>
+        )}
+      </>
+    )
+  }
+
   return (
     <>
-      <div>
-        <Button asChild variant="ghost" size="sm" className="-ml-2 mb-3">
-          <Link href="/painel/filiados/saude-cadastros/atualizar">
-            <ArrowLeft />
-            Atualizar cadastros por lista
-          </Link>
-        </Button>
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="min-w-0 text-2xl font-semibold tracking-tight break-words">{lote.arquivo}</h1>
-          <SituacaoLote situacao={lote.situacao} />
-        </div>
-        <p className="text-muted-foreground mt-1 text-sm">
-          {lote.fonteNome ? `Fonte: ${lote.fonteNome}` : "Sem fonte pagadora"} · enviada em {formatarDataHora(lote.criadoEm)}
-          {lote.criadoPorNome ? ` por ${lote.criadoPorNome}` : ""}
-          {lote.aplicadoEm ? ` · aplicada em ${formatarDataHora(lote.aplicadoEm)}` : ""}
-          {lote.desfeitoEm ? ` · desfeita em ${formatarDataHora(lote.desfeitoEm)}` : ""}
-        </p>
-      </div>
+      {cabecalho}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Numero rotulo="trabalhadores lidos" valor={lote.linhasLidas} />
@@ -107,6 +136,44 @@ export default async function LoteListaPage({
           <AlertDescription>{a}</AlertDescription>
         </Alert>
       ))}
+
+      {lote.sairam.length > 0 && lote.situacao !== "desfeito" && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Saíram da empresa, segundo a lista</CardTitle>
+            <CardDescription>
+              {lote.sairam.length} pessoa(s) com data de saída. A filiação não muda sozinha: abra o vínculo,
+              confira e, se for o caso, registre a data de desfiliação e o motivo.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="divide-y rounded-lg border">
+              {lote.sairam.map((s) => (
+                <li key={s.filiadoId} className="flex flex-wrap items-center justify-between gap-3 px-3 py-2 text-sm">
+                  <span className="min-w-0">
+                    <Link href={`/painel/filiados/${s.filiadoId}`} className="font-medium underline-offset-4 hover:underline">
+                      {nomes.get(s.filiadoId) ?? s.nome ?? "(sem nome)"}
+                    </Link>
+                    <span className="text-muted-foreground ml-2 text-xs">saída em {exibirValor("data_saida_demissao", s.saida)}</span>
+                  </span>
+                  <Button asChild size="sm" variant="outline">
+                    <Link
+                      href={
+                        s.vinculoId
+                          ? `/painel/filiados/${s.filiadoId}/vinculos/${s.vinculoId}`
+                          : `/painel/filiados/${s.filiadoId}`
+                      }
+                    >
+                      <UserMinus />
+                      {s.vinculoId ? "Avaliar a desfiliação" : "Abrir a ficha"}
+                    </Link>
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       {lote.situacao === "rascunho" ? (
         <Card>

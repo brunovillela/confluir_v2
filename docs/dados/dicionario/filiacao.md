@@ -192,7 +192,7 @@ Atualização de cadastros por lista de trabalhadores enviada pelo empregador (l
 | `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
 | `fonte_pagadora_id` | uuid | sim |  | → empresa (set null) |  |  |
 | `arquivo_nome` | text | não |  |  | nenhum | Nome do arquivo enviado (o arquivo em si não é guardado). |
-| `situacao` | text | não | `'rascunho'::text` |  | nenhum | rascunho (prévia), aplicado ou desfeito. |
+| `situacao` | text | não | `'rascunho'::text` |  | nenhum | lendo (a IA está lendo o arquivo), erro, rascunho (prévia), aplicado ou desfeito. |
 | `linhas_lidas` | integer | não | `0` |  |  |  |
 | `descartadas` | jsonb | não | `'[]'::jsonb` |  | identificação | Linhas da lista que não puderam ser usadas, com o motivo (nome, CPF, matrícula). |
 | `nao_encontrados` | jsonb | não | `'[]'::jsonb` |  | identificação, trabalhista | Linhas válidas sem cadastro correspondente, com os dados lidos — base do cadastro em massa oferecido ao fim. |
@@ -205,8 +205,12 @@ Atualização de cadastros por lista de trabalhadores enviada pelo empregador (l
 | `aplicado_por` | uuid | sim |  |  |  |  |
 | `desfeito_em` | timestamp with time zone | sim |  |  |  |  |
 | `desfeito_por` | uuid | sim |  |  |  |  |
+| `arquivo_caminho` | text | sim |  |  | nenhum | Caminho do arquivo no bucket listas-trabalhadores enquanto é lido; volta a null quando o arquivo é apagado, ao fim da leitura. |
+| `erro` | text | sim |  |  | nenhum | Por que a leitura falhou (situação erro). |
+| `progresso` | jsonb | sim |  |  | nenhum | Trechos da lista já lidos pela IA: {lidos, total}. |
+| `sairam` | jsonb | não | `'[]'::jsonb` |  | identificação, trabalhista | Pessoas encontradas a quem a lista dá data de saída da empresa, com o vínculo na fonte, para avaliar a desfiliação. |
 
-Checks: `filiacao_atualizacoes_lote_situacao_check` `CHECK ((situacao = ANY (ARRAY['rascunho'::text, 'aplicado'::text, 'desfeito'::text])))`
+Checks: `filiacao_atualizacoes_lote_situacao_check` `CHECK ((situacao = ANY (ARRAY['lendo'::text, 'erro'::text, 'rascunho'::text, 'aplicado'::text, 'desfeito'::text])))`
 
 Índices: `filiacao_atualizacoes_lote_emp_idx`, `filiacao_atualizacoes_lote_pkey`
 
@@ -228,7 +232,7 @@ Cada campo de cadastro ou vínculo proposto por uma lista de trabalhadores, com 
 | `linha` | integer | sim |  |  |  |  |
 | `filiado_id` | uuid | não |  | → filiacoes (**cascade**) |  |  |
 | `vinculo_id` | uuid | sim |  | → filiacao_vinculos (**cascade**) |  |  |
-| `via` | text | não |  |  | nenhum | Como a linha foi ligada ao cadastro: cpf, matricula (na fonte) ou nome (só sugestão). |
+| `via` | text | não |  |  | nenhum | Como a linha foi ligada ao cadastro: cpf, matricula (na fonte), nome_nascimento (nome exato e mesma data de nascimento) ou nome (só sugestão). |
 | `tabela` | text | não |  |  |  |  |
 | `campo` | text | não |  |  |  |  |
 | `valor_anterior` | text | sim |  |  | identificação | Valor do campo no cadastro quando a prévia foi montada. |
@@ -239,7 +243,7 @@ Cada campo de cadastro ou vínculo proposto por uma lista de trabalhadores, com 
 
 Únicas: `UNIQUE (lote_id, seq)`
 
-Checks: `filiacao_atualizacoes_lote_itens_tabela_check` `CHECK ((tabela = ANY (ARRAY['filiacoes'::text, 'filiacao_vinculos'::text])))`; `filiacao_atualizacoes_lote_itens_via_check` `CHECK ((via = ANY (ARRAY['cpf'::text, 'matricula'::text, 'nome'::text])))`
+Checks: `filiacao_atualizacoes_lote_itens_tabela_check` `CHECK ((tabela = ANY (ARRAY['filiacoes'::text, 'filiacao_vinculos'::text])))`; `filiacao_atualizacoes_lote_itens_via_check` `CHECK ((via = ANY (ARRAY['cpf'::text, 'matricula'::text, 'nome_nascimento'::text, 'nome'::text])))`
 
 Índices: `filiacao_atualizacoes_lote_itens_filiado_idx`, `filiacao_atualizacoes_lote_itens_lote_id_seq_key`, `filiacao_atualizacoes_lote_itens_lote_idx`, `filiacao_atualizacoes_lote_itens_pkey`
 

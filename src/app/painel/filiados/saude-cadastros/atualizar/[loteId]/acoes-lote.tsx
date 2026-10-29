@@ -41,13 +41,13 @@ export function DesfazerLote({ loteId, campos }: { loteId: string; campos: numbe
   )
 }
 
-export function DescartarRascunho({ loteId }: { loteId: string }) {
+export function DescartarRascunho({ loteId, rotulo = "Descartar a prévia" }: { loteId: string; rotulo?: string }) {
   return (
-    <form action={descartarRascunhoAction} onSubmit={(e) => confirmarEnvio(e, "Descartar esta prévia? Nada foi gravado nos cadastros.")}>
+    <form action={descartarRascunhoAction} onSubmit={(e) => confirmarEnvio(e, "Descartar esta lista? Nada foi gravado nos cadastros.")}>
       <input type="hidden" name="lote_id" value={loteId} />
       <Button type="submit" variant="ghost" size="sm">
         <Trash2 />
-        Descartar a prévia
+        {rotulo}
       </Button>
     </form>
   )

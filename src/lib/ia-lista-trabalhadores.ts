@@ -99,7 +99,7 @@ const linhasDe = (dados: Record<string, unknown> | undefined) =>
  * da lista (planilha e CSV) — no texto de um PDF, uma linha da tabela se
  * parte em várias e a contagem daria aviso falso.
  */
-async function lerTexto(texto: string, conferir: boolean): Promise<LeituraLista> {
+async function lerTexto(texto: string, conferir: boolean, aoAvancar?: AoAvancar): Promise<LeituraLista> {
   const linhas = texto.split(/\r?\n/).filter((l) => l.trim() && l.replace(/[,;\t|"]/g, "").trim())
   if (linhas.length > MAX_LINHAS_LISTA + 20) {
     return { erro: `Lista grande demais (${linhas.length} linhas). Divida em arquivos de até ${MAX_LINHAS_LISTA} trabalhadores.` }
@@ -108,8 +108,11 @@ async function lerTexto(texto: string, conferir: boolean): Promise<LeituraLista>
   for (let de = 0; de < linhas.length; de += LINHAS_POR_BLOCO) blocos.push(linhas.slice(de, de + LINHAS_POR_BLOCO))
   const contexto = linhas.slice(0, 3).join("\n")
 
-  const resultados = await emParalelo(blocos, BLOCOS_EM_PARALELO, (bloco, i) =>
-    gerarJsonIA({
+  let lidos = 0
+  aoAvancar?.(0, blocos.length)
+
+  const resultados = await emParalelo(blocos, BLOCOS_EM_PARALELO, async (bloco, i) => {
+    const r = await gerarJsonIA({
       system: SISTEMA,
       esquema: ESQUEMA,
       prompt:
@@ -119,7 +122,9 @@ async function lerTexto(texto: string, conferir: boolean): Promise<LeituraLista>
             ? `Trecho 1 de ${blocos.length} de uma lista maior. Transcreva todos os trabalhadores DESTE trecho:\n\n${bloco.join("\n")}`
             : `Trecho ${i + 1} de ${blocos.length} de uma lista maior.\n\nPRIMEIRAS LINHAS DO ARQUIVO — só para entender as colunas; NÃO transcreva nada daqui:\n${contexto}\n\nLINHAS DESTE TRECHO — transcreva todos os trabalhadores:\n${bloco.join("\n")}`,
     })
-  )
+    aoAvancar?.(++lidos, blocos.length)
+    return r
+  })
 
   const saida: Partial<LinhaBruta>[] = []
   const avisos: string[] = []
@@ -142,10 +147,18 @@ async function lerTexto(texto: string, conferir: boolean): Promise<LeituraLista>
   return { linhas: saida, avisos }
 }
 
-export async function lerListaTrabalhadores(arquivo: File): Promise<LeituraLista> {
+/** Trechos lidos de quantos — para a tela mostrar o andamento. */
+export type AoAvancar = (lidos: number, total: number) => void
+
+/** A visão do modelo recebe o arquivo inteiro: foto e PDF escaneado até este tamanho. */
+const MAX_VISAO = 20 * 1024 * 1024
+
+export async function lerListaTrabalhadores(arquivo: File, aoAvancar?: AoAvancar): Promise<LeituraLista> {
   const nome = arquivo.name.toLowerCase()
   const imagem = mimeDeImagem(arquivo.type, nome)
   if (imagem) {
+    if (arquivo.size > MAX_VISAO) return { erro: "Imagem grande demais para a leitura — até 20 MB." }
+    aoAvancar?.(0, 1)
     const r = await gerarJsonIADeImagem({
       system: SISTEMA,
       esquema: ESQUEMA,
@@ -176,8 +189,10 @@ export async function lerListaTrabalhadores(arquivo: File): Promise<LeituraLista
     if (!ehPdf || !pdf) return { erro: "Não consegui ler o arquivo." }
   }
 
-  if (texto.length >= 20) return lerTexto(texto, !ehPdf)
+  if (texto.length >= 20) return lerTexto(texto, !ehPdf, aoAvancar)
   if (ehPdf && pdf) {
+    if (arquivo.size > MAX_VISAO) return { erro: "PDF escaneado grande demais para a leitura — até 20 MB. Divida o arquivo." }
+    aoAvancar?.(0, 1)
     const r = await gerarJsonIADePdf({
       system: SISTEMA,
       esquema: ESQUEMA,

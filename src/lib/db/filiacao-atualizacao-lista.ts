@@ -1,5 +1,7 @@
 import "server-only"
 
+import { randomUUID } from "node:crypto"
+
 import {
   type CampoCadastro,
   type CampoVinculo,
@@ -8,6 +10,7 @@ import {
   ESPELHO_FONTE,
   type LinhaLista,
   mesmoValor,
+  padronizarLinha,
   ROTULOS_CAMPO,
 } from "@/lib/atualizacao-lista"
 import { cpfConfiavel, grafiasDoCpf, limparCpf } from "@/lib/cpf"
@@ -18,15 +21,19 @@ import { atribuirMatriculaSindical } from "@/lib/db/filiacao-identidade"
 import { buscarFontePagadora, invalidarCacheFontes } from "@/lib/db/fontes"
 import { invalidarCacheProntuarios } from "@/lib/db/prontuario"
 import { condicaoNaFontePadrao, FILIACAO_CONDICOES } from "@/lib/filiacao"
+import { lerListaTrabalhadores, MAX_LINHAS_LISTA } from "@/lib/ia-lista-trabalhadores"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
 /**
- * Atualização de cadastros por lista de trabalhadores (29/10/2026). A IA lê a
- * lista (ia-actions da página) e lib/atualizacao-lista.ts padroniza; aqui:
+ * Atualização de cadastros por lista de trabalhadores (29/10/2026). O
+ * navegador sobe o arquivo ao bucket (criarEnvioLista); iniciarLeitura cria o
+ * lote em 'lendo' e processarLeitura, em segundo plano, faz a IA ler
+ * (lib/ia-lista-trabalhadores.ts), padroniza (lib/atualizacao-lista.ts) e:
  *
  *  1. `montarRascunho`: acha o cadastro de cada linha (CPF → matrícula na
- *     fonte → nome exato, este só como sugestão) e grava a prévia — cada
+ *     fonte → nome exato com o mesmo nascimento → nome exato, este só como
+ *     sugestão) e grava a prévia — cada
  *     campo que mudaria, com o valor atual e o novo. Campo vazio no cadastro
  *     vem marcado; valor diferente, desmarcado.
  *  2. `aplicarLote`: grava o que foi marcado. Um campo que mudou depois da
@@ -73,9 +80,12 @@ const COLS_VINCULO = [
   ...Object.values(ESPELHO_FONTE),
 ].join(", ")
 
-export type Via = "cpf" | "matricula" | "nome"
+export type Via = "cpf" | "matricula" | "nome_nascimento" | "nome"
 
 export type Descartada = { linha: number; nome: string | null; motivo: string }
+
+/** Pessoa encontrada a quem a lista dá saída da empresa (vínculo aberto na fonte, se houver). */
+export type Saiu = { filiadoId: string; vinculoId: string | null; nome: string | null; saida: string }
 
 /** Linha válida sem cadastro: o que é preciso para cadastrá-la depois. */
 export type NaoEncontrado = {
@@ -109,10 +119,15 @@ export type Lote = {
   fonteId: string | null
   fonteNome: string | null
   arquivo: string
-  situacao: "rascunho" | "aplicado" | "desfeito"
+  situacao: "lendo" | "erro" | "rascunho" | "aplicado" | "desfeito"
+  /** Por que a leitura falhou (situação erro). */
+  erro: string | null
+  /** Trechos lidos pela IA, enquanto lê. */
+  progresso: { lidos: number; total: number } | null
   linhasLidas: number
   descartadas: Descartada[]
   naoEncontrados: NaoEncontrado[]
+  sairam: Saiu[]
   avisos: string[]
   resumo: Record<string, number> | null
   criadoPorNome: string | null
@@ -136,15 +151,15 @@ const comoTexto = (v: unknown): string | null =>
 
 // ── 1. Prévia ────────────────────────────────────────────────────────────────
 
-export async function montarRascunho(entrada: {
+/** Lote já criado em 'lendo' (iniciarLeitura): grava a prévia nele e o põe em 'rascunho'. */
+async function montarRascunho(entrada: {
+  loteId: string
   fonteId: string | null
-  arquivo: string
   linhas: LinhaLista[]
   descartadas: Descartada[]
   avisos: string[]
   linhasLidas: number
-  usuario: { id: string; nome: string | null }
-}): Promise<{ loteId?: string; erro?: string }> {
+}): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
   const { fonteId } = entrada
@@ -155,7 +170,7 @@ export async function montarRascunho(entrada: {
   const cadastros = await lerEmLotes<Record<string, unknown>>((de, ate) =>
     admin
       .from("filiacoes")
-      .select("id, cpf, nome_completo, filiacao_condicao, created_at")
+      .select("id, cpf, nome_completo, nascimento_data, filiacao_condicao, created_at")
       .eq("emp_proprietaria_id", emp)
       .not("filiacao_excluida", "is", true)
       .is("mesclado_em", null)
@@ -183,7 +198,8 @@ export async function montarRascunho(entrada: {
   const peso = (c: Record<string, unknown>) =>
     (comVinculoAberto.has(String(c.id)) ? 4 : 0) + (c.filiacao_condicao === "Ativo" ? 2 : 0)
   const porCpf = new Map<string, Record<string, unknown>>()
-  const porNome = new Map<string, string | null>()
+  // Nome → cadastros com esse nome (e o nascimento de cada um, que separa homônimos).
+  const porNome = new Map<string, { id: string; nascimento: string | null }[]>()
   for (const c of cadastros) {
     const cpf = limparCpf(String(c.cpf ?? ""))
     if (cpf.length === 11) {
@@ -197,7 +213,28 @@ export async function montarRascunho(entrada: {
       }
     }
     const nome = chaveComparacao(texto(c.nome_completo))
-    if (nome) porNome.set(nome, porNome.has(nome) && porNome.get(nome) !== String(c.id) ? null : String(c.id))
+    if (nome) {
+      porNome.set(nome, [
+        ...(porNome.get(nome) ?? []),
+        { id: String(c.id), nascimento: texto(c.nascimento_data)?.slice(0, 10) ?? null },
+      ])
+    }
+  }
+  /**
+   * Por nome só sem CPF na linha (CPF que não casou é outra pessoa). Com
+   * nascimento na lista: só quem tem a mesma data (via nome_nascimento); um
+   * cadastro com outra data é outra pessoa. Sem nascimento: só nome único.
+   */
+  const pelaNome = (l: LinhaLista): { id: string; via: Via } | null => {
+    const candidatos = porNome.get(chaveComparacao(l.nome)) ?? []
+    const nasc = l.cadastro.nascimento_data
+    if (nasc) {
+      const iguais = candidatos.filter((c) => c.nascimento === nasc)
+      if (iguais.length === 1) return { id: iguais[0].id, via: "nome_nascimento" }
+      const semData = candidatos.filter((c) => !c.nascimento)
+      return iguais.length === 0 && candidatos.length === 1 && semData.length === 1 ? { id: semData[0].id, via: "nome" } : null
+    }
+    return candidatos.length === 1 ? { id: candidatos[0].id, via: "nome" } : null
   }
   // Matrícula na fonte → pessoa, só quando aponta para uma pessoa só.
   const porMatricula = new Map<string, string | null>()
@@ -223,10 +260,12 @@ export async function montarRascunho(entrada: {
     } else if (l.matricula && porMatricula.get(chaveMatricula(l.matricula))) {
       filiadoId = porMatricula.get(chaveMatricula(l.matricula))!
       via = "matricula"
-    } else if (!l.cpf && l.nome && porNome.get(chaveComparacao(l.nome))) {
-      // Por nome só sem CPF na linha: CPF que não casou é outra pessoa.
-      filiadoId = porNome.get(chaveComparacao(l.nome))!
-      via = "nome"
+    } else if (!l.cpf && l.nome) {
+      const achado = pelaNome(l)
+      if (achado) {
+        filiadoId = achado.id
+        via = achado.via
+      }
     }
     if (!filiadoId || !via) {
       naoEncontrados.push({
@@ -284,7 +323,7 @@ export async function montarRascunho(entrada: {
   const itens: Novo[] = []
   let seq = 0
   const semVinculo: string[] = []
-  const sairam: string[] = []
+  const sairam: Saiu[] = []
   for (const { linha: l, filiadoId, via } of casadas) {
     const atual = atuais.get(filiadoId) ?? {}
     const confiavel = via !== "nome"
@@ -333,9 +372,16 @@ export async function montarRascunho(entrada: {
     }
 
     const temDadosVinculo = CAMPOS_VINCULO.some((c) => l.vinculo[c])
-    if (l.vinculo.data_saida_demissao) sairam.push(l.nome ?? `linha ${l.linha}`)
-    if (!fonteId || !temDadosVinculo) continue
     const v = vinculoAberto.get(filiadoId)
+    if (l.vinculo.data_saida_demissao) {
+      sairam.push({
+        filiadoId,
+        vinculoId: v ? String(v.id) : null,
+        nome: l.nome,
+        saida: l.vinculo.data_saida_demissao,
+      })
+    }
+    if (!fonteId || !temDadosVinculo) continue
     if (!v) {
       semVinculo.push(l.nome ?? `linha ${l.linha}`)
       continue
@@ -370,27 +416,7 @@ export async function montarRascunho(entrada: {
   if (semVinculo.length) {
     avisos.push(`${semVinculo.length} pessoa(s) encontrada(s) sem vínculo em aberto nesta fonte — os dados do emprego delas ficam de fora: ${lista(semVinculo)}.`)
   }
-  if (sairam.length) {
-    avisos.push(`${sairam.length} pessoa(s) com data de saída da empresa na lista. A filiação não muda sozinha — avalie a desfiliação: ${lista(sairam)}.`)
-  }
-
-  const { data: lote, error } = await admin
-    .from(LOTE)
-    .insert({
-      emp_proprietaria_id: emp,
-      fonte_pagadora_id: fonteId,
-      arquivo_nome: entrada.arquivo.slice(0, 200),
-      linhas_lidas: entrada.linhasLidas,
-      descartadas,
-      nao_encontrados: naoEncontrados,
-      avisos,
-      criado_por: entrada.usuario.id,
-      criado_por_nome: entrada.usuario.nome,
-    })
-    .select("id")
-    .single()
-  if (error || !lote) return { erro: `Falha ao guardar a prévia: ${error?.message ?? "sem retorno"}` }
-
+  const lote = { id: entrada.loteId }
   for (let de = 0; de < itens.length; de += 500) {
     const { error: e } = await admin.from(ITENS).insert(
       itens.slice(de, de + 500).map((i) => ({
@@ -410,25 +436,179 @@ export async function montarRascunho(entrada: {
       }))
     )
     if (e) {
-      await admin.from(LOTE).delete().eq("id", lote.id)
+      await admin.from(ITENS).delete().eq("lote_id", lote.id)
       return { erro: `Falha ao guardar a prévia: ${e.message}` }
     }
   }
-  return { loteId: String(lote.id) }
+  const { error } = await admin
+    .from(LOTE)
+    .update({
+      situacao: "rascunho",
+      linhas_lidas: entrada.linhasLidas,
+      descartadas,
+      nao_encontrados: naoEncontrados,
+      avisos,
+      sairam,
+      progresso: null,
+    })
+    .eq("id", lote.id)
+    .eq("situacao", "lendo")
+  if (error) {
+    await admin.from(ITENS).delete().eq("lote_id", lote.id)
+    return { erro: `Falha ao guardar a prévia: ${error.message}` }
+  }
+  return {}
+}
+
+// ── Envio do arquivo e leitura em segundo plano ─────────────────────────────
+
+const BUCKET = "listas-trabalhadores"
+/** Teto do bucket; foto e PDF escaneado têm o da visão (20 MB, ia-lista-trabalhadores). */
+export const MAX_ARQUIVO_LISTA = 25 * 1024 * 1024
+/** Leitura que não terminou nesse tempo morreu com a função (tempo da página: 300 s). */
+const LEITURA_EXPIRA_MS = 8 * 60 * 1000
+
+const prefixoEnvio = async () => `${await tenantAtual()}/`
+
+/** URL assinada para o navegador subir a lista direto ao armazenamento (sem o teto de 4 MB das actions). */
+export async function criarEnvioLista(nomeArquivo: string): Promise<{ caminho?: string; token?: string; erro?: string }> {
+  const extensao = (/\.([a-z0-9]{2,5})$/i.exec(nomeArquivo)?.[1] ?? "bin").toLowerCase()
+  const caminho = `${await prefixoEnvio()}${randomUUID()}.${extensao}`
+  const admin = await createAdminClient()
+  const { data, error } = await admin.storage.from(BUCKET).createSignedUploadUrl(caminho)
+  if (error || !data) return { erro: `Não foi possível preparar o envio: ${error?.message ?? "?"}` }
+  return { caminho, token: data.token }
+}
+
+/** Cria o lote em 'lendo' para o arquivo já enviado. A leitura roda depois (processarLeitura). */
+export async function iniciarLeitura(entrada: {
+  caminho: string
+  arquivo: string
+  fonteId: string | null
+  usuario: { id: string; nome: string | null }
+}): Promise<{ loteId?: string; erro?: string }> {
+  const prefixo = await prefixoEnvio()
+  if (!entrada.caminho.startsWith(prefixo) || !/^[0-9a-f-]{36}\.[a-z0-9]{2,5}$/i.test(entrada.caminho.slice(prefixo.length))) {
+    return { erro: "Envio inválido." }
+  }
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from(LOTE)
+    .insert({
+      emp_proprietaria_id: await tenantAtual(),
+      fonte_pagadora_id: entrada.fonteId,
+      arquivo_nome: entrada.arquivo.slice(0, 200),
+      arquivo_caminho: entrada.caminho,
+      situacao: "lendo",
+      criado_por: entrada.usuario.id,
+      criado_por_nome: entrada.usuario.nome,
+    })
+    .select("id")
+    .single()
+  if (error || !data) return { erro: `Falha ao registrar a lista: ${error?.message ?? "sem retorno"}` }
+  return { loteId: String(data.id) }
+}
+
+/**
+ * A leitura em si (chamada em `after()`, depois da resposta): baixa o arquivo,
+ * a IA lê, o código padroniza, a prévia é montada no lote. O arquivo é
+ * apagado ao fim, dê certo ou não — o lote guarda só o nome.
+ */
+export async function processarLeitura(loteId: string): Promise<void> {
+  const admin = await createAdminClient()
+  const { data: lote } = await admin
+    .from(LOTE)
+    .select("id, arquivo_nome, arquivo_caminho, fonte_pagadora_id, situacao")
+    .eq("id", loteId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (!lote || lote.situacao !== "lendo" || !lote.arquivo_caminho) return
+  const caminho = String(lote.arquivo_caminho)
+
+  const falhar = async (erro: string) => {
+    await admin.from(LOTE).update({ situacao: "erro", erro, progresso: null }).eq("id", loteId).eq("situacao", "lendo")
+  }
+  try {
+    const { data: blob, error } = await admin.storage.from(BUCKET).download(caminho)
+    if (error || !blob) return await falhar("O arquivo enviado não foi encontrado. Envie de novo.")
+    if (blob.size > MAX_ARQUIVO_LISTA) return await falhar("Arquivo grande demais — até 25 MB.")
+    const arquivo = new File([blob], String(lote.arquivo_nome), { type: blob.type })
+
+    // Andamento para a tela, sem esperar a gravação (o builder só roda no then).
+    const leitura = await lerListaTrabalhadores(arquivo, (lidos, total) => {
+      admin
+        .from(LOTE)
+        .update({ progresso: { lidos, total } })
+        .eq("id", loteId)
+        .eq("situacao", "lendo")
+        .then(
+          () => {},
+          () => {}
+        )
+    })
+    if (leitura.erro || !leitura.linhas) return await falhar(leitura.erro ?? "Falha na leitura.")
+    if (leitura.linhas.length === 0) return await falhar("A IA não encontrou trabalhadores neste arquivo.")
+    if (leitura.linhas.length > MAX_LINHAS_LISTA) {
+      return await falhar(`Lista grande demais (${leitura.linhas.length} trabalhadores). Divida em arquivos de até ${MAX_LINHAS_LISTA}.`)
+    }
+
+    const linhas: LinhaLista[] = []
+    const descartadas: Descartada[] = []
+    const invalidos = new Map<string, number>()
+    leitura.linhas.forEach((bruta, i) => {
+      const l = padronizarLinha(bruta, i + 1)
+      if (!l) {
+        descartadas.push({ linha: i + 1, nome: String(bruta.nome ?? "").trim() || null, motivo: "Sem CPF válido, matrícula ou nome." })
+        return
+      }
+      for (const c of l.invalidos) invalidos.set(c, (invalidos.get(c) ?? 0) + 1)
+      linhas.push(l)
+    })
+    const avisos = [...(leitura.avisos ?? [])]
+    if (invalidos.size) {
+      avisos.push(
+        `Valores ignorados por estarem fora do padrão: ${[...invalidos].map(([c, n]) => `${c} (${n})`).join(", ")}. O resto da linha foi aproveitado.`
+      )
+    }
+    const { erro } = await montarRascunho({
+      loteId,
+      fonteId: texto(lote.fonte_pagadora_id),
+      linhas,
+      descartadas,
+      avisos,
+      linhasLidas: leitura.linhas.length,
+    })
+    if (erro) await falhar(erro)
+  } catch (e) {
+    console.error("Atualização por lista — leitura:", e)
+    await falhar("A leitura falhou de forma inesperada. Envie de novo.")
+  } finally {
+    await admin.storage.from(BUCKET).remove([caminho])
+    await admin.from(LOTE).update({ arquivo_caminho: null }).eq("id", loteId)
+  }
 }
 
 // ── Leitura ──────────────────────────────────────────────────────────────────
 
+/** Leitura parada além do tempo da função: morreu sem gravar o erro. */
+function leituraExpirada(l: Record<string, unknown>): boolean {
+  return l.situacao === "lendo" && Date.now() - new Date(String(l.created_at)).getTime() > LEITURA_EXPIRA_MS
+}
+
 function mapearLote(l: Record<string, unknown>, fonteNome: string | null): Lote {
+  const expirada = leituraExpirada(l)
   return {
     id: String(l.id),
     fonteId: texto(l.fonte_pagadora_id),
     fonteNome,
     arquivo: String(l.arquivo_nome ?? ""),
-    situacao: l.situacao as Lote["situacao"],
+    situacao: expirada ? "erro" : (l.situacao as Lote["situacao"]),
+    erro: expirada ? "A leitura não terminou a tempo. Envie de novo ou divida a lista." : texto(l.erro),
+    progresso: (l.progresso as Lote["progresso"]) ?? null,
     linhasLidas: Number(l.linhas_lidas ?? 0),
     descartadas: (l.descartadas as Descartada[]) ?? [],
     naoEncontrados: (l.nao_encontrados as NaoEncontrado[]) ?? [],
+    sairam: (l.sairam as Saiu[]) ?? [],
     avisos: (l.avisos as string[]) ?? [],
     resumo: (l.resumo as Record<string, number> | null) ?? null,
     criadoPorNome: texto(l.criado_por_nome),
@@ -686,14 +866,17 @@ export async function desfazerLote(loteId: string, usuarioId: string): Promise<{
 }
 
 /** Lote em rascunho que ninguém quis aplicar. */
+/** Prévia que ninguém quis aplicar, ou leitura que falhou (ou expirou): nada foi gravado nos cadastros. */
 export async function descartarRascunho(loteId: string): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
-  const { error } = await admin
-    .from(LOTE)
-    .delete()
-    .eq("id", loteId)
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .eq("situacao", "rascunho")
+  const emp = await tenantAtual()
+  const { data: l } = await admin.from(LOTE).select("situacao, created_at, arquivo_caminho").eq("id", loteId).eq("emp_proprietaria_id", emp).maybeSingle()
+  if (!l) return {}
+  if (!(l.situacao === "rascunho" || l.situacao === "erro" || leituraExpirada(l))) {
+    return { erro: "Este lote não pode ser descartado." }
+  }
+  if (l.arquivo_caminho) await admin.storage.from(BUCKET).remove([String(l.arquivo_caminho)])
+  const { error } = await admin.from(LOTE).delete().eq("id", loteId).eq("emp_proprietaria_id", emp).in("situacao", ["rascunho", "erro", "lendo"])
   return error ? { erro: error.message } : {}
 }
 
