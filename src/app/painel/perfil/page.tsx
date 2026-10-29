@@ -253,9 +253,28 @@ export default async function PerfilPage({
   const casa = admissao ? tempoDeCasa(admissao, hojeSP()) : null
   // O WhatsApp do cadastro (usuarios.whatsapp) aparece entre os telefones
   // quando ainda não está na lista — o Pessoal e a Comunicação o usam.
-  const digitosTel = (v: string | null) => (v ?? "").replace(/D/g, "").replace(/^55(?=d{10,11}$)/, "")
+  const digitosTel = (v: string | null) => (v ?? "").replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "")
+  // O que é da entidade (e-mail institucional, linha, telefone direto) fica
+  // só em Contatos corporativos — sai das listas pessoais mesmo que o
+  // cadastro antigo o tenha copiado para lá.
+  const emailsCorporativos = new Set(corporativos.emails.map((e) => e.toLowerCase()))
+  const telefonesCorporativos = new Set(
+    [...corporativos.celulares.map((c) => c.numero), ...corporativos.ramais.map((r) => r.telefoneDireto)]
+      .map(digitosTel)
+      .filter(Boolean)
+  )
+  const telefonesPessoais = telefones.filter((t) => !telefonesCorporativos.has(digitosTel(t.numero)))
+  const principalCorporativo = Boolean(perfil.email && emailsCorporativos.has(perfil.email.toLowerCase()))
+  const emailPrincipalPessoal = principalCorporativo ? null : perfil.email
+  const emailsPessoais = emails.filter(
+    (e) => !emailsCorporativos.has(e.email.toLowerCase()) && e.email.toLowerCase() !== (perfil.email ?? "").toLowerCase()
+  )
   const whatsappAvulso =
-    perfil.whatsapp && !telefones.some((t) => digitosTel(t.numero) === digitosTel(perfil.whatsapp)) ? perfil.whatsapp : null
+    perfil.whatsapp &&
+    !telefonesCorporativos.has(digitosTel(perfil.whatsapp)) &&
+    !telefones.some((t) => digitosTel(t.numero) === digitosTel(perfil.whatsapp))
+      ? perfil.whatsapp
+      : null
   const contaPrincipal = bancarios?.contas.find((c) => c.principal) ?? bancarios?.contas[0] ?? null
   const pedidosAguardando = bancarios?.lista.filter((a) => a.situacao === "aguardando").length ?? 0
   const papeis = [
@@ -373,59 +392,59 @@ export default async function PerfilPage({
         />
       </CartaoEditavel>
 
-      {/* Telefones e endereços lado a lado (cartões compactos). */}
-      <div className="grid items-start gap-4 lg:grid-cols-2">
-        <CartaoLista
-          titulo="Telefones"
-          item="telefone"
-          icone={<Phone className="text-muted-foreground size-4" />}
-          formulario={<AdicionarTelefone />}
-        >
-          {telefones.length === 0 && !whatsappAvulso ? (
-            <p className="text-muted-foreground text-sm">Nenhum telefone cadastrado.</p>
-          ) : (
+      {/* Contatos em colunas independentes: cada coluna empilha os seus
+          cartões, sem a altura de um puxar a fileira do vizinho. */}
+      <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4">
+          <CartaoLista
+            titulo="Telefones"
+            item="telefone"
+            icone={<Phone className="text-muted-foreground size-4" />}
+            formulario={<AdicionarTelefone />}
+          >
+            {telefonesPessoais.length === 0 && !whatsappAvulso ? (
+              <p className="text-muted-foreground text-sm">Nenhum telefone cadastrado.</p>
+            ) : (
+              <ul className="divide-y">
+                {whatsappAvulso && (
+                  <li className="flex items-center justify-between gap-3 py-1.5 first:pt-0 last:pb-0">
+                    <span className="text-sm">
+                      <span className="font-medium tabular-nums">{formatarTelefone(whatsappAvulso)}</span>
+                      <Badge variant="secondary" className="ml-2">WhatsApp</Badge>
+                    </span>
+                    <span className="text-muted-foreground text-xs">do cadastro</span>
+                  </li>
+                )}
+                {telefonesPessoais.map((t) => (
+                  <li key={t.id} className="flex items-center justify-between gap-3 py-1.5 first:pt-0 last:pb-0">
+                    <span className="text-sm">
+                      <span className="font-medium tabular-nums">{t.numero ?? "—"}</span>
+                      {t.tipo ? <span className="text-muted-foreground"> · {t.tipo}</span> : ""}
+                      {t.whatsapp && <Badge variant="secondary" className="ml-2">WhatsApp</Badge>}
+                    </span>
+                    <RemoverTelefone telefoneId={t.id} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CartaoLista>
+
+          <CartaoLista
+            titulo="E-mails"
+            item="e-mail"
+            icone={<Mail className="text-muted-foreground size-4" />}
+            formulario={<AdicionarEmail />}
+          >
             <ul className="divide-y">
-              {whatsappAvulso && (
+              {emailPrincipalPessoal && (
                 <li className="flex items-center justify-between gap-3 py-1.5 first:pt-0 last:pb-0">
-                  <span className="text-sm">
-                    <span className="font-medium tabular-nums">{formatarTelefone(whatsappAvulso)}</span>
-                    <Badge variant="secondary" className="ml-2">WhatsApp</Badge>
-                  </span>
-                  <span className="text-muted-foreground text-xs">do cadastro</span>
+                  <span className="min-w-0 truncate text-sm font-medium">{emailPrincipalPessoal}</span>
+                  <Badge variant="secondary" title="Altere pelo lápis de Dados pessoais">
+                    Principal · recebe os avisos
+                  </Badge>
                 </li>
               )}
-              {telefones.map((t) => (
-                <li key={t.id} className="flex items-center justify-between gap-3 py-1.5 first:pt-0 last:pb-0">
-                  <span className="text-sm">
-                    <span className="font-medium tabular-nums">{t.numero ?? "—"}</span>
-                    {t.tipo ? <span className="text-muted-foreground"> · {t.tipo}</span> : ""}
-                    {t.whatsapp && <Badge variant="secondary" className="ml-2">WhatsApp</Badge>}
-                  </span>
-                  <RemoverTelefone telefoneId={t.id} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </CartaoLista>
-
-        <CartaoLista
-          titulo="E-mails"
-          item="e-mail"
-          icone={<Mail className="text-muted-foreground size-4" />}
-          formulario={<AdicionarEmail />}
-        >
-          <ul className="divide-y">
-            {perfil.email && (
-              <li className="flex items-center justify-between gap-3 py-1.5 first:pt-0 last:pb-0">
-                <span className="min-w-0 truncate text-sm font-medium">{perfil.email}</span>
-                <Badge variant="secondary" title="Altere pelo lápis de Dados pessoais">
-                  Principal · recebe os avisos
-                </Badge>
-              </li>
-            )}
-            {emails
-              .filter((e) => e.email.toLowerCase() !== (perfil.email ?? "").toLowerCase())
-              .map((e) => (
+              {emailsPessoais.map((e) => (
                 <li key={e.id} className="flex items-center justify-between gap-3 py-1.5 first:pt-0 last:pb-0">
                   <span className="min-w-0 truncate text-sm">
                     <span className="font-medium">{e.email}</span>
@@ -434,118 +453,130 @@ export default async function PerfilPage({
                   <RemoverEmail emailId={e.id} />
                 </li>
               ))}
-          </ul>
-          {!perfil.email && emails.length === 0 && <p className="text-muted-foreground text-sm">Nenhum e-mail cadastrado.</p>}
-        </CartaoLista>
-
-        <CartaoLista
-          titulo="Endereços"
-          item="endereço"
-          icone={<MapPin className="text-muted-foreground size-4" />}
-          formulario={<AdicionarEndereco />}
-        >
-          {enderecos.length === 0 ? (
-            <p className="text-muted-foreground text-sm">Nenhum endereço cadastrado.</p>
-          ) : (
-            <ul className="divide-y">
-              {enderecos.map((e) => (
-                <li key={e.id} className="flex items-center justify-between gap-3 py-1.5 first:pt-0 last:pb-0">
-                  <span className="text-sm">
-                    {[
-                      [e.logradouro, e.numero].filter(Boolean).join(", "),
-                      e.bairro,
-                      [e.cidade, e.estado].filter(Boolean).join("/"),
-                      e.cep ? `CEP ${formatarCep(e.cep)}` : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" — ") || "(endereço)"}
-                    {e.tipo ? <span className="text-muted-foreground"> · {e.tipo}</span> : ""}
-                  </span>
-                  <RemoverEndereco enderecoId={e.id} />
-                </li>
-              ))}
             </ul>
+            {!emailPrincipalPessoal && emailsPessoais.length === 0 && (
+              <p className="text-muted-foreground text-sm">Nenhum e-mail pessoal cadastrado.</p>
+            )}
+          </CartaoLista>
+        </div>
+        <div className="grid gap-4">
+          <CartaoLista
+            titulo="Endereços"
+            item="endereço"
+            icone={<MapPin className="text-muted-foreground size-4" />}
+            formulario={<AdicionarEndereco />}
+          >
+            {enderecos.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Nenhum endereço cadastrado.</p>
+            ) : (
+              <ul className="divide-y">
+                {enderecos.map((e) => (
+                  <li key={e.id} className="flex items-center justify-between gap-3 py-1.5 first:pt-0 last:pb-0">
+                    <span className="text-sm">
+                      {[
+                        [e.logradouro, e.numero].filter(Boolean).join(", "),
+                        e.bairro,
+                        [e.cidade, e.estado].filter(Boolean).join("/"),
+                        e.cep ? `CEP ${formatarCep(e.cep)}` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" — ") || "(endereço)"}
+                      {e.tipo ? <span className="text-muted-foreground"> · {e.tipo}</span> : ""}
+                    </span>
+                    <RemoverEndereco enderecoId={e.id} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CartaoLista>
+
+          {bancarios && (
+            <Card className="gap-0 py-4">
+              <CardContent className="grid gap-3 px-4">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="flex items-center gap-2 font-medium">
+                    <Landmark className="text-muted-foreground size-4" />
+                    Dados bancários
+                  </p>
+                  <Button variant="ghost" size="sm" className="h-7" asChild>
+                    <Link href="/painel/perfil/dados-bancarios">
+                      <Pencil />
+                      Gerenciar
+                    </Link>
+                  </Button>
+                </div>
+                {contaPrincipal ? (
+                  <div className="grid gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="secondary">Principal</Badge>
+                      {contaPrincipal.ciente && (
+                        <Badge variant="outline" className="border-success/40 text-success-fg">
+                          <BadgeCheck />
+                          Financeiro ciente
+                        </Badge>
+                      )}
+                      {bancarios.contas.length > 1 && (
+                        <span className="text-muted-foreground text-xs">+{bancarios.contas.length - 1} outra(s)</span>
+                      )}
+                    </div>
+                    <ContaBancariaResumo conta={contaPrincipal} />
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-sm">Nenhuma conta cadastrada — inclua a sua para receber os pagamentos.</p>
+                )}
+                {pedidosAguardando > 0 && (
+                  <p className="text-warning-fg text-xs">
+                    {pedidosAguardando} pedido{pedidosAguardando === 1 ? "" : "s"} aguardando o Financeiro.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
           )}
-        </CartaoLista>
-
-        {/* Espelho das áreas do Institucional: só leitura aqui. */}
-        <Card className="gap-0 py-4">
-          <CardContent className="grid gap-3 px-4">
-            <div>
-              <p className="flex items-center gap-2 font-medium">
-                <Building2 className="text-muted-foreground size-4" />
-                Contatos corporativos
-              </p>
-              <p className="text-muted-foreground mt-0.5 text-xs">Mantidos pela entidade, no Institucional</p>
-            </div>
-            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
-              <dt className="text-muted-foreground text-xs leading-5">E-mail corporativo</dt>
-              <dd className="min-w-0 break-words">{corporativos.emails.join(", ") || "—"}</dd>
-              <dt className="text-muted-foreground text-xs leading-5">Telefone corporativo</dt>
-              <dd className="tabular-nums">
-                {corporativos.celulares.map((c) => [formatarTelefone(c.numero), c.operadora].filter(Boolean).join(" · ")).join(", ") ||
-                  "—"}
-              </dd>
-              <dt className="text-muted-foreground text-xs leading-5">Telefone direto</dt>
-              <dd className="tabular-nums">
-                {corporativos.ramais
-                  .filter((r) => r.telefoneDireto)
-                  .map((r) => formatarTelefone(r.telefoneDireto))
-                  .join(", ") || "—"}
-              </dd>
-              <dt className="text-muted-foreground text-xs leading-5">Ramal</dt>
-              <dd className="tabular-nums">
-                {corporativos.ramais
-                  .filter((r) => r.ramal)
-                  .map((r) => [r.ramal, r.local].filter(Boolean).join(" · "))
-                  .join(", ") || "—"}
-              </dd>
-            </dl>
-          </CardContent>
-        </Card>
-
-        {bancarios && (
+        </div>
+        <div className="grid gap-4 md:col-span-2 xl:col-span-1">
+          {/* Espelho das áreas do Institucional: só leitura aqui. */}
           <Card className="gap-0 py-4">
             <CardContent className="grid gap-3 px-4">
-              <div className="flex items-center justify-between gap-2">
+              <div>
                 <p className="flex items-center gap-2 font-medium">
-                  <Landmark className="text-muted-foreground size-4" />
-                  Dados bancários
+                  <Building2 className="text-muted-foreground size-4" />
+                  Contatos corporativos
                 </p>
-                <Button variant="ghost" size="sm" className="h-7" asChild>
-                  <Link href="/painel/perfil/dados-bancarios">
-                    <Pencil />
-                    Gerenciar
-                  </Link>
-                </Button>
+                <p className="text-muted-foreground mt-0.5 text-xs">Mantidos pela entidade, no Institucional</p>
               </div>
-              {contaPrincipal ? (
-                <div className="grid gap-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="secondary">Principal</Badge>
-                    {contaPrincipal.ciente && (
-                      <Badge variant="outline" className="border-success/40 text-success-fg">
-                        <BadgeCheck />
-                        Financeiro ciente
-                      </Badge>
-                    )}
-                    {bancarios.contas.length > 1 && (
-                      <span className="text-muted-foreground text-xs">+{bancarios.contas.length - 1} outra(s)</span>
-                    )}
-                  </div>
-                  <ContaBancariaResumo conta={contaPrincipal} />
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-sm">Nenhuma conta cadastrada — inclua a sua para receber os pagamentos.</p>
-              )}
-              {pedidosAguardando > 0 && (
-                <p className="text-warning-fg text-xs">
-                  {pedidosAguardando} pedido{pedidosAguardando === 1 ? "" : "s"} aguardando o Financeiro.
-                </p>
-              )}
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+                <dt className="text-muted-foreground text-xs leading-5">E-mail corporativo</dt>
+                <dd className="min-w-0 break-words">
+                  {corporativos.emails.join(", ") || "—"}
+                  {principalCorporativo && (
+                    <Badge variant="secondary" className="ml-2" title="Altere pelo lápis de Dados pessoais">
+                      Recebe os avisos
+                    </Badge>
+                  )}
+                </dd>
+                <dt className="text-muted-foreground text-xs leading-5">Telefone corporativo</dt>
+                <dd className="tabular-nums">
+                  {corporativos.celulares.map((c) => [formatarTelefone(c.numero), c.operadora].filter(Boolean).join(" · ")).join(", ") ||
+                    "—"}
+                </dd>
+                <dt className="text-muted-foreground text-xs leading-5">Telefone direto</dt>
+                <dd className="tabular-nums">
+                  {corporativos.ramais
+                    .filter((r) => r.telefoneDireto)
+                    .map((r) => formatarTelefone(r.telefoneDireto))
+                    .join(", ") || "—"}
+                </dd>
+                <dt className="text-muted-foreground text-xs leading-5">Ramal</dt>
+                <dd className="tabular-nums">
+                  {corporativos.ramais
+                    .filter((r) => r.ramal)
+                    .map((r) => [r.ramal, r.local].filter(Boolean).join(" · "))
+                    .join(", ") || "—"}
+                </dd>
+              </dl>
             </CardContent>
           </Card>
-        )}
+        </div>
       </div>
 
       {diretoria && areaDiretor && <MinhaDiretoria diretoria={diretoria} area={areaDiretor} />}
