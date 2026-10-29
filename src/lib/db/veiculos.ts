@@ -21,7 +21,7 @@ import {
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { origemAtual } from "@/lib/tenant-url"
 import { rotuloCentroCusto } from "@/lib/centros-custo-rotulo"
-import { resumoLocacao } from "@/lib/locacao-periodo"
+import { resumoLocacao, rotuloCategoria, type CategoriaLocacao } from "@/lib/locacao-periodo"
 import { createAdminClient } from "@/lib/supabase/admin"
 import {
   duracaoBR,
@@ -3086,6 +3086,8 @@ export type ContratoDetalhe = ContratoLinha & {
     tipo: string | null
     processo_compra_id: string | null
     data_pagamento: string | null
+    /** TAG, infração, seguro… (nulo = locação). */
+    categoria: string | null
     /** Links assinados (1 h) da fatura e do boleto, no bucket das ordens. */
     faturaUrl: string | null
     boletoUrl: string | null
@@ -3113,7 +3115,7 @@ export async function buscarContrato(
       .order("placa", { ascending: true }),
     admin
       .from("ordens_pagamento")
-      .select("id, codigo, descricao, situacao, valor_inicial_cobranca, vencimento, tipo, processo_compra_id, data_pagamento, arquivo_nota_fiscal, arquivo_boleto")
+      .select("id, codigo, descricao, situacao, valor_inicial_cobranca, vencimento, tipo, processo_compra_id, data_pagamento, arquivo_nota_fiscal, arquivo_boleto, categoria_locacao")
       .eq("contrato_aluguel_id", id)
       .eq("excluido", false)
       .order("vencimento", { ascending: false }),
@@ -3143,6 +3145,7 @@ export async function buscarContrato(
           tipo: texto(o.tipo),
           processo_compra_id: texto(o.processo_compra_id),
           data_pagamento: texto(o.data_pagamento),
+          categoria: texto(o.categoria_locacao),
           faturaUrl: await urlArquivoCompras(texto(o.arquivo_nota_fiscal)),
           boletoUrl: await urlArquivoCompras(texto(o.arquivo_boleto)),
         }))),
@@ -3575,6 +3578,8 @@ export async function gerarOrdemAluguel(
     boleto?: File | null
     /** Só dígitos; com ela (ou o arquivo do boleto) a forma vira Boleto. */
     linhaDigitavel?: string | null
+    /** Padrão: locação (mensalidade/diárias). */
+    categoria?: CategoriaLocacao
   }
 ): Promise<{ erro?: string }> {
   const contrato = await buscarContrato(contratoId)
@@ -3586,7 +3591,10 @@ export async function gerarOrdemAluguel(
   if (dados.valor <= 0) return { erro: "Informe o valor da mensalidade." }
 
   const admin = await createAdminClient()
-  const descricao = `Locação de veículos — contrato ${contrato.numero ?? ""} (${dados.periodo})`
+  const categoria = dados.categoria ?? "locacao"
+  // Categoria no meio da descrição: a mesma TAG e a mensalidade do mesmo
+  // período são cobranças diferentes (a trava de repetição compara o texto).
+  const descricao = `Locação de veículos — ${categoria === "locacao" ? "" : `${rotuloCategoria(categoria)} — `}contrato ${contrato.numero ?? ""} (${dados.periodo})`
   // O mesmo período não pode ser cobrado duas vezes.
   const { data: repetidas } = await admin
     .from("ordens_pagamento")
@@ -3626,10 +3634,12 @@ export async function gerarOrdemAluguel(
   // Mensalidade no valor do contrato é pagamento ordinário fixo, aprovado na
   // assinatura; valor diferente passa pela alçada.
   const ordinariaFixa =
+    categoria === "locacao" &&
     contrato.valor_mensal !== null && Math.abs(contrato.valor_mensal - dados.valor) < 0.005
   const { data: criada, error } = await inserirOrdemVerificada({
     codigo: gerarCodigoProcesso(),
     tipo: TIPO_ORDEM_ALUGUEL,
+    categoria_locacao: categoria,
     descricao,
     ...camposAutorizacaoInicial(
       ordinariaFixa ? motivoDispensaContrato(contrato.numero ?? null) : null
@@ -3652,7 +3662,7 @@ export async function gerarOrdemAluguel(
     if (error && esquemaAusente(error)) return { erro: AVISO_SQL }
     return { erro: `Não foi possível gerar a ordem: ${error?.message ?? "sem retorno"}` }
   }
-  await registrarEvento(String(criada.id), "criada", await usuarioDaTrilha(), `Cobrança do período ${dados.periodo} do contrato de locação.`)
+  await registrarEvento(String(criada.id), "criada", await usuarioDaTrilha(), `${rotuloCategoria(categoria)}: cobrança do período ${dados.periodo} do contrato de locação.`)
   return {}
 }
 
@@ -3682,7 +3692,7 @@ export async function alertasLocacao(): Promise<AlertaLocacao[]> {
     (fatia, de, ate) =>
       admin
         .from("ordens_pagamento")
-        .select("id, contrato_aluguel_id, descricao, situacao, valor_inicial_cobranca, data_pagamento, arquivo_nota_fiscal")
+        .select("id, contrato_aluguel_id, descricao, situacao, valor_inicial_cobranca, data_pagamento, arquivo_nota_fiscal, categoria_locacao")
         .eq("emp_proprietaria_id", emp)
         .in("contrato_aluguel_id", fatia)
         .not("excluido", "is", true)
@@ -3718,6 +3728,7 @@ export async function alertasLocacao(): Promise<AlertaLocacao[]> {
         situacao: texto(o.situacao),
         valor: numero(o.valor_inicial_cobranca),
         data_pagamento: texto(o.data_pagamento),
+        categoria: texto(o.categoria_locacao),
       })),
       hoje
     )

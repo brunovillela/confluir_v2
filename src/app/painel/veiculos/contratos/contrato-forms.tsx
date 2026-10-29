@@ -48,6 +48,7 @@ import {
   vincularVeiculoAction,
 } from "./actions"
 import { lerFaturaLocacao, type LeituraFaturaLocacao } from "./ia-actions"
+import { CATEGORIAS_LOCACAO, type CategoriaLocacao } from "@/lib/locacao-periodo"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
@@ -299,6 +300,16 @@ export function GerarOrdemAluguelForm({
   const refLinha = useRef<HTMLInputElement>(null)
   // A fatura manda no valor; o boleto lido depois só completa o que faltou.
   const valorDaFatura = useRef(false)
+  const [categoria, setCategoria] = useState<CategoriaLocacao>("locacao")
+
+  /** O valor mensal só serve de ponto de partida para a locação. */
+  function trocarCategoria(nova: CategoriaLocacao) {
+    setCategoria(nova)
+    const el = refValor.current
+    if (!el || valorDaFatura.current) return
+    if (nova !== "locacao" && el.value === valorPadrao) el.value = ""
+    if (nova === "locacao" && !el.value) el.value = valorPadrao
+  }
 
   /** A IA lê o arquivo escolhido e preenche o que achou (a pessoa confere). */
   async function ler(arquivo: File, papel: "fatura" | "boleto") {
@@ -326,6 +337,7 @@ export function GerarOrdemAluguelForm({
         por(refVencimento.current, r.vencimento)
         por(refLinha.current, r.linhaDigitavel, true)
         if (r.valor) valorDaFatura.current = true
+        if (r.categoria) setCategoria(r.categoria as CategoriaLocacao)
       } else {
         por(refLinha.current, r.linhaDigitavel)
         por(refVencimento.current, r.vencimento, true)
@@ -357,6 +369,24 @@ export function GerarOrdemAluguelForm({
   return (
     <form action={formAction} {...envio2} className="grid gap-2">
       <input type="hidden" name="contrato_id" value={contratoId} />
+      <div className="grid gap-1">
+        <Label htmlFor={`categoria-${contratoId}`} className="text-xs">
+          O que está sendo cobrado
+        </Label>
+        <select
+          id={`categoria-${contratoId}`}
+          name="categoria"
+          value={categoria}
+          onChange={(e) => trocarCategoria(e.target.value as CategoriaLocacao)}
+          className={`${SELECT} h-8`}
+        >
+          {CATEGORIAS_LOCACAO.map((c) => (
+            <option key={c.valor} value={c.valor}>
+              {c.rotulo}
+            </option>
+          ))}
+        </select>
+      </div>
       <div className="grid gap-2">
         <div className="grid gap-1">
           <Label htmlFor={`fatura-${contratoId}`} className="text-xs">

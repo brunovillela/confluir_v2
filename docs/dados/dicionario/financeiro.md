@@ -803,8 +803,11 @@ Ordens de pagamento da entidade (compras, contratos, diárias, reembolsos, RPA, 
 | `fornecimento_id` | uuid | sim |  | → compras_fornecimentos (set null) |  |  |
 | `cartao_fatura_id` | uuid | sim |  | → financeiro_cartao_faturas |  | Fatura do cartão de crédito a que pertence a ordem da compra; autorizada, a ordem fica "Na fatura" e é quitada pela ordem da fatura. |
 | `tributo_lancamento_id` | uuid | sim |  | → financeiro_tributos_lancamentos (set null) |  | Guia de tributo que a ordem paga (financeiro_tributos_lancamentos), como contrato_id na parcela de contrato. |
+| `categoria_locacao` | text | sim |  |  | nenhum | Categoria do pagamento de um contrato de locação de veículos: locacao (mensalidade/diárias), tag (pedágio automático), infracao (multa de trânsito), seguro, outras (taxas, reparos). Nulo fora da locação. |
 
 Únicas: `UNIQUE (bubble_id)`
+
+Checks: `ordens_pagamento_categoria_locacao_check` `CHECK ((categoria_locacao = ANY (ARRAY['locacao'::text, 'tag'::text, 'infracao'::text, 'seguro'::text, 'outras'::text])))`
 
 Índices: `idx_bub_ordens_pagamento`, `idx_ordens_beneficiario_fornecedor`, `idx_ordens_contrato`, `idx_ordens_contrato_aluguel`, `idx_ordens_custeio`, `idx_ordens_fornecedor`, `idx_ordens_processo_compra`, `idx_ordens_projeto`, `idx_ordens_tipo_situacao`, `ordens_pagamento_bubble_id_key`, `ordens_pagamento_cartao_fatura_idx`, `ordens_pagamento_emp_sit_pag_idx`, `ordens_pagamento_fornecimento_idx`, `ordens_pagamento_pkey`, `ordens_pagamento_tributo_lancamento_idx`
 

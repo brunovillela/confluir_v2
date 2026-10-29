@@ -686,6 +686,7 @@ modulo,tabela,coluna,categoria,titulares,descricao
 "financeiro","ordens_pagamento","forma_detalhe","financeiro","fornecedores PF, funcionários, diretores, filiados, convidados (beneficiários)","Detalhe da forma de pagamento (conta, chave)."
 "financeiro","ordens_pagamento","cancelamento_motivo","identificacao","fornecedores PF, funcionários, diretores, filiados, convidados (beneficiários)",""
 "financeiro","ordens_pagamento","boleto_linha_digitavel","financeiro","fornecedores PF, funcionários, diretores, filiados, convidados (beneficiários)",""
+"financeiro","ordens_pagamento","categoria_locacao","nenhum","fornecedores PF, funcionários, diretores, filiados, convidados (beneficiários)","Categoria do pagamento de um contrato de locação de veículos: locacao (mensalidade/diárias), tag (pedágio automático), infracao (multa de trânsito), seguro, outras (taxas, reparos). Nulo fora da locação."
 "financeiro","ordens_pagamento_estornos","","financeiro;identificacao","fornecedores PF, funcionários, diretores (favorecidos)","Estorno de um pagamento já feito (devolvido pelo banco ou pelo favorecido): comunicado, responsável e como foi resolvido."
 "financeiro","ordens_pagamento_estornos","motivo","identificacao","fornecedores PF, funcionários, diretores (favorecidos)",""
 "financeiro","ordens_pagamento_estornos","arquivo_comunicado","financeiro","fornecedores PF, funcionários, diretores (favorecidos)","Comunicado do banco com dados do favorecido."

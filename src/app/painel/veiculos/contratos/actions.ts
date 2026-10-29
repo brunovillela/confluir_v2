@@ -21,6 +21,7 @@ import {
   editarOrdemAluguel,
   excluirOrdemAluguel,
 } from "@/lib/db/veiculos-locacao-ordens"
+import { CATEGORIAS_LOCACAO, type CategoriaLocacao } from "@/lib/locacao-periodo"
 import { parseValorBR } from "@/lib/valores"
 
 function texto(formData: FormData, campo: string): string {
@@ -30,6 +31,10 @@ function texto(formData: FormData, campo: string): string {
 function arquivo(formData: FormData, campo: string): File | null {
   const f = formData.get(campo)
   return f instanceof File && f.size > 0 ? f : null
+}
+
+function lerCategoria(valor: string): CategoriaLocacao {
+  return CATEGORIAS_LOCACAO.some((c) => c.valor === valor) ? (valor as CategoriaLocacao) : "locacao"
 }
 
 function dataISO(valor: string): string | null {
@@ -112,6 +117,7 @@ export async function gerarOrdemAluguelAction(
     boleto: arquivo(formData, "boleto"),
     linhaDigitavel:
       texto(formData, "linha_digitavel").replace(/\D/g, "") || null,
+    categoria: lerCategoria(texto(formData, "categoria")),
   })
   if (erro) return { erro }
   revalidatePath(`/painel/veiculos/contratos/${id}`)

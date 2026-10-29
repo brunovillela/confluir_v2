@@ -33,6 +33,7 @@ Devolva um JSON com estas chaves (use null quando o dado não aparecer ou estive
 - "numero_documento": número da fatura / nota de débito, se houver.
 - "emitente_nome": nome da locadora como aparece.
 - "emitente_cnpj": CNPJ da locadora (só dígitos), se houver.
+- "categoria": o que está sendo cobrado — "locacao" (mensalidade, diárias, locação esporádica), "tag" (pedágio/estacionamento por TAG, Sem Parar, ConectCar, Veloe), "infracao" (multa de trânsito, notificação de autuação, taxa de indicação de condutor), "seguro" (seguro, proteção, franquia de sinistro) ou "outras" (avaria, reparo, combustível, lavagem, taxa administrativa e o resto). Se o documento misturar, a do maior valor.
 - "placas": lista das placas dos veículos que aparecem (formato AAA0A00 ou AAA0000, sem hífen). Lista vazia se nenhuma.
 - "avisos": lista de strings com o que ficou ilegível, ambíguo ou incoerente (ex.: total diferente da soma dos itens, dois períodos na mesma fatura, linha digitável incompleta). Lista vazia se nada.`
 
@@ -50,6 +51,7 @@ const ESQUEMA_FATURA: EsquemaJsonIA = {
       "numero_documento",
       "emitente_nome",
       "emitente_cnpj",
+      "categoria",
       "placas",
       "avisos",
     ],
@@ -62,6 +64,7 @@ const ESQUEMA_FATURA: EsquemaJsonIA = {
       numero_documento: { type: ["string", "null"] },
       emitente_nome: { type: ["string", "null"] },
       emitente_cnpj: { type: ["string", "null"] },
+      categoria: { type: ["string", "null"], enum: ["locacao", "tag", "infracao", "seguro", "outras", null] },
       placas: { type: "array", items: { type: "string" } },
       avisos: { type: "array", items: { type: "string" } },
     },
@@ -76,6 +79,8 @@ export type LeituraFaturaLocacao = {
   valor?: string
   vencimento?: string
   linhaDigitavel?: string
+  /** Sugestão da IA (locacao, tag, infracao, seguro, outras). */
+  categoria?: string
   /** "Fatura 123 — Locadora X · placas ABC1D23". */
   resumo?: string
   avisos?: string[]
@@ -264,6 +269,7 @@ export async function lerFaturaLocacao(
     valor: valor ? valor.toFixed(2).replace(".", ",") : "",
     vencimento,
     linhaDigitavel: linha,
+    categoria: ["locacao", "tag", "infracao", "seguro", "outras"].includes(str(dados.categoria)) ? str(dados.categoria) : undefined,
     resumo:
       [
         numero ? `${papel === "boleto" ? "Boleto" : "Fatura"} ${numero}` : "",

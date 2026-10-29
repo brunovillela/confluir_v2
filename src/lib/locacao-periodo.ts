@@ -47,6 +47,21 @@ export function periodoDaDescricao(
   return null
 }
 
+/** Categoria do pagamento do contrato (coluna ordens_pagamento.categoria_locacao). */
+export type CategoriaLocacao = "locacao" | "tag" | "infracao" | "seguro" | "outras"
+
+export const CATEGORIAS_LOCACAO: { valor: CategoriaLocacao; rotulo: string }[] = [
+  { valor: "locacao", rotulo: "Locação" },
+  { valor: "tag", rotulo: "TAG" },
+  { valor: "infracao", rotulo: "Infração" },
+  { valor: "seguro", rotulo: "Seguro" },
+  { valor: "outras", rotulo: "Outras taxas" },
+]
+
+export function rotuloCategoria(c: string | null | undefined): string {
+  return CATEGORIAS_LOCACAO.find((x) => x.valor === c)?.rotulo ?? "Locação"
+}
+
 /** Situações que não contam como cobrança (a ordem não vale mais). */
 const FORA_DO_RESUMO = ["Cancelada", "Estornado"]
 
@@ -69,6 +84,8 @@ export type ResumoLocacao = {
   }[]
   /** Ordens sem período legível na descrição (legado): não entram nos trechos. */
   semPeriodo: number
+  /** Cobrado por categoria (só as que têm valor), na ordem de CATEGORIAS_LOCACAO. */
+  porCategoria: { categoria: CategoriaLocacao; rotulo: string; cobrado: number; qtd: number }[]
 }
 
 /**
@@ -87,6 +104,8 @@ export function resumoLocacao(
     situacao: string | null
     valor: number | null
     data_pagamento: string | null
+    /** Nulo = locação (ordens anteriores à categoria). */
+    categoria?: string | null
   }[],
   hoje: string,
 ): ResumoLocacao {
@@ -111,9 +130,17 @@ export function resumoLocacao(
       ? Math.round(((contrato.valor_mensal * diasVigencia) / 30) * 100) / 100
       : null
 
+  // Só o ALUGUEL cobre dias da vigência: TAG, multa, seguro e taxas do mesmo
+  // período não dizem nada sobre a mensalidade ter sido cobrada.
+  const ehLocacao = (o: { categoria?: string | null }) => !o.categoria || o.categoria === "locacao"
+  const porCategoria = CATEGORIAS_LOCACAO.map((c) => {
+    const l = validas.filter((o) => (o.categoria || "locacao") === c.valor)
+    return { categoria: c.valor, rotulo: c.rotulo, cobrado: soma(l), qtd: l.length }
+  }).filter((c) => c.qtd > 0)
+
   let semPeriodo = 0
   const periodos: { de: string; ate: string }[] = []
-  for (const o of validas) {
+  for (const o of validas.filter(ehLocacao)) {
     const p = periodoDaDescricao(o.descricao)
     if (p) periodos.push(p)
     else semPeriodo++
@@ -166,5 +193,6 @@ export function resumoLocacao(
     diasVigencia,
     semCobranca,
     semPeriodo,
+    porCategoria,
   }
 }

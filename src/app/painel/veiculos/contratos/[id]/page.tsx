@@ -31,7 +31,7 @@ import {
 } from "@/lib/db/veiculos"
 import { hojeSP } from "@/lib/db/comum"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
-import { periodoDaDescricao, resumoLocacao } from "@/lib/locacao-periodo"
+import { periodoDaDescricao, resumoLocacao, rotuloCategoria } from "@/lib/locacao-periodo"
 
 /** "10/11/2026 a 15/11/2026", "10/2026" (competência antiga) ou "—". */
 function rotuloPeriodo(descricao: string | null): string {
@@ -242,10 +242,20 @@ export default async function ContratoPage({
               </p>
             </div>
           </div>
+          {resumo.porCategoria.length > 1 && (
+            <p className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 text-xs">
+              <span className="text-foreground font-medium">Cobrado por categoria:</span>
+              {resumo.porCategoria.map((c) => (
+                <span key={c.categoria} className="tabular-nums">
+                  {c.rotulo} {formatarMoeda(c.cobrado)} ({c.qtd})
+                </span>
+              ))}
+            </p>
+          )}
           {contrato.vigencia_inicio && (
             <div className="grid gap-1 border-t pt-3">
               <p className="font-medium">
-                Dias da vigência sem cobrança{" "}
+                Dias da vigência sem cobrança de locação{" "}
                 <span className="text-muted-foreground text-xs font-normal">
                   (até hoje{contrato.vigencia_termino ? " ou o término" : ""})
                 </span>
@@ -369,6 +379,7 @@ export default async function ContratoPage({
             <TableHeader>
               <TableRow>
                 <TableHead>Código</TableHead>
+                <TableHead>Categoria</TableHead>
                 <TableHead>Período</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
@@ -388,6 +399,14 @@ export default async function ContratoPage({
                     >
                       {o.codigo ?? "—"}
                     </Link>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <Badge
+                      variant="outline"
+                      className={!o.categoria || o.categoria === "locacao" ? "" : "border-warning/40 text-warning-fg"}
+                    >
+                      {rotuloCategoria(o.categoria)}
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-xs whitespace-nowrap tabular-nums">
                     {rotuloPeriodo(o.descricao)}

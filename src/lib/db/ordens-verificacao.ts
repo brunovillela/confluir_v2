@@ -478,6 +478,13 @@ async function verificarLinha(
         break
       }
       case "valor_diferente_contrato": {
+        // TAG, multa, seguro e taxas do contrato de locação não têm valor
+        // contratado: só a locação se compara com a mensalidade.
+        const categoria = t(linha.categoria_locacao)
+        if (categoria && categoria !== "locacao") {
+          r("na", "Pagamento do contrato de locação fora da mensalidade (TAG, infração, seguro ou taxa).")
+          break
+        }
         const aluguel = await buscar("veiculo_contratos_aluguel", linha.contrato_aluguel_id)
         const contrato = aluguel ? null : await buscar("contratos", linha.contrato_id)
         const contratado = aluguel ? n(aluguel.valor_mensal) : n(contrato?.valor)
