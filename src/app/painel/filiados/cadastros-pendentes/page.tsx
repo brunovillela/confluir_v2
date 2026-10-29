@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, CopyCheck, FileWarning, Search, Settings, X } from "lucide-react"
+import { ArrowLeft, CopyCheck, FileWarning, FileUp, Search, Settings, X } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -98,6 +98,14 @@ export default async function CadastrosPendentesPage({
                 Possíveis duplicidades
               </Link>
             </Button>
+            {podeConfigurar && (
+              <Button asChild variant="outline" size="sm">
+                <Link href="/painel/filiados/saude-cadastros/atualizar">
+                  <FileUp />
+                  Atualizar por lista
+                </Link>
+              </Button>
+            )}
             {podeConfigurar && (
               <Button asChild variant="outline" size="sm">
                 <Link href="/painel/filiados/saude-cadastros/configuracao">

@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowUpRight, CopyCheck, Settings } from "lucide-react"
+import { ArrowUpRight, CopyCheck, FileUp, Settings } from "lucide-react"
 
 import {
   faixaDaSaude,
@@ -92,6 +92,16 @@ function CabecalhoSaude({ podeConfigurar }: { podeConfigurar: boolean }) {
             Cadastros pendentes
             <ArrowUpRight className="size-4" />
           </Link>
+          {podeConfigurar && (
+            <Link
+              href="/painel/filiados/saude-cadastros/atualizar"
+              title="Atualizar cadastros por lista de trabalhadores"
+              aria-label="Atualizar cadastros por lista de trabalhadores"
+              className="text-muted-foreground hover:text-foreground hover:bg-muted rounded-md p-1.5 transition-colors"
+            >
+              <FileUp className="size-4" />
+            </Link>
+          )}
           {podeConfigurar && (
             <Link
               href="/painel/filiados/saude-cadastros/configuracao"

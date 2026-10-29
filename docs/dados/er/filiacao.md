@@ -31,6 +31,18 @@ erDiagram
     uuid filiado_id FK
     uuid empresa_id FK
   }
+  filiacao_atualizacoes_lote {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid fonte_pagadora_id FK
+  }
+  filiacao_atualizacoes_lote_itens {
+    uuid id PK
+    uuid lote_id FK
+    uuid emp_proprietaria_id FK
+    uuid filiado_id FK
+    uuid vinculo_id FK
+  }
   filiacao_carencias {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -299,6 +311,10 @@ erDiagram
   enderecos }o--o| empresa : "empresa_id"
   enderecos }o--o| filiacoes : "filiado_id"
   enderecos }o--o| usuarios : "usuario_id"
+  filiacao_atualizacoes_lote }o--o| empresa : "fonte_pagadora_id"
+  filiacao_atualizacoes_lote_itens }o--o| filiacao_vinculos : "vinculo_id"
+  filiacao_atualizacoes_lote_itens }o--|| filiacao_atualizacoes_lote : "lote_id"
+  filiacao_atualizacoes_lote_itens }o--|| filiacoes : "filiado_id"
   filiacao_carencias }o--o| usuarios : "atualizada_por"
   filiacao_cobrancas }o--|| filiacoes : "filiacao_id"
   filiacao_coletiva }o--o| acordo_coletivo : "acordo_id"

@@ -260,18 +260,24 @@ export async function gerarJsonIADeImagem({
   prompt,
   imagemBase64,
   mimeType,
+  esquema,
 }: {
   system: string
   prompt: string
   imagemBase64: string
   mimeType: string
+  esquema?: EsquemaJsonIA
 }): Promise<ResultadoJsonIA> {
-  return chamarJsonIA(system, [
-    {
-      type: "input_image",
-      image_url: `data:${mimeType};base64,${imagemBase64}`,
-      detail: "high",
-    },
-    { type: "input_text", text: prompt },
-  ])
+  return chamarJsonIA(
+    system,
+    [
+      {
+        type: "input_image",
+        image_url: `data:${mimeType};base64,${imagemBase64}`,
+        detail: "high",
+      },
+      { type: "input_text", text: prompt },
+    ],
+    esquema
+  )
 }

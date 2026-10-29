@@ -246,6 +246,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "A mesma pessoa em mais de um cadastro: mesclar ou descartar",
       },
       {
+        slug: "atualizar-por-lista",
+        titulo: "Atualizar cadastros por lista",
+        resumo: "A lista de trabalhadores da empresa, lida por IA, completa e corrige os cadastros",
+      },
+      {
         slug: "relatorios",
         titulo: "Relatórios de filiados",
         resumo: "Em carência, plenos, inadimplentes e o relatório personalizado",

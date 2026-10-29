@@ -125,6 +125,9 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "filiacao_coletiva_itens",
   "filiacao_duplicidades_ignoradas",
   "filiacao_contatos_emergencia",
+  // Atualização de cadastros por lista de trabalhadores (29/10/2026).
+  "filiacao_atualizacoes_lote",
+  "filiacao_atualizacoes_lote_itens",
   // supabase/filiacao-lacunas-modelo.sql (08/09)
   "filiacao_convenios",
   "filiacao_convenios_categorias",

@@ -30,9 +30,9 @@ export const PROCESSOS = [
   {
     id: "P01",
     nome: "Filiação e cadastro do associado",
-    tabelas: /^(filiacoes$|filiacao_(vinculos|solicitac|tl_|contatos|prontuario|duplicidades|registro|coletiva|suspensoes)|vinculos_trabalhistas$|enderecos$|telefones$|emails$|dados_bancarios$)/,
+    tabelas: /^(filiacoes$|filiacao_(vinculos|solicitac|tl_|contatos|prontuario|duplicidades|registro|coletiva|suspensoes|atualizacoes_lote)|vinculos_trabalhistas$|enderecos$|telefones$|emails$|dados_bancarios$)/,
     finalidade:
-      "Admitir, manter e encerrar a filiação: ficha (inclusive a pública, com assinatura gov.br), vínculos com a fonte pagadora, prontuário administrativo, contatos e dados bancários para reembolsos.",
+      "Admitir, manter e encerrar a filiação: ficha (inclusive a pública, com assinatura gov.br), vínculos com a fonte pagadora, prontuário administrativo, contatos e dados bancários para reembolsos. Inclui a atualização cadastral por lista de trabalhadores enviada pelo empregador (lida por IA, conferida e aplicada pela gestão, com registro do valor anterior para desfazer).",
     titulares: "Filiados, ex-filiados, interessados em se filiar; contatos de emergência (terceiros)",
     baseLegal: [
       "Art. 11, I: consentimento específico no ato da filiação (termo LGPD com versão, data, IP e navegador em `filiacao_tl_aceites`).",

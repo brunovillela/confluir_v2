@@ -15,7 +15,7 @@
 
 | # | Processo | Tabelas | Categorias de dados | Transferência internacional |
 |---|---|---|---|---|
-| P01 | [Filiação e cadastro do associado](#p01) | 16 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
+| P01 | [Filiação e cadastro do associado](#p01) | 18 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P02 | [Contribuições, receitas e cobranças](#p02) | 3 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista | sim |
 | P03 | [Atendimento ao filiado no portal](#p03) | 6 | identificação, **sensível: filiação/posição sindical**, credencial (segredo de acesso, nunca exportar) | sim |
 | P04 | [Oposição à contribuição assistencial](#p04) | 5 | identificação, **sensível: filiação/posição sindical**, trabalhista | sim |
@@ -35,7 +35,7 @@
 <a id="p01"></a>
 ## P01. Filiação e cadastro do associado
 
-**Finalidade.** Admitir, manter e encerrar a filiação: ficha (inclusive a pública, com assinatura gov.br), vínculos com a fonte pagadora, prontuário administrativo, contatos e dados bancários para reembolsos.
+**Finalidade.** Admitir, manter e encerrar a filiação: ficha (inclusive a pública, com assinatura gov.br), vínculos com a fonte pagadora, prontuário administrativo, contatos e dados bancários para reembolsos. Inclui a atualização cadastral por lista de trabalhadores enviada pelo empregador (lida por IA, conferida e aplicada pela gestão, com registro do valor anterior para desfazer).
 
 **Titulares.** Filiados, ex-filiados, interessados em se filiar; contatos de emergência (terceiros).
 
@@ -57,13 +57,15 @@
 
 **Medidas de segurança.** RLS por tenant; trilha `auditoria` em filiacoes, filiacao_vinculos e dados_bancarios; anonimização que corta o vínculo com o acervo de saúde; permissão própria `filiacao_lgpd`.
 
-<details><summary>Tabelas (16) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (18) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
 | [dados_bancarios](../dados/dicionario/filiacao.md#dados_bancarios) | identificacao, financeiro | `banco` (financeiro), `agencia` (financeiro), `conta` (financeiro), `tipo_conta` (financeiro), `pix` (financeiro), `favorecido` (identificacao), `banco_codigo` (financeiro), `pix_tipo` (financeiro), `pix_beneficiario` (identificacao), `titular_documento` (identificacao), `conferida_em` (nenhum), `conferida_por_usuario_id` (identificacao), `conferida_obs` (financeiro), `conferida_titular` (financeiro) |
 | [emails](../dados/dicionario/filiacao.md#emails) | identificacao | `email` (identificacao), `pessoa_contato` (identificacao) |
 | [enderecos](../dados/dicionario/filiacao.md#enderecos) | identificacao | `cep` (identificacao), `logradouro` (identificacao), `numero` (identificacao), `complemento` (identificacao), `complemento_correios` (identificacao), `bairro` (identificacao), `cidade` (identificacao), `estado` (identificacao) |
+| [filiacao_atualizacoes_lote](../dados/dicionario/filiacao.md#filiacao_atualizacoes_lote) | identificacao, trabalhista | `arquivo_nome` (nenhum), `situacao` (nenhum), `descartadas` (identificacao), `nao_encontrados` (identificacao), `nao_encontrados` (trabalhista), `avisos` (nenhum), `resumo` (nenhum), `criado_por_nome` (identificacao) |
+| [filiacao_atualizacoes_lote_itens](../dados/dicionario/filiacao.md#filiacao_atualizacoes_lote_itens) | identificacao, trabalhista | `acompanha` (nenhum), `via` (nenhum), `valor_anterior` (identificacao), `valor_novo` (identificacao), `marcado_padrao` (nenhum) |
 | [filiacao_coletiva_itens](../dados/dicionario/filiacao.md#filiacao_coletiva_itens) | identificacao, sens. sindical, trabalhista | `cpf` (identificacao), `nome_completo` (identificacao), `matricula` (trabalhista), `email` (identificacao), `resultado` (sens. sindical), `condicao_anterior` (sens. sindical), `observacao` (sens. sindical), `desistencia_em` (sens. sindical) |
 | [filiacao_contatos_emergencia](../dados/dicionario/filiacao.md#filiacao_contatos_emergencia) | identificacao, sens. sindical | `cpf` (identificacao), `nome` (identificacao), `telefone` (identificacao), `vinculo` (identificacao) |
 | [filiacao_duplicidades_ignoradas](../dados/dicionario/filiacao.md#filiacao_duplicidades_ignoradas) | identificacao | `chave` (identificacao), `motivo` (identificacao) |
@@ -815,4 +817,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 209 de 209 tabelas com dado pessoal atribuídas a 16 processos.
+Cobertura: 211 de 211 tabelas com dado pessoal atribuídas a 16 processos.

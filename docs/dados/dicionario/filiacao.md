@@ -2,7 +2,7 @@
 
 # Filiação e portal do associado
 
-50 tabelas. Diagrama: [er/filiacao.md](../er/filiacao.md).
+52 tabelas. Diagrama: [er/filiacao.md](../er/filiacao.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -10,6 +10,8 @@
 | [emails](#emails) | identificação | E-mails de contato de usuários e filiados (vários por pessoa, com tipo e favorito), migrados do Bubble. Lidos nos contatos do filiado e no e… |
 | [emails_institucionais](#emails_institucionais) | identificação | Endereços de e-mail institucionais da entidade (presidencia@, juridico@...) e o funcionário responsável por cada um. Apenas registro, sem ca… |
 | [enderecos](#enderecos) | identificação | Endereços de usuários, filiados e empresas (vários por titular, com tipo e favorito), migrados do Bubble. Usados nos contatos do filiado, et… |
+| [filiacao_atualizacoes_lote](#filiacao_atualizacoes_lote) | identificação, trabalhista | Atualização de cadastros por lista de trabalhadores enviada pelo empregador (lida por IA): um envio, da prévia ao aplicado ou desfeito. |
+| [filiacao_atualizacoes_lote_itens](#filiacao_atualizacoes_lote_itens) | identificação, trabalhista | Cada campo de cadastro ou vínculo proposto por uma lista de trabalhadores, com o valor anterior e o novo — o que permite desfazer o lote. |
 | [filiacao_carencias](#filiacao_carencias) | — | Regras de carência por benefício: quantos dias após a filiação o associado passa a ter direito (voto, hospedagem, convênios...). Configuraçã… |
 | [filiacao_cobranca_config](#filiacao_cobranca_config) | — | Configuração da cobrança direta da mensalidade por entidade (valor, dia de vencimento, geração automática e mensagem). |
 | [filiacao_cobrancas](#filiacao_cobrancas) | **sensível: sindical**, financeiro, identificação | Cobranças de mensalidade emitidas ao filiado (Pix ou boleto) por competência, com situação e conciliação bancária. Exibidas na área do assoc… |
@@ -175,6 +177,71 @@ Endereços de usuários, filiados e empresas (vários por titular, com tipo e fa
 Únicas: `UNIQUE (bubble_id)`
 
 Índices: `enderecos_bubble_id_key`, `enderecos_pkey`, `idx_enderecos_empresa`, `ux_enderecos_bubble`
+
+## filiacao_atualizacoes_lote
+
+Atualização de cadastros por lista de trabalhadores enviada pelo empregador (lida por IA): um envio, da prévia ao aplicado ou desfeito.
+
+- **LGPD:** identificação, trabalhista · titulares: filiados
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `fonte_pagadora_id` | uuid | sim |  | → empresa (set null) |  |  |
+| `arquivo_nome` | text | não |  |  | nenhum | Nome do arquivo enviado (o arquivo em si não é guardado). |
+| `situacao` | text | não | `'rascunho'::text` |  | nenhum | rascunho (prévia), aplicado ou desfeito. |
+| `linhas_lidas` | integer | não | `0` |  |  |  |
+| `descartadas` | jsonb | não | `'[]'::jsonb` |  | identificação | Linhas da lista que não puderam ser usadas, com o motivo (nome, CPF, matrícula). |
+| `nao_encontrados` | jsonb | não | `'[]'::jsonb` |  | identificação, trabalhista | Linhas válidas sem cadastro correspondente, com os dados lidos — base do cadastro em massa oferecido ao fim. |
+| `avisos` | jsonb | não | `'[]'::jsonb` |  | nenhum | Avisos da leitura (ex.: trecho em que a IA leu menos linhas que o arquivo tem). |
+| `resumo` | jsonb | sim |  |  | nenhum | Contagens do lote ao aplicar e ao desfazer. |
+| `criado_por` | uuid | sim |  |  |  |  |
+| `criado_por_nome` | text | sim |  |  | identificação | Quem enviou a lista. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `aplicado_em` | timestamp with time zone | sim |  |  |  |  |
+| `aplicado_por` | uuid | sim |  |  |  |  |
+| `desfeito_em` | timestamp with time zone | sim |  |  |  |  |
+| `desfeito_por` | uuid | sim |  |  |  |  |
+
+Checks: `filiacao_atualizacoes_lote_situacao_check` `CHECK ((situacao = ANY (ARRAY['rascunho'::text, 'aplicado'::text, 'desfeito'::text])))`
+
+Índices: `filiacao_atualizacoes_lote_emp_idx`, `filiacao_atualizacoes_lote_pkey`
+
+## filiacao_atualizacoes_lote_itens
+
+Cada campo de cadastro ou vínculo proposto por uma lista de trabalhadores, com o valor anterior e o novo — o que permite desfazer o lote.
+
+- **LGPD:** identificação, trabalhista · titulares: filiados
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `lote_id` | uuid | não |  | → filiacao_atualizacoes_lote (**cascade**) |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `seq` | integer | não |  |  |  |  |
+| `acompanha` | integer | sim |  |  | nenhum | seq do campo principal que este espelho (fonte_pg_* do vínculo) segue ao aplicar e desfazer. |
+| `linha` | integer | sim |  |  |  |  |
+| `filiado_id` | uuid | não |  | → filiacoes (**cascade**) |  |  |
+| `vinculo_id` | uuid | sim |  | → filiacao_vinculos (**cascade**) |  |  |
+| `via` | text | não |  |  | nenhum | Como a linha foi ligada ao cadastro: cpf, matricula (na fonte) ou nome (só sugestão). |
+| `tabela` | text | não |  |  |  |  |
+| `campo` | text | não |  |  |  |  |
+| `valor_anterior` | text | sim |  |  | identificação | Valor do campo no cadastro quando a prévia foi montada. |
+| `valor_novo` | text | sim |  |  | identificação | Valor lido da lista e padronizado. |
+| `marcado_padrao` | boolean | não | `false` |  | nenhum | Vem marcado na prévia: completa campo vazio de cadastro ligado por CPF ou matrícula. |
+| `aplicado` | boolean | não | `false` |  |  |  |
+| `desfeito` | boolean | não | `false` |  |  |  |
+
+Únicas: `UNIQUE (lote_id, seq)`
+
+Checks: `filiacao_atualizacoes_lote_itens_tabela_check` `CHECK ((tabela = ANY (ARRAY['filiacoes'::text, 'filiacao_vinculos'::text])))`; `filiacao_atualizacoes_lote_itens_via_check` `CHECK ((via = ANY (ARRAY['cpf'::text, 'matricula'::text, 'nome'::text])))`
+
+Índices: `filiacao_atualizacoes_lote_itens_filiado_idx`, `filiacao_atualizacoes_lote_itens_lote_id_seq_key`, `filiacao_atualizacoes_lote_itens_lote_idx`, `filiacao_atualizacoes_lote_itens_pkey`
 
 ## filiacao_carencias
 

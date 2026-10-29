@@ -1,0 +1,111 @@
+Empresas e fundos de pensão mandam listas dos seus trabalhadores, com cargo,
+lotação, matrícula, admissão, contatos. **Atualizar cadastros por lista** usa
+essas listas para completar e corrigir os cadastros dos filiados. Nada é
+gravado antes da sua conferência, e um lote aplicado pode ser desfeito.
+
+<RequerPermissao>Gestão da filiação</RequerPermissao>
+
+## Onde fica
+
+Na tela de **Filiados**, no cartão **Saúde dos cadastros**, o ícone de envio de
+arquivo, ao lado da engrenagem da configuração. Também se chega por **Filiados
+→ Cadastros pendentes**, no botão **Atualizar por lista**, no alto da tela.
+
+<Print src="filiados/atualizar-por-lista.png" alt="Tela Atualizar cadastros por lista: campo para o arquivo, escolha da fonte pagadora, botão Ler a lista e a tabela Listas enviadas com arquivo, fonte, data, trabalhadores, atualizados e situação." legenda="O envio da lista e o histórico dos lotes, cada um com a situação: prévia, aplicado ou desfeito." />
+
+## Passo a passo
+
+<PassoAPasso>
+  <Passo titulo="Envie a lista">
+    Planilha (XLSX, XLS), CSV ou TXT, PDF (com texto ou escaneado) ou foto
+    (JPG, PNG, WebP), até 4 MB e 3.000 trabalhadores por arquivo. Escolha a
+    **fonte pagadora** da lista sempre que puder: com ela, a busca também usa a
+    matrícula, os dados do emprego entram no vínculo e quem não for encontrado
+    pode ser cadastrado.
+  </Passo>
+  <Passo titulo="A IA lê, o sistema padroniza">
+    A IA transcreve cada trabalhador, em qualquer layout. Depois o sistema
+    padroniza: CPF conferido, datas num formato só, telefone com DDD, e-mail
+    em minúsculas, nome em maiúsculas virando "Maria das Dores", regime e
+    condição na fonte encaixados nas listas do sistema. Valor fora do padrão
+    é ignorado (o resto da linha segue) e contado num aviso.
+  </Passo>
+  <Passo titulo="Quem tem cadastro">
+    Pelo **CPF**; sem CPF que case, pela **matrícula na fonte**; sem nenhum
+    dos dois, pelo **nome exato** — este só como **sugestão**, porque pode ser
+    homônimo.
+  </Passo>
+  <Passo titulo="Confira a prévia">
+    Para cada cadastro, os campos que mudariam, com o valor atual riscado e o
+    novo ao lado. **Campo vazio no cadastro vem marcado** (só completa).
+    **Troca de valor** e pessoa achada **só pelo nome** vêm **desmarcadas**:
+    confira e marque o que quiser trocar. Os botões **Só completar vazios**,
+    **Marcar tudo** e **Desmarcar tudo** ajudam em listas grandes, e os
+    filtros mostram só as trocas ou só as sugestões pelo nome.
+  </Passo>
+  <Passo titulo="Aplique">
+    **Aplicar os marcados** grava e põe uma anotação no **prontuário** de cada
+    cadastro, com os campos e o nome do arquivo. Se alguém mudou um campo
+    entre a prévia e o aplicar, esse campo não é sobrescrito.
+  </Passo>
+  <Passo titulo="Cadastre os não encontrados, se quiser">
+    Depois de aplicar, a tela pergunta se você deseja cadastrar quem está na
+    lista e não tem cadastro. Nada vem marcado: a lista da empresa traz também
+    quem **não é filiado**. Marque as pessoas, escolha a **condição sindical**
+    dos novos cadastros e clique em **Cadastrar**. Cada uma ganha um cadastro
+    com os dados da lista e um vínculo em aberto na fonte.
+  </Passo>
+</PassoAPasso>
+
+<Print src="filiados/atualizar-por-lista-previa.png" alt="Prévia da lista: filtros Todos, Com troca de valor e Sugestões pelo nome; para cada pessoa, os campos com o valor atual riscado e o novo, campos vazios já marcados e trocas desmarcadas; no rodapé, o total marcado e o botão Aplicar os marcados." legenda="A prévia: o que só completa vem marcado; troca de valor e sugestão pelo nome esperam a sua decisão." />
+
+## O que a lista muda — e o que não muda
+
+- **Cadastro:** nome (nunca marcado de início), nascimento, sexo, e-mails,
+  telefones (número que já está num dos dois campos não muda nada; o novo vai
+  para o campo vazio) e endereço.
+- **Vínculo em aberto na fonte escolhida:** matrícula, cargo, lotação,
+  admissão, saída na fonte, regime de trabalho e condição na fonte. O que a
+  empresa informou também fica guardado como "informado pela fonte".
+- **Nunca:** CPF (só serve para achar a pessoa), condição sindical, datas de
+  filiação e desfiliação, termos aceitos.
+
+<Aviso tipo="nota" titulo="Saída da empresa não desfilia">
+  Se a lista traz data de demissão, ela vai para a saída na fonte e a tela
+  avisa quem saiu — mas a filiação não muda sozinha. Avalie cada caso.
+</Aviso>
+
+## Desfazer um lote
+
+A lista estava errada? Abra o lote em **Listas enviadas** e clique em
+**Desfazer o lote**. Cada campo volta ao valor que tinha antes — menos os que
+alguém alterou depois do lote, que ficam como estão. O prontuário registra o
+desfazer. Cadastros criados a partir da lista **não** são apagados.
+
+Uma prévia que você não quer aplicar pode ser **descartada**: nada foi gravado.
+
+## Erros comuns
+
+- **"A IA leu X de cerca de Y linhas com dados."** Um trecho da lista saiu
+  incompleto. Confira as linhas indicadas ou envie esse trecho em outro
+  arquivo.
+- **"Lista grande demais."** Divida em arquivos de até 3.000 trabalhadores.
+- **"Arquivo grande demais."** O teto é 4 MB: reduza a foto ou divida o PDF.
+- **Pessoas "sem vínculo em aberto nesta fonte".** Foram encontradas, mas não
+  têm vínculo aberto na fonte escolhida: só os dados pessoais delas entram.
+  Confira o histórico de filiação.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Cadastros pendentes",
+      href: "/painel/ajuda/filiados/cadastros-pendentes",
+      descricao: "A saúde dos cadastros e o que falta em cada um",
+    },
+    {
+      titulo: "Perfil do filiado",
+      href: "/painel/ajuda/filiados/perfil",
+      descricao: "Histórico de filiação e prontuário",
+    },
+  ]}
+/>
