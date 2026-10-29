@@ -1,7 +1,13 @@
-/** '2024-03-05' ou ISO → '05/03/2024'. Datas puras não sofrem deslocamento de fuso. */
+/**
+ * '2024-03-05' ou ISO → '05/03/2024'. Data pura (e data-hora sem fuso) sai como
+ * está escrita, sem deslocamento. Instante com fuso ('…Z', '…+00:00', como os
+ * timestamptz do banco) vira o dia em São Paulo: antes, o dia era recortado do
+ * texto em UTC e um registro das 21h em diante aparecia com a data seguinte.
+ */
 export function formatarData(valor: string | null | undefined): string {
   if (!valor) return "—"
-  const soData = /^(\d{4})-(\d{2})-(\d{2})/.exec(valor)
+  const comFuso = /[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}(:?\d{2})?)$/i.test(valor.trim())
+  const soData = comFuso ? null : /^(\d{4})-(\d{2})-(\d{2})/.exec(valor)
   if (soData) return `${soData[3]}/${soData[2]}/${soData[1]}`
   const d = new Date(valor)
   if (Number.isNaN(d.getTime())) return "—"

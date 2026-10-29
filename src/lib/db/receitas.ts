@@ -217,7 +217,9 @@ export async function recebimentosDaRemessa(
     if (c.fonte_pg_id) {
       porFonte.set(c.fonte_pg_id, {
         id: c.id,
-        data: c.data,
+        // A coluna é timestamptz, mas guarda o DIA do depósito (meia-noite
+        // UTC): lido como data pura, para não virar o dia anterior em São Paulo.
+        data: typeof c.data === "string" ? c.data.slice(0, 10) : c.data,
         valor: c.valor,
         comprovante: c.comprovante,
       })
