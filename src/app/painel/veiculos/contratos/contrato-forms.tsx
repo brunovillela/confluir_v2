@@ -660,12 +660,14 @@ export function EditarContratoDialog({
   contratoId,
   atual,
   opcoes,
+  abertoAoEntrar = false,
 }: {
   contratoId: string
   atual: ContratoAtual
   opcoes: OpcoesContrato
+  abertoAoEntrar?: boolean
 }) {
-  const [aberto, setAberto] = useState(false)
+  const [aberto, setAberto] = useState(abertoAoEntrar)
   const [estado, formAction, pendente] = useAcaoDoDialogo(
     editarContratoAction,
     () => setAberto(false),

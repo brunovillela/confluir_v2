@@ -79,6 +79,19 @@ export default async function ContratosPage({
           </Alert>
         )}
 
+      {situacao === "vigentes" && contratos.some((c) => !c.uso) && (
+        <Alert variant="warning">
+          <AlertDescription>
+            {(() => {
+              const n = contratos.filter((c) => !c.uso).length
+              return `${n} contrato${n === 1 ? "" : "s"} vigente${n === 1 ? "" : "s"} sem o uso definido (dedicado ou coletivo). `
+            })()}
+            Até definir, o carro é oferecido na recepção como coletivo — clique em
+            “Definir” na coluna Uso.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <GrupoColapsavel
         titulo="Novo contrato"
         descricao="Locadora do cadastro de fornecedores do módulo Aquisição"
@@ -162,7 +175,16 @@ export default async function ContratosPage({
                         ? `Dedicado${c.condutorDedicadoNome ? ` · ${c.condutorDedicadoNome}` : ""}`
                         : c.uso === "coletivo"
                           ? "Coletivo"
-                          : "—"}
+                          : c.finalizado
+                            ? "—"
+                            : (
+                              <Link
+                                href={`/painel/veiculos/contratos/${c.id}?uso=1`}
+                                className="text-warning-fg font-medium hover:underline"
+                              >
+                                Definir
+                              </Link>
+                            )}
                     </TableCell>
                     <TableCell className="max-w-48">
                       <span className="text-muted-foreground line-clamp-1 text-sm">

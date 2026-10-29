@@ -63,11 +63,11 @@ export default async function ContratoPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ salvo?: string; prorrogar?: string }>
+  searchParams: Promise<{ salvo?: string; prorrogar?: string; uso?: string }>
 }) {
   await requirePermissao("veiculos_gestao")
   const { id } = await params
-  const { salvo, prorrogar } = await searchParams
+  const { salvo, prorrogar, uso } = await searchParams
 
   const contrato = await buscarContrato(id)
   if (!contrato) notFound()
@@ -151,8 +151,17 @@ export default async function ContratoPage({
                     ? ` · ${contrato.condutorDedicadoNome}`
                     : ""}
                 </Badge>
-              ) : (
+              ) : contrato.finalizado ? (
                 <span className="text-muted-foreground">não informado (contrato antigo)</span>
+              ) : (
+                <>
+                  <span className="text-warning-fg font-medium">
+                    não definido — o carro é oferecido na recepção como coletivo
+                  </span>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/painel/veiculos/contratos/${contrato.id}?uso=1`}>Definir uso</Link>
+                  </Button>
+                </>
               )}
               {contrato.uso === "dedicado" && !contrato.finalizado && (
                 <TrocarCondutorDialog
@@ -171,6 +180,10 @@ export default async function ContratoPage({
           </div>
           <div className="flex flex-wrap items-start gap-2">
             <EditarContratoDialog
+              // "Definir uso" (alerta do painel ou o botão acima) já abre o
+              // diálogo; a key remonta quando o link é da própria página.
+              key={uso === "1" ? "definir-uso" : "editar"}
+              abertoAoEntrar={uso === "1" && !contrato.uso}
               contratoId={contrato.id}
               atual={{
                 numero: contrato.numero,

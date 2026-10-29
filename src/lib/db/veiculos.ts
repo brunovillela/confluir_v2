@@ -4023,6 +4023,16 @@ export async function alertasLocacao(): Promise<AlertaLocacao[]> {
         grave: true,
       })
     }
+    // Contrato antigo (Bubble) ou reaberto sem o uso: o carro dele segue
+    // oferecido na recepção como se fosse coletivo, até alguém definir.
+    if (!c.uso) {
+      alertas.push({
+        chave: `locacao-sem-uso-${c.id}`,
+        texto: `${nome}: uso não definido (dedicado ou coletivo)${c.qtdVeiculos > 0 ? " — enquanto isso, o carro é oferecido na recepção" : ""}`,
+        href: `${href}?uso=1`,
+        grave: c.qtdVeiculos > 0,
+      })
+    }
     const lista = porContrato.get(c.id) ?? []
     const resumo = resumoLocacao(
       c,
