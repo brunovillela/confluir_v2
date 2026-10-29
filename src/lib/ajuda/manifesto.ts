@@ -61,6 +61,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "Como acessar, as interfaces do sistema e como se orientar",
       },
       {
+        slug: "meu-perfil",
+        titulo: "Meu perfil",
+        resumo: "Seus dados e contatos, contatos corporativos, dados bancários com o Financeiro ciente e as áreas do quadro e da diretoria",
+      },
+      {
         slug: "seguranca",
         titulo: "Segurança da conta",
         resumo: "Verificação em duas etapas com aplicativo autenticador: ativar, entrar, redefinir",

@@ -209,6 +209,42 @@ mais. As contas aceitas ficam em **Conferidas**, no fim da tela, com quem
 conferiu, quando e por quê, e o botão **Desfazer**. Se alguém trocar o titular
 da conta depois, a conferência deixa de valer e ela volta para a lista sozinha.
 
+### Pedidos de conta de funcionários e diretores
+
+Funcionários e diretores incluem, alteram e excluem a própria conta em **Meu
+perfil → Dados bancários**, mas o pedido **só vale depois da confirmação do
+Financeiro**: até lá, os pagamentos seguem na conta antiga. Os pedidos chegam à
+**caixa de entrada** de quem paga ordens ("Dados bancários a confirmar") e ficam
+em **Financeiro › Contas bancárias › Pedidos de funcionários e diretores**.
+
+<RequerPermissao>Pagamento de ordens (quem só consulta o Financeiro vê, sem decidir)</RequerPermissao>
+
+<PassoAPasso>
+  <Passo titulo="Conferir">
+    Cada pedido mostra quem pediu, quando, o tipo (inclusão, alteração ou
+    exclusão) e se a conta será a **principal**. Na alteração, a conta **Atual**
+    fica ao lado da **Pedida**, com o que mudou em destaque. Confira sobretudo o
+    **titular**.
+  </Passo>
+  <Passo titulo="Confirmar — Financeiro ciente">
+    Aplica o pedido na conta da pessoa e dá a ela o selo **Financeiro ciente**,
+    com a data. A conta nova já vale para as ordens seguintes, e as ordens que
+    esperavam conta da pessoa a recebem.
+  </Passo>
+  <Passo titulo="Ou recusar">
+    **Recusar** pede o motivo, que a pessoa vê no histórico dela. Nada muda na
+    conta. Nos dois casos ela é avisada.
+  </Passo>
+</PassoAPasso>
+
+<Print src="financeiro/contas-bancarias-alteracoes.png" alt="Dados bancários a confirmar: um pedido de alteração de conta de uma funcionária, com a conta atual ao lado da pedida e as diferenças em destaque, os botões Recusar e Confirmar — Financeiro ciente e, abaixo, os pedidos já decididos com a situação e quem decidiu." legenda="Pedidos de conta: a atual ao lado da pedida, Confirmar ou Recusar." />
+
+Quem pediu **não confirma o próprio pedido** — outra pessoa do Financeiro
+confirma. Uma conta já usada em ordens de pagamento não pode ser excluída:
+recuse o pedido e oriente a pessoa a cadastrar outra conta como principal. As
+mudanças feitas pela gestão (Pessoal, Diretoria) na ficha da pessoa continuam
+valendo direto.
+
 No topo da tela há uma busca (nome, CPF/CNPJ, banco, conta, chave Pix ou código
 da ordem, sem precisar de acento ou pontuação) e o filtro pelo tipo de cadastro:
 fornecedores, filiados ou funcionários e diretores. A busca vale para todas as
