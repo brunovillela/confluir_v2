@@ -48,6 +48,7 @@ const ORIGENS = [
   { valor: "", rotulo: "Todas as origens" },
   { valor: "contrato", rotulo: "De contrato" },
   { valor: "compra", rotulo: "De compra de serviço" },
+  { valor: "avulso", rotulo: "Avulso (sem compra ainda)" },
   { valor: "anterior", rotulo: "Sem contrato (anterior)" },
 ] as const
 
@@ -88,7 +89,9 @@ export default async function RpaPage({
     if (recibo === "a_assinar" && r.arquivoAssinado) return false
     if (origem === "compra" && !r.compraId) return false
     if (origem === "contrato" && (r.compraId || !r.contratoId)) return false
-    if (origem === "anterior" && (r.compraId || r.contratoId)) return false
+    // Avulso: emitido sem compra nem contrato e ainda sem ordem (vai para uma aquisição direta).
+    if (origem === "avulso" && (r.compraId || r.contratoId || r.ordemId)) return false
+    if (origem === "anterior" && (r.compraId || r.contratoId || !r.ordemId)) return false
     if (termo) {
       const alvo = semAcento(
         [r.numero, r.fornecedorNome, r.contratoCodigo, r.contratoObjeto, r.compraCodigo, r.ordemCodigo]
@@ -127,9 +130,9 @@ export default async function RpaPage({
             RPA — Recibo de Pagamento a Autônomo
           </h1>
           <p className="text-muted-foreground mt-1 text-xs">
-            Recibo do prestador autônomo (pessoa física) — de um contrato com ele ou de uma compra de serviço.
-            Gera a ordem de pagamento do líquido e, assinado, vale como comprovante fiscal do
-            serviço.{" "}
+            Recibo do prestador autônomo (pessoa física) — de um contrato com ele, de uma compra de serviço ou
+            avulso (emitido antes, para uma aquisição direta, que cria a ordem). Paga-se o líquido e, assinado,
+            o recibo vale como comprovante fiscal do serviço.{" "}
             {temFiltro
               ? `${total} de ${todas.length} recibo${todas.length === 1 ? "" : "s"}.`
               : `${total} recibo${total === 1 ? "" : "s"}.`}
@@ -257,6 +260,8 @@ export default async function RpaPage({
                         {r.contratoCodigo ?? "(sem código)"}
                         {r.contratoObjeto ? ` — ${r.contratoObjeto}` : ""}
                       </Link>
+                    ) : !r.ordemId ? (
+                      <span className="text-muted-foreground block text-xs">Avulso — sem compra ainda</span>
                     ) : (
                       <span className="text-muted-foreground block text-xs">Sem contrato (anterior)</span>
                     )}
