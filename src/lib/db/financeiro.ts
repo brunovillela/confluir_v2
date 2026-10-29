@@ -2,7 +2,7 @@ import "server-only"
 import { tenantAtual } from "@/lib/tenant"
 import { FORMA_PAGA_NO_ATO } from "@/lib/compras-constantes"
 
-import { lerEmLotes, texto } from "@/lib/db/comum"
+import { lerEmLotes, lerEmLotesPorIds, texto } from "@/lib/db/comum"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { rotuloCentroCusto } from "@/lib/centros-custo-rotulo"
 
@@ -18,7 +18,10 @@ export const ORDENS_POR_PAGINA = 50
  * - `vencimento`: data acertada com o fornecedor; `data_pagamento`: pagamento
  *   efetivo; `autorizacao_data`: autorização.
  * - Favorecido: empresa/fornecedor (fornecedor_id, beneficiario_fornecedor_id
- *   → `empresa`) ou pessoa/filiado (beneficiario_usuario_id → `usuarios`).
+ *   → `empresa`), pessoa do quadro (beneficiario_usuario_id → `usuarios`) ou
+ *   FILIADO — este sem coluna na ordem: vem do pedido de reembolso
+ *   (`filiacao_reembolsos.ordem_pagamento_id`) ou do custeio
+ *   (`institucional_custeios.filiacao_id`). Ver `filiadosDasOrdens`.
  * - Situações reais em `situacao`: Paga, Processando, Cancelada, A pagar,
  *   Em autorização, Aguardando informações. O boolean `pago` e `data_emissao`
  *   são legados 100% nulos — não usar.
@@ -83,7 +86,8 @@ export type OrdemLinha = {
   beneficiario_usuario_id: string | null
   /** Favorecido avulso (gente sem conta: diretor/convidado de custeio). */
   beneficiario_nome_avulso: string | null
-  /** Nome resolvido do favorecido (empresa, usuário ou avulso). */
+  custeio_id: string | null
+  /** Nome resolvido do favorecido (empresa, usuário, filiado ou avulso). */
   favorecido: string | null
 }
 
@@ -92,7 +96,10 @@ export type FiltrosOrdens = {
   situacao?: FiltroSituacaoOrdem
   /** Filtro pela coluna `tipo` (ex.: "Custeio", "Compras"); "todos" não filtra. */
   tipo?: string
-  /** id do fornecedor beneficiário (beneficiario_fornecedor_id). */
+  /**
+   * Favorecido: id da empresa (fornecedor), "u:<id>" (pessoa do quadro) ou
+   * "f:<id>" (filiado, pelos reembolsos e custeios dele).
+   */
   beneficiario?: string
   /** id do centro de custo (centro_custo_despesa_id). */
   centroCusto?: string
@@ -122,7 +129,7 @@ const COLUNAS_ORDEM: Record<string, string> = {
 }
 
 const SELECT_ORDEM =
-  "id, codigo, descricao, tipo, situacao, forma_pagamento, valor_inicial_cobranca, valor_pago, vencimento, data_pagamento, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso"
+  "id, codigo, descricao, tipo, situacao, forma_pagamento, valor_inicial_cobranca, valor_pago, vencimento, data_pagamento, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso, custeio_id"
 
 type BuilderFiltros = {
   eq(coluna: string, valor: unknown): BuilderFiltros
@@ -134,6 +141,60 @@ type BuilderFiltros = {
 
 function escaparLike(termo: string): string {
   return termo.replace(/[%_\\]/g, "\\$&")
+}
+
+const NENHUMA = "00000000-0000-0000-0000-000000000000"
+
+/** As ordens de um filiado: as dos pedidos de reembolso e as dos custeios dele. */
+async function ordensDoFiliado(filiadoId: string): Promise<string[]> {
+  const admin = await createAdminClient()
+  const [{ data: reembolsos }, { data: custeios }] = await Promise.all([
+    admin.from("filiacao_reembolsos").select("ordem_pagamento_id").eq("filiado_id", filiadoId).not("ordem_pagamento_id", "is", null),
+    admin.from("institucional_custeios").select("id").eq("filiacao_id", filiadoId),
+  ])
+  const ids = new Set(((reembolsos ?? []) as Record<string, unknown>[]).map((r) => String(r.ordem_pagamento_id)))
+  const custeioIds = ((custeios ?? []) as Record<string, unknown>[]).map((c) => String(c.id))
+  if (custeioIds.length) {
+    const { data } = await admin.from("ordens_pagamento").select("id").in("custeio_id", custeioIds)
+    for (const o of (data ?? []) as Record<string, unknown>[]) ids.add(String(o.id))
+  }
+  return [...ids]
+}
+
+/**
+ * O filiado favorecido de cada ordem (a ordem não tem coluna para ele): pelo
+ * pedido de reembolso ou pelo custeio. Devolve ordemId → { id, nome }.
+ */
+export async function filiadosDasOrdens(
+  ordens: { id: string; custeio_id?: string | null }[]
+): Promise<Map<string, { id: string; nome: string }>> {
+  const saida = new Map<string, { id: string; nome: string }>()
+  if (ordens.length === 0) return saida
+  const admin = await createAdminClient()
+  const custeioIds = [...new Set(ordens.map((o) => o.custeio_id).filter((v): v is string => Boolean(v)))]
+  // A exportação passa até 1.000 ordens: .in() em fatias (lerEmLotesPorIds).
+  const [reembolsos, custeios] = await Promise.all([
+    lerEmLotesPorIds(ordens.map((o) => o.id), (fatia, de, ate) =>
+      admin.from("filiacao_reembolsos").select("id, ordem_pagamento_id, filiado_id").in("ordem_pagamento_id", fatia).order("id").range(de, ate)
+    ),
+    lerEmLotesPorIds(custeioIds, (fatia, de, ate) =>
+      admin.from("institucional_custeios").select("id, filiacao_id").in("id", fatia).not("filiacao_id", "is", null).order("id").range(de, ate)
+    ),
+  ])
+  const filiadoDaOrdem = new Map<string, string>()
+  for (const r of reembolsos) filiadoDaOrdem.set(String(r.ordem_pagamento_id), String(r.filiado_id))
+  const filiadoDoCusteio = new Map(custeios.map((c) => [String(c.id), String(c.filiacao_id)]))
+  for (const o of ordens) {
+    if (!filiadoDaOrdem.has(o.id) && o.custeio_id && filiadoDoCusteio.has(o.custeio_id)) filiadoDaOrdem.set(o.id, filiadoDoCusteio.get(o.custeio_id)!)
+  }
+  const filiados = [...new Set(filiadoDaOrdem.values())]
+  if (filiados.length === 0) return saida
+  const fichas = await lerEmLotesPorIds(filiados, (fatia, de, ate) =>
+    admin.from("filiacoes").select("id, nome_completo").in("id", fatia).order("id").range(de, ate)
+  )
+  const nomes = new Map(fichas.map((f) => [String(f.id), texto(f.nome_completo) ?? "Filiado"]))
+  for (const [ordem, filiado] of filiadoDaOrdem) saida.set(ordem, { id: filiado, nome: nomes.get(filiado) ?? "Filiado" })
+  return saida
 }
 
 function aplicarFiltrosOrdens<T>(
@@ -148,7 +209,9 @@ function aplicarFiltrosOrdens<T>(
     projeto = "",
     formaPagamento = "",
   }: FiltrosOrdens,
-  empId: string
+  empId: string,
+  /** Filtro por filiado: as ordens dele já resolvidas (reembolsos e custeios). */
+  ordensDoFiliado: string[] = []
 ): T {
   let q = (builder as unknown as BuilderFiltros)
     .eq("emp_proprietaria_id", empId)
@@ -157,7 +220,9 @@ function aplicarFiltrosOrdens<T>(
   if (situacao === "abertas") q = q.in("situacao", SITUACOES_ABERTAS)
   else if (situacao !== "todas") q = q.eq("situacao", situacao)
   if (tipo && tipo !== "todos") q = q.eq("tipo", tipo)
-  if (beneficiario) q = q.eq("beneficiario_fornecedor_id", beneficiario)
+  if (beneficiario.startsWith("u:")) q = q.eq("beneficiario_usuario_id", beneficiario.slice(2))
+  else if (beneficiario.startsWith("f:")) q = q.in("id", ordensDoFiliado.length ? ordensDoFiliado : [NENHUMA])
+  else if (beneficiario) q = q.or(`beneficiario_fornecedor_id.eq.${beneficiario},fornecedor_id.eq.${beneficiario}`)
   if (centroCusto) q = q.eq("centro_custo_despesa_id", centroCusto)
   if (departamento) q = q.eq("departamento_id", departamento)
   if (projeto) q = q.eq("projeto_id", projeto)
@@ -166,7 +231,7 @@ function aplicarFiltrosOrdens<T>(
   const termo = busca.trim()
   if (termo) {
     const escapado = escaparLike(termo)
-    q = q.or(`descricao.ilike.%${escapado}%,codigo.ilike.%${escapado}%`)
+    q = q.or(`descricao.ilike.%${escapado}%,codigo.ilike.%${escapado}%,beneficiario_nome_avulso.ilike.%${escapado}%`)
   }
   return q as unknown as T
 }
@@ -192,7 +257,7 @@ async function resolverFavorecidos(
     ),
   ]
 
-  const [empresas, usuarios] = await Promise.all([
+  const [empresas, usuarios, filiados] = await Promise.all([
     empresaIds.length
       ? admin
           .from("empresa")
@@ -205,6 +270,7 @@ async function resolverFavorecidos(
           .select("id, nome_completo, nome_guerra")
           .in("id", usuarioIds)
       : Promise.resolve({ data: [] }),
+    filiadosDasOrdens(linhas),
   ])
 
   const nomes = new Map<string, string>()
@@ -228,6 +294,7 @@ async function resolverFavorecidos(
       (o.beneficiario_fornecedor_id &&
         nomes.get(o.beneficiario_fornecedor_id)) ||
       (o.beneficiario_usuario_id && nomes.get(o.beneficiario_usuario_id)) ||
+      filiados.get(o.id)?.nome ||
       o.beneficiario_nome_avulso ||
       null,
   }))
@@ -247,7 +314,13 @@ export async function listarOrdens(
   let q = admin
     .from("ordens_pagamento")
     .select(SELECT_ORDEM, { count: "exact" })
-  q = aplicarFiltrosOrdens(q, filtros, await tenantAtual())
+  const beneficiario = filtros.beneficiario ?? ""
+  q = aplicarFiltrosOrdens(
+    q,
+    filtros,
+    await tenantAtual(),
+    beneficiario.startsWith("f:") ? await ordensDoFiliado(beneficiario.slice(2)) : []
+  )
 
   const de = (pagina - 1) * porPagina
   const { data, count, error } = await q
@@ -270,6 +343,11 @@ export async function listarOrdens(
 
 export type OpcoesFiltrosOrdens = {
   fornecedores: { id: string; nome: string; cnpj_cpf: string | null }[]
+  /**
+   * Pessoas que já foram favorecidas: do quadro ("u:<id>") e filiados
+   * ("f:<id>", pelos reembolsos e custeios) — para o filtro Favorecido.
+   */
+  pessoasFavorecidas: { id: string; nome: string; cnpj_cpf: string | null; etiqueta: string }[]
   centrosCusto: { id: string; nome: string; departamentoId: string | null }[]
   departamentos: { id: string; nome: string }[]
   projetos: { id: string; nome: string }[]
@@ -354,7 +432,63 @@ export async function opcoesFiltrosOrdens(): Promise<OpcoesFiltrosOrdens> {
     ),
   ].sort((a, b) => a.localeCompare(b, "pt-BR"))
 
-  return { fornecedores, centrosCusto, departamentos, projetos, formasPagamento }
+  return { fornecedores, pessoasFavorecidas: await pessoasFavorecidas(emp), centrosCusto, departamentos, projetos, formasPagamento }
+}
+
+/** Quem do quadro e quais filiados já receberam ordem (opções do filtro Favorecido). */
+async function pessoasFavorecidas(emp: string): Promise<OpcoesFiltrosOrdens["pessoasFavorecidas"]> {
+  const admin = await createAdminClient()
+  const [usos, reembolsos, custeios] = await Promise.all([
+    lerEmLotes((de, ate) =>
+      admin
+        .from("ordens_pagamento")
+        .select("beneficiario_usuario_id")
+        .eq("emp_proprietaria_id", emp)
+        .not("excluido", "is", true)
+        .not("beneficiario_usuario_id", "is", null)
+        .order("id")
+        .range(de, ate)
+    ).catch(() => [] as Record<string, unknown>[]),
+    lerEmLotes((de, ate) =>
+      admin
+        .from("filiacao_reembolsos")
+        .select("filiado_id")
+        .eq("emp_proprietaria_id", emp)
+        .not("ordem_pagamento_id", "is", null)
+        .order("id")
+        .range(de, ate)
+    ).catch(() => [] as Record<string, unknown>[]),
+    lerEmLotes((de, ate) =>
+      admin
+        .from("institucional_custeios")
+        .select("filiacao_id")
+        .eq("emp_proprietaria_id", emp)
+        .not("filiacao_id", "is", null)
+        .order("id")
+        .range(de, ate)
+    ).catch(() => [] as Record<string, unknown>[]),
+  ])
+  const usuarioIds = [...new Set(usos.map((o) => String(o.beneficiario_usuario_id)))]
+  const filiadoIds = [...new Set([...reembolsos.map((r) => String(r.filiado_id)), ...custeios.map((c) => String(c.filiacao_id))])]
+  const [usuarios, filiados] = await Promise.all([
+    lerEmLotesPorIds(usuarioIds, (fatia, de, ate) =>
+      admin.from("usuarios").select("id, nome_completo, nome_guerra, cpf").in("id", fatia).order("id").range(de, ate)
+    ),
+    lerEmLotesPorIds(filiadoIds, (fatia, de, ate) =>
+      admin.from("filiacoes").select("id, nome_completo, cpf").in("id", fatia).order("id").range(de, ate)
+    ),
+  ])
+  return [
+    ...usuarios.map((u) => ({
+      id: `u:${u.id}`,
+      nome: texto(u.nome_completo) ?? texto(u.nome_guerra) ?? "",
+      cnpj_cpf: texto(u.cpf),
+      etiqueta: "Pessoal",
+    })),
+    ...filiados.map((f) => ({ id: `f:${f.id}`, nome: texto(f.nome_completo) ?? "", cnpj_cpf: texto(f.cpf), etiqueta: "Filiado" })),
+  ]
+    .filter((p) => p.nome)
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
 }
 
 export type ResumoFinanceiro = {
@@ -607,6 +741,10 @@ export async function detalheOrdem(id: string): Promise<DetalheOrdem | null> {
     )
     if (nome) nomesUsuarios.set(u.id, nome)
   }
+  // Reembolso e custeio de filiado: o favorecido não tem coluna na ordem.
+  const filiado = (
+    await filiadosDasOrdens([{ id: String(ordem.id), custeio_id: typeof ordem.custeio_id === "string" ? ordem.custeio_id : null }])
+  ).get(String(ordem.id))
   const centroPorId = new Map(
     ((centros.data ?? []) as CentroCusto[]).map((c) => [c.id, c])
   )
@@ -655,6 +793,7 @@ export async function detalheOrdem(id: string): Promise<DetalheOrdem | null> {
         nomesEmpresas.get(ordem.beneficiario_fornecedor_id)) ||
       (ordem.beneficiario_usuario_id &&
         nomesUsuarios.get(ordem.beneficiario_usuario_id)) ||
+      filiado?.nome ||
       (typeof ordem.beneficiario_nome_avulso === "string"
         ? ordem.beneficiario_nome_avulso
         : null) ||

@@ -204,7 +204,7 @@ export default async function OrdensPage({
   ])
 
   const nomeFornecedor = (id: string) =>
-    opcoes.fornecedores.find((f) => f.id === id)?.nome ?? "beneficiário"
+    [...opcoes.fornecedores, ...opcoes.pessoasFavorecidas].find((f) => f.id === id)?.nome ?? "beneficiário"
   const nomeCentro = (id: string) =>
     opcoes.centrosCusto.find((c) => c.id === id)?.nome ?? "centro de custo"
   const nomeDepto = (id: string) =>
@@ -245,10 +245,11 @@ export default async function OrdensPage({
     },
   ].filter(Boolean) as { rotulo: string; href: string }[]
 
-  const fornecedoresOpt = opcoes.fornecedores.map((f) => ({
-    ...f,
-    bloqueado: false,
-  }))
+  // Favorecido: empresas, pessoas do quadro e filiados (reembolso/custeio).
+  const fornecedoresOpt = [
+    ...opcoes.fornecedores.map((f) => ({ ...f, bloqueado: false })),
+    ...opcoes.pessoasFavorecidas.map((p) => ({ ...p, bloqueado: false })),
+  ]
 
   return (
     <>
