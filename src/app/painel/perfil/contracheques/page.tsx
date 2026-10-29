@@ -15,6 +15,7 @@ import { VoltarPerfil } from "@/components/voltar-perfil"
 import { requireSessaoPainel } from "@/lib/auth"
 import { exigirFuncionario } from "@/lib/db/perfil"
 import { meusDocumentosPessoal } from "@/lib/db/pessoal"
+import { marcarContrachequesLidos } from "@/lib/db/notificacoes"
 import { lerPaginacao } from "@/lib/paginacao"
 
 export const metadata: Metadata = { title: "Meus contracheques — Confluir" }
@@ -28,7 +29,11 @@ export default async function MeusContrachequesPage({
   const sessao = await requireSessaoPainel()
   // Área de funcionário: diretor e demais usuários sem vínculo com o sindicato voltam ao perfil.
   await exigirFuncionario(sessao.usuario.id as string)
-  const { contracheques } = await meusDocumentosPessoal(sessao.usuario.id)
+  const [{ contracheques }] = await Promise.all([
+    meusDocumentosPessoal(sessao.usuario.id),
+    // Viu a lista: o aviso de contracheque novo (sino e topo do perfil) fica lido.
+    marcarContrachequesLidos(sessao.usuario.id).catch(() => undefined),
+  ])
 
   const params = await searchParams
   const pagContracheques = lerPaginacao(params, 10, "c")

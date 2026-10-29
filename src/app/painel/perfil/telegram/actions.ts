@@ -29,7 +29,7 @@ export async function desvincularTelegramAction(): Promise<EstadoTelegram> {
   const { usuario } = await requireSessaoPainel()
   const { erro } = await desvincularTelegram(usuario.id as string)
   if (erro) return { erro }
-  revalidatePath("/painel/perfil/telegram")
+  revalidatePath("/painel/perfil/avisos")
   return { desvinculado: true }
 }
 
@@ -47,7 +47,7 @@ export async function solicitarCodigoTelefoneAction(
   const telefone = String(formData.get("telefone") ?? "")
   const { erro } = await solicitarCodigoTelefone(usuario.id as string, telefone)
   if (erro) return { erro }
-  revalidatePath("/painel/perfil/telegram")
+  revalidatePath("/painel/perfil/avisos")
   return { enviado: true }
 }
 
@@ -59,9 +59,10 @@ export async function confirmarCodigoTelefoneAction(
   const codigo = String(formData.get("codigo") ?? "")
   const { erro } = await confirmarCodigoTelefone(usuario.id as string, codigo)
   if (erro) return { erro }
-  revalidatePath("/painel/perfil/telegram")
+  revalidatePath("/painel/perfil/avisos")
   return { confirmado: true }
 }
 
 // As preferências por tipo de aviso (e-mail e Telegram) ficam em
-// /painel/perfil/avisos (onda 2, U3).
+// /painel/perfil/avisos (onda 2, U3) — desde 29/10 o vínculo e o telefone
+// também (a página /painel/perfil/telegram só redireciona para lá).

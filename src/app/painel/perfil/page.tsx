@@ -17,7 +17,6 @@ import {
   Phone,
   Plane,
   ReceiptText,
-  Send,
   ShieldCheck,
   TreePalm,
   Wallet,
@@ -27,10 +26,8 @@ import {
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
 import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
 import { CartaoEditavel } from "@/components/cartao-editavel"
-import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { requireSessaoPainel } from "@/lib/auth"
 import { usuarioTemCaixa } from "@/lib/db/caixa"
 import { usuarioTemCartao } from "@/lib/db/compras-pagamento"
@@ -53,6 +50,7 @@ import {
 } from "./perfil-forms"
 import { FotoPerfil } from "./foto-perfil"
 import { MinhaDiretoria } from "./minha-diretoria"
+import { CartaoLista } from "./cartao-lista"
 
 export const metadata: Metadata = { title: "Meu perfil — Confluir" }
 
@@ -165,15 +163,9 @@ const SEGURANCA: AreaPerfil = {
   href: "/conta/seguranca?voltar=/painel/perfil",
   icone: ShieldCheck,
 }
-const TELEGRAM: AreaPerfil = {
-  titulo: "Telegram",
-  descricao: "Vincule seu Telegram para falar com o bot do Confluir",
-  href: "/painel/perfil/telegram",
-  icone: Send,
-}
 const AVISOS: AreaPerfil = {
-  titulo: "Avisos",
-  descricao: "O que você recebe por e-mail e por Telegram, tipo a tipo",
+  titulo: "Avisos e Telegram",
+  descricao: "Vincule o Telegram e escolha o que recebe por e-mail, Telegram e celular",
   href: "/painel/perfil/avisos",
   icone: BellRing,
 }
@@ -299,17 +291,17 @@ export default async function PerfilPage({
         titulo="Dados pessoais"
         descricao="CPF, nome e matrícula não são editáveis"
         resumo={
-          <dl className="grid gap-3 text-sm sm:grid-cols-2">
-            <Campo rotulo="Nome completo" valor={perfil.nomeCompleto} />
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm md:grid-cols-3 xl:grid-cols-6">
+            <Campo rotulo="Nome completo" valor={perfil.nomeCompleto} className="col-span-2" />
             <Campo rotulo="Como quer ser chamado(a)" valor={perfil.nomeGuerra} />
             <Campo rotulo="CPF" valor={perfil.cpf ? formatarCnpjCpf(perfil.cpf) : null} />
             <Campo rotulo="Nascimento" valor={perfil.dataNascimento ? formatarData(perfil.dataNascimento) : null} />
-            <Campo rotulo="E-mail" valor={perfil.email} />
-            <Campo rotulo="WhatsApp" valor={perfil.whatsapp} />
             <Campo rotulo="Sexo" valor={perfil.sexo} />
             <Campo rotulo="Estado civil" valor={perfil.estadoCivil} />
             <Campo rotulo="Escolaridade" valor={perfil.escolaridade} />
-            <Campo rotulo="E-mail corporativo" valor={perfil.emailEmpresa} />
+            <Campo rotulo="WhatsApp" valor={perfil.whatsapp} />
+            <Campo rotulo="E-mail" valor={perfil.email} className="col-span-2 md:col-span-1 xl:col-span-2" />
+            <Campo rotulo="E-mail corporativo" valor={perfil.emailEmpresa} className="col-span-2 md:col-span-1" />
           </dl>
         }
       >
@@ -326,83 +318,60 @@ export default async function PerfilPage({
         />
       </CartaoEditavel>
 
-      {/* Telefones */}
-      <div>
-        <h2 className="flex items-center gap-2 text-lg font-semibold">
-          <Phone className="text-muted-foreground size-4" />
-          Telefones
-        </h2>
-        <div className="mt-3 grid gap-3">
-          <GrupoColapsavel titulo="Adicionar telefone">
-            <AdicionarTelefone />
-          </GrupoColapsavel>
-          <Card>
-            <CardContent>
-              {telefones.length === 0 ? (
-                <p className="text-muted-foreground py-4 text-center text-sm">
-                  Nenhum telefone cadastrado.
-                </p>
-              ) : (
-                <ul className="divide-y">
-                  {telefones.map((t) => (
-                    <li key={t.id} className="flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0">
-                      <span className="text-sm">
-                        <span className="font-medium tabular-nums">{t.numero ?? "—"}</span>
-                        {t.tipo ? <span className="text-muted-foreground"> · {t.tipo}</span> : ""}
-                        {t.whatsapp && <Badge variant="secondary" className="ml-2">WhatsApp</Badge>}
-                      </span>
-                      <RemoverTelefone telefoneId={t.id} />
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      {/* Telefones e endereços lado a lado (cartões compactos). */}
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <CartaoLista
+          titulo="Telefones"
+          item="telefone"
+          icone={<Phone className="text-muted-foreground size-4" />}
+          formulario={<AdicionarTelefone />}
+        >
+          {telefones.length === 0 ? (
+            <p className="text-muted-foreground text-sm">Nenhum telefone cadastrado.</p>
+          ) : (
+            <ul className="divide-y">
+              {telefones.map((t) => (
+                <li key={t.id} className="flex items-center justify-between gap-3 py-1.5 first:pt-0 last:pb-0">
+                  <span className="text-sm">
+                    <span className="font-medium tabular-nums">{t.numero ?? "—"}</span>
+                    {t.tipo ? <span className="text-muted-foreground"> · {t.tipo}</span> : ""}
+                    {t.whatsapp && <Badge variant="secondary" className="ml-2">WhatsApp</Badge>}
+                  </span>
+                  <RemoverTelefone telefoneId={t.id} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </CartaoLista>
 
-      {/* Endereços */}
-      <div>
-        <h2 className="flex items-center gap-2 text-lg font-semibold">
-          <MapPin className="text-muted-foreground size-4" />
-          Endereços
-        </h2>
-        <div className="mt-3 grid gap-3">
-          <GrupoColapsavel titulo="Adicionar endereço">
-            <AdicionarEndereco />
-          </GrupoColapsavel>
-          <Card>
-            <CardContent>
-              {enderecos.length === 0 ? (
-                <p className="text-muted-foreground py-4 text-center text-sm">
-                  Nenhum endereço cadastrado.
-                </p>
-              ) : (
-                <ul className="divide-y">
-                  {enderecos.map((e) => (
-                    <li key={e.id} className="flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0">
-                      <span className="text-sm">
-                        {[
-                          [e.logradouro, e.numero].filter(Boolean).join(", "),
-                          e.bairro,
-                          [e.cidade, e.estado].filter(Boolean).join("/"),
-                        ]
-                          .filter(Boolean)
-                          .join(" — ") || "(endereço)"}
-                        {e.tipo ? (
-                          <span className="text-muted-foreground"> · {e.tipo}</span>
-                        ) : (
-                          ""
-                        )}
-                      </span>
-                      <RemoverEndereco enderecoId={e.id} />
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+        <CartaoLista
+          titulo="Endereços"
+          item="endereço"
+          icone={<MapPin className="text-muted-foreground size-4" />}
+          formulario={<AdicionarEndereco />}
+        >
+          {enderecos.length === 0 ? (
+            <p className="text-muted-foreground text-sm">Nenhum endereço cadastrado.</p>
+          ) : (
+            <ul className="divide-y">
+              {enderecos.map((e) => (
+                <li key={e.id} className="flex items-center justify-between gap-3 py-1.5 first:pt-0 last:pb-0">
+                  <span className="text-sm">
+                    {[
+                      [e.logradouro, e.numero].filter(Boolean).join(", "),
+                      e.bairro,
+                      [e.cidade, e.estado].filter(Boolean).join("/"),
+                    ]
+                      .filter(Boolean)
+                      .join(" — ") || "(endereço)"}
+                    {e.tipo ? <span className="text-muted-foreground"> · {e.tipo}</span> : ""}
+                  </span>
+                  <RemoverEndereco enderecoId={e.id} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </CartaoLista>
       </div>
 
       {diretoria && areaDiretor && <MinhaDiretoria diretoria={diretoria} area={areaDiretor} />}
@@ -414,11 +383,11 @@ export default async function PerfilPage({
           <p className="text-muted-foreground mt-0.5 text-xs">
             Seus dados de funcionário do sindicato
           </p>
-          <div className="mt-4 grid gap-6">
+          <div className="mt-3 grid gap-4">
             {GRUPOS.map((g) =>
               g.titulo === "Financeiro" && !perfil.funcionarioAtivo ? null : (
               <section key={g.titulo}>
-                <h3 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase">
+                <h3 className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">
                   {g.titulo}
                 </h3>
                 <div className={GRADE_AREAS}>
@@ -473,7 +442,6 @@ export default async function PerfilPage({
             />
           )}
           <CartaoArea titulo={AVISOS.titulo} descricao={AVISOS.descricao} href={AVISOS.href} icone={AVISOS.icone} />
-          <CartaoArea titulo={TELEGRAM.titulo} descricao={TELEGRAM.descricao} href={TELEGRAM.href} icone={TELEGRAM.icone} />
           <CartaoArea titulo={SEGURANCA.titulo} descricao={SEGURANCA.descricao} href={SEGURANCA.href} icone={SEGURANCA.icone} />
         </div>
       </div>
@@ -481,11 +449,13 @@ export default async function PerfilPage({
   )
 }
 
-function Campo({ rotulo, valor }: { rotulo: string; valor: string | null }) {
+function Campo({ rotulo, valor, className }: { rotulo: string; valor: string | null; className?: string }) {
   return (
-    <div>
-      <dt className="text-muted-foreground text-xs">{rotulo}</dt>
-      <dd className="mt-0.5">{valor ?? "—"}</dd>
+    <div className={className ? `min-w-0 ${className}` : "min-w-0"}>
+      <dt className="text-muted-foreground truncate text-xs" title={rotulo}>
+        {rotulo}
+      </dt>
+      <dd className="mt-0.5 truncate" title={valor ?? undefined}>{valor ?? "—"}</dd>
     </div>
   )
 }

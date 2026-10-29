@@ -68,7 +68,7 @@ export function AvisosForm({
       {!telegramAtivo && (
         <p className="text-muted-foreground text-sm">
           O Telegram só entrega depois de{" "}
-          <Link href="/painel/perfil/telegram" className="underline underline-offset-4">
+          <Link href="#telegram" className="underline underline-offset-4">
             vincular o bot e confirmar o telefone
           </Link>
           . As escolhas ficam guardadas para quando isso acontecer.

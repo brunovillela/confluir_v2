@@ -1,7 +1,7 @@
 "use client"
 
 import { useActionState, useState } from "react"
-import { Loader2, Send, X } from "lucide-react"
+import { Loader2, Plus, Send, X } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -29,6 +29,8 @@ export function SolicitarReembolsoForm({
 }: {
   tipos: { id: string; rotulo: string; proporcao: number; valor_limite: number | null }[]
 }) {
+  // O formulário só aparece quando a pessoa pede (botão "Solicitar reembolso").
+  const [aberto, setAberto] = useState(false)
   const [estado, formAction, pendente] = useActionState(solicitarReembolso, {})
   const [tipoId, setTipoId] = useState("")
   const [valor, setValor] = useState("")
@@ -36,10 +38,26 @@ export function SolicitarReembolsoForm({
   const despesa = Number(valor.replace(/./g, "").replace(",", "."))
   const recebe = tipo && valor && Number.isFinite(despesa) && despesa > 0 ? valorReembolsavel(despesa, tipo) : null
 
+  if (!aberto) {
+    return (
+      <div>
+        <Button onClick={() => setAberto(true)}>
+          <Plus />
+          Solicitar reembolso
+        </Button>
+      </div>
+    )
+  }
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Solicitar reembolso</CardTitle>
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="text-base">Solicitar reembolso</CardTitle>
+          <Button type="button" variant="ghost" size="icon" className="-mt-1 size-8" onClick={() => setAberto(false)} aria-label="Fechar o formulário">
+            <X />
+          </Button>
+        </div>
         <CardDescription>
           Benefícios aprovados no acordo coletivo — anexe o comprovante da
           despesa; o pagamento aprovado entra no contracheque.
@@ -121,7 +139,10 @@ export function SolicitarReembolsoForm({
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setAberto(false)} disabled={pendente}>
+              Cancelar
+            </Button>
             <Button type="submit" disabled={pendente}>
               {pendente ? <Loader2 className="animate-spin" /> : <Send />}
               Enviar solicitação

@@ -105,6 +105,30 @@ export async function marcarLida(
   return destinoDaNotificacao(data as Notificacao)
 }
 
+/** Há aviso de contracheque liberado ainda não lido? (o topo do Meu perfil some com ele) */
+export async function temContrachequeNaoLido(usuarioId: string): Promise<boolean> {
+  const admin = await createAdminClient()
+  const { count, error } = await admin
+    .from("notificacoes")
+    .select("id", { count: "exact", head: true })
+    .eq("usuario_id", usuarioId)
+    .eq("notificado", false)
+    .not("contracheque_id_fk", "is", null)
+  if (error) return false
+  return (count ?? 0) > 0
+}
+
+/** Abriu Meus contracheques: os avisos de contracheque liberado ficam lidos (sino e topo do perfil). */
+export async function marcarContrachequesLidos(usuarioId: string): Promise<void> {
+  const admin = await createAdminClient()
+  await admin
+    .from("notificacoes")
+    .update({ notificado: true })
+    .eq("usuario_id", usuarioId)
+    .eq("notificado", false)
+    .not("contracheque_id_fk", "is", null)
+}
+
 export async function marcarTodasLidas(usuarioId: string): Promise<void> {
   const admin = await createAdminClient()
   await admin

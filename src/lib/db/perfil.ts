@@ -5,6 +5,7 @@ import { tenantAtual } from "@/lib/tenant"
 import { minhasFerias, resumoPeriodo, somarDias } from "@/lib/db/ferias"
 import { ehUrlExterna, esquecerUrlFoto, urlFoto } from "@/lib/db/fotos-usuarios"
 import { meusDocumentosPessoal } from "@/lib/db/pessoal"
+import { temContrachequeNaoLido } from "@/lib/db/notificacoes"
 import { meusAsos } from "@/lib/db/pessoal-saude"
 import { formatarData } from "@/lib/formato"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -378,9 +379,14 @@ export async function meusAlertas(usuarioId: string): Promise<AlertaPerfil[]> {
     })
   }
 
-  // Contracheque: o mais recente liberado nos últimos 35 dias.
+  // Contracheque: o mais recente liberado nos últimos 35 dias, enquanto o
+  // aviso do sino não foi lido — abrir Meus contracheques (ou o sino) o apaga.
   const ultimo = docs.contracheques[0]
-  if (ultimo?.created_at && ultimo.created_at.slice(0, 10) >= somarDias(hoje, -35)) {
+  if (
+    ultimo?.created_at &&
+    ultimo.created_at.slice(0, 10) >= somarDias(hoje, -35) &&
+    (await temContrachequeNaoLido(usuarioId))
+  ) {
     alertas.push({
       tipo: "contracheque",
       texto: `Novo contracheque disponível${ultimo.remessaNome ? `: ${ultimo.remessaNome}` : ""}.`,

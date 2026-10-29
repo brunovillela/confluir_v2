@@ -18,6 +18,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { ColunaOrdenavel, linkDeOrdem } from "@/components/coluna-ordenavel"
+import { Paginacao } from "@/components/paginacao"
 import { SituacaoReembolsoBadge } from "@/components/reembolsos"
 import { VoltarPerfil } from "@/components/voltar-perfil"
 import { requireSessaoPainel } from "@/lib/auth"
@@ -27,7 +29,9 @@ import {
   listarTiposReembolso,
   meusReembolsos,
 } from "@/lib/db/reembolsos"
-import { formatarMoeda } from "@/lib/formato"
+import { formatarData, formatarMoeda } from "@/lib/formato"
+import { lerPaginacao, paginar } from "@/lib/paginacao"
+import { MESES } from "@/lib/faltas-constantes"
 
 import { CancelarReembolsoBotao, SolicitarReembolsoForm } from "./solicitacao-form"
 
@@ -37,20 +41,49 @@ export const metadata: Metadata = { title: "Meus reembolsos — Confluir" }
 export default async function MeusReembolsosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ salvo?: string }>
+  searchParams: Promise<{ salvo?: string; ordem?: string; dir?: string; pagina?: string; porPagina?: string }>
 }) {
   const sessao = await requireSessaoPainel()
   // Área de funcionário: diretor e demais usuários sem vínculo com o sindicato voltam ao perfil.
   await exigirFuncionario(sessao.usuario.id as string, { ativo: true })
-  const { salvo } = await searchParams
+  const sp = await searchParams
+  const { salvo } = sp
   const [{ disponivel, reembolsos }, { tipos }] = await Promise.all([
     meusReembolsos(sessao.usuario.id as string),
     listarTiposReembolso(),
   ])
 
   const ativos = tipos.filter((t) => t.ativa)
+  // Minhas solicitações: ordenação e paginação pela URL (padrão: mais recentes primeiro).
+  const ordem = ["data", "tipo", "solicitado", "aprovado", "contracheque", "situacao"].includes(sp.ordem ?? "") ? sp.ordem! : "data"
+  const dir: "asc" | "desc" = sp.dir === "asc" || sp.dir === "desc" ? sp.dir : ordem === "data" ? "desc" : "asc"
+  const chave = (r: (typeof reembolsos)[number]): string | number | null => {
+    switch (ordem) {
+      case "tipo": return r.tipoNome?.toLocaleLowerCase("pt-BR") ?? null
+      case "solicitado": return r.valor_solicitado
+      case "aprovado": return r.valor_aprovado
+      case "contracheque":
+        // Mês gravado pelo nome ("Junho") ou pelo número ("06").
+        return r.pagamento_ano ? Number(r.pagamento_ano) * 100 + (Number(r.pagamento_mes) || MESES.indexOf(r.pagamento_mes ?? "") + 1) : null
+      case "situacao": return r.situacao
+      default: return r.created_at
+    }
+  }
+  const ordenados = [...reembolsos].sort((a, b) => {
+    const x = chave(a)
+    const y = chave(b)
+    if (x === y) return 0
+    if (x === null) return 1 // vazios no fim, nos dois sentidos
+    if (y === null) return -1
+    const c = typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y), "pt-BR")
+    return dir === "asc" ? c : -c
+  })
+  const PADRAO_POR_PAGINA = 10
+  const pag = paginar(ordenados, lerPaginacao(sp, PADRAO_POR_PAGINA))
+  const hrefOrdem = linkDeOrdem("/painel/perfil/reembolsos", { porPagina: sp.porPagina }, ordem, dir)
+
   const urls = new Map<string, string | null>()
-  for (const r of reembolsos) {
+  for (const r of pag.linhas) {
     urls.set(r.id, await urlArquivoPessoal(r.comprovante_url))
   }
 
@@ -97,6 +130,8 @@ export default async function MeusReembolsosPage({
 
       {disponivel && (
         <SolicitarReembolsoForm
+          // Nova solicitação gravada → o formulário volta a ficar fechado.
+          key={reembolsos.length}
           tipos={ativos.map((t) => ({
             id: t.id,
             rotulo: `${t.nome}${t.proporcao < 1 ? ` — ${Math.round(t.proporcao * 100)}%` : ""}${t.valor_limite !== null ? ` — teto ${formatarMoeda(t.valor_limite)}` : ""}`,
@@ -127,13 +162,19 @@ export default async function MeusReembolsosPage({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead className="text-right">Solicitado</TableHead>
-                    <TableHead className="text-right">Aprovado</TableHead>
-                    <TableHead className="hidden sm:table-cell">
-                      Contracheque
-                    </TableHead>
-                    <TableHead>Situação</TableHead>
+                    <ColunaOrdenavel chave="data" rotulo="Data" ordem={ordem} dir={dir} href={hrefOrdem} />
+                    <ColunaOrdenavel chave="tipo" rotulo="Tipo" ordem={ordem} dir={dir} href={hrefOrdem} />
+                    <ColunaOrdenavel chave="solicitado" rotulo="Solicitado" ordem={ordem} dir={dir} href={hrefOrdem} className="text-right" />
+                    <ColunaOrdenavel chave="aprovado" rotulo="Aprovado" ordem={ordem} dir={dir} href={hrefOrdem} className="text-right" />
+                    <ColunaOrdenavel
+                      chave="contracheque"
+                      rotulo="Contracheque"
+                      ordem={ordem}
+                      dir={dir}
+                      href={hrefOrdem}
+                      className="hidden sm:table-cell"
+                    />
+                    <ColunaOrdenavel chave="situacao" rotulo="Situação" ordem={ordem} dir={dir} href={hrefOrdem} />
                     <TableHead className="hidden md:table-cell">
                       Comprovante
                     </TableHead>
@@ -141,8 +182,11 @@ export default async function MeusReembolsosPage({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {reembolsos.map((r) => (
+                  {pag.linhas.map((r) => (
                     <TableRow key={r.id}>
+                      <TableCell className="text-muted-foreground whitespace-nowrap tabular-nums">
+                        {r.created_at ? formatarData(r.created_at) : "—"}
+                      </TableCell>
                       <TableCell className="max-w-44 truncate font-medium">
                         {r.tipoNome ?? "—"}
                       </TableCell>
@@ -189,6 +233,15 @@ export default async function MeusReembolsosPage({
                   ))}
                 </TableBody>
               </Table>
+              <div className="mt-3">
+                <Paginacao
+                  total={pag.total}
+                  pagina={pag.pagina}
+                  totalPaginas={pag.totalPaginas}
+                  porPagina={lerPaginacao(sp, PADRAO_POR_PAGINA).porPagina}
+                  padrao={PADRAO_POR_PAGINA}
+                />
+              </div>
             </div>
           )}
         </CardContent>
