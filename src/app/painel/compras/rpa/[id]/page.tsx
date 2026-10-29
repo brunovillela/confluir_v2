@@ -22,6 +22,7 @@ import { buscarRpa } from "@/lib/db/compras-rpa"
 import { mascararCpf } from "@/lib/db/minuta-assinatura"
 import { assinaturasDoRpa, ROTULO_EVENTO_RPA } from "@/lib/db/rpa-assinatura"
 import { formatarCnpjCpf, formatarData, formatarMoeda } from "@/lib/formato"
+import { formatarNitPis } from "@/lib/cpf"
 import { podeAcessar } from "@/lib/permissoes"
 
 import { AcoesLinkRpa, AnexarRpaAssinado, EnviarRpaAssinaturaForm, ExcluirRpa } from "../rpa-forms"
@@ -187,6 +188,8 @@ export default async function RpaDetalhePage({
                   : null
               }
             />
+            {/* Só nos RPAs emitidos com o NIT no recibo (RPA_COM_NIT_DESDE). */}
+            {rpa.fornecedorNitPis && <Campo rotulo="NIT/PIS" valor={formatarNitPis(rpa.fornecedorNitPis)} />}
             <Campo rotulo="Endereço" valor={rpa.fornecedorEndereco} />
             <Campo rotulo="Serviço prestado" valor={rpa.descricao_servico} />
             <Campo
