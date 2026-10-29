@@ -21,12 +21,14 @@ export function VisualizadorPdf({
 }) {
   return (
     <object
-      data={src}
+      // Leitor do navegador: sem o painel de miniaturas, na largura do visor.
+      data={`${src}#navpanes=0&view=FitH`}
       type="application/pdf"
       aria-label={titulo}
       className="bg-muted h-[80vh] w-full rounded-md border"
     >
-      <div className="grid gap-3 p-3">
+      {/* Ocupa a altura do visor: o texto rola por dentro, sem sobra vazia. */}
+      <div className="flex h-full flex-col gap-3 p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-muted-foreground text-xs">
             Este navegador não mostra PDF dentro da página. Abaixo, o texto integral do documento.
@@ -39,7 +41,7 @@ export function VisualizadorPdf({
             Baixar o PDF
           </a>
         </div>
-        <div className="bg-background max-h-[70vh] overflow-auto rounded-md border p-4 text-sm leading-relaxed">
+        <div className="bg-background min-h-0 flex-1 overflow-auto rounded-md border p-4 text-sm leading-relaxed">
           {texto.split("\n").map((linha, i) =>
             linha.trim() === "" ? (
               <div key={i} className="h-2" />

@@ -45,12 +45,20 @@ const nextConfig: NextConfig = {
       `connect-src 'self' ${supabase} https://*.supabase.co https://viacep.com.br https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io https://challenges.cloudflare.com`,
       `frame-src 'self' ${supabase} https://*.supabase.co https://www.youtube.com https://www.youtube-nocookie.com https://challenges.cloudflare.com`,
       "worker-src 'self' blob:",
-      "object-src 'none'",
+      // self: o <object> que mostra os PDFs da própria origem (VisualizadorPdf).
+      "object-src 'self'",
       "base-uri 'self'",
       "form-action 'self'",
       "frame-ancestors 'none'",
       "report-uri /api/csp-relatorio",
     ].join("; ")
+    // PDF embutido na própria origem: SAMEORIGIN e frame-ancestors self.
+    const pdfEmbutido = [
+      { key: "X-Frame-Options", value: "SAMEORIGIN" },
+      ...(process.env.NODE_ENV === "production"
+        ? [{ key: "Content-Security-Policy-Report-Only", value: "frame-ancestors 'self'; report-uri /api/csp-relatorio" }]
+        : []),
+    ]
     return [
       {
         source: "/:path*",
@@ -64,6 +72,17 @@ const nextConfig: NextConfig = {
             ? [{ key: "Content-Security-Policy-Report-Only", value: csp }]
             : []),
         ],
+      },
+      // Os PDFs mostrados no <object> das páginas de assinatura e da minuta:
+      // com DENY o leitor do navegador recusa embuti-los até na própria
+      // origem e cai no texto de reserva. Regra posterior sobrescreve a chave.
+      {
+        source: "/assinar/:token/pdf",
+        headers: pdfEmbutido,
+      },
+      {
+        source: "/painel/compras/contratos/minutas/:id/pdf",
+        headers: pdfEmbutido,
       },
     ]
   },

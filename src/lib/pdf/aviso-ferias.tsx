@@ -70,6 +70,41 @@ function porExtenso(iso?: string | null): string {
   return `${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`
 }
 
+/**
+ * O aviso em texto corrido, para onde o navegador não mostra o PDF (o
+ * conteúdo de reserva do VisualizadorPdf): as mesmas informações da página 1.
+ */
+export function textoDoAviso(dados: DadosAvisoFerias, entidade: string): string {
+  const { funcionario: f, aquisitivo, gozo } = dados
+  const pagamentoAte = formatarData(somarDiasISO(gozo.inicio, -2))
+  return [
+    "AVISO DE FÉRIAS",
+    entidade,
+    "",
+    `Início das férias: ${formatarData(gozo.inicio)}`,
+    `Último dia: ${formatarData(gozo.termino)} (${gozo.dias} dias corridos)`,
+    `Retorno ao trabalho: ${formatarData(gozo.retorno)}`,
+    `Pagamento até: ${pagamentoAte} (férias + 1/3, CLT art. 145)`,
+    "",
+    "EMPREGADO(A)",
+    `Nome: ${f.nome}`,
+    ...(f.cpf ? [`CPF: ${formatarCnpjCpf(f.cpf)}`] : []),
+    ...(f.matricula ? [`Matrícula: ${f.matricula}`] : []),
+    ...(f.cargo ? [`Cargo: ${f.cargo}`] : []),
+    "",
+    "FÉRIAS",
+    `Período aquisitivo: ${formatarData(aquisitivo.inicio)} a ${formatarData(aquisitivo.termino)}`,
+    `Período de gozo: ${formatarData(gozo.inicio)} a ${formatarData(gozo.termino)} (${gozo.dias} dias)`,
+    `Abono pecuniário: ${dados.abono ? "sim — conversão de 1/3 das férias em dinheiro (CLT art. 143)" : "não"}`,
+    "",
+    "COMUNICAÇÃO",
+    `Nos termos do art. 135 da Consolidação das Leis do Trabalho, comunicamos que suas férias relativas ao período aquisitivo de ${formatarData(aquisitivo.inicio)} a ${formatarData(aquisitivo.termino)} serão concedidas de ${formatarData(gozo.inicio)} a ${formatarData(gozo.termino)}, num total de ${gozo.dias} dias corridos, devendo V. Sa. reassumir suas funções em ${formatarData(gozo.retorno)}.`,
+    `A remuneração das férias, acrescida do terço constitucional${dados.abono ? " e do abono pecuniário" : ""}, será paga até ${pagamentoAte}, 2 (dois) dias antes do início do gozo (CLT art. 145).`,
+    "Férias são período de descanso: nesses dias não há prestação de serviço à entidade.",
+    "Havendo divergência nas datas, comunique o departamento de pessoal antes de assinar.",
+  ].join("\n")
+}
+
 function Data({ rotulo, valor, nota, destaque = false }: { rotulo: string; valor: string; nota?: string; destaque?: boolean }) {
   return (
     <View style={destaque ? [s.data, s.dataDestaque] : s.data}>

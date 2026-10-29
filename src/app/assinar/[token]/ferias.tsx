@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { formatarMomentoAssinatura } from "@/lib/db/assinatura-comum"
 import type { EnvelopeAviso } from "@/lib/db/ferias-aviso"
 import { formatarData } from "@/lib/formato"
+import { textoDoAviso } from "@/lib/pdf/aviso-ferias"
 
 import { AssinarAvisoForm, RecusarAvisoForm } from "./assinatura-forms-ferias"
 
@@ -104,7 +105,7 @@ export function AssinarAvisoFerias({ envelope, token }: { envelope: EnvelopeAvis
               <VisualizadorPdf
                 src={pdf}
                 titulo="Aviso de férias"
-                texto={`Férias de ${formatarData(gozo.inicio)} a ${formatarData(gozo.termino)}, retorno em ${formatarData(gozo.retorno)}`}
+                texto={textoDoAviso(envelope.aviso.dados, entidade)}
               />
             </CardContent>
           </Card>
