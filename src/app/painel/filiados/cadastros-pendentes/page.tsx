@@ -28,9 +28,11 @@ import {
   TIPOS_PENDENCIA,
   type TipoPendencia,
 } from "@/lib/db/filiacao-cadastros-pendentes"
+import { vinculosSemMotivo } from "@/lib/db/filiacao-motivos"
 import { formatarCnpjCpf, formatarDataHora } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 import { semAcento } from "@/lib/texto"
+import { MotivoEmLote } from "@/app/painel/indicadores/churn/motivo-em-lote"
 
 export const metadata: Metadata = { title: "Cadastros pendentes — Confluir" }
 
@@ -67,6 +69,9 @@ export default async function CadastrosPendentesPage({
     if (digitos.length >= 3 && (f.cpf ?? "").includes(digitos)) return true
     return semAcento(f.nome ?? "").includes(termo)
   })
+  // Filtro "vínculo encerrado sem motivo": os vínculos dessas pessoas, para registrar em lote.
+  const semMotivo =
+    tipo === "motivo_saida" ? await vinculosSemMotivo({ filiadoIds: filtrados.map((f) => f.filiadoId) }) : null
   const total = filtrados.length
   const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA))
   const daPagina = filtrados.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA)
@@ -175,6 +180,21 @@ export default async function CadastrosPendentesPage({
           </Link>
         ))}
       </div>
+
+      {semMotivo && semMotivo.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Registrar o motivo da desfiliação em lote</CardTitle>
+            <CardDescription>
+              {semMotivo.length} vínculo(s) encerrado(s) sem motivo destes filiados ativos. Marque, escolha o motivo e
+              registre de uma vez; cada um ganha a anotação no prontuário.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <MotivoEmLote itens={semMotivo} />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

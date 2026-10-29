@@ -218,7 +218,6 @@ export async function churn(): Promise<Churn> {
   const semMotivo: SemMotivo[] = sairam
     .filter((p) => !p.motivo)
     .sort((a, b) => (b.saida ?? "").localeCompare(a.saida ?? ""))
-    .slice(0, 50)
     .map((p) => ({ id: p.id, vinculoId: p.vinculoId, nome: p.nome, saidaEm: p.saida, condicao: p.condicao }))
 
   const taxas = serie.map((m) => m.taxa).filter((t): t is number => t !== null)
@@ -238,27 +237,4 @@ export async function churn(): Promise<Churn> {
   }
   cache.set(emp, { dados, expira: Date.now() + VALIDADE_MS })
   return dados
-}
-
-/** Grava o motivo da desfiliação de um vínculo (ficha do vínculo ou tela de churn). */
-export async function definirMotivoDesfiliacao(
-  vinculoId: string,
-  motivo: string | null,
-  detalhe: string | null
-): Promise<{ erro?: string; filiadoId?: string }> {
-  const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("filiacao_vinculos")
-    .update({ desfiliacao_motivo: motivo, desfiliacao_motivo_detalhe: detalhe })
-    .eq("id", vinculoId)
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .select("filiado_id")
-    .maybeSingle()
-  if (error) {
-    if (["PGRST204", "42703"].includes(error.code ?? "")) return { erro: "Falta aplicar a migração vinculo_motivo_desfiliacao." }
-    return { erro: error.message }
-  }
-  if (!data) return { erro: "Vínculo não encontrado." }
-  invalidarCacheChurn()
-  return { filiadoId: String(data.filiado_id) }
 }

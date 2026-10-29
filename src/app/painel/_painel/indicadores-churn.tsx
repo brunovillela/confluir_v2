@@ -7,9 +7,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { churn } from "@/lib/db/churn"
-import { formatarData, formatarDataHora } from "@/lib/formato"
+import { formatarDataHora } from "@/lib/formato"
 
-import { MotivoDesfiliacaoForm } from "@/app/painel/indicadores/churn/motivo-form"
+import { MotivoEmLote } from "@/app/painel/indicadores/churn/motivo-em-lote"
+import { vinculosSemMotivo } from "@/lib/db/filiacao-motivos"
 
 const pct = (v: number | null, d = 1) => (v === null ? "—" : `${v.toLocaleString("pt-BR", { maximumFractionDigits: d })}%`)
 const anos = (v: number | null) => (v === null ? "—" : v < 1 ? `${Math.round(v * 12)} meses` : `${v.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} anos`)
@@ -17,6 +18,12 @@ const anos = (v: number | null) => (v === null ? "—" : v < 1 ? `${Math.round(v
 /** Churn e retenção: quem sai, de onde, depois de quanto tempo e por quê (onda 4, I6). Antes /painel/indicadores/churn. */
 export async function IndicadoresChurn() {
   const c = await churn()
+  // O motivo é do vínculo da última saída; quem saiu sem vínculo encerrado não tem onde recebê-lo.
+  const comVinculo = c.semMotivo.filter((p) => p.vinculoId)
+  const semVinculo = c.semMotivo.filter((p) => !p.vinculoId)
+  const paraLote = c.motivoDisponivel
+    ? await vinculosSemMotivo({ vinculoIds: comVinculo.map((p) => p.vinculoId as string) })
+    : []
 
   return (
     <div className="grid gap-4">
@@ -145,26 +152,26 @@ export async function IndicadoresChurn() {
           <CardHeader>
             <CardTitle className="text-base">Saíram sem motivo registrado</CardTitle>
             <CardDescription className="text-xs">
-              Os {c.semMotivo.length} mais recentes. Registre aqui (vale para o vínculo da última saída) ou em cada vínculo, na ficha do filiado — sem motivo, o churn não explica nada.
+              {c.semMotivo.length} saída(s) nos últimos 12 meses. Marque e registre o motivo de vários de uma vez (vale para o vínculo da última saída) — sem motivo, o churn não explica nada.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <ul className="divide-y">
-              {c.semMotivo.map((p) => (
-                <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 py-2 text-sm">
-                  <span className="min-w-0">
-                    <Link href={`/painel/filiados/${p.id}`} className="font-medium underline-offset-4 hover:underline">
+          <CardContent className="grid gap-3">
+            <MotivoEmLote itens={paraLote} />
+            {semVinculo.length > 0 && (
+              <p className="text-muted-foreground text-xs">
+                {semVinculo.length} pessoa(s) saíram sem vínculo encerrado no histórico — registre a desfiliação no vínculo, pela
+                ficha:{" "}
+                {semVinculo.slice(0, 20).map((p, i) => (
+                  <span key={p.id}>
+                    {i > 0 ? ", " : ""}
+                    <Link href={`/painel/filiados/${p.id}`} className="underline-offset-4 hover:underline">
                       {p.nome ?? "(sem nome)"}
                     </Link>
-                    <span className="text-muted-foreground block text-xs">
-                      {p.condicao ?? "—"}
-                      {p.saidaEm ? ` · saiu em ${formatarData(p.saidaEm)}` : ""}
-                    </span>
                   </span>
-                  {c.motivoDisponivel && p.vinculoId && <MotivoDesfiliacaoForm vinculoId={p.vinculoId} motivo={null} compacto />}
-                </li>
-              ))}
-            </ul>
+                ))}
+                {semVinculo.length > 20 ? ` e mais ${semVinculo.length - 20}` : ""}.
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
