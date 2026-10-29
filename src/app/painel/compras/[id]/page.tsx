@@ -650,268 +650,273 @@ export default async function ProcessoCompraPage({
             </Alert>
           )}
 
-          {/* Dois grupos por fornecimento — o que foi comprado (e recebido) e
-              os pagamentos dele — para não confundir um com o outro. */}
-          {fornecimentosComUrl.map((f, i) => (
-            <section key={f.id} className="grid min-w-0 gap-3">
-            <div className="border-border min-w-0 rounded-md border p-4">
-              <p className="text-muted-foreground mb-2 text-xs font-medium tracking-wide uppercase">
-                Fornecimento
-              </p>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-medium">
-                  Fornecimento {i + 1} —{" "}
-                  {f.marketplace ? (
-                    <>
-                      {f.vendedorNome ?? <span className="text-muted-foreground">vendedor a identificar</span>}
-                      <span className="text-muted-foreground font-normal">, comprado através de </span>
-                      {f.fornecedorNome}
-                    </>
-                  ) : (
-                    (f.fornecedorNome ?? "(sem fornecedor)")
-                  )}
-                  {f.marketplace && (
-                    <Badge variant="info" className="ml-2 align-middle">
-                      Marketplace
-                    </Badge>
-                  )}
-                </p>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium tabular-nums">
-                    {formatarMoeda(f.valor)}
-                  </span>
-                  {f.recebido ? (
-                    <Badge variant="success">Recebido</Badge>
-                  ) : (
-                    <Badge variant="info">A receber</Badge>
-                  )}
-                </div>
-              </div>
-              <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 text-xs">
-                {f.forma_pagamento && <span>{f.forma_pagamento}</span>}
-                {f.data_compra && (
-                  <span>comprado em {formatarData(f.data_compra)}</span>
-                )}
-                {f.compradorNome && <span>comprador {f.compradorNome}</span>}
-                {f.previsao_entrega && (
-                  <span>entrega prevista {formatarData(f.previsao_entrega)}</span>
-                )}
-                {f.notaUrl && (
-                  <a
-                    href={f.notaUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-primary hover:underline"
-                  >
-                    Nota fiscal
-                  </a>
-                )}
-                {rpaPorFornecimento.get(f.id) && (
-                  <Link
-                    href={`/painel/compras/rpa/${rpaPorFornecimento.get(f.id)!.id}`}
-                    className="text-primary hover:underline"
-                  >
-                    RPA nº {rpaPorFornecimento.get(f.id)!.numero ?? "—"}
-                    {rpaPorFornecimento.get(f.id)!.assinado ? " (assinado)" : ""}
-                  </Link>
-                )}
-                {podeAjustar && !f.nota_a_receber && (
-                  <NotaFiscalIcone
-                    processoId={processo.id}
-                    alvo="compra"
-                    id={f.id}
-                    temNota={!!f.nota_fiscal_url}
-                  />
-                )}
-                {podeAjustar && f.marketplace && !f.nota_a_receber && !processo.cancelado && (
-                  <VincularVendedor
-                    processoId={processo.id}
-                    fornecimentoId={f.id}
-                    fornecedores={vendedoresPossiveis}
-                    vendedorAtual={f.vendedor_id}
-                  />
-                )}
-              </div>
-              {f.nota_a_receber && !processo.cancelado && (
-                <div className="border-warning/40 bg-warning/5 mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm">
-                  <span>
-                    <strong>Nota fiscal a receber</strong>
-                    {f.data_compra
-                      ? diasDesde(f.data_compra) === 0
-                        ? " desde hoje"
-                        : ` há ${diasDesde(f.data_compra)} dia(s)`
-                      : ""}{" "}
-                    — a compra foi feita em{" "}
-                    {f.fornecedorNome}, e a nota vem do vendedor. A ordem segue normalmente; anexe a nota quando
-                    ela chegar.
-                  </span>
-                  {podeAjustar && (
-                    <AnexarNotaMarketplace
-                      processoId={processo.id}
-                      fornecimentoId={f.id}
-                      marketplace={{ id: f.fornecedor_id, nome: f.fornecedorNome ?? "marketplace" }}
-                      fornecedores={vendedoresPossiveis}
-                      vendedorAtual={f.vendedor_id}
-                    />
-                  )}
-                </div>
-              )}
-              {/* Ordem de compra ao fornecedor (o fornecimento montado do legado ainda não existe no
-                  banco; no marketplace o pedido é feito na própria plataforma). */}
-              {f.id !== FORNECIMENTO_LEGADO && !f.marketplace && !processo.cancelado && (
-                <div className="mt-3">
-                  <OrdemCompraAcoes
-                    processoId={processo.id}
-                    fornecimentoId={f.id}
-                    fornecedorId={f.fornecedor_id ?? null}
-                    destinatarios={situacaoOc.get(f.id)?.destinatarios ?? []}
-                    enviada={
-                      situacaoOc.get(f.id)?.enviadaEm
-                        ? { em: situacaoOc.get(f.id)!.enviadaEm!, para: situacaoOc.get(f.id)!.enviadaPara }
-                        : null
-                    }
-                    podeEnviar={podeAjustar}
-                  />
-                </div>
-              )}
-              {custoRpa.get(f.id) && !processo.cancelado && <CustoDoRpa custo={custoRpa.get(f.id)!} />}
-              {(() => {
-                const r = rpaPorFornecimento.get(f.id)
-                if (!r || r.assinado || !podeAjustar || processo.cancelado) return null
-                return (
-                  <div className="bg-muted/40 mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm">
-                    <span className="text-muted-foreground">
-                      <strong>RPA nº {r.numero ?? "—"}</strong> emitido — falta o recibo assinado pelo
-                      prestador. Anexe o assinado no papel ou pelo gov.br, ou envie o link por e-mail na{" "}
-                      <Link href={`/painel/compras/rpa/${r.id}`} className="text-primary hover:underline">
-                        página do RPA
-                      </Link>
-                      .{rpaComLink.has(r.id) ? " Há um link enviado aguardando a assinatura." : ""}
-                    </span>
-                    <AnexarRpaAssinadoBotao id={r.id} numero={r.numero} linkPendente={rpaComLink.has(r.id)} />
-                  </div>
-                )
-              })()}
-              {emitirRpa.has(f.id) && (
-                <div className="bg-muted/40 mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm">
-                  <span className="text-muted-foreground">
-                    {f.ordem ? (
+          {/* Cada fornecimento em duas colunas: à esquerda o que foi comprado (e
+              recebido), à direita como se paga (RPA e ordens). O custo do RPA,
+              quando há, fecha o bloco na largura toda. */}
+          {fornecimentosComUrl.map((f, i) => {
+            const rpa = rpaPorFornecimento.get(f.id)
+            const custo = processo.cancelado ? undefined : custoRpa.get(f.id)
+            // Vários pagamentos por fornecimento: o que falta lançar em ordens.
+            const lancado = f.pagamentos
+              .filter((o) => o.situacao !== "Cancelada")
+              .reduce((s, o) => s + (o.valor_inicial_cobranca ?? 0), 0)
+            const restante = f.valor === null ? null : Math.round((f.valor - lancado) * 100) / 100
+            const falta = restante === null || restante > 0.005
+            const excedeu = restante !== null && restante < -0.005
+            return (
+              <section key={f.id} className="border-border min-w-0 overflow-hidden rounded-md border">
+                <header className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
+                  <p className="min-w-0 text-sm font-medium">
+                    <span className="text-muted-foreground font-normal">Fornecimento {i + 1} · </span>
+                    {f.marketplace ? (
                       <>
-                        Prestador autônomo: emita o <strong>RPA</strong>, que é o documento fiscal desta
-                        compra. A forma de pagamento já está na ordem; ela segue para autorização quando o
-                        prestador assinar o recibo.
+                        {f.vendedorNome ?? <span className="text-muted-foreground">vendedor a identificar</span>}
+                        <span className="text-muted-foreground font-normal">, comprado através de </span>
+                        {f.fornecedorNome}
                       </>
                     ) : (
-                      <>
-                        Prestador autônomo: pague por <strong>RPA</strong> — os dados vêm desta compra,
-                        falta só o pagamento. O valor da compra passa a ser o líquido do recibo.
-                      </>
+                      (f.fornecedorNome ?? "(sem fornecedor)")
                     )}
-                  </span>
-                  <Button asChild size="sm">
-                    <Link href={`/painel/compras/rpa/novo?fornecimento=${f.id}`}>
-                      <FileText />
-                      Emitir RPA
-                    </Link>
-                  </Button>
-                </div>
-              )}
-
-              <div className="mt-3 grid gap-3">
-                {f.recebido ? (
-                  <p className="text-muted-foreground text-sm">
-                    Recebido
-                    {f.recebidoPorNome ? ` por ${f.recebidoPorNome}` : ""}
-                    {f.recebimento_data
-                      ? ` em ${formatarData(f.recebimento_data)}`
-                      : ""}
-                    {f.recebimento_de_acordo === true &&
-                      ", fornecimento considerado adequado à solicitação"}
-                    {f.recebimento_de_acordo === false &&
-                      ", com ressalvas no fornecimento"}
-                    {f.recebimento_observacao && (
-                      <> · Observação: {f.recebimento_observacao}</>
+                    {f.marketplace && (
+                      <Badge variant="info" className="ml-2 align-middle">
+                        Marketplace
+                      </Badge>
                     )}
                   </p>
-                ) : (
-                  podeReceber && (
-                    <>
-                      <Separator />
-                      <RecebimentoForm
-                        processoId={processo.id}
-                        fornecimentoId={f.id}
-                      />
-                    </>
-                  )
-                )}
-              </div>
-            </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-base font-semibold tabular-nums">{formatarMoeda(f.valor)}</span>
+                    {f.recebido ? <Badge variant="success">Recebido</Badge> : <Badge variant="info">A receber</Badge>}
+                  </div>
+                </header>
 
-            <div className="bg-muted/30 border-border min-w-0 rounded-md border p-4">
-                {(() => {
-                  // Vários pagamentos por fornecimento: o que falta lançar em ordens.
-                  const lancado = f.pagamentos
-                    .filter((o) => o.situacao !== "Cancelada")
-                    .reduce((s, o) => s + (o.valor_inicial_cobranca ?? 0), 0)
-                  const restante = f.valor === null ? null : Math.round((f.valor - lancado) * 100) / 100
-                  const falta = restante === null || restante > 0.005
-                  const excedeu = restante !== null && restante < -0.005
-                  return (
-                    <div className="grid gap-3">
-                      <div className="flex flex-wrap items-baseline justify-between gap-2">
-                        <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-                          Pagamentos do fornecimento {i + 1}
-                        </p>
-                        {f.pagamentos.length > 0 && f.valor !== null && !excedeu && (
-                          <p className="text-muted-foreground text-xs">
-                            {formatarMoeda(lancado)} de {formatarMoeda(f.valor)}
-                            {falta && restante !== null ? ` — falta lançar ${formatarMoeda(restante)}` : " — valor todo lançado"}
-                          </p>
+                <div className="divide-border grid min-w-0 divide-y lg:grid-cols-2 lg:divide-x lg:divide-y-0">
+                  {/* Esquerda: a compra e o recebimento. */}
+                  <div className="grid min-w-0 content-start gap-3 p-4">
+                    <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">Compra e entrega</p>
+                    <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
+                      {f.forma_pagamento && <Campo rotulo="Forma combinada">{f.forma_pagamento}</Campo>}
+                      {f.data_compra && <Campo rotulo="Comprado em">{formatarData(f.data_compra)}</Campo>}
+                      {f.compradorNome && <Campo rotulo="Comprador">{f.compradorNome}</Campo>}
+                      {f.previsao_entrega && (
+                        <Campo rotulo="Entrega prevista">{formatarData(f.previsao_entrega)}</Campo>
+                      )}
+                      {(f.notaUrl || (podeAjustar && !f.nota_a_receber) || (rpa && !f.notaUrl)) && (
+                        <Campo rotulo="Documento fiscal">
+                          <span className="inline-flex flex-wrap items-center gap-x-2">
+                            {f.notaUrl ? (
+                              <a href={f.notaUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                                Nota fiscal
+                              </a>
+                            ) : rpa ? (
+                              <Link href={`/painel/compras/rpa/${rpa.id}`} className="text-primary hover:underline">
+                                RPA nº {rpa.numero ?? "—"}
+                              </Link>
+                            ) : (
+                              <span className="text-muted-foreground">Sem nota anexada</span>
+                            )}
+                            {podeAjustar && !f.nota_a_receber && (
+                              <NotaFiscalIcone
+                                processoId={processo.id}
+                                alvo="compra"
+                                id={f.id}
+                                temNota={!!f.nota_fiscal_url}
+                              />
+                            )}
+                            {podeAjustar && f.marketplace && !f.nota_a_receber && !processo.cancelado && (
+                              <VincularVendedor
+                                processoId={processo.id}
+                                fornecimentoId={f.id}
+                                fornecedores={vendedoresPossiveis}
+                                vendedorAtual={f.vendedor_id}
+                              />
+                            )}
+                          </span>
+                        </Campo>
+                      )}
+                    </dl>
+                    {f.nota_a_receber && !processo.cancelado && (
+                      <div className="border-warning/40 bg-warning/5 flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm">
+                        <span>
+                          <strong>Nota fiscal a receber</strong>
+                          {f.data_compra
+                            ? diasDesde(f.data_compra) === 0
+                              ? " desde hoje"
+                              : ` há ${diasDesde(f.data_compra)} dia(s)`
+                            : ""}{" "}
+                          — a compra foi feita em {f.fornecedorNome}, e a nota vem do vendedor. A ordem segue
+                          normalmente; anexe a nota quando ela chegar.
+                        </span>
+                        {podeAjustar && (
+                          <AnexarNotaMarketplace
+                            processoId={processo.id}
+                            fornecimentoId={f.id}
+                            marketplace={{ id: f.fornecedor_id, nome: f.fornecedorNome ?? "marketplace" }}
+                            fornecedores={vendedoresPossiveis}
+                            vendedorAtual={f.vendedor_id}
+                          />
                         )}
                       </div>
-                      {f.pagamentos.length > 0 && (
-                        <div className="divide-border grid min-w-0 divide-y">
-                          {f.pagamentos.map((o) => (
-                            <div key={o.id} className="py-2 first:pt-0 last:pb-0">
-                              <LinhaOrdem
-                                ordem={{ ...o, notaUrl: notasDasOrdens.get(o.id) ?? null }}
-                                processoId={processo.id}
-                                podeAjustar={podeAjustar}
-                                mostrarNota={o.notaFiscal !== f.nota_fiscal_url}
-                              />
-                            </div>
-                          ))}
-                        </div>
+                    )}
+                    {/* Ordem de compra ao fornecedor (o fornecimento montado do legado ainda não existe no
+                        banco; no marketplace o pedido é feito na própria plataforma). */}
+                    {f.id !== FORNECIMENTO_LEGADO && !f.marketplace && !processo.cancelado && (
+                      <OrdemCompraAcoes
+                        processoId={processo.id}
+                        fornecimentoId={f.id}
+                        fornecedorId={f.fornecedor_id ?? null}
+                        destinatarios={situacaoOc.get(f.id)?.destinatarios ?? []}
+                        enviada={
+                          situacaoOc.get(f.id)?.enviadaEm
+                            ? { em: situacaoOc.get(f.id)!.enviadaEm!, para: situacaoOc.get(f.id)!.enviadaPara }
+                            : null
+                        }
+                        podeEnviar={podeAjustar}
+                      />
+                    )}
+                    {f.recebido ? (
+                      <p className="text-muted-foreground text-sm">
+                        Recebido
+                        {f.recebidoPorNome ? ` por ${f.recebidoPorNome}` : ""}
+                        {f.recebimento_data ? ` em ${formatarData(f.recebimento_data)}` : ""}
+                        {f.recebimento_de_acordo === true && ", fornecimento considerado adequado à solicitação"}
+                        {f.recebimento_de_acordo === false && ", com ressalvas no fornecimento"}
+                        {f.recebimento_observacao && <> · Observação: {f.recebimento_observacao}</>}
+                      </p>
+                    ) : (
+                      podeReceber && (
+                        <>
+                          <Separator />
+                          <RecebimentoForm processoId={processo.id} fornecimentoId={f.id} />
+                        </>
+                      )
+                    )}
+                  </div>
+
+                  {/* Direita: o pagamento — o RPA (documento fiscal do autônomo) e as ordens. */}
+                  <div className="bg-muted/30 @container grid min-w-0 content-start gap-3 p-4">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">Pagamento</p>
+                      {f.pagamentos.length > 0 && f.valor !== null && !excedeu && (
+                        <p className="text-muted-foreground text-xs">
+                          {formatarMoeda(lancado)} de {formatarMoeda(f.valor)}
+                          {falta && restante !== null ? ` — falta lançar ${formatarMoeda(restante)}` : " — valor todo lançado"}
+                        </p>
                       )}
-                      {excedeu && f.valor !== null && (
-                        <Alert variant="warning">
-                          <AlertDescription>
-                            As cobranças somam <strong>{formatarMoeda(lancado)}</strong>, acima do valor da compra (
-                            {formatarMoeda(f.valor)}) em <strong>{formatarMoeda(-restante!)}</strong>. As ordens levam o
-                            apontamento na auditoria.
-                          </AlertDescription>
-                        </Alert>
-                      )}
-                      {operavel ? (
-                        <GerarOrdemForm
-                          processoId={processo.id}
-                          fornecimentoId={f.id}
-                          valorRestante={falta ? restante : null}
-                          novo={f.pagamentos.length > 0}
-                          fornecedorId={f.fornecedor_id ?? ""}
-                          formaPadrao={f.forma_pagamento}
-                          cartoes={cartoes}
-                          caixas={caixas}
-                        />
-                      ) : f.pagamentos.length === 0 ? (
-                        <p className="text-muted-foreground text-sm">Ordem de pagamento ainda não gerada.</p>
-                      ) : null}
                     </div>
-                  )
-                })()}
-            </div>
-            </section>
-          ))}
+
+                    {rpa && (
+                      <div className="bg-background grid gap-2 rounded-md border p-3 text-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="inline-flex items-center gap-2 font-medium">
+                            <FileText className="text-muted-foreground size-4" />
+                            <Link href={`/painel/compras/rpa/${rpa.id}`} className="text-primary hover:underline">
+                              RPA nº {rpa.numero ?? "—"}
+                            </Link>
+                          </span>
+                          {rpa.assinado ? (
+                            <Badge variant="success">Assinado</Badge>
+                          ) : (
+                            <Badge variant="warning">Aguardando assinatura</Badge>
+                          )}
+                        </div>
+                        {custo && (
+                          <p className="text-muted-foreground text-xs tabular-nums">
+                            Líquido ao prestador {formatarMoeda(custo.liquido)} · bruto {formatarMoeda(custo.bruto)} ·
+                            custo total {formatarMoeda(custo.custoTotal)}
+                          </p>
+                        )}
+                        {!rpa.assinado && podeAjustar && !processo.cancelado && (
+                          <div className="grid gap-2">
+                            <p className="text-muted-foreground text-xs">
+                              Falta o recibo assinado pelo prestador. Anexe o assinado no papel ou pelo gov.br, ou
+                              envie o link por e-mail na{" "}
+                              <Link href={`/painel/compras/rpa/${rpa.id}`} className="text-primary hover:underline">
+                                página do RPA
+                              </Link>
+                              .{rpaComLink.has(rpa.id) ? " Há um link enviado aguardando a assinatura." : ""}
+                            </p>
+                            <div>
+                              <AnexarRpaAssinadoBotao id={rpa.id} numero={rpa.numero} linkPendente={rpaComLink.has(rpa.id)} />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {emitirRpa.has(f.id) && (
+                      <div className="bg-background grid gap-2 rounded-md border p-3 text-sm">
+                        <p className="text-muted-foreground">
+                          {f.ordem ? (
+                            <>
+                              Prestador autônomo: emita o <strong>RPA</strong>, que é o documento fiscal desta
+                              compra. A forma de pagamento já está na ordem; ela segue para autorização quando o
+                              prestador assinar o recibo.
+                            </>
+                          ) : (
+                            <>
+                              Prestador autônomo: pague por <strong>RPA</strong> — os dados vêm desta compra, falta
+                              só o pagamento. O valor da compra passa a ser o líquido do recibo.
+                            </>
+                          )}
+                        </p>
+                        <div>
+                          <Button asChild size="sm">
+                            <Link href={`/painel/compras/rpa/novo?fornecimento=${f.id}`}>
+                              <FileText />
+                              Emitir RPA
+                            </Link>
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {f.pagamentos.length > 0 && (
+                      <div className="divide-border grid min-w-0 divide-y">
+                        {f.pagamentos.map((o) => (
+                          <div key={o.id} className="py-2 first:pt-0 last:pb-0">
+                            <LinhaOrdem
+                              ordem={{ ...o, notaUrl: notasDasOrdens.get(o.id) ?? null }}
+                              processoId={processo.id}
+                              podeAjustar={podeAjustar}
+                              mostrarNota={o.notaFiscal !== f.nota_fiscal_url}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {excedeu && f.valor !== null && (
+                      <Alert variant="warning">
+                        <AlertDescription>
+                          As cobranças somam <strong>{formatarMoeda(lancado)}</strong>, acima do valor da compra (
+                          {formatarMoeda(f.valor)}) em <strong>{formatarMoeda(-restante!)}</strong>. As ordens levam o
+                          apontamento na auditoria.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    {operavel ? (
+                      <GerarOrdemForm
+                        processoId={processo.id}
+                        fornecimentoId={f.id}
+                        valorRestante={falta ? restante : null}
+                        novo={f.pagamentos.length > 0}
+                        fornecedorId={f.fornecedor_id ?? ""}
+                        formaPadrao={f.forma_pagamento}
+                        cartoes={cartoes}
+                        caixas={caixas}
+                      />
+                    ) : f.pagamentos.length === 0 ? (
+                      <p className="text-muted-foreground text-sm">Ordem de pagamento ainda não gerada.</p>
+                    ) : null}
+                  </div>
+                </div>
+
+                {custo && (
+                  <div className="border-t p-4">
+                    <CustoDoRpa custo={custo} />
+                  </div>
+                )}
+              </section>
+            )
+          })}
 
           {avulsasComUrl.length > 0 && (
             <div className="grid gap-2">

@@ -309,7 +309,7 @@ export function GerarOrdemForm({
       <input type="hidden" name="fornecimento_id" value={fornecimentoId} />
 
       {/* 1. Quanto, quando e como. */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[10rem_11rem_minmax(0,22rem)]">
+      <div className="grid gap-3 @md:grid-cols-2 @3xl:grid-cols-[10rem_11rem_minmax(0,22rem)]">
         <div className="grid gap-1.5">
           <Label htmlFor={`valor-${fornecimentoId}`}>Valor (R$) *</Label>
           <Input
@@ -328,7 +328,7 @@ export function GerarOrdemForm({
           <Label htmlFor={`vencimento-${fornecimentoId}`}>Vencimento</Label>
           <Input id={`vencimento-${fornecimentoId}`} name="vencimento" type="date" />
         </div>
-        <div className="grid gap-1.5 sm:col-span-2 lg:col-span-1">
+        <div className="grid gap-1.5 @md:col-span-2 @3xl:col-span-1">
           <Label htmlFor={`forma-${fornecimentoId}`}>Forma de pagamento *</Label>
           <select
             id={`forma-${fornecimentoId}`}

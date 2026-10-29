@@ -1,10 +1,11 @@
-import Link from "next/link"
-import { Calculator } from "lucide-react"
+import Link from "next/link";
+import { Calculator } from "lucide-react";
 
-import type { CustoRpa } from "@/lib/db/rpa-retencoes"
-import { formatarData, formatarMoeda } from "@/lib/formato"
+import type { CustoRpa } from "@/lib/db/rpa-retencoes";
+import { formatarData, formatarMoeda } from "@/lib/formato";
 
-const pct = (v: number | null) => (v == null ? "" : ` (${String(v).replace(".", ",")}%)`)
+const pct = (v: number | null) =>
+  v == null ? "" : ` (${String(v).replace(".", ",")}%)`;
 
 /**
  * Quanto o serviço pago por RPA custa à entidade — pedagógico: do líquido que
@@ -13,26 +14,54 @@ const pct = (v: number | null) => (v == null ? "" : ` (${String(v).replace(".", 
  * formam as guias em Financeiro › Tributos.
  */
 export function CustoDoRpa({ custo: c }: { custo: CustoRpa }) {
-  const pago = c.ordemSituacao === "Paga" && c.dataPagamento
-  const competencia = pago ? `${c.dataPagamento!.slice(5, 7)}/${c.dataPagamento!.slice(0, 4)}` : null
-  const prestador = c.prestador ?? "o prestador"
+  const pago = c.ordemSituacao === "Paga" && c.dataPagamento;
+  const competencia = pago
+    ? `${c.dataPagamento!.slice(5, 7)}/${c.dataPagamento!.slice(0, 4)}`
+    : null;
+  const prestador = c.prestador ?? "o prestador";
 
   return (
-    <div className="mt-3 rounded-md border p-3 text-sm">
-      <p className="flex items-center gap-2 font-medium">
-        <Calculator className="text-muted-foreground size-4" />
-        Quanto este serviço custa à entidade
-        <Link href={`/painel/compras/rpa/${c.rpaId}`} className="text-primary text-xs font-normal hover:underline">
-          RPA nº {c.numero ?? "—"}
-        </Link>
-      </p>
-      <p className="text-muted-foreground mt-1 text-xs">
-        No RPA, a entidade não paga ao autônomo o valor cheio: ela desconta os impostos dele e os recolhe ao governo,
-        e ainda deve a sua própria parte do INSS. Por isso o custo do serviço é maior do que o valor pago a{" "}
-        {prestador}.
-      </p>
+    // Lado a lado: a explicação (o que é e para onde vão os impostos) e a conta.
+    <div className="grid gap-x-8 gap-y-3 text-sm lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+      <div className="grid content-start gap-2">
+        <p className="flex flex-wrap items-center gap-2 font-medium">
+          <Calculator className="text-muted-foreground size-4" />
+          Quanto este serviço custa à entidade
+          <Link
+            href={`/painel/compras/rpa/${c.rpaId}`}
+            className="text-primary text-xs font-normal hover:underline"
+          >
+            RPA nº {c.numero ?? "—"}
+          </Link>
+        </p>
+        <p className="text-muted-foreground text-xs">
+          No RPA, a entidade não paga ao autônomo o valor cheio: ela desconta os
+          impostos dele e os recolhe ao governo, e ainda deve a sua própria
+          parte do INSS. Por isso o custo do serviço é maior do que o valor pago
+          a {prestador}.
+        </p>
 
-      <table className="mt-3 w-full text-sm">
+        <p className="text-muted-foreground text-xs">
+          {pago ? (
+            <>
+              A ordem foi paga em {formatarData(c.dataPagamento)}: os impostos
+              desta conta já estão nas guias da competência{" "}
+              <strong>{competencia}</strong> em Financeiro › Tributos (INSS RPA,
+              IRRF RPA e ISS RPA), que vencem no mês seguinte. A entidade paga o
+              líquido agora e os impostos depois, pelas guias.
+            </>
+          ) : (
+            <>
+              Quando a ordem for paga, os impostos desta conta entram nas guias
+              do mês do pagamento em Financeiro › Tributos (INSS RPA, IRRF RPA e
+              ISS RPA), que vencem no mês seguinte. A entidade paga o líquido ao
+              prestador e os impostos depois, pelas guias.
+            </>
+          )}
+        </p>
+      </div>
+
+      <table className="w-full self-start text-sm">
         <tbody>
           <Linha
             valor={c.liquido}
@@ -88,24 +117,8 @@ export function CustoDoRpa({ custo: c }: { custo: CustoRpa }) {
           />
         </tbody>
       </table>
-
-      <p className="text-muted-foreground mt-3 text-xs">
-        {pago ? (
-          <>
-            A ordem foi paga em {formatarData(c.dataPagamento)}: os impostos acima já estão nas guias da competência{" "}
-            <strong>{competencia}</strong> em Financeiro › Tributos (INSS RPA, IRRF RPA e ISS RPA), que vencem no mês
-            seguinte. A entidade paga o líquido agora e os impostos depois, pelas guias.
-          </>
-        ) : (
-          <>
-            Quando a ordem for paga, os impostos acima entram nas guias do mês do pagamento em Financeiro › Tributos (INSS
-            RPA, IRRF RPA e ISS RPA), que vencem no mês seguinte. A entidade paga o líquido ao prestador e os impostos
-            depois, pelas guias.
-          </>
-        )}
-      </p>
     </div>
-  )
+  );
 }
 
 function Linha({
@@ -116,19 +129,23 @@ function Linha({
   forte,
   destaque,
 }: {
-  sinal?: "+" | "="
-  rotulo: string
-  explicacao: string
-  valor: number
-  forte?: boolean
-  destaque?: boolean
+  sinal?: "+" | "=";
+  rotulo: string;
+  explicacao: string;
+  valor: number;
+  forte?: boolean;
+  destaque?: boolean;
 }) {
   return (
     <tr className={sinal === "=" ? "border-t" : undefined}>
-      <td className="text-muted-foreground w-5 py-1.5 align-top font-mono">{sinal ?? ""}</td>
+      <td className="text-muted-foreground w-5 py-1.5 align-top font-mono">
+        {sinal ?? ""}
+      </td>
       <td className="py-1.5 pr-3 align-top">
         <span className={forte ? "font-medium" : undefined}>{rotulo}</span>
-        <span className="text-muted-foreground block text-xs">{explicacao}</span>
+        <span className="text-muted-foreground block text-xs">
+          {explicacao}
+        </span>
       </td>
       <td
         className={`py-1.5 text-right align-top whitespace-nowrap tabular-nums ${forte ? "font-semibold" : ""} ${destaque ? "text-primary" : ""}`}
@@ -136,5 +153,5 @@ function Linha({
         {formatarMoeda(valor)}
       </td>
     </tr>
-  )
+  );
 }
