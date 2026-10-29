@@ -12,7 +12,7 @@ import { enviarPushTelegram } from "@/lib/db/telegram"
 import { enviarEmail } from "@/lib/email"
 import { SITE_URL } from "@/lib/env"
 import { formatarData } from "@/lib/formato"
-import { ultimoDiaDoPeriodo } from "@/lib/periodo-dias"
+import { datasDoPeriodoFerias, somarAnosISO, somarDiasISO, ultimoDiaDoPeriodo } from "@/lib/periodo-dias"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
@@ -279,11 +279,13 @@ export type DadosPeriodoFerias = {
 
 /** Deriva as datas em branco: aquisitivo de 1 ano; concessivo = ano seguinte. */
 function completarPeriodo(dados: DadosPeriodoFerias) {
+  // Em branco: a mesma regra da sugestão do formulário (datasDoPeriodoFerias),
+  // encadeada a partir do que foi preenchido.
   const aquisitivo_termino =
-    dados.aquisitivo_termino ?? somarDias(dados.aquisitivo_inicio, 365)
-  const concessivo_inicio = dados.concessivo_inicio ?? aquisitivo_termino
+    dados.aquisitivo_termino ?? datasDoPeriodoFerias(dados.aquisitivo_inicio).aquisitivoTermino
+  const concessivo_inicio = dados.concessivo_inicio ?? somarDias(aquisitivo_termino, 1)
   const concessivo_termino =
-    dados.concessivo_termino ?? somarDias(concessivo_inicio, 365)
+    dados.concessivo_termino ?? somarDiasISO(somarAnosISO(concessivo_inicio, 1), -1)
   return {
     trabalhador_id: dados.trabalhador_id,
     aquisitivo_inicio: dados.aquisitivo_inicio,

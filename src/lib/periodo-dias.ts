@@ -45,3 +45,29 @@ const ISO = /^\d{4}-\d{2}-\d{2}$/
 export function ehDataISO(valor: string): boolean {
   return ISO.test(valor)
 }
+
+/** Mesmo dia, `anos` anos depois (29/02 sem par cai em 01/03). */
+export function somarAnosISO(iso: string, anos: number): string {
+  const d = paraUTC(iso)
+  d.setUTCFullYear(d.getUTCFullYear() + anos)
+  return d.toISOString().slice(0, 10)
+}
+
+/**
+ * Datas de um período de férias a partir do início do aquisitivo: aquisitivo
+ * de 1 ano (término = 1 ano − 1 dia), concessivo nos 12 meses seguintes
+ * (início = 1 ano; término = 2 anos − 1 dia). Sugestão no formulário e
+ * complemento das datas deixadas em branco ao gravar.
+ */
+export function datasDoPeriodoFerias(aquisitivoInicio: string): {
+  aquisitivoTermino: string
+  concessivoInicio: string
+  concessivoTermino: string
+} {
+  const umAno = somarAnosISO(aquisitivoInicio, 1)
+  return {
+    aquisitivoTermino: somarDiasISO(umAno, -1),
+    concessivoInicio: umAno,
+    concessivoTermino: somarDiasISO(somarAnosISO(aquisitivoInicio, 2), -1),
+  }
+}
