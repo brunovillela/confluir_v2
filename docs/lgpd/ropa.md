@@ -28,7 +28,7 @@
 | P11 | [Financeiro, compras, fornecedores e contratos](#p11) | 34 | identificação, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P12 | [Institucional: custeios, viagens, linhas e patrimônio](#p12) | 8 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P13 | [Hospedagem conveniada e cessão de espaços](#p13) | 12 | identificação, **sensível: filiação/posição sindical**, financeiro, credencial (segredo de acesso, nunca exportar) | sim |
-| P14 | [Frota: veículos e condutores](#p14) | 13 | identificação, financeiro | sim |
+| P14 | [Frota: veículos e condutores](#p14) | 14 | identificação, financeiro | sim |
 | P15 | [Comunicação, eventos e avisos](#p15) | 9 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P16 | [Contas de acesso, segurança, auditoria e gestão interna](#p16) | 23 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 
@@ -663,7 +663,7 @@
 
 **Observações.** Pendência: cópias da CNH em jsonb de unificação de condutores.
 
-<details><summary>Tabelas (13) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (14) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -672,6 +672,7 @@
 | [veiculos](../dados/dicionario/veiculos.md#veiculos) | identificacao | `condutor` (identificacao) |
 | [veiculos_abastecimentos](../dados/dicionario/veiculos.md#veiculos_abastecimentos) | identificacao | `condutor_informado` (identificacao) |
 | [veiculos_agendamentos](../dados/dicionario/veiculos.md#veiculos_agendamentos) | identificacao | `motivo` (identificacao), `destino` (identificacao) |
+| [veiculos_checklist_apontamentos](../dados/dicionario/veiculos.md#veiculos_checklist_apontamentos) | identificacao | `emp_proprietaria_id` (nenhum), `veiculo_id` (nenhum), `item_id` (nenhum), `categoria` (nenhum), `descricao` (nenhum), `situacao` (nenhum), `aberto_em` (nenhum), `checklist_abertura_id` (nenhum), `confirmacoes` (nenhum), `ultima_confirmacao_em` (nenhum), `ultima_observacao` (nenhum), `resolvido_em` (nenhum), `checklist_resolucao_id` (nenhum), `resolvido_por` (identificacao), `manutencao_id` (nenhum), `created_at` (nenhum) |
 | [veiculos_condutores](../dados/dicionario/veiculos.md#veiculos_condutores) | identificacao | `cnh_numero` (identificacao), `cnh_categoria` (identificacao), `cnh_validade` (identificacao), `cnh_arquivo_url` (identificacao), `observacao` (identificacao) |
 | [veiculos_condutores_cnh](../dados/dicionario/veiculos.md#veiculos_condutores_cnh) | identificacao | `cnh_numero` (identificacao), `cnh_categoria` (identificacao), `cnh_validade` (identificacao), `cnh_arquivo_url` (identificacao) |
 | [veiculos_condutores_unificacoes](../dados/dicionario/veiculos.md#veiculos_condutores_unificacoes) | identificacao | `cadastro_removido` (identificacao), `cadastro_principal_antes` (identificacao) |
@@ -814,4 +815,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 208 de 208 tabelas com dado pessoal atribuídas a 16 processos.
+Cobertura: 209 de 209 tabelas com dado pessoal atribuídas a 16 processos.

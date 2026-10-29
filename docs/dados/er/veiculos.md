@@ -50,6 +50,16 @@ erDiagram
     uuid cancelado_por_id FK
     uuid solicitado_por_id FK
   }
+  veiculos_checklist_apontamentos {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid veiculo_id FK
+    uuid item_id FK
+    uuid checklist_abertura_id FK
+    uuid checklist_resolucao_id FK
+    uuid resolvido_por FK
+    uuid manutencao_id FK
+  }
   veiculos_checklist_config {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -165,6 +175,12 @@ erDiagram
   veiculos_agendamentos }o--o| usuarios : "condutor_id"
   veiculos_agendamentos }o--o| usuarios : "solicitado_por_id"
   veiculos_agendamentos }o--o| veiculos : "veiculo_id"
+  veiculos_checklist_apontamentos }o--o| usuarios : "resolvido_por"
+  veiculos_checklist_apontamentos }o--o| veiculos_checklist_itens : "item_id"
+  veiculos_checklist_apontamentos }o--o| veiculos_checklists : "checklist_abertura_id"
+  veiculos_checklist_apontamentos }o--o| veiculos_checklists : "checklist_resolucao_id"
+  veiculos_checklist_apontamentos }o--o| veiculos_manutencoes : "manutencao_id"
+  veiculos_checklist_apontamentos }o--|| veiculos : "veiculo_id"
   veiculos_checklist_config }o--o| usuarios : "atualizada_por"
   veiculos_checklist_respostas }o--o| veiculos_checklist_itens : "item_id"
   veiculos_checklist_respostas }o--o| veiculos_checklists : "checklist_id"

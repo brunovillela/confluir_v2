@@ -12,9 +12,10 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
+import { apontamentosAbertos, tempoEmAberto } from "@/lib/db/veiculos-apontamentos"
 import { listarItens, situacaoDaFrota } from "@/lib/db/veiculos-checklist"
 
-import { ChecklistForm } from "../checklist-forms"
+import { ChecklistForm, type ApontamentoForm } from "../checklist-forms"
 
 export const metadata: Metadata = { title: "Realizar checklist — Confluir" }
 
@@ -28,10 +29,25 @@ export default async function NovoChecklistPage({
   await requirePermissao("veiculos_checklist", ["veiculos_gestao"])
   const { veiculo } = await searchParams
 
-  const [{ ativo, linhas: frota }, itens] = await Promise.all([
+  const [{ ativo, linhas: frota }, itens, abertos] = await Promise.all([
     situacaoDaFrota(),
     listarItens(true),
+    apontamentosAbertos(),
   ])
+  // Por veículo: o formulário pergunta, item a item, se cada um permanece.
+  const apontamentos: Record<string, ApontamentoForm[]> = {}
+  for (const a of abertos) {
+    ;(apontamentos[a.veiculo_id] ??= []).push({
+      id: a.id,
+      item_id: a.item_id,
+      categoria: a.categoria,
+      descricao: a.descricao,
+      tempo: tempoEmAberto(a),
+      confirmacoes: a.confirmacoes,
+      ultima_observacao: a.ultima_observacao,
+      manutencaoRotulo: a.manutencao?.rotulo ?? null,
+    })
+  }
 
   const fixo = veiculo ? frota.find((v) => v.id === veiculo) : undefined
 
@@ -87,6 +103,7 @@ export default async function NovoChecklistPage({
                 ativo: i.ativo,
               }))}
               veiculoFixo={fixo?.id}
+              apontamentos={apontamentos}
             />
           </CardContent>
         </Card>

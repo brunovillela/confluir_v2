@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
+import { vincularManutencao } from "@/lib/db/veiculos-apontamentos"
 import { type EstadoForm } from "@/lib/contas"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -181,8 +182,14 @@ export async function salvarManutencao(
     return { erro: `Não foi possível salvar: ${error?.message ?? "?"}` }
   }
 
+  // Aberta a partir de um apontamento do checklist: já sai vinculada a ele
+  // (o apontamento segue aberto até o próximo checklist o dar como sanado).
+  const apontamentoId = txt(fd, "apontamento_id")
+  if (apontamentoId) await vincularManutencao(apontamentoId, gravado.id as string)
+
   revalidatePath(BASE)
   revalidatePath(`/painel/veiculos/${veiculoId}`)
+  revalidatePath("/painel/veiculos/checklists")
   redirect(`${BASE}/${gravado.id as string}`)
 }
 

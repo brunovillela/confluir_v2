@@ -30,6 +30,12 @@ import { formatarData, formatarDataHora } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
 import { SeloChecklist } from "./checklist-forms"
+import { ListaApontamentos } from "./apontamentos"
+import {
+  apontamentoParaTela,
+  apontamentosAbertos,
+  manutencoesParaVincular,
+} from "@/lib/db/veiculos-apontamentos"
 
 export const metadata: Metadata = { title: "Checklist da frota — Confluir" }
 
@@ -41,11 +47,24 @@ export default async function ChecklistsPage() {
     "veiculos_gestao",
   ])
 
-  const [{ ativo, linhas: frota }, historico, { config }] = await Promise.all([
+  const podeManutencao = podeAcessar(sessao.permissoes, "veiculos_manutencao", [
+    "veiculos_gestao",
+  ])
+
+  const [{ ativo, linhas: frota }, historico, { config }, abertos] = await Promise.all([
     situacaoDaFrota(),
     listarChecklists({ limite: 30 }),
     obterConfig(),
+    apontamentosAbertos(),
   ])
+  // Manutenções para o vínculo: só dos veículos com apontamento em aberto.
+  const veiculosApontados = [...new Set(abertos.map((a) => a.veiculo_id))]
+  const manutencoesPorVeiculo = podeManutencao
+    ? Object.fromEntries(
+        await Promise.all(veiculosApontados.map(async (v) => [v, await manutencoesParaVincular(v)] as const))
+      )
+    : {}
+  const rotuloVeiculo = new Map(frota.map((v) => [v.id, v.rotulo]))
 
   const vencidos = frota.filter((v) => v.situacao.vencido)
   const proximos = frota.filter((v) => v.situacao.proximoDoVencimento)
@@ -192,6 +211,26 @@ export default async function ChecklistsPage() {
                 </Table>
               </div>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {abertos.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Apontamentos em aberto</CardTitle>
+            <CardDescription>
+              {abertos.length} problema{abertos.length === 1 ? "" : "s"} esperando manutenção corretiva ou a confirmação de
+              um checklist. Só o checklist que diga que foi sanado encerra o apontamento.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ListaApontamentos
+              apontamentos={abertos.map((a) => apontamentoParaTela(a, rotuloVeiculo.get(a.veiculo_id)))}
+              manutencoesPorVeiculo={manutencoesPorVeiculo}
+              podeVincular={podeManutencao}
+              mostrarVeiculo
+            />
           </CardContent>
         </Card>
       )}

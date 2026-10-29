@@ -5,6 +5,12 @@ import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
+import {
+  aplicarChecklistAosApontamentos,
+  apontamentosAbertos,
+  vincularManutencao,
+  type RespostaApontamento,
+} from "@/lib/db/veiculos-apontamentos"
 import { listarItens, type SituacaoItem } from "@/lib/db/veiculos-checklist"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -39,6 +45,16 @@ export async function registrarChecklist(
     return { erro: "Nenhum item de verificação cadastrado. Fale com a gestão da frota." }
   }
 
+  // Apontamentos em aberto do veículo: cada um precisa de resposta — permanece
+  // ou foi sanado. Só esta resposta encerra um apontamento.
+  const abertos = await apontamentosAbertos(veiculoId)
+  const respostasApont: RespostaApontamento[] = []
+  const novos: { item_id: string; categoria: string; descricao: string | null }[] = []
+  const lerApontamento = (a: (typeof abertos)[number]) => {
+    const r = txt(fd, `apont_${a.id}`)
+    return r === "permanece" || r === "sanado" ? r : null
+  }
+
   // Toda categoria precisa de resposta — checklist pela metade não serve de
   // registro, e o "não se aplica" existe justamente para não obrigar a mentir.
   const respostas: {
@@ -48,21 +64,54 @@ export async function registrarChecklist(
     observacao: string | null
   }[] = []
   for (const item of itens) {
+    const aberto = abertos.find((a) => a.item_id === item.id)
+    const obs = txt(fd, `obs_${item.id}`)
+    if (aberto) {
+      const r = lerApontamento(aberto)
+      if (!r) {
+        return { erro: `Diga se o apontamento de "${item.categoria}" permanece ou foi sanado.` }
+      }
+      if (r === "permanece") {
+        // O problema segue: o item fica não conforme, com o que se viu agora
+        // (ou a descrição original, se o inspetor não acrescentou nada).
+        respostasApont.push({ apontamentoId: aberto.id, permanece: true, observacao: obs || null })
+        respostas.push({
+          item_id: item.id,
+          categoria: item.categoria,
+          situacao: "nao_conforme",
+          observacao: obs || aberto.descricao,
+        })
+        continue
+      }
+      respostasApont.push({ apontamentoId: aberto.id, permanece: false, observacao: null })
+    }
     const s = txt(fd, `situacao_${item.id}`) as SituacaoItem
     if (!["conforme", "nao_conforme", "nao_aplica"].includes(s)) {
       return { erro: `Responda a verificação de "${item.categoria}".` }
     }
-    const obs = txt(fd, `obs_${item.id}`)
     if (s === "nao_conforme" && !obs) {
       return {
         erro: `Descreva o problema encontrado em "${item.categoria}" — um item não conforme sem descrição não ajuda a oficina.`,
       }
     }
+    if (s === "nao_conforme") novos.push({ item_id: item.id, categoria: item.categoria, descricao: obs })
     respostas.push({
       item_id: item.id,
       categoria: item.categoria,
       situacao: s,
       observacao: obs || null,
+    })
+  }
+  // Apontamento de item que saiu do catálogo: a pergunta continua valendo.
+  let orfaosPermanecem = 0
+  for (const a of abertos.filter((a) => !itens.some((i) => i.id === a.item_id))) {
+    const r = lerApontamento(a)
+    if (!r) return { erro: `Diga se o apontamento de "${a.categoria}" permanece ou foi sanado.` }
+    if (r === "permanece") orfaosPermanecem++
+    respostasApont.push({
+      apontamentoId: a.id,
+      permanece: r === "permanece",
+      observacao: r === "permanece" ? txt(fd, `obs_apont_${a.id}`) || null : null,
     })
   }
 
@@ -72,7 +121,8 @@ export async function registrarChecklist(
     return { erro: "Hodômetro inválido." }
   }
 
-  const pendencias = respostas.filter((r) => r.situacao === "nao_conforme").length
+  const pendencias = respostas.filter((r) => r.situacao === "nao_conforme").length + orfaosPermanecem
+  const realizadoEm = new Date().toISOString()
 
   const admin = await createAdminClient()
   const emp = await tenantAtual()
@@ -81,7 +131,7 @@ export async function registrarChecklist(
     .insert({
       emp_proprietaria_id: emp,
       veiculo_id: veiculoId,
-      realizado_em: new Date().toISOString(),
+      realizado_em: realizadoEm,
       hodometro,
       inspetor_id: sessao.usuario.id,
       observacoes: txt(fd, "observacoes") || null,
@@ -112,7 +162,22 @@ export async function registrarChecklist(
     return { erro: `Não foi possível gravar as respostas: ${erroResp.message}` }
   }
 
+  const { erro: erroApont } = await aplicarChecklistAosApontamentos({
+    veiculoId,
+    checklistId,
+    realizadoEm,
+    inspetorId: sessao.usuario.id,
+    respostas: respostasApont,
+    novos,
+  })
+  if (erroApont) {
+    await admin.from("veiculos_checklists").delete().eq("id", checklistId)
+    return { erro: erroApont }
+  }
+
   revalidatePath(BASE)
+  revalidatePath("/painel/veiculos")
+  revalidatePath(`/painel/veiculos/${veiculoId}/movimentacao`)
   revalidatePath(`/painel/veiculos/${veiculoId}`)
   redirect(`${BASE}/${checklistId}`)
 }
@@ -127,6 +192,22 @@ export async function excluirChecklist(
 
   const admin = await createAdminClient()
   const emp = await tenantAtual()
+  // Apontamento só se encerra por checklist: se ESTE era o que o deu como
+  // sanado, ele volta a ficar aberto. Os que este checklist abriu continuam
+  // abertos (a FK fica nula) — só um checklist novo os encerra. Um a um: se
+  // já houver outro aberto para o mesmo item, o índice único recusa e esse
+  // fica resolvido.
+  const { data: sanadosAqui } = await admin
+    .from("veiculos_checklist_apontamentos")
+    .select("id")
+    .eq("emp_proprietaria_id", emp)
+    .eq("checklist_resolucao_id", id)
+  for (const a of sanadosAqui ?? []) {
+    await admin
+      .from("veiculos_checklist_apontamentos")
+      .update({ situacao: "aberto", resolvido_em: null, checklist_resolucao_id: null, resolvido_por: null })
+      .eq("id", String(a.id))
+  }
   // as respostas caem por cascade (on delete cascade no SQL)
   await admin
     .from("veiculos_checklists")
@@ -275,5 +356,32 @@ export async function salvarRecorrenciaVeiculo(
     ok: dias
       ? `Este veículo passa a exigir checklist a cada ${dias} dias.`
       : "Este veículo volta a seguir a recorrência padrão da frota.",
+  }
+}
+
+// ── Apontamentos ─────────────────────────────────────────────────────────────
+
+/**
+ * Vincula (ou desvincula) um apontamento a uma manutenção do mesmo veículo.
+ * É coisa de quem registra manutenção; a gestão entra como retaguarda. O
+ * apontamento segue aberto até um checklist o declarar sanado.
+ */
+export async function vincularManutencaoAction(
+  _prev: EstadoForm,
+  fd: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("veiculos_manutencao", ["veiculos_gestao"])
+  const apontamentoId = txt(fd, "apontamento_id")
+  if (!apontamentoId) return { erro: "Apontamento não informado." }
+  const manutencaoId = txt(fd, "manutencao_id") || null
+  const { erro, veiculoId } = await vincularManutencao(apontamentoId, manutencaoId)
+  if (erro) return { erro }
+  revalidatePath(BASE)
+  revalidatePath("/painel/veiculos")
+  if (veiculoId) revalidatePath(`/painel/veiculos/${veiculoId}`)
+  return {
+    ok: manutencaoId
+      ? "Manutenção vinculada. O apontamento se encerra quando o próximo checklist o der como sanado."
+      : "Vínculo desfeito.",
   }
 }

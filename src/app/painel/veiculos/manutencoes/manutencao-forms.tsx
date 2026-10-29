@@ -52,6 +52,8 @@ export function ManutencaoForm({
   compras,
   inicial,
   veiculoFixo,
+  tipoInicial,
+  apontamentoId,
 }: {
   veiculos: VeiculoOpcao[]
   fornecedores: EmpresaOpcao[]
@@ -59,13 +61,16 @@ export function ManutencaoForm({
   compras: CompraOpcao[]
   inicial?: ManutencaoInicial
   veiculoFixo?: string
+  /** Aberta a partir de um apontamento do checklist: corretiva, já vinculada. */
+  tipoInicial?: "preventiva" | "corretiva"
+  apontamentoId?: string
 }) {
   const [estado, formAction, pendente] = useActionState(salvarManutencao, {})
   const envio1 = useEnvioFormulario(formAction, estado)
   const [veiculoId, setVeiculoId] = useState(
     inicial?.veiculo_id ?? veiculoFixo ?? ""
   )
-  const [tipo, setTipo] = useState(inicial?.tipo ?? "preventiva")
+  const [tipo, setTipo] = useState(inicial?.tipo ?? tipoInicial ?? "preventiva")
 
   // Só as programações do veículo escolhido fazem sentido no seletor.
   const planosDoVeiculo = planos.filter((p) => p.veiculo_id === veiculoId)
@@ -73,6 +78,7 @@ export function ManutencaoForm({
   return (
     <form action={formAction} {...envio1} className="grid gap-4">
       {inicial && <input type="hidden" name="id" value={inicial.id} />}
+      {apontamentoId && <input type="hidden" name="apontamento_id" value={apontamentoId} />}
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>

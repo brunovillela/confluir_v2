@@ -26,10 +26,10 @@ export const metadata: Metadata = { title: "Nova manutenção — Confluir" }
 export default async function NovaManutencaoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ veiculo?: string }>
+  searchParams: Promise<{ veiculo?: string; tipo?: string; apontamento?: string }>
 }) {
   await requirePermissao("veiculos_manutencao", ["veiculos_gestao"])
-  const { veiculo } = await searchParams
+  const { veiculo, tipo, apontamento } = await searchParams
 
   const [frota, fornecedores, { ativo, planos }, compras] = await Promise.all([
     listarVeiculos({ situacao: "ativos" }),
@@ -96,6 +96,8 @@ export default async function NovaManutencaoPage({
               }))}
               compras={compras}
               veiculoFixo={veiculo}
+              tipoInicial={tipo === "corretiva" ? "corretiva" : undefined}
+              apontamentoId={apontamento}
             />
           </CardContent>
         </Card>

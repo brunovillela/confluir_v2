@@ -36,6 +36,7 @@ import {
   type VeiculoLinha,
 } from "@/lib/db/veiculos";
 import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios";
+import { alertasApontamentos } from "@/lib/db/veiculos-apontamentos";
 import { totalVencidos } from "@/lib/db/veiculos-checklist";
 import { preventivasEmAlerta, vencimentoDoPlano } from "@/lib/db/veiculos-manutencoes";
 import { formatarData } from "@/lib/formato";
@@ -70,7 +71,7 @@ export default async function VeiculosPage({
       : "ativos";
   const busca = (brutos.busca ?? "").trim();
 
-  const [resumo, veiculos, checklistsVencidos, preventivas, locacao] =
+  const [resumo, veiculos, checklistsVencidos, preventivas, locacao, apontamentos] =
     await Promise.all([
       resumoVeiculos(),
       listarVeiculos({ busca, situacao }),
@@ -78,6 +79,7 @@ export default async function VeiculosPage({
       preventivasEmAlerta(),
       // Contratos de aluguel são da gestão: quem não vê os alertas não paga a consulta.
       gestor ? alertasLocacao() : Promise.resolve([]),
+      gestor ? alertasApontamentos() : Promise.resolve([]),
     ]);
   const fotos = await fotosDosUsuarios(veiculos.map((v) => v.condutorEmUsoId));
   const preventivasVencidas = preventivas.filter((p) => p.vencido).length;
@@ -87,6 +89,8 @@ export default async function VeiculosPage({
   const alertas: { chave: string; texto: string; href: string; grave?: boolean }[] = [
     // Locação já atrasada (contrato vencido, fatura que não chegou) vem primeiro.
     ...locacao.filter((a) => a.grave),
+    // Checklist apontou problema: corretiva pendente vem junto dos graves.
+    ...apontamentos.filter((a) => a.grave),
     ...resumo.cnhsVencendo.map((c) => ({
       chave: `cnh-${c.id}`,
       texto: `CNH de ${c.usuarioNome ?? "condutor"} ${c.cnh_validade && c.cnh_validade < hoje ? "vencida" : "vence"} em ${formatarData(c.cnh_validade)}`,
@@ -108,6 +112,7 @@ export default async function VeiculosPage({
       href: `/painel/veiculos/contratos/${c.id}?prorrogar=1`,
     })),
     ...locacao.filter((a) => !a.grave),
+    ...apontamentos.filter((a) => !a.grave),
   ];
 
   const areasVeiculos = [

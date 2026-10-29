@@ -29,6 +29,12 @@ import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { PessoaNome } from "@/components/pessoa-nome"
 import { EmUsoBadge } from "@/components/veiculos"
 import { AlertaChecklist } from "@/components/veiculos-checklist"
+import { ListaApontamentos } from "@/app/painel/veiculos/checklists/apontamentos"
+import {
+  apontamentoParaTela,
+  apontamentosDoVeiculo,
+  manutencoesParaVincular,
+} from "@/lib/db/veiculos-apontamentos"
 import { AlertaManutencao } from "@/components/veiculos-manutencao"
 
 import { requirePermissao } from "@/lib/auth"
@@ -111,6 +117,8 @@ export default async function VeiculoPage({
     checklist,
     { config: cfgChecklist },
     preventivas,
+    apontamentos,
+    manutencoesVinculaveis,
   ] = await Promise.all([
     listarMovimentacoes({ veiculoId: id, limite: 10 }),
     indicadoresDoVeiculo(id),
@@ -123,7 +131,10 @@ export default async function VeiculoPage({
     situacaoDoVeiculo(id),
     obterConfigChecklist(),
     situacaoDosPlanos(id),
+    apontamentosDoVeiculo(id),
+    podeManutencao ? manutencoesParaVincular(id) : Promise.resolve([]),
   ])
+  const apontamentosAbertos = apontamentos.filter((a) => a.situacao === "aberto")
   const fotos = await fotosDosUsuarios(movimentacoes.map((m) => m.condutor_id))
 
   const [crlvUrls, apoliceUrl, crvUrl] = await Promise.all([
@@ -319,6 +330,28 @@ export default async function VeiculoPage({
           situacao={checklist}
           podeRealizar={podeChecklist}
         />
+      )}
+      {apontamentos.length > 0 && (
+        <div id="apontamentos">
+          <GrupoColapsavel
+            titulo="Apontamentos do checklist"
+            descricao="Problemas encontrados no checklist. Só um checklist que diga que foi sanado encerra o apontamento; vincular a manutenção não encerra."
+            resumo={
+              <span
+                className={`text-sm tabular-nums ${apontamentosAbertos.length ? "text-warning-fg" : "text-muted-foreground"}`}
+              >
+                {apontamentosAbertos.length} em aberto
+              </span>
+            }
+            aberto={apontamentosAbertos.length > 0}
+          >
+            <ListaApontamentos
+              apontamentos={apontamentos.map((a) => apontamentoParaTela(a))}
+              manutencoesPorVeiculo={{ [veiculo.id]: manutencoesVinculaveis }}
+              podeVincular={podeManutencao}
+            />
+          </GrupoColapsavel>
+        </div>
       )}
       {preventivas.ativo && !veiculo.inativo && (
         <AlertaManutencao

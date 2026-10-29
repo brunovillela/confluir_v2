@@ -13,6 +13,7 @@ import {
   listarMovimentacoes,
   ultimaEntradaDoVeiculo,
 } from "@/lib/db/veiculos"
+import { apontamentosAbertos, tempoEmAberto } from "@/lib/db/veiculos-apontamentos"
 import { formatarData } from "@/lib/formato"
 import { momentoBR } from "@/lib/veiculos-constantes"
 
@@ -40,7 +41,7 @@ export default async function MovimentacaoVeiculoPage({
   if (!veiculo) notFound()
 
   const podeSair = !veiculo.inativo && !veiculo.manutencao && !veiculo.emUso
-  const [movimentacoes, sedes, condutoresRes, reservadas, solicitadas, ultimaEntrada] =
+  const [movimentacoes, sedes, condutoresRes, reservadas, solicitadas, ultimaEntrada, apontamentos] =
     await Promise.all([
       veiculo.movimentacaoAbertaId
         ? listarMovimentacoes({ veiculoId: id, abertas: true, limite: 5 })
@@ -56,6 +57,7 @@ export default async function MovimentacaoVeiculoPage({
         ? listarAgendamentos({ situacoes: ["solicitada"] })
         : Promise.resolve({ disponivel: true, agendamentos: [] }),
       podeSair ? ultimaEntradaDoVeiculo(id) : Promise.resolve(null),
+      apontamentosAbertos(id),
     ])
 
   const movimentacaoAberta =
@@ -107,6 +109,27 @@ export default async function MovimentacaoVeiculoPage({
       {salvo && (
         <Alert variant="success">
           <AlertDescription>Registro salvo.</AlertDescription>
+        </Alert>
+      )}
+
+      {/* A portaria precisa saber, na hora da saída, o que o checklist apontou. */}
+      {!veiculo.emUso && apontamentos.length > 0 && (
+        <Alert variant="warning">
+          <AlertDescription className="grid gap-1">
+            <p className="font-medium">
+              Este veículo tem {apontamentos.length} apontamento
+              {apontamentos.length === 1 ? "" : "s"} em aberto no checklist — avise o condutor antes de liberar.
+            </p>
+            <ul className="grid gap-0.5 text-sm">
+              {apontamentos.map((a) => (
+                <li key={a.id}>
+                  <strong>{a.categoria}</strong>
+                  {a.descricao ? `: ${a.descricao}` : ""} <span className="opacity-80">({tempoEmAberto(a)}
+                  {a.manutencao ? " · manutenção vinculada" : " · sem manutenção"})</span>
+                </li>
+              ))}
+            </ul>
+          </AlertDescription>
         </Alert>
       )}
 

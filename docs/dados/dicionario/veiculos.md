@@ -2,7 +2,7 @@
 
 # Veículos e condutores
 
-22 tabelas. Diagrama: [er/veiculos.md](../er/veiculos.md).
+23 tabelas. Diagrama: [er/veiculos.md](../er/veiculos.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -13,6 +13,7 @@
 | [veiculos_abastecimentos](#veiculos_abastecimentos) | identificação | Espelho de "Veículos Abastecimentos" do Bubble |
 | [veiculos_abastecimentos_lotes](#veiculos_abastecimentos_lotes) | — | Lote de importação de abastecimentos a partir de relatório/fatura lido por IA: arquivo, quem importou e quantas linhas. |
 | [veiculos_agendamentos](#veiculos_agendamentos) | identificação | Espelho de "Veículos Agendamentos" do Bubble |
+| [veiculos_checklist_apontamentos](#veiculos_checklist_apontamentos) | identificação | Apontamento (item não conforme) do checklist de um veículo, com vida própria: aberto num checklist, confirmado ou sanado nos seguintes, com … |
 | [veiculos_checklist_config](#veiculos_checklist_config) | — | Configuração do checklist periódico da frota por tenant: recorrência em dias e antecedência do alerta. |
 | [veiculos_checklist_itens](#veiculos_checklist_itens) | — | Item configurável do checklist de veículos (categoria, o que verificar, propósito), substituto de veiculos_verificacao. |
 | [veiculos_checklist_respostas](#veiculos_checklist_respostas) | — | Resposta de cada item num checklist realizado (situação e observação). |
@@ -244,6 +245,38 @@ Espelho de "Veículos Agendamentos" do Bubble
 Únicas: `UNIQUE (bubble_id)`
 
 Índices: `idx_veiculos_agendamentos_condutor`, `idx_veiculos_agendamentos_situacao`, `veiculos_agendamentos_bubble_id_key`, `veiculos_agendamentos_pkey`
+
+## veiculos_checklist_apontamentos
+
+Apontamento (item não conforme) do checklist de um veículo, com vida própria: aberto num checklist, confirmado ou sanado nos seguintes, com tempo em aberto e a manutenção corretiva vinculada. Só um checklist que o declare sanado o encerra.
+
+- **LGPD:** identificação · titulares: usuários do sistema
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | sim |  | → empresa | nenhum | Entidade dona (tenant). |
+| `veiculo_id` | uuid | não |  | → veiculos (**cascade**) | nenhum | Veículo apontado. |
+| `item_id` | uuid | sim |  | → veiculos_checklist_itens (set null) | nenhum | Item do checklist (veiculos_checklist_itens); nulo se o item foi excluído. |
+| `categoria` | text | não |  |  | nenhum | Nome do item no momento da abertura (sobrevive à edição do catálogo). |
+| `descricao` | text | sim |  |  | nenhum | O que foi encontrado, na abertura. |
+| `situacao` | text | não | `'aberto'::text` |  | nenhum | aberto \| resolvido. Só o checklist muda para resolvido. |
+| `aberto_em` | timestamp with time zone | não |  |  | nenhum | Momento do checklist que abriu o apontamento (marcador do tempo em aberto). |
+| `checklist_abertura_id` | uuid | sim |  | → veiculos_checklists (set null) | nenhum | Checklist que abriu. |
+| `confirmacoes` | integer | não | `0` |  | nenhum | Quantos checklists seguintes confirmaram que o problema permanece. |
+| `ultima_confirmacao_em` | timestamp with time zone | sim |  |  | nenhum | Último checklist que confirmou que permanece. |
+| `ultima_observacao` | text | sim |  |  | nenhum | Como estava na última confirmação, se o inspetor descreveu. |
+| `resolvido_em` | timestamp with time zone | sim |  |  | nenhum | Momento do checklist que o declarou sanado. |
+| `checklist_resolucao_id` | uuid | sim |  | → veiculos_checklists (set null) | nenhum | Checklist que o declarou sanado. |
+| `resolvido_por` | uuid | sim |  | → usuarios | identificação | Inspetor do checklist que o declarou sanado. |
+| `manutencao_id` | uuid | sim |  | → veiculos_manutencoes (set null) | nenhum | Manutenção (corretiva) vinculada ao apontamento; vincular não o encerra. |
+| `created_at` | timestamp with time zone | não | `now()` |  | nenhum | Quando o registro foi criado. |
+
+Checks: `veiculos_checklist_apontamentos_situacao_check` `CHECK ((situacao = ANY (ARRAY['aberto'::text, 'resolvido'::text])))`
+
+Índices: `idx_veiculos_checklist_apontamentos_veiculo`, `veiculos_checklist_apontamentos_aberto_unico`, `veiculos_checklist_apontamentos_pkey`
 
 ## veiculos_checklist_config
 
