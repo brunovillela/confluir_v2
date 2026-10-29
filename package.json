@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:e2e": "playwright test",
+    "test:unidade": "playwright test -c playwright.unidade.config.ts",
     "db:nova": "node scripts/db.mjs nova",
     "db:status": "node scripts/db.mjs status",
     "db:aplicar": "node scripts/db.mjs aplicar",

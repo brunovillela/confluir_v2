@@ -173,7 +173,8 @@ export function normalizarTelefone(v: string): string | null {
   let d = v.replace(/\D/g, "")
   if (!d) return null
   if ((d.length === 12 || d.length === 13) && d.startsWith("55")) d = d.slice(2)
-  if (d.length === 11 && d.startsWith("0")) d = d.slice(1)
+  // "0 21 …": o zero do DDD de longa distância (fixo com 11, celular com 12 dígitos).
+  if ((d.length === 11 || d.length === 12) && d.startsWith("0")) d = d.slice(1)
   return d.length === 10 || d.length === 11 ? d : null
 }
 
