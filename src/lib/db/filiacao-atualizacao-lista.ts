@@ -12,14 +12,14 @@ import {
   ROTULOS_CAMPO,
 } from "@/lib/atualizacao-lista"
 import { chaveMatricula, chaveNome } from "@/lib/casamento"
-import { cpfConfiavel, grafiasDoCpf, limparCpf } from "@/lib/cpf"
+import { limparCpf } from "@/lib/cpf"
 import { lerEmLotes, lerEmLotesPorIds, texto } from "@/lib/db/comum"
 import { invalidarCacheAtivos } from "@/lib/db/filiacao-ativos"
+import { cadastrarNaFonte } from "@/lib/db/filiacao-cadastro-na-fonte"
 import { invalidarCacheCadastrosPendentes } from "@/lib/db/filiacao-cadastros-pendentes"
-import { atribuirMatriculaSindical } from "@/lib/db/filiacao-identidade"
 import { buscarFontePagadora, invalidarCacheFontes } from "@/lib/db/fontes"
 import { invalidarCacheProntuarios } from "@/lib/db/prontuario"
-import { condicaoNaFontePadrao, FILIACAO_CONDICOES } from "@/lib/filiacao"
+import { FILIACAO_CONDICOES } from "@/lib/filiacao"
 import { lerListaTrabalhadores, MAX_LINHAS_LISTA } from "@/lib/ia-lista-trabalhadores"
 import { emParalelo } from "@/lib/paralelo"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -894,101 +894,32 @@ export async function cadastrarNaoEncontrados(
   if (!pendentes.length) return { erro: "Nenhuma linha marcada." }
   if (pendentes.length > MAX_CADASTRO_LISTA) return { erro: `No máximo ${MAX_CADASTRO_LISTA} por vez.` }
 
-  const admin = await createAdminClient()
-  const emp = await tenantAtual()
-  const agora = new Date().toISOString()
-  const condicaoNaFonte = condicaoNaFontePadrao(fonte.fundo_pensao === true)
   const erros: string[] = []
   let criados = 0
   let reaproveitados = 0
-
   for (const n of pendentes) {
-    const nome = n.nome ?? n.cadastro.nome_completo ?? null
-    if (!nome || nome.length < 3) {
-      erros.push(`Linha ${n.linha}: sem nome.`)
+    const nome = n.nome ?? n.cadastro.nome_completo ?? ""
+    const r = await cadastrarNaFonte(
+      { nome, cpf: n.cpf, matriculaFonte: n.matricula, cadastro: n.cadastro, vinculo: n.vinculo },
+      {
+        fonte,
+        condicao,
+        ativarExistente: false,
+        origem: `a lista de trabalhadores "${dados.lote.arquivo}"`,
+        usuarioId,
+      }
+    )
+    if (r.erro || !r.filiadoId) {
+      erros.push(`${nome || `Linha ${n.linha}`}: ${r.erro ?? "não foi possível cadastrar"}`)
       continue
     }
-    let filiadoId: string | null = null
-    if (n.cpf) {
-      // Alguém pode ter cadastrado a pessoa depois da prévia.
-      const { data: existe } = await admin
-        .from("filiacoes")
-        .select("id")
-        .eq("emp_proprietaria_id", emp)
-        .in("cpf", grafiasDoCpf(n.cpf))
-        .not("filiacao_excluida", "is", true)
-        .limit(1)
-      if (existe?.length) {
-        filiadoId = String(existe[0].id)
-        reaproveitados++
-      }
-    }
-    if (!filiadoId) {
-      const cadastro: Record<string, unknown> = { ...n.cadastro }
-      for (const c of ["telefone_1", "telefone_2", "endereco_cep"]) if (cadastro[c]) cadastro[c] = String(cadastro[c]).replace(/\D/g, "")
-      const { data: criado, error } = await admin
-        .from("filiacoes")
-        .insert({
-          ...cadastro,
-          nome_completo: nome,
-          cpf: n.cpf ? cpfConfiavel(n.cpf) : null,
-          filiacao_condicao: condicao,
-          condicao_desde: agora,
-          ...(condicao === "Ativo" ? { ativo_em: agora } : {}),
-          emp_proprietaria_id: emp,
-        })
-        .select("id")
-        .single()
-      if (error || !criado) {
-        erros.push(`${nome}: ${error?.message ?? "não foi possível cadastrar"}`)
-        continue
-      }
-      filiadoId = String(criado.id)
-      await atribuirMatriculaSindical(filiadoId)
-      criados++
-    }
-
-    const { data: aberto } = await admin
-      .from("filiacao_vinculos")
-      .select("id")
-      .eq("filiado_id", filiadoId)
-      .eq("fonte_pagadora_id", fonteId)
-      .is("data_desfiliacao", null)
-      .is("filiacao_data_saida", null)
-      .limit(1)
-    if (!aberto?.length) {
-      const v = n.vinculo
-      const { error } = await admin.from("filiacao_vinculos").insert({
-        filiado_id: filiadoId,
-        fonte_pagadora_id: fonteId,
-        matricula: v.matricula ?? n.matricula,
-        cargo: v.cargo ?? null,
-        lotacao: v.lotacao ?? null,
-        data_entrada_admissao: v.data_entrada_admissao ?? null,
-        data_saida_demissao: v.data_saida_demissao ?? null,
-        regime_trabalho: v.regime_trabalho ?? null,
-        condicao_na_fonte: v.condicao_na_fonte ?? condicaoNaFonte,
-        fonte_pg_matricula: v.matricula ?? n.matricula,
-        fonte_pg_cargo: v.cargo ?? null,
-        fonte_pg_lotacao: v.lotacao ?? null,
-        fonte_pg_admissao: v.data_entrada_admissao ?? null,
-        emp_proprietaria_id: emp,
-      })
-      if (error) erros.push(`${nome}: cadastrado, mas o vínculo falhou (${error.message}).`)
-    }
-    await admin.from("filiacao_prontuario").insert({
-      filiacao_id: filiadoId,
-      data: agora,
-      tipo: "Atualização cadastral",
-      descricao: `Cadastrado a partir da lista de trabalhadores "${dados.lote.arquivo}" (condição ${condicao}).`,
-      diretor_funcionario_id: usuarioId,
-      emp_proprietaria_id: emp,
-      created_at: agora,
-      modified_at: agora,
-    })
-    n.cadastradoId = filiadoId
+    if (r.aviso) erros.push(`${nome}: ${r.aviso}`)
+    if (r.criado) criados++
+    else reaproveitados++
+    n.cadastradoId = r.filiadoId
   }
 
+  const admin = await createAdminClient()
   await admin.from(LOTE).update({ nao_encontrados: dados.lote.naoEncontrados }).eq("id", loteId)
   invalidarCaches()
   return { criados, reaproveitados, erros }

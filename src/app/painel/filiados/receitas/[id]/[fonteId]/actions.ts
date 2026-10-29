@@ -687,7 +687,7 @@ export async function cadastrarNaoEncontradosAction(
   _prev: EstadoCadastroNaoEncontrados,
   formData: FormData
 ): Promise<EstadoCadastroNaoEncontrados> {
-  await requirePermissao("filiacao_gestao")
+  const sessao = await requirePermissao("filiacao_gestao")
   const ids = idsDoForm(formData)
   if (!ids?.fonteDb) return { erro: "Remessa ou fonte inválida." }
 
@@ -710,7 +710,7 @@ export async function cadastrarNaoEncontradosAction(
     return { erro: `Marque no máximo ${MAX_CADASTRO_LOTE} pessoas por vez.` }
   }
 
-  const r = await cadastrarNaoEncontrados(ids.remessaId, ids.fonteDb, itens)
+  const r = await cadastrarNaoEncontrados(ids.remessaId, ids.fonteDb, itens, sessao.usuario.id)
   if (r.erro) return { erro: r.erro }
   revalidatePath("/painel/filiados")
   revalidatePath("/painel/filiados/lista")

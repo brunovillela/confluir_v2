@@ -2,10 +2,10 @@ import "server-only"
 
 import { cpfConfiavel, limparCpf, validarCpf } from "@/lib/cpf"
 import { invalidarCacheCadastrosPendentes } from "@/lib/db/filiacao-cadastros-pendentes"
-import { atribuirMatriculaSindical, cadastrosComCpf } from "@/lib/db/filiacao-identidade"
+import { cadastrarNaFonte } from "@/lib/db/filiacao-cadastro-na-fonte"
 import { buscarFontePagadora, invalidarCacheFontes } from "@/lib/db/fontes"
 import { invalidarCacheRemessa, registrarFormaNoCadastro } from "@/lib/db/receitas"
-import { condicaoNaFontePadrao, type FormaRecebimento, formaRecebimento } from "@/lib/filiacao"
+import { type FormaRecebimento, formaRecebimento } from "@/lib/filiacao"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -23,6 +23,10 @@ import { tenantAtual } from "@/lib/tenant"
  *    traz CPF — e aparece na saúde dos cadastros como "CPF ausente".
  * O lançamento é ligado ao filiado (sai de "não encontrados") e a forma de
  * recebimento dele vai para o cadastro.
+ *
+ * Criar, ativar, abrir o vínculo e anotar no prontuário é o núcleo comum com a
+ * lista de trabalhadores (filiacao-cadastro-na-fonte.ts); aqui ficam o
+ * agrupamento das linhas, a ligação dos lançamentos e a forma de recebimento.
  */
 
 export const MAX_CADASTRO_LOTE = 500
@@ -45,7 +49,8 @@ type Lancamento = {
 export async function cadastrarNaoEncontrados(
   remessaId: string,
   fonteId: string,
-  itens: ItemCadastro[]
+  itens: ItemCadastro[],
+  usuarioId: string | null = null
 ): Promise<{ resultado?: ResultadoCadastro; erro?: string }> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
@@ -92,71 +97,24 @@ export async function cadastrarNaoEncontrados(
     else pessoas.set(chave, { nome, cpf, matriculaFonte, lancamentos: [l] })
   }
 
-  const agora = new Date().toISOString()
-  const condicaoNaFonte = condicaoNaFontePadrao(fonte.fundo_pensao === true)
   const porForma = new Map<FormaRecebimento, string[]>()
   let criados = 0
   let reaproveitados = 0
 
   for (const p of pessoas.values()) {
-    let filiadoId: string | null = null
-
-    if (p.cpf) {
-      const [existente] = await cadastrosComCpf(p.cpf, [])
-      if (existente) {
-        filiadoId = existente.id
-        if (existente.condicao !== "Ativo") {
-          await admin
-            .from("filiacoes")
-            .update({ filiacao_condicao: "Ativo", condicao_desde: agora, ativo_em: agora })
-            .eq("id", filiadoId)
-            .eq("emp_proprietaria_id", emp)
-        }
-        reaproveitados++
-      }
+    // Núcleo comum com a lista de trabalhadores: CPF existente vira Ativo (pagou).
+    const r = await cadastrarNaFonte(
+      { nome: p.nome, cpf: p.cpf, matriculaFonte: p.matriculaFonte },
+      { fonte, condicao: "Ativo", ativarExistente: true, origem: "a relação de pagamentos da remessa", usuarioId }
+    )
+    if (r.erro || !r.filiadoId) {
+      erros.push({ nome: p.nome, motivo: r.erro ?? "Não foi possível cadastrar." })
+      continue
     }
-
-    if (!filiadoId) {
-      const { data: criado, error } = await admin
-        .from("filiacoes")
-        .insert({
-          nome_completo: p.nome,
-          cpf: p.cpf,
-          filiacao_condicao: "Ativo",
-          condicao_desde: agora,
-          ativo_em: agora,
-          emp_proprietaria_id: emp,
-        })
-        .select("id")
-        .single()
-      if (error || !criado) {
-        erros.push({ nome: p.nome, motivo: `Não foi possível cadastrar: ${error?.message ?? "?"}` })
-        continue
-      }
-      filiadoId = String(criado.id)
-      await atribuirMatriculaSindical(filiadoId)
-      criados++
-    }
-
-    // Vínculo aberto nesta fonte (o reaproveitado pode já ter).
-    const { data: aberto } = await admin
-      .from("filiacao_vinculos")
-      .select("id")
-      .eq("filiado_id", filiadoId)
-      .eq("fonte_pagadora_id", fonteId)
-      .is("data_desfiliacao", null)
-      .is("filiacao_data_saida", null)
-      .limit(1)
-    if (!aberto?.length) {
-      const { error } = await admin.from("filiacao_vinculos").insert({
-        filiado_id: filiadoId,
-        fonte_pagadora_id: fonteId,
-        matricula: p.matriculaFonte,
-        condicao_na_fonte: condicaoNaFonte,
-        emp_proprietaria_id: emp,
-      })
-      if (error) erros.push({ nome: p.nome, motivo: `Cadastrado, mas o vínculo falhou: ${error.message}` })
-    }
+    if (r.aviso) erros.push({ nome: p.nome, motivo: r.aviso })
+    if (r.criado) criados++
+    else reaproveitados++
+    const filiadoId = r.filiadoId
 
     const { error: erroLiga } = await admin
       .from("filiacao_recebe")
