@@ -2,11 +2,13 @@ import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/render
 
 import type { CertificacaoPDF } from "@/lib/db/minuta-assinatura"
 import { formatarCnpjCpf, formatarData } from "@/lib/formato"
+import { somarDiasISO } from "@/lib/periodo-dias"
 
 /**
  * Aviso de Férias (CLT art. 135) — a comunicação por escrito ao empregado,
- * com a ciência dele (só ele assina; a entidade emissora fica no cabeçalho). Assinado eletronicamente pelo link, ganha a página de
- * certificado com a trilha da assinatura.
+ * com a ciência dele (só ele assina; a entidade emissora fica no cabeçalho).
+ * Assinado eletronicamente pelo link, ganha a página de certificado com a
+ * trilha da assinatura.
  */
 
 export type DadosAvisoFerias = {
@@ -20,16 +22,29 @@ export type DadosAvisoFerias = {
 const CM = 28.35
 
 const s = StyleSheet.create({
-  page: { paddingTop: CM * 1.2, paddingHorizontal: CM * 1.5, paddingBottom: CM, fontSize: 10.5, fontFamily: "Helvetica", color: "#111827" },
-  org: { textAlign: "center", fontSize: 11, fontFamily: "Helvetica-Bold" },
-  orgSub: { textAlign: "center", fontSize: 9, color: "#444444", marginBottom: 22 },
-  titulo: { textAlign: "center", fontSize: 14, fontFamily: "Helvetica-Bold", marginBottom: 18 },
-  bloco: { marginBottom: 12 },
-  blocoTitulo: { fontFamily: "Helvetica-Bold", backgroundColor: "#eef1f6", padding: 4, marginBottom: 6, fontSize: 10 },
-  linha: { marginBottom: 3, lineHeight: 1.3 },
-  rotulo: { fontFamily: "Helvetica-Bold" },
-  texto: { lineHeight: 1.5, textAlign: "justify", marginBottom: 10 },
-  dataLocal: { marginTop: 18 },
+  page: { paddingTop: CM * 1.4, paddingHorizontal: CM * 1.8, paddingBottom: CM * 1.4, fontSize: 10.5, fontFamily: "Helvetica", color: "#111827" },
+  cabecalho: { borderBottomWidth: 1, borderBottomColor: "#d1d5db", paddingBottom: 10, marginBottom: 16 },
+  org: { textAlign: "center", fontSize: 12, fontFamily: "Helvetica-Bold" },
+  orgSub: { textAlign: "center", fontSize: 9, color: "#4b5563", marginTop: 2 },
+  titulo: { textAlign: "center", fontSize: 15, fontFamily: "Helvetica-Bold", letterSpacing: 1, marginBottom: 16 },
+  // As datas que o funcionário procura, em destaque no alto.
+  datas: { flexDirection: "row", gap: 8, marginBottom: 18 },
+  data: { flex: 1, borderWidth: 1, borderColor: "#d1d5db", borderRadius: 4, paddingVertical: 8, paddingHorizontal: 6, alignItems: "center" },
+  dataDestaque: { backgroundColor: "#eef1f6", borderColor: "#9ca3af" },
+  dataRotulo: { fontSize: 7.5, color: "#4b5563", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 3 },
+  dataValor: { fontSize: 13, fontFamily: "Helvetica-Bold" },
+  dataNota: { fontSize: 7.5, color: "#4b5563", marginTop: 2 },
+  bloco: { marginBottom: 14 },
+  blocoTitulo: { fontFamily: "Helvetica-Bold", backgroundColor: "#eef1f6", paddingVertical: 4, paddingHorizontal: 6, marginBottom: 7, fontSize: 9.5 },
+  grade: { flexDirection: "row", flexWrap: "wrap" },
+  campo: { width: "50%", paddingHorizontal: 6, marginBottom: 7 },
+  campoLargo: { width: "100%", paddingHorizontal: 6, marginBottom: 7 },
+  campoRotulo: { fontSize: 8, color: "#4b5563", marginBottom: 1.5 },
+  texto: { fontSize: 10.5, lineHeight: 1.45, textAlign: "justify", marginBottom: 8, paddingHorizontal: 6 },
+  item: { flexDirection: "row", marginBottom: 4, paddingHorizontal: 6 },
+  marcador: { width: 10 },
+  itemTexto: { flex: 1, lineHeight: 1.35, fontSize: 9.5 },
+  dataLocal: { marginTop: 10 },
   assinaturas: { marginTop: 44, flexDirection: "row", justifyContent: "center" },
   assinatura: { width: "60%", alignItems: "center" },
   assinaturaLinha: { borderTopWidth: 1, borderTopColor: "#111827", alignSelf: "stretch", marginBottom: 4 },
@@ -55,6 +70,25 @@ function porExtenso(iso?: string | null): string {
   return `${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`
 }
 
+function Data({ rotulo, valor, nota, destaque = false }: { rotulo: string; valor: string; nota?: string; destaque?: boolean }) {
+  return (
+    <View style={destaque ? [s.data, s.dataDestaque] : s.data}>
+      <Text style={s.dataRotulo}>{rotulo}</Text>
+      <Text style={s.dataValor}>{valor}</Text>
+      {nota ? <Text style={s.dataNota}>{nota}</Text> : null}
+    </View>
+  )
+}
+
+function Campo({ rotulo, valor, largo = false }: { rotulo: string; valor: string; largo?: boolean }) {
+  return (
+    <View style={largo ? s.campoLargo : s.campo}>
+      <Text style={s.campoRotulo}>{rotulo}</Text>
+      <Text>{valor}</Text>
+    </View>
+  )
+}
+
 export function AvisoFeriasPDF({
   dados,
   organizacao,
@@ -69,79 +103,64 @@ export function AvisoFeriasPDF({
 }) {
   const { funcionario: f, aquisitivo, gozo } = dados
   const assinado = certificacao?.concluida ? certificacao.assinantes[0] : null
+  const pagamentoAte = somarDiasISO(gozo.inicio, -2)
   return (
     <Document>
       <Page size="A4" style={s.page}>
-        <Text style={s.org}>{organizacao.nome}</Text>
-        <Text style={s.orgSub}>{organizacao.cnpj ? `CNPJ ${formatarCnpjCpf(organizacao.cnpj)}` : " "}</Text>
+        <View style={s.cabecalho}>
+          <Text style={s.org}>{organizacao.nome}</Text>
+          {organizacao.cnpj ? <Text style={s.orgSub}>CNPJ {formatarCnpjCpf(organizacao.cnpj)}</Text> : null}
+        </View>
 
         <Text style={s.titulo}>AVISO DE FÉRIAS</Text>
 
+        <View style={s.datas}>
+          <Data rotulo="Início das férias" valor={formatarData(gozo.inicio)} destaque />
+          <Data rotulo="Último dia" valor={formatarData(gozo.termino)} nota={`${gozo.dias} dias corridos`} />
+          <Data rotulo="Retorno ao trabalho" valor={formatarData(gozo.retorno)} destaque />
+          <Data rotulo="Pagamento até" valor={formatarData(pagamentoAte)} nota="férias + 1/3 (art. 145)" />
+        </View>
+
         <View style={s.bloco}>
           <Text style={s.blocoTitulo}>Empregado(a)</Text>
-          <Text style={s.linha}>
-            <Text style={s.rotulo}>Nome: </Text>
-            {f.nome}
-          </Text>
-          {f.cpf && (
-            <Text style={s.linha}>
-              <Text style={s.rotulo}>CPF: </Text>
-              {formatarCnpjCpf(f.cpf)}
-            </Text>
-          )}
-          {(f.cargo || f.matricula) && (
-            <Text style={s.linha}>
-              {f.cargo ? (
-                <>
-                  <Text style={s.rotulo}>Cargo: </Text>
-                  {f.cargo}
-                </>
-              ) : null}
-              {f.cargo && f.matricula ? "   " : ""}
-              {f.matricula ? (
-                <>
-                  <Text style={s.rotulo}>Matrícula: </Text>
-                  {f.matricula}
-                </>
-              ) : null}
-            </Text>
-          )}
+          <View style={s.grade}>
+            <Campo rotulo="Nome" valor={f.nome} largo />
+            <Campo rotulo="CPF" valor={f.cpf ? formatarCnpjCpf(f.cpf) : "—"} />
+            <Campo rotulo="Matrícula" valor={f.matricula ?? "—"} />
+            <Campo rotulo="Cargo" valor={f.cargo ?? "—"} largo />
+          </View>
         </View>
 
         <View style={s.bloco}>
           <Text style={s.blocoTitulo}>Férias</Text>
-          <Text style={s.linha}>
-            <Text style={s.rotulo}>Período aquisitivo: </Text>
-            {formatarData(aquisitivo.inicio)} a {formatarData(aquisitivo.termino)}
-          </Text>
-          <Text style={s.linha}>
-            <Text style={s.rotulo}>Período de gozo: </Text>
-            {formatarData(gozo.inicio)} a {formatarData(gozo.termino)} ({gozo.dias} dias corridos)
-          </Text>
-          <Text style={s.linha}>
-            <Text style={s.rotulo}>Retorno ao trabalho: </Text>
-            {formatarData(gozo.retorno)}
-          </Text>
-          {dados.abono && (
-            <Text style={s.linha}>
-              <Text style={s.rotulo}>Abono pecuniário: </Text>
-              conversão de 1/3 do período de férias em dinheiro (CLT art. 143)
-            </Text>
-          )}
+          <View style={s.grade}>
+            <Campo rotulo="Período aquisitivo" valor={`${formatarData(aquisitivo.inicio)} a ${formatarData(aquisitivo.termino)}`} />
+            <Campo rotulo="Período de gozo" valor={`${formatarData(gozo.inicio)} a ${formatarData(gozo.termino)} (${gozo.dias} dias)`} />
+            <Campo
+              rotulo="Abono pecuniário"
+              valor={dados.abono ? "Sim — conversão de 1/3 das férias em dinheiro (CLT art. 143)" : "Não"}
+              largo
+            />
+          </View>
         </View>
 
-        <Text style={s.texto}>
-          Nos termos do art. 135 da Consolidação das Leis do Trabalho, comunicamos que suas férias
-          relativas ao período aquisitivo de {formatarData(aquisitivo.inicio)} a{" "}
-          {formatarData(aquisitivo.termino)} serão concedidas de {formatarData(gozo.inicio)} a{" "}
-          {formatarData(gozo.termino)}, num total de {gozo.dias} dias corridos, devendo V. Sa. reassumir
-          suas funções em {formatarData(gozo.retorno)}.
-        </Text>
-        <Text style={s.texto}>
-          A remuneração das férias, acrescida do terço constitucional
-          {dados.abono ? " e do abono pecuniário" : ""}, será paga até 2 (dois) dias antes do início do
-          período de gozo (CLT art. 145).
-        </Text>
+        <View style={s.bloco}>
+          <Text style={s.blocoTitulo}>Comunicação</Text>
+          {/* Uma string só: em pedaços, o @react-pdf dobra o entrelinha. */}
+          <Text style={s.texto}>
+            {`Nos termos do art. 135 da Consolidação das Leis do Trabalho, comunicamos que suas férias relativas ao período aquisitivo de ${formatarData(aquisitivo.inicio)} a ${formatarData(aquisitivo.termino)} serão concedidas de ${formatarData(gozo.inicio)} a ${formatarData(gozo.termino)}, num total de ${gozo.dias} dias corridos, devendo V. Sa. reassumir suas funções em ${formatarData(gozo.retorno)}.`}
+          </Text>
+          {[
+            `A remuneração das férias, acrescida do terço constitucional${dados.abono ? " e do abono pecuniário" : ""}, será paga até ${formatarData(pagamentoAte)}, 2 (dois) dias antes do início do gozo (CLT art. 145).`,
+            "Férias são período de descanso: nesses dias não há prestação de serviço à entidade.",
+            "Havendo divergência nas datas, comunique o departamento de pessoal antes de assinar.",
+          ].map((t, i) => (
+            <View key={i} style={s.item}>
+              <Text style={s.marcador}>•</Text>
+              <Text style={s.itemTexto}>{t}</Text>
+            </View>
+          ))}
+        </View>
 
         <Text style={s.dataLocal}>
           {organizacao.cidade ? `${organizacao.cidade}, ` : ""}
@@ -150,7 +169,7 @@ export function AvisoFeriasPDF({
 
         {/* Só o empregado assina: o art. 135 pede a comunicação por escrito e o
             recibo dele; o empregador fica identificado no cabeçalho. */}
-        <View style={s.assinaturas}>
+        <View style={s.assinaturas} wrap={false}>
           <View style={s.assinatura}>
             {assinado ? (
               <Text style={[s.assinaturaSub, { marginBottom: 4 }]}>
