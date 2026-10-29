@@ -333,6 +333,25 @@ pedido formal ao fornecedor. No quadro do fornecimento, na página do processo:
   Fornecedores**.
 </Aviso>
 
+## Comprovante de pagamento para o fornecedor
+
+<RequerPermissao>Operar compras, Comprador ou Compra direta (para enviar)</RequerPermissao>
+
+Quando o Financeiro anexa o **comprovante** à ordem de pagamento, a página do
+processo mostra o comprovante na própria linha do pagamento, na coluna
+**Pagamento** do fornecimento:
+
+- **Comprovante de pagamento** abre o arquivo anexado à ordem.
+- **Enviar ao fornecedor** funciona como o envio da ordem de compra: o e-mail
+  sai com o comprovante **anexo**. Os destinatários são os mesmos **contatos
+  marcados para receber a ordem de compra**. A mensagem é opcional. Sem nenhum
+  contato marcado, o botão fica desabilitado, com o link para cadastrar o
+  contato na ficha do fornecedor.
+- Depois do envio, a linha mostra para quem e quando o comprovante foi
+  enviado. O envio também fica registrado na **trilha** da ordem de pagamento.
+
+Ordem ainda sem comprovante não mostra nem o link nem o botão.
+
 ## RPA de compra de serviço
 
 <RequerPermissao>Operar compras, Comprador ou Compra direta</RequerPermissao>

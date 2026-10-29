@@ -33,6 +33,7 @@ import { compraDoRpa, rpasDosFornecimentos } from "@/lib/db/compras-rpa"
 import { custosDosRpas } from "@/lib/db/rpa-retencoes"
 import { rpasComLinkPendente } from "@/lib/db/rpa-assinatura"
 import { situacaoOrdensCompra } from "@/lib/db/ordem-compra"
+import { comprovantesDasOrdens, type ComprovanteDaOrdem } from "@/lib/db/comprovante-fornecedor"
 import { edicaoDaCompra } from "@/lib/db/compras-edicao"
 import { listarCartoes, nomeCartao } from "@/lib/db/compras-pagamento"
 import { contasAbertasParaCompras } from "@/lib/db/caixa"
@@ -48,6 +49,7 @@ import {
 import { NotaFiscalIcone, NovoCodigoPix } from "./ajustes-pagamento"
 import { OrdemCompraAcoes } from "./ordem-compra"
 import { CustoDoRpa } from "./custo-rpa"
+import { ComprovanteAcoes } from "./comprovante-envio"
 import { AnexarNotaMarketplace, VincularVendedor } from "./marketplace-nota"
 import { AnexarRpaAssinadoBotao } from "../rpa/rpa-forms"
 
@@ -86,10 +88,13 @@ function LinhaOrdem({
   processoId,
   podeAjustar,
   mostrarNota = true,
+  comprovante,
 }: {
   ordem: OrdemDoProcesso & { notaUrl?: string | null }
   processoId: string
   podeAjustar: boolean
+  /** Comprovante anexado à ordem paga: link e envio ao fornecedor. */
+  comprovante?: ComprovanteDaOrdem
   /** No fornecimento a nota da compra já aparece acima; aqui só se for outra. */
   mostrarNota?: boolean
 }) {
@@ -153,6 +158,17 @@ function LinhaOrdem({
           </span>
         )}
       </div>
+      {comprovante && (
+        <ComprovanteAcoes
+          processoId={processoId}
+          ordemId={ordem.id}
+          url={comprovante.url}
+          fornecedorId={comprovante.fornecedorId}
+          destinatarios={comprovante.destinatarios}
+          enviado={comprovante.enviado}
+          podeEnviar={podeAjustar}
+        />
+      )}
     </div>
   )
 }
@@ -315,6 +331,11 @@ export default async function ProcessoCompraPage({
       if (c && !c.impedimento) emitirRpa.add(f.id)
     }
   }
+  // Comprovante de pagamento de cada ordem (link e envio ao fornecedor).
+  const comprovantes = await comprovantesDasOrdens(processo.id, [
+    ...fornecimentosBase.flatMap((f) => f.pagamentos.map((o) => o.id)),
+    ...ordensAvulsas.map((o) => o.id),
+  ])
   const avulsasComUrl = await Promise.all(
     ordensAvulsas.map(async (o) => ({
       ...o,
@@ -878,6 +899,7 @@ export default async function ProcessoCompraPage({
                               processoId={processo.id}
                               podeAjustar={podeAjustar}
                               mostrarNota={o.notaFiscal !== f.nota_fiscal_url}
+                              comprovante={comprovantes.get(o.id)}
                             />
                           </div>
                         ))}
@@ -924,7 +946,13 @@ export default async function ProcessoCompraPage({
                 Cobranças do processo
               </p>
               {avulsasComUrl.map((o) => (
-                <LinhaOrdem key={o.id} ordem={o} processoId={processo.id} podeAjustar={podeAjustar} />
+                <LinhaOrdem
+                  key={o.id}
+                  ordem={o}
+                  processoId={processo.id}
+                  podeAjustar={podeAjustar}
+                  comprovante={comprovantes.get(o.id)}
+                />
               ))}
             </div>
           )}

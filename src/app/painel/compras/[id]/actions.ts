@@ -37,6 +37,7 @@ import { compraNoEscopo, escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
 import { trocarCodigoPix, trocarNotaDaCompra, trocarNotaDaOrdem } from "@/lib/db/compras-ajustes"
 import { receberNotaMarketplace, vincularVendedor } from "@/lib/db/compras-marketplace"
 import { enviarOrdemCompra } from "@/lib/db/ordem-compra"
+import { enviarComprovanteAoFornecedor } from "@/lib/db/comprovante-fornecedor"
 import { podeAcessar } from "@/lib/permissoes"
 import { parseValorBR } from "@/lib/valores"
 
@@ -464,4 +465,21 @@ export async function enviarOrdemCompraAction(_prev: EstadoForm, formData: FormD
   if (erro) return { erro }
   revalidarProcesso(processoId)
   return { ok: "Ordem de compra enviada ao fornecedor." }
+}
+
+/** Comprovante de pagamento da ordem ao fornecedor (anexo), como a ordem de compra. */
+export async function enviarComprovanteAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const sessao = await requireAjustePagamento(formData)
+  const processoId = texto(formData, "processo_id")
+  const ordemId = texto(formData, "ordem_id")
+  if (!processoId || !ordemId) return { erro: "Ordem inválida." }
+  const { erro } = await enviarComprovanteAoFornecedor(
+    processoId,
+    ordemId,
+    { email: texto(formData, "email"), mensagem: texto(formData, "mensagem") || null },
+    sessao.usuario.id
+  )
+  if (erro) return { erro }
+  revalidarProcesso(processoId)
+  return { ok: "Comprovante enviado ao fornecedor." }
 }

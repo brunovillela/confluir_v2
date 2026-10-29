@@ -190,7 +190,7 @@ export type DestinatarioOrdemCompra = { nome: string; email: string }
  * a ordem não é enviada. Antes de supabase/fornecedores-contatos-ordem-compra.sql,
  * vale qualquer contato com e-mail.
  */
-async function destinatariosPorFornecedor(fornIds: string[]): Promise<Map<string, DestinatarioOrdemCompra[]>> {
+export async function destinatariosPorFornecedor(fornIds: string[]): Promise<Map<string, DestinatarioOrdemCompra[]>> {
   const mapa = new Map<string, DestinatarioOrdemCompra[]>()
   if (!fornIds.length) return mapa
   const admin = await createAdminClient()
