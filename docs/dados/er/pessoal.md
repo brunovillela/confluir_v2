@@ -256,6 +256,20 @@ erDiagram
     uuid titular_id FK
     uuid dependente_id FK
   }
+  pessoal_ponto_importacao_itens {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid importacao_id FK
+    uuid funcionario_id FK
+    uuid registro_id FK
+    uuid aplicado_por FK
+  }
+  pessoal_ponto_importacoes {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid remessa_id FK
+    uuid criado_por FK
+  }
   pessoal_ponto_isencoes {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -394,6 +408,12 @@ erDiagram
   pessoal_nivel_salarial_base }o--o| pessoal_cargo : "cargo_id"
   pessoal_plano_saude }o--o| pessoal_dependentes : "dependente_id"
   pessoal_plano_saude }o--|| usuarios : "titular_id"
+  pessoal_ponto_importacao_itens }o--o| pessoal_registro_ponto : "registro_id"
+  pessoal_ponto_importacao_itens }o--o| usuarios : "aplicado_por"
+  pessoal_ponto_importacao_itens }o--o| usuarios : "funcionario_id"
+  pessoal_ponto_importacao_itens }o--|| pessoal_ponto_importacoes : "importacao_id"
+  pessoal_ponto_importacoes }o--o| usuarios : "criado_por"
+  pessoal_ponto_importacoes }o--|| pessoal_registro_ponto_remessas : "remessa_id"
   pessoal_ponto_isencoes }o--o| usuarios : "encerrado_por"
   pessoal_ponto_isencoes }o--o| usuarios : "registrado_por"
   pessoal_ponto_isencoes }o--|| usuarios : "funcionario_id"

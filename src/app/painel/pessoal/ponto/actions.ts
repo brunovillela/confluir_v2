@@ -9,7 +9,8 @@ import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { depoisDaResposta } from "@/lib/db/avisos"
 import { notificarLiberacaoPessoal, proximaOrdemRemessa } from "@/lib/db/pessoal"
-import { salvarPercentuaisHoraExtra } from "@/lib/db/ponto-config"
+import { salvarPercentuaisHoraExtra, salvarRegrasApuracaoPonto } from "@/lib/db/ponto-config"
+import type { RegrasApuracao } from "@/lib/ponto-apuracao"
 import { lerEspelhoDoRegistro } from "@/lib/db/ponto-marcacoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { duasCasas, lerHoras } from "@/lib/horas"
@@ -398,9 +399,9 @@ export async function excluirRegistroPonto(
   return { ok: "Registro excluído." }
 }
 
-// ── Percentuais das faixas de hora extra da entidade ───────────────────────
+// ── Regras de hora extra da entidade (percentuais e apuração) ──────────────
 
-export async function salvarFaixasHoraExtraAction(
+export async function salvarRegrasHoraExtraAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
@@ -411,11 +412,33 @@ export async function salvarFaixasHoraExtraAction(
   if (![faixa1, faixa2].every((p) => Number.isFinite(p) && p > 0 && p <= 300)) {
     return { erro: "Informe os dois percentuais entre 1 e 300 (ex.: 50 e 100)." }
   }
-  const { erro } = await salvarPercentuaisHoraExtra(faixa1, faixa2)
-  if (erro) return { erro }
+  const tolerancia = ler("tolerancia")
+  if (!Number.isInteger(tolerancia) || tolerancia < 0 || tolerancia > 60) {
+    return { erro: "A tolerância diária vai de 0 a 60 minutos." }
+  }
+  const regras: RegrasApuracao = {
+    faixa2Sabado: formData.get("faixa2_sabado") === "on",
+    faixa2Domingo: formData.get("faixa2_domingo") === "on",
+    faixa2Feriado: formData.get("faixa2_feriado") === "on",
+    negativas: formData.get("negativas") === "faixa1_depois_faixa2" ? "faixa1_depois_faixa2" : "faixa1",
+    toleranciaDiariaMin: tolerancia,
+    ocorrenciasAbonam: [
+      ...new Set(
+        String(formData.get("abonam") ?? "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      ),
+    ],
+    mesSemBatidas: formData.get("mes_sem_batidas") === "lancar" ? "lancar" : "alertar",
+  }
+  const p = await salvarPercentuaisHoraExtra(faixa1, faixa2)
+  if (p.erro) return { erro: p.erro }
+  const r = await salvarRegrasApuracaoPonto(regras)
+  if (r.erro) return { erro: r.erro }
   revalidatePath("/painel/pessoal", "layout")
   revalidatePath("/painel/perfil/ponto")
-  return { ok: "Percentuais salvos." }
+  return { ok: "Regras salvas. Valem para as próximas apurações; importações já lidas podem ser reapuradas." }
 }
 
 // ── Isenção de registro de ponto ────────────────────────────────────────────

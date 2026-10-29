@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, BarChart3, Download, ExternalLink, Pencil, Plus } from "lucide-react"
+import { ArrowLeft, BarChart3, Download, ExternalLink, FileUp, Pencil, Plus } from "lucide-react"
 
 import { TileIndicador } from "@/components/graficos/tile"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
@@ -164,6 +164,14 @@ export default async function RemessaPontoPage({
                   <Link href={`/painel/pessoal/ponto/${id}?novo=1`}>
                     <Plus />
                     Novo registro
+                  </Link>
+                </Button>
+              )}
+              {!bloqueada && !naAnalise && (
+                <Button variant="outline" asChild>
+                  <Link href={`/painel/pessoal/ponto/${id}/importar`}>
+                    <FileUp />
+                    Importar relatório
                   </Link>
                 </Button>
               )}

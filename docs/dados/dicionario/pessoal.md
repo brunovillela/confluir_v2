@@ -2,7 +2,7 @@
 
 # Pessoal (RH da entidade)
 
-52 tabelas. Diagrama: [er/pessoal.md](../er/pessoal.md).
+54 tabelas. Diagrama: [er/pessoal.md](../er/pessoal.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -48,6 +48,8 @@
 | [pessoal_nivel_salarial](#pessoal_nivel_salarial) | financeiro, trabalhista | Lançamento de nível salarial de um funcionário (nível atual e próximo, tipo de avanço: automático, mérito, ajuste, inicial). Espelho do Bubb… |
 | [pessoal_nivel_salarial_base](#pessoal_nivel_salarial_base) | — | Tabela salarial: cargo x nível vertical x horizontal x carreira, com o salário base. Espelho do Bubble; cadastrada em Pessoal > Níveis. |
 | [pessoal_plano_saude](#pessoal_plano_saude) | **sensível: saúde**, identificação, trabalhista | Beneficiário do plano de saúde vinculado a um funcionário titular (dependente, aposentado). Espelho do Bubble. Sem uso encontrado no código … |
+| [pessoal_ponto_importacao_itens](#pessoal_ponto_importacao_itens) | identificação, trabalhista | Um funcionário de um relatório de ponto importado: as páginas dele, a leitura da IA, a apuração pelas batidas e a situação até virar o regis… |
+| [pessoal_ponto_importacoes](#pessoal_ponto_importacoes) | identificação, trabalhista | Relatório de ponto (PDF do relógio, um ou vários funcionários) enviado a uma remessa para apurar as horas pelas batidas (src/lib/db/ponto-im… |
 | [pessoal_ponto_isencoes](#pessoal_ponto_isencoes) | identificação, trabalhista | Isenções de registro de ponto: funcionário, período e justificativa; quem está isento no mês da remessa não aparece como pendente (src/lib/d… |
 | [pessoal_ponto_resenhas](#pessoal_ponto_resenhas) | trabalhista, identificação | Resenhas redigidas por IA sobre o controle de ponto (riscos trabalhistas, quem acompanhar), por remessa, ano ou departamento. |
 | [pessoal_reembolsos_act](#pessoal_reembolsos_act) | financeiro, **sensível: saúde** | Pedido de reembolso previsto no ACT feito por um funcionário (tipo, valores, comprovante, avaliação, pagamento). Parte migrada do Bubble; gr… |
@@ -942,6 +944,15 @@ Configuração do movimento da folha para a contabilidade, uma linha por entidad
 | `created_at` | timestamp with time zone | não | `now()` |  |  | Criação do registro. |
 | `he_faixa1_percentual` | numeric(5,2) | não | `50` |  |  | Percentual da faixa 1 de hora extra (colunas *_70 de pessoal_registro_ponto); padrão 50%, o mínimo da CLT. |
 | `he_faixa2_percentual` | numeric(5,2) | não | `100` |  |  | Percentual da faixa 2 de hora extra (colunas *_100 de pessoal_registro_ponto: domingos, feriados e folgas); padrão 100%. |
+| `he_faixa2_sabado` | boolean | não | `true` |  |  | Apuração do ponto: horas a mais no sábado vão para a faixa 2 (senão, faixa 1). |
+| `he_faixa2_domingo` | boolean | não | `true` |  |  | Apuração do ponto: horas a mais no domingo vão para a faixa 2. |
+| `he_faixa2_feriado` | boolean | não | `true` |  |  | Apuração do ponto: horas a mais em feriado vão para a faixa 2. |
+| `he_negativas` | text | não | `'faixa1'::text` |  |  | Apuração do ponto: horas negativas descontam só da faixa 1 (faixa1, pode ficar negativa) ou da faixa 1 até zerar e o resto da faixa 2 (faixa1_depois_faixa2). |
+| `he_tolerancia_diaria_min` | integer | não | `10` |  |  | Apuração do ponto: diferença diária até estes minutos não conta, nem a mais nem a menos (CLT art. 58, § 1º: até 10). |
+| `he_ocorrencias_abonam` | text[] | não | `ARRAY['Feriado'::text, 'Férias'::text, 'Atestado'::text, 'Folga'::text, 'Compensado'::text, 'Recesso'::text, 'DSR'::text, 'Abono'::text, 'Abonado'::text, 'Licença'::text]` |  |  | Apuração do ponto: ocorrências do cartão que abonam o dia (sem jornada prevista nem falta). |
+| `he_mes_sem_batidas` | text | não | `'alertar'::text` |  |  | Apuração do ponto: funcionário sem nenhuma batida no mês — só alertar (alertar) ou lançar o negativo mesmo assim (lancar). |
+
+Checks: `pessoal_folha_config_he_mes_sem_batidas_check` `CHECK ((he_mes_sem_batidas = ANY (ARRAY['alertar'::text, 'lancar'::text])))`; `pessoal_folha_config_he_negativas_check` `CHECK ((he_negativas = ANY (ARRAY['faixa1'::text, 'faixa1_depois_faixa2'::text])))`; `pessoal_folha_config_he_tolerancia_check` `CHECK (((he_tolerancia_diaria_min >= 0) AND (he_tolerancia_diaria_min <= 60)))`
 
 Índices: `pessoal_folha_config_pkey`
 
@@ -1172,6 +1183,61 @@ Beneficiário do plano de saúde vinculado a um funcionário titular (dependente
 Únicas: `UNIQUE (bubble_id)`
 
 Índices: `pessoal_plano_saude_bubble_id_key`, `pessoal_plano_saude_pkey`
+
+## pessoal_ponto_importacao_itens
+
+Um funcionário de um relatório de ponto importado: as páginas dele, a leitura da IA, a apuração pelas batidas e a situação até virar o registro da remessa.
+
+- **LGPD:** identificação, trabalhista · titulares: funcionários
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  | Identificador do item. |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  | Entidade (tenant). |
+| `importacao_id` | uuid | não |  | → pessoal_ponto_importacoes (**cascade**) |  | Importação a que pertence. |
+| `paginas` | integer[] | não |  |  |  | Páginas do relatório deste funcionário. |
+| `nome_lido` | text | sim |  |  | identificação | Nome lido no relatório. |
+| `cpf_lido` | text | sim |  |  | identificação | CPF lido no relatório. |
+| `funcionario_id` | uuid | sim |  | → usuarios | identificação | Funcionário do cadastro (achado pelo CPF ou pelo nome, ou escolhido). |
+| `arquivo` | text | não |  |  | trabalhista | PDF só com as páginas deste funcionário (bucket pessoal). |
+| `situacao` | text | não | `'pendente'::text` |  |  | pendente (a ler), lido, erro, aplicado (virou registro) ou descartado. |
+| `leitura` | jsonb | sim |  |  | trabalhista | Leitura da IA: batidas e ocorrências de cada dia, jornada prevista por dia da semana e o total do relatório. |
+| `apuracao` | jsonb | sim |  |  | trabalhista | Apuração pelas batidas com as regras da entidade: saldo de cada dia, positivos por faixa, negativos e alertas. |
+| `erro` | text | sim |  |  |  | Motivo da falha na leitura. |
+| `lido_em` | timestamp with time zone | sim |  |  |  | Quando a IA leu. |
+| `registro_id` | uuid | sim |  | → pessoal_registro_ponto (set null) |  | Registro de ponto criado ou atualizado ao aplicar. |
+| `aplicado_em` | timestamp with time zone | sim |  |  |  | Quando foi aplicado à remessa. |
+| `aplicado_por` | uuid | sim |  | → usuarios | identificação | Quem aplicou. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  | Criação do item. |
+
+Checks: `pessoal_ponto_importacao_itens_situacao_check` `CHECK ((situacao = ANY (ARRAY['pendente'::text, 'lido'::text, 'erro'::text, 'aplicado'::text, 'descartado'::text])))`
+
+Índices: `pessoal_ponto_importacao_itens_imp_idx`, `pessoal_ponto_importacao_itens_pkey`
+
+## pessoal_ponto_importacoes
+
+Relatório de ponto (PDF do relógio, um ou vários funcionários) enviado a uma remessa para apurar as horas pelas batidas (src/lib/db/ponto-importacao.ts).
+
+- **LGPD:** identificação, trabalhista · titulares: funcionários
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  | Identificador da importação. |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  | Entidade (tenant). |
+| `remessa_id` | uuid | não |  | → pessoal_registro_ponto_remessas (**cascade**) |  | Remessa de ponto que recebe a importação. |
+| `arquivo` | text | não |  |  | trabalhista | Caminho do PDF original no Storage (bucket pessoal). |
+| `nome_arquivo` | text | sim |  |  |  | Nome do arquivo enviado. |
+| `paginas` | integer | não | `0` |  |  | Número de páginas do relatório. |
+| `periodo_inicio` | date | sim |  |  |  | Início do período impresso no relatório. |
+| `periodo_fim` | date | sim |  |  |  | Fim do período impresso no relatório. |
+| `criado_por` | uuid | sim |  | → usuarios | identificação | Quem enviou o relatório. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  | Envio do relatório. |
+
+Índices: `pessoal_ponto_importacoes_pkey`, `pessoal_ponto_importacoes_remessa_idx`
 
 ## pessoal_ponto_isencoes
 

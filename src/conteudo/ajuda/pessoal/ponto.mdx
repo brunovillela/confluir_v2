@@ -61,16 +61,73 @@ liberado e espelho anexado.
 
 <Print src="pessoal/ponto-remessa.png" alt="Remessa de março com os botões Novo registro, Exportar planilha e Editar remessa, os indicadores de registros, liberados, horas realizadas, horas pagas e saldo remanescente, e a tabela dos registros em horas e minutos." legenda="A remessa: indicadores no alto, formulário fechado até clicar em Novo registro." />
 
-## Faixas de hora extra
+## Regras de hora extra
 
-O ponto separa as horas extras em duas faixas: a **faixa 1**, dos dias úteis,
-e a **faixa 2**, de domingos, feriados e folgas trabalhadas. O percentual de
-cada uma é da entidade — a CLT garante no mínimo 50%, e o acordo coletivo pode
-pagar mais. Ajuste em **Percentuais de hora extra**, no fim da área do Controle
-de ponto (padrão: 50% e 100%). Telas, planilha, movimento da folha e resenha da
-IA passam a mostrar o percentual da entidade; as horas lançadas não mudam.
+O ponto separa as horas extras em duas faixas: a **faixa 1**, das horas extras
+comuns, e a **faixa 2**, de fim de semana e feriado. As regras são da entidade
+e ficam em **Regras de hora extra**, no fim da área do Controle de ponto. Só
+quem cuida do Pessoal altera.
 
-<Print src="pessoal/ponto-faixas.png" alt="Grupo Percentuais de hora extra aberto no fim da área do Controle de ponto, com a faixa 1 (dias úteis) em 50% e a faixa 2 (domingos, feriados e folgas) em 100%." legenda="Os percentuais da entidade: padrão 50% e 100%." />
+| Regra | O que define | Padrão |
+| --- | --- | --- |
+| **Percentuais** | O percentual de cada faixa (a CLT garante no mínimo 50%; o acordo pode pagar mais) | 50% e 100% |
+| **Dias da faixa 2** | Em quais dias as horas a mais vão para a faixa 2: sábado, domingo, feriado | os três |
+| **Horas negativas** | Atrasos, saídas antecipadas e faltas descontam só da faixa 1 (que pode ficar negativa) ou da faixa 1 até zerar e o resto da faixa 2 | só da faixa 1 |
+| **Tolerância diária** | Diferença do dia até esse limite não conta, nem a mais nem a menos (CLT art. 58, § 1º: até 10 min) | 10 min |
+| **Ocorrências que abonam** | Palavras do cartão que abonam o dia, sem jornada a cumprir (Feriado, Férias, Atestado, Folga, Abono…). "Falta" não abona | a lista do sistema |
+| **Mês sem batidas** | Funcionário sem nenhuma batida no mês: só alertar (afastamento, férias, isenção) ou lançar o negativo | só alertar |
+
+Telas, planilha, movimento da folha e resenha da IA mostram o percentual da
+entidade. Mudar as regras vale para as próximas apurações: as horas já lançadas
+não mudam.
+
+<Print src="pessoal/ponto-faixas.png" alt="Grupo Regras de hora extra aberto no fim da área do Controle de ponto: percentuais das faixas 1 e 2, dias da faixa 2 (sábado, domingo, feriado), como descontar as horas negativas, tolerância diária, ocorrências que abonam o dia e o que fazer com mês sem batidas." legenda="As regras de hora extra da entidade." />
+
+## Importar o relatório do relógio
+
+Em vez de digitar as horas de cada um, dá para importar o **cartão ponto** do
+relógio (Secullum e similares), em PDF: com **todos** os funcionários, com
+**alguns** ou com **um só**. Na remessa, clique em **Importar relatório**.
+
+<PassoAPasso>
+  <Passo titulo="Envie o PDF">
+    O sistema separa as páginas por funcionário, pelo **CPF** ou pelo **nome**
+    do cadastro, e confere o período do relatório com o mês da remessa. O PDF
+    precisa ter texto (gerado pelo relógio, não escaneado), até 4 MB.
+  </Passo>
+  <Passo titulo="A IA lê as batidas">
+    Para cada funcionário, a IA transcreve a jornada prevista (o quadro HORÁRIO
+    DE TRABALHO), as batidas e as ocorrências de cada dia. A leitura começa
+    sozinha e vai em lotes.
+  </Passo>
+  <Passo titulo="As horas são apuradas pelas batidas">
+    Para cada dia, o saldo é o tempo trabalhado entre as batidas menos a
+    jornada prevista. Os positivos vão para a faixa 1 ou 2 conforme o dia, e os
+    negativos descontam conforme as regras da entidade. **Os totais impressos
+    pelo relógio não são usados**: eles aparecem na coluna "Relatório" só para
+    conferência, e a diferença vira alerta.
+  </Passo>
+  <Passo titulo="Confira e aplique">
+    Em cada linha você vê o funcionário (escolha-o se não foi achado), as horas
+    a mais de cada faixa, as negativas, o resultado (**Realiz.**) e os
+    alertas. **Dias** abre o mês dia a dia, com batidas, previsto, trabalhado e
+    saldo. Marque quem vai e clique em **Aplicar à remessa**.
+  </Passo>
+</PassoAPasso>
+
+Ao aplicar, cada funcionário ganha (ou tem atualizado) o registro da remessa:
+as **horas realizadas** das duas faixas, o **cartão dele** como espelho e as
+marcações para os indicadores. O saldo da remessa anterior e as horas pagas
+ficam como estavam, e o saldo remanescente é refeito. As horas pagas continuam
+com você.
+
+- **Não entram:** quem está isento de ponto no mês, quem não tem nenhuma batida
+  (se a regra for só alertar) e quem não foi identificado.
+- **Alertas:** dia com número ímpar de batidas (marcação incompleta), cartão
+  sem jornada prevista e total do relógio diferente do apurado.
+- **Batida repetida em seguida** (toque duplo no relógio) conta uma vez só.
+- **Regras mudadas depois da leitura:** **Reapurar com as regras atuais** refaz
+  a conta sem ler de novo.
 
 <Aviso tipo="nota" titulo="Horas e minutos na tela, decimal na contabilidade">
   O sistema mostra as horas em horas e minutos, mas guarda em decimal (10:30 =

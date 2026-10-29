@@ -234,7 +234,8 @@ const SHOTS_RODADA_21 = [
   // demo como estão: março sem remessa anterior, saldos zerados).
   ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001", "pessoal/ponto-remessa.png", { esperar: "Horas pagas no mês", altura: 1250 }],
   ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001?editar=d7c7e57f-4ec9-4ea7-970f-7e40d7d77e31", "pessoal/ponto-registro-form.png", { esperar: "Saldo remanescente", altura: 900 }],
-  ["/painel/pessoal/ponto", "pessoal/ponto-faixas.png", { esperar: "Percentuais de hora extra", passos: [{ clicar: 'css=summary:has-text("Percentuais de hora extra")' }, { aguardar: "Salvar percentuais" }], scrollTo: "Percentuais de hora extra", altura: 700 }],
+  // O grupo fica no fim da página: tirar fullPage e recortar as últimas 1440 px (sem a barra lateral, left 540).
+  ["/painel/pessoal/ponto?regras=1", "pessoal/ponto-faixas.png", { esperar: "Salvar regras", fullPage: true }],
   // Pede duas isenções temporárias na demo (uma vigente, uma encerrada), apagadas depois.
   ["/painel/pessoal/ponto?aba=isencoes&nova=1", "pessoal/ponto-isencoes.png", { esperar: "Nova isenção de registro de ponto", scrollTo: "Quem está isento no mês inteiro", altura: 950 }],
   // Pede uma remessa temporária de abril sem registros, Igor isento no mês inteiro e Helena de 01 a 15/04.

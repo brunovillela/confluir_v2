@@ -20,11 +20,11 @@ import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { filtrarFuncionarios, lerFiltrosArea, ordenarPor, paramsDosFiltros } from "@/lib/pessoal-area"
 
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
-import { percentuaisHoraExtra } from "@/lib/db/ponto-config"
+import { percentuaisHoraExtra, regrasApuracaoPonto } from "@/lib/db/ponto-config"
 import { isentosNaCompetencia, listarIsencoesPonto, situacaoIsencao } from "@/lib/db/ponto-isencoes"
 
 import { horas } from "./analise/componentes"
-import { FaixasHoraExtraForm } from "./faixas-form"
+import { RegrasHoraExtraForm } from "./faixas-form"
 import { IsencaoPontoForm } from "./isencoes-form"
 import { TabelaIsencoes } from "./isencoes-tabela"
 import { ListaRemessasPonto } from "./remessas-lista"
@@ -46,12 +46,13 @@ export default async function PontoPage({
   const sp = await searchParams
   const aba = sp.aba === "remessas" || sp.aba === "isencoes" ? sp.aba : "funcionarios"
 
-  const [base, remessas, funcionarios, percentuais, isencoes] = await Promise.all([
+  const [base, remessas, funcionarios, percentuais, isencoes, regras] = await Promise.all([
     carregarBasePonto(),
     listarRemessasPonto(),
     funcionariosDaArea(),
     percentuaisHoraExtra(),
     listarIsencoesPonto(),
+    regrasApuracaoPonto(),
   ])
   const { faixas } = base
   const anos = anosDaBase(base)
@@ -163,13 +164,17 @@ export default async function PontoPage({
         <AbaFuncionarios sp={sp} ano={ano} anos={anos} ind={ind} funcionarios={funcionarios} />
       )}
 
-      <GrupoColapsavel
-        titulo="Percentuais de hora extra"
-        descricao="O percentual de cada faixa na entidade, usado nas telas, na planilha, no movimento da folha e na resenha da IA."
-        resumo={<span className="text-muted-foreground text-sm">{faixas["70"]} e {faixas["100"]}</span>}
-      >
-        <FaixasHoraExtraForm faixa1={percentuais.faixa1} faixa2={percentuais.faixa2} />
-      </GrupoColapsavel>
+      {/* ?regras=1 (links da importação) abre o grupo já expandido. */}
+      <div id="regras-hora-extra" className="scroll-mt-20">
+        <GrupoColapsavel
+          titulo="Regras de hora extra"
+          descricao="Percentual de cada faixa e como as horas do mês são apuradas pelas batidas na importação do relatório de ponto."
+          resumo={<span className="text-muted-foreground text-sm">{faixas["70"]} e {faixas["100"]}</span>}
+          aberto={sp.regras === "1"}
+        >
+          <RegrasHoraExtraForm faixa1={percentuais.faixa1} faixa2={percentuais.faixa2} regras={regras} />
+        </GrupoColapsavel>
+      </div>
     </>
   )
 }
