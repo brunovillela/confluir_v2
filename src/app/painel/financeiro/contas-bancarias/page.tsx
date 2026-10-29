@@ -161,6 +161,9 @@ export default async function ContasBancariasPage({
           {s.total} contas e chaves Pix de fornecedores, filiados e funcionários. Aqui ficam as que pedem atenção antes de virar
           pagamento errado ou recusado pelo banco. Em cada seção vêm primeiro as contas com ordens a pagar (maior valor no topo).
         </p>
+        <Button variant="outline" size="sm" asChild className="mt-3">
+          <Link href="/painel/financeiro/contas-bancarias/alteracoes">Pedidos de funcionários e diretores</Link>
+        </Button>
       </div>
 
       <form method="get" className="flex flex-wrap items-center gap-2">

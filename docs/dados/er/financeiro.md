@@ -90,6 +90,13 @@ erDiagram
     uuid id PK
     uuid centro_custo_id FK
   }
+  financeiro_dados_bancarios_alteracoes {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid usuario_id FK
+    uuid dados_bancarios_id FK
+    uuid decidida_por_usuario_id FK
+  }
   financeiro_despesas {
     uuid id PK
   }
@@ -231,6 +238,9 @@ erDiagram
   financeiro_cartao_faturas }o--|| cartoes : "cartao_id"
   financeiro_config }o--o| centros_de_custo : "centro_custo_caixa_id"
   financeiro_contas_bancarias }o--o| centros_de_custo : "centro_custo_id"
+  financeiro_dados_bancarios_alteracoes }o--o| dados_bancarios : "dados_bancarios_id"
+  financeiro_dados_bancarios_alteracoes }o--o| usuarios : "decidida_por_usuario_id"
+  financeiro_dados_bancarios_alteracoes }o--|| usuarios : "usuario_id"
   financeiro_meses_fechados }o--o| usuarios : "fechado_por_usuario_id"
   financeiro_meses_fechados }o--o| usuarios : "reaberto_por_usuario_id"
   financeiro_orcamentos }o--|| centros_de_custo : "centro_custo_id"

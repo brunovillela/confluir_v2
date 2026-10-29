@@ -67,6 +67,7 @@ export const EVENTOS_TELEGRAM = [
   { chave: "informe", rotulo: "Informe de rendimentos liberado", grupo: "notificacao", acesso: { quadro: "funcionario" } },
   { chave: "reembolso", rotulo: "Reembolso avaliado", grupo: "notificacao", acesso: { quadro: "funcionario" } },
   { chave: "treinamento", rotulo: "Matrícula em treinamento", grupo: "notificacao", acesso: { quadro: "funcionario" } },
+  { chave: "dados_bancarios", rotulo: "Alteração dos seus dados bancários confirmada ou recusada pelo Financeiro", grupo: "notificacao", acesso: { quadro: "funcionario_ou_diretor" } },
   { chave: "pessoal_cancelamento", rotulo: "Férias ou falta cancelada depois de autorizada (quem cuida do Pessoal)", grupo: "notificacao", acesso: { permissoes: ["pessoal_gestao", "pessoal_faltas_justificadas"], coordenador: true } },
   { chave: "pessoal_aviso_ferias", rotulo: "Aviso de férias assinado pelo funcionário (quem cuida do Pessoal)", grupo: "notificacao", acesso: { permissoes: ["pessoal_gestao"], coordenador: true } },
   // Avisos a quem precisa AGIR (onda 2, U2): entram só para quem tem a
@@ -77,6 +78,7 @@ export const EVENTOS_TELEGRAM = [
   { chave: "pendencia_filiacao", rotulo: "Solicitação de filiação ou reembolso jurídico a avaliar", grupo: "pendencia", acesso: { permissoes: ["filiacao_gestao", "juridico_gestao", "juridico_geral"] } },
   { chave: "pendencia_espacos", rotulo: "Pedido de uso de espaço", grupo: "pendencia", acesso: { permissoes: ["espacos", "espacos_gestao"] } },
   { chave: "pendencia_viagens", rotulo: "Pedido de viagem a atender", grupo: "pendencia", acesso: { permissoes: ["viagens_gestao"] } },
+  { chave: "pendencia_dados_bancarios", rotulo: "Conta bancária incluída, alterada ou excluída por funcionário/diretor a confirmar", grupo: "pendencia", acesso: { permissoes: ["financeiro_pagamento"] } },
   { chave: "pendencia_recebimentos", rotulo: "Fornecimento a receber", grupo: "pendencia", acesso: { permissoes: ["aquisicoes_recebimentos", "aquisicoes_compras_edicao"] } },
   { chave: "pendencia_caixa", rotulo: "Despesa lançada no seu caixa a reconhecer, despesa sua não reconhecida ou aporte recusado", grupo: "pendencia" },
   { chave: "veiculos_manutencao", rotulo: "Revisão preventiva da frota próxima ou vencida", grupo: "pendencia", acesso: { permissoes: ["veiculos_gestao"] } },

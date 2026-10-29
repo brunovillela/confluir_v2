@@ -361,6 +361,19 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
     })
   }
 
+  // Contas bancárias que o funcionário/diretor incluiu, alterou ou excluiu no
+  // Meu perfil: só valem depois que quem paga ordens confirma.
+  if (pode("financeiro_pagamento")) {
+    fontes.push({
+      chave: "dados_bancarios_alteracoes",
+      titulo: "Dados bancários a confirmar",
+      descricao: "Contas incluídas, alteradas ou excluídas por funcionários e diretores",
+      href: "/painel/financeiro/contas-bancarias/alteracoes",
+      tabela: "financeiro_dados_bancarios_alteracoes",
+      montar: (q) => head(q).eq("situacao", "aguardando"),
+    })
+  }
+
   // Tributos: guias previstas que vencem em até 7 dias (ou já venceram) sem a
   // guia lançada — o mesmo vermelho da tela. As previstas se completam antes
   // de contar (também no lembrete diário, sem requisição).

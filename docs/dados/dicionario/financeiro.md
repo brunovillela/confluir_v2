@@ -2,7 +2,7 @@
 
 # Financeiro
 
-30 tabelas. Diagrama: [er/financeiro.md](../er/financeiro.md).
+31 tabelas. Diagrama: [er/financeiro.md](../er/financeiro.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -21,6 +21,7 @@
 | [financeiro_cartao_faturas](#financeiro_cartao_faturas) | identificação | Faturas dos cartões de crédito da entidade: as compras pagas com o cartão entram na fatura aberta; no fechamento o Financeiro informa o valo… |
 | [financeiro_config](#financeiro_config) | — | Configurações do Financeiro por tenant: centro de custo do caixa, prazo de estorno e regra de autorização das remessas de diárias. |
 | [financeiro_contas_bancarias](#financeiro_contas_bancarias) | — | Contas bancárias da própria entidade usadas para gerar remessas CNAB de pagamento, com convênio, layout e sequência de remessa. |
+| [financeiro_dados_bancarios_alteracoes](#financeiro_dados_bancarios_alteracoes) | identificação, financeiro | Inclusões, alterações e exclusões de conta bancária pedidas pelo próprio funcionário ou diretor no Meu perfil: só valem depois que o Finance… |
 | [financeiro_despesas](#financeiro_despesas) | financeiro, identificação | Despesas do modelo do Bubble (favorecido, comprovantes). Sem uso encontrado no código (possível legado do Bubble), vazia. |
 | [financeiro_diarias](#financeiro_diarias) | — | Tipos de diária ou reembolso (alimentação, hospedagem, deslocamento) com valor de referência e quem pode lançar. Migrados do Bubble. |
 | [financeiro_meses_fechados](#financeiro_meses_fechados) | identificação | Meses fechados para a contabilidade (pela data do pagamento das ordens). Mês fechado trava a reclassificação do centro de custo, do departam… |
@@ -435,6 +436,34 @@ Contas bancárias da própria entidade usadas para gerar remessas CNAB de pagame
 | `updated_at` | timestamp with time zone | não | `now()` |  |  |  |
 
 Índices: `financeiro_contas_bancarias_emp_idx`, `financeiro_contas_bancarias_pkey`
+
+## financeiro_dados_bancarios_alteracoes
+
+Inclusões, alterações e exclusões de conta bancária pedidas pelo próprio funcionário ou diretor no Meu perfil: só valem depois que o Financeiro confirma (selo "Financeiro ciente"); ficam como histórico.
+
+- **LGPD:** identificação, financeiro · titulares: funcionários e diretores
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  |  |
+| `usuario_id` | uuid | não |  | → usuarios (**cascade**) | identificação | Quem pediu — o dono da conta. |
+| `acao` | text | não |  |  |  | incluir, alterar ou excluir. |
+| `dados_bancarios_id` | uuid | sim |  | → dados_bancarios (set null) |  | A conta alterada ou excluída; na inclusão, a conta criada quando o Financeiro confirma. |
+| `dados` | jsonb | sim |  |  | financeiro | A conta pedida (banco, agência, conta, Pix, titular…), aplicada na confirmação. |
+| `dados_anteriores` | jsonb | sim |  |  | financeiro | Foto da conta antes da alteração ou exclusão, para o Financeiro comparar. |
+| `principal` | boolean | não | `false` |  |  | A pessoa pediu que a conta seja a principal (a usada nos pagamentos). |
+| `situacao` | text | não | `'aguardando'::text` |  |  | aguardando, confirmada (aplicada; selo Financeiro ciente), recusada ou cancelada (pela pessoa). |
+| `motivo` | text | sim |  |  |  | Motivo da recusa, escrito pelo Financeiro. |
+| `decidida_por_usuario_id` | uuid | sim |  | → usuarios (set null) | identificação | Quem do Financeiro confirmou ou recusou. |
+| `decidida_em` | timestamp with time zone | sim |  |  |  | Quando foi confirmada, recusada ou cancelada. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  | Quando foi pedida. |
+
+Checks: `financeiro_dados_bancarios_alteracoes_acao_check` `CHECK ((acao = ANY (ARRAY['incluir'::text, 'alterar'::text, 'excluir'::text])))`; `financeiro_dados_bancarios_alteracoes_dados_check` `CHECK (((acao = 'excluir'::text) OR (dados IS NOT NULL)))`; `financeiro_dados_bancarios_alteracoes_situacao_check` `CHECK ((situacao = ANY (ARRAY['aguardando'::text, 'confirmada'::text, 'recusada'::text, 'cancelada'::text])))`
+
+Índices: `financeiro_dados_bancarios_alteracoes_aguardando_idx`, `financeiro_dados_bancarios_alteracoes_conta_idx`, `financeiro_dados_bancarios_alteracoes_pkey`, `financeiro_dados_bancarios_alteracoes_uma_por_conta`, `financeiro_dados_bancarios_alteracoes_usuario_idx`
 
 ## financeiro_despesas
 

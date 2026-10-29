@@ -13,6 +13,7 @@ import {
   HandCoins,
   Handshake,
   HeartPulse,
+  Landmark,
   MapPin,
   Phone,
   Plane,
@@ -162,6 +163,12 @@ const SEGURANCA: AreaPerfil = {
   descricao: "Verificação em duas etapas com aplicativo autenticador",
   href: "/conta/seguranca?voltar=/painel/perfil",
   icone: ShieldCheck,
+}
+const DADOS_BANCARIOS: AreaPerfil = {
+  titulo: "Dados bancários",
+  descricao: "Suas contas para pagamentos — cada mudança é confirmada pelo Financeiro",
+  href: "/painel/perfil/dados-bancarios",
+  icone: Landmark,
 }
 const AVISOS: AreaPerfil = {
   titulo: "Avisos e Telegram",
@@ -417,6 +424,14 @@ export default async function PerfilPage({
               descricao={MINHAS_VIAGENS.descricao}
               href={MINHAS_VIAGENS.href}
               icone={MINHAS_VIAGENS.icone}
+            />
+          )}
+          {(perfil.ehFuncionario || diretoria) && (
+            <CartaoArea
+              titulo={DADOS_BANCARIOS.titulo}
+              descricao={DADOS_BANCARIOS.descricao}
+              href={DADOS_BANCARIOS.href}
+              icone={DADOS_BANCARIOS.icone}
             />
           )}
           {remessasAnteriores > 0 && (
