@@ -1,3 +1,4 @@
+import { chaveMatricula } from "@/lib/casamento"
 import { limparCpf, validarCpf } from "@/lib/cpf"
 import { CONDICOES_NA_FONTE, REGIMES_TRABALHO } from "@/lib/filiacao"
 
@@ -132,14 +133,6 @@ export function mesmoValor(campo: string, a: string | null | undefined, b: strin
   }
   if (campo === "matricula" || campo === "fonte_pg_matricula") return chaveMatricula(a) === chaveMatricula(b)
   return chaveComparacao(a) === chaveComparacao(b)
-}
-
-/** Matrícula para casar: só letras e números, sem zeros à esquerda. */
-export function chaveMatricula(v: string | null | undefined): string {
-  return String(v ?? "")
-    .replace(/[^0-9a-z]/gi, "")
-    .replace(/^0+/, "")
-    .toUpperCase()
 }
 
 const MINUSCULAS = new Set(["da", "das", "de", "do", "dos", "e"])

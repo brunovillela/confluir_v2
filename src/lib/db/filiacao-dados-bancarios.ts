@@ -1,8 +1,8 @@
 import "server-only"
 
-import { limparCpf } from "@/lib/cpf"
 import type { EntradaDadosBancarios } from "@/lib/dados-bancarios"
 import { texto } from "@/lib/db/comum"
+import { registrosDoCpf } from "@/lib/db/filiado-portal"
 import { ligarOrdensSemForma } from "@/lib/db/ordens-destino"
 import { avisoRepetida, dadoRepetido } from "@/lib/db/dados-bancarios-repetida"
 import { donosDaPessoa } from "@/lib/db/dados-bancarios-pessoa"
@@ -46,19 +46,8 @@ async function registrosDaPessoa(filiadoId: string): Promise<string[] | null> {
     .eq("emp_proprietaria_id", emp)
     .maybeSingle()
   if (!f) return null
-  const cpf = limparCpf(String(f.cpf ?? ""))
-  if (cpf.length !== 11) return [String(f.id)]
-  const { data: outros } = await admin
-    .from("filiacoes")
-    .select("id, cpf")
-    .eq("emp_proprietaria_id", emp)
-    .ilike("cpf", `%${cpf.slice(-6)}%`)
-  return [
-    ...new Set([
-      String(f.id),
-      ...(outros ?? []).filter((o) => limparCpf(String(o.cpf ?? "")) === cpf).map((o) => String(o.id)),
-    ]),
-  ]
+  // O próprio registro sempre entra (mesmo sem CPF confiável); os outros do CPF, pelo helper comum.
+  return [...new Set([String(f.id), ...(await registrosDoCpf(String(f.cpf ?? "")))])]
 }
 
 export async function listarDadosBancariosFiliado(filiadoId: string): Promise<DadoBancarioFiliado[]> {

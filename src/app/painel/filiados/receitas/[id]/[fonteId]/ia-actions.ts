@@ -1,12 +1,9 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { extractText, getDocumentProxy } from "unpdf"
-import * as XLSX from "xlsx"
 
 import { requirePermissao } from "@/lib/auth"
 import { limparCpf, validarCpf } from "@/lib/cpf"
-import { decodificarCsv } from "@/lib/csv"
 import { grupoParaRecebimento } from "@/lib/db/grupos-empresariais"
 import { regrasFiliacao } from "@/lib/db/organizacao"
 import {
@@ -17,6 +14,8 @@ import {
 } from "@/lib/db/receitas"
 import { formaRecebimento } from "@/lib/filiacao"
 import { gerarJsonIA, gerarJsonIADeImagem, gerarJsonIADePdf } from "@/lib/ia"
+import { imagemNaoSuportada, mimeDeImagem, textoDoArquivo } from "@/lib/ia-arquivo"
+import { emParalelo } from "@/lib/paralelo"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -109,8 +108,7 @@ export async function extrairContribuicoesIa(
     return { erro: "Selecione um arquivo (CSV, TXT, Excel, PDF ou imagem)." }
   }
 
-  const nomeArq = arquivo.name.toLowerCase()
-  const mimeImagem = mimeDeImagem(arquivo.type, nomeArq)
+  const mimeImagem = mimeDeImagem(arquivo.type, arquivo.name)
   if (mimeImagem) {
     // Foto/print da relação → VISÃO direto sobre a imagem.
     if (arquivo.size > 20 * 1024 * 1024) {
@@ -125,41 +123,16 @@ export async function extrairContribuicoesIa(
     })
     return montarPreview(extracao, fonteDb, remessaId, String(formData.get("grupo_id") ?? ""))
   }
-  if (/\.(heic|heif|tiff?|bmp)$/.test(nomeArq)) {
+  if (imagemNaoSuportada(arquivo.name)) {
     return {
       erro: "Formato de imagem não suportado — use JPG, PNG, WebP ou GIF.",
     }
   }
 
-  const ehPdf = arquivo.type === "application/pdf" || nomeArq.endsWith(".pdf")
-  const ehExcel =
-    nomeArq.endsWith(".xlsx") ||
-    nomeArq.endsWith(".xls") ||
-    arquivo.type.includes("spreadsheet") ||
-    arquivo.type.includes("ms-excel")
-  let texto = ""
-  let pdfBuffer: Uint8Array | null = null
-  try {
-    if (ehPdf) {
-      pdfBuffer = new Uint8Array(await arquivo.arrayBuffer())
-      const pdf = await getDocumentProxy(pdfBuffer)
-      const extraido = await extractText(pdf, { mergePages: true })
-      texto = extraido.text.trim()
-    } else if (ehExcel) {
-      const wb = XLSX.read(new Uint8Array(await arquivo.arrayBuffer()), {
-        type: "array",
-      })
-      texto = wb.SheetNames.map((n) => XLSX.utils.sheet_to_csv(wb.Sheets[n]))
-        .join("\n\n")
-        .trim()
-    } else {
-      texto = decodificarCsv(await arquivo.arrayBuffer()).trim()
-    }
-  } catch {
-    // PDF só-imagem pode falhar na extração de texto; se temos o buffer, a
-    // visão ainda tenta. Fora isso, é arquivo mesmo ilegível.
-    if (!ehPdf || !pdfBuffer) return { erro: "Não consegui ler o arquivo." }
-  }
+  // Planilha, CSV/TXT ou PDF digital → texto; PDF escaneado volta sem texto
+  // e com os bytes, para a visão.
+  const { texto, ehPdf, pdf: pdfBuffer, erro: erroLeitura } = await textoDoArquivo(arquivo)
+  if (erroLeitura) return { erro: erroLeitura }
 
   // Digital/planilha → extrai do texto. PDF escaneado (sem texto) → VISÃO
   // nativa do modelo sobre o próprio PDF.
@@ -239,37 +212,6 @@ async function extrairDoTexto(
     }
   }
   return { extracao: { dados: { contribuicoes } }, conferencia: { linhasComValor, avisos } }
-}
-
-/** Roda `tarefa` em cada item, no máximo `limite` ao mesmo tempo, mantendo a ordem. */
-async function emParalelo<T, R>(
-  itens: T[],
-  limite: number,
-  tarefa: (item: T, i: number) => Promise<R>
-): Promise<R[]> {
-  const saida = new Array<R>(itens.length)
-  let proximo = 0
-  await Promise.all(
-    Array.from({ length: Math.min(limite, itens.length) }, async () => {
-      while (proximo < itens.length) {
-        const i = proximo++
-        saida[i] = await tarefa(itens[i], i)
-      }
-    })
-  )
-  return saida
-}
-
-/** jpg/png/webp/gif (pelo tipo ou pela extensão) → mime aceito pela visão. */
-function mimeDeImagem(tipo: string, nomeArq: string): string | null {
-  if (["image/jpeg", "image/png", "image/webp", "image/gif"].includes(tipo)) {
-    return tipo
-  }
-  if (/\.(jpe?g|jfif)$/.test(nomeArq)) return "image/jpeg"
-  if (nomeArq.endsWith(".png")) return "image/png"
-  if (nomeArq.endsWith(".webp")) return "image/webp"
-  if (nomeArq.endsWith(".gif")) return "image/gif"
-  return null
 }
 
 /** Higieniza o JSON da IA e casa cada linha com o filiado (preview). */

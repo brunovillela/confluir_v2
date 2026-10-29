@@ -5,14 +5,13 @@ import { randomUUID } from "node:crypto"
 import {
   type CampoCadastro,
   type CampoVinculo,
-  chaveComparacao,
-  chaveMatricula,
   ESPELHO_FONTE,
   type LinhaLista,
   mesmoValor,
   padronizarLinha,
   ROTULOS_CAMPO,
 } from "@/lib/atualizacao-lista"
+import { chaveMatricula, chaveNome } from "@/lib/casamento"
 import { cpfConfiavel, grafiasDoCpf, limparCpf } from "@/lib/cpf"
 import { lerEmLotes, lerEmLotesPorIds, texto } from "@/lib/db/comum"
 import { invalidarCacheAtivos } from "@/lib/db/filiacao-ativos"
@@ -22,6 +21,7 @@ import { buscarFontePagadora, invalidarCacheFontes } from "@/lib/db/fontes"
 import { invalidarCacheProntuarios } from "@/lib/db/prontuario"
 import { condicaoNaFontePadrao, FILIACAO_CONDICOES } from "@/lib/filiacao"
 import { lerListaTrabalhadores, MAX_LINHAS_LISTA } from "@/lib/ia-lista-trabalhadores"
+import { emParalelo } from "@/lib/paralelo"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -136,16 +136,6 @@ export type Lote = {
   desfeitoEm: string | null
 }
 
-/** Roda `tarefa` em cada item, no máximo `limite` ao mesmo tempo. */
-async function emParalelo<T>(itens: T[], limite: number, tarefa: (item: T) => Promise<void>) {
-  let proximo = 0
-  await Promise.all(
-    Array.from({ length: Math.min(limite, itens.length) }, async () => {
-      while (proximo < itens.length) await tarefa(itens[proximo++])
-    })
-  )
-}
-
 const comoTexto = (v: unknown): string | null =>
   v === null || v === undefined || v === "" ? null : String(v)
 
@@ -212,7 +202,7 @@ async function montarRascunho(entrada: {
         porCpf.set(cpf, c)
       }
     }
-    const nome = chaveComparacao(texto(c.nome_completo))
+    const nome = chaveNome(texto(c.nome_completo))
     if (nome) {
       porNome.set(nome, [
         ...(porNome.get(nome) ?? []),
@@ -226,7 +216,7 @@ async function montarRascunho(entrada: {
    * cadastro com outra data é outra pessoa. Sem nascimento: só nome único.
    */
   const pelaNome = (l: LinhaLista): { id: string; via: Via } | null => {
-    const candidatos = porNome.get(chaveComparacao(l.nome)) ?? []
+    const candidatos = porNome.get(chaveNome(l.nome)) ?? []
     const nasc = l.cadastro.nascimento_data
     if (nasc) {
       const iguais = candidatos.filter((c) => c.nascimento === nasc)

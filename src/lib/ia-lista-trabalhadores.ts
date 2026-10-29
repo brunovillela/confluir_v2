@@ -1,11 +1,9 @@
 import "server-only"
 
-import { extractText, getDocumentProxy } from "unpdf"
-import * as XLSX from "xlsx"
-
 import { CHAVES_LINHA, type LinhaBruta } from "@/lib/atualizacao-lista"
-import { decodificarCsv } from "@/lib/csv"
 import { type EsquemaJsonIA, gerarJsonIA, gerarJsonIADeImagem, gerarJsonIADePdf } from "@/lib/ia"
+import { imagemNaoSuportada, mimeDeImagem, textoDoArquivo } from "@/lib/ia-arquivo"
+import { emParalelo } from "@/lib/paralelo"
 
 /**
  * Leitura por IA de uma lista de trabalhadores (XLSX/XLS, CSV/TXT, PDF com
@@ -65,29 +63,6 @@ export type LeituraLista = {
   linhas?: Partial<LinhaBruta>[]
   avisos?: string[]
   erro?: string
-}
-
-function mimeDeImagem(tipo: string, nome: string): string | null {
-  if (["image/jpeg", "image/png", "image/webp", "image/gif"].includes(tipo)) return tipo
-  if (/\.(jpe?g|jfif)$/.test(nome)) return "image/jpeg"
-  if (nome.endsWith(".png")) return "image/png"
-  if (nome.endsWith(".webp")) return "image/webp"
-  if (nome.endsWith(".gif")) return "image/gif"
-  return null
-}
-
-async function emParalelo<T, R>(itens: T[], limite: number, tarefa: (item: T, i: number) => Promise<R>): Promise<R[]> {
-  const saida = new Array<R>(itens.length)
-  let proximo = 0
-  await Promise.all(
-    Array.from({ length: Math.min(limite, itens.length) }, async () => {
-      while (proximo < itens.length) {
-        const i = proximo++
-        saida[i] = await tarefa(itens[i], i)
-      }
-    })
-  )
-  return saida
 }
 
 const linhasDe = (dados: Record<string, unknown> | undefined) =>
@@ -154,8 +129,7 @@ export type AoAvancar = (lidos: number, total: number) => void
 const MAX_VISAO = 20 * 1024 * 1024
 
 export async function lerListaTrabalhadores(arquivo: File, aoAvancar?: AoAvancar): Promise<LeituraLista> {
-  const nome = arquivo.name.toLowerCase()
-  const imagem = mimeDeImagem(arquivo.type, nome)
+  const imagem = mimeDeImagem(arquivo.type, arquivo.name)
   if (imagem) {
     if (arquivo.size > MAX_VISAO) return { erro: "Imagem grande demais para a leitura — até 20 MB." }
     aoAvancar?.(0, 1)
@@ -168,26 +142,10 @@ export async function lerListaTrabalhadores(arquivo: File, aoAvancar?: AoAvancar
     })
     return r.erro || !r.dados ? { erro: r.erro ?? "Falha na leitura." } : { linhas: linhasDe(r.dados), avisos: [] }
   }
-  if (/\.(heic|heif|tiff?|bmp)$/.test(nome)) return { erro: "Formato de imagem não suportado — use JPG, PNG, WebP ou GIF." }
+  if (imagemNaoSuportada(arquivo.name)) return { erro: "Formato de imagem não suportado — use JPG, PNG, WebP ou GIF." }
 
-  const ehPdf = arquivo.type === "application/pdf" || nome.endsWith(".pdf")
-  const ehPlanilha = /\.(xlsx|xls|ods)$/.test(nome) || arquivo.type.includes("spreadsheet") || arquivo.type.includes("ms-excel")
-  let texto = ""
-  let pdf: Uint8Array | null = null
-  try {
-    if (ehPdf) {
-      pdf = new Uint8Array(await arquivo.arrayBuffer())
-      texto = (await extractText(await getDocumentProxy(pdf), { mergePages: true })).text.trim()
-    } else if (ehPlanilha) {
-      const wb = XLSX.read(new Uint8Array(await arquivo.arrayBuffer()), { type: "array", cellDates: true, dateNF: "yyyy-mm-dd" })
-      texto = wb.SheetNames.map((n) => XLSX.utils.sheet_to_csv(wb.Sheets[n], { dateNF: "yyyy-mm-dd" })).join("\n\n").trim()
-    } else {
-      texto = decodificarCsv(await arquivo.arrayBuffer()).trim()
-    }
-  } catch {
-    // PDF só-imagem pode falhar na extração de texto: a visão ainda tenta.
-    if (!ehPdf || !pdf) return { erro: "Não consegui ler o arquivo." }
-  }
+  const { texto, ehPdf, pdf, erro } = await textoDoArquivo(arquivo)
+  if (erro) return { erro }
 
   if (texto.length >= 20) return lerTexto(texto, !ehPdf, aoAvancar)
   if (ehPdf && pdf) {

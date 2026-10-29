@@ -7,6 +7,7 @@ import {
   listarFontesPagadoras,
   nomesDeEmpresas,
 } from "@/lib/db/fontes"
+import { chaveMatricula, chaveNome } from "@/lib/casamento"
 import { limparCpf } from "@/lib/cpf"
 import { type FormaRecebimento, formaRecebimento } from "@/lib/filiacao"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -527,16 +528,6 @@ export async function indicadoresAnuais(
   }
 }
 
-/** Normaliza nome p/ casar: sem acento, maiúsculo, espaços colapsados. */
-function normalizarNome(s: string | null | undefined): string {
-  return (s ?? "")
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toUpperCase()
-    .replace(/\s+/g, " ")
-    .trim()
-}
-
 export type ViaCasamento = "cpf" | "matricula" | "nome" | null
 export type ResolucaoFiliado = { filiadoId: string | null; via: ViaCasamento }
 
@@ -572,7 +563,7 @@ export async function resolverFiliadosLoteDetalhado(
     // O legado tem CPF com e sem máscara; a lista chega só com dígitos.
     const cpf = r.cpf ? limparCpf(r.cpf) : ""
     if (cpf.length === 11 && !porCpf.has(cpf)) porCpf.set(cpf, r.id)
-    const nomeChave = normalizarNome(r.nome_completo)
+    const nomeChave = chaveNome(r.nome_completo)
     if (nomeChave) {
       const existente = porNome.get(nomeChave)
       if (existente === undefined) porNome.set(nomeChave, r.id)
@@ -589,10 +580,9 @@ export async function resolverFiliadosLoteDetalhado(
     vizinhos.filter((l) => l.fonte_pg_id === fonteId && l.filiado_id).map((l) => l.filiado_id as string)
   )
   const candidatosVinculo = new Map<string, Set<string>>()
-  const chaveDe = (matricula: string | null) => (matricula ?? "").replace(/^0+/, "")
   for (const v of vinculos) {
     for (const m of [v.matricula, v.fonte_pg_matricula]) {
-      const chave = chaveDe(m)
+      const chave = chaveMatricula(m)
       if (!chave || !v.filiado_id) continue
       const s = candidatosVinculo.get(chave) ?? new Set<string>()
       s.add(v.filiado_id)
@@ -608,7 +598,7 @@ export async function resolverFiliadosLoteDetalhado(
     else ambiguas.add(chave)
   }
   const aprender = (matricula: string | null, filiadoId: string | null) => {
-    const chave = chaveDe(matricula)
+    const chave = chaveMatricula(matricula)
     if (!chave || !filiadoId || ambiguas.has(chave)) return
     if (!porMatricula.has(chave)) porMatricula.set(chave, filiadoId)
   }
@@ -621,12 +611,12 @@ export async function resolverFiliadosLoteDetalhado(
       return { filiadoId: porCpf.get(item.cpf)!, via: "cpf" as const }
     }
     if (item.matriculaFonte) {
-      const chave = item.matriculaFonte.replace(/^0+/, "")
+      const chave = chaveMatricula(item.matriculaFonte)
       if (chave && porMatricula.has(chave)) {
         return { filiadoId: porMatricula.get(chave)!, via: "matricula" as const }
       }
     }
-    const nomeChave = normalizarNome(item.nome)
+    const nomeChave = chaveNome(item.nome)
     if (nomeChave && !nomesAmbiguos.has(nomeChave) && porNome.has(nomeChave)) {
       return { filiadoId: porNome.get(nomeChave)!, via: "nome" as const }
     }
