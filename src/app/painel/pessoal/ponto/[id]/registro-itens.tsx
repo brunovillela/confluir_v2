@@ -1,8 +1,8 @@
 "use client"
 
-import { useActionState, useState, useTransition } from "react"
+import { useActionState, useRef, useState, useTransition } from "react"
 import Link from "next/link"
-import { Loader2, Trash2 } from "lucide-react"
+import { Calculator, Loader2, Trash2 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,7 @@ import type { FaixasHE } from "@/lib/faixas-he"
 import { decimalHoras, duasCasas, hhmm, lerHoras } from "@/lib/horas"
 
 import {
+  apurarEspelhoAction,
   atualizarRegistroPonto,
   criarRegistroPonto,
   excluirRegistroPonto,
@@ -88,6 +89,27 @@ export function RegistroPontoForm({
   const [funcionarioId, setFuncionarioId] = useState(registro?.funcionario_id ?? "")
   const [campos, setCampos] = useState<Record<Pct, CamposPct>>(() => ({ "70": inicial("70"), "100": inicial("100") }))
   const origem = funcionarioId ? saldosAnteriores[funcionarioId] : undefined
+  const arquivoRef = useRef<HTMLInputElement>(null)
+  const [apurando, iniciarApuracao] = useTransition()
+  const [apuracao, setApuracao] = useState<{ erro?: string; ok?: string; alertas?: string[] }>({})
+
+  // As realizadas saem das batidas do espelho, nunca dos totais do relatório.
+  const apurar = () => {
+    const arquivo = arquivoRef.current?.files?.[0]
+    if (!arquivo) return setApuracao({ erro: "Escolha o espelho de ponto (PDF) primeiro." })
+    const dados = new FormData()
+    dados.set("arquivo", arquivo)
+    setApuracao({})
+    iniciarApuracao(async () => {
+      const r = await apurarEspelhoAction(dados)
+      if ("erro" in r) return setApuracao({ erro: r.erro })
+      setCampos((c) => ({
+        "70": { ...c["70"], realizadas: emHoras(r.faixa1) },
+        "100": { ...c["100"], realizadas: emHoras(r.faixa2) },
+      }))
+      setApuracao({ ok: "Realizadas preenchidas pelas batidas — confira antes de salvar.", alertas: r.alertas })
+    })
+  }
 
   const escolherFuncionario = (id: string) => {
     setFuncionarioId(id)
@@ -165,7 +187,13 @@ export function RegistroPontoForm({
               <Label htmlFor="arquivo">
                 Espelho de ponto (PDF{registro ? " — substitui o atual" : ", opcional"})
               </Label>
-              <Input id="arquivo" name="arquivo" type="file" accept="application/pdf" />
+              <div className="flex gap-2">
+                <Input ref={arquivoRef} id="arquivo" name="arquivo" type="file" accept="application/pdf" />
+                <Button type="button" variant="outline" onClick={apurar} disabled={apurando}>
+                  {apurando ? <Loader2 className="animate-spin" /> : <Calculator />}
+                  Apurar pelas batidas
+                </Button>
+              </div>
             </div>
             <div className="grid content-end pb-1">
               <label className="text-muted-foreground flex items-center gap-2 text-sm">
@@ -177,6 +205,21 @@ export function RegistroPontoForm({
               </label>
             </div>
           </div>
+
+          {(apuracao.erro || apuracao.ok) && (
+            <Alert variant={apuracao.erro ? "destructive" : "default"}>
+              <AlertDescription>
+                {apuracao.erro ?? apuracao.ok}
+                {apuracao.alertas && apuracao.alertas.length > 0 && (
+                  <ul className="mt-1 list-disc pl-4">
+                    {apuracao.alertas.map((a) => (
+                      <li key={a}>{a}</li>
+                    ))}
+                  </ul>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
 
           <p className="text-muted-foreground text-xs">
             Horas e minutos (ex.: 10:30).{" "}

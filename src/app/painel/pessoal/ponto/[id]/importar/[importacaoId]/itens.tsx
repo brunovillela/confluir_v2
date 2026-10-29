@@ -256,7 +256,7 @@ export function ItensImportacao({
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{a ? hm(a.positivosFaixa1Min) : "—"}</TableCell>
                     <TableCell className="text-right tabular-nums">{a ? hm(a.positivosFaixa2Min) : "—"}</TableCell>
-                    <TableCell className="text-right tabular-nums">{a ? `-${hm(a.negativosMin)}` : "—"}</TableCell>
+                    <TableCell className="text-right tabular-nums">{a ? `${a.negativosMin > 0 ? "-" : ""}${hm(a.negativosMin)}` : "—"}</TableCell>
                     <TableCell className="text-right font-medium tabular-nums">{a ? formatarMin(a.realizadasFaixa1Min) : "—"}</TableCell>
                     <TableCell className="text-right font-medium tabular-nums">{a ? formatarMin(a.realizadasFaixa2Min) : "—"}</TableCell>
                     <TableCell className={cn("text-right text-xs tabular-nums", divergente ? "text-warning-fg" : "text-muted-foreground")}>

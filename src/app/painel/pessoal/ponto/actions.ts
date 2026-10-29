@@ -9,8 +9,9 @@ import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { depoisDaResposta } from "@/lib/db/avisos"
 import { notificarLiberacaoPessoal, proximaOrdemRemessa } from "@/lib/db/pessoal"
-import { salvarPercentuaisHoraExtra, salvarRegrasApuracaoPonto } from "@/lib/db/ponto-config"
-import type { RegrasApuracao } from "@/lib/ponto-apuracao"
+import { regrasApuracaoPonto, salvarPercentuaisHoraExtra, salvarRegrasApuracaoPonto } from "@/lib/db/ponto-config"
+import { lerCartaoPdf } from "@/lib/db/ponto-cartao-ia"
+import { apurarMes, type RegrasApuracao } from "@/lib/ponto-apuracao"
 import { lerEspelhoDoRegistro } from "@/lib/db/ponto-marcacoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { duasCasas, lerHoras } from "@/lib/horas"
@@ -545,4 +546,35 @@ export async function excluirIsencaoPonto(
   if (!data?.length) return { erro: "Isenção não encontrada." }
   revalidarIsencoes(data[0].funcionario_id)
   return { ok: "Isenção excluída." }
+}
+
+export type ApuracaoEspelho =
+  | { erro: string }
+  | { faixa1: number; faixa2: number; alertas: string[] }
+
+/**
+ * Apura as horas do mês pelas BATIDAS do espelho escolhido no registro
+ * individual (as mesmas regras da importação do relatório): a IA transcreve
+ * jornada, batidas e ocorrências e o código faz a conta — os totais impressos
+ * no relatório servem só de conferência. Não grava nada; o formulário preenche
+ * as realizadas e o gestor confere antes de salvar.
+ */
+export async function apurarEspelhoAction(formData: FormData): Promise<ApuracaoEspelho> {
+  await exigirGestao()
+  const arquivo = formData.get("arquivo")
+  if (!(arquivo instanceof File) || arquivo.size === 0) return { erro: "Escolha o espelho de ponto (PDF)." }
+  if (arquivo.type !== "application/pdf") return { erro: "O espelho deve ser um PDF." }
+  if (arquivo.size > 4 * 1024 * 1024) return { erro: "O PDF deve ter no máximo 4 MB." }
+  const [{ leitura, erro }, regras] = await Promise.all([
+    lerCartaoPdf(new Uint8Array(await arquivo.arrayBuffer())),
+    regrasApuracaoPonto(),
+  ])
+  if (!leitura) return { erro: erro ?? "Não foi possível ler o espelho." }
+  const a = apurarMes(leitura, regras)
+  if (a.semBatidas) return { erro: "O espelho não tem batidas no mês: informe as horas à mão, se houver." }
+  return {
+    faixa1: duasCasas(a.realizadasFaixa1Min / 60),
+    faixa2: duasCasas(a.realizadasFaixa2Min / 60),
+    alertas: a.alertas,
+  }
 }

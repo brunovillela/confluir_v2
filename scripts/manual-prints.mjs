@@ -235,6 +235,10 @@ const SHOTS_RODADA_21 = [
   ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001", "pessoal/ponto-remessa.png", { esperar: "Horas pagas no mês", altura: 1250 }],
   ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001?editar=d7c7e57f-4ec9-4ea7-970f-7e40d7d77e31", "pessoal/ponto-registro-form.png", { esperar: "Saldo remanescente", altura: 900 }],
   // O grupo fica no fim da página: tirar fullPage e recortar as últimas 1440 px (sem a barra lateral, left 540).
+  // Os dois abaixo pedem a remessa temporária 55555555-…-0000000000a7 (Julho/2026) e um cartão
+  // ponto FICTÍCIO com funcionários da demo (gerado com pdf-lib), apagados depois; nunca o relatório real.
+  // ["/painel/pessoal/ponto/55555555-5555-4555-8555-0000000000a7/importar/<importação>", "pessoal/ponto-importacao.png", { esperar: "Funcionários do relatório", passos: [{ clicar: 'css=button:has-text("Dias") >> nth=0' }, { pausa: 1000 }], fullPage: true }],
+  // ["/painel/pessoal/ponto/55555555-5555-4555-8555-0000000000a7?novo=1", "pessoal/ponto-registro-apurar.png", { esperar: "Apurar pelas batidas", passos: [{ selecionar: ["#funcionario_id", "Ana Beatriz Nogueira"] }, { anexar: ["#arquivo", "<cartão de uma página>"] }, { clicar: "Apurar pelas batidas" }, { aguardar: "Realizadas preenchidas" }, { pausa: 600 }], scrollTo: "Adicionar registro de ponto", altura: 900 }],
   ["/painel/pessoal/ponto?regras=1", "pessoal/ponto-faixas.png", { esperar: "Salvar regras", fullPage: true }],
   // Pede duas isenções temporárias na demo (uma vigente, uma encerrada), apagadas depois.
   ["/painel/pessoal/ponto?aba=isencoes&nova=1", "pessoal/ponto-isencoes.png", { esperar: "Nova isenção de registro de ponto", scrollTo: "Quem está isento no mês inteiro", altura: 950 }],
