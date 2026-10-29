@@ -60,7 +60,9 @@ export default async function CadastrosPendentesPage({
     // Sem filtro: só quem tem pendência (apontamento não derruba a saúde).
     if (tipo === "apontamento") {
       if (f.apontamentos.length === 0) return false
-    } else if (tipo ? !f.tipos.includes(tipo) : f.tipos.length === 0) return false
+    } else if (
+      tipo ? !f.tipos.includes(tipo) && !f.tiposApontamento.includes(tipo) : f.tipos.length === 0
+    ) return false
     if (!termo) return true
     if (digitos.length >= 3 && (f.cpf ?? "").includes(digitos)) return true
     return semAcento(f.nome ?? "").includes(termo)
@@ -163,6 +165,11 @@ export default async function CadastrosPendentesPage({
                 <span className="text-2xl font-semibold tabular-nums">
                   {dados.totais[t].toLocaleString("pt-BR")}
                 </span>
+                {dados.totaisApontamento[t] > 0 && (
+                  <span className="text-muted-foreground text-xs">
+                    + {dados.totaisApontamento[t].toLocaleString("pt-BR")} como apontamento
+                  </span>
+                )}
               </CardContent>
             </Card>
           </Link>

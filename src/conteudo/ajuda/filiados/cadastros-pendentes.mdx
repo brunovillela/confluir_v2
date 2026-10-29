@@ -40,6 +40,11 @@ cadastro) com pelo menos uma destas inconsistências:
   aceita o termo; sem conta, a falta do aceite não é pendência.
 - **Termo de desconto não aceito** — idem, para a autorização de desconto.
 - **Sem vínculo em aberto** — não há vínculo de filiação sem data de saída.
+- **Vínculo encerrado sem motivo** — algum vínculo já encerrado (com data de
+  desfiliação) não tem o motivo da desfiliação, que alimenta o churn. Comum em
+  quem saiu de uma empresa e segue filiado por outra fonte. No padrão é
+  **apontamento**: aparece na lista, mas não derruba a saúde. O motivo se
+  registra no vínculo, pelo lápis do Histórico de filiação.
 - **Vínculo incompleto** — no vínculo em aberto falta algo obrigatório: fonte
   pagadora, matrícula, cargo, lotação, admissão na fonte, data de filiação,
   condição na fonte, regime de trabalho (só para trabalhador da ativa) ou a
@@ -49,7 +54,9 @@ cadastro) com pelo menos uma destas inconsistências:
 Essa é a regra **padrão**. Quem tem a permissão de gestão de filiação pode
 mudá-la — veja **Configurar a saúde dos cadastros**, mais abaixo.
 
-Os cartões do topo dão o total de cada pendência e filtram a lista ao clicar.
+Os cartões do topo dão o total de cada pendência e filtram a lista ao clicar;
+quando o mesmo tipo também aparece como apontamento, o cartão mostra
+"+ N como apontamento", e o filtro inclui essas pessoas.
 Cada linha mostra as etiquetas do que falta; na de vínculo incompleto, o texto
 lista os campos. O cartão **Com apontamento** filtra quem tem apontamentos,
 que aparecem como etiquetas tracejadas.
@@ -72,7 +79,8 @@ de pensão e as que a entidade criou em [Categorias de fonte](/painel/ajuda/repr
 
 Vale a categoria da fonte do **vínculo em aberto** do filiado; sem vínculo em
 aberto (ou com vínculo sem fonte), vale a de Empregador. O padrão é tudo como
-pendência, exceto cargo e lotação em fundo de pensão, que ficam como normal;
+pendência, exceto cargo e lotação em fundo de pensão, que ficam como normal, e
+vínculo encerrado sem motivo, que é apontamento em todas as categorias;
 uma categoria criada parte do padrão da categoria cujas regras ela segue.
 **Restaurar padrão** volta a aba aberta para esse padrão. Ao salvar, a saúde
 e a lista são recalculadas na hora.

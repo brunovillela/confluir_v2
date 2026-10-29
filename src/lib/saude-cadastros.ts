@@ -50,6 +50,12 @@ export const CAMPOS_SAUDE = [
   },
   { chave: "desconto", rotulo: "Termo de desconto não aceito", grupo: "cadastro" },
   { chave: "historico", rotulo: "Sem vínculo em aberto", grupo: "cadastro" },
+  {
+    chave: "motivo_saida",
+    rotulo: "Vínculo encerrado sem motivo",
+    grupo: "cadastro",
+    ajuda: "Vínculo com data de desfiliação e sem o motivo, que alimenta o churn.",
+  },
   { chave: "v_fonte", rotulo: "Fonte pagadora", grupo: "vinculo" },
   { chave: "v_matricula", rotulo: "Matrícula na fonte", grupo: "vinculo" },
   { chave: "v_cargo", rotulo: "Cargo", grupo: "vinculo" },
@@ -141,12 +147,17 @@ export type NiveisCategoria = Record<ChaveCampoSaude, NivelSaude>
 /** Chave da categoria → nível de cada campo. */
 export type ConfigSaude = Record<string, NiveisCategoria>
 
-/** Padrão de uma base: tudo pendência; em fundo de pensão, cargo e lotação normais. */
+/**
+ * Padrão de uma base: tudo pendência; em fundo de pensão, cargo e lotação
+ * normais. Vínculo encerrado sem motivo (29/10/2026) nasce apontamento: eram
+ * 911 filiados ativos — como pendência, a saúde cairia 9 pontos de uma vez.
+ */
 export function niveisPadrao(base: BaseCategoria): NiveisCategoria {
   const tudo = Object.fromEntries(
     CAMPOS_SAUDE.map((c) => [c.chave, "pendencia"])
   ) as NiveisCategoria
-  return base === "fundo_pensao" ? { ...tudo, v_cargo: "normal", v_lotacao: "normal" } : tudo
+  const comMotivo = { ...tudo, motivo_saida: "apontamento" } as NiveisCategoria
+  return base === "fundo_pensao" ? { ...comMotivo, v_cargo: "normal", v_lotacao: "normal" } : comMotivo
 }
 
 export function configSaudePadrao(categorias: CategoriaFonte[]): ConfigSaude {
