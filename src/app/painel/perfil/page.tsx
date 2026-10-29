@@ -395,7 +395,7 @@ export default async function PerfilPage({
       {/* Contatos em colunas independentes: cada coluna empilha os seus
           cartões, sem a altura de um puxar a fileira do vizinho. */}
       <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <div className="grid gap-4">
+        <div className="grid min-w-0 gap-4">
           <CartaoLista
             titulo="Telefones"
             item="telefone"
@@ -437,7 +437,7 @@ export default async function PerfilPage({
           >
             <ul className="divide-y">
               {emailPrincipalPessoal && (
-                <li className="flex items-center justify-between gap-3 py-1.5 first:pt-0 last:pb-0">
+                <li className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-1.5 first:pt-0 last:pb-0">
                   <span className="min-w-0 truncate text-sm font-medium">{emailPrincipalPessoal}</span>
                   <Badge variant="secondary" title="Altere pelo lápis de Dados pessoais">
                     Principal · recebe os avisos
@@ -459,7 +459,7 @@ export default async function PerfilPage({
             )}
           </CartaoLista>
         </div>
-        <div className="grid gap-4">
+        <div className="grid min-w-0 gap-4">
           <CartaoLista
             titulo="Endereços"
             item="endereço"
@@ -533,7 +533,7 @@ export default async function PerfilPage({
             </Card>
           )}
         </div>
-        <div className="grid gap-4 md:col-span-2 xl:col-span-1">
+        <div className="grid min-w-0 gap-4 md:col-span-2 xl:col-span-1">
           {/* Espelho das áreas do Institucional: só leitura aqui. */}
           <Card className="gap-0 py-4">
             <CardContent className="grid gap-3 px-4">
