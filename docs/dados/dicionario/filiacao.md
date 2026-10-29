@@ -1037,15 +1037,13 @@ Cadastro do filiado (ou ex-filiado/não filiado) na entidade: identificação, c
 | `forma_recebimento_ordem` | integer | sim |  |  | financeiro | Competência (ano*100+mês) da remessa que definiu forma_recebimento. Importações mais antigas não sobrescrevem. |
 | `comunicados_optout_em` | timestamp with time zone | sim |  |  |  |  |
 | `comunicados_optout_origem` | text | sim |  |  |  | Por onde o filiado pediu para não receber comunicados. |
-| `desfiliacao_motivo` | text | sim |  |  | **sensível: sindical** | OBSOLETO desde 27/10/2026: o motivo mora em filiacao_vinculos.desfiliacao_motivo. |
-| `desfiliacao_motivo_detalhe` | text | sim |  |  | **sensível: sindical** | OBSOLETO desde 27/10/2026: ver filiacao_vinculos.desfiliacao_motivo_detalhe. |
 | `contribuicao_valor` | numeric(12,2) | sim |  |  | financeiro | Valor da contribuição do filiado. |
 
 Únicas: `UNIQUE (bubble_id)`
 
 Checks: `filiacoes_forma_recebimento_check` `CHECK (((forma_recebimento IS NULL) OR (forma_recebimento = ANY (ARRAY['consignado'::text, 'pix'::text, 'boleto'::text]))))`
 
-Índices: `filiacoes_anonimizada_idx`, `filiacoes_bubble_id_key`, `filiacoes_condicao_idx`, `filiacoes_cpf_idx`, `filiacoes_desfiliacao_motivo_idx`, `filiacoes_emp_ativo_em_idx`, `filiacoes_emp_inativo_em_idx`, `filiacoes_matricula_idx`, `filiacoes_nome_norm_trgm`, `filiacoes_pkey`, `idx_bub_filiacoes`, `idx_filiacoes_aniversario`, `idx_filiacoes_coletiva`, `idx_filiacoes_condicao_etapa`, `idx_filiacoes_cpf`, `idx_filiacoes_mesclado_em`, `idx_filiacoes_usuario`
+Índices: `filiacoes_anonimizada_idx`, `filiacoes_bubble_id_key`, `filiacoes_condicao_idx`, `filiacoes_cpf_idx`, `filiacoes_emp_ativo_em_idx`, `filiacoes_emp_inativo_em_idx`, `filiacoes_matricula_idx`, `filiacoes_nome_norm_trgm`, `filiacoes_pkey`, `idx_bub_filiacoes`, `idx_filiacoes_aniversario`, `idx_filiacoes_coletiva`, `idx_filiacoes_condicao_etapa`, `idx_filiacoes_cpf`, `idx_filiacoes_mesclado_em`, `idx_filiacoes_usuario`
 
 ## fonte_categorias
 
