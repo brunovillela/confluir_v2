@@ -535,7 +535,7 @@ export function FinalizarContratoForm({ contratoId }: { contratoId: string }) {
     antes: (e) => {
       confirmarEnvio(
         e,
-        "Finalizar este contrato? Os veículos vinculados serão desvinculados.",
+        "Finalizar este contrato? Os veículos continuam registrados nele (o período se encerra hoje) e ficam livres para outro contrato.",
       )
     },
   })
@@ -1015,9 +1015,8 @@ export function ReabrirContratoDialog({ contratoId }: { contratoId: string }) {
           <DialogHeader>
             <DialogTitle>Reabrir contrato</DialogTitle>
             <DialogDescription>
-              O contrato volta a vigente. Os veículos desvinculados ao finalizar
-              não voltam sozinhos — o histórico diz quais eram; vincule-os de
-              novo aqui.
+              O contrato volta a vigente, com os veículos que estavam nele ao
+              finalizar — menos os que já foram para outro contrato.
             </DialogDescription>
           </DialogHeader>
           <form action={formAction} {...envio} className="grid gap-3">

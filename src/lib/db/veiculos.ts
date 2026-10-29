@@ -386,7 +386,44 @@ export async function criarVeiculo(
     if (esquemaAusente(error)) return { erro: AVISO_SQL }
     return { erro: `Não foi possível cadastrar o veículo: ${error.message}` }
   }
+  if (dados.contrato_aluguel_id) await registrarVinculoContrato(String(data.id), dados.contrato_aluguel_id)
   return { id: data.id }
+}
+
+/**
+ * Mantém o HISTÓRICO de veículos dos contratos de locação
+ * (veiculo_contrato_aluguel_vinculo) em dia com o contrato atual do veículo:
+ * fecha o vínculo aberto que não é o novo (desvinculado = saiu antes do fim)
+ * e abre um para o novo contrato. `veiculos.contrato_aluguel_id` diz só o
+ * contrato atual; quem guarda por onde o veículo passou é o vínculo.
+ */
+export async function registrarVinculoContrato(
+  veiculoId: string,
+  novoContratoId: string | null
+): Promise<void> {
+  const admin = await createAdminClient()
+  const hoje = hojeSP()
+  const { data: abertos } = await admin
+    .from("veiculo_contrato_aluguel_vinculo")
+    .select("id, contrato_id")
+    .eq("veiculo_id", veiculoId)
+    .is("termino", null)
+  for (const v of (abertos ?? []) as Record<string, unknown>[]) {
+    if (novoContratoId && String(v.contrato_id) === novoContratoId) continue
+    await admin
+      .from("veiculo_contrato_aluguel_vinculo")
+      .update({ termino: hoje, desvinculado: true })
+      .eq("id", String(v.id))
+  }
+  if (!novoContratoId) return
+  if ((abertos ?? []).some((v) => String(v.contrato_id) === novoContratoId)) return
+  await admin.from("veiculo_contrato_aluguel_vinculo").insert({
+    veiculo_id: veiculoId,
+    contrato_id: novoContratoId,
+    inicio: hoje,
+    desvinculado: false,
+    emp_proprietaria_id: await tenantAtual(),
+  })
 }
 
 export async function atualizarVeiculo(
@@ -421,6 +458,16 @@ export async function atualizarVeiculo(
   }
 
   const tenant = await tenantAtual()
+  let contratoAntes: string | null = null
+  if (dados.contrato_aluguel_id !== undefined) {
+    const { data: antes } = await admin
+      .from("veiculos")
+      .select("contrato_aluguel_id")
+      .eq("id", id)
+      .eq("emp_proprietaria_id", tenant)
+      .maybeSingle()
+    contratoAntes = texto(antes?.contrato_aluguel_id)
+  }
   const gravar = (campos: Record<string, unknown>) =>
     admin
       .from("veiculos")
@@ -441,6 +488,9 @@ export async function atualizarVeiculo(
     return { erro: `Não foi possível salvar: ${error.message}` }
   }
   if ((data ?? []).length === 0) return { erro: "Veículo não encontrado." }
+  if (dados.contrato_aluguel_id !== undefined && (dados.contrato_aluguel_id ?? null) !== contratoAntes) {
+    await registrarVinculoContrato(id, dados.contrato_aluguel_id ?? null)
+  }
   return {}
 }
 
@@ -3033,18 +3083,28 @@ export async function listarContratos(filtros: {
     ])
   )
 
-  // Quantos veículos apontam para cada contrato (coluna nova; degrada p/ 0).
-  const contagem = new Map<string, number>()
+  // Veículos de cada contrato: os que estão nele agora e os do histórico
+  // (finalizado também conta — o contrato retém os veículos que teve).
+  const porContrato = new Map<string, Set<string>>()
+  const somar = (contrato: unknown, veiculo: unknown) => {
+    const chave = String(contrato)
+    if (!porContrato.has(chave)) porContrato.set(chave, new Set())
+    porContrato.get(chave)!.add(String(veiculo))
+  }
   const { data: vinculos, error: erroVinculos } = await admin
     .from("veiculos")
-    .select("contrato_aluguel_id")
+    .select("id, contrato_aluguel_id")
     .not("contrato_aluguel_id", "is", null)
-  if (!erroVinculos) {
-    for (const v of (vinculos ?? []) as Record<string, unknown>[]) {
-      const chave = String(v.contrato_aluguel_id)
-      contagem.set(chave, (contagem.get(chave) ?? 0) + 1)
-    }
-  }
+  for (const v of (vinculos ?? []) as Record<string, unknown>[]) somar(v.contrato_aluguel_id, v.id)
+  const historico = await lerEmLotes<Record<string, unknown>>((de, ate) =>
+    admin
+      .from("veiculo_contrato_aluguel_vinculo")
+      .select("id, contrato_id, veiculo_id")
+      .order("id")
+      .range(de, ate)
+  ).catch(() => [])
+  for (const v of historico) if (v.contrato_id && v.veiculo_id) somar(v.contrato_id, v.veiculo_id)
+  const contagem = new Map([...porContrato].map(([k, v]) => [k, v.size]))
 
   return {
     disponivel: !(erroVinculos && esquemaAusente(erroVinculos)),
@@ -3074,7 +3134,19 @@ export type ContratoDetalhe = ContratoLinha & {
   centro_custo_id: string | null
   departamento_id: string | null
   responsavel_id: string | null
-  veiculos: { id: string; placa: string | null; marca_modelo: string | null }[]
+  /** Veículos que passaram pelo contrato — atuais primeiro, depois o histórico. */
+  veiculos: {
+    id: string
+    placa: string | null
+    marca_modelo: string | null
+    inicio: string | null
+    termino: string | null
+    /** Tirado do contrato antes do fim. */
+    desvinculado: boolean
+    /** Está no contrato agora (vínculo aberto / contrato atual do veículo). */
+    atual: boolean
+    kmFranquia: number | null
+  }[]
   ordens: {
     id: string
     codigo: string | null
@@ -3094,6 +3166,52 @@ export type ContratoDetalhe = ContratoLinha & {
   }[]
 }
 
+/** Junta o contrato atual dos veículos com o histórico de vínculos. */
+async function veiculosDoContrato(
+  atuais: Record<string, unknown>[],
+  vinculos: Record<string, unknown>[]
+): Promise<ContratoDetalhe["veiculos"]> {
+  const ids = [...new Set([...atuais.map((v) => String(v.id)), ...vinculos.map((v) => String(v.veiculo_id))])]
+  if (ids.length === 0) return []
+  const admin = await createAdminClient()
+  const { data } = await admin.from("veiculos").select("id, placa, marca_modelo").in("id", ids)
+  const dados = new Map(((data ?? []) as Record<string, unknown>[]).map((v) => [String(v.id), v]))
+  const idsAtuais = new Set(atuais.map((v) => String(v.id)))
+  const vistos = new Set<string>()
+  const lista: ContratoDetalhe["veiculos"] = []
+  for (const v of vinculos) {
+    const vid = String(v.veiculo_id)
+    const d = dados.get(vid)
+    const aberto = !texto(v.termino)
+    lista.push({
+      id: vid,
+      placa: texto(d?.placa),
+      marca_modelo: texto(d?.marca_modelo),
+      inicio: texto(v.inicio),
+      termino: texto(v.termino),
+      desvinculado: v.desvinculado === true,
+      atual: aberto && idsAtuais.has(vid),
+      kmFranquia: numero(v.km_mensal_franquia),
+    })
+    vistos.add(vid)
+  }
+  // Ligado ao contrato sem vínculo registrado (antes do histórico): entra como atual.
+  for (const v of atuais) {
+    if (vistos.has(String(v.id))) continue
+    lista.push({
+      id: String(v.id),
+      placa: texto(v.placa),
+      marca_modelo: texto(v.marca_modelo),
+      inicio: null,
+      termino: null,
+      desvinculado: false,
+      atual: true,
+      kmFranquia: null,
+    })
+  }
+  return lista.sort((a, b) => Number(b.atual) - Number(a.atual))
+}
+
 export async function buscarContrato(
   id: string
 ): Promise<ContratoDetalhe | null> {
@@ -3102,7 +3220,7 @@ export async function buscarContrato(
   if (!contrato) return null
 
   const admin = await createAdminClient()
-  const [bruto, veiculosRes, ordensRes] = await Promise.all([
+  const [bruto, veiculosRes, vinculosRes, ordensRes] = await Promise.all([
     admin
       .from("veiculo_contratos_aluguel")
       .select("centro_custo_id, departamento_id, responsavel_id")
@@ -3113,6 +3231,11 @@ export async function buscarContrato(
       .select("id, placa, marca_modelo")
       .eq("contrato_aluguel_id", id)
       .order("placa", { ascending: true }),
+    admin
+      .from("veiculo_contrato_aluguel_vinculo")
+      .select("veiculo_id, inicio, termino, desvinculado, km_mensal_franquia")
+      .eq("contrato_id", id)
+      .order("inicio", { ascending: false, nullsFirst: false }),
     admin
       .from("ordens_pagamento")
       .select("id, codigo, descricao, situacao, valor_inicial_cobranca, vencimento, tipo, processo_compra_id, data_pagamento, arquivo_nota_fiscal, arquivo_boleto, categoria_locacao")
@@ -3126,13 +3249,10 @@ export async function buscarContrato(
     centro_custo_id: texto(bruto.data?.centro_custo_id),
     departamento_id: texto(bruto.data?.departamento_id),
     responsavel_id: texto(bruto.data?.responsavel_id),
-    veiculos: veiculosRes.error
-      ? []
-      : ((veiculosRes.data ?? []) as Record<string, unknown>[]).map((v) => ({
-          id: String(v.id),
-          placa: texto(v.placa),
-          marca_modelo: texto(v.marca_modelo),
-        })),
+    veiculos: await veiculosDoContrato(
+      (veiculosRes.data ?? []) as Record<string, unknown>[],
+      vinculosRes.error ? [] : ((vinculosRes.data ?? []) as Record<string, unknown>[])
+    ),
     ordens: ordensRes.error
       ? []
       : await Promise.all(((ordensRes.data ?? []) as Record<string, unknown>[]).map(async (o) => ({
@@ -3452,9 +3572,10 @@ export async function historicoDoContrato(id: string): Promise<EventoContrato[]>
 }
 
 /**
- * Encerra o contrato e desvincula os veículos apontados para ele. Fica na
- * trilha como "Situação: Vigente → Finalizado" (os veículos desvinculados vão
- * no motivo, para quem reabrir saber o que religar).
+ * Encerra o contrato. Os veículos FICAM no contrato, no histórico de
+ * vínculos (o período fecha hoje, sem marcar "desvinculado"); deixam só de
+ * ter este como contrato atual, para poderem ir a outro. Fica na trilha como
+ * "Situação: Vigente → Finalizado", com as placas.
  */
 export async function finalizarContrato(
   id: string,
@@ -3475,10 +3596,39 @@ export async function finalizarContrato(
     { antes: { finalizado: false }, depois: { finalizado: true } },
     {
       usuarioId,
-      motivo: placas.length ? `Finalizado; veículos desvinculados: ${placas.join(", ")}.` : "Finalizado.",
+      motivo: placas.length ? `Finalizado; veículos mantidos no contrato: ${placas.join(", ")}.` : "Finalizado.",
     }
   )
   if (r.erro) return r
+  const hoje = hojeSP()
+  // Veículo ligado sem vínculo registrado (de antes do histórico): registra o
+  // período agora, para o contrato não perdê-lo.
+  const { data: abertos } = await admin
+    .from("veiculo_contrato_aluguel_vinculo")
+    .select("veiculo_id")
+    .eq("contrato_id", id)
+    .is("termino", null)
+  const comVinculo = new Set((abertos ?? []).map((v) => String(v.veiculo_id)))
+  const { data: ligados } = await admin.from("veiculos").select("id").eq("contrato_aluguel_id", id)
+  const semVinculo = (ligados ?? []).map((v) => String(v.id)).filter((v) => !comVinculo.has(v))
+  if (semVinculo.length) {
+    const emp = await tenantAtual()
+    await admin.from("veiculo_contrato_aluguel_vinculo").insert(
+      semVinculo.map((veiculo_id) => ({
+        veiculo_id,
+        contrato_id: id,
+        inicio: texto(atual.vigencia_inicio)?.slice(0, 10) ?? null,
+        termino: hoje,
+        desvinculado: false,
+        emp_proprietaria_id: emp,
+      }))
+    )
+  }
+  await admin
+    .from("veiculo_contrato_aluguel_vinculo")
+    .update({ termino: hoje })
+    .eq("contrato_id", id)
+    .is("termino", null)
   await admin
     .from("veiculos")
     .update({ contrato_aluguel_id: null, eh_alugado: false, updated_at: new Date().toISOString() })
@@ -3488,9 +3638,8 @@ export async function finalizarContrato(
 
 /**
  * Desfaz a finalização (finalizado por engano ou a locação voltou), com
- * motivo na trilha. Os veículos desvinculados ao finalizar não voltam
- * sozinhos: o motivo da finalização diz quais eram, e o vínculo se refaz na
- * própria tela do contrato.
+ * motivo na trilha. Os veículos que estavam no contrato quando ele foi
+ * finalizado voltam com ele — menos os que já foram para outro contrato.
  */
 export async function reabrirContrato(
   id: string,
@@ -3501,12 +3650,37 @@ export async function reabrirContrato(
   const atual = await contratoBruto(id)
   if (!atual) return { erro: "Contrato não encontrado." }
   if (atual.finalizado !== true) return { erro: "O contrato não está finalizado." }
-  return aplicarComHistorico(
+  const r = await aplicarComHistorico(
     id,
     "editado",
     { antes: { finalizado: true }, depois: { finalizado: false } },
     { usuarioId, motivo: motivo.trim() }
   )
+  if (r.erro) return r
+  // Os vínculos que a finalização fechou: os de término mais recente, sem
+  // "desvinculado" (quem saiu antes do fim não volta).
+  const admin = await createAdminClient()
+  const { data: fechados } = await admin
+    .from("veiculo_contrato_aluguel_vinculo")
+    .select("id, veiculo_id, termino")
+    .eq("contrato_id", id)
+    .eq("desvinculado", false)
+    .not("termino", "is", null)
+  const ultimo = (fechados ?? []).map((v) => String(v.termino)).sort().pop()
+  for (const v of (fechados ?? []).filter((v) => String(v.termino) === ultimo)) {
+    const { data: veic } = await admin
+      .from("veiculos")
+      .select("contrato_aluguel_id")
+      .eq("id", String(v.veiculo_id))
+      .maybeSingle()
+    if (texto(veic?.contrato_aluguel_id)) continue
+    await admin.from("veiculo_contrato_aluguel_vinculo").update({ termino: null }).eq("id", String(v.id))
+    await admin
+      .from("veiculos")
+      .update({ contrato_aluguel_id: id, eh_alugado: true, updated_at: new Date().toISOString() })
+      .eq("id", String(v.veiculo_id))
+  }
+  return {}
 }
 
 // ── Veículos do contrato (vínculo pela tela do contrato) ────────────────────
@@ -3562,6 +3736,7 @@ export async function desvincularVeiculoDoContrato(
     .select("id")
   if (error) return { erro: `Não foi possível desvincular: ${error.message}` }
   if ((data ?? []).length === 0) return { erro: "O veículo não está neste contrato." }
+  await registrarVinculoContrato(veiculoId, null)
   return {}
 }
 

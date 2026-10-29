@@ -298,26 +298,37 @@ export default async function ContratoPage({
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardContent className="grid gap-2 text-sm">
-            <p className="font-medium">Veículos vinculados</p>
+            <p className="font-medium">Veículos do contrato</p>
             {contrato.veiculos.length === 0 ? (
               <p className="text-muted-foreground">Nenhum veículo vinculado.</p>
             ) : (
-              contrato.veiculos.map((v) => (
+              contrato.veiculos.map((v, i) => (
                 <div
-                  key={v.id}
+                  key={`${v.id}-${v.inicio ?? i}`}
                   className="flex items-center justify-between gap-2"
                 >
-                  <Link
-                    href={`/painel/veiculos/${v.id}`}
-                    className="text-primary hover:underline"
-                  >
-                    {v.placa ?? "s/ placa"} — {v.marca_modelo ?? ""}
-                  </Link>
-                  <DesvincularVeiculoBotao
-                    contratoId={contrato.id}
-                    veiculoId={v.id}
-                    placa={v.placa}
-                  />
+                  <div className="grid">
+                    <Link
+                      href={`/painel/veiculos/${v.id}`}
+                      className="text-primary hover:underline"
+                    >
+                      {v.placa ?? "s/ placa"} — {v.marca_modelo ?? ""}
+                    </Link>
+                    {/* Período no contrato: o finalizado retém os veículos que teve. */}
+                    <span className="text-muted-foreground text-xs">
+                      {v.atual
+                        ? `no contrato${v.inicio ? ` desde ${formatarData(v.inicio)}` : ""}`
+                        : `${v.inicio ? formatarData(v.inicio) : "início não registrado"} a ${v.termino ? formatarData(v.termino) : "término não registrado"}${v.desvinculado ? " · desvinculado antes do fim" : ""}`}
+                      {v.kmFranquia ? ` · franquia de ${v.kmFranquia.toLocaleString("pt-BR")} km/mês` : ""}
+                    </span>
+                  </div>
+                  {v.atual && !contrato.finalizado && (
+                    <DesvincularVeiculoBotao
+                      contratoId={contrato.id}
+                      veiculoId={v.id}
+                      placa={v.placa}
+                    />
+                  )}
                 </div>
               ))
             )}

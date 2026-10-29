@@ -305,7 +305,7 @@ export async function reabrirContratoAction(
   if (erro) return { erro }
   revalidarContrato(id)
   return {
-    ok: "Contrato reaberto — registrado no histórico. Vincule de novo os veículos, se for o caso.",
+    ok: "Contrato reaberto, com os veículos que estavam nele — registrado no histórico.",
   }
 }
 

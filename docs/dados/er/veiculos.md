@@ -14,6 +14,7 @@ erDiagram
     uuid id PK
     uuid veiculo_id FK
     uuid contrato_id FK
+    uuid emp_proprietaria_id FK
   }
   veiculo_contratos_aluguel {
     uuid id PK

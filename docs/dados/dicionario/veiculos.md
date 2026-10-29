@@ -7,7 +7,7 @@
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
 | [cnh](#cnh) | identificação | CNH de usuário (número, categoria, vencimento, arquivo), herdada do Bubble. Tabela vazia e sem uso no código; substituída por veiculos_condu… |
-| [veiculo_contrato_aluguel_vinculo](#veiculo_contrato_aluguel_vinculo) | — | Vínculo de um veículo a um contrato de aluguel, com período e franquia de km mensal. Origem Bubble; sem uso encontrado no código. |
+| [veiculo_contrato_aluguel_vinculo](#veiculo_contrato_aluguel_vinculo) | — | Histórico dos veículos de cada contrato de locação: um vínculo por período em que o veículo esteve no contrato (início, término, franquia de… |
 | [veiculo_contratos_aluguel](#veiculo_contratos_aluguel) | — | Espelho de "Veículos Contratos de aluguel" do Bubble (slug ve_culo_contratos_de_aluguel) |
 | [veiculos](#veiculos) | identificação | Veículo da frota da entidade (próprio ou alugado): placa, RENAVAM, documentos, seguro, situação e condutor dedicado. Migrado do Bubble; tela… |
 | [veiculos_abastecimentos](#veiculos_abastecimentos) | identificação | Espelho de "Veículos Abastecimentos" do Bubble |
@@ -56,26 +56,28 @@ CNH de usuário (número, categoria, vencimento, arquivo), herdada do Bubble. Ta
 
 ## veiculo_contrato_aluguel_vinculo
 
-Vínculo de um veículo a um contrato de aluguel, com período e franquia de km mensal. Origem Bubble; sem uso encontrado no código.
+Histórico dos veículos de cada contrato de locação: um vínculo por período em que o veículo esteve no contrato (início, término, franquia de km). Finalizar o contrato fecha o período e mantém o veículo no histórico; desvincular antes do fim marca desvinculado. Origem Bubble; usado pela tela do contrato desde 29/10/2026.
 
 - **LGPD:** nenhum dado pessoal
-- **RLS:** ligado · policies: **nenhuma**
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
 
 | Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
 |---|---|---|---|---|---|---|
 | 🔑 `id` | uuid | não | `uuid_generate_v4()` |  |  |  |
 | `bubble_id` | text | sim |  |  |  |  |
-| `inicio` | date | sim |  |  |  |  |
-| `termino` | date | sim |  |  |  |  |
-| `desvinculado` | boolean | sim | `false` |  |  |  |
-| `km_mensal_franquia` | integer | sim |  |  |  | Km mensal incluído no aluguel. |
+| `inicio` | date | sim |  |  | nenhum | Quando o veículo entrou no contrato. |
+| `termino` | date | sim |  |  | nenhum | Quando saiu (desvinculado ou contrato finalizado); nulo = segue no contrato. |
+| `desvinculado` | boolean | sim | `false` |  | nenhum | true = tirado do contrato antes do fim; false com término = ficou até a finalização. |
+| `km_mensal_franquia` | integer | sim |  |  | nenhum | Km mensal incluído no aluguel. |
 | `veiculo_id` | uuid | sim |  | → veiculos |  |  |
 | `contrato_id` | uuid | sim |  | → veiculo_contratos_aluguel |  |  |
 | `created_at` | timestamp with time zone | sim | `now()` |  |  |  |
+| `emp_proprietaria_id` | uuid | sim |  | → empresa | nenhum | Entidade dona (tenant), herdada do contrato. |
 
 Únicas: `UNIQUE (bubble_id)`
 
-Índices: `veiculo_contratos_aluguel_bubble_id_key`, `veiculo_contratos_aluguel_pkey`
+Índices: `idx_veiculo_contrato_aluguel_vinculo_contrato`, `idx_veiculo_contrato_aluguel_vinculo_veiculo`, `veiculo_contratos_aluguel_bubble_id_key`, `veiculo_contratos_aluguel_pkey`
 
 ## veiculo_contratos_aluguel
 
