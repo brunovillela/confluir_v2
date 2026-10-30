@@ -235,7 +235,7 @@ const SHOTS_RODADA_21 = [
   // Rodada de 21/10: remessa com indicadores e o registro em HH:MM (dados da
   // demo como estão: março sem remessa anterior, saldos zerados).
   ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001", "pessoal/ponto-remessa.png", { esperar: "Horas pagas no mês", altura: 1250 }],
-  ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001?editar=d7c7e57f-4ec9-4ea7-970f-7e40d7d77e31", "pessoal/ponto-registro-form.png", { esperar: "Saldo remanescente", altura: 900 }],
+  ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001?editar=d7c7e57f-4ec9-4ea7-970f-7e40d7d77e31", "pessoal/ponto-registro-form.png", { esperar: "Saldo remanescente", passos: [{ pausa: 2000 }, { ir: "/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001?editar=d7c7e57f-4ec9-4ea7-970f-7e40d7d77e31" }, { aguardar: "Apurar pelas batidas" }, { pausa: 1000 }], altura: 900 }],
   // O grupo fica no fim da página: tirar fullPage e recortar as últimas 1440 px (sem a barra lateral, left 540).
   // Os dois abaixo pedem a remessa temporária 55555555-…-0000000000a7 (Julho/2026) e um cartão
   // ponto FICTÍCIO com funcionários da demo (gerado com pdf-lib), apagados depois; nunca o relatório real.
