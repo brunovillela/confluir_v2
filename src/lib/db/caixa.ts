@@ -2,6 +2,7 @@ import "server-only"
 import { tenantAtual } from "@/lib/tenant"
 
 import { lerEmLotes } from "@/lib/db/comum"
+import { favorecidosDasOrdens } from "@/lib/db/ordens-favorecido"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
@@ -173,8 +174,8 @@ function txtCaixa(v: unknown): string | null {
 }
 
 /**
- * Beneficiário de cada ordem (fornecedor da ordem, fornecedor beneficiário,
- * usuário beneficiário ou nome avulso) e o código — extrato do caixa e busca
+ * Beneficiário de cada ordem (regra única de lib/favorecido.ts, inclui o
+ * filiado do reembolso) e o código — extrato do caixa e busca
  * de "Vincular ordem de pagamento".
  */
 export async function beneficiariosDasOrdens(
@@ -193,41 +194,21 @@ export async function beneficiariosDasOrdens(
     beneficiario_fornecedor_id: string | null
     beneficiario_usuario_id: string | null
     beneficiario_nome_avulso: string | null
+    beneficiario_doc_avulso: string | null
+    custeio_id: string | null
   }
   const lista: OrdemBenef[] = []
   for (let de = 0; de < ids.length; de += 200) {
     const { data } = await admin
       .from("ordens_pagamento")
-      .select("id, codigo, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso")
+      .select("id, codigo, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso, beneficiario_doc_avulso, custeio_id")
       .in("id", ids.slice(de, de + 200))
     lista.push(...((data ?? []) as OrdemBenef[]))
   }
-  const empIds = [...new Set(lista.flatMap((o) => [o.fornecedor_id, o.beneficiario_fornecedor_id]).filter((v): v is string => Boolean(v)))]
-  const usuIds = [...new Set(lista.map((o) => o.beneficiario_usuario_id).filter((v): v is string => Boolean(v)))]
-  const nomes = new Map<string, string>()
-  for (let de = 0; de < empIds.length; de += 200) {
-    const { data } = await admin.from("empresa").select("id, empresa, nome_fantasia, nome_razao").in("id", empIds.slice(de, de + 200))
-    for (const e of data ?? []) {
-      const n = txtCaixa(e.nome_fantasia) ?? txtCaixa(e.empresa) ?? txtCaixa(e.nome_razao)
-      if (n) nomes.set(String(e.id), n)
-    }
-  }
-  for (let de = 0; de < usuIds.length; de += 200) {
-    const { data } = await admin.from("usuarios").select("id, nome_completo, nome_guerra").in("id", usuIds.slice(de, de + 200))
-    for (const u of data ?? []) {
-      const n = txtCaixa(u.nome_completo) ?? txtCaixa(u.nome_guerra)
-      if (n) nomes.set(String(u.id), n)
-    }
-  }
+  // Quem recebe: regra única (lib/favorecido.ts).
+  const favorecidos = await favorecidosDasOrdens(lista)
   for (const o of lista) {
-    mapa.set(String(o.id), {
-      codigo: txtCaixa(o.codigo),
-      beneficiario:
-        (o.beneficiario_fornecedor_id && nomes.get(String(o.beneficiario_fornecedor_id))) ||
-        (o.fornecedor_id && nomes.get(String(o.fornecedor_id))) ||
-        (o.beneficiario_usuario_id && nomes.get(String(o.beneficiario_usuario_id))) ||
-        txtCaixa(o.beneficiario_nome_avulso),
-    })
+    mapa.set(String(o.id), { codigo: txtCaixa(o.codigo), beneficiario: favorecidos.get(String(o.id))?.nome ?? null })
   }
   return mapa
 }

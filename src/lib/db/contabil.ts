@@ -2,6 +2,8 @@ import "server-only"
 
 import { serieArrecadacao } from "@/lib/db/analitica"
 import { lerEmLotes, texto } from "@/lib/db/comum"
+import { favorecidosDasOrdens } from "@/lib/db/ordens-favorecido"
+import type { OrdemFavorecido } from "@/lib/favorecido"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -58,7 +60,7 @@ export async function lancamentosContabeis(de: string, ate: string): Promise<Lan
     admin
       .from("ordens_pagamento")
       .select(
-        "id, codigo, descricao, tipo, forma_pagamento, valor_inicial_cobranca, valor_pago, vencimento, data_pagamento, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso, centro_custo_despesa_id, departamento_id, nota_fiscal"
+        "id, codigo, descricao, tipo, forma_pagamento, valor_inicial_cobranca, valor_pago, vencimento, data_pagamento, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso, beneficiario_doc_avulso, custeio_id, centro_custo_despesa_id, departamento_id, nota_fiscal"
       )
       .eq("emp_proprietaria_id", emp)
       .eq("situacao", "Paga")
@@ -74,7 +76,7 @@ export async function lancamentosContabeis(de: string, ate: string): Promise<Lan
       admin
         .from("ordens_pagamento")
         .select(
-          "id, codigo, descricao, tipo, forma_pagamento, valor_inicial_cobranca, valor_pago, vencimento, data_pagamento, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso, centro_custo_despesa_id"
+          "id, codigo, descricao, tipo, forma_pagamento, valor_inicial_cobranca, valor_pago, vencimento, data_pagamento, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso, beneficiario_doc_avulso, custeio_id, centro_custo_despesa_id"
         )
         .eq("emp_proprietaria_id", emp)
         .eq("situacao", "Paga")
@@ -88,8 +90,6 @@ export async function lancamentosContabeis(de: string, ate: string): Promise<Lan
   })
 
   const ids = (campo: string) => [...new Set(brutas.map((o) => texto(o[campo])).filter((v): v is string => !!v))]
-  const empresaIds = [...new Set([...ids("fornecedor_id"), ...ids("beneficiario_fornecedor_id")])]
-  const usuarioIds = ids("beneficiario_usuario_id")
   const lote = async <T,>(tabela: string, colunas: string, lista: string[], chave = "id"): Promise<T[]> => {
     const saida: T[] = []
     for (let i = 0; i < lista.length; i += 200) {
@@ -110,20 +110,17 @@ export async function lancamentosContabeis(de: string, ate: string): Promise<Lan
   for (const linhas of rateioPorOrdem.values()) linhas.sort((a, b) => a.ordem - b.ordem)
   const centroIds = [...new Set([...ids("centro_custo_despesa_id"), ...rateios.map((r) => r.centro_custo_despesa_id).filter((v): v is string => !!v)])]
   const deptoIds = [...new Set([...ids("departamento_id"), ...rateios.map((r) => r.departamento_id).filter((v): v is string => !!v)])]
-  const [empresas, usuarios, centros, departamentos] = await Promise.all([
-    lote<{ id: string; empresa: string | null; nome_fantasia: string | null; nome_razao: string | null; cnpj_cpf: string | null }>("empresa", "id, empresa, nome_fantasia, nome_razao, cnpj_cpf", empresaIds),
-    lote<{ id: string; nome_completo: string | null; nome_guerra: string | null; cpf: string | null }>("usuarios", "id, nome_completo, nome_guerra, cpf", usuarioIds),
+  // Quem recebe (nome e CPF/CNPJ): regra única, inclui o filiado do reembolso.
+  const [favorecidos, centros, departamentos] = await Promise.all([
+    favorecidosDasOrdens(brutas as OrdemFavorecido[]),
     lote<{ id: string; nome_da_conta: string | null; classificador: string | null }>("centros_de_custo", "id, nome_da_conta, classificador", centroIds),
     lote<{ id: string; departamento: string | null }>("empresa_departamentos", "id, departamento", deptoIds),
   ])
-  const empresaPorId = new Map(empresas.map((e) => [e.id, e]))
-  const usuarioPorId = new Map(usuarios.map((u) => [u.id, u]))
   const centroPorId = new Map(centros.map((c) => [c.id, c]))
   const deptoPorId = new Map(departamentos.map((d) => [d.id, d]))
 
   const despesas: LancamentoDespesa[] = brutas.flatMap((o) => {
-    const empresa = empresaPorId.get(texto(o.beneficiario_fornecedor_id) ?? "") ?? empresaPorId.get(texto(o.fornecedor_id) ?? "")
-    const usuario = usuarioPorId.get(texto(o.beneficiario_usuario_id) ?? "")
+    const favorecido = favorecidos.get(String(o.id))
     const centro = centroPorId.get(texto(o.centro_custo_despesa_id) ?? "")
     const base = {
       id: String(o.id),
@@ -132,11 +129,8 @@ export async function lancamentosContabeis(de: string, ate: string): Promise<Lan
       codigo: texto(o.codigo),
       tipo: texto(o.tipo),
       descricao: texto(o.descricao),
-      favorecido:
-        (empresa && (texto(empresa.empresa) ?? texto(empresa.nome_fantasia) ?? texto(empresa.nome_razao))) ??
-        (usuario && (texto(usuario.nome_completo) ?? texto(usuario.nome_guerra))) ??
-        texto(o.beneficiario_nome_avulso),
-      documento: texto(empresa?.cnpj_cpf) ?? texto(usuario?.cpf),
+      favorecido: favorecido?.nome ?? null,
+      documento: favorecido?.documento ?? null,
       centroCusto: texto(centro?.nome_da_conta),
       classificador: texto(centro?.classificador),
       departamento: texto(deptoPorId.get(texto(o.departamento_id) ?? "")?.departamento),

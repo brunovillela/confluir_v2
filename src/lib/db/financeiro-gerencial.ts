@@ -1,9 +1,11 @@
 import "server-only"
 
 import { serieArrecadacao, serieDespesa } from "@/lib/db/analitica"
-import { esquemaAusente, hojeSP, lerEmLotes, nomesDosUsuarios, texto } from "@/lib/db/comum"
+import { esquemaAusente, hojeSP, lerEmLotes, texto } from "@/lib/db/comum"
 import { FILTRO_NAO_PAGA_NO_ATO, FORMA_PAGA_NO_ATO, opcoesFiltrosOrdens, SITUACOES_ABERTAS } from "@/lib/db/financeiro"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
+import { favorecidosDasOrdens } from "@/lib/db/ordens-favorecido"
+import type { OrdemFavorecido } from "@/lib/favorecido"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -236,7 +238,7 @@ export async function ordensVencidas(limite = 60): Promise<{ linhas: OrdemVencid
   const brutas = await lerEmLotes<Record<string, unknown>>((de, ate) =>
     admin
       .from("ordens_pagamento")
-      .select("id, codigo, descricao, situacao, valor_inicial_cobranca, valor_pago, vencimento, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso")
+      .select("id, codigo, descricao, situacao, valor_inicial_cobranca, valor_pago, vencimento, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso, beneficiario_doc_avulso, custeio_id")
       .eq("emp_proprietaria_id", emp)
       .not("excluido", "is", true)
       .in("situacao", [...SITUACOES_ABERTAS])
@@ -247,13 +249,8 @@ export async function ordensVencidas(limite = 60): Promise<{ linhas: OrdemVencid
       .range(de, ate)
   ).catch(() => [])
   const recorte = brutas.slice(0, limite)
-  const empresaIds = [...new Set(recorte.map((o) => texto(o.beneficiario_fornecedor_id)).filter((v): v is string => !!v))]
-  const usuarioIds = recorte.map((o) => texto(o.beneficiario_usuario_id)).filter((v): v is string => !!v)
-  const [empresas, usuarios] = await Promise.all([
-    empresaIds.length ? admin.from("empresa").select("id, nome_fantasia, nome_razao").in("id", empresaIds) : Promise.resolve({ data: [] as Record<string, unknown>[] }),
-    nomesDosUsuarios(usuarioIds),
-  ])
-  const nomeEmpresa = new Map((empresas.data ?? []).map((e) => [String(e.id), texto(e.nome_fantasia) ?? texto(e.nome_razao) ?? "(sem nome)"]))
+  // Quem recebe: regra única (lib/favorecido.ts).
+  const favorecidos = await favorecidosDasOrdens(recorte as OrdemFavorecido[])
   const dia = (iso: string) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10))
   const linhas = recorte.map((o) => {
     const venc = String(o.vencimento).slice(0, 10)
@@ -261,10 +258,7 @@ export async function ordensVencidas(limite = 60): Promise<{ linhas: OrdemVencid
       id: String(o.id),
       codigo: texto(o.codigo),
       descricao: texto(o.descricao),
-      favorecido:
-        (texto(o.beneficiario_fornecedor_id) && nomeEmpresa.get(String(o.beneficiario_fornecedor_id))) ||
-        (texto(o.beneficiario_usuario_id) && usuarios.get(String(o.beneficiario_usuario_id))) ||
-        texto(o.beneficiario_nome_avulso),
+      favorecido: favorecidos.get(String(o.id))?.nome ?? null,
       situacao: texto(o.situacao),
       valor: Number(o.valor_pago ?? o.valor_inicial_cobranca ?? 0),
       vencimento: venc,

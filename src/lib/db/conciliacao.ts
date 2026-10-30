@@ -4,6 +4,7 @@ import { createHash } from "node:crypto"
 
 import { esquemaAusente, hojeSP, lerEmLotes, texto } from "@/lib/db/comum"
 import { registrarEvento } from "@/lib/db/ordens-ciclo"
+import { favorecidosDasOrdens } from "@/lib/db/ordens-favorecido"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
 import { listarRemessas } from "@/lib/db/receitas"
 import { lerExtratoCsv } from "@/lib/extrato-csv"
@@ -260,11 +261,13 @@ async function ordensCandidatas(lancs: Lancamento[]): Promise<Map<string, Candid
     beneficiario_fornecedor_id: string | null
     beneficiario_usuario_id: string | null
     beneficiario_nome_avulso: string | null
+    beneficiario_doc_avulso: string | null
+    custeio_id: string | null
   }
   const lista = await lerEmLotes<OrdemLida>((a, b) =>
     admin
       .from("ordens_pagamento")
-      .select("id, codigo, descricao, valor_pago, valor_inicial_cobranca, data_pagamento, forma_pagamento, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso")
+      .select("id, codigo, descricao, valor_pago, valor_inicial_cobranca, data_pagamento, forma_pagamento, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso, beneficiario_doc_avulso, custeio_id")
       .eq("emp_proprietaria_id", emp)
       .eq("situacao", "Paga")
       .not("excluido", "is", true)
@@ -276,29 +279,15 @@ async function ordensCandidatas(lancs: Lancamento[]): Promise<Map<string, Candid
   if (lista.length === 0) return saida
   // Ordens já conciliadas ficam fora.
   const jaUsadas = await idsJaConciliados(admin, emp, "ordem_id", lista.map((o) => String(o.id)))
-  // Nomes dos favorecidos.
-  const empIds = [...new Set(lista.flatMap((o) => [o.fornecedor_id, o.beneficiario_fornecedor_id]).filter((v): v is string => !!v))]
-  const usuIds = [...new Set(lista.map((o) => o.beneficiario_usuario_id).filter((v): v is string => !!v))]
-  const nomes = new Map<string, string>()
-  for (const fatia of emFatias(empIds)) {
-    const { data } = await admin.from("empresa").select("id, empresa, nome_fantasia, nome_razao").in("id", fatia)
-    for (const e of data ?? []) nomes.set(String(e.id), texto(e.empresa) ?? texto(e.nome_fantasia) ?? texto(e.nome_razao) ?? "")
-  }
-  for (const fatia of emFatias(usuIds)) {
-    const { data } = await admin.from("usuarios").select("id, nome_completo, nome_guerra").in("id", fatia)
-    for (const u of data ?? []) nomes.set(String(u.id), texto(u.nome_completo) ?? texto(u.nome_guerra) ?? "")
-  }
-  const candidatas: CandidataOrdem[] = lista
-    .filter((o) => !jaUsadas.has(String(o.id)))
+  // Quem recebe: regra única (lib/favorecido.ts).
+  const livres = lista.filter((o) => !jaUsadas.has(String(o.id)))
+  const favorecidos = await favorecidosDasOrdens(livres)
+  const candidatas: CandidataOrdem[] = livres
     .map((o) => ({
       id: String(o.id),
       codigo: texto(o.codigo),
       descricao: texto(o.descricao),
-      favorecido:
-        (o.beneficiario_fornecedor_id && nomes.get(String(o.beneficiario_fornecedor_id))) ||
-        (o.fornecedor_id && nomes.get(String(o.fornecedor_id))) ||
-        (o.beneficiario_usuario_id && nomes.get(String(o.beneficiario_usuario_id))) ||
-        texto(o.beneficiario_nome_avulso),
+      favorecido: favorecidos.get(String(o.id))?.nome ?? null,
       valorPago: Number(o.valor_pago ?? o.valor_inicial_cobranca ?? 0),
       dataPagamento: texto(o.data_pagamento)?.slice(0, 10) ?? null,
       forma: texto(o.forma_pagamento),

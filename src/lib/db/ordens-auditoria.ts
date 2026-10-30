@@ -3,8 +3,10 @@ import "server-only"
 import { CODIGO_AUDITORIA_CAIXA, reconhecimentoDaOrdem } from "@/lib/db/caixa-reconhecimento"
 import { validarCnpj, validarCpf } from "@/lib/cpf"
 import { alcadaDoUsuario } from "@/lib/db/compras"
+import { favorecidosDasOrdens } from "@/lib/db/ordens-favorecido"
 import { rateioDaOrdem } from "@/lib/db/ordens-rateio"
 import type { Procedencia } from "@/lib/db/ordens-procedencia"
+import type { OrdemFavorecido } from "@/lib/favorecido"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { resolverPermissoes } from "@/lib/permissoes-resolver"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -108,22 +110,15 @@ export async function auditarOrdem(
   }
 
   // 3–4. Favorecido
-  let favDoc: string | null = null
-  let favNome: string | null = null
+  // Quem recebe: regra única (lib/favorecido.ts), inclui o filiado do reembolso.
+  const favorecido = (await favorecidosDasOrdens([ordem as OrdemFavorecido])).get(String(ordem.id))
+  const favNome = favorecido?.nome ?? null
+  const favDoc = favorecido?.documento ?? null
   let bloqueado = false
   const fornId = t(ordem.beneficiario_fornecedor_id) ?? t(ordem.fornecedor_id)
   if (fornId) {
-    const { data: e } = await admin.from("empresa").select("nome_fantasia, nome_razao, cnpj_cpf, fornecedor_bloqueado, bloqueado").eq("id", fornId).maybeSingle()
-    favNome = t(e?.nome_fantasia) ?? t(e?.nome_razao)
-    favDoc = t(e?.cnpj_cpf)
+    const { data: e } = await admin.from("empresa").select("fornecedor_bloqueado, bloqueado").eq("id", fornId).maybeSingle()
     bloqueado = e?.fornecedor_bloqueado === true || e?.bloqueado === true
-  } else if (t(ordem.beneficiario_usuario_id)) {
-    const { data: u } = await admin.from("usuarios").select("nome_completo, cpf").eq("id", String(ordem.beneficiario_usuario_id)).maybeSingle()
-    favNome = t(u?.nome_completo)
-    favDoc = t(u?.cpf)
-  } else {
-    favNome = t(ordem.beneficiario_nome_avulso)
-    favDoc = t(ordem.beneficiario_doc_avulso)
   }
   const dv = docValido(favDoc)
   add("favorecido", "Favorecido identificado com CPF/CNPJ válido",

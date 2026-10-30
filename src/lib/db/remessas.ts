@@ -2,6 +2,8 @@ import "server-only"
 
 import { mesmoTitular } from "@/lib/cpf"
 import { contaConferida } from "@/lib/bancos"
+import { favorecidosDasOrdens } from "@/lib/db/ordens-favorecido"
+import type { OrdemFavorecido } from "@/lib/favorecido"
 import { bancoPorCodigo, codigoPorNome } from "@/lib/cnab/bancos"
 import { codigoDeBarrasDe, gerarRemessa240, lerRetorno240, type ContaRemessa, type ItemRemessa } from "@/lib/cnab/febraban240"
 import { esquemaAusente, hojeSP, texto } from "@/lib/db/comum"
@@ -222,7 +224,7 @@ export async function ordensParaRemessa(): Promise<{ disponivel: boolean; ordens
   const { data: brutas, error } = await admin
     .from("ordens_pagamento")
     .select(
-      "id, codigo, descricao, tipo, forma_pagamento, valor_inicial_cobranca, vencimento, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso, beneficiario_doc_avulso, dados_bancarios_id, pix_codigo, arquivo_boleto, boleto_linha_digitavel, caixa_conta_id, cartao_id"
+      "id, codigo, descricao, tipo, forma_pagamento, valor_inicial_cobranca, vencimento, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso, beneficiario_doc_avulso, custeio_id, dados_bancarios_id, pix_codigo, arquivo_boleto, boleto_linha_digitavel, caixa_conta_id, cartao_id"
     )
     .eq("emp_proprietaria_id", emp)
     .eq("situacao", SITUACAO_A_PAGAR)
@@ -252,13 +254,11 @@ export async function ordensParaRemessa(): Promise<{ disponivel: boolean; ordens
   const empIds = [...new Set(lista.flatMap((o) => [o.beneficiario_fornecedor_id, o.fornecedor_id]).filter((v): v is string => !!v))]
   const usuIds = [...new Set(lista.map((o) => o.beneficiario_usuario_id).filter((v): v is string => !!v))]
   const dbIds = [...new Set(lista.map((o) => o.dados_bancarios_id).filter((v): v is string => !!v))]
-  const [empresas, usuarios, dados] = await Promise.all([
-    empIds.length ? admin.from("empresa").select("id, empresa, nome_fantasia, nome_razao, cnpj_cpf").in("id", empIds) : Promise.resolve({ data: [] }),
-    usuIds.length ? admin.from("usuarios").select("id, nome_completo, nome_guerra, cpf").in("id", usuIds) : Promise.resolve({ data: [] }),
+  // Quem recebe (nome e CPF/CNPJ): regra única, inclui o filiado do reembolso.
+  const [favorecidos, dados] = await Promise.all([
+    favorecidosDasOrdens(lista as OrdemFavorecido[]),
     dbIds.length ? admin.from("dados_bancarios").select("id, banco, banco_codigo, agencia, conta, tipo_conta, pix, pix_tipo, favorecido, titular_documento, conferida_em, conferida_titular, fornecedor_id, usuario_id").in("id", dbIds) : Promise.resolve({ data: [] }),
   ])
-  const empresaPorId = new Map((empresas.data ?? []).map((e) => [String(e.id), e]))
-  const usuarioPorId = new Map((usuarios.data ?? []).map((u) => [String(u.id), u]))
   const dadosPorId = new Map((dados.data ?? []).map((d) => [String(d.id), d]))
   // Meios cadastrados do fornecedor/usuário, para sugerir quando a ordem não escolheu um.
   const { data: meiosTodos } = await admin
@@ -280,10 +280,9 @@ export async function ordensParaRemessa(): Promise<{ disponivel: boolean; ordens
     const valor = Number(o.valor_inicial_cobranca ?? 0)
     const pendencias: string[] = []
     const avisos: string[] = []
-    const empresa = empresaPorId.get(texto(o.beneficiario_fornecedor_id) ?? "") ?? empresaPorId.get(texto(o.fornecedor_id) ?? "")
-    const usuario = usuarioPorId.get(texto(o.beneficiario_usuario_id) ?? "")
-    const favorecidoNome = (empresa && (texto(empresa.empresa) ?? texto(empresa.nome_fantasia) ?? texto(empresa.nome_razao))) ?? (usuario && (texto(usuario.nome_completo) ?? texto(usuario.nome_guerra))) ?? texto(o.beneficiario_nome_avulso)
-    const favorecidoDocumento = documentoLimpo(texto(empresa?.cnpj_cpf) ?? texto(usuario?.cpf) ?? texto(o.beneficiario_doc_avulso))
+    const favorecido = favorecidos.get(id)
+    const favorecidoNome = favorecido?.nome ?? null
+    const favorecidoDocumento = documentoLimpo(favorecido?.documento ?? null)
     if (valor <= 0) pendencias.push("sem valor")
     if (o.caixa_conta_id) pendencias.push("paga pelo caixa (dinheiro)")
     if (o.cartao_id) pendencias.push("paga com cartão")
