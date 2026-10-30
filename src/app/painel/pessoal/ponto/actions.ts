@@ -13,6 +13,7 @@ import { regrasApuracaoPonto, salvarPercentuaisHoraExtra, salvarRegrasApuracaoPo
 import { lerCartaoPdf } from "@/lib/db/ponto-cartao-ia"
 import { apurarMes, type RegrasApuracao } from "@/lib/ponto-apuracao"
 import { lerEspelhoDoRegistro } from "@/lib/db/ponto-marcacoes"
+import { recalcularPosteriores } from "@/lib/db/ponto-cascata"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { duasCasas, lerHoras } from "@/lib/horas"
 
@@ -308,8 +309,9 @@ export async function criarRegistroPonto(
   // Marcações do espelho para os indicadores (lib/db/ponto-marcacoes), sem fazer esperar.
   if (upload.caminho) depoisDaResposta(() => lerEspelhoDoRegistro(criado.id))
 
+  const cascata = await cascataSePedida(formData, remessaId, funcionarioId)
   revalidar(remessaId)
-  redirect(`/painel/pessoal/ponto/${remessaId}?salvo=1`)
+  redirect(`/painel/pessoal/ponto/${remessaId}?salvo=1${cascata}`)
 }
 
 export async function atualizarRegistroPonto(
@@ -368,8 +370,25 @@ export async function atualizarRegistroPonto(
     )
   }
 
+  const cascata = anterior.funcionario_id ? await cascataSePedida(formData, remessaId, anterior.funcionario_id) : ""
   revalidar(remessaId)
-  redirect(`/painel/pessoal/ponto/${remessaId}?salvo=1`)
+  redirect(`/painel/pessoal/ponto/${remessaId}?salvo=1${cascata}`)
+}
+
+/**
+ * O gestor respondeu "Recalcular" no formulário: refaz os saldos do
+ * funcionário nas remessas posteriores (lib/db/ponto-cascata). Devolve os
+ * parâmetros da mensagem na volta à remessa.
+ */
+async function cascataSePedida(formData: FormData, remessaId: string, funcionarioId: string): Promise<string> {
+  if (formData.get("recalcular_posteriores") !== "1") return ""
+  try {
+    const r = await recalcularPosteriores(remessaId, funcionarioId)
+    revalidatePath("/painel/pessoal/ponto", "layout")
+    return `&recalculadas=${encodeURIComponent(r.recalculadas.join("|"))}${r.paradaEm ? `&parada=${encodeURIComponent(r.paradaEm)}` : ""}`
+  } catch (e) {
+    return `&erro_cascata=${encodeURIComponent((e as Error).message)}`
+  }
 }
 
 export async function excluirRegistroPonto(

@@ -14,7 +14,15 @@ import type { FaixasHE } from "@/lib/faixas-he"
 import { formatarMin, type Apuracao } from "@/lib/ponto-apuracao"
 import { cn } from "@/lib/utils"
 
-import { aplicarItensAction, associarFuncionarioAction, descartarItemAction, lerImportacaoAction, reapurarAction } from "../actions"
+import {
+  aplicarItensAction,
+  associarFuncionarioAction,
+  descartarItemAction,
+  lerImportacaoAction,
+  reapurarAction,
+  recalcularPosterioresAction,
+  type PosteriorAfetado,
+} from "../actions"
 import { Trabalhando, useLeitura } from "../trabalhando"
 
 const SELECT =
@@ -124,6 +132,7 @@ export function ItensImportacao({
   const [ocupado, iniciarTransicao] = useTransition()
   const [tarefa, setTarefa] = useState<{ titulo: string; detalhe?: string } | null>(null)
   const [resultado, setResultado] = useState<{ ok?: string; erro?: string; pulados?: string[] } | null>(null)
+  const [pergunta, setPergunta] = useState<PosteriorAfetado[] | null>(null)
   const { lendo } = useLeitura()
 
   // Toda ação da tabela diz o que está fazendo enquanto roda.
@@ -173,6 +182,16 @@ export function ItensImportacao({
           ? { erro: r.erro }
           : { ok: `${r.aplicados} registro(s) aplicado(s) à remessa, bloqueado(s) ao funcionário — libere na remessa depois de conferir.`, pulados: r.pulados }
       )
+      setPergunta(r.posteriores?.length ? r.posteriores : null)
+      router.refresh()
+    })
+  }
+
+  const recalcular = (afetados: PosteriorAfetado[]) => {
+    setPergunta(null)
+    iniciar({ titulo: "Recalculando os saldos das remessas posteriores…" }, async () => {
+      const r = await recalcularPosterioresAction(remessaId, afetados.map((a) => a.id))
+      setResultado(r.erro ? { erro: `O recálculo falhou: ${r.erro}` } : { ok: r.ok })
       router.refresh()
     })
   }
@@ -203,6 +222,35 @@ export function ItensImportacao({
                 ))}
               </ul>
             )}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {pergunta && (
+        <Alert variant="warning">
+          <AlertDescription className="grid gap-2">
+            <span className="font-medium">Recalcular as remessas posteriores?</span>
+            <span>
+              {pergunta.length} funcionário(s) aplicado(s) têm registro em remessas seguintes, que partem do saldo desta:{" "}
+              {[...new Set(pergunta.flatMap((p) => p.remessas))].join(", ")}. Recalcular refaz, em ordem, o saldo da
+              remessa anterior e o remanescente deles em cada uma; realizadas e pagas não mudam.
+              {pergunta.some((p) => p.finalizada) && " Remessa finalizada não muda, e a cadeia para nela."}
+            </span>
+            <ul className="list-disc pl-5 text-xs">
+              {pergunta.map((p) => (
+                <li key={p.id}>
+                  {p.nome}: {p.remessas.join(", ")}
+                </li>
+              ))}
+            </ul>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={() => recalcular(pergunta)} disabled={ocupado}>
+                Recalcular
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setPergunta(null)} disabled={ocupado}>
+                Deixar como está
+              </Button>
+            </div>
           </AlertDescription>
         </Alert>
       )}

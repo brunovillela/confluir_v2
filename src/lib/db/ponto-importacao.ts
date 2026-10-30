@@ -385,7 +385,7 @@ export async function aplicarItens(
   importacaoId: string,
   itemIds: string[],
   usuarioId: string
-): Promise<{ aplicados: number; pulados: string[]; erro?: string }> {
+): Promise<{ aplicados: number; pulados: string[]; erro?: string; funcionarios?: { id: string; nome: string }[] }> {
   const imp = await obterImportacao(importacaoId)
   if (!imp) return { aplicados: 0, pulados: [], erro: "Importação não encontrada." }
   const admin = await createAdminClient()
@@ -410,6 +410,8 @@ export async function aplicarItens(
 
   let aplicados = 0
   const pulados: string[] = []
+  // Quem foi aplicado: a tela pergunta se recalcula as remessas posteriores deles.
+  const feitos: { id: string; nome: string }[] = []
   const usados = new Set<string>()
   for (const item of imp.itens.filter((i) => itemIds.includes(i.id))) {
     const nome = item.funcionarioNome ?? item.nomeLido ?? `páginas ${item.paginas.join(", ")}`
@@ -475,6 +477,7 @@ export async function aplicarItens(
       .update({ situacao: "aplicado", registro_id: registroId, aplicado_em: new Date().toISOString(), aplicado_por: usuarioId })
       .eq("id", item.id)
     aplicados++
+    feitos.push({ id: item.funcionarioId, nome })
   }
-  return { aplicados, pulados }
+  return { aplicados, pulados, funcionarios: feitos }
 }

@@ -34,6 +34,7 @@ import {
 } from "@/lib/db/pessoal"
 import { formatarData } from "@/lib/formato"
 import { carregarBasePonto, competenciaDaRemessa, indicadoresDe, saldosAnterioresPonto } from "@/lib/db/ponto-analise"
+import { posterioresPorFuncionario } from "@/lib/db/ponto-cascata"
 import { faixasHoraExtra } from "@/lib/db/ponto-config"
 import { isentosNaCompetencia, periodoIsencao } from "@/lib/db/ponto-isencoes"
 import { decimalHoras, hhmm } from "@/lib/horas"
@@ -66,20 +67,25 @@ export default async function RemessaPontoPage({
     porPagina?: string
     aba?: string
     novo?: string
+    /** Remessas posteriores recalculadas ao salvar (nomes separados por |). */
+    recalculadas?: string
+    parada?: string
+    erro_cascata?: string
   }>
 }) {
   await requirePermissao("pessoal_gestao")
 
   const { id } = await params
   const paramsBusca = await searchParams
-  const { salvo, editar } = paramsBusca
+  const { salvo, editar, recalculadas, parada } = paramsBusca
   const naAnalise = paramsBusca.aba === "indicadores"
-  const [remessa, itens, funcionarios, saldosAnteriores, faixas] = await Promise.all([
+  const [remessa, itens, funcionarios, saldosAnteriores, faixas, posteriores] = await Promise.all([
     buscarRemessaPonto(id),
     registrosDaRemessaPonto(id),
     funcionariosParaSelecao(),
     saldosAnterioresPonto(id),
     faixasHoraExtra(),
+    posterioresPorFuncionario(id),
   ])
   if (!remessa) notFound()
   const isencoes = await isentosNaCompetencia(competenciaDaRemessa(remessa))
@@ -194,7 +200,21 @@ export default async function RemessaPontoPage({
 
       {salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">
-          <AlertDescription>Salvo com sucesso.</AlertDescription>
+          <AlertDescription>
+            Salvo com sucesso.
+            {recalculadas !== undefined &&
+              (recalculadas
+                ? ` Saldos recalculados nas remessas posteriores: ${recalculadas.split("|").join(", ")}.`
+                : " Nenhuma remessa posterior foi recalculada.")}
+            {parada && ` ${parada} está finalizada: ela e as seguintes ficaram como estavam.`}
+          </AlertDescription>
+        </Alert>
+      )}
+      {paramsBusca.erro_cascata && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            O registro foi salvo, mas o recálculo das remessas posteriores falhou: {paramsBusca.erro_cascata}
+          </AlertDescription>
         </Alert>
       )}
 
@@ -226,6 +246,7 @@ export default async function RemessaPontoPage({
               key={registroEmEdicao?.id ?? "novo"}
               saldosAnteriores={saldosAnteriores}
               faixas={faixas}
+              posteriores={posteriores}
               remessaId={id}
               funcionarios={disponiveis}
               registro={registroEmEdicao ?? undefined}

@@ -20,7 +20,8 @@ import {
   criarRegistroPonto,
   excluirRegistroPonto,
 } from "../actions"
-import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { confirmar, confirmarEnvio } from "@/components/ui/confirmacao"
+import type { RemessaPosterior } from "@/lib/db/ponto-cascata"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
@@ -63,6 +64,7 @@ export function RegistroPontoForm({
   registro,
   saldosAnteriores,
   faixas,
+  posteriores,
 }: {
   remessaId: string
   funcionarios: { usuarioId: string; nome: string }[]
@@ -70,6 +72,8 @@ export function RegistroPontoForm({
   saldosAnteriores: Record<string, SaldoAnteriorPonto>
   /** Percentual de cada faixa na entidade (as colunas são _70 e _100). */
   faixas: FaixasHE
+  /** Por funcionário: remessas seguintes com registro dele (para perguntar se recalcula). */
+  posteriores: Record<string, RemessaPosterior[]>
 }) {
   const [estado, formAction, pendente] = useActionState(
     registro ? atualizarRegistroPonto : criarRegistroPonto,
@@ -145,9 +149,35 @@ export function RegistroPontoForm({
         <form
           action={formAction}
           // Envio por transição: num erro, o React 19 limparia o formulário.
-          onSubmit={(e) => {
+          // A pergunta vem antes da transição (dentro dela, o diálogo só
+          // apareceria no fim).
+          onSubmit={async (e) => {
             e.preventDefault()
             const dados = new FormData(e.currentTarget)
+            const depois = funcionarioId ? (posteriores[funcionarioId] ?? []) : []
+            const mudouSaldo =
+              !registro ||
+              PERCENTUAIS.some((pct) => {
+                const r = conta(pct)
+                if ("erro" in r) return false
+                const gravado = registro[`saldo_remanescente_${pct}`] ?? null
+                return (gravado === null) !== (r.saldo === null) || Math.abs((gravado ?? 0) - (r.saldo ?? 0)) >= 0.01
+              })
+            if (depois.length > 0 && mudouSaldo) {
+              const abertas = depois.filter((d) => !d.finalizada).map((d) => d.remessa)
+              const finalizada = depois.find((d) => d.finalizada)?.remessa
+              const recalcular = await confirmar({
+                titulo: "Recalcular as remessas posteriores?",
+                descricao: `O saldo remanescente deste funcionário muda, e as remessas seguintes partem dele: ${depois
+                  .map((d) => d.remessa + (d.finalizada ? " (finalizada)" : ""))
+                  .join(", ")}. Recalcular refaz o saldo da remessa anterior e o saldo remanescente dele em cada uma, em ordem${
+                  finalizada ? ` — até ${finalizada}, que está finalizada e não muda` : ""
+                }. Realizadas e pagas não mudam.${abertas.length === 0 ? " Nenhuma está aberta: nada seria recalculado." : ""}`,
+                confirmar: "Recalcular",
+                cancelar: "Salvar só esta",
+              })
+              if (recalcular) dados.set("recalcular_posteriores", "1")
+            }
             iniciar(() => formAction(dados))
           }}
           className="grid gap-4"
