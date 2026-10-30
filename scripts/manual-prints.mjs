@@ -236,6 +236,8 @@ const SHOTS_RODADA_21 = [
   // demo como estão: março sem remessa anterior, saldos zerados).
   ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001", "pessoal/ponto-remessa.png", { esperar: "Horas pagas no mês", altura: 1250 }],
   ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001?editar=d7c7e57f-4ec9-4ea7-970f-7e40d7d77e31", "pessoal/ponto-registro-form.png", { esperar: "Saldo remanescente", passos: [{ pausa: 2000 }, { ir: "/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001?editar=d7c7e57f-4ec9-4ea7-970f-7e40d7d77e31" }, { aguardar: "Apurar pelas batidas" }, { pausa: 1000 }], altura: 900 }],
+  // Pede remessas temporárias Abril/2026 (aberta) e Maio/2026 (finalizada) com registro da Ana, apagadas depois; o print para no diálogo (nada é salvo).
+  // ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001?editar=d7c7e57f-4ec9-4ea7-970f-7e40d7d77e31", "pessoal/ponto-recalcular-posteriores.png", { esperar: "Saldo remanescente", passos: [{ pausa: 2000 }, { ir: "/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001?editar=d7c7e57f-4ec9-4ea7-970f-7e40d7d77e31" }, { aguardar: "Apurar pelas batidas" }, { preencher: ["#horas_realizadas_70", "10:00"] }, { clicar: 'css=button[type=submit]:has-text("Salvar registro")' }, { aguardar: "Recalcular as remessas posteriores?" }, { pausa: 700 }], altura: 900 }],
   // O grupo fica no fim da página: tirar fullPage e recortar as últimas 1440 px (sem a barra lateral, left 540).
   // Os dois abaixo pedem a remessa temporária 55555555-…-0000000000a7 (Julho/2026) e um cartão
   // ponto FICTÍCIO com funcionários da demo (gerado com pdf-lib), apagados depois; nunca o relatório real.
