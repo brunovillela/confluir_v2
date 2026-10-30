@@ -4,6 +4,7 @@ import { assinaturaTitular, chaveDaConta, chaveDoPix, contaConferida } from "@/l
 import { cpfConfiavel, lerDocumentoTitular, limparCpf, mesmoTitular } from "@/lib/cpf"
 import { texto } from "@/lib/db/comum"
 import { donosDaPessoa, donosPorCpf, type TipoDono } from "@/lib/db/dados-bancarios-pessoa"
+import { destinoDaForma, ordensSemDestinoBancario } from "@/lib/db/ordens-destino"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -350,6 +351,8 @@ export type OrdemEsperandoConta = {
   situacao: string
   valor: number | null
   vencimento: string | null
+  /** null: sem forma; "Pix"/TED: a forma está lá, falta a chave ou a conta. */
+  forma: string | null
   favorecido: string
   /** O cadastro a quem pedir a conta (null: favorecido avulso sem cadastro). */
   dono: DonoConta | null
@@ -360,7 +363,9 @@ export type OrdemEsperandoConta = {
 
 /**
  * ORDENS ESPERANDO CONTA (28/10/2026): as ordens abertas que ainda estão sem
- * forma e sem dado bancário (anteriores à forma obrigatória). O dono é o
+ * forma e sem dado bancário (anteriores à forma obrigatória) e, desde 30/10,
+ * as que já têm Pix/TED mas nenhuma chave ou conta que a remessa use
+ * (ordensSemDestinoBancario, a mesma regra da trava). O dono é o
  * favorecido da ordem — fornecedor, usuário, filiado do reembolso, favorecido
  * do custeio ou, no avulso, quem tem o CPF informado. Quando ele responde ao
  * pedido, ligarOrdensSemForma completa a ordem.
@@ -368,17 +373,18 @@ export type OrdemEsperandoConta = {
 export async function ordensEsperandoConta(): Promise<OrdemEsperandoConta[]> {
   const emp = await tenantAtual()
   const admin = await createAdminClient()
-  const ordens = await todas(
+  const abertas = await todas(
     "ordens_pagamento",
-    "id, codigo, tipo, situacao, valor, valor_inicial_cobranca, vencimento, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso, beneficiario_doc_avulso, custeio_id",
+    "id, codigo, tipo, situacao, valor, valor_inicial_cobranca, vencimento, forma_pagamento, dados_bancarios_id, pix_codigo, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso, beneficiario_doc_avulso, custeio_id",
     (q) =>
       q
         .eq("emp_proprietaria_id", emp)
         .or("excluido.is.null,excluido.eq.false")
-        .is("forma_pagamento", null)
-        .is("dados_bancarios_id", null)
         .in("situacao", SITUACOES_ABERTAS)
   )
+  // Sem forma e sem conta, ou já com Pix/TED que a remessa não conseguiria pagar.
+  const semDestino = await ordensSemDestinoBancario(abertas.filter((o) => destinoDaForma(o.forma_pagamento) !== null))
+  const ordens = abertas.filter((o) => (!texto(o.forma_pagamento) && !texto(o.dados_bancarios_id)) || semDestino.has(String(o.id)))
   if (ordens.length === 0) return []
   const ids = ordens.map((o) => String(o.id))
   const custeioIds = [...new Set(ordens.map((o) => texto(o.custeio_id)).filter((v): v is string => Boolean(v)))]
@@ -426,6 +432,7 @@ export async function ordensEsperandoConta(): Promise<OrdemEsperandoConta[]> {
         situacao: String(o.situacao),
         valor: valor == null ? null : Number(valor),
         vencimento: texto(o.vencimento),
+        forma: texto(o.forma_pagamento),
         favorecido: c?.dono.nome ?? texto(o.beneficiario_nome_avulso) ?? "Favorecido sem cadastro",
         dono: c?.dono ?? null,
         email: c?.email ?? null,

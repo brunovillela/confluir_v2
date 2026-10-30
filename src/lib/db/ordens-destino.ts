@@ -236,10 +236,25 @@ async function cadastroDosFavorecidos(linhas: LinhaDestino[]): Promise<Map<strin
  * ordem Pix/TED sem o destino registrado.
  */
 export async function faltaDestinoBancario(linhas: LinhaDestino[]): Promise<string | null> {
+  return (await motivosSemDestino(linhas)).find((m) => m !== null) ?? null
+}
+
+/**
+ * Ordens abertas por Pix/TED que a remessa não conseguiria pagar (sem chave
+ * ou conta na ordem nem no cadastro): os ids, para a tela Contas bancárias.
+ */
+export async function ordensSemDestinoBancario(linhas: LinhaDestino[]): Promise<Set<string>> {
+  const motivos = await motivosSemDestino(linhas)
+  return new Set(linhas.flatMap((l, i) => (motivos[i] ? [String(l.id)] : [])))
+}
+
+/** O motivo de cada linha (null = tem destino ou não é Pix/TED), na mesma ordem. */
+async function motivosSemDestino(linhas: LinhaDestino[]): Promise<(string | null)[]> {
+  const saida: (string | null)[] = linhas.map(() => null)
   const alvo = linhas
-    .map((l) => ({ l, destino: destinoDaForma(l.forma_pagamento) }))
-    .filter((x): x is { l: LinhaDestino; destino: DestinoBancario } => x.destino !== null)
-  if (alvo.length === 0) return null
+    .map((l, i) => ({ l, i, destino: destinoDaForma(l.forma_pagamento) }))
+    .filter((x): x is { l: LinhaDestino; i: number; destino: DestinoBancario } => x.destino !== null)
+  if (alvo.length === 0) return saida
 
   const admin = await createAdminClient()
   const escolhidos = [...new Set(alvo.map((x) => t(x.l.dados_bancarios_id)).filter((v): v is string => Boolean(v)))]
@@ -251,23 +266,24 @@ export async function faltaDestinoBancario(linhas: LinhaDestino[]): Promise<stri
   ])
   const dadoPorId = new Map(((porId ?? []) as Record<string, unknown>[]).map((d) => [String(d.id), comoCadastro(d)]))
 
-  for (const { l, destino } of alvo) {
+  for (const { l, i, destino } of alvo) {
     const escolhido = t(l.dados_bancarios_id)
     if (escolhido) {
       const d = dadoPorId.get(escolhido)
       if (d && serve(d, destino)) continue
-      return `Pagamento por ${destino === "pix" ? "Pix" : "TED"}: o dado bancário escolhido não tem ${rotulo(destino)}. Escolha outro ou mude a forma de pagamento.`
+      saida[i] = `Pagamento por ${destino === "pix" ? "Pix" : "TED"}: o dado bancário escolhido não tem ${rotulo(destino)}. Escolha outro ou mude a forma de pagamento.`
+      continue
     }
     if (destino === "pix" && t(l.pix_codigo)) continue
     const chave = chaveDe(l)
     if (chave && (cadastro.get(chave) ?? []).some((d) => serve(d, destino))) continue
     const avulso = t(l.beneficiario_nome_avulso)
     const deQuem = avulso ? `de ${avulso}` : chave ? "do favorecido" : null
-    return deQuem
+    saida[i] = deQuem
       ? `Pagamento por ${destino === "pix" ? "Pix" : "TED"} sem ${rotulo(destino)} ${deQuem} registrada. Cadastre os dados bancários do favorecido ou escolha outra forma (boleto, Pix por QR Code…).`
       : `Pagamento por ${destino === "pix" ? "Pix" : "TED"} sem favorecido nem ${rotulo(destino)} registrada.`
   }
-  return null
+  return saida
 }
 
 /**
@@ -363,12 +379,12 @@ export async function ligarOrdensSemForma(dadoId: string): Promise<number> {
   const usuarios = new Set(pessoa.usuario_id)
   const filiacoes = new Set(pessoa.filiado_id)
 
+  // Sem conta ligada: sem forma nenhuma, ou já com Pix/TED esperando o destino.
   const abertasSemForma = () =>
     admin
       .from("ordens_pagamento")
-      .select("id")
+      .select("id, forma_pagamento, pix_codigo")
       .eq("emp_proprietaria_id", emp)
-      .is("forma_pagamento", null)
       .is("dados_bancarios_id", null)
       .in("situacao", SITUACOES_ABERTAS)
   const vazio = Promise.resolve({ data: [] as Record<string, unknown>[] })
@@ -388,9 +404,9 @@ export async function ligarOrdensSemForma(dadoId: string): Promise<number> {
       : vazio,
     doCusteio.length ? admin.from("institucional_custeios").select("id").or(doCusteio.join(",")) : vazio,
   ])
-  const ids = new Set<string>()
+  const linhas = new Map<string, Record<string, unknown>>()
   for (const o of [...((porFornecedor.data ?? []) as Record<string, unknown>[]), ...((porUsuario.data ?? []) as Record<string, unknown>[])]) {
-    ids.add(String(o.id))
+    linhas.set(String(o.id), o)
   }
   const doReembolso = ((reembolsos.data ?? []) as Record<string, unknown>[]).map((r) => String(r.ordem_pagamento_id))
   const custeioIds = ((custeios.data ?? []) as Record<string, unknown>[]).map((c) => String(c.id))
@@ -398,8 +414,19 @@ export async function ligarOrdensSemForma(dadoId: string): Promise<number> {
     doReembolso.length ? abertasSemForma().in("id", doReembolso) : vazio,
     custeioIds.length ? abertasSemForma().in("custeio_id", custeioIds) : vazio,
   ])
-  for (const o of [...((deReembolso ?? []) as Record<string, unknown>[]), ...((deCusteio ?? []) as Record<string, unknown>[])]) ids.add(String(o.id))
-  if (ids.size === 0) return 0
+  for (const o of [...((deReembolso ?? []) as Record<string, unknown>[]), ...((deCusteio ?? []) as Record<string, unknown>[])]) linhas.set(String(o.id), o)
+  // Sem forma: recebe a forma e o dado. Com Pix/TED: só o dado, se ele serve
+  // àquela forma (Pix com a chave já na ordem não precisa).
+  const ids = new Set<string>()
+  const soDado = new Set<string>()
+  for (const [id, o] of linhas) {
+    const destino = destinoDaForma(o.forma_pagamento)
+    if (!t(o.forma_pagamento)) ids.add(id)
+    else if (destino === "pix" && temPix && !t(o.pix_codigo)) soDado.add(id)
+    else if (destino === "ted" && temConta) soDado.add(id)
+  }
+  const ligadasDado = await ligarSoODado([...soDado], dadoId)
+  if (ids.size === 0) return ligadasDado
 
   const { data: ligadas, error } = await admin
     .from("ordens_pagamento")
@@ -410,13 +437,37 @@ export async function ligarOrdensSemForma(dadoId: string): Promise<number> {
     .select("id")
   if (error) {
     console.error("ligarOrdensSemForma:", error.message)
-    return 0
+    return ligadasDado
   }
   const feitas = ((ligadas ?? []) as Record<string, unknown>[]).map((o) => String(o.id))
   if (feitas.length) {
     const { registrarEvento, usuarioDaTrilha } = await import("@/lib/db/ordens-ciclo")
     await registrarEvento(feitas, "corrigida", await usuarioDaTrilha(), `Dados bancários do favorecido cadastrados: forma ${forma} e ${forma === "Pix" ? "chave Pix" : "conta"} ligadas à ordem.`, {
       forma_pagamento: forma,
+      dados_bancarios_id: dadoId,
+    })
+  }
+  return feitas.length + ligadasDado
+}
+
+/** Ordens que já têm Pix/TED e esperavam a conta: só o dado bancário é ligado. */
+async function ligarSoODado(ids: string[], dadoId: string): Promise<number> {
+  if (ids.length === 0) return 0
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("ordens_pagamento")
+    .update({ dados_bancarios_id: dadoId })
+    .in("id", ids)
+    .is("dados_bancarios_id", null)
+    .select("id")
+  if (error) {
+    console.error("ligarSoODado:", error.message)
+    return 0
+  }
+  const feitas = ((data ?? []) as Record<string, unknown>[]).map((o) => String(o.id))
+  if (feitas.length) {
+    const { registrarEvento, usuarioDaTrilha } = await import("@/lib/db/ordens-ciclo")
+    await registrarEvento(feitas, "corrigida", await usuarioDaTrilha(), "Dados bancários do favorecido cadastrados: conta/chave ligada à ordem.", {
       dados_bancarios_id: dadoId,
     })
   }

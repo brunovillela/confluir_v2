@@ -198,7 +198,7 @@ export default async function ContasBancariasPage({
       <Secao
         titulo="Ordens esperando conta"
         total={esperando.length}
-        descricao={'Agrupadas por favorecido. Ordens abertas sem forma de pagamento porque o favorecido não tem chave Pix nem conta cadastrada. "Pedir dados bancários" manda a ele um link; quando ele responde, a ordem recebe a forma e a conta sozinha.'}
+        descricao={'Agrupadas por favorecido. Ordens abertas que a remessa não consegue pagar: sem forma de pagamento, ou por Pix/TED sem a chave ou a conta do favorecido. "Pedir dados bancários" manda a ele um link; quando ele responde, a ordem recebe a forma e a conta sozinha.'}
         vazio="Nenhuma ordem esperando conta."
       >
         {porFavorecido.map(([o, ...outras]) => (
@@ -209,6 +209,7 @@ export default async function ContasBancariasPage({
                   {x.codigo ?? "Ordem"}
                 </Link>
                 {x.tipo && <Badge variant="outline">{x.tipo}</Badge>}
+                <Badge variant="warning">{x.forma ? `${x.forma} sem ${/pix/i.test(x.forma) ? "chave" : "conta"}` : "sem forma"}</Badge>
                 <span className="text-muted-foreground">
                   {x.situacao}
                   {x.valor != null ? ` · ${formatarMoeda(x.valor)}` : ""}
