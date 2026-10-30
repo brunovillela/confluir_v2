@@ -242,7 +242,7 @@ export default async function CondutorPage({
         <nav className="flex flex-wrap gap-1.5 border-b pb-2" aria-label="Listas do condutor">
           {ABAS.map((a) => (
             <Button key={a.chave} variant={aba === a.chave ? "default" : "ghost"} size="sm" asChild>
-              <Link href={`${aqui}?aba=${a.chave}`} aria-current={aba === a.chave ? "page" : undefined}>
+              <Link scroll={false} href={`${aqui}?aba=${a.chave}`} aria-current={aba === a.chave ? "page" : undefined}>
                 {a.rotulo}
                 <span className="tabular-nums opacity-70">{n(contagem[a.chave])}</span>
               </Link>

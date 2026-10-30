@@ -277,7 +277,7 @@ export default async function FontePage({
         <nav className="flex flex-wrap gap-1.5 border-b pb-2" aria-label="Seções do empregador">
           {ABAS_EMPREGADOR.filter((a) => ve(a.chave)).map((a) => (
             <Button key={a.chave} variant={aba === a.chave ? "default" : "ghost"} size="sm" asChild>
-              <Link href={`${aqui}?aba=${a.chave}`} aria-current={aba === a.chave ? "page" : undefined}>
+              <Link scroll={false} href={`${aqui}?aba=${a.chave}`} aria-current={aba === a.chave ? "page" : undefined}>
                 {a.rotulo}
                 {contagem[a.chave] !== null && <span className="tabular-nums opacity-70">{n(contagem[a.chave]!)}</span>}
               </Link>

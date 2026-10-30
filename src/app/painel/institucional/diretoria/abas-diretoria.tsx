@@ -29,7 +29,7 @@ export function AbasDiretoria({
   return (
     <nav aria-label="Áreas da Diretoria" className="bg-muted inline-flex w-fit rounded-md p-1">
       {abas.map(({ chave, rotulo, href, icone: Icone }) => (
-        <Link
+        <Link scroll={false}
           key={chave}
           href={href}
           aria-current={atual === chave ? "page" : undefined}

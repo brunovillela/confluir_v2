@@ -122,7 +122,7 @@ export function ChipsIrmaos({ itens, atual }: { itens: { id: string; rotulo: str
       <span className="text-muted-foreground text-xs">Assembleias da rodada:</span>
       {itens.map((i) => (
         <Button key={i.id} variant={i.id === atual ? "default" : "outline"} size="sm" className="h-7" asChild>
-          <Link href={i.href} aria-current={i.id === atual ? "page" : undefined}>
+          <Link scroll={false} href={i.href} aria-current={i.id === atual ? "page" : undefined}>
             {i.rotulo}
           </Link>
         </Button>

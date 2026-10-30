@@ -119,7 +119,7 @@ function CabecalhoOrdenavel({
   const proximaDir = ativo && filtros.dir === "asc" ? "desc" : "asc"
   return (
     <TableHead className={className}>
-      <Link
+      <Link scroll={false}
         href={montarUrl(filtros, { ordem: campo, dir: proximaDir, pagina: 1 })}
         className={cn(
           "hover:text-foreground inline-flex items-center gap-1",

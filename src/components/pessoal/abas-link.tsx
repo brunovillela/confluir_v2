@@ -15,7 +15,7 @@ export function AbasLink({
   return (
     <nav className="flex gap-1 overflow-x-auto border-b text-sm" aria-label={rotulo}>
       {abas.map((a) => (
-        <Link
+        <Link scroll={false}
           key={a.href}
           href={a.href}
           aria-current={a.ativo ? "page" : undefined}

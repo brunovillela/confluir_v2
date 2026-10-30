@@ -464,7 +464,7 @@ function Coluna({
   const ativa = ordem === chave
   return (
     <TableHead>
-      <Link
+      <Link scroll={false}
         href={href(chave)}
         className="hover:text-foreground inline-flex items-center gap-1 whitespace-nowrap"
         aria-sort={ativa ? (dir === "asc" ? "ascending" : "descending") : "none"}

@@ -157,7 +157,7 @@ function FiltroTipo({
   naoLidos: number
 }) {
   return (
-    <Link
+    <Link scroll={false}
       href={href}
       aria-current={ativo ? "page" : undefined}
       className={cn(buttonVariants({ variant: ativo ? "default" : "outline", size: "sm" }), "pointer-coarse:min-h-11")}

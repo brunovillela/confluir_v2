@@ -204,7 +204,7 @@ export default async function RemessaPontoPage({
             { href: `/painel/pessoal/ponto/${id}`, rotulo: "Registros", ativo: !naAnalise },
             { href: `/painel/pessoal/ponto/${id}?aba=indicadores`, rotulo: "Indicadores e resenha", ativo: naAnalise },
           ].map((a) => (
-            <Link
+            <Link scroll={false}
               key={a.rotulo}
               href={a.href}
               className={`-mb-px border-b-2 px-3 py-2 ${a.ativo ? "border-primary font-medium" : "text-muted-foreground hover:text-foreground border-transparent"}`}

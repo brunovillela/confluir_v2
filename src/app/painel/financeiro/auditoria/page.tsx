@@ -71,7 +71,7 @@ export default async function AuditoriaOrdensPage({
       <nav aria-label="Origens das ordens" className="flex flex-wrap gap-2">
         {ORIGENS_ORDEM.map((o) => (
           <Button key={o.chave} asChild size="sm" variant={o.chave === origem ? "default" : "outline"}>
-            <Link href={`/painel/financeiro/auditoria?origem=${o.chave}`} aria-current={o.chave === origem ? "page" : undefined}>
+            <Link scroll={false} href={`/painel/financeiro/auditoria?origem=${o.chave}`} aria-current={o.chave === origem ? "page" : undefined}>
               {o.rotulo}
             </Link>
           </Button>

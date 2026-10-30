@@ -116,7 +116,7 @@ export default async function LinhasInstitucionaisPage({
               variant={situacao === s.valor ? "default" : "outline"}
               className={cn("rounded-full", situacao !== s.valor && "text-muted-foreground")}
             >
-              <Link href={hrefSituacao(s.valor)} aria-current={situacao === s.valor ? "page" : undefined}>
+              <Link scroll={false} href={hrefSituacao(s.valor)} aria-current={situacao === s.valor ? "page" : undefined}>
                 {s.rotulo}
                 <span className="tabular-nums opacity-80">{contagem[s.valor]}</span>
               </Link>

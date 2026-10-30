@@ -417,7 +417,7 @@ function Ordenavel({
 }) {
   const Icone = !ativa ? ArrowUpDown : asc ? ArrowUp : ArrowDown
   return (
-    <Link
+    <Link scroll={false}
       href={href}
       className={`hover:text-foreground flex items-center gap-1 ${alinhamento} ${
         ativa ? "text-foreground font-medium" : ""

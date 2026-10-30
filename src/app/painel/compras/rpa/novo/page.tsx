@@ -186,7 +186,7 @@ function EscolherModo({ aba, editaContratos }: { aba: "contrato" | "compra" | "a
   return (
     <div className="bg-muted inline-flex w-fit gap-1 rounded-lg p-1" role="tablist">
       {opcoes.map((o) => (
-        <Link
+        <Link scroll={false}
           key={o.href}
           href={o.href}
           role="tab"

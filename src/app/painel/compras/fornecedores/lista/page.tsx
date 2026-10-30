@@ -54,7 +54,7 @@ function Ordenavel({ f, campo, children, className }: { f: Filtros; campo: Ordem
   const proxima = ativo ? (f.dir === "asc" ? "desc" : "asc") : inicial
   return (
     <TableHead className={className}>
-      <Link
+      <Link scroll={false}
         href={url(f, { ordem: campo, dir: proxima, pagina: 1 })}
         className={cn("hover:text-foreground inline-flex items-center gap-1", ativo && "text-foreground font-medium")}
       >

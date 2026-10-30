@@ -76,7 +76,7 @@ export async function CabecalhoFuncionario({
       {areas.length > 1 && (
         <nav className="flex flex-wrap gap-1.5 text-xs" aria-label="Áreas do funcionário">
           {areas.map((a) => (
-            <Link
+            <Link scroll={false}
               key={a.chave}
               href={a.href(f.usuarioId)}
               aria-current={a.chave === area ? "page" : undefined}

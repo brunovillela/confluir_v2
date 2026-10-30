@@ -376,7 +376,7 @@ function Ordenavel({
   const proximo = ativa ? (filtros.dir === "asc" ? "desc" : "asc") : SENTIDO_PADRAO[coluna]
   const Icone = !ativa ? ArrowUpDown : filtros.dir === "asc" ? ArrowUp : ArrowDown
   return (
-    <Link
+    <Link scroll={false}
       href={query({
         ordem: coluna === "proxima" ? "" : coluna,
         dir: proximo === SENTIDO_PADRAO[coluna] ? "" : proximo,

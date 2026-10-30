@@ -60,11 +60,11 @@ export default async function NovaFiliacaoPage({
             </p>
           </div>
           <div className="bg-muted inline-flex rounded-lg p-1" role="tablist">
-            <Link href="/painel/filiados/novo" className={aba(!massa)} role="tab" aria-selected={!massa}>
+            <Link scroll={false} href="/painel/filiados/novo" className={aba(!massa)} role="tab" aria-selected={!massa}>
               <UserPlus className="size-4" />
               Inclusão individual
             </Link>
-            <Link href="/painel/filiados/novo?modo=massa" className={aba(massa)} role="tab" aria-selected={massa}>
+            <Link scroll={false} href="/painel/filiados/novo?modo=massa" className={aba(massa)} role="tab" aria-selected={massa}>
               <FileSpreadsheet className="size-4" />
               Inclusão em massa
             </Link>
