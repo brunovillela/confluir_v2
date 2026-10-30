@@ -157,6 +157,48 @@ async function calcularPendencias(cpf: string, filiadoId: string): Promise<Pende
   return { exigido: true, pendente: Boolean(termo) || dados.length > 0, termo, dados }
 }
 
+/** O que a oposição exige do filiado nos dados (30/10/2026). */
+export const DADOS_DA_OPOSICAO: readonly ItemObrigatorio[] = ["email", "telefone", "endereco"]
+
+export type PendenciasDaOposicao = {
+  /** Termo de privacidade geral da entidade a aceitar (ou null). */
+  termo: { id: string; renovacao: boolean } | null
+  /** Os itens obrigatórios que o filiado pode preencher pelo portal. */
+  exigidos: ItemObrigatorio[]
+  /** Desses, os que faltam. */
+  faltam: ItemObrigatorio[]
+}
+
+/**
+ * Oposição do filiado (pedido do Bruno, 30/10/2026): antes de se opor, aceitar
+ * o termo de privacidade geral da entidade e ter e-mail, telefone e endereço
+ * — independentemente da opção do primeiro acesso. Só se exige o que dá para
+ * cumprir: com Meu cadastro (ou o portal) sem gravar, ou o campo travado pela
+ * entidade, aquele item não é exigido. Diferente do portão do portal, a
+ * leitura que falha SOBE: a action da oposição decide (e recusa) na dúvida.
+ */
+export async function pendenciasDaOposicao(cpf: string): Promise<PendenciasDaOposicao> {
+  const cfg = await configDoPortal()
+  const cadastro = cfg.partes.cadastro
+  const grava = cfg.partes.portal.estado === "habilitada" && cadastro.estado === "habilitada"
+  const editaveis = cadastro.opcoes.campos_editaveis
+  const podeAlterar: Record<ItemObrigatorio, boolean> = {
+    email: editaveis.includes("email_pessoal") || editaveis.includes("email_corporativo"),
+    telefone: editaveis.includes("telefones"),
+    endereco: editaveis.includes("endereco"),
+    contato_emergencia: false,
+  }
+  const exigidos = grava ? DADOS_DA_OPOSICAO.filter((i) => podeAlterar[i]) : []
+  const [termoId, registro] = await Promise.all([termoLgpdAceitavel(), lerRegistro(cpf)])
+  // O aceite também só grava com o portal habilitado (bloqueioDaParte("lgpd")).
+  const termo =
+    cfg.partes.portal.estado === "habilitada" && termoId && registro && registro.lgpdId !== termoId
+      ? { id: termoId, renovacao: registro.lgpdId !== null }
+      : null
+  const faltam = registro ? exigidos.filter((i) => camposQueFaltam([i], registro).length > 0) : [...exigidos]
+  return { termo, exigidos, faltam }
+}
+
 /**
  * Uma conta por requisição, dividida entre a casca (o portão), a página e o
  * bloqueioDaParte das páginas e ações. Nunca rejeita: na dúvida, nada pendente.

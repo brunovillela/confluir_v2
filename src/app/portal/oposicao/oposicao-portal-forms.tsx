@@ -31,7 +31,7 @@ type Aba = "trabalhador" | "filiado"
 const ESPERA_REENVIO_S = 60
 
 /**
- * Entrada da Oposição para quem não está logado: o trabalhador (nome, CPF e
+ * Entrada da Oposição para quem não está logado: o não filiado (nome, CPF e
  * e-mail) ou o filiado (CPF → e-mail do cadastro), os dois por código no
  * e-mail. As abas são o `Tabs` do sistema (A180): a escolhida é anunciada
  * pelo leitor de tela e trocada pelas setas, e não só pela cor. Os dois
@@ -50,7 +50,7 @@ export function AcessoNaoFiliado({ voltar }: { voltar?: string } = {}) {
         className="w-full group-data-horizontal/tabs:h-10 pointer-coarse:group-data-horizontal/tabs:h-11"
       >
         <TabsTrigger value="trabalhador" className="flex-1">
-          Sou trabalhador
+          Não sou filiado
         </TabsTrigger>
         <TabsTrigger value="filiado" className="flex-1">
           Sou filiado
@@ -467,7 +467,7 @@ function FormFiliado({ voltar }: { voltar?: string }) {
           }}
           aoSair={() => setCpfTocado(true)}
           erro={erroCpf}
-          dica="Enviaremos o código para os e-mails do seu cadastro no sindicato."
+          dica="Enviaremos o código para os e-mails do seu cadastro no sindicato e mostraremos quais, em parte."
         />
         <Mensagens estado={pedidoCodigo.estado} />
         <Turnstile acao="codigo_oposicao" />
@@ -485,9 +485,8 @@ function FormFiliado({ voltar }: { voltar?: string }) {
             <>
               <li>Olhe o e-mail pessoal e também o da empresa, se ele estiver no seu cadastro.</li>
               <li>
-                Não é mais filiado, o cadastro não tem e-mail ou você não usa mais esses e-mails? Use a aba{" "}
-                <strong>Sou trabalhador</strong> com um e-mail seu — ou procure o sindicato para atualizar o
-                cadastro.
+                Não é mais filiado? Use a aba <strong>Não sou filiado</strong> com um e-mail seu. Não usa mais
+                esses e-mails? Procure o sindicato para atualizar o cadastro.
               </li>
             </>
           }

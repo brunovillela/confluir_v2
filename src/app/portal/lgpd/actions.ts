@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache"
 import { headers } from "next/headers"
 import { redirect, RedirectType } from "next/navigation"
 
-import { ROTA_PRIMEIRO_ACESSO, voltarAoPrimeiroAcesso } from "@/app/portal/primeiro-acesso/regras"
+import { ROTA_PRIMEIRO_ACESSO, voltarDoFormulario } from "@/app/portal/primeiro-acesso/regras"
 import { requireSessaoPortal } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { cpfConfiavel } from "@/lib/cpf"
@@ -43,7 +43,7 @@ export async function registrarAceiteLgpd(
   const bloqueio = await bloqueioDaParte("lgpd")
   if (bloqueio) return { erro: bloqueio }
   const { filiado } = await requireSessaoPortal()
-  const voltar = voltarAoPrimeiroAcesso(formData.get("voltar"))
+  const voltar = voltarDoFormulario(formData.get("voltar"))
 
   if (formData.get("li_e_aceito") !== "on") {
     return { erro: "Marque a caixa confirmando a leitura do termo." }

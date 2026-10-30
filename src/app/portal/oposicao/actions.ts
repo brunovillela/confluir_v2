@@ -10,10 +10,20 @@ import { consumirVinculoPendente, registrarVinculoPendente } from "@/lib/auth-id
 import {
   buscarFiliadoPorCpf,
   mascararEmail,
+  mascararEmailMedio,
   type EstadoForm,
 } from "@/lib/contas"
 import { limparCpf, validarCpf } from "@/lib/cpf"
 import { hojeSP } from "@/lib/db/comum"
+import {
+  cienciaRegistrada,
+  dadosConferidos,
+  gravarCiencia,
+  gravarDadosConferidos,
+  orientacoesDaCampanha,
+} from "@/lib/db/oposicao-ciencia"
+import { nomeEntidade } from "@/lib/db/organizacao"
+import { pendenciasDaOposicao } from "@/lib/db/portal-primeiro-acesso"
 import {
   avisarOposicaoRegistrada,
   minhaOposicao,
@@ -62,9 +72,11 @@ async function rastro(): Promise<{ ip: string | null; ua: string | null }> {
 // Onda 1 da avaliação da oposição (27/10/2026):
 //  - o e-mail leva SÓ o código (semLink): o robô do filtro da empresa não
 //    gasta mais o acesso abrindo o link antes da pessoa (A2);
-//  - as respostas não dizem se um CPF é de filiado (A7) — filiação sindical é
-//    dado sensível. A aba do filiado responde igual para qualquer CPF válido;
-//    a do trabalhador não recusa filiado antes do código;
+//  - as respostas não diziam se um CPF é de filiado (A7) — filiação sindical
+//    é dado sensível. Desde 30/10/2026, por decisão do Bruno, a aba do
+//    filiado mostra para quais e-mails o código foi (máscara média) e diz
+//    quando o CPF não tem cadastro com e-mail; a do não filiado continua sem
+//    recusar filiado antes do código;
 //  - o código vai a TODOS os e-mails do cadastro do filiado, não só ao
 //    primeiro (A5);
 //  - o desfiliado também recebe pela aba do filiado e entra como trabalhador
@@ -97,14 +109,17 @@ export async function enviarCodigoFiliado(
   if (!validarCpf(cpf)) return { erro: "CPF inválido." }
   const erroHumano = await exigirHumano(fd)
   if (erroHumano) return { erro: erroHumano }
-  const neutra = {
-    ok: "Se este CPF tiver cadastro de filiado com e-mail, o código foi enviado para o e-mail do cadastro (o pessoal e, se houver, o da empresa).",
-  }
   const filiado = await buscarFiliadoPorCpf(cpf)
-  // Ativo ou não: o desfiliado entra e segue como trabalhador. Sem cadastro
-  // ou sem e-mail, nada é enviado — e a tela não diz isso.
+  // Ativo ou não: o desfiliado entra e segue como não filiado. Decisão do
+  // Bruno (30/10/2026): a tela diz para quais e-mails o código foi, com
+  // máscara média — a pessoa reconhece o e-mail, e quem digita um CPF alheio
+  // fica sabendo que há cadastro (antes a resposta era igual para todos, A7).
   const emails = (filiado?.emails ?? []).slice(0, MAX_EMAILS_FILIADO)
-  if (emails.length === 0) return neutra
+  if (emails.length === 0) {
+    return {
+      erro: 'Não encontramos cadastro de filiado com e-mail para este CPF. Se você não é filiado, use "Não sou filiado". Se é, procure o sindicato para atualizar o e-mail do cadastro.',
+    }
+  }
   const { enviarCodigoAcesso } = await import("@/lib/codigo-acesso")
   for (const email of emails) {
     // Cada e-mail é uma conta; o vínculo pendente (e-mail ↔ CPF) vira a
@@ -119,7 +134,13 @@ export async function enviarCodigoFiliado(
     })
     if (erro) console.warn("[oposicao] código do filiado não enviado a um dos e-mails:", erro)
   }
-  return neutra
+  const lista = emails.map(mascararEmailMedio)
+  return {
+    ok:
+      lista.length === 1
+        ? `Código enviado para ${lista[0]}.`
+        : `Código enviado para os e-mails do seu cadastro: ${lista.join(", ")}. Use o código de qualquer um deles.`,
+  }
 }
 
 export async function confirmarCodigoFiliado(
@@ -309,6 +330,53 @@ async function campanhaNoPrazo(
   return { campanha }
 }
 
+/**
+ * "Li e quero prosseguir" (30/10/2026): a pessoa leu as instruções da
+ * campanha e o aviso de privacidade. O hash do texto que a tela mostrou tem
+ * de ser o de agora — se a campanha mudou no meio, a tela recarrega com o
+ * texto novo. A marca vai num cookie; o registro que vale é o da oposição.
+ */
+export async function registrarCiencia(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  const sessao = await requireSessaoTrabalhador()
+  const campanhaId = texto(fd, "campanha_id")
+  const r = await campanhaNoPrazo(campanhaId)
+  if ("erro" in r) return { erro: r.erro }
+  if (texto(fd, "li") !== "on") {
+    return { erro: "Marque que leu as instruções e o aviso de privacidade para prosseguir." }
+  }
+  const orientacoes = orientacoesDaCampanha(r.campanha, sessao.perfil === "filiado", await nomeEntidade())
+  if (texto(fd, "hash") !== orientacoes.hash) {
+    return { erro: "As instruções da campanha foram atualizadas. Recarregue a página e leia a versão nova." }
+  }
+  await gravarCiencia(campanhaId, sessao.cpf, orientacoes.hash)
+  redirect(`/portal/oposicao/${campanhaId}`)
+}
+
+/** Filiado: "Meus dados estão corretos" — só sem nada faltando. */
+export async function confirmarDados(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  const sessao = await requireSessaoTrabalhador()
+  const campanhaId = texto(fd, "campanha_id")
+  if (sessao.perfil !== "filiado") redirect(`/portal/oposicao/${campanhaId}`)
+  const r = await campanhaNoPrazo(campanhaId)
+  if ("erro" in r) return { erro: r.erro }
+  const erro = await erroDosDados(sessao.cpf)
+  if (erro) return { erro }
+  await gravarDadosConferidos(campanhaId, sessao.cpf)
+  redirect(`/portal/oposicao/${campanhaId}`)
+}
+
+/** O que impede o filiado de seguir: termo geral a aceitar ou dado faltando. */
+async function erroDosDados(cpf: string): Promise<string | null> {
+  const p = await pendenciasDaOposicao(cpf).catch((e) => {
+    console.error("[oposicao] pendências do filiado:", e)
+    return null
+  })
+  if (!p) return "Não foi possível conferir o seu cadastro agora. Tente de novo daqui a pouco."
+  if (p.termo) return "Aceite o termo de privacidade da entidade para continuar."
+  if (p.faltam.length) return "Complete e salve os seus dados (e-mail, telefone e endereço) para continuar."
+  return null
+}
+
 export async function confirmarOposicao(
   _prev: EstadoForm,
   fd: FormData
@@ -322,6 +390,20 @@ export async function confirmarOposicao(
 
   if (texto(fd, "declaracao") !== "on") {
     return { erro: "Marque a confirmação da oposição para prosseguir." }
+  }
+  // Os passos de antes, conferidos no servidor: a leitura das instruções (do
+  // texto de agora) e, do filiado, os dados completos e conferidos.
+  const orientacoes = orientacoesDaCampanha(campanha, sessao.perfil === "filiado", await nomeEntidade())
+  const cienciaEm = await cienciaRegistrada(campanhaId, sessao.cpf, orientacoes.hash)
+  if (!cienciaEm) {
+    return { erro: "Leia as instruções da campanha e clique em “Li e quero prosseguir” antes de confirmar. Recarregue a página." }
+  }
+  if (sessao.perfil === "filiado") {
+    const erroDados = await erroDosDados(sessao.cpf)
+    if (erroDados) return { erro: erroDados }
+    if (!(await dadosConferidos(campanhaId, sessao.cpf))) {
+      return { erro: "Confira os seus dados antes de confirmar. Recarregue a página." }
+    }
   }
   // A fonte vem de um <select>, mas o valor é do navegador (A144): só vale
   // uma fonte DESTA campanha — editar a página não registra a oposição numa
@@ -377,6 +459,7 @@ export async function confirmarOposicao(
       respostas,
       ip,
       userAgent: ua,
+      ciencia: { texto: orientacoes.texto, em: cienciaEm },
     },
     exigeDoc
   )

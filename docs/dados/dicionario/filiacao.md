@@ -1104,6 +1104,7 @@ Campanhas de oposição à contribuição assistencial: empresa, prazo, vídeos 
 | `regra_assinaturas_aceitas` | text | sim |  |  | nenhum | Assinaturas que a campanha aceita na carta; nula = padrão da entidade. |
 | `regra_prova_nao_filiado` | text | sim |  |  | nenhum | Prova exigida do não filiado; nula = padrão da entidade. |
 | `regra_segregacao` | text | sim |  |  | nenhum | Segregação de permissões da campanha; nula = padrão da entidade. |
+| `perguntas_frequentes` | jsonb | não | `'[]'::jsonb` |  | nenhum | Perguntas frequentes próprias da campanha, escritas por quem a cadastrou: lista de {pergunta, resposta}. As gerais vêm do sistema (lib/oposicao-orientacoes.ts). |
 
 Checks: `oposicao_campanha_modo_formalizacao_check` `CHECK ((modo_formalizacao = ANY (ARRAY['tela'::text, 'assinatura'::text, 'hibrido'::text])))`; `oposicao_campanha_regra_assinaturas_aceitas_check` `CHECK ((regra_assinaturas_aceitas = ANY (ARRAY['govbr'::text, 'govbr_icp'::text])))`; `oposicao_campanha_regra_carta_fora_prazo_check` `CHECK ((regra_carta_fora_prazo = ANY (ARRAY['aceitar'::text, 'recusar'::text])))`; `oposicao_campanha_regra_prova_nao_filiado_check` `CHECK ((regra_prova_nao_filiado = ANY (ARRAY['nenhuma'::text, 'matricula'::text, 'carta_govbr'::text])))`; `oposicao_campanha_regra_segregacao_check` `CHECK ((regra_segregacao = ANY (ARRAY['unica'::text, 'separada'::text])))`; `oposicao_campanha_regra_video_minimo_check` `CHECK ((regra_video_minimo = ANY (ARRAY['exigir'::text, 'dispensar'::text])))`; `oposicao_campanha_situacao_check` `CHECK ((situacao = ANY (ARRAY['rascunho'::text, 'aberta'::text, 'encerrada'::text])))`
 
@@ -1228,6 +1229,9 @@ Cada trabalhador que se opôs à contribuição assistencial numa campanha: dado
 | `prazo_fim_ato` | date | sim |  |  |  | Fim do prazo da campanha no momento da confirmação. |
 | `documento_enviado_em` | timestamp with time zone | sim |  |  | **sensível: sindical** | Quando chegou a primeira carta assinada (compara com o prazo na avaliação). |
 | `aviso_avaliacao_pendente_em` | timestamp with time zone | sim |  |  | nenhum | Decisão tomada em lote cujo aviso ao trabalhador ainda não saiu; a rota /api/oposicao/tick envia aos poucos e volta a null. |
+| `ciencia_texto` | text | sim |  |  | identificação | Instruções da campanha e aviso de privacidade como a pessoa os leu antes de se opor (texto inteiro). |
+| `ciencia_hash` | text | sim |  |  | nenhum | sha256 do ciencia_texto. |
+| `ciencia_em` | timestamp with time zone | sim |  |  | identificação | Quando a pessoa clicou em "Li e quero prosseguir". |
 
 Únicas: `UNIQUE (bubble_id)`
 
@@ -1291,6 +1295,7 @@ Decisões jurídicas padrão da entidade para as campanhas de oposição (carta 
 | `definido_por` | uuid | sim |  |  | identificação | Quem salvou as decisões por último. |
 | `definido_por_nome` | text | sim |  |  | identificação | Nome de quem salvou, no momento. |
 | `atualizado_em` | timestamp with time zone | não | `now()` |  |  |  |
+| `aviso_privacidade` | text | sim |  |  | nenhum | Aviso de privacidade da oposição (o que é coletado, para quê, com quem é compartilhado, por quanto tempo); nulo = o texto padrão do sistema. |
 
 Checks: `oposicao_regras_assinaturas_aceitas_check` `CHECK ((assinaturas_aceitas = ANY (ARRAY['govbr'::text, 'govbr_icp'::text])))`; `oposicao_regras_carta_fora_prazo_check` `CHECK ((carta_fora_prazo = ANY (ARRAY['aceitar'::text, 'recusar'::text])))`; `oposicao_regras_prova_nao_filiado_check` `CHECK ((prova_nao_filiado = ANY (ARRAY['nenhuma'::text, 'matricula'::text, 'carta_govbr'::text])))`; `oposicao_regras_segregacao_check` `CHECK ((segregacao = ANY (ARRAY['unica'::text, 'separada'::text])))`; `oposicao_regras_video_minimo_check` `CHECK ((video_minimo = ANY (ARRAY['exigir'::text, 'dispensar'::text])))`
 

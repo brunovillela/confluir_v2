@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea"
 import type { CampanhaPublica, VinculoAtivo } from "@/lib/db/oposicao"
 import { formatarData } from "@/lib/formato"
 import { DECLARACAO_PADRAO, exigeDocumentoComRegras } from "@/lib/oposicao-constantes"
+import { nomesDasEtapas } from "@/lib/oposicao-orientacoes"
 import { cn } from "@/lib/utils"
 
 import { confirmarOposicao, desistir, sairDaOposicao } from "../actions"
@@ -33,8 +34,7 @@ function idYoutube(v: string | null): string | null {
  * acompanhamento do /filiar. A etapa atual vai com `aria-current="step"` e
  * negrito; as feitas, com o ícone de visto — não só a cor.
  */
-function Etapas({ atual, comVideo }: { atual: number; comVideo: boolean }) {
-  const etapas = comVideo ? ["Vídeo", "Dados e confirmação", "Comprovante"] : ["Dados e confirmação", "Comprovante"]
+export function Etapas({ atual, etapas }: { atual: number; etapas: string[] }) {
   return (
     <ol aria-label="Etapas da oposição" className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
       {etapas.map((nome, i) => {
@@ -161,7 +161,7 @@ export function OposicaoFlow({
     const esperando = restante > 0
     return (
       <div className="grid gap-4">
-        <Etapas atual={0} comVideo />
+        <Etapas atual={filiado ? 2 : 1} etapas={nomesDasEtapas(filiado, true)} />
         <div className="grid gap-1">
           <h2 className="text-base font-semibold">Antes de decidir</h2>
           <p className="text-muted-foreground text-sm">
@@ -265,7 +265,7 @@ export function OposicaoFlow({
 
   return (
     <div className="grid gap-5">
-      <Etapas atual={comVideo ? 1 : 0} comVideo={comVideo} />
+      <Etapas atual={(filiado ? 2 : 1) + (comVideo ? 1 : 0)} etapas={nomesDasEtapas(filiado, comVideo)} />
       <h2 ref={tituloForm} tabIndex={-1} className="text-base font-semibold outline-none">
         Seus dados e a confirmação
       </h2>

@@ -34,6 +34,7 @@ import {
   encerrarSemCartaAction,
   registrarEnvioEmpregadorAction,
   reverificarAssinaturaAction,
+  salvarAvisoPrivacidadeAction,
   salvarRegrasEntidadeAction,
   type EstadoLote,
 } from "./actions"
@@ -480,6 +481,54 @@ export function RegrasEntidadeForm({ regras }: { regras: RegrasOposicao }) {
           {pendente && <Loader2 className="animate-spin" />}
           Salvar decisões
         </Button>
+      </div>
+    </form>
+  )
+}
+
+/**
+ * Aviso de privacidade da oposição (30/10/2026): o que a pessoa lê antes de
+ * se opor, junto das instruções da campanha. Começa no texto padrão do
+ * sistema; "Voltar ao padrão" apaga o texto da entidade.
+ */
+export function AvisoPrivacidadeForm({ atual, padrao }: { atual: string | null; padrao: string }) {
+  const [estado, acao, pendente] = useActionState(salvarAvisoPrivacidadeAction, {})
+  const envio = useEnvioFormulario(acao, estado)
+  return (
+    <form action={acao} {...envio} className="grid gap-3">
+      <Label htmlFor="aviso_privacidade">Texto do aviso</Label>
+      <Textarea
+        id="aviso_privacidade"
+        name="aviso_privacidade"
+        rows={14}
+        maxLength={8000}
+        defaultValue={atual ?? padrao}
+      />
+      <p className="text-muted-foreground text-xs">
+        {atual ? "Texto da entidade." : "Texto padrão do sistema — edite e salve para usar o da entidade."} Quem já se
+        opôs guarda o texto que leu.
+      </p>
+      {estado.erro && (
+        <Alert variant="destructive">
+          <AlertDescription>{estado.erro}</AlertDescription>
+        </Alert>
+      )}
+      {estado.ok && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>{estado.ok}</AlertDescription>
+        </Alert>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" disabled={pendente}>
+          {pendente && <Loader2 className="animate-spin" />}
+          Salvar aviso
+        </Button>
+        {atual && (
+          <Button type="submit" variant="outline" name="restaurar" value="1" disabled={pendente}>
+            <RotateCw />
+            Voltar ao padrão
+          </Button>
+        )}
       </div>
     </form>
   )

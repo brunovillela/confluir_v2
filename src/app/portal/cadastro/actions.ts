@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect, RedirectType } from "next/navigation"
 
-import { voltarAoPrimeiroAcesso } from "@/app/portal/primeiro-acesso/regras"
+import { voltarAoPrimeiroAcesso, voltarDoFormulario } from "@/app/portal/primeiro-acesso/regras"
 import { requireSessaoPortal } from "@/lib/auth"
 import { siglaDaUf } from "@/lib/cep"
 import { type EstadoForm } from "@/lib/contas"
@@ -183,7 +183,7 @@ export async function atualizarMeuCadastro(
   revalidatePath("/portal/cadastro")
   revalidarPrimeiroAcesso()
   // Do primeiro acesso, volta para lá (que segue ao próximo passo ou ao destino).
-  const voltar = voltarAoPrimeiroAcesso(formData.get("voltar"))
+  const voltar = voltarDoFormulario(formData.get("voltar"))
   if (voltar) redirect(voltar, RedirectType.replace)
   redirect("/portal/cadastro?salvo=1")
 }

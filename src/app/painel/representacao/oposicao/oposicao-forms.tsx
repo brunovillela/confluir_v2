@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
 import { Loader2, Plus, Trash2 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -16,6 +16,12 @@ import {
   SITUACOES_CAMPANHA,
   type RegrasOposicao,
 } from "@/lib/oposicao-constantes"
+import {
+  MAX_PERGUNTAS_FREQUENTES,
+  MAX_TAMANHO_PERGUNTA,
+  MAX_TAMANHO_RESPOSTA,
+  type PerguntaFrequente,
+} from "@/lib/oposicao-orientacoes"
 
 import {
   adicionarPerguntaAction,
@@ -194,6 +200,8 @@ export function CampanhaForm({
           defaultValue={campanha?.texto_declaracao ?? ""}
         />
       </div>
+
+      <PerguntasFrequentesEditor iniciais={campanha?.perguntasFrequentes ?? []} />
 
       <fieldset className="grid gap-4 rounded-md border p-4">
         <legend className="px-1 text-sm font-medium">
@@ -396,5 +404,81 @@ export function BotaoExcluirPergunta({
         )}
       </Button>
     </form>
+  )
+}
+
+/**
+ * Perguntas frequentes próprias da campanha (30/10/2026): aparecem no portal
+ * depois das gerais do sistema (acesso, código, carta, sindicato e empresa).
+ * Cada linha vai como faq_pergunta/faq_resposta; par incompleto é descartado.
+ */
+function PerguntasFrequentesEditor({ iniciais }: { iniciais: PerguntaFrequente[] }) {
+  const [itens, setItens] = useState<(PerguntaFrequente & { chave: number })[]>(() =>
+    iniciais.map((p, i) => ({ ...p, chave: i }))
+  )
+  const [proxima, setProxima] = useState(iniciais.length)
+  const mudar = (chave: number, campo: "pergunta" | "resposta", valor: string) =>
+    setItens((l) => l.map((p) => (p.chave === chave ? { ...p, [campo]: valor } : p)))
+
+  return (
+    <fieldset className="grid gap-4 rounded-md border p-4">
+      <legend className="px-1 text-sm font-medium">Perguntas frequentes da campanha</legend>
+      <p className="text-muted-foreground text-xs">
+        O portal já mostra as perguntas gerais: código que não chega, filiado ou não filiado, assinatura no gov.br,
+        prazo da carta e o caminho entre o sindicato e a empresa. Acrescente aqui o que é próprio desta campanha
+        (valor e meses do desconto, empresas, datas de envio das listas ao RH etc.). Pergunta sem resposta é
+        descartada ao salvar.
+      </p>
+      {itens.map((p, i) => (
+        <div key={p.chave} className="grid gap-2 rounded-md border p-3">
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor={`faq_p_${p.chave}`}>Pergunta {i + 1}</Label>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setItens((l) => l.filter((x) => x.chave !== p.chave))}
+            >
+              <Trash2 />
+              Remover
+            </Button>
+          </div>
+          <Input
+            id={`faq_p_${p.chave}`}
+            name="faq_pergunta"
+            maxLength={MAX_TAMANHO_PERGUNTA}
+            value={p.pergunta}
+            onChange={(e) => mudar(p.chave, "pergunta", e.target.value)}
+          />
+          <Label htmlFor={`faq_r_${p.chave}`} className="sr-only">
+            Resposta {i + 1}
+          </Label>
+          <Textarea
+            id={`faq_r_${p.chave}`}
+            name="faq_resposta"
+            rows={3}
+            maxLength={MAX_TAMANHO_RESPOSTA}
+            placeholder="Resposta"
+            value={p.resposta}
+            onChange={(e) => mudar(p.chave, "resposta", e.target.value)}
+          />
+        </div>
+      ))}
+      <div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={itens.length >= MAX_PERGUNTAS_FREQUENTES}
+          onClick={() => {
+            setItens((l) => [...l, { chave: proxima, pergunta: "", resposta: "" }])
+            setProxima((n) => n + 1)
+          }}
+        >
+          <Plus />
+          Adicionar pergunta
+        </Button>
+      </div>
+    </fieldset>
   )
 }

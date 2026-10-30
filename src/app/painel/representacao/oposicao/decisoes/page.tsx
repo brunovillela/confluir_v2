@@ -12,9 +12,11 @@ import {
 } from "@/components/ui/card"
 import { podeNaOposicao, regrasDaEntidade, requireOposicao } from "@/lib/db/oposicao-regras"
 import { formatarDataHora } from "@/lib/formato"
+import { nomeEntidade } from "@/lib/db/organizacao"
 import { DECISOES_JURIDICAS, rotuloOpcao } from "@/lib/oposicao-constantes"
+import { avisoPrivacidadePadrao } from "@/lib/oposicao-orientacoes"
 
-import { RegrasEntidadeForm } from "../gestao-forms"
+import { AvisoPrivacidadeForm, RegrasEntidadeForm } from "../gestao-forms"
 
 export const metadata: Metadata = { title: "Decisões jurídicas — Oposição — Confluir" }
 
@@ -26,7 +28,8 @@ export const metadata: Metadata = { title: "Decisões jurídicas — Oposição 
  */
 export default async function DecisoesJuridicasPage() {
   const sessao = await requireOposicao("consultar")
-  const entidade = await regrasDaEntidade()
+  const [entidade, nome] = await Promise.all([regrasDaEntidade(), nomeEntidade()])
+  const avisoPadrao = avisoPrivacidadePadrao(nome)
   const podeConfigurar = podeNaOposicao(sessao.permissoes, "configurar", entidade.regras.segregacao)
 
   return (
@@ -71,6 +74,26 @@ export default async function DecisoesJuridicasPage() {
                 </div>
               ))}
             </dl>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Aviso de privacidade da oposição</CardTitle>
+          <CardDescription>
+            Aparece junto das instruções da campanha, antes de a pessoa se opor; ela marca que leu e clica em “Li e
+            quero prosseguir”. O filiado aceita também o termo de privacidade geral da entidade, se ainda não aceitou
+            a versão em vigor.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {podeConfigurar ? (
+            <AvisoPrivacidadeForm atual={entidade.avisoPrivacidade} padrao={avisoPadrao} />
+          ) : (
+            <div className="bg-muted/30 rounded-lg border p-3 text-sm whitespace-pre-line">
+              {entidade.avisoPrivacidade ?? avisoPadrao}
+            </div>
           )}
         </CardContent>
       </Card>

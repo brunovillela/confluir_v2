@@ -209,6 +209,7 @@ export function CadastroForm({
   voltar,
   rotuloSalvar = "Salvar alterações",
   nivelTitulo = 2,
+  cepPrimeiro = false,
 }: {
   contato: ContatoFiliado
   somenteLeitura?: boolean
@@ -231,6 +232,12 @@ export function CadastroForm({
   rotuloSalvar?: string
   /** Nível dos títulos "Contato" e "Endereço". Primeiro acesso: 3, abaixo do título do passo. */
   nivelTitulo?: 2 | 3
+  /**
+   * Endereço pelo CEP primeiro (oposição, 30/10/2026): com o endereço em
+   * branco, os outros campos só abrem depois da consulta do CEP (ou do "Não
+   * sei o CEP"), e a consulta sai ao completar os 8 números.
+   */
+  cepPrimeiro?: boolean
 }) {
   const [estado, dispatch, pendente] = useActionState<EstadoForm, FormData>(atualizarMeuCadastro, {})
   const [valores, setValores] = useState<Valores>(() => valoresIniciais(contato))
@@ -250,12 +257,17 @@ export function CadastroForm({
   const [cepStatus, setCepStatus] = useState<{ buscando: boolean; texto: string } | null>(null)
   const cepConsultado = useRef(digitosDoCep(contato.endereco_cep ?? ""))
   const consulta = useRef<AbortController | null>(null)
+  const [enderecoLiberado, setEnderecoLiberado] = useState(
+    () => !cepPrimeiro || Boolean(contato.endereco_logradouro?.trim())
+  )
 
   // ── O que se altera (Área do associado) ───────────────────────────────────
   // Travado pela entidade: só consulta, com o caminho da secretaria. Em pausa,
   // tudo trava — e não há o que enviar.
   const editavel = camposEditaveis(gruposEditaveis)
   const livre = (campo: CampoCadastro) => !pausado && editavel.has(campo)
+  // O resto do endereço, com o CEP primeiro: só depois da consulta.
+  const livreEnd = (campo: CampoCadastro) => livre(campo) && enderecoLiberado
   const todosTravados = editavel.size === 0
   const semEnvio = pausado || todosTravados
   // Dica do campo travado pela entidade (com tudo travado, o aviso é um só, no topo).
@@ -439,9 +451,11 @@ export function CadastroForm({
   // trouxer (campo vazio na resposta não apaga o que já está escrito);
   // número e complemento nunca são tocados. Funciona também na visualização
   // da gestão — não grava nada.
-  async function buscarEndereco() {
-    const cep = digitosDoCep(valores.endereco_cep)
-    if (cep.length !== 8 || cep === cepConsultado.current) return
+  async function buscarEndereco(valorCep: string = valores.endereco_cep) {
+    const cep = digitosDoCep(valorCep)
+    // O CEP que já estava no cadastro conta como consultado — menos com o
+    // endereço ainda fechado (CEP primeiro), que só abre com a consulta.
+    if (cep.length !== 8 || (cep === cepConsultado.current && enderecoLiberado)) return
     cepConsultado.current = cep
     consulta.current?.abort()
     const controle = new AbortController()
@@ -456,6 +470,7 @@ export function CadastroForm({
       setCepStatus(null)
       return
     }
+    setEnderecoLiberado(true)
     if (!r.ok) {
       // Falha de rede: o próximo "sair do campo" tenta de novo.
       if (r.motivo === "falha") cepConsultado.current = ""
@@ -690,9 +705,14 @@ export function CadastroForm({
             rotulo="CEP"
             exigido={exigido("endereco_cep")}
             valor={valores.endereco_cep}
-            aoMudar={(v) => mudar("endereco_cep", mascaraCep(v))}
+            aoMudar={(v) => {
+              const cep = mascaraCep(v)
+              mudar("endereco_cep", cep)
+              // CEP primeiro: a consulta sai ao completar os 8 números, sem esperar sair do campo.
+              if (cepPrimeiro && digitosDoCep(cep).length === 8) void buscarEndereco(cep)
+            }}
             // Travado, não consulta o CEP: não há o que preencher.
-            onBlur={livre("endereco_cep") ? buscarEndereco : undefined}
+            onBlur={livre("endereco_cep") ? () => void buscarEndereco() : undefined}
             readOnly={!livre("endereco_cep")}
             erro={erroDe("endereco_cep")}
             descritoPor={["endereco_cep-status"]}
@@ -711,8 +731,22 @@ export function CadastroForm({
             {/* Região viva desde a abertura: o leitor de tela anuncia o
                 resultado da busca sem tirar o foco de onde a pessoa está. */}
             <p id="endereco_cep-status" aria-live="polite" className="text-muted-foreground text-xs">
-              {cepStatus?.texto ?? ""}
+              {cepStatus?.texto ??
+                (!enderecoLiberado && livre("endereco_cep")
+                  ? "Comece pelo CEP: logradouro, bairro, cidade e UF são preenchidos por ele."
+                  : "")}
             </p>
+            {!enderecoLiberado && livre("endereco_cep") && (
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-auto justify-start px-0 text-xs"
+                onClick={() => setEnderecoLiberado(true)}
+              >
+                Não sei o CEP — preencher à mão
+              </Button>
+            )}
           </CampoTexto>
           <CampoTexto
             campo="endereco_logradouro"
@@ -721,7 +755,7 @@ export function CadastroForm({
             valor={valores.endereco_logradouro}
             aoMudar={(v) => mudar("endereco_logradouro", v)}
             erro={erroDe("endereco_logradouro")}
-            readOnly={!livre("endereco_logradouro")}
+            readOnly={!livreEnd("endereco_logradouro")}
             autoComplete="section-endereco address-line1"
             className="sm:col-span-2"
           />
@@ -732,7 +766,7 @@ export function CadastroForm({
             valor={valores.endereco_numero}
             aoMudar={(v) => mudar("endereco_numero", v)}
             erro={erroDe("endereco_numero")}
-            readOnly={!livre("endereco_numero")}
+            readOnly={!livreEnd("endereco_numero")}
           />
           <CampoTexto
             campo="endereco_complemento"
@@ -740,7 +774,7 @@ export function CadastroForm({
             valor={valores.endereco_complemento}
             aoMudar={(v) => mudar("endereco_complemento", v)}
             erro={erroDe("endereco_complemento")}
-            readOnly={!livre("endereco_complemento")}
+            readOnly={!livreEnd("endereco_complemento")}
             autoComplete="section-endereco address-line2"
           />
           <CampoTexto
@@ -750,7 +784,7 @@ export function CadastroForm({
             valor={valores.endereco_bairro}
             aoMudar={(v) => mudar("endereco_bairro", v)}
             erro={erroDe("endereco_bairro")}
-            readOnly={!livre("endereco_bairro")}
+            readOnly={!livreEnd("endereco_bairro")}
             autoComplete="section-endereco address-level3"
           />
           <CampoTexto
@@ -760,7 +794,7 @@ export function CadastroForm({
             valor={valores.endereco_cidade}
             aoMudar={(v) => mudar("endereco_cidade", v)}
             erro={erroDe("endereco_cidade")}
-            readOnly={!livre("endereco_cidade")}
+            readOnly={!livreEnd("endereco_cidade")}
             autoComplete="section-endereco address-level2"
             className="sm:col-span-2"
           />
@@ -776,7 +810,7 @@ export function CadastroForm({
               onChange={(e) => mudar("endereco_estado", e.target.value)}
               // Lista não tem "só leitura": travada, fica desligada (e a
               // action ignora o campo de qualquer jeito).
-              disabled={!livre("endereco_estado")}
+              disabled={!livreEnd("endereco_estado")}
               autoComplete="section-endereco address-level1"
               aria-required={exigido("endereco_estado") || undefined}
               aria-invalid={erroUf ? true : undefined}

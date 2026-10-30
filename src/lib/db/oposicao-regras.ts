@@ -27,6 +27,8 @@ export type RegrasDaEntidade = {
   regras: RegrasOposicao
   definidoPorNome: string | null
   atualizadoEm: string | null
+  /** Aviso de privacidade da oposição; null = o texto padrão do sistema. */
+  avisoPrivacidade: string | null
 }
 
 /** O padrão da entidade (tudo nulo enquanto ninguém decidiu). */
@@ -34,7 +36,7 @@ export async function regrasDaEntidade(): Promise<RegrasDaEntidade> {
   const admin = await createAdminClient()
   const { data } = await admin
     .from("oposicao_regras")
-    .select(`${CHAVES_DECISAO.join(", ")}, definido_por_nome, atualizado_em`)
+    .select(`${CHAVES_DECISAO.join(", ")}, definido_por_nome, atualizado_em, aviso_privacidade`)
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
   const linha = (data ?? null) as Record<string, unknown> | null
@@ -42,6 +44,7 @@ export async function regrasDaEntidade(): Promise<RegrasDaEntidade> {
     regras: Object.fromEntries(CHAVES_DECISAO.map((c) => [c, texto(linha?.[c])])) as RegrasOposicao,
     definidoPorNome: texto(linha?.definido_por_nome),
     atualizadoEm: texto(linha?.atualizado_em),
+    avisoPrivacidade: texto(linha?.aviso_privacidade),
   }
 }
 
@@ -123,6 +126,46 @@ export async function salvarRegrasDaEntidade(
     emp_proprietaria_id: emp,
   })
   if (erroTrilha) console.error("[oposicao] trilha das decisões não gravada:", erroTrilha.message)
+  return {}
+}
+
+/** Tamanho máximo do aviso de privacidade da entidade. */
+export const MAX_AVISO_PRIVACIDADE = 8000
+
+/**
+ * O aviso de privacidade da oposição da entidade (30/10/2026). Texto vazio
+ * volta ao padrão do sistema. Cada troca vai para a trilha, com autor. Quem já
+ * se opôs guarda o texto que leu (oposicao_opositor.ciencia_texto).
+ */
+export async function salvarAvisoPrivacidade(
+  aviso: string | null,
+  usuario: { id: string; nome: string | null }
+): Promise<{ erro?: string }> {
+  const novo = aviso?.trim() ? aviso.trim().slice(0, MAX_AVISO_PRIVACIDADE) : null
+  const antes = await regrasDaEntidade()
+  if ((antes.avisoPrivacidade ?? null) === novo) return {}
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { error } = await admin.from("oposicao_regras").upsert(
+    {
+      emp_proprietaria_id: emp,
+      aviso_privacidade: novo,
+      definido_por: usuario.id,
+      definido_por_nome: usuario.nome,
+      atualizado_em: new Date().toISOString(),
+    },
+    { onConflict: "emp_proprietaria_id" }
+  )
+  if (error) return { erro: `Falha ao salvar o aviso: ${error.message}` }
+  const { error: erroTrilha } = await admin.from("oposicao_eventos").insert({
+    opositor_id: null,
+    campanha_id: null,
+    evento: "aviso_privacidade_editado",
+    detalhe: novo ? "Aviso de privacidade da entidade alterado." : "Aviso de privacidade voltou ao padrão do sistema.",
+    usuario_id: usuario.id,
+    emp_proprietaria_id: emp,
+  })
+  if (erroTrilha) console.error("[oposicao] trilha do aviso não gravada:", erroTrilha.message)
   return {}
 }
 

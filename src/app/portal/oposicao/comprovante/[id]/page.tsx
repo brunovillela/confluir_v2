@@ -26,7 +26,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { ValidacaoAssinatura } from "@/lib/assinatura-pdf"
 import { requireSessaoTrabalhador } from "@/lib/auth"
 import { hojeSP } from "@/lib/db/comum"
-import { minhaOposicao, obterComprovante, registrarAcessoDoTitular, type Comprovante } from "@/lib/db/oposicao"
+import { minhaOposicao, obterCampanhaPublica, obterComprovante, registrarAcessoDoTitular, type Comprovante } from "@/lib/db/oposicao"
+import { orientacoesDaCampanha } from "@/lib/db/oposicao-ciencia"
 import { nomeEntidade, obterOrganizacao } from "@/lib/db/organizacao"
 import { configDoPortal } from "@/lib/db/portal-partes"
 import { formatarCnpjCpf, formatarData, formatarDataHora } from "@/lib/formato"
@@ -42,6 +43,7 @@ import {
   ROTULO_SITUACAO_PORTAL,
   VARIANTE_SITUACAO_PORTAL,
 } from "../../situacao-portal"
+import { PerguntasFrequentes } from "../../orientacoes"
 import { BotaoImprimir, EnviarDocumento } from "./comprovante-forms"
 
 export const metadata: Metadata = { title: "Comprovante de oposição" }
@@ -378,6 +380,26 @@ export default async function ComprovantePage({
     </>
   )
 
+  // Perguntas frequentes da campanha (30/10/2026): as gerais e as da
+  // campanha — a carta e o caminho até a empresa são dúvidas daqui. Falha na
+  // leitura só tira o cartão.
+  const nomeDaEntidade = await nomeEntidade()
+  const campanhaPublica = c.campanhaId ? await obterCampanhaPublica(c.campanhaId).catch(() => null) : null
+  const perguntas = campanhaPublica ? orientacoesDaCampanha(campanhaPublica, filiado, nomeDaEntidade).perguntas : []
+  const faq =
+    perguntas.length > 0 ? (
+      <Card className="print:hidden">
+        <CardHeader>
+          <CardTitle role="heading" aria-level={2} className="text-base">
+            Perguntas frequentes
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <PerguntasFrequentes itens={perguntas} />
+        </CardContent>
+      </Card>
+    ) : null
+
   // Na casca do portal (filiado logado — a regra do layout), menu e <main> são
   // do layout: a página é a coluna de leitura com o caminho de volta à lista,
   // como nas outras subpáginas do portal (A17). A casca some na impressão.
@@ -401,12 +423,13 @@ export default async function ComprovantePage({
         </div>
         {videoAgradecimento}
         {conteudo}
+        {faq}
       </div>
     )
   }
 
   // Trabalhador não filiado: tela enxuta, com o <main> como landmark (A181).
-  const entidade = await nomeEntidade()
+  const entidade = nomeDaEntidade
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-6 px-4 py-8">
       <header className="flex items-center justify-between print:hidden">
@@ -421,6 +444,7 @@ export default async function ComprovantePage({
       <main id="conteudo" className="grid gap-6">
         {videoAgradecimento}
         {conteudo}
+        {faq}
       </main>
     </div>
   )

@@ -103,6 +103,20 @@ export async function buscarFiliadoPorCpf(
 }
 
 /** joao.silva@gmail.com → j•••••••••@g•••••.com */
+/**
+ * Máscara média, para a pessoa reconhecer o e-mail sem que ele fique exposto
+ * (oposição do filiado, 30/10/2026): "joaosilva@gmail.com" → "jo***a@gm***.com".
+ */
+export function mascararEmailMedio(email: string): string {
+  const [usuario, dominio] = email.trim().toLowerCase().split("@")
+  if (!usuario || !dominio) return "***"
+  const local =
+    usuario.length <= 3 ? `${usuario[0]}***` : `${usuario.slice(0, 2)}***${usuario.slice(-1)}`
+  const [nome, ...resto] = dominio.split(".")
+  const meio = nome.length <= 2 ? `${nome[0] ?? ""}***` : `${nome.slice(0, 2)}***`
+  return `${local}@${meio}${resto.length ? "." + resto.join(".") : ""}`
+}
+
 export function mascararEmail(email: string): string {
   const [usuario, dominio] = email.split("@")
   if (!dominio) return "•••"

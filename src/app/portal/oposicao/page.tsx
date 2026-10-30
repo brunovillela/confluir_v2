@@ -26,10 +26,12 @@ import { campanhasDoTrabalhador, minhaOposicao, type MinhaOposicao } from "@/lib
 import { nomeEntidade } from "@/lib/db/organizacao"
 import { formatarData } from "@/lib/formato"
 import { estadoPrazo } from "@/lib/oposicao-constantes"
+import { perguntasDeAcesso } from "@/lib/oposicao-orientacoes"
 import { getVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 import { sairDaOposicao } from "./actions"
 import { AcessoNaoFiliado } from "./oposicao-portal-forms"
+import { PerguntasFrequentes } from "./orientacoes"
 import { PrazoOposicao } from "./prazo-oposicao"
 import { fraseResultado, VARIANTE_SITUACAO_PORTAL } from "./situacao-portal"
 import { AvisoPrivacidade } from "@/components/aviso-privacidade"
@@ -56,6 +58,8 @@ export default async function OposicaoPortalPage({
   // Link de e-mail antigo recusado em /auth/confirm volta para cá (A3).
   const erroLink = sessao ? undefined : mensagemLinkRecusado(erro, "portal")
 
+  // A tela de acesso traz as perguntas da entrada (código, filiado ou não).
+  const perguntasEntrada = !sessao && !preview ? perguntasDeAcesso(await nomeEntidade()) : []
   const conteudo = (
     <>
       <CabecalhoPagina
@@ -127,6 +131,21 @@ export default async function OposicaoPortalPage({
             </CardHeader>
             <CardContent>
               <AcessoNaoFiliado voltar={destino && destino !== "/portal/oposicao" ? destino : undefined} />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle role="heading" aria-level={2}>
+                Como funciona
+              </CardTitle>
+              <CardDescription>
+                1. Escolha <strong>Sou filiado</strong> (o código vai para os e-mails do seu cadastro) ou{" "}
+                <strong>Não sou filiado</strong> (informe nome, CPF e um e-mail seu). 2. Digite o código que chegou
+                no e-mail. 3. Abra a campanha, leia as instruções e siga os passos até o comprovante.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PerguntasFrequentes itens={perguntasEntrada} />
             </CardContent>
           </Card>
           <p className="text-muted-foreground text-center text-sm">

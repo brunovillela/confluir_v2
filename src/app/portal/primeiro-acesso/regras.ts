@@ -130,6 +130,35 @@ export function voltarAoPrimeiroAcesso(bruto: unknown): string | null {
   )
 }
 
+/** /portal/oposicao/<id da campanha>: a página da oposição (30/10/2026). */
+const ROTA_OPOSICAO_CAMPANHA = /^\/portal\/oposicao\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** Os avisos que a página da oposição mostra ao voltar (?feito=…). */
+export const FEITOS_DA_OPOSICAO = ["termo", "dados"] as const
+
+/**
+ * O `voltar` dos mesmos formulários quando vêm da oposição do filiado
+ * (aceite do termo e Meu cadastro, antes de se opor): só a página de uma
+ * campanha, com o passo conhecido.
+ */
+export function voltarDaOposicao(bruto: unknown): string | null {
+  if (typeof bruto !== "string" || bruto.length > 2048) return null
+  let url: URL
+  try {
+    url = new URL(bruto, "http://portal.invalido")
+  } catch {
+    return null
+  }
+  if (url.origin !== "http://portal.invalido" || !ROTA_OPOSICAO_CAMPANHA.test(url.pathname)) return null
+  const feito = url.searchParams.get("feito") ?? ""
+  return (FEITOS_DA_OPOSICAO as readonly string[]).includes(feito) ? `${url.pathname}?feito=${feito}` : url.pathname
+}
+
+/** Para onde os formulários reaproveitados voltam: o primeiro acesso ou a oposição. */
+export function voltarDoFormulario(bruto: unknown): string | null {
+  return voltarAoPrimeiroAcesso(bruto) ?? voltarDaOposicao(bruto)
+}
+
 // ── Dados obrigatórios ─────────────────────────────────────────────────────
 
 /** Os itens da opção `campos_obrigatorios` (catálogo da Área do associado). */

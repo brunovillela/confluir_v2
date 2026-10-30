@@ -5,7 +5,13 @@ import { redirect } from "next/navigation"
 
 import { type SessaoPainel } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
-import { regrasDoFormulario, salvarRegrasDaEntidade, sessaoParaOposicao } from "@/lib/db/oposicao-regras"
+import {
+  regrasDoFormulario,
+  salvarAvisoPrivacidade,
+  salvarRegrasDaEntidade,
+  sessaoParaOposicao,
+} from "@/lib/db/oposicao-regras"
+import { normalizarPerguntasFrequentes, type PerguntaFrequente } from "@/lib/oposicao-orientacoes"
 import {
   adicionarPergunta,
   atualizarCampanha,
@@ -103,7 +109,15 @@ function lerDados(fd: FormData): Omit<DadosCampanha, "documento_modelo_url"> {
     fonteIds: fd.getAll("fonte").map(String).filter(Boolean),
     // Decisões jurídicas da campanha ("" = padrão da entidade).
     regras: regrasDoFormulario(fd),
+    perguntasFrequentes: perguntasDoFormulario(fd),
   }
+}
+
+/** As perguntas frequentes da campanha: os pares pergunta/resposta, na ordem da tela. */
+function perguntasDoFormulario(fd: FormData): PerguntaFrequente[] {
+  const perguntas = fd.getAll("faq_pergunta").map(String)
+  const respostas = fd.getAll("faq_resposta").map(String)
+  return normalizarPerguntasFrequentes(perguntas.map((pergunta, i) => ({ pergunta, resposta: respostas[i] ?? "" })))
 }
 
 /** Salva as decisões jurídicas padrão da entidade. */
@@ -118,6 +132,25 @@ export async function salvarRegrasEntidadeAction(_prev: EstadoForm, fd: FormData
   if (erro) return { erro }
   revalidatePath("/painel/representacao/oposicao")
   return { ok: "Decisões salvas. Valem para as campanhas que seguem o padrão e ainda não foram abertas." }
+}
+
+/** Salva o aviso de privacidade da oposição da entidade (vazio = padrão do sistema). */
+export async function salvarAvisoPrivacidadeAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  const permissao = await exigirNaOposicao("configurar", null)
+  if ("erro" in permissao) return { erro: permissao.erro }
+  const { sessao } = permissao
+  const padrao = texto(fd, "restaurar") === "1"
+  const { erro } = await salvarAvisoPrivacidade(padrao ? null : texto(fd, "aviso_privacidade"), {
+    id: sessao.usuario.id,
+    nome: sessao.usuario.nome_completo ?? sessao.usuario.nome_guerra ?? null,
+  })
+  if (erro) return { erro }
+  revalidatePath("/painel/representacao/oposicao/decisoes")
+  return {
+    ok: padrao
+      ? "O aviso voltou ao texto padrão do sistema."
+      : "Aviso salvo. Vale para quem ainda vai ler; quem já se opôs guarda o texto que leu.",
+  }
 }
 
 export async function criarCampanhaAction(

@@ -19,6 +19,7 @@ import { botaoEmail, caixaAviso, escaparHtml, paragrafo, textoSuave, tituloEmail
 import { formatarData } from "@/lib/formato"
 import { somarDiasISO } from "@/lib/periodo-dias"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { normalizarPerguntasFrequentes, type PerguntaFrequente } from "@/lib/oposicao-orientacoes"
 import { colunasDasRegras, regrasDaCampanha, regrasDaEntidade, regrasDaLinhaCampanha } from "@/lib/db/oposicao-regras"
 import {
   CHAVES_DECISAO,
@@ -127,6 +128,8 @@ export type CampanhaDetalhe = {
   total: number
   /** Decisões jurídicas da própria campanha (nulo = padrão da entidade). */
   regras: RegrasOposicao
+  /** Perguntas frequentes escritas para esta campanha (as gerais vêm do sistema). */
+  perguntasFrequentes: PerguntaFrequente[]
 }
 
 const SITUACOES: SituacaoOpositor[] = [
@@ -209,6 +212,7 @@ export async function obterCampanha(
     contagem,
     total: SITUACOES.filter((k) => k !== "desistente").reduce((s, k) => s + contagem[k], 0),
     regras: regrasDaLinhaCampanha(c as Record<string, unknown>),
+    perguntasFrequentes: normalizarPerguntasFrequentes(c.perguntas_frequentes),
   }
 }
 
@@ -386,6 +390,8 @@ export type DadosCampanha = {
   fonteIds: string[]
   /** Decisões jurídicas da campanha (nulo = padrão da entidade); undefined = não mexer. */
   regras?: RegrasOposicao
+  /** Perguntas frequentes da campanha; undefined = não mexer. */
+  perguntasFrequentes?: PerguntaFrequente[]
 }
 
 function normalizar(dados: DadosCampanha): Record<string, unknown> {
@@ -411,6 +417,7 @@ function normalizar(dados: DadosCampanha): Record<string, unknown> {
     p.documento_modelo_url = dados.documento_modelo_url
   }
   if (dados.regras) Object.assign(p, colunasDasRegras(dados.regras))
+  if (dados.perguntasFrequentes) p.perguntas_frequentes = normalizarPerguntasFrequentes(dados.perguntasFrequentes)
   return p
 }
 
@@ -926,6 +933,10 @@ export type CampanhaPublica = {
   regras: RegrasOposicao
   /** Todas decididas: sem isso a campanha não recebe oposição. */
   regrasCompletas: boolean
+  /** Perguntas frequentes escritas para esta campanha. */
+  perguntasFrequentes: PerguntaFrequente[]
+  /** Aviso de privacidade da entidade; null = o padrão do sistema. */
+  avisoPrivacidade: string | null
 }
 
 export async function obterCampanhaPublica(
@@ -971,7 +982,8 @@ export async function obterCampanhaPublica(
     }
   }
 
-  const regras = regrasEfetivas(regrasDaLinhaCampanha(c as Record<string, unknown>), (await regrasDaEntidade()).regras)
+  const entidade = await regrasDaEntidade()
+  const regras = regrasEfetivas(regrasDaLinhaCampanha(c as Record<string, unknown>), entidade.regras)
   return {
     id: String(c.id),
     nome: texto(c.nome),
@@ -996,6 +1008,8 @@ export async function obterCampanhaPublica(
     })),
     regras,
     regrasCompletas: decisoesFaltando(regras).length === 0,
+    perguntasFrequentes: normalizarPerguntasFrequentes(c.perguntas_frequentes),
+    avisoPrivacidade: entidade.avisoPrivacidade,
   }
 }
 
@@ -1188,6 +1202,8 @@ export type DadosOposicao = {
   respostas: { perguntaId: string; resposta: string }[]
   ip: string | null
   userAgent: string | null
+  /** Instruções + aviso de privacidade lidos antes ("Li e quero prosseguir"). */
+  ciencia: { texto: string; em: string } | null
 }
 
 /**
@@ -1271,6 +1287,9 @@ export async function registrarOposicao(
     declaracao_hash: hashTexto(declaracao),
     modo_formalizacao_ato: texto(campanha.modo_formalizacao),
     prazo_fim_ato: texto(campanha.prazo_fim),
+    ciencia_texto: dados.ciencia?.texto ?? null,
+    ciencia_hash: dados.ciencia ? hashTexto(dados.ciencia.texto) : null,
+    ciencia_em: dados.ciencia?.em ?? null,
   }
 
   let opositorId: string
