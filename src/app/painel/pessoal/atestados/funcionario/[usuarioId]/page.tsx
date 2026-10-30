@@ -123,7 +123,8 @@ export default async function AtestadosFuncionarioPage({
         <CardHeader>
           <CardTitle className="text-base">Ausências de {ano}</CardTitle>
           <CardDescription>
-            Afastamentos sem atestado (falta justificada, licença, trabalho externo…).{" "}
+            Cada atestado entra aqui como afastamento médico; as demais (falta, licença, trabalho externo…) são
+            lançadas à parte.{" "}
             <Link href="/painel/pessoal/atestados?aba=ausencias" className="text-primary hover:underline">
               Lançar ausência
             </Link>
@@ -152,8 +153,16 @@ export default async function AtestadosFuncionarioPage({
                         {a.observacao && <span className="text-muted-foreground block truncate text-xs">{a.observacao}</span>}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Link href={`/painel/pessoal/atestados?aba=ausencias&editar=${a.id}`} className="text-primary text-xs hover:underline">
-                          Editar
+                        {/* A ausência do atestado muda só pelo atestado. */}
+                        <Link
+                          href={
+                            a.atestado_id
+                              ? `/painel/pessoal/atestados/${a.atestado_id}`
+                              : `/painel/pessoal/atestados?aba=ausencias&editar=${a.id}`
+                          }
+                          className="text-primary text-xs hover:underline"
+                        >
+                          {a.atestado_id ? "Ver atestado" : "Editar"}
                         </Link>
                       </TableCell>
                     </TableRow>

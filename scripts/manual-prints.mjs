@@ -195,6 +195,8 @@ const SHOTS = process.env.SHOT_UNICO
       ["/painel/pessoal/faltas", "pessoal/faltas-area.png", { esperar: "No limite do ano", altura: 1000 }],
       ["/painel/pessoal/atestados", "pessoal/atestados-area.png", { esperar: "Acima de 15 dias", altura: 1000 }],
       ["/painel/pessoal/atestados?aba=atestados", "pessoal/atestados.png", { esperar: "Acima de 15 dias", altura: 1000 }],
+      // Recarrega para o aviso "Novidades no Confluir" (1ª visita) não cobrir a tabela.
+      ["/painel/pessoal/atestados?aba=ausencias", "pessoal/atestados-ausencias.png", { esperar: "Registrar ausência", passos: [{ pausa: 2000 }, { ir: "/painel/pessoal/atestados?aba=ausencias" }, { aguardar: "Registrar ausência" }, { pausa: 1500 }], altura: 1000 }],
       ["/painel/pessoal/aso", "pessoal/aso-area.png", { esperar: "Vencem em 90 dias", altura: 1000 }],
       ["/painel/pessoal/aso?aba=registros", "pessoal/aso.png", { esperar: "Vencem em 90 dias", altura: 1000 }],
       ["/painel/pessoal/treinamentos", "pessoal/treinamentos-area.png", { esperar: "Exigidos pendentes", altura: 1000 }],
