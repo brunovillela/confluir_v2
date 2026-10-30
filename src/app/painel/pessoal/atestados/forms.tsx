@@ -218,7 +218,7 @@ export function ExcluirAtestadoBotao({ id }: { id: string }) {
   )
   const envio3 = useEnvioFormulario(formAction, estado, {
     antes: (e) => {
-      confirmarEnvio(e, "Excluir este atestado?")},
+      confirmarEnvio(e, "Excluir este atestado? O afastamento médico que ele gerou nas ausências sai junto.")},
   })
   return (
     <form

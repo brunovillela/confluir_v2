@@ -106,7 +106,7 @@ export async function RegistrosSaude({ brutos }: { brutos: ParamsLista & Record<
       : null
   const ausenciaEmEdicao =
     aba === "ausencias" && editar
-      ? (ausencias.find((a) => a.id === editar) ?? null)
+      ? (ausencias.find((a) => a.id === editar && !a.atestado_id) ?? null)
       : null
 
   return (
@@ -336,20 +336,38 @@ export async function RegistrosSaude({ brutos }: { brutos: ParamsLista & Record<
                       )}
                     </TableCell>
                     <TableCell>
+                      {/* A ausência do atestado muda só pelo atestado. */}
                       <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          asChild
-                          className="h-7 px-2"
-                        >
-                          <Link
-                            href={`/painel/pessoal/atestados?aba=ausencias&editar=${a.id}`}
+                        {a.atestado_id ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            asChild
+                            className="h-7 px-2"
                           >
-                            Editar
-                          </Link>
-                        </Button>
-                        <ExcluirAusenciaBotao id={a.id} />
+                            <Link
+                              href={`/painel/pessoal/atestados?aba=atestados&editar=${a.atestado_id}`}
+                            >
+                              Ver atestado
+                            </Link>
+                          </Button>
+                        ) : (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              asChild
+                              className="h-7 px-2"
+                            >
+                              <Link
+                                href={`/painel/pessoal/atestados?aba=ausencias&editar=${a.id}`}
+                              >
+                                Editar
+                              </Link>
+                            </Button>
+                            <ExcluirAusenciaBotao id={a.id} />
+                          </>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

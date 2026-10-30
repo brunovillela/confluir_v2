@@ -13,8 +13,8 @@ import { createAdminClient } from "@/lib/supabase/admin"
  * - `pes_atestados_medicos` (169): inicio/termino, quantidade_dias, cid10,
  *   consideracao, `atestado` = arquivo, acompanhamento (nome_acompanhado,
  *   filho_menor_6_anos), mes/ano são ENUMS de texto (derivados do início).
- * - `pessoal_ausencias` (384): inicio/termino/motivo; `atestado_id` opcional
- *   liga a ausência ao atestado que a justificou.
+ * - `pessoal_ausencias` (384): inicio/termino/motivo; `atestado_id` liga a
+ *   ausência ao atestado que a gerou (desde 30/10, todo atestado gera a sua).
  * - `aso` (65): data, tipo (texto NR-7), vencimento, realizado, enviado,
  *   `ultimo` marca o ASO mais recente do funcionário — recalculado aqui a
  *   cada gravação.
@@ -138,15 +138,96 @@ function registroAtestado(dados: DadosAtestado) {
   }
 }
 
+// ── Atestado → ausência (30/10) ────────────────────────────────────────────
+//
+// Todo atestado aparece nas ausências como "Afastamento médico", ligado por
+// pessoal_ausencias.atestado_id (mesmo desenho do gozo de férias em
+// db/ferias.ts). Editar o atestado acompanha a ausência; excluí-lo a tira. A
+// ausência ligada não se edita pela aba Ausências — só pelo atestado. O CID
+// fica só no atestado: a ausência aparece na coluna do dia e no Meu perfil.
+
+const MOTIVO_ATESTADO = "Afastamento médico"
+
+/**
+ * Deixa a ausência do atestado de acordo com ele. `antes` (o atestado antes
+ * da edição) acha o afastamento lançado à mão antes da automação, sem o
+ * vínculo — assim ele é adotado em vez de ganhar uma duplicata.
+ */
+async function sincronizarAusenciaDoAtestado(
+  atestadoId: string,
+  antes?: { funcionario_id: string | null; inicio: string | null; termino: string | null }
+): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const [{ data: a }, { data: ligadas }] = await Promise.all([
+    admin
+      .from("pes_atestados_medicos")
+      .select("id, funcionario_id, inicio, termino, atestado_acompanhamento, nome_acompanhado")
+      .eq("id", atestadoId)
+      .maybeSingle(),
+    admin.from("pessoal_ausencias").select("id").eq("atestado_id", atestadoId).eq("emp_proprietaria_id", emp),
+  ])
+  const ids = (ligadas ?? []).map((l) => String(l.id))
+  const falha = (e: { message: string } | null) =>
+    e ? { erro: `O atestado foi salvo, mas a ausência não: ${e.message}` } : {}
+
+  if (!a || !a.funcionario_id || !a.inicio || !a.termino) {
+    if (ids.length) return falha((await admin.from("pessoal_ausencias").delete().in("id", ids)).error)
+    return {}
+  }
+  const campos = {
+    funcionario_id: a.funcionario_id,
+    inicio: a.inicio,
+    termino: a.termino,
+    motivo: MOTIVO_ATESTADO,
+    ...((await temObservacao())
+      ? {
+          observacao: a.atestado_acompanhamento
+            ? `Atestado de acompanhamento${a.nome_acompanhado ? ` (${a.nome_acompanhado})` : ""}`
+            : "Atestado médico",
+        }
+      : {}),
+    updated_at: new Date().toISOString(),
+  }
+  if (ids.length) {
+    if (ids.length > 1) await admin.from("pessoal_ausencias").delete().in("id", ids.slice(1))
+    return falha((await admin.from("pessoal_ausencias").update(campos).eq("id", ids[0])).error)
+  }
+  // Afastamento médico lançado à mão (sem vínculo) no mesmo intervalo: adota.
+  const ref =
+    antes?.funcionario_id && antes.inicio && antes.termino
+      ? { funcionario_id: antes.funcionario_id, inicio: antes.inicio, termino: antes.termino }
+      : { funcionario_id: a.funcionario_id, inicio: a.inicio, termino: a.termino }
+  const { data: avulsa } = await admin
+    .from("pessoal_ausencias")
+    .select("id")
+    .eq("emp_proprietaria_id", emp)
+    .eq("funcionario_id", ref.funcionario_id)
+    .eq("motivo", MOTIVO_ATESTADO)
+    .is("atestado_id", null)
+    .is("ferias_id", null)
+    .is("falta_id", null)
+    .lte("inicio", ref.termino)
+    .gte("termino", ref.inicio)
+    .order("inicio")
+    .limit(1)
+  const { error } = avulsa?.length
+    ? await admin.from("pessoal_ausencias").update({ ...campos, atestado_id: atestadoId }).eq("id", avulsa[0].id)
+    : await admin.from("pessoal_ausencias").insert({ ...campos, atestado_id: atestadoId, emp_proprietaria_id: emp })
+  return falha(error)
+}
+
 export async function criarAtestado(
   dados: DadosAtestado
 ): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
-  const { error } = await admin
+  const { data, error } = await admin
     .from("pes_atestados_medicos")
     .insert(registroAtestado(dados))
+    .select("id")
+    .single()
   if (error) return { erro: `Não foi possível criar: ${error.message}` }
-  return {}
+  return sincronizarAusenciaDoAtestado(String(data.id))
 }
 
 export async function atualizarAtestado(
@@ -154,26 +235,30 @@ export async function atualizarAtestado(
   dados: DadosAtestado
 ): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
+  const { data: antes } = await admin
+    .from("pes_atestados_medicos")
+    .select("funcionario_id, inicio, termino")
+    .eq("id", id)
+    .maybeSingle()
   const { error, count } = await admin
     .from("pes_atestados_medicos")
     .update(registroAtestado(dados), { count: "exact" })
     .eq("id", id)
   if (error) return { erro: `Não foi possível salvar: ${error.message}` }
   if (count === 0) return { erro: "Atestado não encontrado." }
-  return {}
+  return sincronizarAusenciaDoAtestado(id, antes ?? undefined)
 }
 
 export async function excluirAtestado(id: string): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
-  // Ausência justificada pelo atestado impede a exclusão.
-  const { count: vinculos } = await admin
+  // A ausência do atestado sai junto (a FK não tem ON DELETE).
+  const { error: erroAusencia } = await admin
     .from("pessoal_ausencias")
-    .select("id", { count: "exact", head: true })
+    .delete()
     .eq("atestado_id", id)
-  if ((vinculos ?? 0) > 0) {
-    return {
-      erro: `Este atestado justifica ${vinculos} ausência${vinculos === 1 ? "" : "s"} — desvincule antes de excluir.`,
-    }
+    .eq("emp_proprietaria_id", await tenantAtual())
+  if (erroAusencia) {
+    return { erro: `Não foi possível excluir a ausência do atestado: ${erroAusencia.message}` }
   }
   const { error, count } = await admin
     .from("pes_atestados_medicos")
@@ -290,10 +375,23 @@ export async function criarAusencia(
   return {}
 }
 
+/** A ausência gerada por um atestado só muda pelo atestado. */
+async function ausenciaDeAtestado(id: string): Promise<boolean> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("pessoal_ausencias")
+    .select("atestado_id")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  return Boolean(data?.atestado_id)
+}
+
 export async function atualizarAusencia(
   id: string,
   dados: DadosAusencia
 ): Promise<{ erro?: string }> {
+  if (await ausenciaDeAtestado(id)) return { erro: "Esta ausência vem de um atestado médico: edite o atestado." }
   const admin = await createAdminClient()
   const { error, count } = await admin
     .from("pessoal_ausencias")
@@ -309,6 +407,7 @@ export async function atualizarAusencia(
 }
 
 export async function excluirAusencia(id: string): Promise<{ erro?: string }> {
+  if (await ausenciaDeAtestado(id)) return { erro: "Esta ausência vem de um atestado médico: exclua o atestado." }
   const admin = await createAdminClient()
   const { error, count } = await admin
     .from("pessoal_ausencias")

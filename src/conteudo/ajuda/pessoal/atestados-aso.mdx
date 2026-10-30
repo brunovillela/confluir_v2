@@ -28,7 +28,10 @@ A saúde ocupacional do funcionário tem duas áreas: os **atestados e ausência
   <Passo titulo="Atestados médicos">
     Registre o início, a quantidade de dias, o CID-10, se há acompanhamento e o
     arquivo do atestado. O último dia é calculado — o dia de início conta como
-    o primeiro (3 dias a partir de 01/10 vão até 03/10).
+    o primeiro (3 dias a partir de 01/10 vão até 03/10). Ao salvar, o atestado
+    já entra na aba **Ausências** como **Afastamento médico**, no mesmo período
+    — não é preciso lançar de novo. Editar o atestado ajusta a ausência, e
+    excluí-lo a tira.
   </Passo>
   <Passo titulo="Ausências">
     Na aba **Ausências**, registre afastamentos sem atestado com o início, a quantidade de dias
@@ -80,9 +83,13 @@ A saúde ocupacional do funcionário tem duas áreas: os **atestados e ausência
   registre o novo exame para atualizar — não é preciso apagar o anterior.
 - **"O ASO vencido não gerou alerta."** Só entram no alerta do painel os ASOs
   **vigentes** vencidos ou vencendo nos **próximos 90 dias**.
-- **"Registrei como ausência, mas era atestado (ou vice-versa)."** São **abas
-  separadas**: o atestado exige período e CID-10; a ausência é o afastamento sem
-  atestado.
+- **"Registrei como ausência, mas era atestado (ou vice-versa)."** Registre o
+  **atestado**: se já houver um Afastamento médico lançado à mão no mesmo
+  período, ele passa a ser o do atestado, sem duplicar. Uma ausência sem
+  atestado (falta, licença, trabalho externo) fica só na aba Ausências.
+- **"Não consigo editar nem excluir uma ausência."** É a ausência de um
+  atestado: na linha aparece **Ver atestado**. Ajuste ou exclua o atestado, e a
+  ausência acompanha. O CID fica só no atestado.
 - **"O tipo que eu usava não está mais na lista."** Registros antigos com
   descrição solta foram reclassificados para o tipo mais próximo, e o texto
   original foi guardado na **observação** — nada se perdeu. Ausências antigas
