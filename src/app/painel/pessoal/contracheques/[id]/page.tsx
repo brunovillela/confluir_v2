@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, ExternalLink, Pencil } from "lucide-react"
+import { ArrowLeft, ExternalLink, FileUp, Pencil } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
@@ -133,12 +133,22 @@ export default async function RemessaContrachequesPage({
             </p>
           </div>
           {editar !== "1" && (
-            <Button variant="outline" asChild>
-              <Link href={`/painel/pessoal/contracheques/${id}?editar=1`}>
-                <Pencil />
-                Editar remessa
-              </Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {!bloqueada && (
+                <Button variant="outline" asChild>
+                  <Link href={`/painel/pessoal/contracheques/${id}/importar`}>
+                    <FileUp />
+                    Importar folha
+                  </Link>
+                </Button>
+              )}
+              <Button variant="outline" asChild>
+                <Link href={`/painel/pessoal/contracheques/${id}?editar=1`}>
+                  <Pencil />
+                  Editar remessa
+                </Link>
+              </Button>
+            </div>
           )}
         </div>
       </div>

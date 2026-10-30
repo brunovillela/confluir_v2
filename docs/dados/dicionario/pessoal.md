@@ -2,7 +2,7 @@
 
 # Pessoal (RH da entidade)
 
-54 tabelas. Diagrama: [er/pessoal.md](../er/pessoal.md).
+56 tabelas. Diagrama: [er/pessoal.md](../er/pessoal.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -19,6 +19,8 @@
 | [pessoal_atribuicoes_cargo](#pessoal_atribuicoes_cargo) | — | Espelho de "Pessoal - Atribuições Do Cargo" do Bubble |
 | [pessoal_ausencias](#pessoal_ausencias) | **sensível: saúde**, trabalhista | Ausência de um funcionário (período e motivo), ligada ao atestado, às férias ou à falta justificada que a explica. Espelho do Bubble; gravad… |
 | [pessoal_cargo](#pessoal_cargo) | — | Cargo do quadro de funcionários, com carga horária padrão e reduzida; eixo da tabela salarial. Espelho do Bubble; só lido em lib/db/carreira… |
+| [pessoal_contracheque_importacao_itens](#pessoal_contracheque_importacao_itens) | identificação, financeiro | Um funcionário de uma folha de contracheques importada: as páginas dele, a leitura da IA e a situação até virar o contracheque da remessa. |
+| [pessoal_contracheque_importacoes](#pessoal_contracheque_importacoes) | identificação, financeiro | Folha de contracheques em PDF (um ou vários funcionários) enviada a uma remessa para separar por funcionário e ler o valor líquido (src/lib/… |
 | [pessoal_contracheques](#pessoal_contracheques) | financeiro, trabalhista | Contracheque (PDF) de um funcionário numa remessa da folha, com valor líquido e a ordem de pagamento gerada. Migrado do Bubble; enviado em P… |
 | [pessoal_contracheques_config](#pessoal_contracheques_config) | — | Configuração por entidade da geração de ordem de pagamento a partir dos contracheques (conta, departamento, forma de pagamento). Gravada em … |
 | [pessoal_contracheques_remessas](#pessoal_contracheques_remessas) | — | Espelho de "Pessoal - Contracheques - remessas" do Bubble |
@@ -421,6 +423,58 @@ Cargo do quadro de funcionários, com carga horária padrão e reduzida; eixo da
 Únicas: `UNIQUE (bubble_id)`
 
 Índices: `pessoal_cargo_bubble_id_key`, `pessoal_cargo_pkey`
+
+## pessoal_contracheque_importacao_itens
+
+Um funcionário de uma folha de contracheques importada: as páginas dele, a leitura da IA e a situação até virar o contracheque da remessa.
+
+- **LGPD:** identificação, financeiro · titulares: funcionários
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  | Identificador do item. |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  | Entidade (tenant). |
+| `importacao_id` | uuid | não |  | → pessoal_contracheque_importacoes (**cascade**) |  | Importação a que pertence. |
+| `paginas` | integer[] | não |  |  |  | Páginas do PDF deste funcionário. |
+| `nome_lido` | text | sim |  |  | identificação | Nome do funcionário achado nas páginas. |
+| `cpf_lido` | text | sim |  |  | identificação | CPF lido nas páginas. |
+| `funcionario_id` | uuid | sim |  | → usuarios | identificação | Funcionário do cadastro (achado pelo CPF ou pelo nome, ou escolhido). |
+| `arquivo` | text | não |  |  | financeiro | PDF só com as páginas deste funcionário (bucket pessoal). |
+| `situacao` | text | não | `'pendente'::text` |  |  | pendente (a ler), lido, erro, aplicado (virou contracheque) ou descartado. |
+| `leitura` | jsonb | sim |  |  | financeiro | Leitura da IA: nome, CPF, competência, total de proventos, total de descontos e valor líquido. |
+| `erro` | text | sim |  |  |  | Motivo da falha na leitura. |
+| `lido_em` | timestamp with time zone | sim |  |  |  | Quando a IA leu. |
+| `contracheque_id` | uuid | sim |  | → pessoal_contracheques (set null) |  | Contracheque criado ao aplicar. |
+| `aplicado_em` | timestamp with time zone | sim |  |  |  | Quando foi aplicado à remessa. |
+| `aplicado_por` | uuid | sim |  | → usuarios | identificação | Quem aplicou. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  | Criação do item. |
+
+Checks: `pessoal_contracheque_importacao_itens_situacao_check` `CHECK ((situacao = ANY (ARRAY['pendente'::text, 'lido'::text, 'erro'::text, 'aplicado'::text, 'descartado'::text])))`
+
+Índices: `pessoal_contracheque_importacao_itens_imp_idx`, `pessoal_contracheque_importacao_itens_pkey`
+
+## pessoal_contracheque_importacoes
+
+Folha de contracheques em PDF (um ou vários funcionários) enviada a uma remessa para separar por funcionário e ler o valor líquido (src/lib/db/contracheque-importacao.ts).
+
+- **LGPD:** identificação, financeiro · titulares: funcionários
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  | Identificador da importação. |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  | Entidade (tenant). |
+| `remessa_id` | uuid | não |  | → pessoal_contracheques_remessas (**cascade**) |  | Remessa de contracheques que recebe a importação. |
+| `arquivo` | text | não |  |  | financeiro | Caminho do PDF original no Storage (bucket pessoal). |
+| `nome_arquivo` | text | sim |  |  |  | Nome do arquivo enviado. |
+| `paginas` | integer | não | `0` |  |  | Número de páginas do PDF. |
+| `criado_por` | uuid | sim |  | → usuarios | identificação | Quem enviou o PDF. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  | Envio do PDF. |
+
+Índices: `pessoal_contracheque_importacoes_pkey`, `pessoal_contracheque_importacoes_remessa_idx`
 
 ## pessoal_contracheques
 

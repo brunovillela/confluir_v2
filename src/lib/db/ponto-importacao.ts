@@ -1,16 +1,12 @@
 import "server-only"
 
-import { PDFDocument } from "pdf-lib"
-import { extractText, getDocumentProxy } from "unpdf"
-
 import { esquemaAusente, nomesDosUsuarios, texto } from "@/lib/db/comum"
-import { funcionariosDaArea } from "@/lib/db/pessoal-area"
 import { competenciaDaRemessa, saldosAnterioresPonto } from "@/lib/db/ponto-analise"
 import { regrasApuracaoPonto } from "@/lib/db/ponto-config"
 import { isentosNaCompetencia } from "@/lib/db/ponto-isencoes"
-import { validarCpf } from "@/lib/cpf"
 import { duasCasas } from "@/lib/horas"
 import { lerCartaoPdf } from "@/lib/db/ponto-cartao-ia"
+import { guardarPartes, separarPorFuncionario, textoDasPaginas } from "@/lib/db/pdf-por-funcionario"
 import { apurarMes, type Apuracao, type LeituraCartao, type RegrasApuracao } from "@/lib/ponto-apuracao"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -56,10 +52,7 @@ export type Importacao = {
   itens: ItemImportacao[]
 }
 
-// CPF formatado; pode vir colado a outro número (a CTPS, no Secullum): vale o primeiro com dígitos válidos.
-const CPF = /(\d{3})\.(\d{3})\.(\d{3})-(\d{2})(?!\d)/g
 const PERIODO = /(\d{2})\/(\d{2})\/(\d{4})\s*(?:até|a|-)\s*(\d{2})\/(\d{2})\/(\d{4})/i
-const sem = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/\s+/g, " ").trim()
 const iso = (d: string, m: string, a: string) => `${a}-${m}-${d}`
 const PASTA = (remessaId: string) => `ponto/${remessaId}/importacoes`
 
@@ -76,18 +69,9 @@ export async function criarImportacao({
 }): Promise<{ id?: string; erro?: string }> {
   if (arquivo.type !== "application/pdf" && !/\.pdf$/i.test(arquivo.name)) return { erro: "Envie o relatório em PDF." }
   const bytes = new Uint8Array(await arquivo.arrayBuffer())
-
-  // Texto de cada página (o pdf.js esvazia o buffer: vai uma cópia).
-  let paginasTexto: string[] = []
-  try {
-    const pdf = await getDocumentProxy(bytes.slice())
-    paginasTexto = (await extractText(pdf, { mergePages: false })).text as string[]
-  } catch {
-    return { erro: "Não foi possível abrir o PDF." }
-  }
-  if (paginasTexto.join("").trim().length < 200) {
-    return { erro: "O PDF não tem texto (escaneado): não dá para separar os funcionários. Gere o relatório direto do relógio." }
-  }
+  const lidas = await textoDasPaginas(bytes)
+  if ("erro" in lidas) return lidas
+  const paginasTexto = lidas.paginas
 
   const admin = await createAdminClient()
   const emp = await tenantAtual()
@@ -100,70 +84,28 @@ export async function criarImportacao({
   if (!remessa) return { erro: "Remessa não encontrada." }
   if (remessa.finalizada === true) return { erro: "A remessa está finalizada — reabra para importar." }
 
-  // Cadastro: CPF e nome de cada funcionário (ativos e desligados).
-  const funcionarios = await funcionariosDaArea()
-  const { data: us } = await admin.from("usuarios").select("id, cpf").in("id", funcionarios.map((f) => f.usuarioId))
-  const porCpf = new Map<string, string>()
-  for (const u of us ?? []) {
-    const c = String(u.cpf ?? "").replace(/\D/g, "")
-    if (c.length === 11) porCpf.set(c, u.id)
-  }
-  const porNome = funcionarios
-    .map((f) => ({ id: f.usuarioId, nome: sem(f.nome) }))
-    .filter((f) => f.nome.split(" ").length >= 2)
-    .sort((a, b) => b.nome.length - a.nome.length)
-
-  // Cada página: quem é (CPF, senão nome do cadastro que aparece no texto).
-  type Pagina = { n: number; cpf: string | null; funcionarioId: string | null; nome: string | null }
-  const paginas: Pagina[] = paginasTexto.map((t, i) => {
-    const cpf = [...t.matchAll(CPF)].map((m) => m.slice(1, 5).join("")).find(validarCpf) ?? null
-    const textoSem = sem(t)
-    const porNomeAchado = porNome.find((f) => textoSem.includes(f.nome))
-    const funcionarioId = (cpf && porCpf.get(cpf)) || porNomeAchado?.id || null
-    const nome = funcionarioId ? (funcionarios.find((f) => f.usuarioId === funcionarioId)?.nome ?? null) : null
-    return { n: i + 1, cpf, funcionarioId, nome }
-  })
+  // Uma parte por funcionário (CPF, senão o nome do cadastro) — lib/db/pdf-por-funcionario.
+  const partes = await separarPorFuncionario(paginasTexto)
   const periodo = PERIODO.exec(paginasTexto[0] ?? "")
 
-  // Páginas seguidas da mesma pessoa viram um item (cartão em 2 páginas).
-  const grupos: Pagina[][] = []
-  for (const p of paginas) {
-    const ult = grupos[grupos.length - 1]?.[0]
-    const mesma = ult && ((p.cpf && p.cpf === ult.cpf) || (p.funcionarioId && p.funcionarioId === ult.funcionarioId))
-    if (mesma) grupos[grupos.length - 1].push(p)
-    else grupos.push([p])
-  }
-
   const id = crypto.randomUUID()
-  const original = `${PASTA(remessaId)}/${id}.pdf`
-  const up = await admin.storage.from("pessoal").upload(original, bytes, { contentType: "application/pdf" })
-  if (up.error) return { erro: `Falha ao guardar o PDF: ${up.error.message}` }
-
-  const fonte = await PDFDocument.load(bytes, { ignoreEncryption: true })
-  const itens: Record<string, unknown>[] = []
-  for (const [i, g] of grupos.entries()) {
-    const doc = await PDFDocument.create()
-    const copiadas = await doc.copyPages(fonte, g.map((p) => p.n - 1))
-    copiadas.forEach((pg) => doc.addPage(pg))
-    const caminho = `${PASTA(remessaId)}/${id}-${String(i + 1).padStart(3, "0")}.pdf`
-    const r = await admin.storage.from("pessoal").upload(caminho, await doc.save(), { contentType: "application/pdf" })
-    if (r.error) return { erro: `Falha ao guardar a página ${g[0].n}: ${r.error.message}` }
-    itens.push({
-      emp_proprietaria_id: emp,
-      importacao_id: id,
-      paginas: g.map((p) => p.n),
-      cpf_lido: g[0].cpf,
-      nome_lido: g[0].nome,
-      funcionario_id: g[0].funcionarioId,
-      arquivo: caminho,
-    })
-  }
+  const guardado = await guardarPartes(bytes, partes, PASTA(remessaId), id)
+  if ("erro" in guardado) return guardado
+  const itens = partes.map((p, i) => ({
+    emp_proprietaria_id: emp,
+    importacao_id: id,
+    paginas: p.paginas,
+    cpf_lido: p.cpf,
+    nome_lido: p.nome,
+    funcionario_id: p.funcionarioId,
+    arquivo: guardado.caminhos[i],
+  }))
 
   const { error } = await admin.from("pessoal_ponto_importacoes").insert({
     id,
     emp_proprietaria_id: emp,
     remessa_id: remessaId,
-    arquivo: original,
+    arquivo: guardado.original,
     nome_arquivo: arquivo.name,
     paginas: paginasTexto.length,
     periodo_inicio: periodo ? iso(periodo[1], periodo[2], periodo[3]) : null,

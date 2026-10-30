@@ -48,6 +48,47 @@ funcionário, com uma situação: **Bloqueado** (só o RH vê) ou **Liberado**
 
 <Print src="pessoal/contracheques-remessa.png" alt="Tela de uma remessa de contracheques: a tabela de itens com Funcionário, Arquivo, Líquido, Ordem de pagamento, Situação e Ações (Liberar ou Bloquear e excluir), a paginação e o formulário Adicionar contracheque com funcionário, PDF, líquido e a marcação Liberado." legenda="Dentro de uma remessa: itens por funcionário e o formulário para adicionar." />
 
+## Importar a folha em PDF
+
+Em vez de adicionar um a um, dá para enviar o **PDF da folha** gerado pelo
+sistema de contabilidade: com **todos** os funcionários, com **alguns** ou com
+**um só**. Na remessa, clique em **Importar folha**.
+
+<PassoAPasso>
+  <Passo titulo="Envie o PDF">
+    O sistema separa as páginas por funcionário, pelo **CPF** ou pelo **nome**
+    do cadastro. O PDF precisa ter texto (gerado pelo sistema, não escaneado),
+    até 4 MB, com um funcionário por página (ou mais de uma página seguida da
+    mesma pessoa).
+  </Passo>
+  <Passo titulo="A IA lê os valores">
+    Para cada funcionário, a IA lê a **competência**, o total de **proventos**,
+    o total de **descontos** e o **valor líquido**. A leitura começa sozinha e
+    vai em lotes; uma barra mostra o andamento, e as linhas na fila aparecem
+    como **Lendo…**.
+  </Passo>
+  <Passo titulo="Confira">
+    Em cada linha: o funcionário (escolha-o se não foi achado), os valores e o
+    **PDF** só com as páginas dele. Se proventos − descontos não der o líquido,
+    a linha mostra um alerta e começa **desmarcada**: confira o PDF e marque se
+    estiver certo, ou descarte e registre à mão.
+  </Passo>
+  <Passo titulo="Aplique">
+    **Aplicar à remessa** cria o contracheque de cada marcado, com o PDF dele e
+    o líquido lido. Com a geração de ordens ligada na configuração, cada um gera
+    a sua **ordem de pagamento**, como no registro manual.
+  </Passo>
+</PassoAPasso>
+
+- **Nada vai ao funcionário:** os contracheques importados entram
+  **bloqueados**. Confira e libere na remessa.
+- **Quem já tem contracheque** na remessa é pulado. Para trocar, exclua o
+  antigo e aplique de novo.
+- **Contracheque não acumula:** diferente do ponto, não há saldo de um mês
+  para o outro, então mexer numa remessa antiga não muda as seguintes.
+
+<Print src="pessoal/contracheques-importacao.png" alt="Conferência de uma folha importada com quatro funcionários: indicadores (funcionários na folha, aplicados, líquido lido, com alertas), a tabela com competência, proventos, descontos, líquido, situação e o link PDF de cada um; três aplicados e uma funcionária ainda lida, desmarcada, com o alerta de que proventos menos descontos não dá o líquido lido." legenda="A conferência da folha: os valores lidos, o PDF de cada um e o alerta quando a conta não fecha." />
+
 ## A ordem de pagamento do contracheque
 
 Cada contracheque registrado gera uma **ordem de pagamento** no Financeiro, em

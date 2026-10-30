@@ -82,6 +82,20 @@ erDiagram
     uuid emp_proprietaria_id FK
     uuid sindicato_id FK
   }
+  pessoal_contracheque_importacao_itens {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid importacao_id FK
+    uuid funcionario_id FK
+    uuid contracheque_id FK
+    uuid aplicado_por FK
+  }
+  pessoal_contracheque_importacoes {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid remessa_id FK
+    uuid criado_por FK
+  }
   pessoal_contracheques {
     uuid id PK
     uuid funcionario_id FK
@@ -346,6 +360,12 @@ erDiagram
   pessoal_ausencias }o--o| pessoal_ferias_gozo : "ferias_id"
   pessoal_ausencias }o--o| usuarios : "funcionario_id"
   pessoal_cargo }o--o| empresa : "sindicato_id"
+  pessoal_contracheque_importacao_itens }o--o| pessoal_contracheques : "contracheque_id"
+  pessoal_contracheque_importacao_itens }o--o| usuarios : "aplicado_por"
+  pessoal_contracheque_importacao_itens }o--o| usuarios : "funcionario_id"
+  pessoal_contracheque_importacao_itens }o--|| pessoal_contracheque_importacoes : "importacao_id"
+  pessoal_contracheque_importacoes }o--o| usuarios : "criado_por"
+  pessoal_contracheque_importacoes }o--|| pessoal_contracheques_remessas : "remessa_id"
   pessoal_contracheques }o--o| ordens_pagamento : "ordem_pagamento_id"
   pessoal_contracheques }o--o| pessoal_contracheques_remessas : "remessa_id"
   pessoal_contracheques }o--o| usuarios : "funcionario_id"

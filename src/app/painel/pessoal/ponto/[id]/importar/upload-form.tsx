@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { importarRelatorioAction } from "./actions"
-import { Trabalhando } from "./trabalhando"
+import { Trabalhando } from "@/components/trabalhando"
 
 /** Envio do PDF do relógio (um, alguns ou todos os funcionários). */
 export function ImportarRelatorioForm({ remessaId }: { remessaId: string }) {

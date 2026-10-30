@@ -23,7 +23,8 @@ import {
   recalcularPosterioresAction,
   type PosteriorAfetado,
 } from "../actions"
-import { Trabalhando, useLeitura } from "../trabalhando"
+import { Trabalhando } from "@/components/trabalhando"
+import { useLeitura } from "../trabalhando"
 
 const SELECT =
   "border-input bg-background text-foreground h-8 w-full max-w-64 rounded-md border px-2 text-xs shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
