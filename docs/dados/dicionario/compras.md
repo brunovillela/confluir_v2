@@ -261,6 +261,9 @@ Parâmetros fiscais por tenant para o cálculo do RPA: alíquota e teto do INSS,
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `updated_at` | timestamp with time zone | sim |  |  |  |  |
 | `inss_patronal_aliquota` | numeric(5,2) | não | `20` |  |  | Cota patronal do INSS sobre o bruto do RPA (20%), devida pela entidade e somada na guia do INSS. |
+| `limite_rpas_mes` | integer | sim | `1` |  |  | Quantos RPAs o mesmo prestador pode receber no mesmo mês de emissão (fuso de São Paulo). Nulo = sem limite; padrão 1, para que vários recibos pequenos não escapem da tabela mensal do IRRF. |
+
+Checks: `compras_rpa_config_limite_rpas_mes_check` `CHECK (((limite_rpas_mes IS NULL) OR (limite_rpas_mes >= 1)))`
 
 Índices: `compras_rpa_config_pkey`, `ux_compras_rpa_config_emp`
 

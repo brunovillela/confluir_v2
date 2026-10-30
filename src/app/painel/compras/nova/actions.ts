@@ -18,7 +18,7 @@ import {
 } from "@/lib/db/compras"
 import { escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
 import { compradoresPossiveis } from "@/lib/db/compras-compradores"
-import { impedimentoDoPrestador, obterConfigRpa } from "@/lib/db/compras-rpa"
+import { impedimentoDoPrestador, limiteMensalDoPrestador, obterConfigRpa } from "@/lib/db/compras-rpa"
 import { emitirRpaPadraoNaCompra, listarRpasAvulsos, usarRpaAvulsoNaCompra } from "@/lib/db/rpa-compra-direta"
 import { calcularRpaPadrao } from "@/lib/rpa-calculo"
 import { lerDetalhePagamento } from "@/lib/db/compras-pagamento-form"
@@ -159,6 +159,9 @@ export async function criarCompra(
       if (!avulso) return { erro: "Escolha um RPA emitido para este fornecedor e ainda sem ordem.", campo: "rpa_id" }
       valorOrdem = avulso.valorLiquido
     } else {
+      // Antes de gravar a compra: o RPA novo respeita o limite mensal do prestador.
+      const acimaDoLimite = await limiteMensalDoPrestador(fornecedorId)
+      if (acimaDoLimite) return { erro: acimaDoLimite, campo: "fornecedor_id" }
       const r = calcularRpaPadrao(valor, baseRpa, await obterConfigRpa())
       if (!(r.valorLiquido > 0)) return { erro: "O valor líquido do RPA ficou zerado — confira o valor.", campo: "valor" }
       valorOrdem = r.valorLiquido

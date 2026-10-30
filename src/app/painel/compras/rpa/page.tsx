@@ -22,7 +22,7 @@ import {
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { Badge } from "@/components/ui/badge"
 import { requirePermissao } from "@/lib/auth"
-import { listarRpas, obterConfigRpa } from "@/lib/db/compras-rpa"
+import { limiteRpasMes, listarRpas, obterConfigRpa } from "@/lib/db/compras-rpa"
 import { aliquotaPatronalRpa } from "@/lib/db/rpa-retencoes"
 import { Paginacao } from "@/components/paginacao"
 import { LembrarLista } from "@/components/voltar-lista"
@@ -75,10 +75,11 @@ export default async function RpaPage({
   const origem = ORIGENS.some((o) => o.valor === sp.origem) ? sp.origem! : ""
   const pag = lerPaginacao(sp, PADRAO_POR_PAGINA)
 
-  const [{ ativo, linhas: todosOsRpas }, config, patronal] = await Promise.all([
+  const [{ ativo, linhas: todosOsRpas }, config, patronal, limiteMes] = await Promise.all([
     listarRpas(),
     obterConfigRpa(),
     aliquotaPatronalRpa(),
+    limiteRpasMes(),
   ])
   // Sem acesso a contratos: os RPAs de compra e os avulsos (sem contrato).
   const todas = veContratos ? todosOsRpas : todosOsRpas.filter((r) => r.compraId || !r.contratoId)
@@ -328,11 +329,16 @@ export default async function RpaPage({
               </CardTitle>
               <CardDescription>
                 Teto e alíquota do INSS, tabela progressiva do IRRF (com dedução
-                por dependente) e alíquota padrão do ISS do município.
+                por dependente), alíquota padrão do ISS do município e o limite de RPAs por prestador por mês.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ConfigRpaForm config={config} inssPatronal={patronal} />
+              <ConfigRpaForm
+                config={config}
+                inssPatronal={patronal}
+                limiteMes={limiteMes}
+                podeAjustarLimite={podeAcessar(sessao.permissoes, "aquisicoes_comprador")}
+              />
             </CardContent>
           </Card>
         </GrupoColapsavel>

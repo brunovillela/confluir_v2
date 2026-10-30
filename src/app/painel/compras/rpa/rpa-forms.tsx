@@ -490,7 +490,19 @@ function Linha({
   )
 }
 
-export function ConfigRpaForm({ config, inssPatronal = null }: { config: ConfigRpa; inssPatronal?: number | null }) {
+export function ConfigRpaForm({
+  config,
+  inssPatronal = null,
+  limiteMes = null,
+  podeAjustarLimite = false,
+}: {
+  config: ConfigRpa
+  inssPatronal?: number | null
+  /** RPAs por prestador por mês (null = sem limite). */
+  limiteMes?: number | null
+  /** Só o Comprador (gestor de compras) muda o limite. */
+  podeAjustarLimite?: boolean
+}) {
   const [estado, action, pend] = useActionState(salvarConfigRpa, {})
   const envio8 = useEnvioFormulario(action, estado)
   return (
@@ -558,6 +570,29 @@ export function ConfigRpaForm({ config, inssPatronal = null }: { config: ConfigR
             </p>
           </div>
         )}
+      </div>
+
+      <div className="bg-muted/40 grid gap-2 rounded-md border p-3">
+        <div className="grid max-w-xs gap-1.5">
+          <Label htmlFor="limite_rpas_mes">Limite de RPAs por prestador por mês</Label>
+          <Input
+            id="limite_rpas_mes"
+            name="limite_rpas_mes"
+            type="number"
+            min={1}
+            step={1}
+            placeholder="Sem limite"
+            defaultValue={limiteMes === null ? "" : String(limiteMes)}
+            disabled={!podeAjustarLimite}
+          />
+          {podeAjustarLimite && <input type="hidden" name="limite_rpas_mes_enviado" value="1" />}
+        </div>
+        <p className="text-muted-foreground text-xs">
+          O IRRF do autônomo é apurado pelo total do mês: vários RPAs pequenos ao mesmo prestador podem ficar, cada um,
+          abaixo da isenção. Acima do limite, a emissão é recusada (conta a data de emissão do RPA). Em branco, sem
+          limite.{" "}
+          {podeAjustarLimite ? "" : "Só o Comprador (gestor de compras) ajusta este limite."}
+        </p>
       </div>
 
       <div className="grid gap-2">

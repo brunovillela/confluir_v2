@@ -628,3 +628,61 @@ export async function rpasDosFornecimentos(
   }
   return mapa
 }
+
+// ── Limite de RPAs por prestador por mês ─────────────────────────────────────
+
+/**
+ * Quantos RPAs o mesmo prestador pode receber no mesmo mês de emissão.
+ * null = sem limite (o gestor apagou o campo, ou antes da migração
+ * 20261030150054). Padrão 1: vários recibos pequenos no mês ficariam, cada um,
+ * abaixo da isenção da tabela mensal do IRRF.
+ */
+export async function limiteRpasMes(): Promise<number | null> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("compras_rpa_config")
+    .select("limite_rpas_mes")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (error) return null
+  if (!data) return 1
+  const n = Number(data.limite_rpas_mes)
+  return data.limite_rpas_mes == null || !Number.isFinite(n) || n < 1 ? null : Math.round(n)
+}
+
+/** Primeiro instante do mês (AAAA-MM) em São Paulo, em ISO. */
+function inicioDoMesSP(anoMes: string): string {
+  return new Date(`${anoMes}-01T00:00:00-03:00`).toISOString()
+}
+
+/**
+ * O prestador já atingiu o limite de RPAs do mês corrente (emissão, fuso de
+ * São Paulo)? Devolve o motivo da recusa, com os RPAs do mês; null quando pode
+ * emitir.
+ */
+export async function limiteMensalDoPrestador(fornecedorId: string): Promise<string | null> {
+  const limite = await limiteRpasMes()
+  if (limite === null) return null
+  const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date())
+  const [ano, mes] = hoje.slice(0, 7).split("-").map(Number)
+  const proximo = `${mes === 12 ? ano + 1 : ano}-${String(mes === 12 ? 1 : mes + 1).padStart(2, "0")}`
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("compras_rpa")
+    .select("numero")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("fornecedor_id", fornecedorId)
+    .gte("created_at", inicioDoMesSP(hoje.slice(0, 7)))
+    .lt("created_at", inicioDoMesSP(proximo))
+    .order("numero", { ascending: true })
+  if (error) return null
+  const doMes = (data ?? []) as { numero: number | null }[]
+  if (doMes.length < limite) return null
+  const numeros = doMes.map((r) => `nº ${r.numero ?? "—"}`).join(", ")
+  const mesAno = `${String(mes).padStart(2, "0")}/${ano}`
+  return (
+    `Este prestador já tem ${doMes.length === 1 ? "um RPA" : `${doMes.length} RPAs`} emitido${doMes.length === 1 ? "" : "s"} em ${mesAno} (${numeros}) ` +
+    `e o limite é de ${limite === 1 ? "um RPA" : `${limite} RPAs`} por prestador por mês. O IRRF é apurado pelo total do mês: ` +
+    `recibos separados podem ficar, cada um, abaixo da isenção. Junte os serviços no mesmo RPA ou peça ao Comprador para ajustar o limite em Aquisição › RPA › Tabelas de retenção.`
+  )
+}

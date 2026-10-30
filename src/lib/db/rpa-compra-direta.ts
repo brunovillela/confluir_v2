@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache"
 
 import { avisarOrdensEmAutorizacao, depoisDaResposta } from "@/lib/db/avisos"
 import { texto } from "@/lib/db/comum"
-import { obterConfigRpa, proximoNumeroRpa } from "@/lib/db/compras-rpa"
+import { limiteMensalDoPrestador, obterConfigRpa, proximoNumeroRpa } from "@/lib/db/compras-rpa"
 import { registrarEvento, SITUACAO_AGUARDANDO_DOCUMENTO } from "@/lib/db/ordens-ciclo"
 import { calcularRpaPadrao, opcoesPadraoRpa, TIPO_ORDEM_RPA } from "@/lib/rpa-calculo"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -90,6 +90,8 @@ export async function emitirRpaPadraoNaCompra(
     valor: number
   }
 ): Promise<{ rpaId?: string; erro?: string }> {
+  const acimaDoLimite = await limiteMensalDoPrestador(p.fornecedorId)
+  if (acimaDoLimite) return { erro: acimaDoLimite }
   const admin = await createAdminClient()
   const emp = await tenantAtual()
   const cfg = await obterConfigRpa()

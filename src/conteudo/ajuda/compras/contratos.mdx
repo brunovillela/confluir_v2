@@ -270,6 +270,26 @@ da validação aparece no RPA.
   a contabilidade e atualize os valores — os recibos já emitidos não mudam.
 </Aviso>
 
+### Limite de RPAs por prestador por mês
+
+<RequerPermissao>Comprador (para ajustar o limite)</RequerPermissao>
+
+O IRRF do autônomo é apurado pelo **total pago no mês**, pela tabela
+progressiva. Vários RPAs pequenos ao mesmo prestador no mesmo mês ficariam,
+cada um, abaixo da isenção, e o imposto devido sobre a soma não seria retido.
+Por isso, o sistema aceita **um RPA por prestador por mês**.
+
+- A contagem usa o **mês de emissão** do RPA, no horário de Brasília, e vale
+  para qualquer origem: contrato, compra de serviço, avulso ou a nova compra
+  com RPA. RPA excluído sai da conta.
+- Acima do limite, a emissão é **recusada**. A mensagem diz quais RPAs o
+  prestador já tem no mês. Junte os serviços no mesmo recibo.
+- Na nova compra com **Usar um RPA já emitido**, nada é emitido: o RPA
+  avulso já contou quando foi emitido.
+- O limite fica em **Tabelas de retenção**, no campo **Limite de RPAs por
+  prestador por mês**. Só quem tem a permissão **Comprador** ajusta. Para os
+  demais, o campo aparece bloqueado. Em branco, não há limite.
+
 <VejaTambem
   links={[
     {

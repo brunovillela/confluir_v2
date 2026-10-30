@@ -23,6 +23,7 @@ import {
   compraDoRpa,
   contratoDoRpa,
   impedimentoDoPrestador,
+  limiteMensalDoPrestador,
   obterConfigRpa,
   proximoNumeroRpa,
 } from "@/lib/db/compras-rpa"
@@ -242,6 +243,9 @@ export async function emitirRpa(
     }
   }
   const { fornecedorId } = origem
+  // Um RPA por prestador por mês (ou o limite que o Comprador ajustou).
+  const acimaDoLimite = await limiteMensalDoPrestador(fornecedorId)
+  if (acimaDoLimite) return { erro: acimaDoLimite }
 
   const cfg = await obterConfigRpa()
   const op: OpcoesRpa = {
@@ -676,7 +680,7 @@ export async function salvarConfigRpa(
   _prev: EstadoForm,
   fd: FormData
 ): Promise<EstadoForm> {
-  await exigirEdicao()
+  const sessao = await exigirEdicao()
   const faixas: { ate: number | null; aliquota: number; deduzir: number }[] = []
   for (let i = 0; i < 5; i++) {
     const aliquota = numSolto(fd, `faixa_aliquota_${i}`)
@@ -712,6 +716,22 @@ export async function salvarConfigRpa(
       .from("compras_rpa_config")
       .update({ inss_patronal_aliquota: patronal })
       .eq("emp_proprietaria_id", await tenantAtual())
+  }
+  // Limite de RPAs por prestador por mês: só o Comprador (gestor de compras).
+  // Coluna da migração 20261030150054; em branco = sem limite.
+  if (fd.get("limite_rpas_mes_enviado") === "1" && podeAcessar(sessao.permissoes, "aquisicoes_comprador")) {
+    const bruto = String(fd.get("limite_rpas_mes") ?? "").trim()
+    const limite = bruto === "" ? null : Number(bruto)
+    if (limite !== null && (!Number.isInteger(limite) || limite < 1)) {
+      return { erro: "O limite de RPAs por mês deve ser um número inteiro a partir de 1 (ou em branco, sem limite)." }
+    }
+    const { error: erroLimite } = await admin
+      .from("compras_rpa_config")
+      .update({ limite_rpas_mes: limite })
+      .eq("emp_proprietaria_id", await tenantAtual())
+    if (erroLimite && !esquemaAusente(erroLimite) && erroLimite.code !== "PGRST204") {
+      return { erro: `Não foi possível salvar o limite: ${erroLimite.message}` }
+    }
   }
   revalidatePath("/painel/compras/rpa")
   return { ok: "Tabelas de retenção salvas — valem para os próximos RPAs." }
