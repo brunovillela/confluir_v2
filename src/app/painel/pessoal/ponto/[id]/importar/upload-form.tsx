@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { importarRelatorioAction } from "./actions"
+import { Trabalhando } from "./trabalhando"
 
 /** Envio do PDF do relógio (um, alguns ou todos os funcionários). */
 export function ImportarRelatorioForm({ remessaId }: { remessaId: string }) {
@@ -39,6 +40,12 @@ export function ImportarRelatorioForm({ remessaId }: { remessaId: string }) {
         {pendente ? <Loader2 className="animate-spin" /> : <Upload />}
         {pendente ? "Separando os funcionários…" : "Importar e separar por funcionário"}
       </Button>
+      {pendente && (
+        <Trabalhando
+          titulo="Enviando o PDF e separando as páginas por funcionário…"
+          detalhe="Leva alguns segundos. Em seguida abre a conferência, e a IA começa a ler os cartões sozinha."
+        />
+      )}
     </form>
   )
 }

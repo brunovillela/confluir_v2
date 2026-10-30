@@ -447,6 +447,9 @@ export async function aplicarItens(
       marcacoes,
       marcacoes_erro: null,
       marcacoes_lidas_em: new Date().toISOString(),
+      // Nada vai ao funcionário ao aplicar (nem o registro que já estava
+      // liberado): o gestor confere e libera na remessa.
+      liberado: false,
     }
     let registroId = atual ? String(atual.id) : null
     if (registroId) {
@@ -458,7 +461,7 @@ export async function aplicarItens(
     } else {
       const { data: criado, error } = await admin
         .from("pessoal_registro_ponto")
-        .insert({ ...campos, remessa_id: imp.remessaId, funcionario_id: item.funcionarioId, ordem: remessa.ordem, liberado: false })
+        .insert({ ...campos, remessa_id: imp.remessaId, funcionario_id: item.funcionarioId, ordem: remessa.ordem })
         .select("id")
         .single()
       if (error || !criado) {

@@ -16,6 +16,7 @@ import { bloqueioDoItem, isentosDaRemessa, obterImportacao } from "@/lib/db/pont
 import { formatarData } from "@/lib/formato"
 
 import { ResumoRegras } from "../resumo-regras"
+import { ProvedorLeitura } from "../trabalhando"
 import { ItensImportacao, LeitorImportacao, type ItemTela } from "./itens"
 
 export const metadata: Metadata = { title: "Importação do relatório de ponto — Confluir" }
@@ -68,7 +69,7 @@ export default async function ImportacaoPage({ params }: { params: Promise<{ id:
   const comAlerta = itens.filter((i) => (i.apuracao?.alertas.length ?? 0) > 0).length
 
   return (
-    <>
+    <ProvedorLeitura>
       <RotuloTrilha
         valores={{ [id]: remessa.nome_remessa ?? "(sem nome)", importar: "Importar relatório", [importacaoId]: imp.nomeArquivo ?? "Importação" }}
       />
@@ -146,6 +147,6 @@ export default async function ImportacaoPage({ params }: { params: Promise<{ id:
           <ResumoRegras regras={regras} />
         </CardContent>
       </Card>
-    </>
+    </ProvedorLeitura>
   )
 }

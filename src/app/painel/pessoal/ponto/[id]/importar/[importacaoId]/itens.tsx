@@ -6,6 +6,7 @@ import { ChevronDown, ChevronRight, FileSearch, Loader2, RotateCcw, Trash2 } fro
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { confirmar } from "@/components/ui/confirmacao"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -14,6 +15,7 @@ import { formatarMin, type Apuracao } from "@/lib/ponto-apuracao"
 import { cn } from "@/lib/utils"
 
 import { aplicarItensAction, associarFuncionarioAction, descartarItemAction, lerImportacaoAction, reapurarAction } from "../actions"
+import { Trabalhando, useLeitura } from "../trabalhando"
 
 const SELECT =
   "border-input bg-background text-foreground h-8 w-full max-w-64 rounded-md border px-2 text-xs shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -49,14 +51,19 @@ const hm = (min: number) => formatarMin(min).replace(/^\+/, "")
 export function LeitorImportacao({ remessaId, importacaoId, pendentes }: { remessaId: string; importacaoId: string; pendentes: number }) {
   const router = useRouter()
   const [rodando, iniciar] = useTransition()
-  const [andamento, setAndamento] = useState<string | null>(null)
+  const [andamento, setAndamento] = useState<{ feitos: number; total: number } | null>(null)
+  const { setLendo } = useLeitura()
   const comecou = useRef(false)
+
+  // Estado mudado dentro da transição só aparece no fim dela: a tabela segue o
+  // "rodando" da própria transição.
+  useEffect(() => setLendo(rodando), [rodando, setLendo])
 
   const ler = () =>
     iniciar(async () => {
       let feitos = 0
       for (let volta = 0; volta < 30; volta++) {
-        setAndamento(`Lendo os cartões com a IA… ${feitos} de ${pendentes}`)
+        setAndamento({ feitos, total: pendentes })
         const r = await lerImportacaoAction(remessaId, importacaoId)
         feitos += r.lidos + r.erros
         router.refresh()
@@ -74,16 +81,24 @@ export function LeitorImportacao({ remessaId, importacaoId, pendentes }: { remes
   }, [])
 
   if (pendentes === 0 && !rodando) return null
+  if (rodando) {
+    const { feitos, total } = andamento ?? { feitos: 0, total: pendentes }
+    return (
+      <Trabalhando
+        titulo={`Lendo os cartões com a IA — ${feitos} de ${total} funcionário(s)`}
+        detalhe="A IA lê até 4 cartões por vez; cada lote leva cerca de um minuto. Pode continuar na página: as linhas se preenchem conforme a leitura avança."
+        progresso={total ? (feitos / total) * 100 : 0}
+      />
+    )
+  }
   return (
     <Alert className="border-info/40">
       <AlertDescription className="flex flex-wrap items-center gap-3">
-        {rodando ? <Loader2 className="size-4 animate-spin" /> : <FileSearch className="size-4" />}
-        <span>{andamento ?? `${pendentes} cartão(ões) a ler.`}</span>
-        {!rodando && (
-          <Button size="sm" variant="outline" onClick={ler}>
-            Ler agora
-          </Button>
-        )}
+        <FileSearch className="size-4" />
+        <span>{pendentes} cartão(ões) a ler.</span>
+        <Button size="sm" variant="outline" onClick={ler}>
+          Ler agora
+        </Button>
       </AlertDescription>
     </Alert>
   )
@@ -106,8 +121,22 @@ export function ItensImportacao({
   const aplicaveis = itens.filter((i) => !i.bloqueio).map((i) => i.id)
   const [marcados, setMarcados] = useState<Set<string>>(() => new Set(aplicaveis))
   const [aberto, setAberto] = useState<string | null>(null)
-  const [ocupado, iniciar] = useTransition()
+  const [ocupado, iniciarTransicao] = useTransition()
+  const [tarefa, setTarefa] = useState<{ titulo: string; detalhe?: string } | null>(null)
   const [resultado, setResultado] = useState<{ ok?: string; erro?: string; pulados?: string[] } | null>(null)
+  const { lendo } = useLeitura()
+
+  // Toda ação da tabela diz o que está fazendo enquanto roda.
+  const iniciar = (t: { titulo: string; detalhe?: string }, acao: () => Promise<void>) => {
+    setTarefa(t)
+    iniciarTransicao(async () => {
+      try {
+        await acao()
+      } finally {
+        setTarefa(null)
+      }
+    })
+  }
 
   // Item que fica aplicável depois (funcionário escolhido) entra marcado.
   const chave = aplicaveis.join(",")
@@ -132,19 +161,24 @@ export function ItensImportacao({
     const ok = await confirmar({
       titulo: `Aplicar ${selecionados.length} funcionário(s) à remessa?`,
       descricao:
-        "Cria ou atualiza o registro de cada um com as horas realizadas apuradas e o cartão dele como espelho. Horas pagas e saldo da remessa anterior ficam como estão; o saldo remanescente é refeito.",
+        "Cria ou atualiza o registro de cada um com as horas realizadas apuradas e o cartão dele como espelho. Horas pagas e saldo da remessa anterior ficam como estão; o saldo remanescente é refeito. Nada é enviado ao funcionário: os registros ficam bloqueados até você liberar na remessa.",
       confirmar: "Aplicar",
     })
     if (!ok) return
-    iniciar(async () => {
+    const n = selecionados.length
+    iniciar({ titulo: `Aplicando ${n} funcionário(s) à remessa…`, detalhe: "Gravando as horas e anexando o cartão de cada um como espelho." }, async () => {
       const r = await aplicarItensAction(remessaId, importacaoId, selecionados)
-      setResultado(r.erro ? { erro: r.erro } : { ok: `${r.aplicados} registro(s) aplicado(s) à remessa.`, pulados: r.pulados })
+      setResultado(
+        r.erro
+          ? { erro: r.erro }
+          : { ok: `${r.aplicados} registro(s) aplicado(s) à remessa, bloqueado(s) ao funcionário — libere na remessa depois de conferir.`, pulados: r.pulados }
+      )
       router.refresh()
     })
   }
 
   const reapurar = () =>
-    iniciar(async () => {
+    iniciar({ titulo: "Reapurando as horas com as regras atuais…" }, async () => {
       await reapurarAction(remessaId, importacaoId)
       setResultado({ ok: "Horas reapuradas com as regras atuais." })
       router.refresh()
@@ -152,6 +186,7 @@ export function ItensImportacao({
 
   return (
     <div className="grid gap-3">
+      {tarefa && <Trabalhando titulo={tarefa.titulo} detalhe={tarefa.detalhe} />}
       {resultado?.erro && (
         <Alert variant="destructive">
           <AlertDescription>{resultado.erro}</AlertDescription>
@@ -188,7 +223,7 @@ export function ItensImportacao({
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border">
+      <div className={cn("overflow-x-auto rounded-lg border transition-opacity", ocupado && "pointer-events-none opacity-60")} aria-busy={ocupado}>
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
@@ -211,6 +246,9 @@ export function ItensImportacao({
               const podeEditar = i.situacao !== "aplicado"
               const divergente =
                 a && a.totalRelatorioMin !== null && Math.abs(a.totalRelatorioMin - (a.positivosFaixa1Min + a.positivosFaixa2Min - a.negativosMin)) > 1
+              // Linha ainda na fila da IA: barras pulsando em vez de traços.
+              const sendoLido = lendo && i.situacao === "pendente"
+              const vazio = sendoLido ? <Skeleton className="ml-auto h-3 w-10" /> : "—"
               return (
                 <Fragment key={i.id}>
                   <TableRow className={cn(i.situacao === "descartado" && "opacity-60")}>
@@ -231,12 +269,13 @@ export function ItensImportacao({
                           className={SELECT}
                           value={i.funcionarioId ?? ""}
                           disabled={ocupado}
-                          onChange={(e) =>
-                            iniciar(async () => {
-                              await associarFuncionarioAction(remessaId, importacaoId, i.id, e.target.value)
+                          onChange={(e) => {
+                            const valor = e.target.value
+                            iniciar({ titulo: "Associando o funcionário e refazendo a conta…" }, async () => {
+                              await associarFuncionarioAction(remessaId, importacaoId, i.id, valor)
                               router.refresh()
                             })
-                          }
+                          }}
                         >
                           <option value="">— escolha o funcionário —</option>
                           {funcionarios.map((f) => (
@@ -254,18 +293,25 @@ export function ItensImportacao({
                         </span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">{a ? hm(a.positivosFaixa1Min) : "—"}</TableCell>
-                    <TableCell className="text-right tabular-nums">{a ? hm(a.positivosFaixa2Min) : "—"}</TableCell>
-                    <TableCell className="text-right tabular-nums">{a ? `${a.negativosMin > 0 ? "-" : ""}${hm(a.negativosMin)}` : "—"}</TableCell>
-                    <TableCell className="text-right font-medium tabular-nums">{a ? formatarMin(a.realizadasFaixa1Min) : "—"}</TableCell>
-                    <TableCell className="text-right font-medium tabular-nums">{a ? formatarMin(a.realizadasFaixa2Min) : "—"}</TableCell>
+                    <TableCell className="text-right tabular-nums">{a ? hm(a.positivosFaixa1Min) : vazio}</TableCell>
+                    <TableCell className="text-right tabular-nums">{a ? hm(a.positivosFaixa2Min) : vazio}</TableCell>
+                    <TableCell className="text-right tabular-nums">{a ? `${a.negativosMin > 0 ? "-" : ""}${hm(a.negativosMin)}` : vazio}</TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">{a ? formatarMin(a.realizadasFaixa1Min) : vazio}</TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">{a ? formatarMin(a.realizadasFaixa2Min) : vazio}</TableCell>
                     <TableCell className={cn("text-right text-xs tabular-nums", divergente ? "text-warning-fg" : "text-muted-foreground")}>
-                      {a?.totalRelatorioMin !== null && a?.totalRelatorioMin !== undefined ? formatarMin(a.totalRelatorioMin) : "—"}
+                      {a?.totalRelatorioMin !== null && a?.totalRelatorioMin !== undefined ? formatarMin(a.totalRelatorioMin) : vazio}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={SITUACAO[i.situacao].classe}>
-                        {SITUACAO[i.situacao].rotulo}
-                      </Badge>
+                      {sendoLido ? (
+                        <Badge variant="outline" className="border-info/40 text-info-fg gap-1">
+                          <Loader2 className="size-3 animate-spin" />
+                          Lendo…
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className={SITUACAO[i.situacao].classe}>
+                          {SITUACAO[i.situacao].rotulo}
+                        </Badge>
+                      )}
                       {i.bloqueio && i.situacao === "lido" && <span className="text-warning-fg block text-xs">{i.bloqueio}</span>}
                       {i.erro && <span className="text-destructive block text-xs">{i.erro}</span>}
                     </TableCell>
@@ -291,7 +337,7 @@ export function ItensImportacao({
                             disabled={ocupado}
                             aria-label={i.situacao === "descartado" ? "Restaurar" : "Descartar"}
                             onClick={() =>
-                              iniciar(async () => {
+                              iniciar({ titulo: i.situacao === "descartado" ? "Restaurando a página…" : "Descartando a página…" }, async () => {
                                 await descartarItemAction(remessaId, importacaoId, i.id, i.situacao === "descartado")
                                 router.refresh()
                               })
