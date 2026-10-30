@@ -73,7 +73,8 @@ export type ResultadoCascata = { recalculadas: string[]; paradaEm: string | null
 
 /**
  * Refaz o saldo anterior e o remanescente do funcionário nas remessas depois
- * desta, em ordem, até a primeira finalizada.
+ * desta, em ordem, até a primeira finalizada. Serve à edição, à inclusão e à
+ * exclusão do registro desta remessa.
  */
 export async function recalcularPosteriores(remessaId: string, funcionarioId: string): Promise<ResultadoCascata> {
   const remessas = await remessasDoTenant()
@@ -87,11 +88,19 @@ export async function recalcularPosteriores(remessaId: string, funcionarioId: st
     .from("pessoal_registro_ponto")
     .select("id, remessa_id, horas_realizadas_70, horas_pagas_70, saldo_remanescente_70, horas_realizadas_100, horas_pagas_100, saldo_remanescente_100")
     .eq("funcionario_id", funcionarioId)
-    .in("remessa_id", [atual.id, ...depois.map((r) => r.id)])
+    .in("remessa_id", remessas.map((r) => r.id))
   const porRemessa = new Map(((regs ?? []) as Record<string, unknown>[]).map((r) => [String(r.remessa_id), r]))
   const num = (v: unknown) => (v === null || v === undefined ? null : Number(v))
 
-  const base = porRemessa.get(atual.id)
+  // O ponto de partida é o registro desta remessa; se ele foi EXCLUÍDO, o da
+  // última remessa antes dela em que o funcionário aparece (sem nenhuma, nulo).
+  const base =
+    porRemessa.get(atual.id) ??
+    [...remessas]
+      .filter((r) => r.competencia < atual.competencia)
+      .reverse()
+      .map((r) => porRemessa.get(r.id))
+      .find(Boolean)
   let saldo70 = base ? num(base.saldo_remanescente_70) : null
   let saldo100 = base ? num(base.saldo_remanescente_100) : null
   const recalculadas: string[] = []

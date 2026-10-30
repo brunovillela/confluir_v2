@@ -67,7 +67,9 @@ export default async function RemessaPontoPage({
     porPagina?: string
     aba?: string
     novo?: string
-    /** Remessas posteriores recalculadas ao salvar (nomes separados por |). */
+    /** Registro excluído com recálculo das remessas posteriores. */
+    excluido?: string
+    /** Remessas posteriores recalculadas ao salvar ou excluir (nomes separados por |). */
     recalculadas?: string
     parada?: string
     erro_cascata?: string
@@ -198,10 +200,10 @@ export default async function RemessaPontoPage({
         </div>
       </div>
 
-      {salvo === "1" && (
+      {(salvo === "1" || paramsBusca.excluido === "1") && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>
-            Salvo com sucesso.
+            {salvo === "1" ? "Salvo com sucesso." : "Registro excluído."}
             {recalculadas !== undefined &&
               (recalculadas
                 ? ` Saldos recalculados nas remessas posteriores: ${recalculadas.split("|").join(", ")}.`
@@ -213,7 +215,7 @@ export default async function RemessaPontoPage({
       {paramsBusca.erro_cascata && (
         <Alert variant="destructive">
           <AlertDescription>
-            O registro foi salvo, mas o recálculo das remessas posteriores falhou: {paramsBusca.erro_cascata}
+            {paramsBusca.excluido === "1" ? "O registro foi excluído" : "O registro foi salvo"}, mas o recálculo das remessas posteriores falhou: {paramsBusca.erro_cascata}
           </AlertDescription>
         </Alert>
       )}
@@ -451,7 +453,13 @@ export default async function RemessaPontoPage({
                                   Editar
                                 </Link>
                               </Button>
-                              <ExcluirRegistroBotao id={i.id} remessaId={id} liberado={i.liberado === true} funcionario={i.funcionarioNome} />
+                              <ExcluirRegistroBotao
+                                id={i.id}
+                                remessaId={id}
+                                liberado={i.liberado === true}
+                                funcionario={i.funcionarioNome}
+                                posteriores={i.funcionario_id ? posteriores[i.funcionario_id] : undefined}
+                              />
                             </div>
                           )}
                         </TableCell>

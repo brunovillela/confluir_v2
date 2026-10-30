@@ -407,7 +407,7 @@ export async function excluirRegistroPonto(
   const admin = await createAdminClient()
   const { data: registro } = await admin
     .from("pessoal_registro_ponto")
-    .select("id")
+    .select("id, funcionario_id")
     .eq("id", id)
     .eq("remessa_id", remessaId)
     .maybeSingle()
@@ -415,7 +415,11 @@ export async function excluirRegistroPonto(
   const apagado = await apagarRegistrosPonto([id])
   if (apagado.erro) return apagado
 
+  // Sem este registro, as remessas seguintes partem do saldo da remessa
+  // anterior a esta (se o gestor pediu para recalcular).
+  const cascata = registro.funcionario_id ? await cascataSePedida(formData, remessaId, registro.funcionario_id) : ""
   revalidar(remessaId)
+  if (cascata) redirect(`/painel/pessoal/ponto/${remessaId}?excluido=1${cascata}`)
   return { ok: "Registro excluído." }
 }
 

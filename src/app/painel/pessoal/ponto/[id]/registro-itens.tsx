@@ -334,28 +334,55 @@ export function ExcluirRegistroBotao({
   remessaId,
   liberado = false,
   funcionario,
+  posteriores = [],
 }: {
   id: string
   remessaId: string
   /** Já liberado: o funcionário pode ter visto o espelho — confirmação mais forte. */
   liberado?: boolean
   funcionario?: string | null
+  /** Remessas seguintes com registro do funcionário: pergunta se recalcula. */
+  posteriores?: RemessaPosterior[]
 }) {
   const [estado, formAction, pendente] = useActionState(excluirRegistroPonto, {})
+  const recalcularRef = useRef<HTMLInputElement>(null)
+  const exclusao = liberado
+    ? {
+        titulo: "Excluir um registro já liberado?",
+        descricao: `${funcionario ?? "O funcionário"} já recebeu este espelho e pode tê-lo visto em Meu perfil. Ele some de lá; o aviso de liberação fica no histórico, sem link. O PDF do espelho também é apagado.`,
+        confirmar: "Excluir mesmo assim",
+        destrutivo: true,
+      }
+    : "Excluir este registro de ponto? O PDF do espelho também é apagado."
   const envio = useEnvioFormulario(formAction, estado, {
     antes: (e) => {
-        confirmarEnvio(
-          e,
-          liberado
-            ? {
-                titulo: "Excluir um registro já liberado?",
-                descricao: `${funcionario ?? "O funcionário"} já recebeu este espelho e pode tê-lo visto em Meu perfil. Ele some de lá; o aviso de liberação fica no histórico, sem link. O PDF do espelho também é apagado.`,
-                confirmar: "Excluir mesmo assim",
-                destrutivo: true,
-              }
-            : "Excluir este registro de ponto? O PDF do espelho também é apagado."
-        )
-      },
+      if (!posteriores.length) return confirmarEnvio(e, exclusao)
+      // Duas perguntas: excluir? e, sim, recalcular as seguintes? (o mesmo
+      // segundo passe de confirmarEnvio: a marca deixa o reenvio seguir).
+      const form = e.currentTarget
+      if (form.dataset.confirmado === "1") {
+        delete form.dataset.confirmado
+        return
+      }
+      e.preventDefault()
+      void (async () => {
+        if (!(await confirmar(exclusao))) return
+        const finalizada = posteriores.find((d) => d.finalizada)?.remessa
+        const recalcular = await confirmar({
+          titulo: "Recalcular as remessas posteriores?",
+          descricao: `As remessas seguintes de ${funcionario ?? "o funcionário"} partem do saldo deste registro: ${posteriores
+            .map((d) => d.remessa + (d.finalizada ? " (finalizada)" : ""))
+            .join(", ")}. Sem ele, recalcular faz cada uma partir do saldo da remessa anterior a esta, em ordem${
+            finalizada ? ` — até ${finalizada}, que está finalizada e não muda` : ""
+          }. Realizadas e pagas não mudam.`,
+          confirmar: "Excluir e recalcular",
+          cancelar: "Só excluir",
+        })
+        if (recalcularRef.current) recalcularRef.current.value = recalcular ? "1" : ""
+        form.dataset.confirmado = "1"
+        form.requestSubmit()
+      })()
+    },
   })
 
   return (
@@ -365,6 +392,7 @@ export function ExcluirRegistroBotao({
     >
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="remessa_id" value={remessaId} />
+      <input ref={recalcularRef} type="hidden" name="recalcular_posteriores" defaultValue="" />
       {estado.erro && (
         <span className="text-destructive mr-1 text-xs">{estado.erro}</span>
       )}
