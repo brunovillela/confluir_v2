@@ -24,6 +24,7 @@ import {
   contratoDoRpa,
   impedimentoDoPrestador,
   limiteMensalDoPrestador,
+  limiteMensalPorPagamento,
   obterConfigRpa,
   proximoNumeroRpa,
 } from "@/lib/db/compras-rpa"
@@ -113,6 +114,8 @@ type OrigemRpa = {
     codigo: string | null
     /** A ordem da compra (com a forma e o "para onde") esperando o recibo. */
     ordemPendenteId: string | null
+    /** "Pagar em" da ordem que já existe (mês do pagamento, para o limite). */
+    ordemPendenteVencimento: string | null
   }
 }
 
@@ -179,6 +182,7 @@ async function origemDaCompra(
         fornecimentoId: compra.fornecimentoId,
         codigo: compra.processoCodigo,
         ordemPendenteId: compra.ordemPendente?.id ?? null,
+        ordemPendenteVencimento: compra.ordemPendente?.vencimento ?? null,
       },
     },
   }
@@ -246,6 +250,16 @@ export async function emitirRpa(
   // Um RPA por prestador por mês (ou o limite que o Comprador ajustou).
   const acimaDoLimite = await limiteMensalDoPrestador(fornecedorId)
   if (acimaDoLimite) return { erro: acimaDoLimite }
+  // E pelo mês do pagamento ("Pagar em" do RPA ou da ordem que a compra já tem).
+  // O avulso ainda não tem pagamento: conta quando for usado numa compra.
+  if (!avulso) {
+    const acimaNoPagamento = await limiteMensalPorPagamento(
+      fornecedorId,
+      ordemDaCompra ? (origem.compra?.ordemPendenteVencimento ?? null) : pagarEm,
+      ordemDaCompra
+    )
+    if (acimaNoPagamento) return { erro: acimaNoPagamento }
+  }
 
   const cfg = await obterConfigRpa()
   const op: OpcoesRpa = {

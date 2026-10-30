@@ -102,6 +102,10 @@ export async function salvarPagamento(
       editando ? "mudar o valor ou a data do pagamento" : "registrar um pagamento nele"
     )
     if (trava) return { erro: trava }
+    // Ordem de RPA: o prestador já recebeu o limite de RPAs neste mês?
+    const { limiteMensalNoPagamentoDaOrdem } = await import("@/lib/db/compras-rpa")
+    const acimaDoLimite = await limiteMensalNoPagamentoDaOrdem(id, dataPagamento)
+    if (acimaDoLimite) return { erro: acimaDoLimite }
   }
 
   // O débito é uma conta de pagamento (caixa, banco) — ver listarCentrosDeDebito.

@@ -171,6 +171,10 @@ export async function vincularOrdemAoCaixa(
   if (situacao !== "Paga") {
     const travaMes = await travaDoMesFechado([hojeSP()], "pagar pelo caixa")
     if (travaMes) return { erro: travaMes }
+    // Ordem de RPA: o limite de RPAs do prestador no mês do pagamento.
+    const { limiteMensalNoPagamentoDaOrdem } = await import("@/lib/db/compras-rpa")
+    const acimaDoLimite = await limiteMensalNoPagamentoDaOrdem(ordemId, hojeSP())
+    if (acimaDoLimite) return { erro: acimaDoLimite }
   }
 
   const { error: erroMov } = await admin.from("caixa_movimentacoes").insert({

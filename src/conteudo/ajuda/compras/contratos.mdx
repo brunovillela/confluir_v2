@@ -279,13 +279,34 @@ progressiva. Vários RPAs pequenos ao mesmo prestador no mesmo mês ficariam,
 cada um, abaixo da isenção, e o imposto devido sobre a soma não seria retido.
 Por isso, o sistema aceita **um RPA por prestador por mês**.
 
-- A contagem usa o **mês de emissão** do RPA, no horário de Brasília, e vale
-  para qualquer origem: contrato, compra de serviço, avulso ou a nova compra
-  com RPA. RPA excluído sai da conta.
-- Acima do limite, a emissão é **recusada**. A mensagem diz quais RPAs o
-  prestador já tem no mês. Junte os serviços no mesmo recibo.
-- Na nova compra com **Usar um RPA já emitido**, nada é emitido: o RPA
-  avulso já contou quando foi emitido.
+O limite é conferido em dois meses:
+
+- **Mês de emissão** do RPA, no horário de Brasília. Vale para qualquer
+  origem: contrato, compra de serviço, avulso ou a nova compra com RPA. RPA
+  excluído sai da conta.
+- **Mês do pagamento**. Na emissão, conta o **Pagar em** do RPA (ou o da
+  ordem que a compra já tem) contra os RPAs do prestador já pagos naquele mês
+  ou previstos para ele. Ordem cancelada ou estornada não conta. O RPA avulso
+  ainda não tem pagamento: ele é conferido quando for usado na nova compra,
+  pelo **Pagar em** da compra.
+- No **registro do pagamento** da ordem de um RPA (em Financeiro → Ordens ou
+  pelo caixa), o mês da data paga é conferido de novo, contando só os RPAs
+  já pagos. Assim, um RPA cuja data de pagamento mudou não escapa do limite.
+
+Acima do limite, a ação é **recusada**. A mensagem diz quais RPAs o prestador
+já tem no mês. Junte os serviços no mesmo recibo ou marque o pagamento para
+outro mês.
+
+<Aviso tipo="atencao" titulo="Pagamento pelo retorno do banco não é barrado">
+  Ordem paga pelo **retorno da remessa bancária** já saiu do banco, então o
+  sistema não tem como recusar. Antes de incluir a ordem de um RPA na remessa,
+  confira se o prestador já recebeu outro RPA naquele mês.
+</Aviso>
+
+Mais regras do limite:
+
+- Na nova compra com **Usar um RPA já emitido**, nada é emitido, então o mês
+  de emissão não conta de novo. O mês do pagamento continua sendo conferido.
 - O limite fica em **Tabelas de retenção**, no campo **Limite de RPAs por
   prestador por mês**. Só quem tem a permissão **Comprador** ajusta. Para os
   demais, o campo aparece bloqueado. Em branco, não há limite.

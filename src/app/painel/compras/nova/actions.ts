@@ -18,7 +18,7 @@ import {
 } from "@/lib/db/compras"
 import { escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
 import { compradoresPossiveis } from "@/lib/db/compras-compradores"
-import { impedimentoDoPrestador, limiteMensalDoPrestador, obterConfigRpa } from "@/lib/db/compras-rpa"
+import { impedimentoDoPrestador, limiteMensalDoPrestador, limiteMensalPorPagamento, obterConfigRpa } from "@/lib/db/compras-rpa"
 import { emitirRpaPadraoNaCompra, listarRpasAvulsos, usarRpaAvulsoNaCompra } from "@/lib/db/rpa-compra-direta"
 import { calcularRpaPadrao } from "@/lib/rpa-calculo"
 import { lerDetalhePagamento } from "@/lib/db/compras-pagamento-form"
@@ -147,6 +147,9 @@ export async function criarCompra(
     // O documento fiscal: um RPA novo com as alíquotas padrão (o valor
     // informado é o bruto ou o líquido) ou um RPA avulso já emitido para o
     // fornecedor. A ordem nasce no LÍQUIDO do recibo.
+    // Limite de RPAs por prestador no mês do pagamento ("Pagar em"), novo ou avulso.
+    const acimaNoPagamento = await limiteMensalPorPagamento(fornecedorId, vencimentoRpa)
+    if (acimaNoPagamento) return { erro: acimaNoPagamento, campo: "vencimento" }
     const usarAvulso = texto(formData, "rpa_origem") === "avulso"
     const baseRpa = texto(formData, "rpa_base") === "bruto" ? "bruto" : "liquido"
     let valorOrdem = valor

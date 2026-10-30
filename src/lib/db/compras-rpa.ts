@@ -686,3 +686,97 @@ export async function limiteMensalDoPrestador(fornecedorId: string): Promise<str
     `recibos separados podem ficar, cada um, abaixo da isenção. Junte os serviços no mesmo RPA ou peça ao Comprador para ajustar o limite em Aquisição › RPA › Tabelas de retenção.`
   )
 }
+
+// ── O mesmo limite, pelo mês do PAGAMENTO ────────────────────────────────────
+// O IRRF é apurado pelo mês em que o prestador recebe: RPAs emitidos em meses
+// diferentes e pagos no mesmo mês também somariam. Conta a ordem de cada RPA
+// do prestador: paga no mês (data_pagamento) ou, se ainda não paga, prevista
+// para ele ("Pagar em", o vencimento). Cancelada/estornada não conta.
+
+const ORDEM_FORA_DA_CONTA = ["Cancelada", "Estornado"]
+
+async function rpasNoMesDePagamento(
+  fornecedorId: string,
+  anoMes: string,
+  opcoes: { excetoOrdemId?: string | null; previstos: boolean }
+): Promise<{ numero: number | null; paga: boolean }[]> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: rpas, error } = await admin
+    .from("compras_rpa")
+    .select("numero, ordem_pagamento_id")
+    .eq("emp_proprietaria_id", emp)
+    .eq("fornecedor_id", fornecedorId)
+    .not("ordem_pagamento_id", "is", null)
+  if (error || !rpas?.length) return []
+  const porOrdem = new Map(
+    (rpas as { numero: number | null; ordem_pagamento_id: string }[])
+      .filter((r) => r.ordem_pagamento_id !== opcoes.excetoOrdemId)
+      .map((r) => [String(r.ordem_pagamento_id), r.numero] as const)
+  )
+  if (!porOrdem.size) return []
+  const { data: ordens } = await admin
+    .from("ordens_pagamento")
+    .select("id, situacao, data_pagamento, vencimento, excluido")
+    .eq("emp_proprietaria_id", emp)
+    .in("id", [...porOrdem.keys()])
+  const lista: { numero: number | null; paga: boolean }[] = []
+  for (const o of (ordens ?? []) as Record<string, unknown>[]) {
+    if (o.excluido === true || ORDEM_FORA_DA_CONTA.includes(String(o.situacao))) continue
+    const paga = o.situacao === "Paga" && typeof o.data_pagamento === "string"
+    const mes = paga ? String(o.data_pagamento).slice(0, 7) : opcoes.previstos ? texto(o.vencimento)?.slice(0, 7) : null
+    if (mes === anoMes) lista.push({ numero: porOrdem.get(String(o.id)) ?? null, paga })
+  }
+  return lista.sort((a, b) => (a.numero ?? 0) - (b.numero ?? 0))
+}
+
+function mensagemLimitePagamento(lista: { numero: number | null; paga: boolean }[], anoMes: string, limite: number, acao: string): string {
+  const [ano, mes] = anoMes.split("-")
+  const itens = lista.map((r) => `nº ${r.numero ?? "—"}${r.paga ? " (pago)" : " (previsto)"}`).join(", ")
+  return (
+    `Este prestador já tem ${lista.length === 1 ? "um RPA" : `${lista.length} RPAs`} com pagamento em ${mes}/${ano} (${itens}) ` +
+    `e o limite é de ${limite === 1 ? "um RPA" : `${limite} RPAs`} por prestador por mês. O IRRF é apurado pelo total que o ` +
+    `prestador recebe no mês: ${acao} Ou peça ao Comprador para ajustar o limite em Aquisição › RPA › Tabelas de retenção.`
+  )
+}
+
+/**
+ * Na emissão: o RPA cuja ordem será paga em `dataPagamento` ("Pagar em")
+ * cabe no limite do mês de pagamento? Conta os pagos e os previstos.
+ */
+export async function limiteMensalPorPagamento(
+  fornecedorId: string,
+  dataPagamento: string | null,
+  excetoOrdemId?: string | null
+): Promise<string | null> {
+  if (!dataPagamento || !/^\d{4}-\d{2}/.test(dataPagamento)) return null
+  const limite = await limiteRpasMes()
+  if (limite === null) return null
+  const anoMes = dataPagamento.slice(0, 7)
+  const lista = await rpasNoMesDePagamento(fornecedorId, anoMes, { excetoOrdemId, previstos: true })
+  if (lista.length < limite) return null
+  return mensagemLimitePagamento(lista, anoMes, limite, "junte os serviços no mesmo RPA ou marque o pagamento para outro mês.")
+}
+
+/**
+ * No registro do pagamento: se a ordem é de um RPA, o prestador já recebeu
+ * o limite de RPAs no mês desta data? Conta só os já pagos (fora esta ordem).
+ */
+export async function limiteMensalNoPagamentoDaOrdem(ordemId: string, dataPagamento: string): Promise<string | null> {
+  const admin = await createAdminClient()
+  const { data: rpa } = await admin
+    .from("compras_rpa")
+    .select("fornecedor_id")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("ordem_pagamento_id", ordemId)
+    .limit(1)
+    .maybeSingle()
+  const fornecedorId = texto(rpa?.fornecedor_id)
+  if (!fornecedorId) return null
+  const limite = await limiteRpasMes()
+  if (limite === null) return null
+  const anoMes = dataPagamento.slice(0, 7)
+  const lista = await rpasNoMesDePagamento(fornecedorId, anoMes, { excetoOrdemId: ordemId, previstos: false })
+  if (lista.length < limite) return null
+  return mensagemLimitePagamento(lista, anoMes, limite, "registre este pagamento em outro mês.")
+}
