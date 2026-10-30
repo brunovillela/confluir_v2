@@ -50,6 +50,9 @@ export default async function CatPage({
   const urlPdf = await urlPdfCat((cat.arquivo_url as string | null) ?? null)
   const semConferencia = cat.sem_conferencia === true
   const avisosLeitura = Array.isArray(cat.leitura_avisos) ? (cat.leitura_avisos as string[]) : []
+  const pendencia = cat.conferencia_pendencia
+    ? { motivo: cat.conferencia_pendencia as string, em: (cat.pendencia_em as string | null) ?? null }
+    : null
 
   // Edição reusa o mesmo formulário do cadastro, preenchido.
   if (editar === "1" && podeEditar) {
@@ -70,7 +73,7 @@ export default async function CatPage({
           </Button>
         </div>
         {semConferencia && (
-          <AvisoSemConferencia id={id} avisos={avisosLeitura} urlPdf={urlPdf} podeEditar={podeEditar} naEdicao />
+          <AvisoSemConferencia id={id} avisos={avisosLeitura} urlPdf={urlPdf} podeEditar={podeEditar} pendencia={pendencia} naEdicao />
         )}
         <CatForm id={id} valores={valores} />
       </>
@@ -152,7 +155,7 @@ export default async function CatPage({
       </div>
 
       {semConferencia && (
-        <AvisoSemConferencia id={id} avisos={avisosLeitura} urlPdf={urlPdf} podeEditar={podeEditar} />
+        <AvisoSemConferencia id={id} avisos={avisosLeitura} urlPdf={urlPdf} podeEditar={podeEditar} pendencia={pendencia} />
       )}
 
       {salvo === "1" && (

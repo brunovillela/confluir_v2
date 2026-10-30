@@ -999,6 +999,8 @@ modulo,tabela,coluna,categoria,titulares,descricao
 "saude","saude_cat","arquivo_url","sensivel_saude","filiados e trabalhadores acidentados","PDF da CAT: caminho no bucket privado `saude` (cat/<id>/…); a exibição gera signed URL de 1h."
 "saude","saude_cat","leitura_avisos","sensivel_saude","filiados e trabalhadores acidentados","Avisos da leitura por IA no momento da gravação sem conferência (data não reconhecida, opção desconhecida…)."
 "saude","saude_cat","conferida_por","identificacao","filiados e trabalhadores acidentados","Quem conferiu a CAT registrada sem conferência (usuarios.id)."
+"saude","saude_cat","conferencia_pendencia","sensivel_saude","filiados e trabalhadores acidentados","Pendência anotada na conferência da CAT registrada sem conferência (motivo em texto livre; pode citar a lesão). Limpa ao validar."
+"saude","saude_cat","pendencia_por","identificacao","filiados e trabalhadores acidentados","Quem marcou a pendência da conferência (usuarios.id)."
 "saude","saude_cat_import","","identificacao;sensivel_saude;trabalhista","filiados e trabalhadores acidentados","Tabela de staging da carga das CATs: CSV importado pelo Table Editor com os 50 campos do formulário em texto, transformado em saude_cat pelos SQLs saude-cat-3-transformacao.sql. Sem uso no código da aplicação."
 "saude","saude_cat_import","11 - ACIDENTADO Nome","identificacao","filiados e trabalhadores acidentados",""
 "saude","saude_cat_import","12 - ACIDENTADO CPF","identificacao","filiados e trabalhadores acidentados",""

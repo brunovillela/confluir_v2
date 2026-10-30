@@ -55,6 +55,7 @@ erDiagram
     uuid duplicada_de_id FK
     uuid descartada_por FK
     uuid conferida_por FK
+    uuid pendencia_por FK
   }
   saude_cat_duplicidades_ignoradas {
     uuid id PK
@@ -103,6 +104,7 @@ erDiagram
   saude_cat }o--o| saude_cat : "duplicada_de_id"
   saude_cat }o--o| usuarios : "conferida_por"
   saude_cat }o--o| usuarios : "descartada_por"
+  saude_cat }o--o| usuarios : "pendencia_por"
   saude_cat_duplicidades_ignoradas }o--o| usuarios : "criado_por"
   saude_cipa_agenda }o--o| empresa : "empresa_id"
   saude_cipa_agenda }o--o| voto_unidades_presenciais : "unidade_id"

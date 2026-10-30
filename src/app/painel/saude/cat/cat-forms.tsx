@@ -1,12 +1,14 @@
 "use client"
 
 import { useActionState, useEffect, useRef } from "react"
-import { Loader2, Save, Upload } from "lucide-react"
+import { CircleAlert, Loader2, Save, TriangleAlert, Upload } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { CAMPOS_OBRIGATORIOS, type EstadoCampo } from "@/lib/cat-conferencia"
+import { cn } from "@/lib/utils"
 import {
   BLOCOS,
   CAMPOS_CAT,
@@ -142,9 +144,32 @@ export function CatForm({
   )
 }
 
-function Campo({ campo, valor }: { campo: CampoCat; valor: string }) {
+/**
+ * Um campo do formulário da CAT. Na conferência em fila recebe o `estado`
+ * (aviso da leitura ou obrigatório vazio) e pode ficar `escondido` — só
+ * visualmente: o input continua no form, senão o campo seria gravado vazio.
+ */
+export function Campo({
+  campo,
+  valor,
+  estado,
+  escondido,
+}: {
+  campo: CampoCat
+  valor: string
+  estado?: EstadoCampo
+  escondido?: boolean
+}) {
   const nome = nomeCampo(campo)
-  const obrigatorio = campo.n === 11 || campo.n === 19
+  const obrigatorio = CAMPOS_OBRIGATORIOS.has(campo.n)
+  const conferir = estado?.tipo === "conferir"
+  const vazio = estado?.tipo === "vazio_obrigatorio"
+  const idEstado = estado && estado.tipo !== "ok" ? `${nome}-estado` : undefined
+  const marca = {
+    "aria-invalid": vazio || undefined,
+    "aria-describedby": idEstado,
+    className: cn(conferir && "border-warning"),
+  }
   const rotulo = (
     <Label htmlFor={nome}>
       <span className="text-muted-foreground tabular-nums">{campo.n}</span>{" "}
@@ -155,11 +180,11 @@ function Campo({ campo, valor }: { campo: CampoCat; valor: string }) {
 
   return (
     <div
-      className={`grid gap-1.5 ${campo.largo ? "sm:col-span-2 lg:col-span-3" : ""}`}
+      className={cn("grid gap-1.5", campo.largo && "sm:col-span-2 lg:col-span-3", escondido && "hidden")}
     >
       {rotulo}
       {campo.tipo === "bool" ? (
-        <select id={nome} name={nome} defaultValue={valor} className={SELECT}>
+        <select id={nome} name={nome} defaultValue={valor} {...marca} className={cn(SELECT, marca.className, vazio && "border-error")}>
           <option value="">Não informado</option>
           <option value="Sim">Sim</option>
           <option value="Não">Não</option>
@@ -171,7 +196,8 @@ function Campo({ campo, valor }: { campo: CampoCat; valor: string }) {
           type="date"
           defaultValue={valor}
           required={obrigatorio}
-          className="[color-scheme:light] dark:[color-scheme:dark]"
+          {...marca}
+          className={cn("[color-scheme:light] dark:[color-scheme:dark]", marca.className)}
         />
       ) : campo.tipo === "inteiro" ? (
         <Input
@@ -179,7 +205,8 @@ function Campo({ campo, valor }: { campo: CampoCat; valor: string }) {
           name={nome}
           inputMode="numeric"
           defaultValue={valor}
-          className="tabular-nums"
+          {...marca}
+          className={cn("tabular-nums", marca.className)}
         />
       ) : (
         <Input
@@ -188,7 +215,26 @@ function Campo({ campo, valor }: { campo: CampoCat; valor: string }) {
           defaultValue={valor}
           required={obrigatorio}
           placeholder={dica(campo)}
+          {...marca}
         />
+      )}
+      {conferir && (
+        <div id={idEstado} className="grid gap-0.5 text-xs">
+          {estado.avisos.map((a, i) => (
+            <p key={i} className="text-warning-fg flex items-start gap-1">
+              <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
+              <span>
+                <span className="text-info-fg font-medium">Leitura da IA:</span> {a.replace(/^Campo \d+ \(.*?\):\s*/, "")}
+              </span>
+            </p>
+          ))}
+        </div>
+      )}
+      {vazio && (
+        <p id={idEstado} className="text-error-fg flex items-center gap-1 text-xs">
+          <CircleAlert className="size-3.5 shrink-0" />
+          Não encontrado no documento
+        </p>
       )}
       {ajuda(campo) && (
         <p className="text-muted-foreground text-xs">{ajuda(campo)}</p>

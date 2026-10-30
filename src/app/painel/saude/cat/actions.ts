@@ -13,6 +13,7 @@ import {
   gravarPdfCat,
   importarCats,
   marcarCatConferida,
+  marcarPendenciaCat,
   numerosCatExistentes,
   vincularFiliadoCat,
   type RegistroCat,
@@ -124,22 +125,34 @@ export async function atualizarCatAction(
   _prev: EstadoCat,
   formData: FormData
 ): Promise<EstadoCat> {
-  await requirePermissao(PERMISSAO, ALTERNATIVAS)
+  const sessao = await requirePermissao(PERMISSAO, ALTERNATIVAS)
 
   const id = String(formData.get("id") ?? "")
   if (!id) return comDigitado(formData, { erro: "Registro não identificado." })
+  // Conferência em fila: salva e já marca como conferida, no mesmo request.
+  const conferir = formData.get("conferir") === "1"
 
   const registro = registroDoFormulario(formData)
   if (!registro.trabalhador_nome) {
     return comDigitado(formData, { erro: "Informe o nome do acidentado (campo 11)." })
   }
+  if (conferir && !registro.data_acidente) {
+    return comDigitado(formData, { erro: "Informe a data do acidente (campo 19) antes de validar." })
+  }
 
   const { erro } = await atualizarCat(id, registro)
   if (erro) return comDigitado(formData, { erro })
+  if (conferir) {
+    const { erro: erroConferir } = await marcarCatConferida(id, sessao.usuario.id)
+    if (erroConferir) return comDigitado(formData, { erro: `CAT salva, mas não foi marcada como conferida: ${erroConferir}` })
+  }
 
   revalidatePath("/painel/saude/cat")
   revalidatePath(`/painel/saude/cat/${id}`)
   revalidatePath("/painel/saude")
+  if (formData.get("permanecer") === "1") {
+    return { ok: conferir ? "CAT conferida." : "CAT salva.", salvoId: id }
+  }
   redirect(`/painel/saude/cat/${id}?salvo=1`)
 }
 
@@ -156,6 +169,23 @@ export async function marcarCatConferidaAction(
   revalidatePath(`/painel/saude/cat/${id}`)
   revalidatePath("/painel/saude/cat")
   return { ok: "CAT marcada como conferida." }
+}
+
+/** Anota (ou tira, com motivo vazio) a pendência da conferência da CAT. */
+export async function marcarPendenciaCatAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao(PERMISSAO, ALTERNATIVAS)
+  const id = String(formData.get("id") ?? "")
+  if (!UUID.test(id)) return { erro: "Registro não identificado." }
+  const motivo = String(formData.get("motivo") ?? "").trim()
+  if (!motivo) return { erro: "Descreva a pendência." }
+  const { erro } = await marcarPendenciaCat(id, motivo, sessao.usuario.id)
+  if (erro) return { erro }
+  revalidatePath(`/painel/saude/cat/${id}`)
+  revalidatePath("/painel/saude/cat")
+  return { ok: "Pendência anotada." }
 }
 
 /** Liga/desliga o vínculo da CAT com um filiado (campo vazio = desvincular). */

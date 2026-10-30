@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
-import { CircleCheck, ExternalLink, FileText, Loader2, RotateCcw, Save, TriangleAlert, X } from "lucide-react"
+import { CircleCheck, ClipboardCheck, ExternalLink, FileText, Loader2, RotateCcw, Save, TriangleAlert, X } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -168,6 +168,8 @@ export function LoteCatPdf({ arquivos, registrar }: { arquivos: File[]; registra
   }, [itens])
 
   const atual = aberto !== null ? itens[aberto] : null
+  // As gravadas sem conferência deste lote, para conferir em fila.
+  const gravadas = itens.filter((it) => it.situacao === "gravada" && it.id).map((it) => it.id!)
 
   return (
     <div className="grid gap-4">
@@ -196,6 +198,14 @@ export function LoteCatPdf({ arquivos, registrar }: { arquivos: File[]; registra
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {!emAndamento && gravadas.length > 0 && (
+            <Button size="sm" asChild>
+              <Link href={`/painel/saude/cat/conferir?ids=${gravadas.join(",")}`}>
+                <ClipboardCheck />
+                {gravadas.length === 1 ? "Conferir a CAT gravada" : `Conferir as ${gravadas.length} CATs`}
+              </Link>
+            </Button>
+          )}
           {conta.gravaveis > 0 &&
             (confirmandoTodas ? (
               <>

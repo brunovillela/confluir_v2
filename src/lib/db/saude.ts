@@ -116,7 +116,7 @@ const COLUNAS_LISTA =
   "id,numero_cat,data_acidente,trabalhador_nome,empregador_razao_social," +
   "tipo_acidente,local_municipio,local_uf,parte_atingida,parte_atingida_codigo," +
   "cid10,afastamento_durante_tratamento,houve_internacao,houve_morte," +
-  "descricao_truncada,filiado_id,sem_conferencia"
+  "descricao_truncada,filiado_id,sem_conferencia,conferencia_pendencia"
 
 export type CatLinha = {
   id: string
@@ -136,6 +136,7 @@ export type CatLinha = {
   descricao_truncada: boolean | null
   filiado_id: string | null
   sem_conferencia: boolean | null
+  conferencia_pendencia: string | null
 }
 
 export type FiltrosCat = {
@@ -529,12 +530,96 @@ export async function marcarCatConferida(
       sem_conferencia: false,
       conferida_em: new Date().toISOString(),
       conferida_por: usuarioId,
+      conferencia_pendencia: null,
+      pendencia_em: null,
+      pendencia_por: null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", catId)
     .eq("emp_proprietaria_id", await tenantAtual())
   if (error) return { erro: esquemaAusente(error) ? AVISO_SQL : error.message }
   return {}
+}
+
+/**
+ * Anota uma pendência na conferência (a CAT continua sem conferência). Motivo
+ * vazio tira a pendência.
+ */
+export async function marcarPendenciaCat(
+  catId: string,
+  motivo: string,
+  usuarioId: string
+): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const texto = motivo.trim().slice(0, 1000) || null
+  const { error } = await admin
+    .from("saude_cat")
+    .update({
+      conferencia_pendencia: texto,
+      pendencia_em: texto ? new Date().toISOString() : null,
+      pendencia_por: texto ? usuarioId : null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", catId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .is("sem_conferencia", true)
+  if (error) return { erro: esquemaAusente(error) ? AVISO_SQL : error.message }
+  return {}
+}
+
+/** Quantas CATs estão sem conferência (botão "Conferir em fila" da lista). */
+export async function contarCatsSemConferencia(): Promise<number> {
+  const admin = await createAdminClient()
+  const { count, error } = await admin
+    .from("saude_cat")
+    .select("id", { count: "exact", head: true })
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .is("duplicada_de_id", null)
+    .is("sem_conferencia", true)
+  if (error) return 0
+  return count ?? 0
+}
+
+export type ItemFilaConferencia = { id: string; conferida: boolean }
+
+/**
+ * A fila da conferência (/painel/saude/cat/conferir). Com `ids` (vindo do
+ * lote), essas CATs na ordem dada. Sem eles, as que estão sem conferência
+ * mais as conferidas desde `desde` (início da sessão de conferência) — assim
+ * "X de N" e "N conferidas" não andam enquanto se confere. Fora as descartadas.
+ */
+export async function filaConferenciaCat(opcoes: {
+  ids?: string[]
+  desde: string
+}): Promise<ItemFilaConferencia[]> {
+  const admin = await createAdminClient()
+  const tenant = await tenantAtual()
+  const linhas: { id: string; sem_conferencia: boolean | null }[] = []
+  const LOTE = 1000
+  for (let de = 0; ; de += LOTE) {
+    let q = admin
+      .from("saude_cat")
+      .select("id,sem_conferencia")
+      .eq("emp_proprietaria_id", tenant)
+      .is("duplicada_de_id", null)
+    q = opcoes.ids
+      ? q.in("id", opcoes.ids)
+      : q.or(`sem_conferencia.is.true,conferida_em.gte.${opcoes.desde}`)
+    const { data, error } = await q
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(de, de + LOTE - 1)
+    if (error) {
+      if (esquemaAusente(error)) return []
+      throw error
+    }
+    linhas.push(...((data ?? []) as typeof linhas))
+    if (!data || data.length < LOTE) break
+  }
+  const itens = linhas.map((l) => ({ id: l.id, conferida: l.sem_conferencia !== true }))
+  if (!opcoes.ids) return itens
+  const porId = new Map(itens.map((i) => [i.id, i]))
+  return opcoes.ids.map((id) => porId.get(id)).filter((i): i is ItemFilaConferencia => !!i)
 }
 
 /**

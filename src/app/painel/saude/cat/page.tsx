@@ -4,6 +4,7 @@ import {
   ArrowDown,
   ArrowUp,
   CircleCheck,
+  ClipboardCheck,
   ClipboardList,
   CopyCheck,
   Download,
@@ -27,7 +28,7 @@ import {
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
 import { listarGruposCat } from "@/lib/db/cat-duplicidades"
-import { facetasCat, listarCats, type FiltrosCat } from "@/lib/db/saude"
+import { contarCatsSemConferencia, facetasCat, listarCats, type FiltrosCat } from "@/lib/db/saude"
 import { formatarData } from "@/lib/formato"
 import { lerPaginacao } from "@/lib/paginacao"
 import { podeAcessar } from "@/lib/permissoes"
@@ -100,6 +101,7 @@ export default async function CatsPage({
 
   // Grupos a tratar em Duplicidades e atualizações (varredura em cache de 10 min).
   const gruposDuplicidade = podeIncluir ? (await listarGruposCat()).grupos.length : 0
+  const semConferencia = podeIncluir ? await contarCatsSemConferencia() : 0
 
   const { linhas, total, disponivel } = await listarCats(
     filtros,
@@ -161,6 +163,17 @@ export default async function CatsPage({
               Exportar CSV
             </Link>
           </Button>
+          {semConferencia > 0 && (
+            <Button variant={filtros.revisao === "sem_conferencia" ? "default" : "outline"} asChild>
+              <Link href="/painel/saude/cat/conferir">
+                <ClipboardCheck />
+                Conferir em fila
+                <Badge variant="secondary" className="tabular-nums">
+                  {semConferencia.toLocaleString("pt-BR")}
+                </Badge>
+              </Link>
+            </Button>
+          )}
           {podeIncluir && (
             <Button variant="outline" asChild>
               <Link href="/painel/saude/cat/duplicidades">
@@ -407,6 +420,16 @@ export default async function CatsPage({
                                 title="Gravada a partir do PDF sem conferência"
                               >
                                 Sem conferência
+                              </Badge>
+                            )}
+                            {c.sem_conferencia === true && c.conferencia_pendencia && (
+                              <Badge
+                                variant="outline"
+                                className="border-warning/40 text-warning-fg whitespace-nowrap"
+                                title={`Pendência: ${c.conferencia_pendencia}`}
+                              >
+                                <ClipboardList />
+                                Com pendência
                               </Badge>
                             )}
                             {c.descricao_truncada === true && (

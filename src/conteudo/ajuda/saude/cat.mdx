@@ -76,6 +76,36 @@ como conferida**: o alerta sai e o sistema registra quem conferiu e quando.
 Na listagem, essas CATs têm o selo **Sem conferência** e o filtro
 **Registradas sem conferência** reúne todas.
 
+### Conferência em fila
+
+Para conferir várias de uma vez, use **Conferir em fila**. O botão aparece
+no fim do lote (só com as CATs gravadas naquele envio), na listagem (com
+todas as que estão sem conferência) e no alerta de cada CAT. A tela mostra
+o **PDF à esquerda** e os campos à direita, agrupados pelos blocos do
+formulário. Cada bloco diz **Tudo certo** ou quantos campos **pedem
+atenção**:
+
+- **Para conferir**: a IA deixou um aviso sobre o campo (data não
+  reconhecida, opção desconhecida, mais de um CID…), mostrado logo abaixo
+  dele;
+- **Não encontrado no documento**: o nome do acidentado ou a data do
+  acidente ficaram vazios. Sem eles a CAT não é validada.
+
+O interruptor **Mostrar só campos que pedem atenção** esconde o resto. A IA
+não é chamada de novo: corrigir um campo não refaz a leitura.
+
+No rodapé:
+
+- **Validar e ir para a próxima** salva as correções, marca a CAT como
+  conferida e abre a próxima da fila;
+- **Pular** deixa a CAT para depois, sem salvar nada;
+- **Marcar pendência** anota o que falta resolver (página ilegível, dado a
+  pedir à empresa). A CAT continua sem conferência, com o selo **Com
+  pendência** na listagem e o motivo no alerta dela. Ao validar, a pendência
+  sai.
+
+O topo mostra a posição (**CAT X de N**) e quantas já foram conferidas.
+
 <Aviso tipo="atencao" titulo="A IA erra">
   CBO, datas e códigos são os campos em que a leitura mais erra. Uma CAT sem
   conferência já entra no painel analítico e na exportação: confira as

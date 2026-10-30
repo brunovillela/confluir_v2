@@ -2,11 +2,12 @@
 
 import { useActionState } from "react"
 import Link from "next/link"
-import { CircleCheck, FileText, Loader2, Pencil, TriangleAlert } from "lucide-react"
+import { CircleCheck, ClipboardCheck, ClipboardList, FileText, Loader2, Pencil, TriangleAlert } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import type { EstadoForm } from "@/lib/contas"
+import { formatarData } from "@/lib/formato"
 
 import { marcarCatConferidaAction } from "./actions"
 
@@ -20,6 +21,7 @@ export function AvisoSemConferencia({
   urlPdf,
   podeEditar,
   naEdicao,
+  pendencia,
 }: {
   id: string
   avisos: string[]
@@ -27,6 +29,8 @@ export function AvisoSemConferencia({
   podeEditar: boolean
   /** Na tela de edição: sem os botões (salve as correções primeiro). */
   naEdicao?: boolean
+  /** Pendência anotada na conferência em fila. */
+  pendencia?: { motivo: string; em: string | null } | null
 }) {
   const [estado, acao, pendente] = useActionState<EstadoForm, FormData>(marcarCatConferidaAction, {})
 
@@ -48,6 +52,15 @@ export function AvisoSemConferencia({
             <strong>CAT registrada sem conferência.</strong> Os campos foram gravados como a IA os leu do PDF, sem
             revisão. Confira com o PDF, corrija o que precisar e marque como conferida.
           </p>
+          {pendencia && (
+            <p className="flex items-start gap-1.5 text-xs">
+              <ClipboardList className="mt-0.5 size-3.5 shrink-0" />
+              <span>
+                <strong>Pendência{pendencia.em ? ` (${formatarData(pendencia.em.slice(0, 10))})` : ""}:</strong>{" "}
+                {pendencia.motivo}
+              </span>
+            </p>
+          )}
           {avisos.length > 0 && (
             <div>
               <p className="text-xs font-medium">Avisos da leitura:</p>
@@ -66,6 +79,14 @@ export function AvisoSemConferencia({
                   <FileText />
                   Abrir o PDF
                 </a>
+              </Button>
+            )}
+            {podeEditar && !naEdicao && (
+              <Button size="sm" variant="outline" className="bg-background" asChild>
+                <Link href={`/painel/saude/cat/conferir?id=${id}`}>
+                  <ClipboardCheck />
+                  Conferir em fila
+                </Link>
               </Button>
             )}
             {podeEditar && !naEdicao && (

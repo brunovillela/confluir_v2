@@ -268,6 +268,9 @@ Comunicações de Acidente de Trabalho. Os comentários por coluna indicam o nú
 | `leitura_avisos` | text[] | sim |  |  | **sensível: saúde** | Avisos da leitura por IA no momento da gravação sem conferência (data não reconhecida, opção desconhecida…). |
 | `conferida_em` | timestamp with time zone | sim |  |  |  | Quando a CAT registrada sem conferência foi conferida. |
 | `conferida_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem conferiu a CAT registrada sem conferência (usuarios.id). |
+| `conferencia_pendencia` | text | sim |  |  | **sensível: saúde** | Pendência anotada na conferência da CAT registrada sem conferência (motivo em texto livre; pode citar a lesão). Limpa ao validar. |
+| `pendencia_em` | timestamp with time zone | sim |  |  |  | Quando a pendência da conferência foi marcada. |
+| `pendencia_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem marcou a pendência da conferência (usuarios.id). |
 
 Únicas: `UNIQUE (bubble_id)`
 
