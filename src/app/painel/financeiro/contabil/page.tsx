@@ -14,10 +14,11 @@ import { hojeSP } from "@/lib/db/comum"
 import { lancamentosContabeis } from "@/lib/db/contabil"
 import { rpasPagosNoPeriodo, totalizarRpas } from "@/lib/db/contabil-rpa"
 import { listarMesesFechados } from "@/lib/db/meses-fechados"
+import { emailContabilidade } from "@/lib/db/rpa-contabilidade"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
-import { FechamentoMeses, type LinhaMes } from "./fechamento-meses"
+import { EmailContabilidadeForm, FechamentoMeses, type LinhaMes } from "./fechamento-meses"
 
 import { periodoContabil } from "./periodo"
 
@@ -28,7 +29,12 @@ export default async function ContabilPage({ searchParams }: { searchParams: Pro
   const sessao = await requirePermissao("financeiro_leitura", ["financeiro_pagamento"])
   const sp = await searchParams
   const { de, ate } = periodoContabil(sp.de, sp.ate)
-  const [l, fechados, rpas] = await Promise.all([lancamentosContabeis(de, ate), listarMesesFechados(), rpasPagosNoPeriodo(de, ate)])
+  const [l, fechados, rpas, emailContab] = await Promise.all([
+    lancamentosContabeis(de, ate),
+    listarMesesFechados(),
+    rpasPagosNoPeriodo(de, ate),
+    emailContabilidade(),
+  ])
   const tr = totalizarRpas(rpas)
   const ordensPagas = new Set(l.despesas.map((d) => d.id.split(":")[0])).size
   // Os últimos 12 meses, do atual para trás, mais os fechados mais antigos.
@@ -218,11 +224,17 @@ export default async function ContabilPage({ searchParams }: { searchParams: Pro
           <CardDescription className="text-xs">
             Feche o mês quando a contabilidade receber a planilha: daí em diante, o centro de custo, o departamento e o
             rateio das ordens pagas nele (pela data do pagamento) não podem mais ser reclassificados. Em mês aberto, o
-            Financeiro reclassifica pela página da ordem.
+            Financeiro reclassifica pela página da ordem. No dia seguinte ao fechamento, a contabilidade recebe por
+            e-mail o relatório dos RPAs do mês.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <FechamentoMeses meses={meses} podeFechar={podeAcessar(sessao.permissoes, "financeiro_pagamento")} />
+        <CardContent className="grid gap-4">
+          {podeAcessar(sessao.permissoes, "financeiro_pagamento") && <EmailContabilidadeForm email={emailContab} />}
+          <FechamentoMeses
+            meses={meses}
+            podeFechar={podeAcessar(sessao.permissoes, "financeiro_pagamento")}
+            emailContabilidade={emailContab}
+          />
         </CardContent>
       </Card>
     </>

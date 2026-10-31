@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { fecharMes, reabrirMes } from "@/lib/db/meses-fechados"
+import { salvarEmailContabilidade } from "@/lib/db/rpa-contabilidade"
 
 function texto(formData: FormData, campo: string): string {
   return String(formData.get(campo) ?? "").trim()
@@ -26,4 +27,13 @@ export async function reabrirMesAction(_prev: EstadoForm, formData: FormData): P
   if (erro) return { erro }
   revalidatePath("/painel/financeiro/contabil")
   return { ok: "Mês reaberto." }
+}
+
+/** E-mail da contabilidade: recebe o relatório de RPAs no dia seguinte ao fechamento do mês. */
+export async function salvarEmailContabilidadeAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  await requirePermissao("financeiro_pagamento")
+  const { erro } = await salvarEmailContabilidade(texto(formData, "email") || null)
+  if (erro) return { erro }
+  revalidatePath("/painel/financeiro/contabil")
+  return { ok: "E-mail da contabilidade salvo." }
 }

@@ -2,9 +2,8 @@ import type { NextRequest } from "next/server"
 
 import { getSessaoPainel } from "@/lib/auth"
 import { lancamentosContabeis, type LancamentoDespesa, type LancamentoReceita } from "@/lib/db/contabil"
-import { rpasPagosNoPeriodo, totalizarRpas, type LinhaRpaContabil } from "@/lib/db/contabil-rpa"
-import { formatarNitPis } from "@/lib/cpf"
-import { formatarCnpjCpf } from "@/lib/formato"
+import { COLUNAS_RPA_CONTABIL, linhasRpaComTotal } from "@/lib/contabil-rpa-planilha"
+import { rpasPagosNoPeriodo } from "@/lib/db/contabil-rpa"
 import { registrarExportacao } from "@/lib/exportacoes"
 import { podeAcessar } from "@/lib/permissoes"
 import { type ColunaXlsx, dataXlsx, planilhaXlsxAbas, respostaXlsx } from "@/lib/xlsx"
@@ -50,59 +49,10 @@ export async function GET(request: NextRequest): Promise<Response> {
     { titulo: "Lançamentos", valor: (r) => r.lancamentos, largura: 12 },
     { titulo: "Pagantes", valor: (r) => r.pagantes, largura: 12 },
   ]
-  const colunasRpa: ColunaXlsx<LinhaRpaContabil>[] = [
-    { titulo: "Pagamento", valor: (r) => (r.rpaId ? dataXlsx(r.dataPagamento) : null), largura: 12 },
-    { titulo: "Competência", valor: (r) => r.competencia, largura: 12 },
-    { titulo: "RPA nº", valor: (r) => r.numero, largura: 8 },
-    { titulo: "Prestador", valor: (r) => r.prestador, largura: 36 },
-    { titulo: "CPF", valor: (r) => (r.cpf ? formatarCnpjCpf(r.cpf) : null), largura: 16 },
-    { titulo: "NIT/PIS", valor: (r) => (r.nitPis ? formatarNitPis(r.nitPis) : r.rpaId ? "não informado" : null), largura: 16 },
-    { titulo: "Serviço", valor: (r) => r.servico, largura: 50 },
-    { titulo: "Origem", valor: (r) => r.origem, largura: 26 },
-    { titulo: "Ordem", valor: (r) => r.ordemCodigo, largura: 20 },
-    { titulo: "Classificador", valor: (r) => r.classificador, largura: 14 },
-    { titulo: "Centro de custo", valor: (r) => r.centroCusto, largura: 30 },
-    { titulo: "Departamento", valor: (r) => r.departamento, largura: 22 },
-    { titulo: "Bruto", valor: (r) => r.bruto, largura: 13 },
-    { titulo: "INSS retido", valor: (r) => r.inss, largura: 12 },
-    { titulo: "IRRF retido", valor: (r) => r.irrf, largura: 12 },
-    { titulo: "ISS retido", valor: (r) => r.iss, largura: 12 },
-    { titulo: "Líquido", valor: (r) => r.liquido, largura: 13 },
-    { titulo: "Valor pago", valor: (r) => r.valorPago, largura: 13 },
-    { titulo: "INSS patronal", valor: (r) => r.inssPatronal, largura: 13 },
-    { titulo: "Custo total (bruto + patronal)", valor: (r) => r.custoTotal, largura: 16 },
-    { titulo: "Recibo assinado", valor: (r) => (r.rpaId ? (r.assinado ? "Sim" : "Não") : null), largura: 10 },
-  ]
-  // Linha final de totais (sem rpaId: data e "assinado" ficam vazios).
-  const t = totalizarRpas(rpas)
-  const totalRpas: LinhaRpaContabil = {
-    rpaId: "",
-    numero: null,
-    dataPagamento: "",
-    competencia: "",
-    prestador: `TOTAL (${t.quantidade} RPA${t.quantidade === 1 ? "" : "s"})`,
-    cpf: null,
-    nitPis: null,
-    servico: null,
-    origem: "",
-    ordemCodigo: null,
-    centroCusto: null,
-    classificador: null,
-    departamento: null,
-    bruto: t.bruto,
-    inss: t.inss,
-    irrf: t.irrf,
-    iss: t.iss,
-    liquido: t.liquido,
-    valorPago: Math.round(rpas.reduce((s, r) => s + r.valorPago, 0) * 100) / 100,
-    inssPatronal: t.inssPatronal,
-    custoTotal: t.custoTotal,
-    assinado: false,
-  }
   const bytes = planilhaXlsxAbas([
     { aba: "Despesas", colunas: despesas as ColunaXlsx<unknown>[], linhas: l.despesas },
     { aba: "Receitas", colunas: receitas as ColunaXlsx<unknown>[], linhas: l.receitas },
-    { aba: "RPAs", colunas: colunasRpa as ColunaXlsx<unknown>[], linhas: rpas.length ? [...rpas, totalRpas] : [] },
+    { aba: "RPAs", colunas: COLUNAS_RPA_CONTABIL as ColunaXlsx<unknown>[], linhas: linhasRpaComTotal(rpas) },
   ])
   return respostaXlsx(`contabil-${de}-a-${ate}`, bytes)
 }

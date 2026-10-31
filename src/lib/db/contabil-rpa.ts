@@ -1,5 +1,7 @@
 import "server-only"
 
+import type { SupabaseClient } from "@supabase/supabase-js"
+
 import { lerEmLotes, texto } from "@/lib/db/comum"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -68,9 +70,17 @@ export function totalizarRpas(linhas: LinhaRpaContabil[]): TotaisRpa {
   }
 }
 
-export async function rpasPagosNoPeriodo(de: string, ate: string): Promise<LinhaRpaContabil[]> {
-  const admin = await createAdminClient()
-  const emp = await tenantAtual()
+/**
+ * `amb`: fora de uma requisição do painel (o tick do relatório enviado à
+ * contabilidade no fechamento), o cliente de serviço e o tenant.
+ */
+export async function rpasPagosNoPeriodo(
+  de: string,
+  ate: string,
+  amb?: { client: SupabaseClient; emp: string }
+): Promise<LinhaRpaContabil[]> {
+  const admin = amb?.client ?? (await createAdminClient())
+  const emp = amb?.emp ?? (await tenantAtual())
   const brutas = await lerEmLotes<Record<string, unknown>>((ini, fim) =>
     admin
       .from("compras_rpa")

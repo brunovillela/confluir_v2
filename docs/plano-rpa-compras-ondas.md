@@ -86,7 +86,7 @@ tratamento do INSS já retido no teto) e se o limite continua bloqueando.
    vencimento sem lançamento, ou lançadas com valor diferente da soma das
    retenções.
 
-Decisão: o e-mail da contabilidade (configuração nova) e a data do envio.
+Decidido (31/10): envio no dia seguinte ao fechamento; o e-mail é configurado pelo Financeiro na Exportação contábil.
 
 ## Andamento
 
@@ -97,4 +97,4 @@ Decisão: o e-mail da contabilidade (configuração nova) e a data do envio.
 | 3 — Assinatura automática | **concluída** 31/10 — link na emissão (marcado por padrão), lembretes a cada 3 dias até 2, depois aviso a quem emitiu |
 | 4 — Comprovante | **concluída** 31/10 — contato "recebe comprovantes", envio automático por fornecedor marcado (migração 20261031160553) |
 | 5 — IRRF acumulado | aguarda a contabilidade |
-| 6 — Fechamento contábil | a fazer (e-mail da contabilidade) |
+| 6 — Fechamento contábil | **concluída** 31/10 — relatório no dia seguinte ao fechamento (e-mail configurável na Exportação contábil), alerta das guias no resumo de vencimentos (migração 20261031161751) |

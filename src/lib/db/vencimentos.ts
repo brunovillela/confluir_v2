@@ -272,6 +272,56 @@ async function faturasViagem(f: Fonte): Promise<ItemVencimento[]> {
     .filter((i): i is ItemVencimento => i !== null)
 }
 
+/**
+ * Guias das retenções do RPA (onda 6 do plano do RPA): INSS RPA, IRRF RPA e
+ * ISS RPA vencendo em 7 dias (ou vencidas há até 30) que ainda não foram
+ * lançadas, ou lançadas com valor diferente da soma das retenções.
+ */
+async function guiasRpa(f: Fonte): Promise<ItemVencimento[]> {
+  const { data: tributos } = await f.svc
+    .from("financeiro_tributos")
+    .select("id, nome, abreviacao")
+    .eq("emp_proprietaria_id", f.tenantId)
+    .not("retencao_rpa", "is", null)
+  const porId = new Map((tributos ?? []).map((t) => [String(t.id), texto(t.abreviacao) ?? texto(t.nome) ?? "Tributo"]))
+  if (porId.size === 0) return []
+  const { data: guias } = await f.svc
+    .from("financeiro_tributos_lancamentos")
+    .select("id, tributo_id, competencia_inicio, valor, vencimento, situacao")
+    .in("tributo_id", [...porId.keys()])
+    .neq("situacao", "cancelado")
+    .gte("vencimento", somarDias(f.hoje, -30))
+    .lte("vencimento", somarDias(f.hoje, 7))
+    .order("vencimento")
+    .limit(50)
+  if (!guias?.length) return []
+  const { data: rets } = await f.svc
+    .from("financeiro_tributos_retencoes")
+    .select("tributo_id, competencia, valor")
+    .in("tributo_id", [...new Set(guias.map((g) => String(g.tributo_id)))])
+    .in("competencia", [...new Set(guias.map((g) => String(g.competencia_inicio).slice(0, 10)))])
+  const soma = new Map<string, number>()
+  for (const r of rets ?? []) {
+    const k = `${r.tributo_id}|${String(r.competencia).slice(0, 10)}`
+    soma.set(k, Math.round(((soma.get(k) ?? 0) + Number(r.valor ?? 0)) * 100) / 100)
+  }
+  const itens: ItemVencimento[] = []
+  for (const g of guias) {
+    const comp = String(g.competencia_inicio).slice(0, 10)
+    const esperado = soma.get(`${g.tributo_id}|${comp}`) ?? 0
+    const nome = `${porId.get(String(g.tributo_id))} ${comp.slice(5, 7)}/${comp.slice(0, 4)}`
+    let rotulo: string | null = null
+    if (g.situacao === "aguardando_guia" && esperado > 0) {
+      rotulo = `${nome} — guia de ${formatarMoeda(esperado)} ainda não lançada`
+    } else if (g.situacao === "lancado" && Math.abs(Number(g.valor ?? 0) - esperado) > 0.005) {
+      rotulo = `${nome} — guia de ${formatarMoeda(Number(g.valor ?? 0))}, retenções somam ${formatarMoeda(esperado)}`
+    }
+    const i = rotulo ? item(rotulo, g.vencimento, `/painel/financeiro/tributos/${g.tributo_id}`, f.hoje) : null
+    if (i) itens.push(i)
+  }
+  return itens
+}
+
 async function ordensVencidas(f: Fonte): Promise<ItemVencimento[]> {
   const { data } = await f.svc
     .from("ordens_pagamento")
@@ -383,6 +433,7 @@ export async function vencimentosDoTenant(tenantId: string): Promise<GrupoVencim
     { chave: "ferias", titulo: "Férias (período concessivo)", permissao: { chave: "pessoal_gestao", alternativas: [] }, itens: await seguro(() => ferias(f)) },
     { chave: "treinamentos", titulo: "Treinamentos", permissao: { chave: "pessoal_gestao", alternativas: [] }, itens: await seguro(() => treinamentos(f)) },
     { chave: "faturas", titulo: "Faturas de viagem", permissao: { chave: "viagens_gestao", alternativas: [] }, itens: await seguro(() => faturasViagem(f)) },
+    { chave: "guias_rpa", titulo: "Guias das retenções do RPA", permissao: { chave: "financeiro_tributos", alternativas: [] }, itens: await seguro(() => guiasRpa(f)) },
     { chave: "ordens", titulo: "Ordens de pagamento", permissao: { chave: "financeiro_pagamento", alternativas: ["financeiro_leitura"] }, itens: await seguro(() => ordensVencidas(f)) },
     { chave: "mandatos", titulo: "Mandato da diretoria", permissao: { chave: "diretoria_mandatos", alternativas: ["configuracoes"] }, itens: await seguro(() => mandatos(f)) },
     { chave: "assentos", titulo: "Assentos nas instâncias", permissao: { chave: "diretoria_mandatos", alternativas: ["configuracoes"] }, itens: await seguro(() => assentos(f)) },

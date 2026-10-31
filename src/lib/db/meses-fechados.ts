@@ -20,6 +20,10 @@ export type MesFechado = {
   fechadoEm: string
   fechadoPor: string | null
   observacao: string | null
+  /** Relatório de RPAs enviado à contabilidade (onda 6 do plano do RPA). */
+  rpaRelatorio: { em: string; para: string | null } | null
+  /** Fechado antes da janela do envio automático (10 dias) e não enviado: não vai mais sozinho. */
+  rpaForaDoEnvio: boolean
 }
 
 const MES = /^\d{4}-(0[1-9]|1[0-2])$/
@@ -27,17 +31,24 @@ const MES = /^\d{4}-(0[1-9]|1[0-2])$/
 /** Meses com fechamento vigente, do mais recente ao mais antigo. */
 export async function listarMesesFechados(): Promise<MesFechado[]> {
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("financeiro_meses_fechados")
-    .select("id, mes, fechado_em, observacao, fechado_por_usuario_id")
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .is("reaberto_em", null)
-    .order("mes", { ascending: false })
+  const emp = await tenantAtual()
+  const consulta = (colunas: string) =>
+    admin
+      .from("financeiro_meses_fechados")
+      .select(colunas)
+      .eq("emp_proprietaria_id", emp)
+      .is("reaberto_em", null)
+      .order("mes", { ascending: false })
+  let { data, error } = await consulta(
+    "id, mes, fechado_em, observacao, fechado_por_usuario_id, rpa_relatorio_enviado_em, rpa_relatorio_enviado_para"
+  )
+  // Antes da migração 20261031161751: sem o registro do envio.
+  if (error?.code === "42703") ({ data, error } = await consulta("id, mes, fechado_em, observacao, fechado_por_usuario_id"))
   if (error) {
     if (esquemaAusente(error)) return []
     throw new Error(`Falha ao ler os meses fechados: ${error.message}`)
   }
-  const linhas = (data ?? []) as Record<string, unknown>[]
+  const linhas = (data ?? []) as unknown as Record<string, unknown>[]
   const ids = [...new Set(linhas.map((m) => texto(m.fechado_por_usuario_id)).filter((v): v is string => Boolean(v)))]
   const { data: usuarios } = ids.length
     ? await admin.from("usuarios").select("id, nome_guerra, nome_completo").in("id", ids)
@@ -51,6 +62,11 @@ export async function listarMesesFechados(): Promise<MesFechado[]> {
     fechadoEm: String(m.fechado_em),
     fechadoPor: nome.get(texto(m.fechado_por_usuario_id) ?? "") ?? null,
     observacao: texto(m.observacao),
+    rpaRelatorio: texto(m.rpa_relatorio_enviado_em)
+      ? { em: String(m.rpa_relatorio_enviado_em), para: texto(m.rpa_relatorio_enviado_para) }
+      : null,
+    rpaForaDoEnvio:
+      !texto(m.rpa_relatorio_enviado_em) && Date.now() - Date.parse(String(m.fechado_em)) > 10 * 864e5,
   }))
 }
 
