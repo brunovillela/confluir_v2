@@ -140,6 +140,41 @@ export type Janela = {
   rotulo: string | null
 }
 
+/**
+ * Sobreposição proibida (Bruno, 31/10/2026): faixa de HORÁRIO LIVRE não pode
+ * cruzar outra faixa do mesmo espaço no mesmo dia — quem pede já escolhe o
+ * intervalo dentro dela, e duas faixas cruzadas só duplicam a oferta (o
+ * Teatro tinha "Dia inteiro" e os três turnos por cima). Entre duas faixas
+ * por SLOTS continua permitido: ali cada faixa é um cardápio diferente.
+ */
+export function janelaConflitante<T extends Janela>(
+  nova: Janela,
+  existentes: T[]
+): T | undefined {
+  return existentes.find(
+    (j) => (nova.modo === "livre" || j.modo === "livre") && janelasSobrepostas(nova, j)
+  )
+}
+
+/** Os pares que já se cruzam — o aviso da tela para os dados antigos. */
+export function paresSobrepostos<T extends Janela>(janelas: T[]): [T, T][] {
+  const pares: [T, T][] = []
+  janelas.forEach((a, i) => {
+    for (const b of janelas.slice(i + 1)) {
+      if ((a.modo === "livre" || b.modo === "livre") && janelasSobrepostas(a, b)) {
+        pares.push([a, b])
+      }
+    }
+  })
+  return pares
+}
+
+/** "Segunda-feira, 08:00 às 21:30 (Dia inteiro)" — para mensagens. */
+export function descreverJanela(j: Janela): string {
+  const dia = DIAS_SEMANA.find((d) => d.dia === j.dia_semana)?.rotulo ?? "Dia"
+  return `${dia}, ${horaCurta(j.hora_inicio)} às ${horaCurta(j.hora_termino)}${j.rotulo ? ` (${j.rotulo})` : ""}`
+}
+
 export type Bloco = { inicio: string; termino: string }
 
 /**
@@ -169,7 +204,10 @@ function doisPontos(total: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
 }
 
-/** Duas janelas do mesmo dia que se sobrepõem — o cadastro recusa. */
+/**
+ * Duas janelas do mesmo dia que se cruzam. Encostar não é cruzar: 08:00–13:00
+ * e 13:00–18:00 convivem. Quem recusa é janelaConflitante (só horário livre).
+ */
 export function janelasSobrepostas(a: Janela, b: Janela): boolean {
   if (a.dia_semana !== b.dia_semana) return false
   const ai = horaCurta(a.hora_inicio)

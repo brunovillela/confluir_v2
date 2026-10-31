@@ -2,8 +2,10 @@ import "server-only"
 
 import { esquemaAusente, texto } from "@/lib/db/comum"
 import {
+  descreverJanela,
   faltaNoRecinto,
   horaCompleta,
+  janelaConflitante,
   motivoInelegivel,
   slugDoNome,
   type Janela,
@@ -585,12 +587,31 @@ export async function criarJanelas(
     return { erro: "Informe a duração do bloco, em minutos." }
   }
 
-  // Faixas do mesmo dia PODEM se sobrepor, de propósito: "dia inteiro" e
-  // "tarde" são duas ofertas do mesmo espaço, e quem pede escolhe uma. Quem
-  // impede a dupla-marcação é a AGENDA — ceder qualquer uma das duas ocupa o
-  // período e derruba a outra. Recusar aqui só tirava uma opção do cardápio.
-  // Repetir a MESMA faixa, isso sim, é engano de digitação.
+  // Até 31/10 as faixas do mesmo dia podiam se sobrepor ("dia inteiro" e
+  // "tarde" como duas ofertas). No HORÁRIO LIVRE isso só duplicava a oferta —
+  // quem pede já escolhe o intervalo — e o Teatro ficou com o dia inteiro e os
+  // três turnos por cima. Agora faixa livre não cruza nenhuma outra do mesmo
+  // dia (ver janelaConflitante); entre faixas por slots continua valendo.
   const existentes = await listarJanelas(espacoId)
+  for (const dia of dados.dias) {
+    const conflito = janelaConflitante(
+      {
+        dia_semana: dia,
+        hora_inicio: inicio,
+        hora_termino: termino,
+        modo: dados.modo,
+        slot_minutos: dados.slotMinutos,
+        rotulo: null,
+      },
+      existentes
+    )
+    if (conflito) {
+      return {
+        erro: `Esta faixa se sobrepõe a ${descreverJanela(conflito)}, ${conflito.modo === "livre" ? "de horário livre" : "por slots"}. Em horário livre as faixas do mesmo dia não podem se cruzar — exclua ou ajuste a outra antes.`,
+      }
+    }
+  }
+  // Repetir a MESMA faixa por slots é engano de digitação.
   const igual = existentes.find(
     (j) =>
       dados.dias.includes(j.dia_semana) &&

@@ -14,7 +14,9 @@ import {
   MODOS_JANELA,
   MOTIVOS_BLOQUEIO,
   blocosDaJanela,
+  descreverJanela,
   horaCurta,
+  paresSobrepostos,
   rotuloMotivo,
   type ModoJanela,
 } from "@/lib/espacos-constantes"
@@ -55,6 +57,14 @@ export function Janelas({
   const envio1 = useEnvioFormulario(formAction, estado)
   const [modo, setModo] = useState<ModoJanela>("livre")
 
+  // Faixas antigas que se cruzam (o Teatro, antes da regra de 31/10): só o
+  // aviso — juntar é decisão de quem cuida do espaço, não da tela.
+  const sobrepostas = paresSobrepostos(janelas)
+  const emConflito = new Set(sobrepostas.flatMap(([a, b]) => [a.id, b.id]))
+  const diasEmConflito = DIAS_SEMANA.filter((d) =>
+    sobrepostas.some(([a]) => a.dia_semana === d.dia)
+  )
+
   const porDia = DIAS_SEMANA.map((d) => ({
     ...d,
     faixas: janelas.filter((j) => j.dia_semana === d.dia),
@@ -66,6 +76,36 @@ export function Janelas({
         <CardTitle className="text-base">Quando pode ser cedido</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">
+        {sobrepostas.length > 0 && (
+          <Alert variant="warning" data-teste="aviso-sobreposicao">
+            <AlertDescription>
+              <strong>
+                Há faixas de horário livre que se sobrepõem
+                {diasEmConflito.length > 0
+                  ? ` (${diasEmConflito.map((d) => d.curto).join(", ")})`
+                  : ""}
+                .
+              </strong>{" "}
+              Em horário livre quem pede já escolhe o intervalo, então uma faixa
+              larga cobre as menores e as duas juntas só duplicam a oferta. Nada
+              foi apagado: para juntar, mantenha a faixa mais larga de cada dia e
+              exclua as que ficam dentro dela — ou, se os turnos forem ofertas
+              fixas, recadastre-os como <em>slots</em>. Novas faixas que cruzem
+              outra já são recusadas.
+              <ul className="mt-2 list-disc pl-5 text-xs">
+                {sobrepostas.slice(0, 8).map(([a, b]) => (
+                  <li key={`${a.id}-${b.id}`}>
+                    {descreverJanela(a)} × {horaCurta(b.hora_inicio)} às{" "}
+                    {horaCurta(b.hora_termino)}
+                    {b.rotulo ? ` (${b.rotulo})` : ""}
+                  </li>
+                ))}
+                {sobrepostas.length > 8 && <li>e mais {sobrepostas.length - 8}.</li>}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {janelas.length === 0 ? (
           <Alert variant="warning">
             <AlertDescription>
@@ -88,7 +128,8 @@ export function Janelas({
                       return (
                         <span
                           key={j.id}
-                          className="flex items-center gap-2 rounded-md border px-2 py-1 text-sm"
+                          className={`flex items-center gap-2 rounded-md border px-2 py-1 text-sm ${emConflito.has(j.id) ? "border-warning bg-warning/10" : ""}`}
+                          title={emConflito.has(j.id) ? "Sobrepõe outra faixa deste dia" : undefined}
                         >
                           <span>
                             {horaCurta(j.hora_inicio)} às {horaCurta(j.hora_termino)}
