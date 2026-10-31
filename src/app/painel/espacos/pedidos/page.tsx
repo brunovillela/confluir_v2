@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, Inbox } from "lucide-react"
+import { ArrowLeft, Inbox, Plus } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -67,6 +67,16 @@ export default async function PedidosPage({
             A fila da cessão: visita técnica, autorização e custeio
           </p>
         </div>
+        {esquemaPronto && (
+          <Button asChild className="ml-auto">
+            <Link
+              href={`/painel/espacos/pedidos/novo${espaco ? `?espaco=${espaco}` : ""}`}
+            >
+              <Plus />
+              Registrar pedido
+            </Link>
+          </Button>
+        )}
       </div>
 
       {!esquemaPronto && (

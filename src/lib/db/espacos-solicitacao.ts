@@ -5,7 +5,7 @@ import { createHash, randomInt, timingSafeEqual } from "node:crypto"
 import { buscarFiliadoPorCpf, mascararEmail } from "@/lib/contas"
 import { limparCpf, validarCpf } from "@/lib/cpf"
 import { esquemaAusente, texto } from "@/lib/db/comum"
-import { avisarEquipeNovoPedido } from "@/lib/db/espacos-esteira"
+import { avisarEquipeNovoPedido, registrarEvento } from "@/lib/db/espacos-esteira"
 import { enviarEmail } from "@/lib/email"
 import { deCampoDataHora } from "@/lib/formato"
 import {
@@ -17,6 +17,7 @@ import {
   tituloEmail,
 } from "@/lib/email-layout"
 import {
+  CANAIS_REGISTRO,
   calcularExigencias,
   periodosChocam,
   totalExigencias,
@@ -343,11 +344,80 @@ export async function registrarPedido(
   dados: DadosPedido,
   tenantId: string
 ): Promise<{ erro?: string; token?: string }> {
-  const espacoPorId = await espacoParaPedido(dados.espacoId, tenantId)
-  if (!espacoPorId) return { erro: "Espaço não encontrado." }
   if (!EMAIL.test(dados.email)) return { erro: "Informe um e-mail válido." }
   if (!dados.nome.trim()) return { erro: "Informe seu nome." }
-  if (!dados.finalidade.trim()) return { erro: "Diga para que o espaço será usado." }
+  const r = await validarECriar(dados, tenantId, { situacao: "rascunho" })
+  if (r.erro || !r.criada) return { erro: r.erro }
+  const { id, token } = r.criada
+
+  const codigo = novoCodigo()
+  const db = await createAdminClient()
+  await db
+    .from("cessao_solicitacoes")
+    .update({
+      codigo_hash: hashCodigo(codigo, token),
+      codigo_expira_em: new Date(
+        Date.now() + VALIDADE_CODIGO_MIN * 60000
+      ).toISOString(),
+      codigo_tentativas: 0,
+    })
+    .eq("id", id)
+
+  await enviarCodigo(dados.email, dados.nome, codigo, r.espacoNome)
+  return { token }
+}
+
+/**
+ * O pedido que a EQUIPE registra no painel — chegou por telefone, ofício,
+ * balcão ou WhatsApp, ou é uma cessão interna. Mesmas checagens do link
+ * público (lotação, data, choque de agenda, exigências congeladas), mas sem
+ * código: quem registra está logado e responde pelo registro, e a trilha diz
+ * quem foi e por qual canal. Entra direto na fila, já numerado. O e-mail é
+ * opcional — sem ele o solicitante não recebe os avisos da esteira.
+ */
+export async function registrarPedidoPelaEquipe(
+  dados: Omit<DadosPedido, "email"> & { email: string | null },
+  registro: { canal: string; usuarioId: string; avisarSolicitante: boolean },
+  tenantId: string
+): Promise<{ erro?: string; id?: string; numero?: number }> {
+  const email = dados.email?.trim() || null
+  if (email && !EMAIL.test(email)) return { erro: "O e-mail do solicitante não é válido." }
+  if (!dados.nome.trim()) return { erro: "Informe o nome do solicitante." }
+  const canal = CANAIS_REGISTRO.find((c) => c.chave === registro.canal)
+  if (!canal) return { erro: "Informe por onde o pedido chegou." }
+
+  const numero = await proximoNumero(tenantId)
+  const agora = new Date().toISOString()
+  const r = await validarECriar({ ...dados, email: email ?? "" }, tenantId, {
+    situacao: "solicitada",
+    numero,
+    enviada_em: agora,
+    identificacao: "interno",
+  })
+  if (r.erro || !r.criada) return { erro: r.erro }
+  const { id } = r.criada
+
+  await registrarEvento(id, "registrado", canal.rotulo, registro.usuarioId)
+  await avisarEquipeNovoPedido(id, `nº ${numero} — ${r.espacoNome}`)
+  if (email && registro.avisarSolicitante) {
+    await enviarRecibo(email, dados.nome, numero, r.espacoNome)
+  }
+  return { id, numero }
+}
+
+/**
+ * O miolo comum aos dois caminhos: valida contra o espaço e a agenda, grava o
+ * pedido e congela as exigências. Quem chama decide a situação inicial.
+ */
+async function validarECriar(
+  dados: DadosPedido,
+  tenantId: string,
+  inicial: Record<string, unknown> & { situacao: string }
+): Promise<{ erro?: string; criada?: { id: string; token: string }; espacoNome: string }> {
+  const espacoPorId = await espacoParaPedido(dados.espacoId, tenantId)
+  if (!espacoPorId) return { erro: "Espaço não encontrado.", espacoNome: "" }
+  const falha = (erro: string) => ({ erro, espacoNome: espacoPorId.nome })
+  if (!dados.finalidade.trim()) return falha("Diga para que o espaço será usado.")
 
   // Os campos vêm de <input type="datetime-local"> (hora de Macaé, sem fuso).
   // `new Date(texto)` no servidor lia como UTC: gravava 3 h deslocado e a
@@ -359,18 +429,16 @@ export async function registrarPedido(
   const inicio = momento(dados.inicio)
   const termino = momento(dados.termino)
   if (!Number.isFinite(inicio) || !Number.isFinite(termino)) {
-    return { erro: "Informe a data e a hora de início e de término." }
+    return falha("Informe a data e a hora de início e de término.")
   }
-  if (termino <= inicio) return { erro: "O término tem de ser depois do início." }
-  if (inicio < Date.now()) return { erro: "A data já passou." }
+  if (termino <= inicio) return falha("O término tem de ser depois do início.")
+  if (inicio < Date.now()) return falha("A data já passou.")
   if (
     espacoPorId.capacidade &&
     dados.publicoEstimado &&
     dados.publicoEstimado > espacoPorId.capacidade
   ) {
-    return {
-      erro: `A lotação deste espaço é de ${espacoPorId.capacidade} pessoas.`,
-    }
+    return falha(`A lotação deste espaço é de ${espacoPorId.capacidade} pessoas.`)
   }
 
   // Choque com bloqueio ou com outra cessão — inclusive dos espaços irmãos.
@@ -386,12 +454,11 @@ export async function registrarPedido(
   }
   const choque = ocupados.find((o) => periodosChocam(meu, o))
   if (choque) {
-    return {
-      erro:
-        choque.motivo === "bloqueio"
-          ? "O espaço está bloqueado nesse período."
-          : "Já há um pedido para o espaço nesse período.",
-    }
+    return falha(
+      choque.motivo === "bloqueio"
+        ? "O espaço está bloqueado nesse período."
+        : "Já há um pedido para o espaço nesse período."
+    )
   }
 
   const db = await createAdminClient()
@@ -402,7 +469,7 @@ export async function registrarPedido(
       emp_proprietaria_id: tenantId,
       solicitante_nome: dados.nome.trim(),
       solicitante_cpf: dados.cpf ? limparCpf(dados.cpf) : null,
-      solicitante_email: dados.email.trim().toLowerCase(),
+      solicitante_email: dados.email.trim().toLowerCase() || null,
       solicitante_telefone: dados.telefone?.trim() || null,
       entidade: dados.entidade?.trim() || null,
       representante_nome: dados.representanteNome?.trim() || null,
@@ -419,35 +486,23 @@ export async function registrarPedido(
       tem_bebida: dados.respostas.bebida,
       tem_estresse: dados.respostas.estresse,
       observacoes: dados.observacoes?.trim() || null,
-      situacao: "rascunho",
+      ...inicial,
     })
     .select("id, token, numero")
     .single()
   if (error) {
-    if (esquemaAusente(error)) return { erro: AVISO_SQL_SOLICITACOES }
-    return { erro: `Não foi possível registrar o pedido: ${error.message}` }
+    if (esquemaAusente(error)) return falha(AVISO_SQL_SOLICITACOES)
+    return falha(`Não foi possível registrar o pedido: ${error.message}`)
   }
 
-  const token = String(criada.token)
   await congelarExigencias(String(criada.id), espacoPorId.regras, {
     publicoEstimado: dados.publicoEstimado,
     ...dados.respostas,
   }, tenantId)
-
-  const codigo = novoCodigo()
-  await db
-    .from("cessao_solicitacoes")
-    .update({
-      codigo_hash: hashCodigo(codigo, token),
-      codigo_expira_em: new Date(
-        Date.now() + VALIDADE_CODIGO_MIN * 60000
-      ).toISOString(),
-      codigo_tentativas: 0,
-    })
-    .eq("id", criada.id)
-
-  await enviarCodigo(dados.email, dados.nome, codigo, espacoPorId.nome)
-  return { token }
+  return {
+    criada: { id: String(criada.id), token: String(criada.token) },
+    espacoNome: espacoPorId.nome,
+  }
 }
 
 async function espacoParaPedido(
@@ -524,6 +579,28 @@ async function enviarCodigo(
       ) +
       caixaAviso(
         "Se não foi você que pediu, ignore esta mensagem — nada será feito."
+      ),
+  })
+}
+
+/** Recibo do pedido registrado pela equipe — não pede nada de volta. */
+async function enviarRecibo(
+  email: string,
+  nome: string,
+  numero: number,
+  espaco: string
+): Promise<void> {
+  await enviarEmail({
+    email,
+    nome,
+    assunto: `Pedido de uso registrado — ${espaco}`,
+    html:
+      tituloEmail("Recebemos o seu pedido") +
+      paragrafo(
+        `Registramos o seu pedido de uso do espaço <strong>${escaparHtml(espaco)}</strong> com o número <strong>${numero}</strong>. Nossa equipe vai analisar e entrar em contato por este e-mail.`
+      ) +
+      caixaAviso(
+        "Se você não fez este pedido, responda a esta mensagem para avisarmos a equipe."
       ),
   })
 }
@@ -694,3 +771,112 @@ export async function linkDoPedido(token: string): Promise<string> {
 }
 
 export const botaoPedido = botaoEmail
+
+// ── Registro pela equipe ─────────────────────────────────────────────────────
+
+export type EspacoParaRegistro = {
+  id: string
+  nome: string
+  capacidade: number | null
+  publico: EspacoPublico["publico"]
+  regras: RegraExigencia[]
+}
+
+/** Os espaços ativos, com as regras, para o formulário calcular ao vivo. */
+export async function espacosParaRegistro(
+  tenantId: string
+): Promise<EspacoParaRegistro[]> {
+  const db = await createAdminClient()
+  const { data } = await db
+    .from("cessao_espacos")
+    .select("id, nome, capacidade_pessoas, publico_alvo, ativo")
+    .eq("emp_proprietaria_id", tenantId)
+    .order("nome", { ascending: true })
+  const ativos = (data ?? []).filter((e) => e.ativo !== false)
+  if (ativos.length === 0) return []
+  const { data: regras } = await db
+    .from("cessao_espaco_exigencias")
+    .select("espaco_id, gatilho, de, ate, bombeiros, segurancas, observacao")
+    .in(
+      "espaco_id",
+      ativos.map((e) => String(e.id))
+    )
+  return ativos.map((e) => ({
+    id: String(e.id),
+    nome: texto(e.nome) ?? "(sem nome)",
+    capacidade: (e.capacidade_pessoas as number | null) ?? null,
+    publico: (e.publico_alvo as EspacoPublico["publico"]) ?? "qualquer",
+    regras: (regras ?? [])
+      .filter((r) => String(r.espaco_id) === String(e.id))
+      .map((r) => ({
+        gatilho: r.gatilho as Gatilho,
+        de: (r.de as number | null) ?? null,
+        ate: (r.ate as number | null) ?? null,
+        bombeiros: Number(r.bombeiros ?? 0),
+        segurancas: Number(r.segurancas ?? 0),
+        observacao: texto(r.observacao),
+      })),
+  }))
+}
+
+/** O espaço só aceita filiados? A equipe também não registra para quem não é. */
+export async function publicoDoEspaco(
+  espacoId: string,
+  tenantId: string
+): Promise<EspacoPublico["publico"] | null> {
+  const db = await createAdminClient()
+  const { data } = await db
+    .from("cessao_espacos")
+    .select("publico_alvo")
+    .eq("id", espacoId)
+    .eq("emp_proprietaria_id", tenantId)
+    .maybeSingle()
+  return data ? ((data.publico_alvo as EspacoPublico["publico"]) ?? "qualquer") : null
+}
+
+/** O filiado escolhido no seletor: nome, CPF, e-mail e telefone do cadastro. */
+export async function filiadoParaRegistro(
+  filiacaoId: string,
+  tenantId: string
+): Promise<{
+  nome: string | null
+  cpf: string | null
+  email: string | null
+  telefone: string | null
+  ativo: boolean
+} | null> {
+  const db = await createAdminClient()
+  const { data } = await db
+    .from("filiacoes")
+    .select("nome_completo, cpf, email_pessoal, email_corporativo, telefone_1, filiacao_condicao")
+    .eq("id", filiacaoId)
+    .eq("emp_proprietaria_id", tenantId)
+    .maybeSingle()
+  if (!data) return null
+  return {
+    nome: texto(data.nome_completo),
+    cpf: texto(data.cpf),
+    email: texto(data.email_pessoal) ?? texto(data.email_corporativo),
+    telefone: texto(data.telefone_1),
+    ativo: data.filiacao_condicao === "Ativo",
+  }
+}
+
+/** A entidade (linha de `empresa`) escolhida no seletor. */
+export async function entidadeParaRegistro(
+  empresaId: string,
+  tenantId: string
+): Promise<{ nome: string; email: string | null } | null> {
+  const db = await createAdminClient()
+  const { data } = await db
+    .from("empresa")
+    .select("nome_fantasia, nome_razao, email_contato")
+    .eq("id", empresaId)
+    .eq("emp_proprietaria_id", tenantId)
+    .maybeSingle()
+  if (!data) return null
+  return {
+    nome: texto(data.nome_fantasia) ?? texto(data.nome_razao) ?? "(sem nome)",
+    email: texto(data.email_contato),
+  }
+}

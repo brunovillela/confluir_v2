@@ -36,13 +36,16 @@ export const metadata: Metadata = { title: "Pedido de uso — Confluir" }
 
 export default async function PedidoPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ registrado?: string }>
 }) {
   const sessao = await requirePermissao("espacos", ["espacos_gestao"])
   const podeGerir = sessao.permissoes?.espacos_gestao === true
   const podeAutorizar = sessao.permissoes?.espacos_autorizacao === true
   const { id } = await params
+  const { registrado } = await searchParams
 
   const [pedido, responsaveis, termo, assinaturas] = await Promise.all([
     obterSolicitacao(id),
@@ -88,6 +91,16 @@ export default async function PedidoPage({
         </div>
         <Badge variant="outline">{ROTULO_SITUACAO[pedido.situacao]}</Badge>
       </div>
+
+      {registrado && pedido.registro && (
+        <Alert variant="success">
+          <AlertDescription>
+            <strong>Pedido nº {pedido.numero} registrado.</strong> Já está na fila
+            e segue a esteira normal: assumir, visita, autorização, custeio e
+            confirmação.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {pedido.recusaMotivo && encerrado && (
         <Alert variant="warning">
@@ -218,6 +231,11 @@ export default async function PedidoPage({
               <CardTitle className="text-base">Contato</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-3 text-sm">
+              <Linha rotulo="Origem">
+                {pedido.registro
+                  ? `Registrado pela equipe${pedido.registro.canal ? ` (${pedido.registro.canal})` : ""}${pedido.registro.porNome ? ` por ${pedido.registro.porNome}` : ""}`
+                  : "Link público"}
+              </Linha>
               <Linha rotulo="Solicitante">{pedido.solicitante}</Linha>
               {pedido.cpf && <Linha rotulo="CPF">{formatarCpf(pedido.cpf)}</Linha>}
               <Linha rotulo="E-mail">{pedido.email ?? "—"}</Linha>

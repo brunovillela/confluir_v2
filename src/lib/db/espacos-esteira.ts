@@ -127,6 +127,7 @@ export async function listarSolicitacoes(filtros: {
 
 /** O histórico é lido meses depois — o tipo cru não serve de rótulo. */
 export const ROTULO_EVENTO: Record<string, string> = {
+  registrado: "Pedido registrado pela equipe",
   analise: "Pedido assumido",
   visita_agendada: "Visita agendada",
   visita_realizada: "Visita realizada",
@@ -207,6 +208,8 @@ export type SolicitacaoDetalhe = {
   created_at: string | null
   exigencias: ExigenciaCalculada[]
   eventos: { tipo: string; detalhe: string | null; quem: string | null; quando: string }[]
+  /** Pedido registrado pela equipe no painel (não veio do link público). */
+  registro: { canal: string | null; porNome: string | null; em: string } | null
 }
 
 export async function obterSolicitacao(
@@ -346,11 +349,17 @@ export async function obterSolicitacao(
       quem: nome(e.usuario_id),
       quando: String(e.created_at),
     })),
+    registro: (() => {
+      const e = (eventos ?? []).find((ev) => ev.tipo === "registrado")
+      return e
+        ? { canal: texto(e.detalhe), porNome: nome(e.usuario_id), em: String(e.created_at) }
+        : null
+    })(),
   }
 }
 
 /** Tudo que a esteira faz passa por aqui — a trilha nunca fica para depois. */
-async function registrarEvento(
+export async function registrarEvento(
   solicitacaoId: string,
   tipo: string,
   detalhe: string | null,

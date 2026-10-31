@@ -13,6 +13,7 @@ import {
   GATILHOS_CONDICAO,
   calcularExigencias,
   totalExigencias,
+  type ExigenciaCalculada,
   type RegraExigencia,
 } from "@/lib/espacos-constantes"
 
@@ -285,43 +286,7 @@ export function PedidoForm({
         </CardContent>
       </Card>
 
-      {exigencias.lista.length > 0 && (
-        <Card className="border-warning/40">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <ShieldCheck className="size-4" />
-              O que o seu evento vai exigir
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3">
-            <p className="text-muted-foreground text-sm">
-              Calculado pelas suas respostas. A contratação é por sua conta, e
-              confirmamos a cessão com esses itens no termo.
-            </p>
-            <ul className="grid gap-1.5">
-              {exigencias.lista.map((e, i) => (
-                <li key={i} className="rounded-md border p-2 text-sm">
-                  <span className="font-medium">{e.motivo}</span>
-                  <span className="text-muted-foreground">
-                    {" — "}
-                    {[
-                      e.bombeiros > 0 && bombeiros(e.bombeiros),
-                      e.segurancas > 0 && segurancas(e.segurancas),
-                      e.observacao,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <p className="text-sm font-medium">
-              Total: {bombeiros(exigencias.bombeiros)} e{" "}
-              {segurancas(exigencias.segurancas)}.
-            </p>
-          </CardContent>
-        </Card>
-      )}
+      <CardExigencias exigencias={exigencias} />
 
       <div className="flex justify-end">
         <Button type="submit" disabled={enviando}>
@@ -330,6 +295,56 @@ export function PedidoForm({
         </Button>
       </div>
     </form>
+  )
+}
+
+/**
+ * As exigências calculadas ao vivo pelas respostas. Também usado no registro
+ * pela equipe (/painel/espacos/pedidos/novo), com o texto da 2ª pessoa trocado.
+ */
+export function CardExigencias({
+  exigencias,
+  explicacao = "Calculado pelas suas respostas. A contratação é por sua conta, e confirmamos a cessão com esses itens no termo.",
+  titulo = "O que o seu evento vai exigir",
+}: {
+  exigencias: { lista: ExigenciaCalculada[]; bombeiros: number; segurancas: number }
+  explicacao?: string
+  titulo?: string
+}) {
+  if (exigencias.lista.length === 0) return null
+  return (
+    <Card className="border-warning/40">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <ShieldCheck className="size-4" />
+          {titulo}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-3">
+        <p className="text-muted-foreground text-sm">{explicacao}</p>
+        <ul className="grid gap-1.5">
+          {exigencias.lista.map((e, i) => (
+            <li key={i} className="rounded-md border p-2 text-sm">
+              <span className="font-medium">{e.motivo}</span>
+              <span className="text-muted-foreground">
+                {" — "}
+                {[
+                  e.bombeiros > 0 && bombeiros(e.bombeiros),
+                  e.segurancas > 0 && segurancas(e.segurancas),
+                  e.observacao,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <p className="text-sm font-medium">
+          Total: {bombeiros(exigencias.bombeiros)} e{" "}
+          {segurancas(exigencias.segurancas)}.
+        </p>
+      </CardContent>
+    </Card>
   )
 }
 

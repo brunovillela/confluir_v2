@@ -238,6 +238,25 @@ export const gatilhoValido = (g: string): g is Gatilho =>
 /** Os gatilhos que são pergunta de sim ou não no formulário. */
 export const GATILHOS_CONDICAO = GATILHOS.filter((g) => g.pergunta !== null)
 
+/**
+ * Por onde chegou o pedido que a EQUIPE registra no painel (o do link público
+ * não passa por aqui). Vai como detalhe do evento "registrado" na trilha.
+ */
+export const CANAIS_REGISTRO = [
+  { chave: "telefone", rotulo: "Telefone" },
+  { chave: "whatsapp", rotulo: "WhatsApp" },
+  { chave: "email", rotulo: "E-mail" },
+  { chave: "oficio", rotulo: "Ofício" },
+  { chave: "balcao", rotulo: "Balcão (presencial)" },
+  { chave: "interno", rotulo: "Cessão interna" },
+  { chave: "outro", rotulo: "Outro" },
+] as const
+
+export type CanalRegistro = (typeof CANAIS_REGISTRO)[number]["chave"]
+
+/** Quem pede, no registro pela equipe. */
+export type TipoSolicitante = "filiado" | "entidade" | "avulso"
+
 export type RegraExigencia = {
   gatilho: Gatilho
   /** Faixa de público — só no gatilho 'publico'. `ate` nulo = sem teto. */
