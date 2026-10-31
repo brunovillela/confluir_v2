@@ -42,6 +42,7 @@ import {
 } from "@/components/empresa-combobox"
 import { criarCompra } from "./actions"
 import { situacaoDoPrestadorRpa } from "../rpa/actions"
+import { MemoriaIrrfMes } from "../rpa/memoria-mes"
 import { ACEITA_NOTA, LIMITE_ENVIO, prepararArquivo } from "@/lib/arquivo-envio"
 import {
   DetalhePagamento,
@@ -208,14 +209,10 @@ export function NovaCompraForm({
   const avulsosDoFornecedor = rpasAvulsos.filter((r) => r.fornecedorId === fornecedorId)
   const rpaEscolhido = porRpa && rpaOrigem === "avulso" ? avulsosDoFornecedor.find((r) => r.id === rpaId) : undefined
   const valorDigitado = parseValorBR(valorTxt)
-  const previaRpa =
-    porRpa && rpaOrigem === "novo" && rpaConfig && valorDigitado && valorDigitado > 0
-      ? calcularRpaPadrao(valorDigitado, rpaBase, rpaConfig)
-      : null
   // Antes de cadastrar: o limite de RPAs do prestador (mês de emissão do RPA
   // novo e mês do "Pagar em") e o NIT/PIS que falta. O servidor confere de novo.
   const [vencimentoTxt, setVencimentoTxt] = useState("")
-  const [situacaoRpa, setSituacaoRpa] = useState<{ avisos: string[]; semNit: boolean } | null>(null)
+  const [situacaoRpa, setSituacaoRpa] = useState<Awaited<ReturnType<typeof situacaoDoPrestadorRpa>> | null>(null)
   const soPagamentoRpa = rpaOrigem === "avulso"
   useEffect(() => {
     if (!porRpa || !fornecedorId) return
@@ -231,6 +228,11 @@ export function NovaCompraForm({
     }
   }, [porRpa, fornecedorId, vencimentoTxt, soPagamentoRpa])
   const situacaoRpaAtual = porRpa && fornecedorId ? situacaoRpa : null
+  // A prévia apura o IRRF com os outros RPAs do prestador no mês do "Pagar em".
+  const previaRpa =
+    porRpa && rpaOrigem === "novo" && rpaConfig && valorDigitado && valorDigitado > 0
+      ? calcularRpaPadrao(valorDigitado, rpaBase, rpaConfig, situacaoRpaAtual?.noMes ?? null)
+      : null
   const patronalPrevia =
     previaRpa && rpaPatronal !== null ? Math.round(previaRpa.valorBruto * rpaPatronal) / 100 : null
 
@@ -1048,6 +1050,7 @@ export function NovaCompraForm({
                         )}
                       </p>
                     )}
+                    {previaRpa?.memoria && <MemoriaIrrfMes memoria={previaRpa.memoria} irrf={previaRpa.irrf} />}
                   </div>
                 )}
                 <label className="flex items-start gap-2">

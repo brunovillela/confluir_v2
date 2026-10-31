@@ -375,8 +375,8 @@ export async function ordensParaRemessa(): Promise<{ disponivel: boolean; ordens
       item,
     }
   })
-  // Ordem de RPA: o limite de RPAs do prestador no mês do pagamento entra
-  // como pendência (o retorno do banco já não dá para barrar).
+  // Ordem de RPA: outros RPAs do prestador no mês do pagamento, ou mês
+  // diferente do da apuração do IRRF, entram como aviso (não impedem).
   const { limiteRpaNaRemessa } = await import("@/lib/db/compras-rpa")
   const acimaDoLimite = await limiteRpaNaRemessa(
     ordens.filter((o) => o.item && !o.emRemessa).map((o) => ({ ordemId: o.id, dataPagamento: o.item!.dataPagamento }))
@@ -384,8 +384,7 @@ export async function ordensParaRemessa(): Promise<{ disponivel: boolean; ordens
   for (const o of ordens) {
     const motivo = acimaDoLimite.get(o.id)
     if (!motivo) continue
-    o.pendencias.push(motivo)
-    o.item = null
+    o.avisos.push(motivo)
   }
   return { disponivel: true, ordens }
 }

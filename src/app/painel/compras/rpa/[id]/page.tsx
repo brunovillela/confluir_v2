@@ -26,6 +26,7 @@ import { formatarNitPis } from "@/lib/cpf"
 import { podeAcessar } from "@/lib/permissoes"
 
 import { AcoesLinkRpa, AnexarRpaAssinado, EnviarRpaAssinaturaForm, ExcluirRpa } from "../rpa-forms"
+import { MemoriaIrrfMes } from "../memoria-mes"
 
 export const metadata: Metadata = { title: "RPA — Confluir" }
 
@@ -244,6 +245,7 @@ export default async function RpaDetalhePage({
             <div className="border-t pt-2">
               <Valor rotulo="Valor líquido a pagar" v={rpa.valor_liquido} forte />
             </div>
+            {rpa.irrfMemoria && <MemoriaIrrfMes memoria={rpa.irrfMemoria} irrf={rpa.irrf ?? 0} className="border-t pt-2" />}
           </CardContent>
         </Card>
       </div>

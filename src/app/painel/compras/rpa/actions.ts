@@ -25,6 +25,7 @@ import {
   impedimentoDoPrestador,
   limiteMensalDoPrestador,
   limiteMensalPorPagamento,
+  rpasDoMesDoPagamento,
   obterConfigRpa,
   proximoNumeroRpa,
 } from "@/lib/db/compras-rpa"
@@ -38,6 +39,7 @@ import {
   TIPO_ORDEM_RPA,
   type FormaPagamentoRpa,
   type OpcoesRpa,
+  type RpaAnteriorDoMes,
 } from "@/lib/rpa-calculo"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { validarAssinaturasPdf, type ValidacaoAssinatura } from "@/lib/assinatura-pdf"
@@ -104,7 +106,9 @@ export async function meiosDoPrestadorRpa(
 /**
  * O que o formulário avisa antes de emitir (onda 1 do plano do RPA): o limite
  * de RPAs do prestador no mês de emissão e no do pagamento, e se falta o
- * NIT/PIS no cadastro dele. Só leitura — a emissão confere de novo.
+ * NIT/PIS no cadastro dele. Traz também os outros RPAs do mês do pagamento,
+ * para a prévia calcular o IRRF do mês (onda 5). Só leitura — a emissão
+ * confere de novo.
  */
 export async function situacaoDoPrestadorRpa(p: {
   fornecedorId: string
@@ -112,21 +116,23 @@ export async function situacaoDoPrestadorRpa(p: {
   fornecimentoId?: string | null
   /** RPA avulso já emitido (nova compra): o mês de emissão não conta de novo. */
   soPagamento?: boolean
-}): Promise<{ avisos: string[]; semNit: boolean }> {
+}): Promise<{ avisos: string[]; semNit: boolean; noMes: { mes: string; anteriores: RpaAnteriorDoMes[] } | null }> {
   await exigirEdicao()
-  if (!/^[0-9a-f-]{36}$/i.test(p.fornecedorId)) return { avisos: [], semNit: false }
+  if (!/^[0-9a-f-]{36}$/i.test(p.fornecedorId)) return { avisos: [], semNit: false, noMes: null }
   const compra = p.fornecimentoId ? await compraDoRpa(p.fornecimentoId) : null
   const ordemDaCompra = compra?.ordemPendente ?? null
   const pagarEm = ordemDaCompra ? ordemDaCompra.vencimento : p.pagarEm
   const admin = await createAdminClient()
-  const [emissao, pagamento, { data: e }] = await Promise.all([
+  const [emissao, pagamento, noMes, { data: e }] = await Promise.all([
     p.soPagamento ? Promise.resolve(null) : limiteMensalDoPrestador(p.fornecedorId),
     limiteMensalPorPagamento(p.fornecedorId, pagarEm, ordemDaCompra?.id ?? null),
+    rpasDoMesDoPagamento(p.fornecedorId, pagarEm, ordemDaCompra?.id ?? null),
     admin.from("empresa").select("nit_pis").eq("id", p.fornecedorId).eq("emp_proprietaria_id", await tenantAtual()).maybeSingle(),
   ])
   return {
     avisos: [emissao, pagamento].filter((v): v is string => !!v),
     semNit: !String((e as { nit_pis?: string | null } | null)?.nit_pis ?? "").trim(),
+    noMes,
   }
 }
 
@@ -278,19 +284,17 @@ export async function emitirRpa(
     }
   }
   const { fornecedorId } = origem
-  // Um RPA por prestador por mês (ou o limite que o Comprador ajustou).
-  const acimaDoLimite = await limiteMensalDoPrestador(fornecedorId)
-  if (acimaDoLimite) return { erro: acimaDoLimite }
-  // E pelo mês do pagamento ("Pagar em" do RPA ou da ordem que a compra já tem).
-  // O avulso ainda não tem pagamento: conta quando for usado numa compra.
-  if (!avulso) {
-    const acimaNoPagamento = await limiteMensalPorPagamento(
-      fornecedorId,
-      ordemDaCompra ? (origem.compra?.ordemPendenteVencimento ?? null) : pagarEm,
-      ordemDaCompra
-    )
-    if (acimaNoPagamento) return { erro: acimaNoPagamento }
-  }
+  // O limite de RPAs por mês é só aviso (no formulário): o IRRF e o teto do
+  // INSS são apurados com os outros RPAs do mês do pagamento ("Pagar em" do
+  // RPA ou da ordem que a compra já tem). O avulso ainda não tem pagamento:
+  // é calculado sozinho.
+  const noMes = avulso
+    ? null
+    : await rpasDoMesDoPagamento(
+        fornecedorId,
+        ordemDaCompra ? (origem.compra?.ordemPendenteVencimento ?? null) : pagarEm,
+        ordemDaCompra
+      )
 
   // NIT/PIS informado no formulário (prestador sem ele no cadastro): vai para o
   // cadastro do fornecedor, de onde o PDF do RPA o lê.
@@ -316,8 +320,8 @@ export async function emitirRpa(
   }
   const r =
     base === "liquido"
-      ? calcularPorLiquido(valor, cfg, op)
-      : calcularPorBruto(valor, cfg, op)
+      ? calcularPorLiquido(valor, cfg, op, noMes)
+      : calcularPorBruto(valor, cfg, op, noMes)
   if (!(r.valorLiquido > 0)) return { erro: "O valor líquido ficou zerado — confira o valor e as retenções." }
 
   // Por último: chave/conta NOVA do prestador vai para o cadastro dele aqui.
@@ -369,6 +373,7 @@ export async function emitirRpa(
         valor_liquido: r.valorLiquido,
         observacoes: txt(fd, "observacoes"),
         criado_por: sessao.usuario.id,
+        ...(noMes ? { irrf_mes: `${noMes.mes}-01`, irrf_memoria: r.memoria ?? null } : {}),
         ...(origem.compra
           ? { processo_compra_id: origem.compra.processoId, fornecimento_id: origem.compra.fornecimentoId }
           : {}),

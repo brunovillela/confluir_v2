@@ -20,7 +20,7 @@ import {
 } from "@/lib/db/compras"
 import { escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
 import { compradoresPossiveis } from "@/lib/db/compras-compradores"
-import { impedimentoDoPrestador, limiteMensalDoPrestador, limiteMensalPorPagamento, obterConfigRpa } from "@/lib/db/compras-rpa"
+import { impedimentoDoPrestador, obterConfigRpa, rpasDoMesDoPagamento } from "@/lib/db/compras-rpa"
 import { emitirRpaPadraoNaCompra, listarRpasAvulsos, usarRpaAvulsoNaCompra } from "@/lib/db/rpa-compra-direta"
 import { calcularRpaPadrao } from "@/lib/rpa-calculo"
 import { lerDetalhePagamento } from "@/lib/db/compras-pagamento-form"
@@ -161,9 +161,8 @@ export async function criarCompra(
         .eq("emp_proprietaria_id", await tenantAtual())
         .is("nit_pis", null)
     }
-    // Limite de RPAs por prestador no mês do pagamento ("Pagar em"), novo ou avulso.
-    const acimaNoPagamento = await limiteMensalPorPagamento(fornecedorId, vencimentoRpa)
-    if (acimaNoPagamento) return { erro: acimaNoPagamento, campo: "vencimento" }
+    // O limite de RPAs por mês é só aviso (no formulário): o RPA novo apura o
+    // IRRF com os outros RPAs do prestador no mês do pagamento ("Pagar em").
     const usarAvulso = texto(formData, "rpa_origem") === "avulso"
     const baseRpa = texto(formData, "rpa_base") === "bruto" ? "bruto" : "liquido"
     let valorOrdem = valor
@@ -176,10 +175,7 @@ export async function criarCompra(
       if (!avulso) return { erro: "Escolha um RPA emitido para este fornecedor e ainda sem ordem.", campo: "rpa_id" }
       valorOrdem = avulso.valorLiquido
     } else {
-      // Antes de gravar a compra: o RPA novo respeita o limite mensal do prestador.
-      const acimaDoLimite = await limiteMensalDoPrestador(fornecedorId)
-      if (acimaDoLimite) return { erro: acimaDoLimite, campo: "fornecedor_id" }
-      const r = calcularRpaPadrao(valor, baseRpa, await obterConfigRpa())
+      const r = calcularRpaPadrao(valor, baseRpa, await obterConfigRpa(), await rpasDoMesDoPagamento(fornecedorId, vencimentoRpa))
       if (!(r.valorLiquido > 0)) return { erro: "O valor líquido do RPA ficou zerado — confira o valor.", campo: "valor" }
       valorOrdem = r.valorLiquido
     }
@@ -236,6 +232,7 @@ export async function criarCompra(
             dataServico: dataCompra,
             base: baseRpa,
             valor,
+            pagarEm: vencimentoRpa,
           })
     // A compra já foi gravada: se o RPA falhar, ele é emitido pela tela
     // de sempre, a partir da compra (o erro vai junto no endereço).

@@ -98,6 +98,7 @@ modulo,tabela,coluna,categoria,titulares,descricao
 "compras","compras_rpa","valor_liquido","financeiro","fornecedores PF (autônomos)",""
 "compras","compras_rpa","arquivo_assinado","identificacao","fornecedores PF (autônomos)","Caminho (bucket compras) do recibo assinado pelo prestador. Com ele, o RPA não pode mais ser excluído."
 "compras","compras_rpa","assinatura_validacao","identificacao","fornecedores PF (autônomos)","Resultado da validação das assinaturas digitais do PDF anexado: assinantes, CPF esperado e se confere."
+"compras","compras_rpa","irrf_memoria","financeiro","fornecedores PF (autônomos)","Memória do cálculo do mês, quando havia outros RPAs do prestador no mesmo mês do pagamento: os anteriores (número, bruto, INSS, IRRF), o bruto, o INSS, a base e o IRRF do mês e o já retido. Nulo quando o RPA foi o único do mês."
 "compras","compras_solicitacoes","","identificacao","usuários do sistema, fornecedores PF","Processo de compra: da solicitação (ou aquisição direta) à cotação, avaliação, compra, pagamento e recebimento. Maioria migrada do Bubble; colunas _raw guardam listas do Bubble ainda não normalizadas."
 "compras","compras_solicitacoes","solicitacao_observacao","identificacao","usuários do sistema, fornecedores PF",""
 "compras","compras_solicitacoes","recebedor_id","identificacao","usuários do sistema, fornecedores PF",""

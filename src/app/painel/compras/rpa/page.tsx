@@ -329,7 +329,7 @@ export default async function RpaPage({
               </CardTitle>
               <CardDescription>
                 Teto e alíquota do INSS, tabela progressiva do IRRF (com dedução
-                por dependente), alíquota padrão do ISS do município e o limite de RPAs por prestador por mês.
+                por dependente), alíquota padrão do ISS do município e o aviso de vários RPAs ao mesmo prestador no mês.
               </CardDescription>
             </CardHeader>
             <CardContent>

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache"
 
 import { avisarOrdensEmAutorizacao, depoisDaResposta } from "@/lib/db/avisos"
 import { texto } from "@/lib/db/comum"
-import { limiteMensalDoPrestador, obterConfigRpa, proximoNumeroRpa } from "@/lib/db/compras-rpa"
+import { obterConfigRpa, proximoNumeroRpa, rpasDoMesDoPagamento } from "@/lib/db/compras-rpa"
 import { registrarEvento, SITUACAO_AGUARDANDO_DOCUMENTO } from "@/lib/db/ordens-ciclo"
 import { calcularRpaPadrao, opcoesPadraoRpa, TIPO_ORDEM_RPA } from "@/lib/rpa-calculo"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -88,15 +88,16 @@ export async function emitirRpaPadraoNaCompra(
     dataServico: string | null
     base: "bruto" | "liquido"
     valor: number
+    /** "Pagar em" da ordem: o IRRF é apurado com os outros RPAs do mês. */
+    pagarEm: string | null
   }
 ): Promise<{ rpaId?: string; erro?: string }> {
-  const acimaDoLimite = await limiteMensalDoPrestador(p.fornecedorId)
-  if (acimaDoLimite) return { erro: acimaDoLimite }
   const admin = await createAdminClient()
   const emp = await tenantAtual()
   const cfg = await obterConfigRpa()
   const op = opcoesPadraoRpa(cfg)
-  const r = calcularRpaPadrao(p.valor, p.base, cfg)
+  const noMes = await rpasDoMesDoPagamento(p.fornecedorId, p.pagarEm, p.ordemId)
+  const r = calcularRpaPadrao(p.valor, p.base, cfg, noMes)
   if (!(r.valorLiquido > 0)) return { erro: "O valor líquido do RPA ficou zerado." }
 
   let rpaId: string | null = null
@@ -123,6 +124,7 @@ export async function emitirRpaPadraoNaCompra(
         dependentes: op.dependentes,
         valor_liquido: r.valorLiquido,
         criado_por: p.usuarioId,
+        ...(noMes ? { irrf_mes: `${noMes.mes}-01`, irrf_memoria: r.memoria ?? null } : {}),
         processo_compra_id: p.processoId,
         fornecimento_id: p.fornecimentoId,
         ordem_pagamento_id: p.ordemId,

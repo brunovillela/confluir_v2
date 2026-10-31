@@ -200,6 +200,36 @@ export function RpaPDF({
           </View>
         </View>
 
+        {/* IRRF apurado com os outros RPAs do mês do pagamento (onda 5). */}
+        {rpa.irrfMemoria && (
+          <View style={s.bloco}>
+            <Text style={s.blocoTitulo}>
+              Apuração do mês ({rpa.irrfMemoria.mes.slice(5, 7)}/{rpa.irrfMemoria.mes.slice(0, 4)})
+            </Text>
+            <Text style={s.linha}>
+              O IRRF e o teto do INSS foram apurados sobre o total pago ao prestador no mês, somando{" "}
+              {rpa.irrfMemoria.anteriores.length === 1 ? "o RPA" : "os RPAs"}{" "}
+              {rpa.irrfMemoria.anteriores
+                .map((a) => `nº ${a.numero ?? "—"}`)
+                .join(", ")
+                .replace(/, ([^,]*)$/, " e $1")}
+              .
+            </Text>
+            <Text style={s.linha}>
+              <Text style={s.rotulo}>Bruto do mês: </Text>
+              {brl(rpa.irrfMemoria.brutoMes)} · <Text style={s.rotulo}>INSS do mês: </Text>
+              {brl(rpa.irrfMemoria.inssMes)} · <Text style={s.rotulo}>Base do IRRF: </Text>
+              {brl(rpa.irrfMemoria.baseIrrfMes)}
+            </Text>
+            <Text style={s.linha}>
+              <Text style={s.rotulo}>IRRF do mês: </Text>
+              {brl(rpa.irrfMemoria.irrfMes)} · <Text style={s.rotulo}>já retido nos anteriores: </Text>
+              {brl(rpa.irrfMemoria.irrfAnteriores)} · <Text style={s.rotulo}>retido neste: </Text>
+              {brl(rpa.irrf)}
+            </Text>
+          </View>
+        )}
+
         <Text style={s.quitacao}>
           Declaro que recebi de {organizacao.nome}
           {organizacao.cnpj

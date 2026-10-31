@@ -74,6 +74,8 @@ ele recebe no mês. Em vez de só bloquear:
    nos RPAs nº X, retido neste).
 3. O limite passa a poder ser **alerta** em vez de bloqueio (configuração).
 
+Decidido com a contabilidade (31/10): acumula pelo mês do pagamento e o limite vira só aviso.
+
 Decisão **com a contabilidade antes de começar**: confirmar a regra
 (acumular pelo mês do pagamento; dedução por dependente uma vez no mês;
 tratamento do INSS já retido no teto) e se o limite continua bloqueando.
@@ -96,5 +98,5 @@ Decidido (31/10): envio no dia seguinte ao fechamento; o e-mail é configurado p
 | 2 — Remessa e linha do tempo | **concluída** 31/10 — pendência de limite na Nova remessa, faixa de etapas no processo |
 | 3 — Assinatura automática | **concluída** 31/10 — link na emissão (marcado por padrão), lembretes a cada 3 dias até 2, depois aviso a quem emitiu |
 | 4 — Comprovante | **concluída** 31/10 — contato "recebe comprovantes", envio automático por fornecedor marcado (migração 20261031160553) |
-| 5 — IRRF acumulado | aguarda a contabilidade |
+| 5 — IRRF acumulado | **concluída** 31/10 — IRRF e teto do INSS pelo total do mês do pagamento, memória no recibo; o limite virou só aviso (migração 20261031180527) |
 | 6 — Fechamento contábil | **concluída** 31/10 — relatório no dia seguinte ao fechamento (e-mail configurável na Exportação contábil), alerta das guias no resumo de vencimentos (migração 20261031161751) |

@@ -96,16 +96,17 @@ export async function salvarPagamento(
     !editando ||
     String(ordem.data_pagamento ?? "").slice(0, 10) !== dataPagamento ||
     Math.round(Number(ordem.valor_pago ?? 0) * 100) !== Math.round(valor * 100)
+  let avisoRpa: string | null = null
   if (mudaLancamento) {
     const trava = await travaDoMesFechado(
       [dataPagamento, editando ? (ordem.data_pagamento as string | null) : null],
       editando ? "mudar o valor ou a data do pagamento" : "registrar um pagamento nele"
     )
     if (trava) return { erro: trava }
-    // Ordem de RPA: o prestador já recebeu o limite de RPAs neste mês?
+    // Ordem de RPA: outros RPAs do prestador pagos no mês, ou mês diferente do
+    // da apuração do IRRF. Só aviso, anotado na trilha da ordem.
     const { limiteMensalNoPagamentoDaOrdem } = await import("@/lib/db/compras-rpa")
-    const acimaDoLimite = await limiteMensalNoPagamentoDaOrdem(id, dataPagamento)
-    if (acimaDoLimite) return { erro: acimaDoLimite }
+    avisoRpa = await limiteMensalNoPagamentoDaOrdem(id, dataPagamento)
   }
 
   // O débito é uma conta de pagamento (caixa, banco) — ver listarCentrosDeDebito.
@@ -193,7 +194,7 @@ export async function salvarPagamento(
     id,
     "paga",
     sessao.usuario.id,
-    editando ? "Dados do pagamento alterados." : null,
+    [editando ? "Dados do pagamento alterados." : null, avisoRpa].filter(Boolean).join(" ") || null,
     {
       valor_pago: valor,
       data_pagamento: dataPagamento,

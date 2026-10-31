@@ -265,7 +265,7 @@ da validação aparece no RPA.
   *RPA sem assinatura (PDF)* — uma vez só. Ver
   [Ordens de pagamento](/painel/ajuda/financeiro/ordens).
 
-<Print src="compras/rpa-lista.png" alt="Aquisição → RPA: a lista com busca e filtros de recibo e de origem e dois recibos de João Batista Ramos — o nº 2, da compra 2026.1006.0738.1180, Assinado, com o link Ver; e o nº 1, do contrato de manutenção elétrica, A assinar, com a lixeira; abaixo, as Tabelas de retenção abertas: alíquota e teto do INSS, dedução por dependente do IRRF, alíquota padrão do ISS, o INSS patronal da entidade (20%), o Limite de RPAs por prestador por mês (1, bloqueado para quem não é Comprador) e a tabela progressiva do IRRF." legenda="A área RPA: a origem de cada recibo e as tabelas de retenção, com o INSS patronal e o limite de RPAs por mês." />
+<Print src="compras/rpa-lista.png" alt="Aquisição → RPA: a lista com busca e filtros de recibo e de origem e dois recibos de João Batista Ramos — o nº 2, da compra 2026.1006.0738.1180, Assinado, com o link Ver; e o nº 1, do contrato de manutenção elétrica, A assinar, com a lixeira; abaixo, as Tabelas de retenção abertas: alíquota e teto do INSS, dedução por dependente do IRRF, alíquota padrão do ISS, o INSS patronal da entidade (20%), o campo Avisar a partir de quantos RPAs por prestador por mês (1, bloqueado para quem não é Comprador) e a tabela progressiva do IRRF." legenda="A área RPA: a origem de cada recibo e as tabelas de retenção, com o INSS patronal e o aviso de RPAs por mês." />
 
 
 <Aviso tipo="atencao" titulo="Só o RPA não assinado pode ser excluído">
@@ -283,53 +283,71 @@ da validação aparece no RPA.
   a contabilidade e atualize os valores — os recibos já emitidos não mudam.
 </Aviso>
 
-### Limite de RPAs por prestador por mês
+### IRRF apurado pelo mês do pagamento
 
-<RequerPermissao>Comprador (para ajustar o limite)</RequerPermissao>
+O IRRF do autônomo é apurado pelo **total que ele recebe no mês**, pela
+tabela progressiva. Dois RPAs pequenos pagos no mesmo mês ficariam, cada um,
+abaixo da isenção, e o imposto devido sobre a soma não seria retido. Por
+isso, o RPA novo **soma os outros RPAs do prestador** pagos ou previstos para
+o mesmo mês do pagamento:
 
-O IRRF do autônomo é apurado pelo **total pago no mês**, pela tabela
-progressiva. Vários RPAs pequenos ao mesmo prestador no mesmo mês ficariam,
-cada um, abaixo da isenção, e o imposto devido sobre a soma não seria retido.
-Por isso, o sistema aceita **um RPA por prestador por mês**.
+- **IRRF**: calculado pela tabela sobre o total do mês (bruto do mês, menos o
+  INSS do mês e a dedução por dependente, uma vez só). O recibo novo retém a
+  **diferença** do que os anteriores já retiveram. Se os anteriores retiveram
+  mais, o novo não retém nada (não há devolução).
+- **INSS**: o **teto** vale para o mês. O que os anteriores já retiveram
+  consome o teto, e o novo retém só o que falta até ele.
+- **ISS**: continua por recibo, sobre o bruto de cada um.
 
-O limite é conferido em dois meses:
+O mês é o do **Pagar em** do RPA (ou o da ordem que a compra já tem). Contam
+os RPAs do prestador com a ordem **paga** naquele mês ou **prevista** para
+ele. Ordem cancelada ou estornada não conta. O RPA **avulso** ainda não tem
+pagamento, por isso é calculado sozinho.
 
-- **Mês de emissão** do RPA, no horário de Brasília. Vale para qualquer
-  origem: contrato, compra de serviço, avulso ou a nova compra com RPA. RPA
-  excluído sai da conta.
-- **Mês do pagamento**. Na emissão, conta o **Pagar em** do RPA (ou o da
-  ordem que a compra já tem) contra os RPAs do prestador já pagos naquele mês
-  ou previstos para ele. Ordem cancelada ou estornada não conta. O RPA avulso
-  ainda não tem pagamento: ele é conferido quando for usado na nova compra,
-  pelo **Pagar em** da compra.
-- No **registro do pagamento** da ordem de um RPA (em Financeiro → Ordens ou
-  pelo caixa), o mês da data paga é conferido de novo, contando só os RPAs
-  já pagos. Assim, um RPA cuja data de pagamento mudou não escapa do limite.
+A prévia do recibo, no **Novo RPA** e na nova compra com RPA, já faz a conta
+com os outros RPAs do mês e mostra a memória do cálculo. O recibo emitido
+guarda a mesma memória: ela aparece na página do RPA e no PDF, no quadro
+**Apuração do mês**, com os RPAs somados, o bruto, a base e o IRRF do mês, o
+já retido e o retido neste recibo.
 
-Acima do limite, a ação é **recusada**. A mensagem diz quais RPAs o prestador
-já tem no mês. Junte os serviços no mesmo recibo ou marque o pagamento para
-outro mês.
-
-Você não precisa enviar para descobrir: no **Novo RPA** e na nova compra com
-RPA, assim que o prestador e o **Pagar em** estão escolhidos, a tela mostra o
-aviso em amarelo acima do botão de emitir. Mudar o *Pagar em* atualiza o
-aviso na hora.
-
-<Print src="compras/rpa-novo-avisos.png" alt="Novo RPA do contrato de manutenção elétrica para João Batista Ramos: o campo NIT/PIS do prestador em destaque, porque o cadastro está sem ele; o valor bruto de R$ 1.000,00 e a prévia do recibo — INSS R$ 110,00, IRRF R$ 0,00, ISS R$ 50,00, líquido R$ 840,00, mais o INSS patronal de 20% (R$ 200,00), custo total R$ 1.200,00; Pagar em 31/10/2026; a opção marcada Enviar o link de assinatura ao prestador por e-mail; e, acima do botão Emitir RPA e gerar a ordem, os dois avisos do limite: um RPA já emitido em 10/2026 (nº 2) e dois RPAs com pagamento em 10/2026 (nº 1 e nº 2 previstos)." legenda="O Novo RPA avisa antes de enviar: NIT/PIS que falta, custo total para a entidade e o limite de RPAs no mês." />
-
-<Aviso tipo="nota" titulo="Na remessa bancária, a conferência é na inclusão">
-  O retorno do banco não tem como ser recusado: o dinheiro já saiu. Por isso,
-  na **Nova remessa** a ordem de um RPA acima do limite do mês aparece com a
-  pendência em vermelho e não pode ser marcada.
+<Aviso tipo="atencao" titulo="Pagamento em outro mês">
+  O IRRF fica apurado para o mês do **Pagar em** previsto na emissão. Se a
+  ordem for paga em outro mês, a remessa bancária e o registro do pagamento
+  avisam, e o aviso fica anotado no histórico da ordem: confira o imposto com
+  a contabilidade.
 </Aviso>
 
-Mais regras do limite:
+### Aviso de vários RPAs no mês
 
-- Na nova compra com **Usar um RPA já emitido**, nada é emitido, então o mês
-  de emissão não conta de novo. O mês do pagamento continua sendo conferido.
-- O limite fica em **Tabelas de retenção**, no campo **Limite de RPAs por
-  prestador por mês**. Só quem tem a permissão **Comprador** ajusta. Para os
-  demais, o campo aparece bloqueado. Em branco, não há limite.
+<RequerPermissao>Comprador (para ajustar o número)</RequerPermissao>
+
+Mesmo com o IRRF apurado pelo mês, o sistema **avisa** quando o prestador já
+tem RPAs no mesmo mês. Por padrão, o aviso aparece a partir do segundo RPA. O
+aviso **não impede** nada: é um lembrete para juntar os serviços num só
+recibo, quando der.
+
+O aviso considera dois meses:
+
+- **Mês de emissão** do RPA, no horário de Brasília, em qualquer origem:
+  contrato, compra de serviço, avulso ou a nova compra com RPA.
+- **Mês do pagamento**: o **Pagar em** contra os RPAs do prestador pagos ou
+  previstos para aquele mês.
+
+No **Novo RPA** e na nova compra com RPA, assim que o prestador e o **Pagar
+em** estão escolhidos, o aviso aparece em amarelo acima do botão de emitir.
+Mudar o *Pagar em* atualiza o aviso e a prévia na hora.
+
+<Print src="compras/rpa-novo-avisos.png" alt="Novo RPA do contrato de manutenção elétrica para João Batista Ramos: o campo NIT/PIS do prestador em destaque, porque o cadastro está sem ele; o valor bruto de R$ 1.000,00 e a prévia do recibo — INSS R$ 110,00, IRRF R$ 106,78, ISS R$ 50,00, líquido R$ 733,22 — com a memória do mês: IRRF e teto do INSS apurados pelo total de 10/2026, com os RPAs nº 1 e nº 2 previstos, bruto do mês R$ 3.752,38, base do IRRF R$ 3.339,62, IRRF do mês R$ 106,78, já retido R$ 0,00; o INSS patronal de 20% e o custo total de R$ 1.200,00; Pagar em 31/10/2026; e, acima do botão de emitir, os avisos em amarelo de outros RPAs do prestador no mês de emissão e no do pagamento." legenda="O Novo RPA apura o IRRF com os outros RPAs do mês do pagamento e avisa, sem impedir, quando o prestador já tem RPAs no mês." />
+
+Mais regras do aviso:
+
+- Na **Nova remessa**, a ordem de um RPA com outros RPAs do prestador no mês
+  do pagamento mostra o aviso em amarelo, mas pode ser marcada.
+- No **registro do pagamento** (em Financeiro → Ordens ou pelo caixa), o aviso
+  não impede o registro e fica anotado no histórico da ordem.
+- O número fica em **Tabelas de retenção**, no campo **Avisar a partir de
+  quantos RPAs por prestador por mês**. Só quem tem a permissão **Comprador**
+  ajusta. Para os demais, o campo aparece bloqueado. Em branco, não há aviso.
 
 <VejaTambem
   links={[

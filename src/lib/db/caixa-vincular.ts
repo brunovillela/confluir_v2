@@ -168,13 +168,14 @@ export async function vincularOrdemAoCaixa(
   const agora = new Date().toISOString()
   const descricao = `Ordem ${o.codigo ?? ""} — ${produto ?? benef ?? txt(o.descricao) ?? "pagamento"}`.slice(0, 200)
 
+  let avisoRpa: string | null = null
   if (situacao !== "Paga") {
     const travaMes = await travaDoMesFechado([hojeSP()], "pagar pelo caixa")
     if (travaMes) return { erro: travaMes }
-    // Ordem de RPA: o limite de RPAs do prestador no mês do pagamento.
+    // Ordem de RPA: outros RPAs do prestador no mês, ou mês diferente do da
+    // apuração do IRRF. Só aviso, anotado na trilha da ordem.
     const { limiteMensalNoPagamentoDaOrdem } = await import("@/lib/db/compras-rpa")
-    const acimaDoLimite = await limiteMensalNoPagamentoDaOrdem(ordemId, hojeSP())
-    if (acimaDoLimite) return { erro: acimaDoLimite }
+    avisoRpa = await limiteMensalNoPagamentoDaOrdem(ordemId, hojeSP())
   }
 
   const { error: erroMov } = await admin.from("caixa_movimentacoes").insert({
@@ -221,7 +222,7 @@ export async function vincularOrdemAoCaixa(
     { caixa_conta_id: conta.id, valor }
   )
   if (pagarAgora) {
-    await registrarEvento(ordemId, "paga", usuarioId, `Paga em dinheiro pelo caixa “${conta.nome}”.`, {
+    await registrarEvento(ordemId, "paga", usuarioId, `Paga em dinheiro pelo caixa “${conta.nome}”.${avisoRpa ? ` ${avisoRpa}` : ""}`, {
       caixa_conta_id: conta.id,
       valor_pago: valor,
     })

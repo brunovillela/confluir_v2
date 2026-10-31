@@ -8,6 +8,11 @@
  * - IRRF: tabela progressiva mensal sobre (bruto − INSS − dependentes×dedução).
  * - ISS: alíquota municipal sobre o bruto (quando retido na fonte).
  *
+ * IRRF e teto do INSS são apurados pelo MÊS DO PAGAMENTO (onda 5 do plano do
+ * RPA): com outros RPAs do prestador pagos ou previstos no mesmo mês, o recibo
+ * novo calcula o imposto sobre o total do mês e retém a diferença do que os
+ * anteriores já retiveram. A dedução por dependente entra uma vez no mês.
+ *
  * A conta inversa (líquido → bruto) é resolvida por busca binária em centavos —
  * a função líquido(bruto) é monotônica crescente.
  *
@@ -82,6 +87,35 @@ export type ResultadoRpa = {
   irrf: number
   iss: number
   valorLiquido: number
+  /** Memória do cálculo do mês — só quando há outros RPAs no mês do pagamento. */
+  memoria?: MemoriaMes
+}
+
+/** Outro RPA do prestador pago (ou previsto) no mesmo mês do pagamento. */
+export type RpaAnteriorDoMes = {
+  numero: number | null
+  bruto: number
+  inss: number
+  irrf: number
+  /** Já pago (false = previsto para o mês). */
+  pago: boolean
+}
+
+/** O que o recibo mostra quando o IRRF foi apurado com os outros RPAs do mês. */
+export type MemoriaMes = {
+  /** "AAAA-MM" do pagamento. */
+  mes: string
+  anteriores: RpaAnteriorDoMes[]
+  /** Bruto do mês (anteriores + este). */
+  brutoMes: number
+  /** INSS do mês (anteriores + este). */
+  inssMes: number
+  /** Base do IRRF do mês: bruto − INSS − dependentes. */
+  baseIrrfMes: number
+  /** IRRF devido sobre a base do mês. */
+  irrfMes: number
+  /** IRRF já retido nos anteriores. */
+  irrfAnteriores: number
 }
 
 /**
@@ -94,36 +128,54 @@ export function opcoesPadraoRpa(cfg: ConfigRpa): OpcoesRpa {
 }
 
 /** O recibo com as alíquotas padrão, a partir do valor bruto ou do líquido. */
-export function calcularRpaPadrao(valor: number, base: "bruto" | "liquido", cfg: ConfigRpa): ResultadoRpa {
+export function calcularRpaPadrao(
+  valor: number,
+  base: "bruto" | "liquido",
+  cfg: ConfigRpa,
+  noMes?: { mes: string; anteriores: RpaAnteriorDoMes[] } | null
+): ResultadoRpa {
   const op = opcoesPadraoRpa(cfg)
-  return base === "liquido" ? calcularPorLiquido(valor, cfg, op) : calcularPorBruto(valor, cfg, op)
+  return base === "liquido" ? calcularPorLiquido(valor, cfg, op, noMes) : calcularPorBruto(valor, cfg, op, noMes)
 }
 
 const arred = (v: number) => Math.round(v * 100) / 100
 
-/** Retenções e líquido a partir do BRUTO. */
+/** IRRF da tabela progressiva mensal sobre a base. */
+function irrfDaTabela(base: number, cfg: ConfigRpa): number {
+  const faixa =
+    cfg.irrf_faixas.find((f) => f.ate === null || base <= f.ate) ??
+    cfg.irrf_faixas[cfg.irrf_faixas.length - 1]
+  if (!faixa || faixa.aliquota <= 0) return 0
+  return arred(Math.max(0, base * (faixa.aliquota / 100) - faixa.deduzir))
+}
+
+/**
+ * Retenções e líquido a partir do BRUTO. Com `noMes` (os outros RPAs do
+ * prestador no mês do pagamento), o INSS respeita o teto do mês e o IRRF é o
+ * da tabela sobre o total do mês, menos o que os anteriores já retiveram.
+ */
 export function calcularPorBruto(
   bruto: number,
   cfg: ConfigRpa,
-  op: OpcoesRpa
+  op: OpcoesRpa,
+  noMes?: { mes: string; anteriores: RpaAnteriorDoMes[] } | null
 ): ResultadoRpa {
   const valorBruto = arred(bruto)
+  const anteriores = noMes?.anteriores ?? []
+  const soma = (k: "bruto" | "inss" | "irrf") => arred(anteriores.reduce((s, a) => s + (a[k] || 0), 0))
+  const brutoAnt = soma("bruto")
+  const inssAnt = soma("inss")
+  const irrfAnt = soma("irrf")
+  const aliqInss = cfg.inss_aliquota / 100
+  // Teto do mês: o que os anteriores já retiveram consome o teto.
   const inss = op.reterInss
-    ? arred(Math.min(valorBruto, cfg.inss_teto) * (cfg.inss_aliquota / 100))
+    ? arred(Math.max(0, Math.min(valorBruto * aliqInss, arred(cfg.inss_teto * aliqInss) - inssAnt)))
     : 0
-  let irrf = 0
-  if (op.reterIrrf) {
-    const base = Math.max(
-      0,
-      valorBruto - inss - op.dependentes * cfg.irrf_deducao_dependente
-    )
-    const faixa =
-      cfg.irrf_faixas.find((f) => f.ate === null || base <= f.ate) ??
-      cfg.irrf_faixas[cfg.irrf_faixas.length - 1]
-    if (faixa && faixa.aliquota > 0) {
-      irrf = arred(Math.max(0, base * (faixa.aliquota / 100) - faixa.deduzir))
-    }
-  }
+  const brutoMes = arred(brutoAnt + valorBruto)
+  const inssMes = arred(inssAnt + inss)
+  const baseIrrfMes = arred(Math.max(0, brutoMes - inssMes - op.dependentes * cfg.irrf_deducao_dependente))
+  const irrfMes = irrfDaTabela(baseIrrfMes, cfg)
+  const irrf = op.reterIrrf ? arred(Math.max(0, irrfMes - irrfAnt)) : 0
   const iss = op.reterIss ? arred(valorBruto * (op.issAliquota / 100)) : 0
   return {
     valorBruto,
@@ -131,6 +183,9 @@ export function calcularPorBruto(
     irrf,
     iss,
     valorLiquido: arred(valorBruto - inss - irrf - iss),
+    ...(noMes && anteriores.length
+      ? { memoria: { mes: noMes.mes, anteriores, brutoMes, inssMes, baseIrrfMes, irrfMes, irrfAnteriores: irrfAnt } }
+      : {}),
   }
 }
 
@@ -142,18 +197,19 @@ export function calcularPorBruto(
 export function calcularPorLiquido(
   liquidoDesejado: number,
   cfg: ConfigRpa,
-  op: OpcoesRpa
+  op: OpcoesRpa,
+  noMes?: { mes: string; anteriores: RpaAnteriorDoMes[] } | null
 ): ResultadoRpa {
   const alvo = Math.round(liquidoDesejado * 100)
   let lo = alvo // bruto ≥ líquido (retenções não são negativas)
   let hi = Math.max(alvo * 4, alvo + 100)
   while (lo < hi) {
     const meio = Math.floor((lo + hi) / 2)
-    const r = calcularPorBruto(meio / 100, cfg, op)
+    const r = calcularPorBruto(meio / 100, cfg, op, noMes)
     if (Math.round(r.valorLiquido * 100) >= alvo) hi = meio
     else lo = meio + 1
   }
-  return calcularPorBruto(lo / 100, cfg, op)
+  return calcularPorBruto(lo / 100, cfg, op, noMes)
 }
 
 /** Valida/normaliza uma config vinda do banco (JSON) — cai no padrão se ruim. */

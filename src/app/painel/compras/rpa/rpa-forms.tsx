@@ -29,6 +29,7 @@ import {
 
 import { ACEITA_NOTA, prepararArquivo } from "@/lib/arquivo-envio"
 import { DetalhePagamento, type CaixaOpcao } from "../nova/detalhe-pagamento"
+import { MemoriaIrrfMes } from "./memoria-mes"
 import {
   anexarRpaAssinado,
   cancelarLinkRpaAction,
@@ -127,7 +128,7 @@ export function RpaNovoForm({
 
   // Antes de enviar: o limite de RPAs do prestador (mês de emissão e do
   // pagamento) e o NIT/PIS que falta no cadastro. A emissão confere de novo.
-  const [situacao, setSituacao] = useState<{ avisos: string[]; semNit: boolean } | null>(null)
+  const [situacao, setSituacao] = useState<Awaited<ReturnType<typeof situacaoDoPrestadorRpa>> | null>(null)
   const pagarEmConferido = avulso ? null : pagarEm
   useEffect(() => {
     if (!fornecedorId) return
@@ -155,10 +156,12 @@ export function RpaNovoForm({
       issAliquota:
         Number(issTxt.replace(",", ".")) || config.iss_aliquota_padrao,
     }
+    // Com outros RPAs do prestador no mês do pagamento, o IRRF é o do mês.
+    const noMes = situacaoAtual?.noMes ?? null
     return base === "liquido"
-      ? calcularPorLiquido(valor, config, op)
-      : calcularPorBruto(valor, config, op)
-  }, [valorTxt, base, dependentes, reterInss, reterIrrf, reterIss, issTxt, config])
+      ? calcularPorLiquido(valor, config, op, noMes)
+      : calcularPorBruto(valor, config, op, noMes)
+  }, [valorTxt, base, dependentes, reterInss, reterIrrf, reterIss, issTxt, config, situacaoAtual])
 
   return (
     <form
@@ -380,6 +383,7 @@ export function RpaNovoForm({
             valor={moeda(previa.valorLiquido)}
             forte
           />
+          {previa.memoria && <MemoriaIrrfMes memoria={previa.memoria} irrf={previa.irrf} className="mt-1" />}
           {patronal !== null && (
             <div className="mt-1 grid gap-1 border-t pt-1">
               <Linha
@@ -646,24 +650,24 @@ export function ConfigRpaForm({
 
       <div className="bg-muted/40 grid gap-2 rounded-md border p-3">
         <div className="grid max-w-xs gap-1.5">
-          <Label htmlFor="limite_rpas_mes">Limite de RPAs por prestador por mês</Label>
+          <Label htmlFor="limite_rpas_mes">Avisar a partir de quantos RPAs por prestador por mês</Label>
           <Input
             id="limite_rpas_mes"
             name="limite_rpas_mes"
             type="number"
             min={1}
             step={1}
-            placeholder="Sem limite"
+            placeholder="Sem aviso"
             defaultValue={limiteMes === null ? "" : String(limiteMes)}
             disabled={!podeAjustarLimite}
           />
           {podeAjustarLimite && <input type="hidden" name="limite_rpas_mes_enviado" value="1" />}
         </div>
         <p className="text-muted-foreground text-xs">
-          O IRRF do autônomo é apurado pelo total do mês: vários RPAs pequenos ao mesmo prestador podem ficar, cada um,
-          abaixo da isenção. Acima do limite, a emissão é recusada (conta a data de emissão do RPA). Em branco, sem
-          limite.{" "}
-          {podeAjustarLimite ? "" : "Só o Comprador (gestor de compras) ajusta este limite."}
+          O IRRF do autônomo é apurado pelo total do mês do pagamento: um RPA novo soma os outros do prestador pagos ou
+          previstos no mesmo mês e retém a diferença. A partir deste número (pelo mês de emissão ou de pagamento), a
+          emissão e o pagamento mostram um aviso, sem impedir. Em branco, sem aviso.{" "}
+          {podeAjustarLimite ? "" : "Só o Comprador (gestor de compras) ajusta este número."}
         </p>
       </div>
 

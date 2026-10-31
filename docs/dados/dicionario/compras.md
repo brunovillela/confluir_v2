@@ -236,6 +236,8 @@ Recibo de Pagamento a Autônomo emitido a fornecedor pessoa física por contrato
 | `assinatura_enviada_em` | timestamp with time zone | sim |  |  |  |  |
 | `assinatura_origem` | text | sim |  |  |  | eletronica = assinado pelo link do e-mail; anexo = recibo assinado à mão ou pelo gov.br, anexado no painel (cancela o link). |
 | `assinatura_validacao` | jsonb | sim |  |  | identificação | Resultado da validação das assinaturas digitais do PDF anexado: assinantes, CPF esperado e se confere. |
+| `irrf_mes` | date | sim |  |  |  | Primeiro dia do mês do pagamento em que o IRRF e o teto do INSS deste RPA foram apurados. Nulo nos RPAs anteriores a 31/10/2026 e nos avulsos, emitidos sem data de pagamento. |
+| `irrf_memoria` | jsonb | sim |  |  | financeiro | Memória do cálculo do mês, quando havia outros RPAs do prestador no mesmo mês do pagamento: os anteriores (número, bruto, INSS, IRRF), o bruto, o INSS, a base e o IRRF do mês e o já retido. Nulo quando o RPA foi o único do mês. |
 
 Checks: `ck_compras_rpa_assinatura_origem` `CHECK (((assinatura_origem IS NULL) OR (assinatura_origem = ANY (ARRAY['eletronica'::text, 'anexo'::text])))) NOT VALID`
 
@@ -261,7 +263,7 @@ Parâmetros fiscais por tenant para o cálculo do RPA: alíquota e teto do INSS,
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `updated_at` | timestamp with time zone | sim |  |  |  |  |
 | `inss_patronal_aliquota` | numeric(5,2) | não | `20` |  |  | Cota patronal do INSS sobre o bruto do RPA (20%), devida pela entidade e somada na guia do INSS. |
-| `limite_rpas_mes` | integer | sim | `1` |  |  | Quantos RPAs o mesmo prestador pode receber no mesmo mês de emissão (fuso de São Paulo). Nulo = sem limite; padrão 1, para que vários recibos pequenos não escapem da tabela mensal do IRRF. |
+| `limite_rpas_mes` | integer | sim | `1` |  |  | A partir de quantos RPAs do mesmo prestador no mesmo mês (de emissão ou de pagamento) o sistema avisa. Só aviso desde 31/10/2026: o IRRF já é apurado pelo total do mês. Nulo = sem aviso; padrão 1. |
 
 Checks: `compras_rpa_config_limite_rpas_mes_check` `CHECK (((limite_rpas_mes IS NULL) OR (limite_rpas_mes >= 1)))`
 

@@ -46,16 +46,15 @@ paga; o que ele rejeitou volta para a fila com o motivo.
   remessa cobre Pix por **chave**, crédito em conta, TED e boleto.
 </Aviso>
 
-<Aviso tipo="atencao" titulo="Ordem de RPA acima do limite do mês">
-  A ordem de um **RPA** não entra na remessa quando o prestador já atingiu o
-  **limite de RPAs no mês** do pagamento (outro RPA pago ou previsto para o
-  mesmo mês). A pendência aparece em vermelho, com os RPAs que já contam. No
-  retorno do banco o dinheiro já saiu e não dá mais para barrar, por isso a
-  conferência é feita aqui. Ver
-  [Limite de RPAs por prestador por mês](/painel/ajuda/compras/contratos).
+<Aviso tipo="nota" titulo="Ordem de RPA com outros RPAs no mês">
+  A ordem de um **RPA** mostra um aviso em amarelo quando o prestador tem
+  outros RPAs pagos ou previstos para o mesmo mês do pagamento, ou quando o
+  IRRF do recibo foi apurado para outro mês. O aviso não impede a remessa:
+  a ordem pode ser marcada. Ver
+  [IRRF apurado pelo mês do pagamento](/painel/ajuda/compras/contratos).
 </Aviso>
 
-<Print src="financeiro/remessa-limite-rpa.png" alt="Nova remessa: a conta BB corrente (demo) e o botão Gerar remessa com 6 ordens; na lista de ordens a pagar, a do RPA nº 2 de João Batista Ramos (R$ 800,00) sem a caixa marcada e com a pendência em vermelho limite de RPAs do prestador em 10/2026 (já tem nº 1 previsto), entre ordens prontas e outras com pendências como falta a linha digitável do boleto." legenda="A ordem do RPA acima do limite do mês não pode ser marcada na remessa." />
+<Print src="financeiro/remessa-limite-rpa.png" alt="Nova remessa: a conta BB corrente (demo) e o botão Gerar remessa com 7 ordens; na lista de ordens a pagar, a do RPA nº 2 de João Batista Ramos (R$ 800,00) marcada, com o aviso em amarelo outros RPAs do prestador em 10/2026 (nº 1 previsto), entre ordens prontas e outras com pendências em vermelho, como falta a linha digitável do boleto." legenda="A ordem do RPA com outros RPAs do prestador no mês mostra o aviso, mas entra na remessa." />
 
 <Aviso tipo="nota" titulo="Cancelar uma remessa">
   Enquanto não há retorno, a remessa pode ser cancelada: as ordens voltam a
