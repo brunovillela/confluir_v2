@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
+import { avisar, depoisDaResposta, usuariosComPermissao } from "@/lib/db/avisos"
 import {
   atualizarDeliberacao,
   criarDeliberacao,
@@ -26,12 +27,39 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
  * Item existente fora do sigilo do usuário = como se não existisse (não
- * revela que há algo ali). Devolve o erro, ou nada se pode mexer.
+ * revela que há algo ali). Devolve o erro, ou o item atual se pode mexer.
  */
-async function conferirAlcance(id: string, sigilos: SigiloDeliberacao[]): Promise<string | null> {
+async function conferirAlcance(
+  id: string,
+  sigilos: SigiloDeliberacao[]
+): Promise<{ erro: string } | { atual: NonNullable<Awaited<ReturnType<typeof obterDeliberacao>>> }> {
   const atual = await obterDeliberacao(id)
-  if (!atual || !sigilos.includes(atual.sigilo)) return "Deliberação não encontrada."
-  return null
+  if (!atual || !sigilos.includes(atual.sigilo)) return { erro: "Deliberação não encontrada." }
+  return { atual }
+}
+
+/**
+ * Avisa o novo responsável usuário (sino; e-mail, Telegram e celular conforme
+ * a preferência dele). Sem o assunto — o sigilo não sai do painel —, só o
+ * prazo. Melhor esforço, depois da resposta: não segura quem salvou.
+ */
+function avisarResponsavel(responsavelId: string, prazo: string | null, quemSalvou: string): void {
+  if (responsavelId === quemSalvou) return
+  depoisDaResposta(async () => {
+    const pessoas = await usuariosComPermissao("deliberacoes_livre", ["deliberacoes_reservado", "deliberacoes_restrito"])
+    const quem = pessoas.filter((p) => p.id === responsavelId)
+    if (quem.length === 0) return
+    const [a, m, d] = (prazo ?? "").split("-")
+    await avisar(quem, {
+      texto: prazo
+        ? `Uma deliberação de ata foi atribuída a você, com prazo até ${d}/${m}/${a}.`
+        : "Uma deliberação de ata foi atribuída a você.",
+      link: "/painel/institucional/deliberacoes?responsavel=eu",
+      evento: "deliberacao_responsavel",
+      assunto: "Deliberação atribuída a você",
+      exceto: quemSalvou,
+    })
+  })
 }
 
 function campo(fd: FormData, nome: string): string {
@@ -75,9 +103,11 @@ export async function salvarDeliberacaoAction(_prev: EstadoForm, fd: FormData): 
   if (!sigilos.includes(dados.sigilo)) {
     return { erro: "Esse grau de sigilo está acima do seu acesso às deliberações.", campo: "sigilo" }
   }
+  let responsavelAnterior: string | null = null
   if (id) {
-    const fora = await conferirAlcance(id, sigilos)
-    if (fora) return { erro: fora }
+    const alcance = await conferirAlcance(id, sigilos)
+    if ("erro" in alcance) return { erro: alcance.erro }
+    responsavelAnterior = alcance.atual.responsavelId
   }
   // O responsável usuário precisa enxergar a deliberação — senão receberia
   // um aviso que não consegue abrir.
@@ -94,6 +124,10 @@ export async function salvarDeliberacaoAction(_prev: EstadoForm, fd: FormData): 
     ? await atualizarDeliberacao(id, dados, sessao.usuario.id)
     : await criarDeliberacao(ataId, dados, sessao.usuario.id)
   if (erro) return { erro }
+  // Só quando o responsável muda (ou nasce com um): editar outro campo não reavisa.
+  if (dados.responsavel_id && dados.responsavel_id !== responsavelAnterior) {
+    avisarResponsavel(dados.responsavel_id, dados.prazo, sessao.usuario.id)
+  }
   revalidar(ataId)
   redirect(`/painel/institucional/atas/${ataId}?deliberacao_salva=1#deliberacoes`)
 }
@@ -103,8 +137,8 @@ export async function excluirDeliberacaoAction(_prev: EstadoForm, fd: FormData):
   const ataId = campo(fd, "ata_id")
   const id = campo(fd, "deliberacao_id")
   if (!ataId || !id) return { erro: "Deliberação inválida." }
-  const fora = await conferirAlcance(id, sigilosVisiveis(nivelSigilo(sessao.permissoes)))
-  if (fora) return { erro: fora }
+  const alcance = await conferirAlcance(id, sigilosVisiveis(nivelSigilo(sessao.permissoes)))
+  if ("erro" in alcance) return { erro: alcance.erro }
   const { erro } = await excluirDeliberacao(id)
   if (erro) return { erro }
   revalidar(ataId)
