@@ -125,6 +125,8 @@ export type FiltrosDeliberacoes = {
    * (hoje, AAAA-MM-DD) — o mesmo critério da caixa de entrada.
    */
   vencidasAntesDe?: string
+  /** Só as abertas que vencem neste intervalo (AAAA-MM-DD, inclusive) — o lembrete antes do prazo. */
+  vencemEntre?: { de: string; ate: string }
   /** Só as de um responsável usuário ("as minhas"). */
   responsavelId?: string
 }
@@ -156,6 +158,12 @@ export async function listarDeliberacoes(
     if (filtros.sigilo) q = q.eq("sigilo", filtros.sigilo)
     if (filtros.tipo) q = q.eq("ata.tipo", filtros.tipo)
     if (filtros.responsavelId) q = q.eq("responsavel_id", filtros.responsavelId)
+    if (filtros.vencemEntre) {
+      q = q
+        .in("situacao", ["a_cumprir", "em_execucao"])
+        .gte("prazo", filtros.vencemEntre.de)
+        .lte("prazo", filtros.vencemEntre.ate)
+    }
     if (filtros.vencidasAntesDe) {
       q = q.in("situacao", ["a_cumprir", "em_execucao"]).lt("prazo", filtros.vencidasAntesDe)
     }

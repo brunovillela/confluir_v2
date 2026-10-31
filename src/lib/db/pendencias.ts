@@ -11,7 +11,7 @@ import { rodadasComAptosSemLink, semLinkUrgente } from "@/lib/db/votacao-sem-lin
 import { rodadasComLinkNaoUsado } from "@/lib/db/votacao-link-nao-usado"
 import { rodadasComEntregaRuim } from "@/lib/db/votacao-teste-entrega"
 import { ATENDIMENTO_AGUARDANDO_EQUIPE, EQUIPE_ATENDIMENTO_SAUDE, LEITURA_ATENDIMENTO_GERAL } from "@/lib/atendimento-constantes"
-import { nivelSigilo, sigilosVisiveis } from "@/lib/deliberacoes-constantes"
+import { DIAS_AVISO_PRAZO, nivelSigilo, sigilosVisiveis, somarDias } from "@/lib/deliberacoes-constantes"
 import { podeAcessar, type Permissoes } from "@/lib/permissoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -350,6 +350,24 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
           .in("situacao", ["a_cumprir", "em_execucao"])
           .in("sigilo", sigilosDeliberacoes)
           .lt("prazo", hojeDeliberacoes),
+    })
+  }
+  // Lembrete ANTES do prazo, só para o responsável: vence de hoje até DIAS_AVISO_PRAZO.
+  if (amb.usuarioId && sigilosDeliberacoes.length > 0) {
+    const usuarioId = amb.usuarioId
+    fontes.push({
+      chave: "deliberacoes_minhas_proximas",
+      titulo: `Deliberações sob sua responsabilidade que vencem em até ${DIAS_AVISO_PRAZO} dias`,
+      descricao: "Decisões das atas que cabe a você cumprir, com o prazo chegando",
+      href: "/painel/institucional/deliberacoes?prazo=proximo&responsavel=eu",
+      tabela: "reuniao_deliberacao",
+      montar: (q) =>
+        head(q)
+          .eq("responsavel_id", usuarioId)
+          .in("situacao", ["a_cumprir", "em_execucao"])
+          .in("sigilo", sigilosDeliberacoes)
+          .gte("prazo", hojeDeliberacoes)
+          .lte("prazo", somarDias(hojeDeliberacoes, DIAS_AVISO_PRAZO)),
     })
   }
   if (pode("diretoria_reunioes") && sigilosDeliberacoes.length > 0) {

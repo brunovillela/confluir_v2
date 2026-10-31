@@ -16,10 +16,12 @@ import {
   ehSigiloDeliberacao,
   ehSituacaoDeliberacao,
   nivelSigilo,
+  DIAS_AVISO_PRAZO,
   ROTULO_NIVEL_SIGILO,
   SIGILOS_DELIBERACAO,
   SITUACOES_DELIBERACAO,
   sigilosVisiveis,
+  somarDias,
 } from "@/lib/deliberacoes-constantes"
 import { formatarData } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
@@ -71,6 +73,7 @@ export default async function DeliberacoesPage({
     sigilo: ehSigiloDeliberacao(sp.sigilo) && sigilos.includes(sp.sigilo) ? sp.sigilo : undefined,
     tipo: TIPOS_REUNIAO.some((t) => t.chave === sp.tipo) ? (sp.tipo as TipoReuniao) : undefined,
     vencidasAntesDe: sp.prazo === "vencido" ? hoje : undefined,
+    vencemEntre: sp.prazo === "proximo" ? { de: hoje, ate: somarDias(hoje, DIAS_AVISO_PRAZO) } : undefined,
     responsavelId: sp.responsavel === "eu" ? sessao.usuario.id : undefined,
   }
   const filtrado = Object.values(filtros).some(Boolean)
@@ -82,6 +85,12 @@ export default async function DeliberacoesPage({
   const vencida = (d: (typeof todas)[number]) =>
     Boolean(d.prazo && d.prazo < hoje && (d.situacao === "a_cumprir" || d.situacao === "em_execucao"))
   const totalVencidas = todas.filter(vencida).length
+  const limiteProximo = somarDias(hoje, DIAS_AVISO_PRAZO)
+  const totalProximas = todas.filter(
+    (d) =>
+      d.prazo && d.prazo >= hoje && d.prazo <= limiteProximo && (d.situacao === "a_cumprir" || d.situacao === "em_execucao")
+  ).length
+  const filtroPrazo = filtros.vencidasAntesDe ? "vencido" : filtros.vencemEntre ? "proximo" : undefined
 
   const contagem = SITUACOES_DELIBERACAO.map((s) => ({
     ...s,
@@ -97,7 +106,7 @@ export default async function DeliberacoesPage({
       situacao: filtros.situacao,
       sigilo: filtros.sigilo,
       tipo: filtros.tipo,
-      prazo: filtros.vencidasAntesDe ? "vencido" : undefined,
+      prazo: filtroPrazo,
       responsavel: filtros.responsavelId ? "eu" : undefined,
       pagina: pagina > 1 ? String(pagina) : undefined,
       ...mudancas,
@@ -133,7 +142,7 @@ export default async function DeliberacoesPage({
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {contagem.map((c) => (
           <Link
             key={c.chave}
@@ -145,8 +154,17 @@ export default async function DeliberacoesPage({
           </Link>
         ))}
         <Link
-          href={url({ prazo: filtros.vencidasAntesDe ? undefined : "vencido", pagina: undefined })}
-          className={`rounded-lg border p-3 transition-colors hover:bg-muted/50 ${filtros.vencidasAntesDe ? "border-primary" : ""}`}
+          href={url({ prazo: filtroPrazo === "proximo" ? undefined : "proximo", pagina: undefined })}
+          className={`rounded-lg border p-3 transition-colors hover:bg-muted/50 ${filtroPrazo === "proximo" ? "border-primary" : ""}`}
+        >
+          <p className="text-muted-foreground text-xs">Vence em até {DIAS_AVISO_PRAZO} dias</p>
+          <p className={`text-xl font-semibold tabular-nums ${totalProximas > 0 ? "text-warning-fg" : ""}`}>
+            {totalProximas.toLocaleString("pt-BR")}
+          </p>
+        </Link>
+        <Link
+          href={url({ prazo: filtroPrazo === "vencido" ? undefined : "vencido", pagina: undefined })}
+          className={`rounded-lg border p-3 transition-colors hover:bg-muted/50 ${filtroPrazo === "vencido" ? "border-primary" : ""}`}
         >
           <p className="text-muted-foreground text-xs">Prazo vencido</p>
           <p className={`text-xl font-semibold tabular-nums ${totalVencidas > 0 ? "text-destructive" : ""}`}>
@@ -165,7 +183,7 @@ export default async function DeliberacoesPage({
         </CardHeader>
         <CardContent className="grid gap-4">
           <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6" method="get">
-            {filtros.vencidasAntesDe && <input type="hidden" name="prazo" value="vencido" />}
+            {filtroPrazo && <input type="hidden" name="prazo" value={filtroPrazo} />}
             {filtros.responsavelId && <input type="hidden" name="responsavel" value="eu" />}
             <div className="grid gap-1.5 lg:col-span-2">
               <Label htmlFor="assunto">Assunto</Label>

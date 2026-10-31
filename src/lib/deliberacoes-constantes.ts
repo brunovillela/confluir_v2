@@ -73,3 +73,16 @@ export function sigilosVisiveis(nivel: NivelSigilo): SigiloDeliberacao[] {
   const ate = SIGILOS_DELIBERACAO.findIndex((s) => s.chave === nivel)
   return SIGILOS_DELIBERACAO.slice(0, ate + 1).map((s) => s.chave)
 }
+
+/**
+ * Antecedência do lembrete de prazo: a deliberação aberta que vence de hoje
+ * até daqui a tantos dias entra na caixa de entrada do responsável.
+ */
+export const DIAS_AVISO_PRAZO = 3
+
+/** "AAAA-MM-DD" + n dias (datas de calendário, sem fuso). */
+export function somarDias(data: string, dias: number): string {
+  const d = new Date(`${data}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + dias)
+  return d.toISOString().slice(0, 10)
+}
