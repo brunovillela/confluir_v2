@@ -433,7 +433,7 @@ Ata de reunião da diretoria, conselho fiscal ou assembleia, ligada ao mandato, 
 | `emp_proprietaria_id` | uuid | sim |  | → empresa |  |  |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `updated_at` | timestamp with time zone | não | `now()` |  |  |  |
-| `sigilo_documento` | text | não | `'restrito'::text` |  | nenhum | Sigilo do PDF da ata: só abre para quem tem nível de sigilo das deliberações igual ou acima (livre, reservado, restrito). Padrão restrito. |
+| `sigilo_documento` | text | não | `'restrito'::text` |  | nenhum | Sigilo do PDF e do resumo da ata: só aparecem para quem tem nível de sigilo das deliberações igual ou acima (livre, reservado, restrito). Padrão restrito. |
 
 Checks: `reuniao_ata_sigilo_documento_check` `CHECK ((sigilo_documento = ANY (ARRAY['livre'::text, 'reservado'::text, 'restrito'::text])))`; `reuniao_ata_tipo_check` `CHECK ((tipo = ANY (ARRAY['diretoria'::text, 'conselho_fiscal'::text, 'assembleia'::text, 'outra'::text])))`
 

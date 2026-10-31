@@ -137,7 +137,17 @@ export default async function AtaPage({
                 <Campo rotulo="Tipo" valor={ROTULO_TIPO_REUNIAO[a.tipo]} />
               </div>
               <Campo rotulo="Pauta" valor={a.pauta} />
-              <Campo rotulo="Resumo da reunião" valor={a.resumo} />
+              {a.resumoOculto ? (
+                <div>
+                  <dt className="text-muted-foreground text-xs">Resumo da reunião</dt>
+                  <dd className="text-muted-foreground mt-0.5 text-sm">
+                    O resumo é {ROTULO_SIGILO_DELIBERACAO[a.sigiloDocumento].toLowerCase()} e está acima do seu
+                    acesso às deliberações ({ROTULO_NIVEL_SIGILO[nivel]}).
+                  </dd>
+                </div>
+              ) : (
+                <Campo rotulo="Resumo da reunião" valor={a.resumo} />
+              )}
               <Campo rotulo="Presentes" valor={a.presentes} />
               {a.observacoes && (
                 <Campo rotulo="Observações" valor={a.observacoes} />
@@ -145,7 +155,7 @@ export default async function AtaPage({
               <div>
                 <dt className="text-muted-foreground flex items-center gap-1.5 text-xs">
                   Ata em PDF
-                  {a.temDocumento && <SeloSigilo sigilo={a.sigiloDocumento} />}
+                  {(a.temDocumento || a.resumo || a.resumoOculto) && <SeloSigilo sigilo={a.sigiloDocumento} />}
                 </dt>
                 <dd className="mt-0.5 text-sm">
                   {a.temDocumento && !a.documentoUrl ? (

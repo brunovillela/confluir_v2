@@ -956,7 +956,7 @@ modulo,tabela,coluna,categoria,titulares,descricao
 "representacao","reuniao_ata","presentes","sensivel_sindical","diretores e participantes","Nomes dos presentes em reunião de órgão sindical."
 "representacao","reuniao_ata","observacoes","identificacao","diretores e participantes",""
 "representacao","reuniao_ata","documento_url","identificacao","diretores e participantes",""
-"representacao","reuniao_ata","sigilo_documento","nenhum","diretores e participantes","Sigilo do PDF da ata: só abre para quem tem nível de sigilo das deliberações igual ou acima (livre, reservado, restrito). Padrão restrito."
+"representacao","reuniao_ata","sigilo_documento","nenhum","diretores e participantes","Sigilo do PDF e do resumo da ata: só aparecem para quem tem nível de sigilo das deliberações igual ou acima (livre, reservado, restrito). Padrão restrito."
 "representacao","reuniao_deliberacao","","identificacao;sensivel_sindical","diretores e participantes","Deliberação (decisão) de uma reunião registrada em ata: assunto, teor, votação, responsável, prazo, situação do cumprimento e grau de sigilo. Consulta em Institucional › Deliberações."
 "representacao","reuniao_deliberacao","ata_id","nenhum","diretores e participantes","Ata da reunião em que a decisão foi tomada; a data da deliberação é a da ata."
 "representacao","reuniao_deliberacao","ordem","nenhum","diretores e participantes","Posição da deliberação na ata (1, 2, 3…)."

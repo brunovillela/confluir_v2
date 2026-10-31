@@ -90,8 +90,12 @@ export type AtaDetalhe = {
   hora: string | null
   local: string | null
   pauta: string | null
-  /** Breve resumo da reunião; as decisões são itens (db/deliberacoes). */
+  /**
+   * Breve resumo da reunião; as decisões são itens (db/deliberacoes). Segue
+   * o sigilo do PDF: null quando acima do nível do usuário (`resumoOculto`).
+   */
   resumo: string | null
+  resumoOculto: boolean
   presentes: string | null
   observacoes: string | null
   /** Link assinado do PDF — só quando o nível de sigilo do usuário alcança `sigiloDocumento`. */
@@ -123,7 +127,10 @@ export async function obterAta(id: string, sigilos: SigiloDeliberacao[]): Promis
   }
   const sigiloDocumento: SigiloDeliberacao = ehSigiloDeliberacao(a.sigilo_documento) ? a.sigilo_documento : "restrito"
   const caminho = texto(a.documento_url)
-  const documentoUrl = caminho && sigilos.includes(sigiloDocumento) ? await urlDocumentoDiretoria(caminho) : null
+  // PDF e resumo: só dentro do nível de sigilo do usuário.
+  const alcanca = sigilos.includes(sigiloDocumento)
+  const documentoUrl = caminho && alcanca ? await urlDocumentoDiretoria(caminho) : null
+  const resumo = texto(a.resumo)
 
   return {
     id: String(a.id),
@@ -136,7 +143,8 @@ export async function obterAta(id: string, sigilos: SigiloDeliberacao[]): Promis
     hora: texto(a.hora),
     local: texto(a.local),
     pauta: texto(a.pauta),
-    resumo: texto(a.resumo),
+    resumo: alcanca ? resumo : null,
+    resumoOculto: Boolean(resumo) && !alcanca,
     presentes: texto(a.presentes),
     observacoes: texto(a.observacoes),
     documentoUrl,
@@ -169,8 +177,8 @@ export type DadosAta = {
   hora: string | null
   local: string | null
   pauta: string | null
-  /** Breve resumo da reunião; as decisões são itens (db/deliberacoes). */
-  resumo: string | null
+  /** Breve resumo da reunião; undefined = não mexer (resumo acima do nível de quem edita). */
+  resumo?: string | null
   presentes: string | null
   observacoes: string | null
   /** Caminho já gravável (upload na action); undefined = não mexer. */
@@ -189,11 +197,11 @@ function payload(d: DadosAta): Record<string, unknown> {
     hora: d.hora,
     local: d.local,
     pauta: d.pauta,
-    resumo: d.resumo,
     presentes: d.presentes,
     observacoes: d.observacoes,
     updated_at: new Date().toISOString(),
   }
+  if (d.resumo !== undefined) p.resumo = d.resumo
   if (d.documento_url !== undefined) p.documento_url = d.documento_url
   if (d.sigilo_documento !== undefined) p.sigilo_documento = d.sigilo_documento
   return p

@@ -46,7 +46,7 @@ export function AtaForm({
   /** Graus de sigilo que o nível de quem edita alcança. */
   sigilos: SigiloDeliberacao[]
 }) {
-  // Sigilo do PDF: só os graus do nível de quem edita. PDF já acima do
+  // Sigilo do PDF e do resumo: só os graus do nível de quem edita. Já acima do
   // nível não muda; sem nível, fica restrito (a action confere de novo).
   const sigiloAtual = ata?.sigiloDocumento ?? "restrito"
   const sigiloForaDoAlcance = Boolean(ata && !sigilos.includes(ata.sigiloDocumento))
@@ -130,7 +130,7 @@ export function AtaForm({
           </p>
         )}
         <div className="grid max-w-72 gap-1.5">
-          <Label htmlFor="sigilo_documento">Sigilo do PDF</Label>
+          <Label htmlFor="sigilo_documento">Sigilo do PDF e do resumo</Label>
           {sigiloForaDoAlcance ? (
             <p className="text-muted-foreground text-sm">
               {ROTULO_SIGILO_DELIBERACAO[sigiloAtual]} — acima do seu acesso; não muda.
@@ -147,7 +147,8 @@ export function AtaForm({
             </select>
           )}
           <p className="text-muted-foreground text-xs">
-            O PDF traz todas as decisões: só abre para quem tem acesso às deliberações até este grau.
+            O PDF traz todas as decisões: ele e o resumo só aparecem para quem tem acesso às deliberações até
+            este grau.
           </p>
         </div>
         {leitura?.ok && <p className="text-success-fg text-sm">{leitura.ok}</p>}
@@ -247,16 +248,25 @@ export function AtaForm({
 
       <div className="grid gap-1.5">
         <Label htmlFor="resumo">Resumo da reunião</Label>
-        <Textarea
-          id="resumo"
-          name="resumo"
-          rows={3}
-          defaultValue={ata?.resumo ?? ""}
-          placeholder="Em poucas frases, o que se discutiu."
-        />
-        <p className="text-muted-foreground text-xs">
-          As decisões não vão aqui: cada uma é registrada no cartão Deliberações da ata, com situação e sigilo.
-        </p>
+        {sigiloForaDoAlcance ? (
+          <p className="text-muted-foreground text-sm">
+            O resumo é {ROTULO_SIGILO_DELIBERACAO[sigiloAtual].toLowerCase()}, acima do seu acesso — fica como está.
+          </p>
+        ) : (
+          <>
+            <Textarea
+              id="resumo"
+              name="resumo"
+              rows={3}
+              defaultValue={ata?.resumo ?? ""}
+              placeholder="Em poucas frases, o que se discutiu."
+            />
+            <p className="text-muted-foreground text-xs">
+              As decisões não vão aqui: cada uma é registrada no cartão Deliberações da ata, com situação e
+              sigilo. O resumo segue o sigilo do PDF.
+            </p>
+          </>
+        )}
       </div>
 
       <div className="grid gap-1.5">

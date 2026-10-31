@@ -58,6 +58,7 @@ function lerSigiloDocumento(
   atual?: SigiloDeliberacao
 ): { sigilo?: SigiloDeliberacao; erro?: string } {
   const sigilos = sigilosVisiveis(nivelSigilo(permissoes))
+  // Acima do nível: nem o sigilo nem o resumo mudam (ver atualizarAtaAction).
   if (atual && !sigilos.includes(atual)) return { sigilo: undefined }
   if (sigilos.length === 0) return { sigilo: "restrito" }
   const pedido = texto(fd, "sigilo_documento")
@@ -151,7 +152,14 @@ export async function atualizarAtaAction(
   const { caminho, erro: erroArq } = await lerDocumento(fd)
   if (erroArq) return { erro: erroArq }
   const dados = lerDados(fd)
-  const { erro } = await atualizarAta(id, { ...dados, documento_url: caminho, sigilo_documento: sigilo.sigilo })
+  // sigilo.sigilo undefined = PDF e resumo acima do nível de quem edita: o
+  // resumo não veio no formulário e não pode ser apagado.
+  const { erro } = await atualizarAta(id, {
+    ...dados,
+    resumo: sigilo.sigilo === undefined ? undefined : dados.resumo,
+    documento_url: caminho,
+    sigilo_documento: sigilo.sigilo,
+  })
   if (erro) return { erro }
   // Só entram se a ata ainda não tem deliberações (ver registrarDeliberacoesLidas).
   await registrarDeliberacoesLidas(id, lerDeliberacoesLidas(fd), sessao.usuario.id)
