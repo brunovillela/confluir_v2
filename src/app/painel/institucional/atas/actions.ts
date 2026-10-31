@@ -12,6 +12,7 @@ import {
   subirDocumentoAta,
   type DadosAta,
 } from "@/lib/db/atas"
+import { registrarDeliberacoesLidas } from "@/lib/db/deliberacoes"
 import { TIPOS_REUNIAO, type TipoReuniao } from "@/lib/atas-constantes"
 
 function texto(fd: FormData, campo: string): string {
@@ -51,9 +52,37 @@ function lerDados(fd: FormData): Omit<DadosAta, "documento_url"> {
     hora: ouNull(texto(fd, "hora")),
     local: ouNull(texto(fd, "local")),
     pauta: ouNull(texto(fd, "pauta")),
-    deliberacoes: ouNull(texto(fd, "deliberacoes")),
+    resumo: ouNull(texto(fd, "resumo")),
     presentes: ouNull(texto(fd, "presentes")),
     observacoes: ouNull(texto(fd, "observacoes")),
+  }
+}
+
+/**
+ * Deliberações que a IA leu do PDF, vindas do formulário como JSON
+ * (`deliberacoes_ia`). Formato inválido = nenhuma.
+ */
+function lerDeliberacoesLidas(fd: FormData) {
+  try {
+    const lista = JSON.parse(String(fd.get("deliberacoes_ia") ?? "[]")) as unknown
+    if (!Array.isArray(lista)) return []
+    return lista.slice(0, 50).flatMap((d) => {
+      if (!d || typeof d !== "object") return []
+      const o = d as Record<string, unknown>
+      const s = (k: string) => (typeof o[k] === "string" ? (o[k] as string).trim() : "")
+      const assunto = s("assunto").slice(0, 200)
+      if (!assunto) return []
+      const prazo = s("prazo")
+      return [{
+        assunto,
+        texto: s("texto") || null,
+        votacao: s("votacao") || null,
+        responsavel: s("responsavel") || null,
+        prazo: /^\d{4}-\d{2}-\d{2}$/.test(prazo) ? prazo : null,
+      }]
+    })
+  } catch {
+    return []
   }
 }
 
@@ -61,12 +90,15 @@ export async function criarAtaAction(
   _prev: EstadoForm,
   fd: FormData
 ): Promise<EstadoForm> {
-  await requirePermissao("diretoria_reunioes")
+  const sessao = await requirePermissao("diretoria_reunioes")
   const { caminho, erro: erroArq } = await lerDocumento(fd)
   if (erroArq) return { erro: erroArq }
   const dados = lerDados(fd)
   const { id, erro } = await criarAta({ ...dados, documento_url: caminho ?? null })
   if (erro || !id) return { erro: erro ?? "Falha ao criar." }
+  // A ata já existe: falha nas deliberações lidas não desfaz a ata — elas
+  // podem ser lançadas à mão no cartão Deliberações.
+  await registrarDeliberacoesLidas(id, lerDeliberacoesLidas(fd), sessao.usuario.id)
   revalidar(id, dados.mandato_id ?? undefined)
   redirect(`/painel/institucional/atas/${id}?salvo=1`)
 }
@@ -75,7 +107,7 @@ export async function atualizarAtaAction(
   _prev: EstadoForm,
   fd: FormData
 ): Promise<EstadoForm> {
-  await requirePermissao("diretoria_reunioes")
+  const sessao = await requirePermissao("diretoria_reunioes")
   const id = texto(fd, "ata_id")
   if (!id) return { erro: "Ata inválida." }
   const { caminho, erro: erroArq } = await lerDocumento(fd)
@@ -83,6 +115,8 @@ export async function atualizarAtaAction(
   const dados = lerDados(fd)
   const { erro } = await atualizarAta(id, { ...dados, documento_url: caminho })
   if (erro) return { erro }
+  // Só entram se a ata ainda não tem deliberações (ver registrarDeliberacoesLidas).
+  await registrarDeliberacoesLidas(id, lerDeliberacoesLidas(fd), sessao.usuario.id)
   revalidar(id, dados.mandato_id ?? undefined)
   redirect(`/painel/institucional/atas/${id}?salvo=1`)
 }

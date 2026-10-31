@@ -13,7 +13,7 @@
 -- e ADICIONA 2 integrantes + 2 atas. A limpeza NÃO apaga o mandato nem o Carlos
 -- (para não quebrar o signatário do ofício de Ferramentas).
 -- reuniao_ata.tipo é text com CHECK (diretoria|conselho_fiscal|assembleia|outra);
--- 'deliberacoes' é sem acento. apoio_institucional/entidade_apoiada são BOOLEAN.
+-- 'resumo' (antes 'deliberacoes'); as decisões são reuniao_deliberacao (apagadas em cascata com a ata). apoio_institucional/entidade_apoiada são BOOLEAN.
 -- Tabelas compartilhadas (empresa, contratos) limpas por ID FIXO.
 --
 -- IDs FIXOS:
@@ -66,18 +66,29 @@ insert into diretoria_integrantes (id, emp_proprietaria_id, mandato_id, nome, ca
 -- 4) Atas de reunião ancoradas no mandato.
 -- ---------------------------------------------------------------------------
 insert into reuniao_ata (
-  id, emp_proprietaria_id, mandato_id, tipo, titulo, data, pauta, deliberacoes, presentes
+  id, emp_proprietaria_id, mandato_id, tipo, titulo, data, pauta, resumo, presentes
 ) values
   ('a7000000-0000-4000-8000-000000000001','11111111-1111-4111-8111-111111111111',
    'fe600000-0000-4000-8000-000000000001','diretoria','Reunião ordinária de julho/2026', date '2026-07-10',
    'Prestação de contas do 1º semestre; definição da pauta do ACT 2026',
-   'Aprovada a prestação de contas; autorizada a diretoria a negociar o ACT',
+   'A diretoria examinou as contas do 1º semestre e discutiu a estratégia para a negociação do ACT 2026/2027.',
    E'Carlos Andrade da Silva\nMariana Costa Ribeiro\nJosé Pereira Lima'),
   ('a7000000-0000-4000-8000-000000000002','11111111-1111-4111-8111-111111111111',
    'fe600000-0000-4000-8000-000000000001','conselho_fiscal','Parecer do Conselho Fiscal — maio/2026', date '2026-06-15',
    'Análise das contas de maio/2026',
-   'Contas aprovadas sem ressalvas',
+   'O Conselho Fiscal analisou os lançamentos de maio/2026 e emitiu parecer.',
    E'Membros do Conselho Fiscal');
+
+insert into reuniao_deliberacao (
+  id, emp_proprietaria_id, ata_id, ordem, assunto, texto, votacao, responsavel, prazo, situacao, sigilo
+) values
+  ('a7100000-0000-4000-8000-000000000001','11111111-1111-4111-8111-111111111111','a7000000-0000-4000-8000-000000000001',
+   1,'Prestação de contas do 1º semestre','Aprovada a prestação de contas do 1º semestre de 2026.',null,null,null,'cumprida','livre'),
+  ('a7100000-0000-4000-8000-000000000002','11111111-1111-4111-8111-111111111111','a7000000-0000-4000-8000-000000000001',
+   2,'Negociação do ACT 2026/2027','Autorizada a diretoria a negociar o ACT 2026/2027 com a empresa, com retorno à assembleia antes de assinar.',
+   'aprovada por unanimidade','Secretaria-geral',date '2026-09-30','em_execucao','restrito'),
+  ('a7100000-0000-4000-8000-000000000003','11111111-1111-4111-8111-111111111111','a7000000-0000-4000-8000-000000000002',
+   1,'Contas de maio/2026','Contas aprovadas sem ressalvas.',null,null,null,'cumprida','reservado');
 
 -- ---------------------------------------------------------------------------
 -- 5) Entidade apoiada (empresa) + ajuda (contrato com apoio_institucional).

@@ -111,7 +111,7 @@ export default async function AtaPage({
         </CardHeader>
         <CardContent>
           {editando ? (
-            <AtaForm ata={a} mandatos={mandatos} aoCancelarHref={aqui} />
+            <AtaForm ata={a} mandatos={mandatos} aoCancelarHref={aqui} temDeliberacoes={deliberacoes.length > 0} />
           ) : (
             <dl className="grid gap-4">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -121,7 +121,7 @@ export default async function AtaPage({
                 <Campo rotulo="Tipo" valor={ROTULO_TIPO_REUNIAO[a.tipo]} />
               </div>
               <Campo rotulo="Pauta" valor={a.pauta} />
-              <Campo rotulo="Deliberações / decisões" valor={a.deliberacoes} />
+              <Campo rotulo="Resumo da reunião" valor={a.resumo} />
               <Campo rotulo="Presentes" valor={a.presentes} />
               {a.observacoes && (
                 <Campo rotulo="Observações" valor={a.observacoes} />

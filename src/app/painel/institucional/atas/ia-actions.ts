@@ -6,12 +6,22 @@ import { requirePermissao } from "@/lib/auth"
 import { TIPOS_REUNIAO } from "@/lib/atas-constantes"
 import { gerarJsonIA, gerarJsonIADePdf } from "@/lib/ia"
 
+/** Deliberação lida da ata — vira item ao salvar (a cumprir, reservado). */
+export type DeliberacaoLida = {
+  assunto: string
+  texto: string
+  votacao: string
+  responsavel: string
+  prazo: string
+}
+
 export type ExtracaoAta = {
   valores?: Partial<Record<CampoAta, string>>
+  deliberacoes?: DeliberacaoLida[]
   erro?: string
 }
 
-const CAMPOS = ["titulo", "tipo", "orgao", "data", "hora", "local", "pauta", "deliberacoes", "presentes", "observacoes"] as const
+const CAMPOS = ["titulo", "tipo", "orgao", "data", "hora", "local", "pauta", "resumo", "presentes", "observacoes"] as const
 type CampoAta = (typeof CAMPOS)[number]
 
 const SISTEMA = `Você lê a ata de uma reunião de sindicato e devolve um objeto JSON com os campos abaixo.
@@ -23,7 +33,8 @@ Regras:
 - "data": AAAA-MM-DD. "hora": como no documento, ex. "14h00".
 - "local": onde a reunião aconteceu.
 - "pauta": os itens de pauta, um por linha.
-- "deliberacoes": o que foi decidido, um item por linha, com a decisão e (se houver) o resultado da votação.
+- "resumo": um breve resumo da reunião em 2 a 4 frases — o que se discutiu e o contexto. NÃO liste as decisões aqui.
+- "deliberacoes": a lista das decisões tomadas, cada uma um objeto { "assunto": título curto (até 80 caracteres), "texto": o teor da decisão como consta da ata, "votacao": o resultado da votação se houver (ex. "aprovada por unanimidade"), senão "", "responsavel": quem ficou encarregado de cumprir, se dito, senão "", "prazo": AAAA-MM-DD se a ata fixar prazo, senão "" }. Sem decisões = [].
 - "presentes": os nomes dos presentes, um por linha, sem cargos.
 - "observacoes": encaminhamentos, prazos ou registros que não caibam nos outros campos; senão "".
 - Responda APENAS com o objeto JSON.`
@@ -68,6 +79,25 @@ export async function extrairAtaDePdf(formData: FormData): Promise<ExtracaoAta> 
     if (campo === "tipo" && !TIPOS_REUNIAO.some((t) => t.chave === valor)) continue
     valores[campo] = valor
   }
-  if (Object.keys(valores).length === 0) return { erro: "A IA não encontrou os dados da reunião neste PDF." }
-  return { valores }
+  const deliberacoes: DeliberacaoLida[] = []
+  for (const d of Array.isArray(dados.deliberacoes) ? dados.deliberacoes : []) {
+    if (!d || typeof d !== "object") continue
+    const o = d as Record<string, unknown>
+    const s = (k: string) => (typeof o[k] === "string" ? (o[k] as string).trim() : "")
+    const texto = s("texto")
+    const assunto = (s("assunto") || texto).slice(0, 200)
+    if (!assunto) continue
+    const prazo = s("prazo")
+    deliberacoes.push({
+      assunto,
+      texto,
+      votacao: s("votacao"),
+      responsavel: s("responsavel"),
+      prazo: /^\d{4}-\d{2}-\d{2}$/.test(prazo) ? prazo : "",
+    })
+  }
+  if (Object.keys(valores).length === 0 && deliberacoes.length === 0) {
+    return { erro: "A IA não encontrou os dados da reunião neste PDF." }
+  }
+  return { valores, deliberacoes: deliberacoes.slice(0, 50) }
 }

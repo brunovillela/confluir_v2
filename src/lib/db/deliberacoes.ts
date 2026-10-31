@@ -242,3 +242,38 @@ export async function excluirDeliberacao(id: string): Promise<{ erro?: string }>
   if (error) return { erro: `Falha ao excluir a deliberação: ${error.message}` }
   return {}
 }
+
+/**
+ * Deliberações lidas do PDF pela IA, gravadas ao salvar a ata — como "a
+ * cumprir" e "reservado", para conferir depois. Só entram numa ata que
+ * ainda não tem deliberações (reler o PDF não duplica).
+ */
+export async function registrarDeliberacoesLidas(
+  ataId: string,
+  itens: Omit<DadosDeliberacao, "situacao" | "sigilo">[],
+  usuarioId: string
+): Promise<{ quantidade: number; erro?: string }> {
+  if (itens.length === 0) return { quantidade: 0 }
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { count } = await admin
+    .from("reuniao_deliberacao")
+    .select("id", { count: "exact", head: true })
+    .eq("emp_proprietaria_id", emp)
+    .eq("ata_id", ataId)
+  if ((count ?? 0) > 0) return { quantidade: 0 }
+  const { error } = await admin.from("reuniao_deliberacao").insert(
+    itens.map((d, i) => ({
+      ...d,
+      emp_proprietaria_id: emp,
+      ata_id: ataId,
+      ordem: i + 1,
+      situacao: "a_cumprir",
+      sigilo: "reservado",
+      criado_por: usuarioId,
+      atualizado_por: usuarioId,
+    }))
+  )
+  if (error) return { quantidade: 0, erro: `Falha ao registrar as deliberações lidas: ${error.message}` }
+  return { quantidade: itens.length }
+}

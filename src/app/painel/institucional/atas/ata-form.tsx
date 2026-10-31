@@ -16,7 +16,7 @@ import {
   criarAtaAction,
   excluirAtaAction,
 } from "./actions"
-import { extrairAtaDePdf } from "./ia-actions"
+import { extrairAtaDePdf, type DeliberacaoLida } from "./ia-actions"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
@@ -29,11 +29,14 @@ export function AtaForm({
   mandatos,
   mandatoPadrao,
   aoCancelarHref,
+  temDeliberacoes = false,
 }: {
   ata?: AtaDetalhe
   mandatos: { id: string; nome: string }[]
   mandatoPadrao?: string
   aoCancelarHref: string
+  /** A ata já tem deliberações: as lidas do PDF não entram (não duplica). */
+  temDeliberacoes?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(
     ata ? atualizarAtaAction : criarAtaAction,
@@ -46,11 +49,13 @@ export function AtaForm({
   })
   const [lendo, iniciarLeitura] = useTransition()
   const [leitura, setLeitura] = useState<{ ok?: string; erro?: string } | null>(null)
+  const [lidas, setLidas] = useState<DeliberacaoLida[]>([])
 
   // Subiu o PDF: a IA lê a ata e preenche o formulário. Numa ata já salva, só
   // os campos vazios — o que alguém digitou não é sobrescrito.
   function lerComIA(arquivo: File | undefined) {
     setLeitura(null)
+    setLidas([])
     if (!arquivo || arquivo.type !== "application/pdf") return
     const dados = new FormData()
     dados.set("documento", arquivo)
@@ -69,6 +74,7 @@ export function AtaForm({
         el.value = valor
         preenchidos++
       }
+      if (!temDeliberacoes) setLidas(r.deliberacoes ?? [])
       setLeitura({
         ok: preenchidos
           ? `A IA preencheu ${preenchidos} ${preenchidos === 1 ? "campo" : "campos"} a partir da ata. Confira antes de salvar.`
@@ -80,6 +86,7 @@ export function AtaForm({
   return (
     <form action={formAction} {...envio2} className="grid gap-5">
       {ata && <input type="hidden" name="ata_id" value={ata.id} />}
+      <input type="hidden" name="deliberacoes_ia" value={JSON.stringify(lidas)} />
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -100,7 +107,8 @@ export function AtaForm({
         />
         <p className="text-muted-foreground text-xs">
           Ao escolher o arquivo, a IA lê a ata e preenche título, tipo, data, hora, local, pauta,
-          deliberações e presentes{ata ? " que estiverem vazios" : ""}. Confira antes de salvar.
+          resumo e presentes{ata ? " que estiverem vazios" : ""}, e separa as deliberações. Confira antes
+          de salvar.
         </p>
         {lendo && (
           <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
@@ -110,6 +118,23 @@ export function AtaForm({
         )}
         {leitura?.ok && <p className="text-success-fg text-sm">{leitura.ok}</p>}
         {leitura?.erro && <p className="text-destructive text-sm">{leitura.erro}</p>}
+        {lidas.length > 0 && (
+          <div className="grid gap-1.5 text-sm">
+            <p>
+              A IA encontrou {lidas.length} {lidas.length === 1 ? "deliberação" : "deliberações"}. Ao salvar,
+              {lidas.length === 1 ? " ela entra" : " elas entram"} no cartão Deliberações como <em>a cumprir</em> e{" "}
+              <em>reservado</em> — ajuste a situação e o sigilo depois.
+            </p>
+            <ol className="text-muted-foreground list-decimal pl-5 text-xs">
+              {lidas.map((d, i) => (
+                <li key={i}>{d.assunto}</li>
+              ))}
+            </ol>
+            <Button type="button" variant="ghost" size="sm" className="justify-self-start" onClick={() => setLidas([])}>
+              Não registrar estas deliberações
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -187,13 +212,17 @@ export function AtaForm({
       </div>
 
       <div className="grid gap-1.5">
-        <Label htmlFor="deliberacoes">Deliberações / decisões</Label>
+        <Label htmlFor="resumo">Resumo da reunião</Label>
         <Textarea
-          id="deliberacoes"
-          name="deliberacoes"
-          rows={4}
-          defaultValue={ata?.deliberacoes ?? ""}
+          id="resumo"
+          name="resumo"
+          rows={3}
+          defaultValue={ata?.resumo ?? ""}
+          placeholder="Em poucas frases, o que se discutiu."
         />
+        <p className="text-muted-foreground text-xs">
+          As decisões não vão aqui: cada uma é registrada no cartão Deliberações da ata, com situação e sigilo.
+        </p>
       </div>
 
       <div className="grid gap-1.5">

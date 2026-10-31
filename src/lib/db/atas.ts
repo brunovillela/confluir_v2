@@ -89,7 +89,8 @@ export type AtaDetalhe = {
   hora: string | null
   local: string | null
   pauta: string | null
-  deliberacoes: string | null
+  /** Breve resumo da reunião; as decisões são itens (db/deliberacoes). */
+  resumo: string | null
   presentes: string | null
   observacoes: string | null
   documentoUrl: string | null
@@ -123,7 +124,7 @@ export async function obterAta(id: string): Promise<AtaDetalhe | null> {
     hora: texto(a.hora),
     local: texto(a.local),
     pauta: texto(a.pauta),
-    deliberacoes: texto(a.deliberacoes),
+    resumo: texto(a.resumo),
     presentes: texto(a.presentes),
     observacoes: texto(a.observacoes),
     documentoUrl,
@@ -154,7 +155,8 @@ export type DadosAta = {
   hora: string | null
   local: string | null
   pauta: string | null
-  deliberacoes: string | null
+  /** Breve resumo da reunião; as decisões são itens (db/deliberacoes). */
+  resumo: string | null
   presentes: string | null
   observacoes: string | null
   /** Caminho já gravável (upload na action); undefined = não mexer. */
@@ -171,7 +173,7 @@ function payload(d: DadosAta): Record<string, unknown> {
     hora: d.hora,
     local: d.local,
     pauta: d.pauta,
-    deliberacoes: d.deliberacoes,
+    resumo: d.resumo,
     presentes: d.presentes,
     observacoes: d.observacoes,
     updated_at: new Date().toISOString(),

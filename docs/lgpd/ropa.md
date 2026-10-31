@@ -281,7 +281,7 @@
 | [ato_eventos_participantes](../dados/dicionario/representacao.md#ato_eventos_participantes) | sens. sindical | `usuario_id` (sens. sindical) |
 | [representacao_reuniao_participantes](../dados/dicionario/representacao.md#representacao_reuniao_participantes) | identificacao, sens. sindical, trabalhista | `lado` (sens. sindical), `nome` (identificacao), `cargo` (trabalhista) |
 | [representacao_reunioes](../dados/dicionario/representacao.md#representacao_reunioes) | identificacao | `resumo` (identificacao), `encaminhamentos` (identificacao), `ata_caminho` (identificacao) |
-| [reuniao_ata](../dados/dicionario/representacao.md#reuniao_ata) | identificacao, sens. sindical | `deliberacoes` (identificacao), `presentes` (sens. sindical), `observacoes` (identificacao), `documento_url` (identificacao) |
+| [reuniao_ata](../dados/dicionario/representacao.md#reuniao_ata) | identificacao, sens. sindical | `resumo` (identificacao), `presentes` (sens. sindical), `observacoes` (identificacao), `documento_url` (identificacao) |
 | [reuniao_deliberacao](../dados/dicionario/representacao.md#reuniao_deliberacao) | identificacao, sens. sindical | `ata_id` (nenhum), `ordem` (nenhum), `assunto` (identificacao), `texto` (identificacao), `votacao` (identificacao), `responsavel` (identificacao), `prazo` (nenhum), `situacao` (nenhum), `sigilo` (nenhum), `criado_por` (identificacao), `atualizado_por` (identificacao) |
 
 </details>

@@ -21,7 +21,7 @@
 | [representacao_documentos](#representacao_documentos) | — | Documentos de representação por empregador (cartas, termos, registros), com vigência e arquivo, em Representação > Empregadores. |
 | [representacao_reuniao_participantes](#representacao_reuniao_participantes) | identificação, **sensível: sindical**, trabalhista | Participante de uma reunião com empregador ou setorial, do lado do sindicato, da empresa ou dos trabalhadores, com nome e cargo. |
 | [representacao_reunioes](#representacao_reunioes) | identificação | Reunião com empregador ou setorial registrada em Representação > Empregadores, com pauta, resumo (opcionalmente por IA a partir da ata), enc… |
-| [reuniao_ata](#reuniao_ata) | identificação, **sensível: sindical** | Ata de reunião da diretoria, conselho fiscal ou assembleia, ligada ao mandato, com pauta, deliberações e presentes. Tela de atas da Diretori… |
+| [reuniao_ata](#reuniao_ata) | identificação, **sensível: sindical** | Ata de reunião da diretoria, conselho fiscal ou assembleia, ligada ao mandato, com pauta, resumo, presentes e o PDF; as deliberações ficam e… |
 | [reuniao_deliberacao](#reuniao_deliberacao) | identificação, **sensível: sindical** | Deliberação (decisão) de uma reunião registrada em ata: assunto, teor, votação, responsável, prazo, situação do cumprimento e grau de sigilo… |
 
 ## acordo_clausulas
@@ -409,7 +409,7 @@ Reunião com empregador ou setorial registrada em Representação > Empregadores
 
 ## reuniao_ata
 
-Ata de reunião da diretoria, conselho fiscal ou assembleia, ligada ao mandato, com pauta, deliberações e presentes. Tela de atas da Diretoria.
+Ata de reunião da diretoria, conselho fiscal ou assembleia, ligada ao mandato, com pauta, resumo, presentes e o PDF; as deliberações ficam em reuniao_deliberacao.
 
 - **LGPD:** identificação, **sensível: sindical** · titulares: diretores e participantes
 - **RLS:** ligado · policies: `tenant_isolation`
@@ -426,7 +426,7 @@ Ata de reunião da diretoria, conselho fiscal ou assembleia, ligada ao mandato, 
 | `hora` | text | sim |  |  |  |  |
 | `local` | text | sim |  |  |  |  |
 | `pauta` | text | sim |  |  |  |  |
-| `deliberacoes` | text | sim |  |  | identificação |  |
+| `resumo` | text | sim |  |  | identificação | Breve resumo da reunião (o que se discutiu). As decisões ficam em reuniao_deliberacao, com situação e sigilo. |
 | `presentes` | text | sim |  |  | **sensível: sindical** | Nomes dos presentes em reunião de órgão sindical. |
 | `observacoes` | text | sim |  |  | identificação |  |
 | `documento_url` | text | sim |  |  | identificação |  |
