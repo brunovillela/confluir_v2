@@ -139,7 +139,7 @@ export async function excluirDeliberacaoAction(_prev: EstadoForm, fd: FormData):
   if (!ataId || !id) return { erro: "Deliberação inválida." }
   const alcance = await conferirAlcance(id, sigilosVisiveis(nivelSigilo(sessao.permissoes)))
   if ("erro" in alcance) return { erro: alcance.erro }
-  const { erro } = await excluirDeliberacao(id)
+  const { erro } = await excluirDeliberacao(id, sessao.usuario.id)
   if (erro) return { erro }
   revalidar(ataId)
   redirect(`/painel/institucional/atas/${ataId}?deliberacao_excluida=1#deliberacoes`)

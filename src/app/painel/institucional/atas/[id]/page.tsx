@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { obterAta, opcoesMandatos } from "@/lib/db/atas"
-import { assuntosUsados, deliberacoesDaAta, responsaveisPossiveis } from "@/lib/db/deliberacoes"
+import { assuntosUsados, deliberacoesDaAta, eventosDaAta, responsaveisPossiveis } from "@/lib/db/deliberacoes"
 import {
   nivelSigilo,
   ROTULO_NIVEL_SIGILO,
@@ -21,6 +21,7 @@ import { podeAcessar } from "@/lib/permissoes"
 import { ROTULO_TIPO_REUNIAO } from "@/lib/atas-constantes"
 
 import { SeloSigilo, SeloSituacao } from "../../deliberacoes/selos"
+import { TrilhaDeliberacao } from "../../deliberacoes/trilha"
 import { AtaForm, BotaoExcluirAta } from "../ata-form"
 import { BotaoExcluirDeliberacao, DeliberacaoForm } from "../deliberacao-form"
 
@@ -63,11 +64,14 @@ export default async function AtaPage({
   const editandoDeliberacao = podeLancar ? (sp.deliberacao ?? null) : null
   const novaDeliberacao = podeLancar && sp.nova_deliberacao === "1"
   const comForm = Boolean(editandoDeliberacao) || novaDeliberacao
-  const [{ visiveis: deliberacoes, ocultas }, assuntos, responsaveis] = await Promise.all([
+  const [{ visiveis: deliberacoes, ocultas }, assuntos, responsaveis, eventos] = await Promise.all([
     deliberacoesDaAta(id, sigilos),
     comForm ? assuntosUsados(sigilos) : Promise.resolve([]),
     comForm ? responsaveisPossiveis() : Promise.resolve([]),
+    eventosDaAta(id, sigilos),
   ])
+  // Trilha das excluídas: os eventos ficam sem o vínculo com a deliberação.
+  const eventosExcluidas = eventos.filter((e) => !e.deliberacaoId)
 
   const editando = podeEditar && editar === "1"
   const mandatos = editando ? await opcoesMandatos() : []
@@ -294,11 +298,13 @@ export default async function AtaPage({
                           .join(" · ")}
                       </p>
                     )}
+                    <TrilhaDeliberacao eventos={eventos.filter((e) => e.deliberacaoId === d.id)} />
                   </li>
                 )
               )}
             </ol>
           )}
+          <TrilhaDeliberacao eventos={eventosExcluidas} titulo="Deliberações excluídas desta ata" comAssunto />
           {nivel !== "nenhum" && ocultas > 0 && (
             <p className="text-muted-foreground text-xs">
               {ocultas === 1 ? "1 deliberação desta ata está" : `${ocultas} deliberações desta ata estão`} acima do

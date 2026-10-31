@@ -2,7 +2,7 @@
 
 # Representação, acordos e negociações
 
-17 tabelas. Diagrama: [er/representacao.md](../er/representacao.md).
+18 tabelas. Diagrama: [er/representacao.md](../er/representacao.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -23,6 +23,7 @@
 | [representacao_reunioes](#representacao_reunioes) | identificação | Reunião com empregador ou setorial registrada em Representação > Empregadores, com pauta, resumo (opcionalmente por IA a partir da ata), enc… |
 | [reuniao_ata](#reuniao_ata) | identificação, **sensível: sindical** | Ata de reunião da diretoria, conselho fiscal ou assembleia, ligada ao mandato, com pauta, resumo, presentes e o PDF; as deliberações ficam e… |
 | [reuniao_deliberacao](#reuniao_deliberacao) | identificação, **sensível: sindical** | Deliberação (decisão) de uma reunião registrada em ata: assunto, teor, votação, responsável, prazo, situação do cumprimento e grau de sigilo… |
+| [reuniao_deliberacao_eventos](#reuniao_deliberacao_eventos) | identificação, **sensível: sindical** | Trilha das deliberações das atas: criação, alteração (campo, antes e depois) e exclusão, com autor e data. Mostrada só a quem alcança o sigi… |
 
 ## acordo_clausulas
 
@@ -468,3 +469,29 @@ Deliberação (decisão) de uma reunião registrada em ata: assunto, teor, vota�
 Checks: `reuniao_deliberacao_sigilo_check` `CHECK ((sigilo = ANY (ARRAY['livre'::text, 'reservado'::text, 'restrito'::text])))`; `reuniao_deliberacao_situacao_check` `CHECK ((situacao = ANY (ARRAY['a_cumprir'::text, 'em_execucao'::text, 'cumprida'::text, 'cancelada'::text])))`
 
 Índices: `reuniao_deliberacao_ata_idx`, `reuniao_deliberacao_emp_situacao_idx`, `reuniao_deliberacao_pkey`, `reuniao_deliberacao_responsavel_idx`
+
+## reuniao_deliberacao_eventos
+
+Trilha das deliberações das atas: criação, alteração (campo, antes e depois) e exclusão, com autor e data. Mostrada só a quem alcança o sigilo gravado na linha.
+
+- **LGPD:** identificação, **sensível: sindical** · titulares: diretores e participantes
+- **RLS:** ligado · policies: `tenant_isolation`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `deliberacao_id` | uuid | sim |  | → reuniao_deliberacao (set null) | nenhum | Deliberação a que o evento se refere; nulo depois que ela é excluída (a trilha fica). |
+| `ata_id` | uuid | sim |  | → reuniao_ata (**cascade**) | nenhum | Ata da deliberação — mantém a trilha ligada à ata mesmo após a exclusão da deliberação. |
+| `evento` | text | não |  |  | nenhum | criada, alterada ou excluida. |
+| `origem` | text | não | `'manual'::text` |  | nenhum | manual (formulário) ou ia (lida do PDF da ata ao salvar). |
+| `mudancas` | jsonb | não | `'[]'::jsonb` |  | identificação | Na alteração: lista de {campo, antes, depois} já formatados para leitura (responsável pelo nome, datas dd/mm/aaaa). |
+| `assunto` | text | sim |  |  | identificação | Assunto da deliberação no momento do evento (identifica a excluída). |
+| `sigilo` | text | não |  |  | nenhum | Sigilo da deliberação no momento do evento — decide quem vê a linha. |
+| `autor_id` | uuid | sim |  |  | identificação | Usuário que fez a mudança. |
+| `autor_nome` | text | sim |  |  | identificação | Nome do autor no momento (a trilha não muda se o cadastro mudar). |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Checks: `reuniao_deliberacao_eventos_evento_check` `CHECK ((evento = ANY (ARRAY['criada'::text, 'alterada'::text, 'excluida'::text])))`; `reuniao_deliberacao_eventos_origem_check` `CHECK ((origem = ANY (ARRAY['manual'::text, 'ia'::text])))`; `reuniao_deliberacao_eventos_sigilo_check` `CHECK ((sigilo = ANY (ARRAY['livre'::text, 'reservado'::text, 'restrito'::text])))`
+
+Índices: `reuniao_deliberacao_eventos_ata_idx`, `reuniao_deliberacao_eventos_deliberacao_idx`, `reuniao_deliberacao_eventos_pkey`

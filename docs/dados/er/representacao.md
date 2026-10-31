@@ -107,6 +107,12 @@ erDiagram
     uuid ata_id FK
     uuid responsavel_id FK
   }
+  reuniao_deliberacao_eventos {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid deliberacao_id FK
+    uuid ata_id FK
+  }
   acordo_clausulas }o--o| acordo_coletivo : "acordo_id"
   acordo_coletivo }o--o| negociacoes : "negociacao_id"
   acordo_coletivo }o--o| usuarios : "clausulas_revisadas_por_id"
@@ -145,4 +151,6 @@ erDiagram
   reuniao_ata }o--o| diretoria_mandatos : "mandato_id"
   reuniao_deliberacao }o--o| usuarios : "responsavel_id"
   reuniao_deliberacao }o--|| reuniao_ata : "ata_id"
+  reuniao_deliberacao_eventos }o--o| reuniao_ata : "ata_id"
+  reuniao_deliberacao_eventos }o--o| reuniao_deliberacao : "deliberacao_id"
 ```

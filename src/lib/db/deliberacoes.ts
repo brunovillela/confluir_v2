@@ -10,6 +10,9 @@ import {
   ehSigiloDeliberacao,
   ehSituacaoDeliberacao,
   nivelSigilo,
+  ROTULO_SIGILO_DELIBERACAO,
+  ROTULO_SITUACAO_DELIBERACAO,
+  SIGILOS_DELIBERACAO,
   type NivelSigilo,
   type SigiloDeliberacao,
   type SituacaoDeliberacao,
@@ -266,6 +269,15 @@ export async function criarDeliberacao(
     .select("id")
     .single()
   if (error) return { erro: `Falha ao registrar a deliberação: ${error.message}` }
+  await registrarEvento({
+    deliberacaoId: String(data.id),
+    ataId,
+    evento: "criada",
+    mudancas: await diferencas(null, dados),
+    assunto: dados.assunto,
+    sigilo: dados.sigilo,
+    autorId: usuarioId,
+  })
   return { id: String(data.id) }
 }
 
@@ -275,23 +287,53 @@ export async function atualizarDeliberacao(
   usuarioId: string
 ): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
+  const antes = await obterDeliberacao(id)
   const { error } = await admin
     .from("reuniao_deliberacao")
     .update({ ...dados, atualizado_por: usuarioId, updated_at: new Date().toISOString() })
     .eq("emp_proprietaria_id", await tenantAtual())
     .eq("id", id)
   if (error) return { erro: `Falha ao salvar a deliberação: ${error.message}` }
+  if (antes) {
+    const mudancas = await diferencas(antes, dados)
+    // Salvar sem mudar nada não vira evento.
+    if (mudancas.length > 0) {
+      await registrarEvento({
+        deliberacaoId: id,
+        ataId: antes.ataId,
+        evento: "alterada",
+        mudancas,
+        assunto: dados.assunto,
+        // O "antes" pode ser mais sigiloso que o "depois": vale o mais restrito.
+        sigilo: maisRestrito(antes.sigilo, dados.sigilo),
+        autorId: usuarioId,
+      })
+    }
+  }
   return {}
 }
 
-export async function excluirDeliberacao(id: string): Promise<{ erro?: string }> {
+export async function excluirDeliberacao(id: string, usuarioId: string): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
+  const antes = await obterDeliberacao(id)
   const { error } = await admin
     .from("reuniao_deliberacao")
     .delete()
     .eq("emp_proprietaria_id", await tenantAtual())
     .eq("id", id)
   if (error) return { erro: `Falha ao excluir a deliberação: ${error.message}` }
+  // A exclusão também fica na trilha — sem o vínculo (a deliberação não existe
+  // mais), com a ata, o assunto e o sigilo de então.
+  if (antes) {
+    await registrarEvento({
+      deliberacaoId: null,
+      ataId: antes.ataId,
+      evento: "excluida",
+      assunto: antes.assunto,
+      sigilo: antes.sigilo,
+      autorId: usuarioId,
+    })
+  }
   return {}
 }
 
@@ -314,19 +356,33 @@ export async function registrarDeliberacoesLidas(
     .eq("emp_proprietaria_id", emp)
     .eq("ata_id", ataId)
   if ((count ?? 0) > 0) return { quantidade: 0 }
-  const { error } = await admin.from("reuniao_deliberacao").insert(
-    itens.map((d, i) => ({
-      ...d,
-      emp_proprietaria_id: emp,
-      ata_id: ataId,
-      ordem: i + 1,
-      situacao: "a_cumprir",
-      sigilo: "reservado",
-      criado_por: usuarioId,
-      atualizado_por: usuarioId,
-    }))
-  )
+  const linhas = itens.map((d, i) => ({
+    ...d,
+    ordem: i + 1,
+    situacao: "a_cumprir" as const,
+    sigilo: "reservado" as const,
+  }))
+  const { data, error } = await admin
+    .from("reuniao_deliberacao")
+    .insert(
+      linhas.map((d) => ({ ...d, emp_proprietaria_id: emp, ata_id: ataId, criado_por: usuarioId, atualizado_por: usuarioId }))
+    )
+    .select("id, ordem")
   if (error) return { quantidade: 0, erro: `Falha ao registrar as deliberações lidas: ${error.message}` }
+  for (const r of data ?? []) {
+    const d = linhas.find((l) => l.ordem === Number(r.ordem))
+    if (!d) continue
+    await registrarEvento({
+      deliberacaoId: String(r.id),
+      ataId,
+      evento: "criada",
+      origem: "ia",
+      mudancas: await diferencas(null, d),
+      assunto: d.assunto,
+      sigilo: d.sigilo,
+      autorId: usuarioId,
+    })
+  }
   return { quantidade: itens.length }
 }
 
@@ -385,4 +441,149 @@ export async function nivelDoUsuario(usuarioId: string): Promise<NivelSigilo> {
   const { data: p } = await admin.from("permissoes").select("*").eq(PERMISSOES_USUARIO_FK, usuarioId).maybeSingle()
   if (!p) return "nenhum"
   return nivelDe(admin, usuarioId, p as Permissoes)
+}
+
+// ── Trilha de alterações (reuniao_deliberacao_eventos, 31/10/2026) ───────────
+
+export type MudancaDeliberacao = { campo: string; antes: string | null; depois: string | null }
+
+export type EventoDeliberacao = {
+  id: string
+  deliberacaoId: string | null
+  evento: "criada" | "alterada" | "excluida"
+  origem: "manual" | "ia"
+  mudancas: MudancaDeliberacao[]
+  assunto: string | null
+  sigilo: SigiloDeliberacao
+  autorNome: string | null
+  quando: string
+}
+
+const ROTULO_CAMPO: Record<string, string> = {
+  assunto: "Assunto",
+  texto: "Teor",
+  votacao: "Votação",
+  responsavel_id: "Responsável no sistema",
+  responsavel: "Responsável fora do sistema",
+  prazo: "Prazo",
+  situacao: "Situação",
+  sigilo: "Sigilo",
+}
+
+function maisRestrito(a: SigiloDeliberacao, b: SigiloDeliberacao): SigiloDeliberacao {
+  const ordem: SigiloDeliberacao[] = SIGILOS_DELIBERACAO.map((x) => x.chave)
+  return ordem.indexOf(a) >= ordem.indexOf(b) ? a : b
+}
+
+/**
+ * Campo a campo, o que mudou — já como se lê na tela (nome do responsável,
+ * data dd/mm/aaaa, rótulo da situação e do sigilo). `antes` nulo = criação:
+ * entram os campos preenchidos.
+ */
+async function diferencas(antes: Deliberacao | null, depois: DadosDeliberacao): Promise<MudancaDeliberacao[]> {
+  const valoresAntes: Record<string, string | null> = antes
+    ? {
+        assunto: antes.assunto,
+        texto: antes.texto,
+        votacao: antes.votacao,
+        responsavel_id: antes.responsavelId,
+        responsavel: antes.responsavel,
+        prazo: antes.prazo,
+        situacao: antes.situacao,
+        sigilo: antes.sigilo,
+      }
+    : {}
+  const valoresDepois: Record<string, string | null> = {
+    assunto: depois.assunto,
+    texto: depois.texto,
+    votacao: depois.votacao,
+    responsavel_id: depois.responsavel_id ?? null,
+    responsavel: depois.responsavel,
+    prazo: depois.prazo,
+    situacao: depois.situacao,
+    sigilo: depois.sigilo,
+  }
+  const campos = Object.keys(ROTULO_CAMPO).filter((c) => (valoresAntes[c] ?? null) !== (valoresDepois[c] ?? null))
+  const nomes = await nomesDosUsuarios([valoresAntes.responsavel_id ?? "", valoresDepois.responsavel_id ?? ""], "guerra")
+  const legivel = (campo: string, v: string | null): string | null => {
+    if (!v) return null
+    if (campo === "responsavel_id") return nomes.get(v) ?? "(usuário)"
+    if (campo === "prazo") return v.split("-").reverse().join("/")
+    if (campo === "situacao" && ehSituacaoDeliberacao(v)) return ROTULO_SITUACAO_DELIBERACAO[v]
+    if (campo === "sigilo" && ehSigiloDeliberacao(v)) return ROTULO_SIGILO_DELIBERACAO[v]
+    return v
+  }
+  return campos.map((c) => ({
+    campo: ROTULO_CAMPO[c],
+    antes: legivel(c, valoresAntes[c] ?? null),
+    depois: legivel(c, valoresDepois[c] ?? null),
+  }))
+}
+
+/**
+ * Acrescenta uma linha à trilha. Melhor esforço: a falha vai para o log e
+ * não desfaz a mudança na deliberação (a gravação já aconteceu).
+ */
+async function registrarEvento(ev: {
+  /** Nulo na exclusão (a linha da deliberação já não existe). */
+  deliberacaoId: string | null
+  ataId: string
+  evento: EventoDeliberacao["evento"]
+  origem?: EventoDeliberacao["origem"]
+  mudancas?: MudancaDeliberacao[]
+  assunto: string
+  sigilo: SigiloDeliberacao
+  autorId: string
+}): Promise<void> {
+  try {
+    const admin = await createAdminClient()
+    const nomes = await nomesDosUsuarios([ev.autorId], "guerra")
+    const { error } = await admin.from("reuniao_deliberacao_eventos").insert({
+      emp_proprietaria_id: await tenantAtual(),
+      deliberacao_id: ev.deliberacaoId,
+      ata_id: ev.ataId,
+      evento: ev.evento,
+      origem: ev.origem ?? "manual",
+      mudancas: ev.mudancas ?? [],
+      assunto: ev.assunto,
+      sigilo: ev.sigilo,
+      autor_id: ev.autorId,
+      autor_nome: nomes.get(ev.autorId) ?? null,
+    })
+    if (error) console.error("trilha da deliberação:", error.message)
+  } catch (e) {
+    console.error("trilha da deliberação:", (e as Error).message)
+  }
+}
+
+/**
+ * Trilha das deliberações da ata — só as linhas que o nível do usuário
+ * alcança (`sigilos`), da mais antiga para a mais nova. Inclui as das
+ * deliberações excluídas (`deliberacaoId` nulo).
+ */
+export async function eventosDaAta(ataId: string, sigilos: SigiloDeliberacao[]): Promise<EventoDeliberacao[]> {
+  if (sigilos.length === 0) return []
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("reuniao_deliberacao_eventos")
+    .select("id, deliberacao_id, evento, origem, mudancas, assunto, sigilo, autor_nome, created_at")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("ata_id", ataId)
+    .in("sigilo", sigilos)
+    .order("created_at")
+  if (error) {
+    if (/does not exist|schema cache/i.test(error.message)) return []
+    throw new Error(`Falha ao ler a trilha das deliberações: ${error.message}`)
+  }
+  return (data ?? []).map((r) => ({
+    id: String(r.id),
+    deliberacaoId: texto(r.deliberacao_id),
+    evento: r.evento === "alterada" || r.evento === "excluida" ? r.evento : "criada",
+    origem: r.origem === "ia" ? "ia" : "manual",
+    mudancas: Array.isArray(r.mudancas) ? (r.mudancas as MudancaDeliberacao[]) : [],
+    assunto: texto(r.assunto),
+    sigilo: ehSigiloDeliberacao(r.sigilo) ? r.sigilo : "restrito",
+    autorNome: texto(r.autor_nome),
+    quando: String(r.created_at),
+  }))
 }

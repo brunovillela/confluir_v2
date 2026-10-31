@@ -20,7 +20,7 @@
 | P03 | [Atendimento ao filiado no portal](#p03) | 6 | identificação, **sensível: filiação/posição sindical**, credencial (segredo de acesso, nunca exportar) | sim |
 | P04 | [Oposição à contribuição assistencial](#p04) | 5 | identificação, **sensível: filiação/posição sindical**, trabalhista | sim |
 | P05 | [Assembleias e votações](#p05) | 15 | identificação, **sensível: filiação/posição sindical**, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
-| P06 | [Representação, reuniões e agenda](#p06) | 8 | identificação, **sensível: filiação/posição sindical**, trabalhista | sim |
+| P06 | [Representação, reuniões e agenda](#p06) | 9 | identificação, **sensível: filiação/posição sindical**, trabalhista | sim |
 | P07 | [Diretoria, mandatos e ofícios](#p07) | 8 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P08 | [Saúde do trabalhador (CAT, atendimentos, CIPA)](#p08) | 11 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, trabalhista | sim |
 | P09 | [Jurídico](#p09) | 4 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista | sim |
@@ -271,7 +271,7 @@
 
 **Medidas de segurança.** RLS por tenant.
 
-<details><summary>Tabelas (8) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (9) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -283,6 +283,7 @@
 | [representacao_reunioes](../dados/dicionario/representacao.md#representacao_reunioes) | identificacao | `resumo` (identificacao), `encaminhamentos` (identificacao), `ata_caminho` (identificacao) |
 | [reuniao_ata](../dados/dicionario/representacao.md#reuniao_ata) | identificacao, sens. sindical | `resumo` (identificacao), `presentes` (sens. sindical), `observacoes` (identificacao), `documento_url` (identificacao), `sigilo_documento` (nenhum) |
 | [reuniao_deliberacao](../dados/dicionario/representacao.md#reuniao_deliberacao) | identificacao, sens. sindical | `ata_id` (nenhum), `ordem` (nenhum), `assunto` (identificacao), `texto` (identificacao), `votacao` (identificacao), `responsavel` (identificacao), `prazo` (nenhum), `situacao` (nenhum), `sigilo` (nenhum), `criado_por` (identificacao), `atualizado_por` (identificacao), `responsavel_id` (identificacao) |
+| [reuniao_deliberacao_eventos](../dados/dicionario/representacao.md#reuniao_deliberacao_eventos) | identificacao, sens. sindical | `deliberacao_id` (nenhum), `ata_id` (nenhum), `evento` (nenhum), `origem` (nenhum), `mudancas` (identificacao), `assunto` (identificacao), `sigilo` (nenhum), `autor_id` (identificacao), `autor_nome` (identificacao) |
 
 </details>
 
@@ -827,4 +828,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 221 de 221 tabelas com dado pessoal atribuídas a 16 processos.
+Cobertura: 222 de 222 tabelas com dado pessoal atribuídas a 16 processos.
