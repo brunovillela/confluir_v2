@@ -266,6 +266,8 @@ export type ExtratoOrdens = {
   /** Pagas (pela data do pagamento) de `realizadosDe` até ontem, do mais recente ao mais antigo. */
   realizados: DiaExtrato[]
   realizadosDe: string
+  /** Resumo do topo: o que falta pagar, por prazo (independe do horizonte). */
+  resumo: Record<"vencidas" | "hoje" | "dias7" | "dias30", { quantidade: number; total: number }>
 }
 
 // Fora do extrato: a cancelada não movimenta, e a compra "Na fatura" é paga
@@ -335,6 +337,15 @@ export async function extratoOrdens(
   const deHoje = [...abertas.filter((o) => ate(o) === hoje), ...pagas.filter((o) => pagoEm(o) === hoje)]
   const atrasadas = abertas.filter((o) => !ate(o) || ate(o) < hoje)
   const realizadas = pagas.filter((o) => pagoEm(o) < hoje && pagoEm(o) >= realizadosDe)
+  const resumoDe = (ls: Omit<OrdemLinha, "favorecido">[]) => ({ quantidade: ls.length, total: somaDia(ls.map((o) => ({ ...o, favorecido: null }))) })
+  const ate7 = somar(hoje, 7)
+  const ate30 = somar(hoje, 30)
+  const resumo = {
+    vencidas: resumoDe(atrasadas),
+    hoje: resumoDe(abertas.filter((o) => ate(o) === hoje)),
+    dias7: resumoDe(futurasTodas.filter((o) => ate(o) <= ate7)),
+    dias30: resumoDe(futurasTodas.filter((o) => ate(o) <= ate30)),
+  }
 
   // O favorecido só das ordens que vão para a tela.
   const naTela = [...futurasNoHorizonte, ...deHoje, ...atrasadas, ...realizadas]
@@ -348,6 +359,7 @@ export async function extratoOrdens(
     atrasadas: porDia(com(atrasadas), (o) => ate(o) || "sem vencimento", false),
     realizados: porDia(com(realizadas), pagoEm, true),
     realizadosDe,
+    resumo,
   }
 }
 

@@ -75,7 +75,9 @@ function Bloco({
   aberto = true,
   tom,
   rodape,
+  ancora,
 }: {
+  ancora: string
   titulo: string
   icone: typeof CalendarDays
   dias: DiaExtrato[]
@@ -89,7 +91,7 @@ function Bloco({
   const quantidade = dias.reduce((n, d) => n + d.linhas.length, 0)
   const total = Math.round(dias.reduce((s, d) => s + d.total, 0) * 100) / 100
   return (
-    <details open={aberto} className={cn("group bg-card overflow-hidden rounded-xl border", tom === "alerta" && "border-warning/50")}>
+    <details id={ancora} open={aberto} className={cn("group bg-card scroll-mt-20 overflow-hidden rounded-xl border", tom === "alerta" && "border-warning/50")}>
       <summary className="flex cursor-pointer items-center justify-between gap-3 px-4 py-3 select-none [&::-webkit-details-marker]:hidden">
         <span className="flex items-center gap-2 text-sm font-semibold">
           <Icone className={cn("size-4", tom === "alerta" ? "text-warning-fg" : "text-muted-foreground")} />
@@ -111,9 +113,42 @@ function Bloco({
   )
 }
 
+/** Resumo do topo: o que falta pagar, por prazo; cada cartão leva à seção. */
+function Resumo({ resumo }: { resumo: ExtratoOrdens["resumo"] }) {
+  const cartoes = [
+    { chave: "vencidas", rotulo: "Vencidas", ancora: "#vencidas", alerta: resumo.vencidas.quantidade > 0 },
+    { chave: "hoje", rotulo: "Vencem hoje", ancora: "#hoje", alerta: false },
+    { chave: "dias7", rotulo: "Próximos 7 dias", ancora: "#futuros", alerta: false },
+    { chave: "dias30", rotulo: "Próximos 30 dias", ancora: "#futuros", alerta: false },
+  ] as const
+  return (
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {cartoes.map((c) => {
+        const r = resumo[c.chave]
+        return (
+          <a
+            key={c.chave}
+            href={c.ancora}
+            className={cn(
+              "bg-card hover:border-primary/40 rounded-xl border p-3 transition-colors",
+              c.alerta && "border-warning/50 bg-warning/5"
+            )}
+          >
+            <span className={cn("text-xs", c.alerta ? "text-warning-fg font-medium" : "text-muted-foreground")}>{c.rotulo}</span>
+            <span className="mt-1 block text-lg font-semibold tabular-nums">{formatarMoeda(r.total)}</span>
+            <span className="text-muted-foreground text-xs">
+              {r.quantidade} orde{r.quantidade === 1 ? "m" : "ns"}
+            </span>
+          </a>
+        )
+      })}
+    </div>
+  )
+}
+
 /**
- * Extrato das ordens, como o do banco: lançamentos futuros, o dia de hoje,
- * as vencidas e, abaixo, o que já foi pago, dia a dia.
+ * Extrato das ordens, como o do banco: o resumo por prazo, lançamentos
+ * futuros, o dia de hoje, as vencidas e, abaixo, o que já foi pago, dia a dia.
  */
 export function ExtratoOrdensView({
   extrato,
@@ -139,7 +174,10 @@ export function ExtratoOrdensView({
   }
   return (
     <div className="grid gap-4">
+      <Resumo resumo={extrato.resumo} />
+
       <Bloco
+        ancora="futuros"
         titulo="Lançamentos futuros"
         icone={CalendarClock}
         dias={extrato.futuros}
@@ -156,6 +194,7 @@ export function ExtratoOrdensView({
       />
 
       <Bloco
+        ancora="hoje"
         titulo={`Hoje, ${formatarData(hoje)}`}
         icone={CalendarDays}
         dias={extrato.hojeDia.linhas.length ? [extrato.hojeDia] : []}
@@ -166,6 +205,7 @@ export function ExtratoOrdensView({
 
       {extrato.atrasadas.length > 0 && (
         <Bloco
+          ancora="vencidas"
           titulo="Vencidas, ainda não pagas"
           icone={AlertTriangle}
           dias={extrato.atrasadas}
@@ -177,6 +217,7 @@ export function ExtratoOrdensView({
       )}
 
       <Bloco
+        ancora="pagas"
         titulo={`Pagas desde ${formatarData(extrato.realizadosDe)}`}
         icone={CheckCircle2}
         dias={extrato.realizados}
