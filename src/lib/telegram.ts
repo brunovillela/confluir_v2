@@ -49,9 +49,10 @@ export async function enviarTelegram(dados: {
   botoes?: BotaoTelegram[][]
   /**
    * Teclado de resposta (substitui os botões inline): "pedir contato" ou
-   * "remover teclado" — link único de votação (07/10/2026).
+   * "remover teclado" — link único de votação (07/10/2026); "responder" abre
+   * a resposta à mensagem (o motivo de uma devolução chega ligado a ela).
    */
-  teclado?: "pedir_contato" | "remover"
+  teclado?: "pedir_contato" | "remover" | "responder"
 }): Promise<boolean> {
   const token = process.env.TELEGRAM_BOT_TOKEN
   if (!token) return false
@@ -74,7 +75,9 @@ export async function enviarTelegram(dados: {
               }
             : dados.teclado === "remover"
               ? { remove_keyboard: true }
-              : tecladoInline(dados.botoes),
+              : dados.teclado === "responder"
+                ? { force_reply: true, input_field_placeholder: "Motivo" }
+                : tecladoInline(dados.botoes),
       }),
     })
     return resposta.ok
@@ -99,17 +102,54 @@ export async function responderCallbackTelegram(callbackId: string, texto?: stri
   }
 }
 
-/** Troca o texto da mensagem que tinha os botões (e os remove), para a conversa não ficar com botão morto. */
-export async function editarMensagemTelegram(chatId: string | number, messageId: number, texto: string): Promise<void> {
+/**
+ * Troca o texto da mensagem que tinha os botões (e os remove), para a conversa
+ * não ficar com botão morto. `botoes` mantém os que ainda valem (o link do painel).
+ */
+export async function editarMensagemTelegram(
+  chatId: string | number,
+  messageId: number,
+  texto: string,
+  botoes?: BotaoTelegram[][]
+): Promise<void> {
   const token = process.env.TELEGRAM_BOT_TOKEN
   if (!token) return
   try {
     await fetch(`${API}/bot${token}/editMessageText`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, message_id: messageId, text: texto, parse_mode: "HTML", disable_web_page_preview: true }),
+      body: JSON.stringify({
+        chat_id: chatId,
+        message_id: messageId,
+        text: texto,
+        parse_mode: "HTML",
+        disable_web_page_preview: true,
+        reply_markup: tecladoInline(botoes),
+      }),
     })
   } catch (e) {
     console.error("Falha ao editar mensagem do Telegram:", e)
+  }
+}
+
+/**
+ * Registra o menu de comandos (o botão "/" do Telegram) com setMyCommands.
+ * Roda pelo cron diário do vercel.json (/api/telegram/comandos).
+ */
+export async function registrarComandosTelegram(
+  comandos: { command: string; description: string }[]
+): Promise<{ ok: boolean; erro?: string }> {
+  const token = process.env.TELEGRAM_BOT_TOKEN
+  if (!token) return { ok: false, erro: "TELEGRAM_BOT_TOKEN ausente." }
+  try {
+    const r = await fetch(`${API}/bot${token}/setMyCommands`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ commands: comandos }),
+    })
+    const corpo = (await r.json().catch(() => null)) as { ok?: boolean; description?: string } | null
+    return corpo?.ok ? { ok: true } : { ok: false, erro: corpo?.description ?? `HTTP ${r.status}` }
+  } catch (e) {
+    return { ok: false, erro: e instanceof Error ? e.message : String(e) }
   }
 }

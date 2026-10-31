@@ -192,6 +192,7 @@ Espelho de "Veículos Abastecimentos" do Bubble
 | `lote_id` | uuid | sim |  | → veiculos_abastecimentos_lotes |  |  |
 | `placa_informada` | text | sim |  |  |  | Placa como veio no relatório/fatura (a leitura pela IA grava sempre; sem veículo, é o que resta para vincular). |
 | `condutor_informado` | text | sim |  |  | identificação | Nome do motorista como veio no relatório, quando não foi identificado entre os condutores. |
+| `comprovante_url` | text | sim |  |  | nenhum | Caminho do cupom/nota do abastecimento no bucket 'veiculos' (mandado pelo bot do Telegram). |
 
 Únicas: `UNIQUE (bubble_id)`
 

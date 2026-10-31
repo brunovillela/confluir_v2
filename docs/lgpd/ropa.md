@@ -24,7 +24,7 @@
 | P07 | [Diretoria, mandatos e ofícios](#p07) | 8 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P08 | [Saúde do trabalhador (CAT, atendimentos, CIPA)](#p08) | 11 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, trabalhista | sim |
 | P09 | [Jurídico](#p09) | 4 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista | sim |
-| P10 | [Pessoal: RH dos funcionários da entidade](#p10) | 38 | identificação, **sensível: saúde**, financeiro, trabalhista | sim |
+| P10 | [Pessoal: RH dos funcionários da entidade](#p10) | 39 | identificação, **sensível: saúde**, financeiro, trabalhista | sim |
 | P11 | [Financeiro, compras, fornecedores e contratos](#p11) | 35 | identificação, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P12 | [Institucional: custeios, viagens, linhas e patrimônio](#p12) | 10 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P13 | [Hospedagem conveniada e cessão de espaços](#p13) | 12 | identificação, **sensível: filiação/posição sindical**, financeiro, credencial (segredo de acesso, nunca exportar) | sim |
@@ -281,7 +281,7 @@
 | [ato_eventos_participantes](../dados/dicionario/representacao.md#ato_eventos_participantes) | sens. sindical | `usuario_id` (sens. sindical) |
 | [representacao_reuniao_participantes](../dados/dicionario/representacao.md#representacao_reuniao_participantes) | identificacao, sens. sindical, trabalhista | `lado` (sens. sindical), `nome` (identificacao), `cargo` (trabalhista) |
 | [representacao_reunioes](../dados/dicionario/representacao.md#representacao_reunioes) | identificacao | `resumo` (identificacao), `encaminhamentos` (identificacao), `ata_caminho` (identificacao) |
-| [reuniao_ata](../dados/dicionario/representacao.md#reuniao_ata) | identificacao, sens. sindical | `resumo` (identificacao), `presentes` (sens. sindical), `observacoes` (identificacao), `documento_url` (identificacao) |
+| [reuniao_ata](../dados/dicionario/representacao.md#reuniao_ata) | identificacao, sens. sindical | `resumo` (identificacao), `presentes` (sens. sindical), `observacoes` (identificacao), `documento_url` (identificacao), `sigilo_documento` (nenhum) |
 | [reuniao_deliberacao](../dados/dicionario/representacao.md#reuniao_deliberacao) | identificacao, sens. sindical | `ata_id` (nenhum), `ordem` (nenhum), `assunto` (identificacao), `texto` (identificacao), `votacao` (identificacao), `responsavel` (identificacao), `prazo` (nenhum), `situacao` (nenhum), `sigilo` (nenhum), `criado_por` (identificacao), `atualizado_por` (identificacao) |
 
 </details>
@@ -430,17 +430,17 @@
 
 **Compartilhamento com terceiros.** Escritório de contabilidade (movimento da folha), eSocial/órgãos públicos, plano de saúde.
 
-**Suboperadores.** Supabase, Vercel, Sentry, Brevo / Resend, OpenAI, Bubble (sistema legado).
+**Suboperadores.** Supabase, Vercel, Sentry, Brevo / Resend, Telegram, OpenAI, Bubble (sistema legado).
 
-**Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; OpenAI: EUA; Bubble (sistema legado): EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
+**Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Telegram: Exterior; OpenAI: EUA; Bubble (sistema legado): EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
 **Retenção.** Documentos trabalhistas: prazo legal de cada um (FGTS e ponto: 5 anos; ASO e exposição: 20 anos, NR-07; informes de rendimentos: 5 anos). Códigos RT18–RT21 em retencao.md (proposta a validar).
 
 **Medidas de segurança.** RLS por tenant; acesso por permissão do módulo Pessoal; contracheque liberado individualmente ao funcionário.
 
-**Observações.** Pendências: a resenha do ponto envia à IA até 30 funcionários por nome; `pessoal_folha_competencias.snapshot` guarda cópia de dados pessoais; documentos ainda no CDN do Bubble.
+**Observações.** Comprovantes mandados ao bot do Telegram (recibo de reembolso, atestado) passam pelo Telegram e pela IA por iniciativa do próprio funcionário; o chat mostra só o período do atestado. Pendências: a resenha do ponto envia à IA até 30 funcionários por nome; `pessoal_folha_competencias.snapshot` guarda cópia de dados pessoais; documentos ainda no CDN do Bubble.
 
-<details><summary>Tabelas (38) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (39) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -479,6 +479,7 @@
 | [pessoal_ponto_resenhas](../dados/dicionario/pessoal.md#pessoal_ponto_resenhas) | identificacao, trabalhista | `conteudo` (trabalhista), `indicadores` (trabalhista) |
 | [pessoal_reembolsos_act](../dados/dicionario/pessoal.md#pessoal_reembolsos_act) | sens. saude, financeiro | `valor_solicitado` (financeiro), `valor_aprovado` (financeiro), `descricao` (sens. saude), `comprovante_url` (sens. saude), `avaliacao_observacao` (financeiro) |
 | [pessoal_registro_ponto](../dados/dicionario/pessoal.md#pessoal_registro_ponto) | financeiro, trabalhista | `horas_realizadas_70` (trabalhista), `horas_pagas_70` (financeiro), `saldo_remanescente_70` (trabalhista), `saldo_remessa_anterior_70` (trabalhista), `horas_realizadas_100` (trabalhista), `horas_pagas_100` (financeiro), `saldo_remanescente_100` (trabalhista), `saldo_remessa_anterior_100` (trabalhista), `arquivo` (trabalhista), `marcacoes` (trabalhista) |
+| [pessoal_telegram_arquivos](../dados/dicionario/pessoal.md#pessoal_telegram_arquivos) | identificacao, sens. saude, financeiro | `chat_id` (identificacao), `usuario_id` (identificacao), `passo` (nenhum), `dados` (identificacao), `dados` (financeiro), `dados` (sens. saude), `atualizado_em` (nenhum), `expira_em` (nenhum) |
 | [pessoal_treinamentos_alunos](../dados/dicionario/pessoal.md#pessoal_treinamentos_alunos) | trabalhista | `data_inicio` (trabalhista), `data_termino` (trabalhista), `certificado_url` (trabalhista) |
 | [prestadores_servico](../dados/dicionario/pessoal.md#prestadores_servico) | identificacao | `cpf` (identificacao), `nome_completo` (identificacao), `nome_fantasia` (identificacao) |
 | [prestcont_remessa](../dados/dicionario/pessoal.md#prestcont_remessa) | financeiro | `planilha` (financeiro), `valor_total` (financeiro) |
@@ -542,7 +543,7 @@
 | [financeiro_cartao_faturas](../dados/dicionario/financeiro.md#financeiro_cartao_faturas) | identificacao | `fechada_por_usuario_id` (identificacao) |
 | [financeiro_dados_bancarios_alteracoes](../dados/dicionario/financeiro.md#financeiro_dados_bancarios_alteracoes) | identificacao, financeiro | `usuario_id` (identificacao), `dados` (financeiro), `dados_anteriores` (financeiro), `decidida_por_usuario_id` (identificacao) |
 | [financeiro_despesas](../dados/dicionario/financeiro.md#financeiro_despesas) | identificacao, financeiro | `favorecido` (identificacao), `comprovante_despesa` (financeiro), `comprovante_pagamento` (financeiro) |
-| [financeiro_meses_fechados](../dados/dicionario/financeiro.md#financeiro_meses_fechados) | identificacao | `fechado_por_usuario_id` (identificacao), `reaberto_por_usuario_id` (identificacao) |
+| [financeiro_meses_fechados](../dados/dicionario/financeiro.md#financeiro_meses_fechados) | identificacao | `fechado_por_usuario_id` (identificacao), `reaberto_por_usuario_id` (identificacao), `rpa_relatorio_enviado_para` (identificacao) |
 | [financeiro_pedidos_dados_bancarios](../dados/dicionario/financeiro.md#financeiro_pedidos_dados_bancarios) | identificacao, financeiro | `usuario_id` (identificacao), `filiado_id` (identificacao), `documento_esperado` (identificacao), `enviado_para` (identificacao), `criado_por_usuario_id` (identificacao) |
 | [financeiro_remessa_itens](../dados/dicionario/financeiro.md#financeiro_remessa_itens) | identificacao, financeiro | `favorecido_nome` (identificacao), `favorecido_documento` (identificacao), `banco_codigo` (financeiro), `agencia` (financeiro), `conta` (financeiro), `pix_chave` (financeiro), `valor` (financeiro) |
 | [financeiro_remessas](../dados/dicionario/financeiro.md#financeiro_remessas) | identificacao, financeiro | `conteudo` (financeiro), `retorno_conteudo` (financeiro) |
@@ -681,7 +682,7 @@
 | [ferramentas_anomalias](../dados/dicionario/ferramentas.md#ferramentas_anomalias) | identificacao | `descricao_detalhada` (identificacao), `envolvidos_raw` (identificacao), `fato` (identificacao) |
 | [veiculo_contratos_aluguel](../dados/dicionario/veiculos.md#veiculo_contratos_aluguel) | identificacao | `uso` (nenhum), `uso_justificativa` (nenhum), `condutor_dedicado_id` (identificacao) |
 | [veiculos](../dados/dicionario/veiculos.md#veiculos) | identificacao | `condutor` (identificacao) |
-| [veiculos_abastecimentos](../dados/dicionario/veiculos.md#veiculos_abastecimentos) | identificacao | `condutor_informado` (identificacao) |
+| [veiculos_abastecimentos](../dados/dicionario/veiculos.md#veiculos_abastecimentos) | identificacao | `condutor_informado` (identificacao), `comprovante_url` (nenhum) |
 | [veiculos_agendamentos](../dados/dicionario/veiculos.md#veiculos_agendamentos) | identificacao | `motivo` (identificacao), `destino` (identificacao) |
 | [veiculos_checklist_apontamentos](../dados/dicionario/veiculos.md#veiculos_checklist_apontamentos) | identificacao | `emp_proprietaria_id` (nenhum), `veiculo_id` (nenhum), `item_id` (nenhum), `categoria` (nenhum), `descricao` (nenhum), `situacao` (nenhum), `aberto_em` (nenhum), `checklist_abertura_id` (nenhum), `confirmacoes` (nenhum), `ultima_confirmacao_em` (nenhum), `ultima_observacao` (nenhum), `resolvido_em` (nenhum), `checklist_resolucao_id` (nenhum), `resolvido_por` (identificacao), `manutencao_id` (nenhum), `created_at` (nenhum) |
 | [veiculos_condutores](../dados/dicionario/veiculos.md#veiculos_condutores) | identificacao | `cnh_numero` (identificacao), `cnh_categoria` (identificacao), `cnh_validade` (identificacao), `cnh_arquivo_url` (identificacao), `observacao` (identificacao) |
@@ -818,7 +819,7 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 | Sentry | Registro de erros (CPF mascarado, sem corpo de requisição) | União Europeia (Alemanha) | P01, P02, P03, P04, P05, P06, P07, P08, P09, P10, P11, P12, P13, P14, P15, P16 |
 | OpenAI | Recursos de IA: leitura de PDF/imagem e redação (store: false) | EUA | P01, P02, P06, P07, P08, P10, P11, P12, P13, P14, P15 |
 | Brevo / Resend | Envio de e-mails transacionais | Brevo: União Europeia (França); Resend: EUA | P01, P02, P03, P04, P05, P07, P10, P11, P12, P13, P15, P16 |
-| Telegram | Bot de avisos, aprovações e votação | Exterior | P05, P07, P11, P14, P16 |
+| Telegram | Bot de avisos, aprovações e votação | Exterior | P05, P07, P10, P11, P14, P16 |
 | Cloudflare Turnstile | Verificação anti-robô nos formulários de acesso | EUA (rede global) | P04, P05, P16 |
 | Serviços de push dos navegadores (Google, Apple, Mozilla) | Entrega de notificações push | EUA | P03, P15 |
 | Bubble (sistema legado) | Sistema anterior; ainda grava hospedagem/portal/anuênio até o desligamento | EUA | P01, P10, P13 |
@@ -826,4 +827,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 220 de 220 tabelas com dado pessoal atribuídas a 16 processos.
+Cobertura: 221 de 221 tabelas com dado pessoal atribuídas a 16 processos.

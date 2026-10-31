@@ -2,6 +2,7 @@ import "server-only"
 
 import { gozoRecusado } from "@/lib/ferias-painel"
 import { avisarQuemPodeOuCoordena, depoisDaResposta, querEmail } from "@/lib/db/avisos"
+import { botoesPendencia } from "@/lib/telegram-pendencias-fluxo"
 import { cancelarAvisoFerias, sincronizarAvisoDoGozo } from "@/lib/db/ferias-aviso"
 import { lerEmLotes, nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
@@ -594,14 +595,19 @@ export async function solicitarGozo(
   if (invalido) return { erro: invalido }
 
   const admin = await createAdminClient()
-  const { error } = await admin.from("pessoal_ferias_gozo").insert({
-    ...(await registroGozo(periodo, gozo)),
-    autorizado: false,
-    abono_solicitado: abono,
-    emp_proprietaria_id: await tenantAtual(),
-    empregador_id: await tenantAtual(),
-  })
+  const { data: criado, error } = await admin
+    .from("pessoal_ferias_gozo")
+    .insert({
+      ...(await registroGozo(periodo, gozo)),
+      autorizado: false,
+      abono_solicitado: abono,
+      emp_proprietaria_id: await tenantAtual(),
+      empregador_id: await tenantAtual(),
+    })
+    .select("id")
+    .maybeSingle()
   if (error) return { erro: `Não foi possível solicitar: ${error.message}` }
+  const gozoId = criado ? String(criado.id) : null
 
   // Onda 2 (U2): a gestão de pessoal e o coordenador do funcionário ficam
   // sabendo do pedido na hora.
@@ -610,10 +616,12 @@ export async function solicitarGozo(
   depoisDaResposta(() =>
     avisarQuemPodeOuCoordena("pessoal_gestao", [], funcionarioId, {
       texto: `${(funcionarioId && nomes.get(funcionarioId)) ?? "Um funcionário"} pediu ${dados.dias} dia(s) de férias a partir de ${formatarData(dados.inicio)}${abono ? ", com abono pecuniário" : ""}.`,
-      link: "/painel/pessoal/ferias",
+      link: `/painel/pessoal/ferias/${periodo.id}`,
       evento: "pendencia_pessoal",
       assunto: "Férias a autorizar",
       exceto: funcionarioId,
+      // Autorizar pelo Telegram (lib/telegram-pendencias.ts), com a conferência da tela.
+      telegramBotoes: gozoId ? botoesPendencia("fe", gozoId) : undefined,
     })
   )
   return {}

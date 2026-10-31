@@ -13,6 +13,7 @@ import {
   listarCondutores,
   listarVeiculos,
   obterAbastecimento,
+  urlArquivoVeiculos,
 } from "@/lib/db/veiculos"
 import { formatarDataHora, formatarMoeda } from "@/lib/formato"
 
@@ -51,10 +52,11 @@ export default async function AbastecimentoPage({
   const a = await obterAbastecimento(id)
   if (!a) notFound()
 
-  const [frota, condutoresRes, pendentes] = await Promise.all([
+  const [frota, condutoresRes, pendentes, cupom] = await Promise.all([
     listarVeiculos({ situacao: "todos" }),
     listarCondutores(),
     contarPendentesDeVinculo(a.veiculo_id ? null : a.placaInformada, a.usuario_id ? null : a.condutorInformado, a.id),
+    urlArquivoVeiculos(a.comprovanteUrl),
   ])
   const veiculos = frota.map((v) => ({
     id: v.id,
@@ -93,6 +95,14 @@ export default async function AbastecimentoPage({
         <p className="text-muted-foreground mt-1 text-xs">
           {formatarDataHora(a.data_hora)} · {a.posto ?? "—"} · {formatarMoeda(a.valor)}
           {a.lote_id ? " · veio de importação" : ""}
+          {cupom && (
+            <>
+              {" · "}
+              <a href={cupom} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                Ver o cupom
+              </a>
+            </>
+          )}
         </p>
       </div>
 

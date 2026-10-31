@@ -1,6 +1,7 @@
 import "server-only"
 import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
 import { avisarQuemPode, avisarQuemPodeOuCoordena, depoisDaResposta } from "@/lib/db/avisos"
+import { botoesPendencia } from "@/lib/telegram-pendencias-fluxo"
 import { esquemaAusente, lerEmLotes, lerEmLotesPorIds, nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -507,11 +508,14 @@ export async function criarSolicitacaoDiaria(
     evento: "pendencia_pessoal" as const,
     assunto: "Diária a avaliar",
     exceto: quemPediu,
+    // Aprovar ou reprovar pelo Telegram (lib/telegram-pendencias.ts).
+    telegramBotoes: novaId ? botoesPendencia("di", novaId) : undefined,
   }
+  const sufixo = novaId ? `/${novaId}` : ""
   depoisDaResposta(() =>
     quadro === "diretor"
-      ? avisarQuemPode("diretoria_diarias", ["configuracoes"], { ...avisoDiaria, link: "/painel/institucional/diretoria/diarias" })
-      : avisarQuemPodeOuCoordena("pessoal_gestao", ["pessoal_diarias"], nova.funcionario_id, { ...avisoDiaria, link: "/painel/pessoal/diarias" })
+      ? avisarQuemPode("diretoria_diarias", ["configuracoes"], { ...avisoDiaria, link: `/painel/institucional/diretoria/diarias${sufixo}` })
+      : avisarQuemPodeOuCoordena("pessoal_gestao", ["pessoal_diarias"], nova.funcionario_id, { ...avisoDiaria, link: `/painel/pessoal/diarias${sufixo}` })
   )
   return { id: criada ? String((criada as { id: string }).id) : undefined }
 }

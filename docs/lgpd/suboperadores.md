@@ -13,7 +13,7 @@ O Confluir é **operador** dos dados de cada entidade (controladora). Os serviç
 | **OpenAI** | Conteúdo enviado aos recursos de IA, inclusive CAT (saúde), relações de desconto, contracheques e ponto nominal | EUA | **Sim, com dado sensível** | **Prioritário:** DPA + retenção zero |
 | **Brevo** (padrão) / **Resend** (opcional) | E-mail do destinatário e conteúdo da mensagem | Brevo: UE (França); Resend: EUA | Sim | Confirmar DPA |
 | **Sentry** | Erros da aplicação, já filtrados | UE (Alemanha) | Sim (UE) | Confirmar DPA |
-| **Telegram** | Mensagens do bot: avisos, aprovações, links de votação, buscas | Exterior | Sim | **Sem DPA disponível**: minimizar conteúdo |
+| **Telegram** | Mensagens do bot: avisos, aprovações, links de votação, buscas; fotos e PDFs que a própria pessoa manda ao bot (recibos, cupons de abastecimento, atestados) | Exterior | Sim | **Sem DPA disponível**: minimizar conteúdo |
 | **Cloudflare Turnstile** | IP e sinais do navegador nos formulários de acesso | EUA (rede global) | Sim | Confirmar DPA |
 | **Serviços de push** (Google, Apple, Mozilla) | Endereço da assinatura e mensagem **cifrada** | EUA | Só metadados | Não exige ação |
 | **Bubble** (legado) | Histórico anterior à migração; ainda grava hospedagem, portal e anuênio | EUA | Sim | **Desligar e eliminar** |

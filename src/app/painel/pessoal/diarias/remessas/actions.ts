@@ -5,7 +5,6 @@ import { revalidatePath } from "next/cache"
 import { requireSessaoPainel, type SessaoPainel } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { alcadaDoUsuario } from "@/lib/db/compras"
-import { coordenaFuncionario } from "@/lib/db/coordenador"
 import { buscarSolicitacaoDiaria, type SolicitacaoDiaria } from "@/lib/db/diarias"
 import { complementoAberto, lancarDespesaPosterior, removerDespesaPosterior } from "@/lib/db/diarias-complemento"
 import {
@@ -17,27 +16,21 @@ import {
   retirarDiariaDaRemessa,
   type RemessaNova,
 } from "@/lib/db/diarias-remessas"
+import { geraDiariasDoQuadro, podeAvaliarRemessa } from "@/lib/db/diarias-remessas-avaliador"
 import { podeAcessar } from "@/lib/permissoes"
 
 /**
  * Avaliação da REMESSA de diárias (08/10/2026) — as mesmas actions para as
- * duas portas; a permissão sai do quadro da remessa:
- *   diretor     → diretoria_diarias (ou configuracoes)
- *   funcionário → pessoal_gestao / pessoal_diarias, ou o coordenador do
- *                 departamento do funcionário (nunca a própria remessa).
+ * duas portas; a permissão sai do quadro da remessa (a regra mora em
+ * lib/db/diarias-remessas-avaliador.ts, a mesma do bot do Telegram).
  */
 
 function geraDiarias(sessao: SessaoPainel, remessa: RemessaNova): boolean {
-  return remessa.quadro === "diretor"
-    ? podeAcessar(sessao.permissoes, "diretoria_diarias", ["configuracoes"])
-    : podeAcessar(sessao.permissoes, "pessoal_gestao", ["pessoal_diarias"])
+  return geraDiariasDoQuadro(sessao.permissoes, remessa)
 }
 
 async function podeAvaliar(sessao: SessaoPainel, remessa: RemessaNova): Promise<boolean> {
-  const uid = String(sessao.usuario.id)
-  if (remessa.beneficiarioId === uid) return false
-  if (geraDiarias(sessao, remessa)) return true
-  return remessa.quadro === "funcionario" && (await coordenaFuncionario(uid, remessa.beneficiarioId))
+  return podeAvaliarRemessa(String(sessao.usuario.id), sessao.permissoes, remessa)
 }
 
 function revalidar(remessa: RemessaNova) {

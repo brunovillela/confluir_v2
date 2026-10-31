@@ -5,9 +5,11 @@ import { randomInt, randomUUID } from "node:crypto"
 
 import { tenantAtual } from "@/lib/tenant"
 
-import { PERMISSOES_USUARIO_FK } from "@/lib/permissoes"
+import { PERMISSOES_USUARIO_FK, type Permissoes } from "@/lib/permissoes"
+import { resolverPermissoes } from "@/lib/permissoes-resolver"
 import { createAdminClient, createServiceClient } from "@/lib/supabase/admin"
 import { type BotaoTelegram, enviarTelegram } from "@/lib/telegram"
+import { mensagemComPainel } from "@/lib/telegram-pendencias-fluxo"
 import { semAcento } from "@/lib/texto"
 import {
   normalizarPreferencias,
@@ -222,7 +224,12 @@ export async function enviarPushTelegram(
   /** Fora de requisição (cron), o chamador passa o service role. */
   client?: SupabaseClient,
   /** Botões inline (aprovar/devolver) — onda 4, D3. */
-  botoes?: BotaoTelegram[][]
+  botoes?: BotaoTelegram[][],
+  /**
+   * Endereço do item no painel (31/10/2026): vira o botão "Abrir no painel".
+   * Se o Telegram recusar os botões, a mensagem sai sem eles, com o link no texto.
+   */
+  url?: string | null
 ): Promise<void> {
   try {
     const admin = client ?? (await createAdminClient())
@@ -252,7 +259,11 @@ export async function enviarPushTelegram(
     if (!telefoneOk) return
     // Respeita a preferência do usuário (opt-in) para este tipo de aviso.
     if (!normalizarPreferencias(prefsBruto)[evento]) return
-    await enviarTelegram({ chatId, texto: mensagem, formato: null, botoes })
+    const comPainel = mensagemComPainel(mensagem, url ?? null, botoes)
+    const foi = await enviarTelegram({ chatId, texto: comPainel.texto, formato: null, botoes: comPainel.botoes })
+    if (!foi && comPainel.botoes.length > 0) {
+      await enviarTelegram({ chatId, texto: url ? `${mensagem}\n${url}` : mensagem, formato: null })
+    }
   } catch {
     // best-effort: o push nunca derruba a ação de RH.
   }
@@ -683,6 +694,16 @@ export async function permissoesPorUsuario(
     .eq(PERMISSOES_USUARIO_FK, usuarioId)
     .maybeSingle()
   return data ?? null
+}
+
+/**
+ * Permissões EFETIVAS, como as da sessão do painel: a linha de `permissoes`
+ * com os perfis de acesso por cima (resolverPermissoes). Para as decisões
+ * pelo bot (lib/telegram-pendencias.ts).
+ */
+export async function permissoesEfetivasPorUsuario(usuarioId: string): Promise<Permissoes> {
+  const base = ((await permissoesPorUsuario(usuarioId)) ?? {}) as Permissoes
+  return resolverPermissoes(createServiceClient(), usuarioId, base)
 }
 
 export type VeiculoFrotaTelegram = {

@@ -1,6 +1,7 @@
 import "server-only"
 
 import { avisarQuemPodeOuCoordena, depoisDaResposta } from "@/lib/db/avisos"
+import { botoesPendencia } from "@/lib/telegram-pendencias-fluxo"
 import { esquemaAusente, hojeSP, lerEmLotes, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { criarNotificacao } from "@/lib/db/notificacoes"
 import {
@@ -362,7 +363,8 @@ export async function registrarFalta(
     await notificarGestao(
       `${nomes.get(dados.funcionarioId) ?? "Um funcionário"} pediu falta justificada em ${formatarData(dados.data)} (${dados.tipo}).`,
       dados.funcionarioId,
-      true
+      true,
+      id
     )
   }
   return { id }
@@ -541,14 +543,16 @@ async function espelharAusencia(faltaId: string, funcionarioId: string, data: st
  * Pedido novo é pendência (caixa de entrada + e-mail/Telegram/celular);
  * cancelamento de falta já autorizada é notificação (sino).
  */
-async function notificarGestao(textoAviso: string, funcionarioId: string, pendente: boolean): Promise<void> {
+async function notificarGestao(textoAviso: string, funcionarioId: string, pendente: boolean, faltaId?: string): Promise<void> {
   depoisDaResposta(() =>
     avisarQuemPodeOuCoordena("pessoal_gestao", ["pessoal_faltas_justificadas"], funcionarioId, {
       texto: textoAviso,
-      link: "/painel/pessoal/faltas",
+      link: faltaId ? `/painel/pessoal/faltas/${faltaId}` : "/painel/pessoal/faltas",
       evento: pendente ? "pendencia_pessoal" : "pessoal_cancelamento",
       assunto: pendente ? "Falta justificada a autorizar" : "Falta justificada cancelada",
       exceto: funcionarioId,
+      // Autorizar ou recusar pelo Telegram (lib/telegram-pendencias.ts).
+      telegramBotoes: pendente && faltaId ? botoesPendencia("fa", faltaId) : undefined,
     })
   )
 }

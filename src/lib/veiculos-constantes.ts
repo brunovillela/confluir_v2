@@ -195,3 +195,18 @@ export function lerListaEmails(texto: string): { validos: string[]; invalidos: s
   }
   return { validos, invalidos }
 }
+
+// ── Placa ───────────────────────────────────────────────────────────────────
+
+const MERCOSUL = /^[A-Z]{3}\d[A-Z]\d{2}$/
+
+/**
+ * Chave de comparação da placa: só letras e dígitos, e a Mercosul convertida
+ * para o formato antigo (5º caractere A–J ↔ 0–9) — a fatura pode trazer uma
+ * forma e o cadastro a outra.
+ */
+export function chavePlaca(placa: string | null | undefined): string {
+  const p = (placa ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "")
+  if (MERCOSUL.test(p)) return p.slice(0, 4) + String(p.charCodeAt(4) - 65) + p.slice(5)
+  return p
+}

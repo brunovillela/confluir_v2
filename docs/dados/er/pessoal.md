@@ -315,6 +315,11 @@ erDiagram
     uuid id PK
     uuid emp_proprietaria_id FK
   }
+  pessoal_telegram_arquivos {
+    text chat_id PK
+    uuid emp_proprietaria_id FK
+    uuid usuario_id FK
+  }
   pessoal_treinamentos {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -443,6 +448,7 @@ erDiagram
   pessoal_reembolsos_act }o--|| usuarios : "funcionario_id"
   pessoal_registro_ponto }o--o| pessoal_registro_ponto_remessas : "remessa_id"
   pessoal_registro_ponto }o--o| usuarios : "funcionario_id"
+  pessoal_telegram_arquivos }o--|| usuarios : "usuario_id"
   pessoal_treinamentos_alunos }o--o| pessoal_treinamentos : "treinamento_id"
   pessoal_treinamentos_alunos }o--o| usuarios : "aluno_id"
   prestadores_servico }o--o| empresa : "fornecedor_id"

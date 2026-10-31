@@ -17,6 +17,7 @@ import { iniciarConfirmacaoPeloBot, PREFIXO_START, registrarContatoPeloBot } fro
 import { enviarTelegram } from "@/lib/telegram"
 import { responderAprovar, tratarCallbackAprovacao, tratarTextoDevolucao } from "@/lib/telegram-aprovacoes"
 import { mensagemFrota } from "@/lib/telegram-frota"
+import { tratarArquivoTelegram, tratarCallbackArquivo, tratarTextoArquivo } from "@/lib/telegram-arquivo"
 import { iniciarPedidoViagem, responderMinhasViagens, tratarCallbackViagem, tratarTextoViagem } from "@/lib/telegram-viagem"
 
 export const runtime = "nodejs"
@@ -54,6 +55,14 @@ export async function POST(req: Request): Promise<Response> {
         if (!u || !u.telefoneConfirmado) {
           await enviarTelegram({ chatId: String(cbChat), texto: "Vincule e confirme seu telefone em Meu perfil → Telegram antes de aprovar por aqui." })
         } else if (
+          !(await tratarCallbackArquivo({
+            callbackId: cb.id,
+            chatId: String(cbChat),
+            messageId: typeof cbMsg?.message_id === "number" ? cbMsg.message_id : null,
+            textoDaMensagem: typeof cbMsg?.text === "string" ? cbMsg.text : null,
+            dado: typeof cb.data === "string" ? cb.data : "",
+            u,
+          })) &&
           !(await tratarCallbackViagem({
             callbackId: cb.id,
             chatId: String(cbChat),
@@ -90,6 +99,17 @@ export async function POST(req: Request): Promise<Response> {
       await tratarContatoVotacao(String(chat.id), contato, (msg?.from as { id?: number } | undefined)?.id)
     } catch (e) {
       console.error("Erro no contato do Telegram:", e)
+    }
+    return Response.json({ ok: true })
+  }
+
+  // Foto ou PDF: comprovante de reembolso, cupom de abastecimento ou atestado.
+  // Só mensagem nova: legenda editada não lê o arquivo de novo.
+  if (chat?.id && msg && msg === update.message && (msg.photo || msg.document)) {
+    try {
+      await tratarArquivo(String(chat.id), msg)
+    } catch (e) {
+      console.error("Erro no arquivo do Telegram:", e)
     }
     return Response.json({ ok: true })
   }
@@ -160,6 +180,19 @@ async function tratarContatoVotacao(
     texto: "✅ Pronto, número confirmado! Volte à página de votação para continuar — ela já segue sozinha.",
     teclado: "remover",
   })
+}
+
+/** Foto ou PDF: mesmo portão dos comandos (vinculado e telefone confirmado). */
+async function tratarArquivo(chatId: string, msg: Record<string, unknown>): Promise<void> {
+  const u = await usuarioPorChat(chatId)
+  if (!u || !u.telefoneConfirmado) {
+    await enviarTelegram({
+      chatId,
+      texto: "Para mandar comprovantes por aqui, vincule a conta e confirme seu telefone em <b>Meu perfil → Telegram</b> no Confluir.",
+    })
+    return
+  }
+  await tratarArquivoTelegram(chatId, msg, u)
 }
 
 function primeiroNome(n: string | null | undefined): string {
@@ -254,6 +287,8 @@ async function tratar(chatId: string, texto: string): Promise<void> {
         "",
         "<i>/carros e /filiado dependem da sua permissão no painel.</i>",
         "",
+        "📎 <b>Comprovantes:</b> mande a foto ou o PDF (até 5 MB) de um recibo de reembolso do ACT, cupom de abastecimento ou atestado. Eu leio, mostro o que entendi e você confirma ou corrige.",
+        "",
         "Você também pode escrever uma dúvida em texto que eu tento ajudar.",
       ].join("\n"),
     })
@@ -317,12 +352,15 @@ async function tratar(chatId: string, texto: string): Promise<void> {
     return
   }
 
+  // Correção de um comprovante em andamento (foto/PDF) ou /cancelar.
+  if (await tratarTextoArquivo(chatId, texto, u)) return
+
   // Resposta de um pedido de viagem em andamento (/viagem) ou /cancelar.
   if (await tratarTextoViagem(chatId, texto, u)) return
 
   // Texto livre → assistente por IA (sem acesso a dados sensíveis da pessoa).
   const { texto: resposta, erro } = await gerarTextoIA({
-    system: `Você é o assistente do Confluir${u.entidade ? ` da entidade ${u.entidade}` : ""}, sistema de gestão de um sindicato, conversando pelo Telegram com um funcionário ou filiado. Responda em português do Brasil, de forma breve e cordial. O bot tem comandos: contracheque → /contracheque, férias → /ferias, diárias → /diarias, pedir passagem aérea ou rodoviária e hospedagem → /viagem, ver os pedidos de viagem → /viagens, informes de rendimentos → /informes, atestados de saúde ocupacional (ASO) → /asos, veículos disponíveis por sede e com quem estão os carros → /carros, aprovar ou devolver ordens de pagamento na alçada → /aprovar, consulta de filiação por nome/CPF → /filiado <termo>. Oriente a usar o comando adequado. Para o restante (treinamentos, ASO detalhado etc.), oriente a consultar o painel do Confluir (área Meu perfil). Você NÃO tem acesso direto a esses dados nesta conversa em texto livre. Nunca invente informações.`,
+    system: `Você é o assistente do Confluir${u.entidade ? ` da entidade ${u.entidade}` : ""}, sistema de gestão de um sindicato, conversando pelo Telegram com um funcionário ou filiado. Responda em português do Brasil, de forma breve e cordial. O bot tem comandos: contracheque → /contracheque, férias → /ferias, diárias → /diarias, pedir passagem aérea ou rodoviária e hospedagem → /viagem, ver os pedidos de viagem → /viagens, informes de rendimentos → /informes, atestados de saúde ocupacional (ASO) → /asos, veículos disponíveis por sede e com quem estão os carros → /carros, aprovar ou devolver ordens de pagamento na alçada → /aprovar, consulta de filiação por nome/CPF → /filiado <termo>. Para lançar recibo de reembolso do ACT, cupom de abastecimento ou atestado, a pessoa manda a foto ou o PDF aqui na conversa (o bot lê e pede confirmação). Oriente a usar o comando adequado. Para o restante (treinamentos, ASO detalhado etc.), oriente a consultar o painel do Confluir (área Meu perfil). Você NÃO tem acesso direto a esses dados nesta conversa em texto livre. Nunca invente informações.`,
     prompt: texto,
   })
   await enviarTelegram({

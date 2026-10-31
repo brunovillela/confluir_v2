@@ -2,6 +2,7 @@ import "server-only"
 
 import type { EntradaDadosBancarios } from "@/lib/dados-bancarios"
 import { avisar, avisarQuemPode, depoisDaResposta, type Destinatario } from "@/lib/db/avisos"
+import { botoesPendencia } from "@/lib/telegram-pendencias-fluxo"
 import { esquemaAusente, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { donosDaPessoa, filtroDosDonos, type DonosDaPessoa } from "@/lib/db/dados-bancarios-pessoa"
 import { avisoRepetida, dadoRepetido } from "@/lib/db/dados-bancarios-repetida"
@@ -169,7 +170,7 @@ export async function minhasContas(usuarioId: string, alteracoes: AlteracaoDados
 }
 
 /** O Financeiro (quem paga ordens) é avisado de um pedido novo. */
-function avisarFinanceiro(nome: string | null, acao: AcaoAlteracao): void {
+function avisarFinanceiro(nome: string | null, acao: AcaoAlteracao, alteracaoId: string | null): void {
   const verbo = acao === "incluir" ? "incluir uma conta" : acao === "alterar" ? "alterar uma conta" : "excluir uma conta"
   depoisDaResposta(() =>
     avisarQuemPode("financeiro_pagamento", [], {
@@ -178,6 +179,8 @@ function avisarFinanceiro(nome: string | null, acao: AcaoAlteracao): void {
       link: "/painel/financeiro/contas-bancarias/alteracoes",
       evento: "pendencia_dados_bancarios",
       assunto: "Alteração de dados bancários a confirmar",
+      // Confirmar ou recusar pelo Telegram (lib/telegram-pendencias.ts).
+      telegramBotoes: alteracaoId ? botoesPendencia("db", alteracaoId) : undefined,
     })
   )
 }
@@ -210,21 +213,25 @@ export async function pedirAlteracao({
   }
 
   const admin = await createAdminClient()
-  const { error } = await admin.from("financeiro_dados_bancarios_alteracoes").insert({
-    emp_proprietaria_id: await tenantAtual(),
-    usuario_id: usuarioId,
-    acao,
-    dados_bancarios_id: conta?.id ?? null,
-    dados: acao === "excluir" ? null : dados,
-    dados_anteriores: conta ?? null,
-    principal: acao !== "excluir" && (principal || contas.length === 0),
-  })
+  const { data: criado, error } = await admin
+    .from("financeiro_dados_bancarios_alteracoes")
+    .insert({
+      emp_proprietaria_id: await tenantAtual(),
+      usuario_id: usuarioId,
+      acao,
+      dados_bancarios_id: conta?.id ?? null,
+      dados: acao === "excluir" ? null : dados,
+      dados_anteriores: conta ?? null,
+      principal: acao !== "excluir" && (principal || contas.length === 0),
+    })
+    .select("id")
+    .maybeSingle()
   if (error) {
     if (error.code === "23505") return { erro: "Esta conta já tem um pedido aguardando o Financeiro. Cancele-o antes de pedir outro." }
     return { erro: `Não foi possível registrar o pedido: ${error.message}` }
   }
   const nomes = await nomesDosUsuarios([usuarioId])
-  avisarFinanceiro(nomes.get(usuarioId) ?? null, acao)
+  avisarFinanceiro(nomes.get(usuarioId) ?? null, acao, criado ? String(criado.id) : null)
   return {}
 }
 

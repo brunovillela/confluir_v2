@@ -1701,6 +1701,8 @@ export type Abastecimento = {
   /** Motorista como veio no relatório, quando não foi identificado. */
   condutorInformado: string | null
   lote_id: string | null
+  /** Cupom guardado (bucket 'veiculos') — lançamentos pelo bot do Telegram. */
+  comprovanteUrl: string | null
 }
 
 export const ABASTECIMENTOS_POR_PAGINA = 50
@@ -1826,6 +1828,7 @@ export async function montarAbastecimentos(
       placaInformada: texto(a.placa_informada),
       condutorInformado: texto(a.condutor_informado),
       lote_id: texto(a.lote_id),
+      comprovanteUrl: texto(a.comprovante_url),
     }))
 }
 
@@ -1840,6 +1843,8 @@ export type NovoAbastecimento = {
   hodometro: number
   data_hora: string
   lote_id?: string | null
+  /** Cupom no bucket 'veiculos' (o bot do Telegram manda; o painel não). */
+  comprovante_url?: string | null
 }
 
 /** Lançamento novo — sempre com veículo + hodômetro (decisão 2026-07-19). */
@@ -1858,6 +1863,7 @@ export async function criarAbastecimento(
     hodometro: novo.hodometro,
     data_hora_abastecimento: novo.data_hora,
     lote_id: novo.lote_id ?? null,
+    ...(novo.comprovante_url ? { comprovante_url: novo.comprovante_url } : {}),
     emp_proprietaria_id: await tenantAtual(),
   })
   if (error) {

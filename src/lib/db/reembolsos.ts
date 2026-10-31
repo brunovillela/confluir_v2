@@ -1,5 +1,6 @@
 import "server-only"
 import { avisarQuemPode, depoisDaResposta, querEmail } from "@/lib/db/avisos"
+import { botoesPendencia } from "@/lib/telegram-pendencias-fluxo"
 import { esquemaAusente, nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -224,15 +225,19 @@ export async function criarReembolso(
   // limitada a ele) — a despesa em si pode passar do teto.
 
   const admin = await createAdminClient()
-  const { error } = await admin.from("pessoal_reembolsos_act").insert({
-    funcionario_id: novo.funcionario_id,
-    tipo_id: novo.tipo_id,
-    valor_solicitado: novo.valor_solicitado,
-    descricao: novo.descricao,
-    comprovante_url: novo.comprovante_url,
-    situacao: "aguardando",
-    emp_proprietaria_id: await tenantAtual(),
-  })
+  const { data: criado, error } = await admin
+    .from("pessoal_reembolsos_act")
+    .insert({
+      funcionario_id: novo.funcionario_id,
+      tipo_id: novo.tipo_id,
+      valor_solicitado: novo.valor_solicitado,
+      descricao: novo.descricao,
+      comprovante_url: novo.comprovante_url,
+      situacao: "aguardando",
+      emp_proprietaria_id: await tenantAtual(),
+    })
+    .select("id")
+    .maybeSingle()
   if (error) {
     if (esquemaAusente(error)) {
       return {
@@ -244,13 +249,16 @@ export async function criarReembolso(
 
   // Onda 2 (U2): a gestão de pessoal fica sabendo do pedido na hora.
   const nomes = await nomesDosUsuarios([novo.funcionario_id])
+  const reembolsoId = criado ? String(criado.id) : null
   depoisDaResposta(() =>
     avisarQuemPode("pessoal_gestao", ["pessoal_reembolsos"], {
       texto: `${nomes.get(novo.funcionario_id) ?? "Um funcionário"} pediu reembolso de ${formatarMoeda(novo.valor_solicitado)} (${tipo.nome}): ${novo.descricao}`.slice(0, 300),
-      link: "/painel/pessoal/reembolsos",
+      link: reembolsoId ? `/painel/pessoal/reembolsos/${reembolsoId}` : "/painel/pessoal/reembolsos",
       evento: "pendencia_pessoal",
       assunto: "Reembolso do ACT a avaliar",
       exceto: novo.funcionario_id,
+      // Aprovar (valor reembolsável, contracheque sugerido) ou reprovar pelo Telegram.
+      telegramBotoes: reembolsoId ? botoesPendencia("re", reembolsoId) : undefined,
     })
   )
   return {}

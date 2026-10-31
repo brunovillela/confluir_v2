@@ -2,7 +2,7 @@
 
 # Pessoal (RH da entidade)
 
-56 tabelas. Diagrama: [er/pessoal.md](../er/pessoal.md).
+57 tabelas. Diagrama: [er/pessoal.md](../er/pessoal.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -58,6 +58,7 @@
 | [pessoal_reembolsos_act_tipos](#pessoal_reembolsos_act_tipos) | — | Tipos de reembolso previstos no ACT dos funcionários, com teto e proporção reembolsável. Cadastrados em Pessoal > Reembolsos. |
 | [pessoal_registro_ponto](#pessoal_registro_ponto) | trabalhista, financeiro | Espelho de ponto mensal (PDF) de um funcionário numa remessa, com saldos de horas extras 70% e 100% e as marcações diárias lidas por IA. Mig… |
 | [pessoal_registro_ponto_remessas](#pessoal_registro_ponto_remessas) | — | Remessa mensal de espelhos de ponto (mês de referência, finalizada). Migrada do Bubble; gerida em Pessoal > Ponto. |
+| [pessoal_telegram_arquivos](#pessoal_telegram_arquivos) | identificação, financeiro, **sensível: saúde** | Comprovante mandado ao bot do Telegram (foto ou PDF) aguardando confirmação: o que a IA leu e o passo da conversa; apagada ao confirmar ou c… |
 | [pessoal_treinamentos](#pessoal_treinamentos) | — | Catálogo de treinamentos (carga horária e validade em meses) usado em SST. Herdado do Bubble; cadastrado em Pessoal > Treinamentos. |
 | [pessoal_treinamentos_alunos](#pessoal_treinamentos_alunos) | trabalhista | Participação de um funcionário num treinamento (datas e certificado), usada no controle de vencimentos. Espelho do Bubble; gravada em Pessoa… |
 | [prestadores_servico](#prestadores_servico) | identificação | Prestador de serviço pessoa física (CPF, nome) ligado a um fornecedor. Sem uso encontrado no código (possível legado do Bubble). |
@@ -1460,6 +1461,26 @@ Remessa mensal de espelhos de ponto (mês de referência, finalizada). Migrada d
 Únicas: `UNIQUE (bubble_id)`
 
 Índices: `pessoal_registro_ponto_remessas_bubble_id_key`, `pessoal_registro_ponto_remessas_pkey`
+
+## pessoal_telegram_arquivos
+
+Comprovante mandado ao bot do Telegram (foto ou PDF) aguardando confirmação: o que a IA leu e o passo da conversa; apagada ao confirmar ou cancelar e expira em 30 minutos (src/lib/telegram-arquivo.ts).
+
+- **LGPD:** identificação, financeiro, **sensível: saúde** · titulares: funcionários, diretores
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `chat_id` | text | não |  |  | identificação | Chat do Telegram da pessoa (o mesmo de usuarios.telegram_chat_id). |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  | Entidade (tenant). |
+| `usuario_id` | uuid | não |  | → usuarios (**cascade**) | identificação | Quem mandou o arquivo. |
+| `passo` | text | não |  |  | nenhum | Passo atual da conversa (tipo, tipo do reembolso, veículo, hodômetro, funcionário, confirmar, corrigir). |
+| `dados` | jsonb | não | `'{}'::jsonb` |  | identificação, financeiro, **sensível: saúde** | file_id do Telegram e o que a IA leu/a pessoa respondeu: valor e descrição do reembolso; posto, litros, valor, veículo e km do abastecimento; início, dias, acompanhamento e CID do atestado. |
+| `atualizado_em` | timestamp with time zone | não | `now()` |  | nenhum | Última resposta. |
+| `expira_em` | timestamp with time zone | não |  |  | nenhum | Depois disso a conversa é descartada e o arquivo precisa ser mandado de novo. |
+
+Índices: `pessoal_telegram_arquivos_expira_idx`, `pessoal_telegram_arquivos_pkey`
 
 ## pessoal_treinamentos
 

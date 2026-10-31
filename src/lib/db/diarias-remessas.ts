@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { esquemaAusente, hojeSP, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { contaDoGasto, listarContasDiaria, obterAutorizacaoDiarias, type QuadroDiaria } from "@/lib/db/diarias-config"
 import { avisar, avisarQuemPode, avisarQuemPodeOuCoordena, depoisDaResposta } from "@/lib/db/avisos"
+import { botoesPendencia } from "@/lib/telegram-pendencias-fluxo"
 import { avaliarSolicitacaoDiaria, solicitacoesDaRemessa, type SolicitacaoDiaria } from "@/lib/db/diarias"
 import { criarNotificacao } from "@/lib/db/notificacoes"
 import { enviarPushTelegram } from "@/lib/db/telegram"
@@ -758,6 +759,8 @@ export async function reenviarRemessaDiarias(
   const aviso = {
     texto: `${nomes.get(usuarioId) ?? "Alguém"} corrigiu e reenviou a remessa de diárias ${remessa.codigo ?? ""} de ${remessa.beneficiarioNome ?? "beneficiário"}${resposta ? ` — ${resposta}` : ""}.`.slice(0, 300),
     evento: "pendencia_pessoal" as const,
+    // Aprovar ou devolver a remessa pelo Telegram (lib/telegram-pendencias.ts).
+    telegramBotoes: botoesPendencia("dr", remessaId),
     assunto: "Remessa de diárias reenviada",
     exceto: usuarioId,
     link,
@@ -840,6 +843,8 @@ export async function enviarRemessaParaAvaliacao(remessaId: string, usuarioId: s
   const aviso = {
     texto: `Remessa de diárias de ${remessa.beneficiarioNome ?? "beneficiário"} enviada para avaliação: ${aguardando.length} diária(s), ${formatarMoeda(remessa.valorTotal)}.`.slice(0, 300),
     evento: "pendencia_pessoal" as const,
+    // Aprovar ou devolver a remessa pelo Telegram (lib/telegram-pendencias.ts).
+    telegramBotoes: botoesPendencia("dr", remessaId),
     assunto: "Remessa de diárias a avaliar",
     exceto: usuarioId,
     link,

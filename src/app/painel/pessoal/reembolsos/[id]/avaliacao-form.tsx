@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label"
 import { avaliarReembolsoAction, marcarPagoAction } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
+import { contrachequeSugerido as sugerirContracheque } from "@/lib/telegram-pendencias-fluxo"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -39,17 +40,11 @@ const MESES = [
 
 /**
  * Contracheque sugerido: o do mês até o dia 15 (corte do movimento da folha);
- * depois dele, o do mês seguinte.
+ * depois dele, o do mês seguinte. A mesma regra do reembolso aprovado pelo
+ * Telegram (lib/telegram-pendencias-fluxo.ts).
  */
 function contrachequeSugerido(): { mes: string; ano: string } {
-  const [a, m, d] = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" })
-    .format(new Date())
-    .split("-")
-    .map(Number)
-  const seguinte = d > 15
-  const mes = seguinte ? (m % 12) + 1 : m
-  const ano = seguinte && m === 12 ? a + 1 : a
-  return { mes: MESES[mes - 1], ano: String(ano) }
+  return sugerirContracheque(new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date()))
 }
 
 export function AvaliacaoReembolsoForm({

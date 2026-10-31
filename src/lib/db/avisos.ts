@@ -292,12 +292,15 @@ export async function avisar(
       }
     }
 
+    // O link do item vira o botão "Abrir no painel" (ou fica no texto, se o
+    // endereço não servir de botão — localhost, por exemplo).
     await enviarPushTelegram(
       d.id,
-      url ? `${textoFora}\n${url}` : textoFora,
+      textoFora,
       aviso.evento,
       amb.client,
-      aviso.sensivel ? undefined : aviso.telegramBotoes
+      aviso.sensivel ? undefined : aviso.telegramBotoes,
+      url
     )
     // Celular (Web Push): o aparelho autorizado recebe os tipos ligados na
     // coluna "Celular" de Meu perfil → Avisos.

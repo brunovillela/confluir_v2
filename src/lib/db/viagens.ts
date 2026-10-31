@@ -1,6 +1,7 @@
 import "server-only"
 
 import { avisarQuemPode, depoisDaResposta } from "@/lib/db/avisos"
+import { botoesPendencia } from "@/lib/telegram-pendencias-fluxo"
 import { esquemaAusente, hojeSP, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { listarDepartamentos } from "@/lib/db/compras"
 import { listarEventos } from "@/lib/db/eventos"
@@ -426,10 +427,12 @@ export async function criarViagem(nova: NovaViagem): Promise<{ erro?: string; id
   depoisDaResposta(() =>
     avisarQuemPode("viagens_gestao", [], {
       texto: `Novo pedido de viagem para ${viajante} (${nova.itens.length} item${nova.itens.length === 1 ? "" : "ns"}): ${nova.motivo}`.slice(0, 300),
-      link: "/painel/institucional/viagens",
+      link: `/painel/institucional/viagens/${id}`,
       evento: "pendencia_viagens",
       assunto: "Pedido de viagem a atender",
       exceto: nova.solicitanteId,
+      // Abrir o atendimento ou recusar pelo Telegram (lib/telegram-pendencias.ts).
+      telegramBotoes: botoesPendencia("vi", id),
     })
   )
   return { id }

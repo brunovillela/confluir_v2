@@ -49,6 +49,45 @@ O Telegram só entrega depois de vincular o bot e confirmar o telefone (no
 cartão **Telegram** da mesma página, ao lado de Receber no celular); as escolhas ficam guardadas para quando isso
 acontecer.
 
+## Resolver pelo Telegram
+
+Quem recebe os avisos de pendência pelo Telegram resolve ali mesmo, sem abrir o
+painel. O aviso chega com os botões da decisão e com **🔗 Abrir no painel**,
+que leva direto ao pedido:
+
+| Aviso | Botões |
+|---|---|
+| Ordem de pagamento na sua alçada | Aprovar · Devolver |
+| Pedido de férias | Autorizar (para devolver, abra no painel) |
+| Diária avulsa | Aprovar · Reprovar |
+| Remessa de diárias enviada ou reenviada | Aprovar remessa · Devolver |
+| Reembolso do ACT | Aprovar · Reprovar |
+| Falta justificada | Autorizar · Recusar |
+| Pedido de viagem | Abrir atendimento · Recusar |
+| Alteração de dados bancários | Confirmar · Recusar |
+| Despesa lançada no seu caixa | Reconhecer · Não reconhecer |
+
+Cada botão faz **exatamente o que a tela faz**, com as mesmas regras: só decide
+quem tem a permissão da área ou coordena o departamento do funcionário,
+ninguém decide o próprio pedido, a remessa de diárias gera a ordem dentro da
+sua alçada, e o pedido já decidido por outra pessoa avisa que não está mais
+aguardando. O reembolso aprovado pelo Telegram sai com o valor reembolsável e
+no contracheque sugerido pela tela (o do mês até o dia 15; depois, o do mês
+seguinte) — para mudar o valor ou o mês, aprove pelo painel.
+
+Devolver, reprovar ou recusar pede o **motivo**: o bot manda uma mensagem e
+você responde a ela com o motivo (pelo menos 5 letras), que vai para quem
+pediu. **/cancelar** desiste. Depois da decisão, a mensagem do aviso é
+atualizada com o que foi feito, e os botões somem.
+
+Para ver tudo o que espera por você de uma vez, envie **/pendencias**: o bot
+mostra o resumo da caixa de entrada e, em seguida, até 8 pedidos com os
+botões. Os comandos do bot aparecem no botão **/** da conversa; **/ajuda**
+lista todos.
+
+Os pedidos de saúde do portal nunca chegam com detalhe nem botão: o aviso diz
+só que há um pedido novo e leva ao painel.
+
 ## O lembrete diário
 
 Uma vez por dia, pela manhã, quem tem pendência recebe um resumo por e-mail,

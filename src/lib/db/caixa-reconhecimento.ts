@@ -1,6 +1,7 @@
 import "server-only"
 
 import { avisar, depoisDaResposta, type Destinatario } from "@/lib/db/avisos"
+import { botoesPendencia } from "@/lib/telegram-pendencias-fluxo"
 import { saldoDaConta } from "@/lib/db/caixa"
 import { esquemaAusente, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { registrarEvento } from "@/lib/db/ordens-ciclo"
@@ -93,7 +94,7 @@ async function destinatario(usuarioId: string): Promise<Destinatario | null> {
 }
 
 /** Pede ao responsável que reconheça a despesa (caixa de entrada + aviso). */
-async function pedirReconhecimento(conta: { nome: string; responsavelId: string }, valor: number, descricao: string, lancadaPor: string): Promise<void> {
+async function pedirReconhecimento(conta: { nome: string; responsavelId: string }, valor: number, descricao: string, lancadaPor: string, movId: string): Promise<void> {
   const [quem, nomes] = await Promise.all([destinatario(conta.responsavelId), nomesDosUsuarios([lancadaPor])])
   if (!quem) return
   depoisDaResposta(() =>
@@ -102,6 +103,8 @@ async function pedirReconhecimento(conta: { nome: string; responsavelId: string 
       link: "/painel/perfil/caixa#reconhecer",
       evento: "pendencia_caixa",
       assunto: "Despesa lançada no seu caixa — reconheça ou não",
+      // Reconhecer (ou não, com motivo) pelo Telegram (lib/telegram-pendencias.ts).
+      telegramBotoes: botoesPendencia("cx", movId),
     })
   )
 }
@@ -122,7 +125,7 @@ export async function marcarParaReconhecimento(movId: string, contaId: string, l
   }
   const nomes = await nomesDosUsuarios([conta.responsavelId])
   await auditarNaOrdem(ordemId, "alerta", `Lançada no caixa "${conta.nome}" por outra pessoa — aguardando o reconhecimento de ${nomes.get(conta.responsavelId) ?? "o responsável"}.`)
-  await pedirReconhecimento(conta, valor, descricao, lancadaPor)
+  await pedirReconhecimento(conta, valor, descricao, lancadaPor, movId)
 }
 
 // ── Listas (Meu perfil → Despesas em caixas) ─────────────────────────────────
@@ -430,7 +433,7 @@ export async function transferirDespesaCaixa(
   if (precisa) {
     const nomes = await nomesDosUsuarios([destino.responsavelId])
     await auditarNaOrdem(ordemId, "alerta", `Transferida do caixa "${contaAntiga?.nome ?? "?"}" para "${destino.nome}" — aguardando o reconhecimento de ${nomes.get(destino.responsavelId) ?? "o responsável"}.`)
-    await pedirReconhecimento(destino, valor, texto(mov.descricao) ?? "despesa", dono)
+    await pedirReconhecimento(destino, valor, texto(mov.descricao) ?? "despesa", dono, String(criada.id))
   } else {
     await auditarNaOrdem(ordemId, "ok", `Transferida para o caixa "${destino.nome}", de quem lançou a despesa.`)
   }
