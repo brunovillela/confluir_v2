@@ -7,7 +7,7 @@ import { hojeSP, lerEmLotes } from "@/lib/db/comum"
 import { somarDias } from "@/lib/db/ferias"
 import { SITUACOES_ABERTAS } from "@/lib/db/financeiro"
 import { nomeEntidade } from "@/lib/db/organizacao"
-import { gruposDaPessoa, vencimentosDoTenant } from "@/lib/db/vencimentos"
+import { gruposDaPessoa, prazoVencido, vencimentosDoTenant } from "@/lib/db/vencimentos"
 import { formatarMoeda } from "@/lib/formato"
 import { gerarTextoIA } from "@/lib/ia"
 import { podeAcessar } from "@/lib/permissoes"
@@ -173,7 +173,7 @@ export async function montarRelatorio(sessao: SessaoPainel, mes: string): Promis
   }
 
   const vencidosPorArea = gruposDaPessoa(grupos, p)
-    .map((g) => ({ titulo: g.titulo, quantidade: g.itens.filter((i) => i.dias < 0).length }))
+    .map((g) => ({ titulo: g.titulo, quantidade: g.itens.filter(prazoVencido).length }))
     .filter((g) => g.quantidade > 0)
     .sort((a, b) => b.quantidade - a.quantidade)
 

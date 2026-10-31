@@ -6,7 +6,7 @@ import { contextoDoTenant } from "@/lib/db/comunicacao-mensagens"
 import { somarDias } from "@/lib/db/ferias"
 import { SITUACOES_ABERTAS } from "@/lib/db/financeiro"
 import { DIAS_PARADA, pendenciasPara, totalPendencias } from "@/lib/db/pendencias"
-import { gruposDaPessoa, vencimentosDoTenant, type GrupoVencimento } from "@/lib/db/vencimentos"
+import { gruposDaPessoa, prazoAVencer, prazoVencido, vencimentosDoTenant, type GrupoVencimento } from "@/lib/db/vencimentos"
 import { escaparHtml, paragrafo, textoSuave } from "@/lib/email-layout"
 import { formatarMoeda } from "@/lib/formato"
 import { PERMISSOES_USUARIO_FK, podeAcessar, type Permissoes } from "@/lib/permissoes"
@@ -134,8 +134,8 @@ function blocosDaPessoa(r: Retrato, permissoes: Permissoes, pendencias: { titulo
     blocos.push({ titulo: "Anomalias", linhas: [`${r.anomaliasAbertas} sem eficácia verificada`], href: "/painel/ferramentas/anomalias" })
   }
   const meus = gruposDaPessoa(r.vencimentos, permissoes)
-  const vencidos = meus.map((g) => ({ g, n: g.itens.filter((i) => i.dias < 0).length })).filter((x) => x.n > 0)
-  const semana = meus.map((g) => ({ g, n: g.itens.filter((i) => i.dias >= 0 && i.dias <= 7).length })).filter((x) => x.n > 0)
+  const vencidos = meus.map((g) => ({ g, n: g.itens.filter(prazoVencido).length })).filter((x) => x.n > 0)
+  const semana = meus.map((g) => ({ g, n: g.itens.filter((i) => prazoAVencer(i, 7)).length })).filter((x) => x.n > 0)
   if (vencidos.length || semana.length) {
     blocos.push({
       titulo: "Vencimentos nas suas áreas",

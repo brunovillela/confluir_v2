@@ -9,6 +9,7 @@ import { somarDias } from "@/lib/db/ferias"
 import { FILTRO_NAO_PAGA_NO_ATO, SITUACOES_ABERTAS } from "@/lib/db/financeiro"
 import { escaparHtml, paragrafo, textoSuave } from "@/lib/email-layout"
 import { formatarData, formatarMoeda } from "@/lib/formato"
+import { resumoLocacao } from "@/lib/locacao-periodo"
 import { PERMISSOES_USUARIO_FK, podeAcessar, type Permissoes } from "@/lib/permissoes"
 import { resolverPermissoes } from "@/lib/permissoes-resolver"
 import { createServiceClient } from "@/lib/supabase/admin"
@@ -33,6 +34,12 @@ export type ItemVencimento = {
   /** Dias até o vencimento; negativo = vencido. */
   dias: number
   href: string
+  /**
+   * Alerta que não é um prazo (cobrança que não chegou, apontamento aberto):
+   * o texto substitui o "vence em…" e diz se conta como atrasado.
+   */
+  nota?: string
+  atrasado?: boolean
 }
 
 export type GrupoVencimento = {
@@ -151,6 +158,151 @@ async function locacoes(f: Fonte): Promise<ItemVencimento[]> {
   return (data ?? [])
     .map((c) => item(`Locação ${texto(c.numero_contrato_locadora) ?? ""} — ${nomes.get(String(c.fornecedor_id)) ?? "locadora"}`.trim(), c.vigencia_termino, `/painel/veiculos/contratos/${c.id}`, f.hoje))
     .filter((i): i is ItemVencimento => i !== null)
+}
+
+/**
+ * Os alertas da tela de Veículos (alertasLocacao, alertasApontamentos), para
+ * quem não abre o painel: cobrança que não chegou, cobrança sem a fatura,
+ * contrato sem uso definido, apontamento de checklist aberto. Mesmas regras;
+ * aqui pelo service role, porque o resumo roda fora de requisição.
+ */
+async function cobrancasLocacao(f: Fonte): Promise<ItemVencimento[]> {
+  const { data: contratos } = await f.svc
+    .from("veiculo_contratos_aluguel")
+    .select("id, numero_contrato_locadora, fornecedor_id, vigencia_inicio, vigencia_termino, valor_mensal, uso")
+    .eq("emp_proprietaria_id", f.tenantId)
+    .not("finalizado", "is", true)
+    .limit(200)
+  if (!contratos?.length) return []
+  const ids = contratos.map((c) => String(c.id))
+  const [nomes, ordens, { data: carros }] = await Promise.all([
+    nomesEmpresa(f.svc, contratos.map((c) => texto(c.fornecedor_id) ?? "")),
+    lerEmLotes<Record<string, unknown>>((de, ate) =>
+      f.svc
+        .from("ordens_pagamento")
+        .select("id, contrato_aluguel_id, descricao, situacao, valor_inicial_cobranca, data_pagamento, vencimento, arquivo_nota_fiscal, categoria_locacao")
+        .eq("emp_proprietaria_id", f.tenantId)
+        .in("contrato_aluguel_id", ids)
+        .not("excluido", "is", true)
+        .order("id")
+        .range(de, ate)
+    ),
+    f.svc.from("veiculos").select("contrato_aluguel_id").eq("emp_proprietaria_id", f.tenantId).in("contrato_aluguel_id", ids),
+  ])
+  const comCarro = new Set((carros ?? []).map((v) => String(v.contrato_aluguel_id)))
+  const itens: ItemVencimento[] = []
+  for (const c of contratos) {
+    const nome = `Locação ${texto(c.numero_contrato_locadora) ?? ""} — ${nomes.get(String(c.fornecedor_id)) ?? "locadora"}`
+    const href = `/painel/veiculos/contratos/${c.id}`
+    const lista = ordens.filter((o) => String(o.contrato_aluguel_id) === String(c.id))
+    if (!c.uso) {
+      const temCarro = comCarro.has(String(c.id))
+      itens.push({
+        rotulo: nome,
+        data: f.hoje,
+        dias: 0,
+        href: `${href}?uso=1`,
+        nota: `uso não definido (dedicado ou coletivo)${temCarro ? " — o carro segue oferecido na recepção" : ""}`,
+        atrasado: temCarro,
+      })
+    }
+    const resumo = resumoLocacao(
+      {
+        vigencia_inicio: texto(c.vigencia_inicio),
+        vigencia_termino: texto(c.vigencia_termino),
+        valor_mensal: Number(c.valor_mensal) || null,
+      },
+      lista.map((o) => ({
+        descricao: texto(o.descricao),
+        situacao: texto(o.situacao),
+        valor: Number(o.valor_inicial_cobranca) || 0,
+        data_pagamento: texto(o.data_pagamento),
+        categoria: texto(o.categoria_locacao),
+      })),
+      f.hoje
+    )
+    for (const t of resumo.semCobranca.filter((t) => t.atrasado)) {
+      itens.push({
+        rotulo: nome,
+        data: t.ate,
+        dias: diasEntre(f.hoje, t.ate),
+        href,
+        nota: `${formatarData(t.de)} a ${formatarData(t.ate)} sem cobrança (${t.dias} dia${t.dias === 1 ? "" : "s"}) — a fatura chegou?`,
+        atrasado: true,
+      })
+    }
+    const semFatura = lista.filter(
+      (o) => !["Cancelada", "Estornado", "Paga"].includes(String(o.situacao ?? "")) && !o.data_pagamento && !texto(o.arquivo_nota_fiscal)
+    )
+    if (semFatura.length) {
+      const primeiro =
+        semFatura
+          .map((o) => texto(o.vencimento)?.slice(0, 10))
+          .filter((v): v is string => Boolean(v))
+          .sort()[0] ?? f.hoje
+      const dias = diasEntre(f.hoje, primeiro)
+      const n = semFatura.length
+      itens.push({
+        rotulo: nome,
+        data: primeiro,
+        dias,
+        href,
+        nota: `${n} cobrança${n === 1 ? "" : "s"} sem fatura anexada (${n === 1 ? "" : "a primeira "}${dias < 0 ? "venceu" : "vence"} em ${formatarData(primeiro)})`,
+        atrasado: dias < 0,
+      })
+    }
+  }
+  return itens
+}
+
+async function apontamentosChecklist(f: Fonte): Promise<ItemVencimento[]> {
+  const { data, error } = await f.svc
+    .from("veiculos_checklist_apontamentos")
+    .select("veiculo_id, categoria, aberto_em, manutencao_id")
+    .eq("emp_proprietaria_id", f.tenantId)
+    .eq("situacao", "aberto")
+    .order("aberto_em")
+    .limit(500)
+  if (error || !data?.length) return []
+  const veiculoIds = [...new Set(data.map((a) => String(a.veiculo_id)))]
+  const { data: carros } = await f.svc.from("veiculos").select("id, codigo, placa, marca_modelo").in("id", veiculoIds)
+  const rotulo = new Map(
+    (carros ?? []).map((v) => [String(v.id), [texto(v.placa), texto(v.marca_modelo)].filter(Boolean).join(" · ") || (texto(v.codigo) ?? "Veículo")])
+  )
+  type Linha = (typeof data)[number]
+  // A consulta vem do mais antigo: o primeiro da lista dá o "desde".
+  const desde = (l: Linha[]) => (texto(l[0].aberto_em) ?? f.hoje).slice(0, 10)
+  const qual = (l: Linha[]) => (l.length === 1 ? `"${texto(l[0].categoria) ?? "item"}"` : `${l.length} apontamentos`)
+  const itens: ItemVencimento[] = []
+  for (const veiculoId of veiculoIds) {
+    const doVeiculo = data.filter((a) => String(a.veiculo_id) === veiculoId)
+    const href = `/painel/veiculos/${veiculoId}#apontamentos`
+    const nome = rotulo.get(veiculoId) ?? "Veículo"
+    const semManutencao = doVeiculo.filter((a) => !a.manutencao_id)
+    if (semManutencao.length) {
+      const dias = diasEntre(f.hoje, desde(semManutencao))
+      itens.push({
+        rotulo: nome,
+        data: desde(semManutencao),
+        dias,
+        href,
+        nota: `${qual(semManutencao)} do checklist pede${semManutencao.length === 1 ? "" : "m"} manutenção corretiva (${dias === 0 ? "aberto hoje" : `aberto há ${-dias} dia${dias === -1 ? "" : "s"}`})`,
+        atrasado: true,
+      })
+    }
+    const comManutencao = doVeiculo.filter((a) => a.manutencao_id)
+    if (comManutencao.length) {
+      itens.push({
+        rotulo: nome,
+        data: desde(comManutencao),
+        dias: diasEntre(f.hoje, desde(comManutencao)),
+        href,
+        nota: `manutenção feita em ${qual(comManutencao)} — falta o checklist confirmar que foi sanado`,
+        atrasado: false,
+      })
+    }
+  }
+  return itens
 }
 
 /**
@@ -429,6 +581,8 @@ export async function vencimentosDoTenant(tenantId: string): Promise<GrupoVencim
     { chave: "cnh", titulo: "CNH dos condutores", permissao: { chave: "veiculos_gestao", alternativas: [] }, itens: await seguro(() => cnh(f)) },
     { chave: "seguros", titulo: "Seguro dos veículos", permissao: { chave: "veiculos_gestao", alternativas: [] }, itens: await seguro(() => seguros(f)) },
     { chave: "locacoes", titulo: "Locação de veículos", permissao: { chave: "veiculos_gestao", alternativas: [] }, itens: await seguro(() => locacoes(f)) },
+    { chave: "locacao_cobrancas", titulo: "Contratos de aluguel: cobranças e uso", permissao: { chave: "veiculos_gestao", alternativas: [] }, itens: await seguro(() => cobrancasLocacao(f)) },
+    { chave: "apontamentos", titulo: "Apontamentos de checklist", permissao: { chave: "veiculos_gestao", alternativas: [] }, itens: await seguro(() => apontamentosChecklist(f)) },
     { chave: "asos", titulo: "ASO", permissao: { chave: "pessoal_gestao", alternativas: ["pessoal_aso"] }, itens: await seguro(() => asos(f)) },
     { chave: "ferias", titulo: "Férias (período concessivo)", permissao: { chave: "pessoal_gestao", alternativas: [] }, itens: await seguro(() => ferias(f)) },
     { chave: "treinamentos", titulo: "Treinamentos", permissao: { chave: "pessoal_gestao", alternativas: [] }, itens: await seguro(() => treinamentos(f)) },
@@ -447,7 +601,26 @@ export function gruposDaPessoa(grupos: GrupoVencimento[], permissoes: Permissoes
   return grupos.filter((g) => podeAcessar(permissoes, g.permissao.chave, g.permissao.alternativas))
 }
 
+/**
+ * Prazo vencido de verdade (sem os alertas com nota) — o que o painel, o
+ * relatório da diretoria e o resumo semanal contam como "vencido".
+ */
+export function prazoVencido(i: ItemVencimento): boolean {
+  return !i.nota && i.dias < 0
+}
+
+/** Prazo que vence nos próximos `dias` (sem os alertas com nota). */
+export function prazoAVencer(i: ItemVencimento, dias: number): boolean {
+  return !i.nota && i.dias >= 0 && i.dias <= dias
+}
+
+/** Atrasado: o prazo passou — ou o alerta diz que sim (`atrasado`). */
+function atrasado(i: ItemVencimento): boolean {
+  return i.atrasado ?? i.dias < 0
+}
+
 function quando(i: ItemVencimento): string {
+  if (i.nota) return i.nota
   if (i.dias < 0) return `vencido há ${-i.dias} dia${i.dias === -1 ? "" : "s"}`
   if (i.dias === 0) return "vence hoje"
   return `vence em ${i.dias} dia${i.dias === 1 ? "" : "s"} (${formatarData(i.data)})`
@@ -455,12 +628,19 @@ function quando(i: ItemVencimento): string {
 
 export function textoResumo(grupos: GrupoVencimento[]): string {
   const total = grupos.reduce((s, g) => s + g.itens.length, 0)
-  const vencidos = grupos.reduce((s, g) => s + g.itens.filter((i) => i.dias < 0).length, 0)
+  // Alerta (com nota) atrasado é "urgente": apontamento aberto não "vence".
+  const vencidos = grupos.reduce((s, g) => s + g.itens.filter((i) => atrasado(i) && !i.nota).length, 0)
+  const urgentes = grupos.reduce((s, g) => s + g.itens.filter((i) => atrasado(i) && i.nota).length, 0)
   const partes = grupos.map((g) => {
-    const v = g.itens.filter((i) => i.dias < 0).length
-    return `${g.titulo}: ${g.itens.length}${v ? ` (${v} vencido${v === 1 ? "" : "s"})` : ""}`
+    const v = g.itens.filter(atrasado).length
+    const palavra = g.itens.some((i) => i.nota) ? "urgente" : "vencido"
+    return `${g.titulo}: ${g.itens.length}${v ? ` (${v} ${palavra}${v === 1 ? "" : "s"})` : ""}`
   })
-  return `Resumo de vencimentos: ${total} ${total === 1 ? "item" : "itens"}${vencidos ? `, ${vencidos} já vencido${vencidos === 1 ? "" : "s"}` : ""}. ${partes.join("; ")}.`
+  const destaque = [
+    vencidos ? `${vencidos} já vencido${vencidos === 1 ? "" : "s"}` : "",
+    urgentes ? `${urgentes} urgente${urgentes === 1 ? "" : "s"}` : "",
+  ].filter(Boolean)
+  return `Resumo de vencimentos: ${total} ${total === 1 ? "item" : "itens"}${destaque.length ? `, ${destaque.join(" e ")}` : ""}. ${partes.join("; ")}.`
 }
 
 const MAX_POR_GRUPO = 8
@@ -470,7 +650,7 @@ export function htmlResumo(grupos: GrupoVencimento[], origem: string): string {
     .map((g) => {
       const itens = g.itens
         .slice(0, MAX_POR_GRUPO)
-        .map((i) => `<li style="margin:0 0 6px;${i.dias < 0 ? "color:#b91c1c;" : ""}"><a href="${origem}${i.href}" style="color:inherit;">${escaparHtml(i.rotulo)}</a> — ${quando(i)}</li>`)
+        .map((i) => `<li style="margin:0 0 6px;${atrasado(i) ? "color:#b91c1c;" : ""}"><a href="${origem}${i.href}" style="color:inherit;">${escaparHtml(i.rotulo)}</a> — ${quando(i)}</li>`)
         .join("")
       const mais = g.itens.length > MAX_POR_GRUPO ? `<li style="margin:0 0 6px;color:#6b7280;">e mais ${g.itens.length - MAX_POR_GRUPO}…</li>` : ""
       return `<p style="margin:16px 0 6px;font-weight:600;">${escaparHtml(g.titulo)}</p><ul style="margin:0;padding-left:20px;">${itens}${mais}</ul>`

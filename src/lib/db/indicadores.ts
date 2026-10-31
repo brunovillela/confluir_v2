@@ -9,7 +9,7 @@ import { filiadosAtivos } from "@/lib/db/filiacao-ativos"
 import { relatorioInadimplencia } from "@/lib/db/filiacao-inadimplencia"
 import { FORMA_PAGA_NO_ATO, SITUACOES_ABERTAS } from "@/lib/db/financeiro"
 import { pendenciasDoUsuario, totalPendencias } from "@/lib/db/pendencias"
-import { gruposDaPessoa, vencimentosDoTenant } from "@/lib/db/vencimentos"
+import { gruposDaPessoa, prazoVencido, vencimentosDoTenant } from "@/lib/db/vencimentos"
 import { podeAcessar } from "@/lib/permissoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -206,7 +206,7 @@ export async function painelExecutivo(sessao: SessaoPainel): Promise<PainelExecu
 
   // ── Vencidos nas áreas que a pessoa cuida ─────────────────────────────────
   const vencidos = gruposDaPessoa(vencGrupos, p)
-    .map((g) => ({ titulo: g.titulo, quantidade: g.itens.filter((i) => i.dias < 0).length, href: g.itens.find((i) => i.dias < 0)?.href ?? "/painel" }))
+    .map((g) => ({ titulo: g.titulo, quantidade: g.itens.filter(prazoVencido).length, href: g.itens.find(prazoVencido)?.href ?? "/painel" }))
     .filter((g) => g.quantidade > 0)
     .sort((a, b) => b.quantidade - a.quantidade)
     .slice(0, 6)
