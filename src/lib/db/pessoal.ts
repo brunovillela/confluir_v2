@@ -1,11 +1,12 @@
 import "server-only"
+import type { SupabaseClient } from "@supabase/supabase-js"
 import { nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { querEmail } from "@/lib/db/avisos"
 import { criarNotificacao } from "@/lib/db/notificacoes"
 import { enviarPushTelegram } from "@/lib/db/telegram"
-import { enviarEmail } from "@/lib/email"
+import { enviarEmail, type ContextoEmail } from "@/lib/email"
 import { SITE_URL } from "@/lib/env"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -490,6 +491,9 @@ export type RemessaContracheques = {
   complementar_mensal: boolean | null
   /** Dia do pagamento (vencimento das ordens) — supabase/pessoal-contracheques-ordens.sql. */
   data_pagamento?: string | null
+  /** Liberação automática (rotina diária) — migração 20261031190730. */
+  liberar_em?: string | null
+  liberada_automaticamente_em?: string | null
   created_at: string | null
   itens: number
 }
@@ -607,6 +611,9 @@ export type RemessaPonto = {
   mes_referencia_os: string | null
   ano_referencia_os: string | null
   finalizada: boolean | null
+  /** Liberação automática (rotina diária) — migração 20261031190730. */
+  liberar_em: string | null
+  liberada_automaticamente_em: string | null
   created_at: string | null
   itens: number
 }
@@ -617,7 +624,7 @@ export async function listarRemessasPonto(): Promise<RemessaPonto[]> {
     admin
       .from("pessoal_registro_ponto_remessas")
       .select(
-        "id, nome_remessa, ordem, mes_referencia_os, ano_referencia_os, finalizada, created_at"
+        "id, nome_remessa, ordem, mes_referencia_os, ano_referencia_os, finalizada, liberar_em, liberada_automaticamente_em, created_at"
       )
       .eq("emp_proprietaria_id", await tenantAtual())
       .order("ordem", { ascending: false, nullsFirst: false }),
@@ -711,12 +718,15 @@ export async function proximaOrdemRemessa(
 /**
  * Aviso de liberação de contracheque/espelho de ponto: notificação interna
  * (sino + histórico) e email ao funcionário. Falha de email não interrompe.
+ * Fora de requisição (rotina diária da liberação automática), o chamador passa
+ * o service role e o contexto do tenant em `amb`.
  */
 export async function notificarLiberacaoPessoal(
   funcionarioId: string,
   tipo: "contracheque" | "ponto",
   remessaNome: string | null,
-  itemId?: string
+  itemId?: string,
+  amb?: { client: SupabaseClient; contexto: ContextoEmail }
 ): Promise<void> {
   const rotulo =
     tipo === "contracheque" ? "contracheque" : "espelho de ponto"
@@ -726,19 +736,31 @@ export async function notificarLiberacaoPessoal(
       : "Controle de ponto disponível"
   const mensagem = `Seu ${rotulo}${remessaNome ? ` da remessa ${remessaNome}` : ""} está disponível no sistema.`
 
-  await criarNotificacao({
-    usuarioId: funcionarioId,
-    texto: mensagem,
+  const vinculo = {
     contrachequeId: tipo === "contracheque" ? (itemId ?? null) : null,
     registroPontoId: tipo === "ponto" ? (itemId ?? null) : null,
-  })
+  }
+  if (amb) {
+    const { error } = await amb.client.from("notificacoes").insert({
+      usuario_id: funcionarioId,
+      notificacao: mensagem,
+      notificado: false,
+      notificacao_data: new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date()),
+      contracheque_id_fk: vinculo.contrachequeId,
+      registro_ponto_id_fk: vinculo.registroPontoId,
+    })
+    if (error) throw new Error(`Falha ao criar notificação: ${error.message}`)
+  } else {
+    await criarNotificacao({ usuarioId: funcionarioId, texto: mensagem, ...vinculo })
+  }
   await enviarPushTelegram(
     funcionarioId,
     mensagem,
-    tipo === "contracheque" ? "contracheque" : "ponto"
+    tipo === "contracheque" ? "contracheque" : "ponto",
+    amb?.client
   )
 
-  const admin = await createAdminClient()
+  const admin = amb?.client ?? (await createAdminClient())
   const { data: usuario } = await admin
     .from("usuarios")
     .select("email, nome_completo, nome_guerra")
@@ -746,15 +768,16 @@ export async function notificarLiberacaoPessoal(
     .maybeSingle()
   if (!usuario?.email) return
   // Preferência de e-mail (Meu perfil → Avisos) vale também aqui.
-  if (!(await querEmail(funcionarioId, tipo === "contracheque" ? "contracheque" : "ponto"))) return
+  if (!(await querEmail(funcionarioId, tipo === "contracheque" ? "contracheque" : "ponto", amb?.client))) return
 
   const nome = usuario.nome_completo ?? usuario.nome_guerra ?? null
-  const pagina = `${SITE_URL}/painel/perfil/${tipo === "contracheque" ? "contracheques" : "ponto"}`
+  const pagina = `${amb?.contexto.origem || SITE_URL}/painel/perfil/${tipo === "contracheque" ? "contracheques" : "ponto"}`
   await enviarEmail({
     email: usuario.email,
     nome,
     assunto: `${titulo} — {ENTIDADE}`,
     html: `<p>Olá${nome ? `, ${String(nome).split(" ")[0]}` : ""}!</p><p>${mensagem}</p><p>Acesse o sistema em <a href="${pagina}">${pagina}</a>.</p><p>Confluir — {ENTIDADE}</p>`,
+    ...(amb ? { contexto: amb.contexto } : {}),
   })
 }
 

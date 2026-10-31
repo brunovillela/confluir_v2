@@ -26,6 +26,10 @@
       "schedule": "45 11 * * *"
     },
     {
+      "path": "/api/pessoal/liberacao/tick",
+      "schedule": "0 9 * * *"
+    },
+    {
       "path": "/api/analitica/tick",
       "schedule": "0 6 * * *"
     },

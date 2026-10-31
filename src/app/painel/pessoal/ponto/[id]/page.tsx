@@ -163,8 +163,11 @@ export default async function RemessaPontoPage({
               )}
             </div>
             <p className="text-muted-foreground mt-1 text-xs">
-              {itens.length} registro{itens.length === 1 ? "" : "s"} de ponto ·
-              criada em {formatarData(remessa.created_at)}
+              {itens.length} registro{itens.length === 1 ? "" : "s"} de ponto
+              {remessa.liberada_automaticamente_em
+                ? ` · liberada automaticamente em ${formatarData(remessa.liberada_automaticamente_em)}`
+                : remessa.liberar_em && ` · liberação automática em ${formatarData(remessa.liberar_em)}`}{" "}
+              · criada em {formatarData(remessa.created_at)}
             </p>
           </div>
           {!editandoRemessa && (

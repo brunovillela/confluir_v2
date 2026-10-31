@@ -130,7 +130,11 @@ export default async function RemessaContrachequesPage({
             <p className="text-muted-foreground mt-1 text-xs">
               {itens.length} contracheque{itens.length === 1 ? "" : "s"}
               {totalLiquido > 0 && ` · ${formatarMoeda(totalLiquido)} líquido`}
-              {remessa.data_pagamento && ` · pagamento em ${formatarData(remessa.data_pagamento)}`} · criada
+              {remessa.data_pagamento && ` · pagamento em ${formatarData(remessa.data_pagamento)}`}
+              {remessa.liberada_automaticamente_em
+                ? ` · liberada automaticamente em ${formatarData(remessa.liberada_automaticamente_em)}`
+                : remessa.liberar_em && ` · liberação automática em ${formatarData(remessa.liberar_em)}`}{" "}
+              · criada
               em {formatarData(remessa.created_at)}
             </p>
           </div>

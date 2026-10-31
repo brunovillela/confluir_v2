@@ -14,6 +14,7 @@ import { lerCartaoPdf } from "@/lib/db/ponto-cartao-ia"
 import { apurarMes, type RegrasApuracao } from "@/lib/ponto-apuracao"
 import { lerEspelhoDoRegistro } from "@/lib/db/ponto-marcacoes"
 import { recalcularPosteriores } from "@/lib/db/ponto-cascata"
+import { hojeSP } from "@/lib/db/comum"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { duasCasas, lerHoras } from "@/lib/horas"
 
@@ -61,12 +62,29 @@ async function remessaAberta(
   return { ordem: data.ordem, nome: data.nome_remessa }
 }
 
+/**
+ * Data da liberação automática (rotina diária, lib/db/pessoal-liberacao-automatica).
+ * Marcar uma data futura zera a marca de "já liberada", para a rotina rodar de novo.
+ */
+function lerLiberarEm(formData: FormData) {
+  if (!formData.has("liberar_em")) return {}
+  const liberarEm = String(formData.get("liberar_em") ?? "")
+  if (liberarEm && !/^\d{4}-\d{2}-\d{2}$/.test(liberarEm)) return { erro: "Data de liberação automática inválida." }
+  return {
+    liberar_em: liberarEm || null,
+    ...(liberarEm && liberarEm > hojeSP() ? { liberada_automaticamente_em: null } : {}),
+  }
+}
+
 function lerCamposRemessa(formData: FormData) {
   const mes = String(formData.get("mes_referencia_os") ?? "")
   const ano = String(formData.get("ano_referencia_os") ?? "").trim()
   if (!MESES.includes(mes)) return { erro: "Escolha o mês de referência." }
   if (!/^\d{4}$/.test(ano)) return { erro: "Informe o ano de referência (AAAA)." }
+  const liberacao = lerLiberarEm(formData)
+  if ("erro" in liberacao) return { erro: liberacao.erro as string }
   return {
+    ...liberacao,
     mes_referencia_os: mes,
     ano_referencia_os: ano,
     nome_remessa: `${mes}/${ano}`,

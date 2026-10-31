@@ -17,6 +17,7 @@ import {
   notificarLiberacaoPessoal,
   proximaOrdemRemessa,
 } from "@/lib/db/pessoal"
+import { hojeSP } from "@/lib/db/comum"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { parseValorBR } from "@/lib/valores"
 
@@ -40,6 +41,20 @@ const NATUREZAS = [
   "complementar_mensal",
 ] as const
 
+/**
+ * Data da liberação automática (rotina diária, lib/db/pessoal-liberacao-automatica).
+ * Marcar uma data futura zera a marca de "já liberada", para a rotina rodar de novo.
+ */
+function lerLiberarEm(formData: FormData) {
+  if (!formData.has("liberar_em")) return {}
+  const liberarEm = String(formData.get("liberar_em") ?? "")
+  if (liberarEm && !/^\d{4}-\d{2}-\d{2}$/.test(liberarEm)) return { erro: "Data de liberação automática inválida." }
+  return {
+    liberar_em: liberarEm || null,
+    ...(liberarEm && liberarEm > hojeSP() ? { liberada_automaticamente_em: null } : {}),
+  }
+}
+
 /** Nome e natureza são obrigatórios; a natureza é ÚNICA por remessa. */
 function lerCamposRemessa(formData: FormData) {
   const nome = String(formData.get("nome_remessa") ?? "").trim()
@@ -52,7 +67,10 @@ function lerCamposRemessa(formData: FormData) {
   if (dataPagamento && !/^\d{4}-\d{2}-\d{2}$/.test(dataPagamento)) {
     return { erro: "Data de pagamento inválida." }
   }
+  const liberacao = lerLiberarEm(formData)
+  if ("erro" in liberacao) return { erro: liberacao.erro as string }
   return {
+    ...liberacao,
     // Só vai ao banco quando o campo existe no formulário (SQL da folha).
     ...(formData.has("data_pagamento") ? { data_pagamento: dataPagamento || null } : {}),
     nome_remessa: nome,

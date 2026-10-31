@@ -546,10 +546,12 @@ Espelho de "Pessoal - Contracheques - remessas" do Bubble
 | `created_at` | timestamp with time zone | sim | `now()` |  |  |  |
 | `updated_at` | timestamp with time zone | sim | `now()` |  |  |  |
 | `data_pagamento` | date | sim |  |  |  | Dia do pagamento da folha — vencimento das ordens geradas pelos contracheques. |
+| `liberar_em` | date | sim |  |  |  | Dia em que a rotina diária libera ao funcionário os contracheques ainda bloqueados (vazio = só liberação manual). |
+| `liberada_automaticamente_em` | timestamp with time zone | sim |  |  |  | Quando a rotina diária liberou a remessa (uma vez; nova data futura zera). |
 
 Únicas: `UNIQUE (bubble_id)`
 
-Índices: `pessoal_contracheques_remessas_bubble_id_key`, `pessoal_contracheques_remessas_pkey`
+Índices: `pessoal_contracheques_remessas_bubble_id_key`, `pessoal_contracheques_remessas_liberar_idx`, `pessoal_contracheques_remessas_pkey`
 
 ## pessoal_dependentes
 
@@ -1457,10 +1459,12 @@ Remessa mensal de espelhos de ponto (mês de referência, finalizada). Migrada d
 | `finalizada` | boolean | sim | `false` |  |  |  |
 | `emp_proprietaria_id` | uuid | sim |  | → empresa |  |  |
 | `created_at` | timestamp with time zone | sim | `now()` |  |  |  |
+| `liberar_em` | date | sim |  |  |  | Dia em que a rotina diária libera ao funcionário os registros de ponto ainda bloqueados (vazio = só liberação manual). |
+| `liberada_automaticamente_em` | timestamp with time zone | sim |  |  |  | Quando a rotina diária liberou a remessa (uma vez; nova data futura zera). |
 
 Únicas: `UNIQUE (bubble_id)`
 
-Índices: `pessoal_registro_ponto_remessas_bubble_id_key`, `pessoal_registro_ponto_remessas_pkey`
+Índices: `pessoal_registro_ponto_remessas_bubble_id_key`, `pessoal_registro_ponto_remessas_liberar_idx`, `pessoal_registro_ponto_remessas_pkey`
 
 ## pessoal_telegram_arquivos
 

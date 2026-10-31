@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { LiberarEmCampo } from "@/components/liberar-em-campo"
 
 import {
   atualizarRemessaContracheques,
@@ -31,6 +32,8 @@ export type RemessaFormDados = {
   adiantamento: boolean | null
   complementar_mensal: boolean | null
   data_pagamento?: string | null
+  liberar_em?: string | null
+  liberada_automaticamente_em?: string | null
   itens: number
 }
 
@@ -138,6 +141,8 @@ export function RemessaContrachequesForm({
                 </span>
               </div>
             )}
+            <LiberarEmCampo remessa={remessa} itens="contracheques" />
+
             <div className="grid content-end pb-1">
               <label className="text-muted-foreground flex items-center gap-2 text-sm">
                 <Checkbox

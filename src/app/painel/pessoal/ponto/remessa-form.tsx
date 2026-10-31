@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { LiberarEmCampo } from "@/components/liberar-em-campo"
 
 import {
   atualizarRemessaPonto,
@@ -42,6 +43,8 @@ export type RemessaPontoFormDados = {
   mes_referencia_os: string | null
   ano_referencia_os: string | null
   finalizada: boolean | null
+  liberar_em?: string | null
+  liberada_automaticamente_em?: string | null
   itens: number
 }
 
@@ -76,7 +79,7 @@ export function RemessaPontoForm({ remessa }: { remessa?: RemessaPontoFormDados 
           <CardHeader>
             <CardTitle className="text-base">Dados da remessa</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-3">
+          <CardContent className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-1.5">
               <Label htmlFor="mes_referencia_os">Mês de referência *</Label>
               <select
@@ -108,6 +111,7 @@ export function RemessaPontoForm({ remessa }: { remessa?: RemessaPontoFormDados 
                 required
               />
             </div>
+            <LiberarEmCampo remessa={remessa} itens="registros de ponto" />
             <div className="grid content-end pb-1">
               <label className="text-muted-foreground flex items-center gap-2 text-sm">
                 <Checkbox
