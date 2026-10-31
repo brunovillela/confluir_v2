@@ -50,6 +50,7 @@ import { NotaFiscalIcone, NovoCodigoPix } from "./ajustes-pagamento"
 import { OrdemCompraAcoes } from "./ordem-compra"
 import { CustoDoRpa } from "./custo-rpa"
 import { ComprovanteAcoes } from "./comprovante-envio"
+import { LinhaDoTempoProcesso, type EtapaProcesso } from "./linha-do-tempo"
 import { AnexarNotaMarketplace, VincularVendedor } from "./marketplace-nota"
 import { AnexarRpaAssinadoBotao } from "../rpa/rpa-forms"
 
@@ -343,6 +344,64 @@ export default async function ProcessoCompraPage({
     }))
   )
 
+  // Linha do tempo: da solicitação ao recebimento, somando os fornecimentos.
+  const ordensVivas = [...fornecimentosComUrl.flatMap((f) => f.pagamentos), ...ordensAvulsas].filter(
+    (o) => o.situacao !== "Cancelada" && o.situacao !== "Estornado"
+  )
+  const contar = (n: number, total: number, rotulo: string) => (total > 1 ? `${n} de ${total} ${rotulo}` : null)
+  const comDocumento = fornecimentosComUrl.filter(
+    (f) => !!f.nota_fiscal_url || !!rpaPorFornecimento.get(f.id)?.assinado || f.pagamentos.some((o) => !!o.notaFiscal)
+  ).length
+  const autorizadas = ordensVivas.filter((o) => o.autorizado || o.situacao === "Paga").length
+  const pagas = ordensVivas.filter((o) => o.situacao === "Paga").length
+  const recebidos = fornecimentosComUrl.filter((f) => f.recebido).length
+  const comComprovante = ordensVivas.filter((o) => comprovantes.has(o.id))
+  const comprovantesEnviados = comComprovante.filter((o) => comprovantes.get(o.id)?.enviado).length
+  const etapas: EtapaProcesso[] = [
+    { titulo: "Solicitação", feita: true, detalhe: formatarData(processo.created_at) },
+    ...(processo.aquisicao_direta === true
+      ? []
+      : [
+          {
+            titulo: "Cotação",
+            feita: processo.comprado || !!processo.cotacao_termino,
+            detalhe: processo.em_cotacao ? "aberta" : processo.cotacao_termino ? formatarData(processo.cotacao_termino) : null,
+          },
+        ]),
+    { titulo: "Compra", feita: processo.comprado, detalhe: processo.compra_data ? formatarData(processo.compra_data) : null },
+    {
+      titulo: "Documento fiscal",
+      feita: fornecimentosComUrl.length > 0 && comDocumento === fornecimentosComUrl.length,
+      detalhe:
+        contar(comDocumento, fornecimentosComUrl.length, "fornecimentos") ??
+        (rpaPorFornecimento.size ? ([...rpaPorFornecimento.values()].every((r) => r.assinado) ? "RPA assinado" : "RPA a assinar") : null),
+    },
+    {
+      titulo: "Autorização",
+      feita: ordensVivas.length > 0 && autorizadas === ordensVivas.length,
+      detalhe: contar(autorizadas, ordensVivas.length, "ordens"),
+    },
+    {
+      titulo: "Pagamento",
+      feita: ordensVivas.length > 0 && pagas === ordensVivas.length,
+      detalhe: contar(pagas, ordensVivas.length, "ordens"),
+    },
+    ...(comComprovante.length
+      ? [
+          {
+            titulo: "Comprovante enviado",
+            feita: comprovantesEnviados === comComprovante.length,
+            detalhe: contar(comprovantesEnviados, comComprovante.length, "comprovantes"),
+          },
+        ]
+      : []),
+    {
+      titulo: "Recebimento",
+      feita: fornecimentosComUrl.length > 0 ? recebidos === fornecimentosComUrl.length : processo.recebido,
+      detalhe: contar(recebidos, fornecimentosComUrl.length, "fornecimentos"),
+    },
+  ]
+
   const escolhidas = processo.propostas.filter((p) => p.escolhida)
   const totalEscolhidas = escolhidas.reduce(
     (s, p) => s + (p.valor_proposta ?? 0),
@@ -410,6 +469,8 @@ export default async function ProcessoCompraPage({
           <AlertDescription>Alteração salva.</AlertDescription>
         </Alert>
       )}
+
+      <LinhaDoTempoProcesso etapas={etapas} cancelado={processo.cancelado} />
 
       <Card>
         <CardHeader>

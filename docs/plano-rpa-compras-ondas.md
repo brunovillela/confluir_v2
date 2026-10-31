@@ -93,7 +93,7 @@ Decisão: o e-mail da contabilidade (configuração nova) e a data do envio.
 | Onda | Situação |
 |---|---|
 | 1 — Avisar antes de enviar | **concluída** 31/10 — avisos do limite ao vivo, custo total na prévia, NIT/PIS na emissão |
-| 2 — Remessa e linha do tempo | a fazer |
+| 2 — Remessa e linha do tempo | **concluída** 31/10 — pendência de limite na Nova remessa, faixa de etapas no processo |
 | 3 — Assinatura automática | a fazer (decidir N dias / lembretes) |
 | 4 — Comprovante | a fazer (decidir padrão do envio automático) |
 | 5 — IRRF acumulado | aguarda a contabilidade |

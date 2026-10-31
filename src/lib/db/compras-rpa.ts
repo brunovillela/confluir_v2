@@ -780,3 +780,40 @@ export async function limiteMensalNoPagamentoDaOrdem(ordemId: string, dataPagame
   if (lista.length < limite) return null
   return mensagemLimitePagamento(lista, anoMes, limite, "registre este pagamento em outro mês.")
 }
+
+/**
+ * Na remessa bancária: a ordem de um RPA pode entrar com pagamento em
+ * `dataPagamento`? Mesma conta da emissão (pagos + previstos no mês, fora
+ * esta ordem), em texto curto para a lista de pendências — no retorno do
+ * banco o dinheiro já saiu e não dá mais para barrar.
+ */
+export async function limiteRpaNaRemessa(
+  ordemIds: { ordemId: string; dataPagamento: string }[]
+): Promise<Map<string, string>> {
+  const mapa = new Map<string, string>()
+  if (!ordemIds.length) return mapa
+  const limite = await limiteRpasMes()
+  if (limite === null) return mapa
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("compras_rpa")
+    .select("ordem_pagamento_id, fornecedor_id")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .in(
+      "ordem_pagamento_id",
+      ordemIds.map((o) => o.ordemId)
+    )
+  for (const r of (data ?? []) as { ordem_pagamento_id: string; fornecedor_id: string | null }[]) {
+    const alvo = ordemIds.find((o) => o.ordemId === r.ordem_pagamento_id)
+    if (!alvo || !r.fornecedor_id) continue
+    const anoMes = alvo.dataPagamento.slice(0, 7)
+    const lista = await rpasNoMesDePagamento(r.fornecedor_id, anoMes, { excetoOrdemId: alvo.ordemId, previstos: true })
+    if (lista.length < limite) continue
+    const [ano, mes] = anoMes.split("-")
+    mapa.set(
+      alvo.ordemId,
+      `limite de RPAs do prestador em ${mes}/${ano} (já tem ${lista.map((x) => `nº ${x.numero ?? "—"} ${x.paga ? "pago" : "previsto"}`).join(", ")})`
+    )
+  }
+  return mapa
+}
