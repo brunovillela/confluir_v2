@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { opcoesMandatos } from "@/lib/db/atas"
+import { nivelSigilo, sigilosVisiveis } from "@/lib/deliberacoes-constantes"
 
 import { AtaForm } from "../ata-form"
 
@@ -16,7 +17,8 @@ export default async function NovaAtaPage({
 }: {
   searchParams: Promise<{ mandato?: string }>
 }) {
-  await requirePermissao("diretoria_reunioes")
+  const sessao = await requirePermissao("diretoria_reunioes")
+  const sigilos = sigilosVisiveis(nivelSigilo(sessao.permissoes))
   const { mandato } = await searchParams
   const mandatos = await opcoesMandatos()
 
@@ -45,6 +47,7 @@ export default async function NovaAtaPage({
             mandatos={mandatos}
             mandatoPadrao={mandato}
             aoCancelarHref={voltarHref}
+            sigilos={sigilos}
           />
         </CardContent>
       </Card>

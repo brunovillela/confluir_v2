@@ -9,10 +9,18 @@ import {
   atualizarAta,
   criarAta,
   excluirAta,
+  sigiloDocumentoDaAta,
   subirDocumentoAta,
   type DadosAta,
 } from "@/lib/db/atas"
 import { registrarDeliberacoesLidas } from "@/lib/db/deliberacoes"
+import {
+  ehSigiloDeliberacao,
+  nivelSigilo,
+  sigilosVisiveis,
+  type SigiloDeliberacao,
+} from "@/lib/deliberacoes-constantes"
+import type { Permissoes } from "@/lib/permissoes"
 import { TIPOS_REUNIAO, type TipoReuniao } from "@/lib/atas-constantes"
 
 function texto(fd: FormData, campo: string): string {
@@ -37,6 +45,26 @@ async function lerDocumento(
   const { caminho, erro } = await subirDocumentoAta(arq)
   if (erro) return { erro }
   return { caminho }
+}
+
+/**
+ * Sigilo do PDF pedido no formulário, dentro do nível de quem salva. Sem
+ * nível (nenhum), o PDF fica restrito. `atual`: numa ata cujo PDF está acima
+ * do nível de quem edita, o sigilo não muda (undefined = não mexer).
+ */
+function lerSigiloDocumento(
+  fd: FormData,
+  permissoes: Permissoes,
+  atual?: SigiloDeliberacao
+): { sigilo?: SigiloDeliberacao; erro?: string } {
+  const sigilos = sigilosVisiveis(nivelSigilo(permissoes))
+  if (atual && !sigilos.includes(atual)) return { sigilo: undefined }
+  if (sigilos.length === 0) return { sigilo: "restrito" }
+  const pedido = texto(fd, "sigilo_documento")
+  if (!ehSigiloDeliberacao(pedido) || !sigilos.includes(pedido)) {
+    return { erro: "Escolha um sigilo do PDF dentro do seu acesso às deliberações." }
+  }
+  return { sigilo: pedido }
 }
 
 function lerDados(fd: FormData): Omit<DadosAta, "documento_url"> {
@@ -91,10 +119,16 @@ export async function criarAtaAction(
   fd: FormData
 ): Promise<EstadoForm> {
   const sessao = await requirePermissao("diretoria_reunioes")
+  const sigilo = lerSigiloDocumento(fd, sessao.permissoes)
+  if (sigilo.erro) return { erro: sigilo.erro, campo: "sigilo_documento" }
   const { caminho, erro: erroArq } = await lerDocumento(fd)
   if (erroArq) return { erro: erroArq }
   const dados = lerDados(fd)
-  const { id, erro } = await criarAta({ ...dados, documento_url: caminho ?? null })
+  const { id, erro } = await criarAta({
+    ...dados,
+    documento_url: caminho ?? null,
+    sigilo_documento: sigilo.sigilo ?? "restrito",
+  })
   if (erro || !id) return { erro: erro ?? "Falha ao criar." }
   // A ata já existe: falha nas deliberações lidas não desfaz a ata — elas
   // podem ser lançadas à mão no cartão Deliberações.
@@ -110,10 +144,14 @@ export async function atualizarAtaAction(
   const sessao = await requirePermissao("diretoria_reunioes")
   const id = texto(fd, "ata_id")
   if (!id) return { erro: "Ata inválida." }
+  const atual = await sigiloDocumentoDaAta(id)
+  if (!atual) return { erro: "Ata não encontrada." }
+  const sigilo = lerSigiloDocumento(fd, sessao.permissoes, atual)
+  if (sigilo.erro) return { erro: sigilo.erro, campo: "sigilo_documento" }
   const { caminho, erro: erroArq } = await lerDocumento(fd)
   if (erroArq) return { erro: erroArq }
   const dados = lerDados(fd)
-  const { erro } = await atualizarAta(id, { ...dados, documento_url: caminho })
+  const { erro } = await atualizarAta(id, { ...dados, documento_url: caminho, sigilo_documento: sigilo.sigilo })
   if (erro) return { erro }
   // Só entram se a ata ainda não tem deliberações (ver registrarDeliberacoesLidas).
   await registrarDeliberacoesLidas(id, lerDeliberacoesLidas(fd), sessao.usuario.id)

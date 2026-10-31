@@ -398,6 +398,7 @@ Configurações do Financeiro por tenant: centro de custo do caixa, prazo de est
 | `updated_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `estorno_prazo_dias` | integer | não | `15` |  |  | Prazo em dias para resolver um estorno de pagamento. |
 | `diarias_autorizacao` | text | não | `'remessa'::text` |  |  | Autorização da ordem da remessa de diárias: remessa (quem aprova a remessa autoriza, sem alçada) \| alcada (depende da alçada de quem aprova; acima dela, fila de autorização). |
+| `email_contabilidade` | text | sim |  |  | identificação | E-mail da contabilidade que recebe o relatório mensal de RPAs no dia seguinte ao fechamento do mês. |
 
 Checks: `financeiro_config_diarias_autorizacao_chk` `CHECK ((diarias_autorizacao = ANY (ARRAY['remessa'::text, 'alcada'::text])))`; `financeiro_config_estorno_prazo_chk` `CHECK (((estorno_prazo_dias >= 1) AND (estorno_prazo_dias <= 365)))`
 
@@ -537,6 +538,8 @@ Meses fechados para a contabilidade (pela data do pagamento das ordens). Mês fe
 | `reaberto_por_usuario_id` | uuid | sim |  | → usuarios | identificação | Quem reabriu o mês. |
 | `motivo_reabertura` | text | sim |  |  |  | Por que o mês foi reaberto. |
 | `created_at` | timestamp with time zone | não | `now()` |  |  | Criação do registro. |
+| `rpa_relatorio_enviado_em` | timestamp with time zone | sim |  |  |  | Quando o relatório de RPAs deste fechamento foi enviado à contabilidade (nulo = ainda não). |
+| `rpa_relatorio_enviado_para` | text | sim |  |  | identificação | Para qual e-mail o relatório de RPAs deste fechamento foi enviado. |
 
 Checks: `financeiro_meses_fechados_mes_check` `CHECK ((EXTRACT(day FROM mes) = (1)::numeric))`
 

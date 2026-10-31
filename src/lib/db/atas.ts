@@ -10,6 +10,7 @@ import {
 } from "@/lib/db/diretoria"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { TIPOS_REUNIAO, type TipoReuniao } from "@/lib/atas-constantes"
+import { ehSigiloDeliberacao, type SigiloDeliberacao } from "@/lib/deliberacoes-constantes"
 
 /**
  * Atas de reunião (`reuniao_ata`) — ancoradas no mandato. PDF no bucket
@@ -93,10 +94,19 @@ export type AtaDetalhe = {
   resumo: string | null
   presentes: string | null
   observacoes: string | null
+  /** Link assinado do PDF — só quando o nível de sigilo do usuário alcança `sigiloDocumento`. */
   documentoUrl: string | null
+  /** Há PDF, mesmo que o usuário não possa abri-lo. */
+  temDocumento: boolean
+  sigiloDocumento: SigiloDeliberacao
 }
 
-export async function obterAta(id: string): Promise<AtaDetalhe | null> {
+/**
+ * A ata, com o link do PDF só se `sigilos` (os graus que o nível do usuário
+ * alcança) incluir o sigilo do documento. O bucket é privado: sem o link
+ * assinado, o PDF não se abre.
+ */
+export async function obterAta(id: string, sigilos: SigiloDeliberacao[]): Promise<AtaDetalhe | null> {
   const admin = await createAdminClient()
   const { data: a } = await admin
     .from("reuniao_ata")
@@ -111,7 +121,9 @@ export async function obterAta(id: string): Promise<AtaDetalhe | null> {
     const nomes = await nomesDeMandatos()
     mandatoNome = nomes.get(String(a.mandato_id)) ?? null
   }
-  const documentoUrl = await urlDocumentoDiretoria(texto(a.documento_url))
+  const sigiloDocumento: SigiloDeliberacao = ehSigiloDeliberacao(a.sigilo_documento) ? a.sigilo_documento : "restrito"
+  const caminho = texto(a.documento_url)
+  const documentoUrl = caminho && sigilos.includes(sigiloDocumento) ? await urlDocumentoDiretoria(caminho) : null
 
   return {
     id: String(a.id),
@@ -128,6 +140,8 @@ export async function obterAta(id: string): Promise<AtaDetalhe | null> {
     presentes: texto(a.presentes),
     observacoes: texto(a.observacoes),
     documentoUrl,
+    temDocumento: Boolean(caminho),
+    sigiloDocumento,
   }
 }
 
@@ -161,6 +175,8 @@ export type DadosAta = {
   observacoes: string | null
   /** Caminho já gravável (upload na action); undefined = não mexer. */
   documento_url?: string | null
+  /** Sigilo do PDF; undefined = não mexer. */
+  sigilo_documento?: SigiloDeliberacao
 }
 
 function payload(d: DadosAta): Record<string, unknown> {
@@ -179,6 +195,7 @@ function payload(d: DadosAta): Record<string, unknown> {
     updated_at: new Date().toISOString(),
   }
   if (d.documento_url !== undefined) p.documento_url = d.documento_url
+  if (d.sigilo_documento !== undefined) p.sigilo_documento = d.sigilo_documento
   return p
 }
 
@@ -234,4 +251,17 @@ export async function subirDocumentoAta(
     .upload(caminho, arquivo, { contentType: "application/pdf", upsert: false })
   if (error) return { erro: `Falha ao subir o PDF: ${error.message}` }
   return { caminho }
+}
+
+/** Sigilo atual do PDF da ata (null = ata não encontrada). */
+export async function sigiloDocumentoDaAta(id: string): Promise<SigiloDeliberacao | null> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("reuniao_ata")
+    .select("sigilo_documento")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (!data) return null
+  return ehSigiloDeliberacao(data.sigilo_documento) ? data.sigilo_documento : "restrito"
 }

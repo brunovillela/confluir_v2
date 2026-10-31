@@ -9,6 +9,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { TIPOS_REUNIAO } from "@/lib/atas-constantes"
+import {
+  ROTULO_SIGILO_DELIBERACAO,
+  SIGILOS_DELIBERACAO,
+  type SigiloDeliberacao,
+} from "@/lib/deliberacoes-constantes"
 import type { AtaDetalhe } from "@/lib/db/atas"
 
 import {
@@ -30,6 +35,7 @@ export function AtaForm({
   mandatoPadrao,
   aoCancelarHref,
   temDeliberacoes = false,
+  sigilos,
 }: {
   ata?: AtaDetalhe
   mandatos: { id: string; nome: string }[]
@@ -37,7 +43,14 @@ export function AtaForm({
   aoCancelarHref: string
   /** A ata já tem deliberações: as lidas do PDF não entram (não duplica). */
   temDeliberacoes?: boolean
+  /** Graus de sigilo que o nível de quem edita alcança. */
+  sigilos: SigiloDeliberacao[]
 }) {
+  // Sigilo do PDF: só os graus do nível de quem edita. PDF já acima do
+  // nível não muda; sem nível, fica restrito (a action confere de novo).
+  const sigiloAtual = ata?.sigiloDocumento ?? "restrito"
+  const sigiloForaDoAlcance = Boolean(ata && !sigilos.includes(ata.sigiloDocumento))
+  const sigiloPadrao = sigilos.includes(sigiloAtual) ? sigiloAtual : sigilos[sigilos.length - 1]
   const [estado, formAction, pendente] = useActionState(
     ata ? atualizarAtaAction : criarAtaAction,
     {}
@@ -116,6 +129,27 @@ export function AtaForm({
             Lendo a ata com IA…
           </p>
         )}
+        <div className="grid max-w-72 gap-1.5">
+          <Label htmlFor="sigilo_documento">Sigilo do PDF</Label>
+          {sigiloForaDoAlcance ? (
+            <p className="text-muted-foreground text-sm">
+              {ROTULO_SIGILO_DELIBERACAO[sigiloAtual]} — acima do seu acesso; não muda.
+            </p>
+          ) : sigilos.length === 0 ? (
+            <p className="text-muted-foreground text-sm">Restrito (seu acesso às deliberações é nenhum).</p>
+          ) : (
+            <select id="sigilo_documento" name="sigilo_documento" className={SELECT} defaultValue={sigiloPadrao}>
+              {SIGILOS_DELIBERACAO.filter((s) => sigilos.includes(s.chave)).map((s) => (
+                <option key={s.chave} value={s.chave}>
+                  {s.rotulo}
+                </option>
+              ))}
+            </select>
+          )}
+          <p className="text-muted-foreground text-xs">
+            O PDF traz todas as decisões: só abre para quem tem acesso às deliberações até este grau.
+          </p>
+        </div>
         {leitura?.ok && <p className="text-success-fg text-sm">{leitura.ok}</p>}
         {leitura?.erro && <p className="text-destructive text-sm">{leitura.erro}</p>}
         {lidas.length > 0 && (

@@ -10,7 +10,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { obterAta, opcoesMandatos } from "@/lib/db/atas"
 import { assuntosUsados, deliberacoesDaAta } from "@/lib/db/deliberacoes"
-import { nivelSigilo, ROTULO_NIVEL_SIGILO, sigilosVisiveis } from "@/lib/deliberacoes-constantes"
+import {
+  nivelSigilo,
+  ROTULO_NIVEL_SIGILO,
+  ROTULO_SIGILO_DELIBERACAO,
+  sigilosVisiveis,
+} from "@/lib/deliberacoes-constantes"
 import { formatarData } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 import { ROTULO_TIPO_REUNIAO } from "@/lib/atas-constantes"
@@ -49,11 +54,11 @@ export default async function AtaPage({
   const { id } = await params
   const sp = await searchParams
   const { editar, salvo } = sp
-  const a = await obterAta(id)
-  if (!a) notFound()
-  // Deliberações só até o nível de sigilo do usuário (nenhum = não vê nenhuma).
+  // Deliberações e PDF da ata só até o nível de sigilo do usuário (nenhum = não vê nenhuma).
   const nivel = nivelSigilo(sessao.permissoes)
   const sigilos = sigilosVisiveis(nivel)
+  const a = await obterAta(id, sigilos)
+  if (!a) notFound()
   const podeLancar = podeEditar && sigilos.length > 0
   const [{ visiveis: deliberacoes, ocultas }, assuntos] = await Promise.all([
     deliberacoesDaAta(id, sigilos),
@@ -116,7 +121,13 @@ export default async function AtaPage({
         </CardHeader>
         <CardContent>
           {editando ? (
-            <AtaForm ata={a} mandatos={mandatos} aoCancelarHref={aqui} temDeliberacoes={deliberacoes.length + ocultas > 0} />
+            <AtaForm
+              ata={a}
+              mandatos={mandatos}
+              aoCancelarHref={aqui}
+              temDeliberacoes={deliberacoes.length + ocultas > 0}
+              sigilos={sigilos}
+            />
           ) : (
             <dl className="grid gap-4">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -132,9 +143,17 @@ export default async function AtaPage({
                 <Campo rotulo="Observações" valor={a.observacoes} />
               )}
               <div>
-                <dt className="text-muted-foreground text-xs">Ata em PDF</dt>
+                <dt className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                  Ata em PDF
+                  {a.temDocumento && <SeloSigilo sigilo={a.sigiloDocumento} />}
+                </dt>
                 <dd className="mt-0.5 text-sm">
-                  {a.documentoUrl ? (
+                  {a.temDocumento && !a.documentoUrl ? (
+                    <span className="text-muted-foreground">
+                      O PDF é {ROTULO_SIGILO_DELIBERACAO[a.sigiloDocumento].toLowerCase()} e está acima do seu acesso às
+                      deliberações ({ROTULO_NIVEL_SIGILO[nivel]}).
+                    </span>
+                  ) : a.documentoUrl ? (
                     <Button variant="ghost" size="sm" asChild className="-ml-2">
                       <a href={a.documentoUrl} target="_blank" rel="noreferrer">
                         <FileText />
