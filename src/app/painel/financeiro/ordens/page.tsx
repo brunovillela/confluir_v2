@@ -26,6 +26,7 @@ import {
 import { requirePermissao } from "@/lib/auth"
 import {
   filtroSituacaoOrdem,
+  extratoOrdens,
   listarOrdens,
   opcoesFiltrosOrdens,
   ORDENS_POR_PAGINA,
@@ -41,6 +42,7 @@ import { OPCOES_POR_PAGINA } from "@/lib/paginacao"
 import { cn } from "@/lib/utils"
 
 import { SituacaoBadge } from "../situacao-badge"
+import { ExtratoOrdensView } from "./extrato"
 import { FiltroDeptoCentro } from "./filtro-depto-centro"
 import { LembrarLista } from "@/components/voltar-lista"
 import { ExportarXlsx } from "@/components/exportar-xlsx"
@@ -62,7 +64,16 @@ type ParamsBusca = {
   porPagina?: string
   ordem?: string
   dir?: string
+  /** "lista" = tabela; padrão = extrato (como o do banco). */
+  visao?: string
+  /** Extrato: quantos dias de pagas para trás. */
+  dias?: string
+  /** Extrato: "todos" mostra todos os futuros. */
+  futuros?: string
 }
+
+/** Filtros da página: os da lista e a visão (extrato ou tabela). */
+type FiltrosPagina = Required<FiltrosOrdens> & { visao: "extrato" | "lista" }
 
 /** Estilo dos <select> nativos do painel de filtros. */
 const CLS_SELECT =
@@ -99,7 +110,7 @@ const TIPOS_ORDEM = [
   TIPO_ORDEM_TRIBUTO,
 ] as const
 
-function normalizarFiltros(params: ParamsBusca): Required<FiltrosOrdens> {
+function normalizarFiltros(params: ParamsBusca): FiltrosPagina {
   const ordens = ["vencimento", "pagamento", "valor"] as const
   return {
     busca: params.busca ?? "",
@@ -122,12 +133,13 @@ function normalizarFiltros(params: ParamsBusca): Required<FiltrosOrdens> {
       ? (params.ordem as (typeof ordens)[number])
       : "vencimento",
     dir: params.dir === "asc" ? "asc" : "desc",
+    visao: params.visao === "lista" ? "lista" : "extrato",
   }
 }
 
 function montarUrl(
-  filtros: Required<FiltrosOrdens>,
-  mudancas: Partial<Record<keyof FiltrosOrdens, string | number>>
+  filtros: FiltrosPagina,
+  mudancas: Partial<Record<keyof FiltrosPagina, string | number>>
 ): string {
   const merged = { ...filtros, ...mudancas }
   const q = new URLSearchParams()
@@ -145,6 +157,7 @@ function montarUrl(
     q.set("porPagina", String(merged.porPagina))
   if (merged.ordem !== "vencimento") q.set("ordem", String(merged.ordem))
   if (merged.dir !== "desc") q.set("dir", String(merged.dir))
+  if (merged.visao === "lista") q.set("visao", "lista")
   const query = q.toString()
   return `/painel/financeiro/ordens${query ? `?${query}` : ""}`
 }
@@ -155,7 +168,7 @@ function CabecalhoOrdenavel({
   children,
   className,
 }: {
-  filtros: Required<FiltrosOrdens>
+  filtros: FiltrosPagina
   campo: "vencimento" | "pagamento" | "valor"
   children: React.ReactNode
   className?: string
@@ -197,9 +210,21 @@ export default async function OrdensPage({
 }) {
   await requirePermissao("financeiro_pagamento", ["financeiro_leitura"])
 
-  const filtros = normalizarFiltros(await searchParams)
-  const [lista, opcoes] = await Promise.all([
-    listarOrdens(filtros),
+  const params = await searchParams
+  const filtros = normalizarFiltros(params)
+  const dias = Math.min(Math.max(Number(params.dias) || 30, 30), 1095)
+  const futurosTodos = params.futuros === "todos"
+  const extratoUrl = (m: { dias?: number; futuros?: string }) => {
+    const u = new URLSearchParams(montarUrl(filtros, {}).split("?")[1] ?? "")
+    const d = m.dias ?? dias
+    if (d !== 30) u.set("dias", String(d))
+    if ((m.futuros ?? (futurosTodos ? "todos" : "")) === "todos") u.set("futuros", "todos")
+    const q = u.toString()
+    return `/painel/financeiro/ordens${q ? `?${q}` : ""}`
+  }
+  const [lista, extrato, opcoes] = await Promise.all([
+    filtros.visao === "lista" ? listarOrdens(filtros) : null,
+    filtros.visao === "extrato" ? extratoOrdens(filtros, { dias, futurosDias: futurosTodos ? null : 30 }) : null,
     opcoesFiltrosOrdens(),
   ])
 
@@ -260,17 +285,40 @@ export default async function OrdensPage({
             Ordens de pagamento
           </h1>
           <p className="text-muted-foreground mt-1 text-xs">
-            {lista.total.toLocaleString("pt-BR")} orde
-            {lista.total === 1 ? "m" : "ns"}
+            {lista ? (
+              <>
+                {lista.total.toLocaleString("pt-BR")} orde
+                {lista.total === 1 ? "m" : "ns"}
+              </>
+            ) : (
+              "Extrato: o que vem pela frente, o dia de hoje e o que já foi pago"
+            )}
             {filtros.busca && <> para “{filtros.busca}”</>}
           </p>
         </div>
-        <ExportarXlsx href="/painel/financeiro/ordens/exportar" />
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="bg-muted inline-flex rounded-lg p-0.5 text-sm">
+            {(["extrato", "lista"] as const).map((v) => (
+              <Link
+                key={v}
+                href={montarUrl(filtros, { visao: v, pagina: 1 })}
+                className={cn(
+                  "rounded-md px-3 py-1",
+                  filtros.visao === v ? "bg-background font-medium shadow-xs" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {v === "extrato" ? "Extrato" : "Lista"}
+              </Link>
+            ))}
+          </div>
+          <ExportarXlsx href="/painel/financeiro/ordens/exportar" />
+        </div>
       </div>
 
       <div className="flex flex-col gap-3">
         <form method="GET" className="flex min-w-0 items-center gap-2">
           {/* Preserva os filtros ativos ao buscar. */}
+          {filtros.visao === "lista" && <input type="hidden" name="visao" value="lista" />}
           {filtros.situacao !== "todas" && (
             <input type="hidden" name="situacao" value={filtros.situacao} />
           )}
@@ -328,6 +376,7 @@ export default async function OrdensPage({
             {filtros.busca && (
               <input type="hidden" name="busca" value={filtros.busca} />
             )}
+            {filtros.visao === "lista" && <input type="hidden" name="visao" value="lista" />}
             {filtros.porPagina !== ORDENS_POR_PAGINA && (
               <input type="hidden" name="porPagina" value={filtros.porPagina} />
             )}
@@ -431,6 +480,16 @@ export default async function OrdensPage({
         )}
       </div>
 
+      {extrato && (
+        <ExtratoOrdensView
+          extrato={extrato}
+          urlMaisFuturos={futurosTodos ? null : extratoUrl({ futuros: "todos" })}
+          urlMaisPassado={extratoUrl({ dias: dias + 30 })}
+        />
+      )}
+
+      {lista && (
+      <>
       <div className="overflow-hidden rounded-xl border">
         <Table>
           <TableHeader>
@@ -523,6 +582,8 @@ export default async function OrdensPage({
         porPagina={filtros.porPagina}
         padrao={ORDENS_POR_PAGINA}
       />
+      </>
+      )}
     </>
   )
 }

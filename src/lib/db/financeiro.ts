@@ -2,7 +2,7 @@ import "server-only"
 import { tenantAtual } from "@/lib/tenant"
 import { FORMA_PAGA_NO_ATO } from "@/lib/compras-constantes"
 
-import { lerEmLotes, lerEmLotesPorIds, texto } from "@/lib/db/comum"
+import { hojeSP, lerEmLotes, lerEmLotesPorIds, texto } from "@/lib/db/comum"
 import { favorecidosDasOrdens } from "@/lib/db/ordens-favorecido"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { rotuloCentroCusto } from "@/lib/centros-custo-rotulo"
@@ -247,6 +247,107 @@ export async function listarOrdens(
     total,
     pagina,
     totalPaginas: Math.max(1, Math.ceil(total / porPagina)),
+  }
+}
+
+/** Um dia do extrato: as ordens e a soma delas. */
+export type DiaExtrato = { data: string; linhas: OrdemLinha[]; total: number }
+
+export type ExtratoOrdens = {
+  hoje: string
+  /** Por pagar com vencimento depois de hoje (dentro do horizonte), do mais próximo ao mais distante. */
+  futuros: DiaExtrato[]
+  /** Futuros além do horizonte: só a contagem e o valor. */
+  futurosAlem: { quantidade: number; total: number }
+  /** O dia de hoje: o que vence hoje e o que foi pago hoje. */
+  hojeDia: DiaExtrato
+  /** Por pagar com vencimento já passado (ou sem vencimento). */
+  atrasadas: DiaExtrato[]
+  /** Pagas (pela data do pagamento) de `realizadosDe` até ontem, do mais recente ao mais antigo. */
+  realizados: DiaExtrato[]
+  realizadosDe: string
+}
+
+// Fora do extrato: a cancelada não movimenta, e a compra "Na fatura" é paga
+// pela ordem da fatura (contaria duas vezes). Escolhendo a situação no
+// filtro, ela aparece.
+const FORA_DO_EXTRATO = ["Cancelada", "Estornado", "Na fatura"]
+
+const somaDia = (linhas: OrdemLinha[]) =>
+  Math.round(linhas.reduce((s, o) => s + Number(o.valor_pago ?? o.valor_inicial_cobranca ?? 0), 0) * 100) / 100
+
+function porDia(linhas: OrdemLinha[], dataDe: (o: OrdemLinha) => string, desc: boolean): DiaExtrato[] {
+  const grupos = new Map<string, OrdemLinha[]>()
+  for (const o of linhas) grupos.set(dataDe(o), [...(grupos.get(dataDe(o)) ?? []), o])
+  return [...grupos.entries()]
+    .sort(([a], [b]) => (desc ? b.localeCompare(a) : a.localeCompare(b)))
+    .map(([data, ls]) => ({ data, linhas: ls, total: somaDia(ls) }))
+}
+
+/**
+ * EXTRATO DAS ORDENS (31/10/2026), como o do banco: hoje no topo, os
+ * lançamentos futuros acima (por vencimento), as vencidas destacadas e,
+ * abaixo, o que já foi pago, dia a dia pela data do pagamento. Os filtros da
+ * lista valem; a paginação é por período (`dias` para trás, `futurosDias`
+ * para frente — null = todos os futuros).
+ */
+export async function extratoOrdens(
+  filtros: FiltrosOrdens,
+  { dias = 30, futurosDias = 30 }: { dias?: number; futurosDias?: number | null } = {}
+): Promise<ExtratoOrdens> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const hoje = hojeSP()
+  const somar = (iso: string, n: number) => {
+    const d = new Date(`${iso}T12:00:00Z`)
+    d.setUTCDate(d.getUTCDate() + n)
+    return d.toISOString().slice(0, 10)
+  }
+  const realizadosDe = somar(hoje, -dias)
+  const limiteFuturo = futurosDias === null ? null : somar(hoje, futurosDias)
+  const beneficiario = filtros.beneficiario ?? ""
+  const doFiliado = beneficiario.startsWith("f:") ? await ordensDoFiliado(beneficiario.slice(2)) : []
+  const situacaoLivre = !filtros.situacao || filtros.situacao === "todas"
+
+  const base = () => {
+    let q = aplicarFiltrosOrdens(admin.from("ordens_pagamento").select(SELECT_ORDEM), filtros, emp, doFiliado)
+    if (situacaoLivre) q = q.not("situacao", "in", `(${FORA_DO_EXTRATO.map((s) => `"${s}"`).join(",")})`)
+    return q
+  }
+  const [abertas, pagas] = await Promise.all([
+    // Tudo o que não está pago (futuro, hoje e atrasado).
+    lerEmLotes<Omit<OrdemLinha, "favorecido">>((de, ate) => base().neq("situacao", "Paga").order("id").range(de, ate)),
+    // Pagas no período (sem data de pagamento, vale o vencimento — legado).
+    lerEmLotes<Omit<OrdemLinha, "favorecido">>((de, ate) =>
+      base()
+        .eq("situacao", "Paga")
+        .or(`data_pagamento.gte.${realizadosDe},and(data_pagamento.is.null,vencimento.gte.${realizadosDe})`)
+        .order("id")
+        .range(de, ate)
+    ),
+  ])
+
+  const ate = (o: { vencimento: string | null }) => (o.vencimento ?? "").slice(0, 10)
+  const pagoEm = (o: { data_pagamento: string | null; vencimento: string | null }) => (o.data_pagamento ?? o.vencimento ?? "").slice(0, 10)
+  const futurasTodas = abertas.filter((o) => ate(o) > hoje)
+  const futurasNoHorizonte = futurasTodas.filter((o) => limiteFuturo === null || ate(o) <= limiteFuturo)
+  const alem = futurasTodas.filter((o) => limiteFuturo !== null && ate(o) > limiteFuturo)
+  const deHoje = [...abertas.filter((o) => ate(o) === hoje), ...pagas.filter((o) => pagoEm(o) === hoje)]
+  const atrasadas = abertas.filter((o) => !ate(o) || ate(o) < hoje)
+  const realizadas = pagas.filter((o) => pagoEm(o) < hoje && pagoEm(o) >= realizadosDe)
+
+  // O favorecido só das ordens que vão para a tela.
+  const naTela = [...futurasNoHorizonte, ...deHoje, ...atrasadas, ...realizadas]
+  const comNome = new Map((await resolverFavorecidos(naTela)).map((o) => [o.id, o]))
+  const com = (ls: Omit<OrdemLinha, "favorecido">[]) => ls.map((o) => comNome.get(o.id)!)
+  return {
+    hoje,
+    futuros: porDia(com(futurasNoHorizonte), ate, false),
+    futurosAlem: { quantidade: alem.length, total: somaDia(alem.map((o) => ({ ...o, favorecido: null }))) },
+    hojeDia: { data: hoje, linhas: com(deHoje), total: somaDia(com(deHoje)) },
+    atrasadas: porDia(com(atrasadas), (o) => ate(o) || "sem vencimento", false),
+    realizados: porDia(com(realizadas), pagoEm, true),
+    realizadosDe,
   }
 }
 
