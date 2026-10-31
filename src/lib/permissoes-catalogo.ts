@@ -128,6 +128,11 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
       { chave: "diretoria_diarias", rotulo: "Diárias da diretoria" },
       { chave: "diretoria_atas_consulta", rotulo: "Atas de reunião — consultar" },
       { chave: "diretoria_reunioes", rotulo: "Atas de reunião — criar e editar" },
+      // Nível de sigilo das deliberações: CUMULATIVO, vale a mais alta marcada
+      // (nenhuma = nenhum). lib/deliberacoes-constantes.ts → nivelSigilo.
+      { chave: "deliberacoes_livre", rotulo: "Deliberações — sigilo livre" },
+      { chave: "deliberacoes_reservado", rotulo: "Deliberações — até reservado" },
+      { chave: "deliberacoes_restrito", rotulo: "Deliberações — até restrito (todas)" },
     ],
   },
   {

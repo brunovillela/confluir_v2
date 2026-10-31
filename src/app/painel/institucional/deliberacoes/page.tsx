@@ -12,12 +12,17 @@ import { ROTULO_TIPO_REUNIAO, TIPOS_REUNIAO, type TipoReuniao } from "@/lib/atas
 import { hojeSP } from "@/lib/db/comum"
 import { listarDeliberacoes, type FiltrosDeliberacoes } from "@/lib/db/deliberacoes"
 import {
+  CHAVES_DELIBERACOES,
   ehSigiloDeliberacao,
   ehSituacaoDeliberacao,
+  nivelSigilo,
+  ROTULO_NIVEL_SIGILO,
   SIGILOS_DELIBERACAO,
   SITUACOES_DELIBERACAO,
+  sigilosVisiveis,
 } from "@/lib/deliberacoes-constantes"
 import { formatarData } from "@/lib/formato"
+import { podeAcessar } from "@/lib/permissoes"
 
 import { SeloSigilo, SeloSituacao } from "./selos"
 
@@ -31,6 +36,8 @@ const POR_PAGINA = 100
  * Consulta das deliberações registradas nas atas: o que se decidiu, quando,
  * em que reunião, e se foi cumprido. Filtros por período (data da ata),
  * assunto (busca no assunto e no teor), situação, sigilo e tipo de reunião.
+ * Entra quem tem algum nível de sigilo; cada um vê só as deliberações até o
+ * seu nível (livre ⊂ reservado ⊂ restrito).
  */
 export default async function DeliberacoesPage({
   searchParams,
@@ -45,7 +52,12 @@ export default async function DeliberacoesPage({
     pagina?: string
   }>
 }) {
-  await requirePermissao("diretoria_reunioes", ["diretoria_atas_consulta"])
+  const [primeira, ...outras] = CHAVES_DELIBERACOES
+  const sessao = await requirePermissao(primeira, outras)
+  const nivel = nivelSigilo(sessao.permissoes)
+  const sigilos = sigilosVisiveis(nivel)
+  // O link para a ata só aparece para quem pode abrir atas.
+  const verAtas = podeAcessar(sessao.permissoes, "diretoria_reunioes", ["diretoria_atas_consulta"])
   const sp = await searchParams
 
   const filtros: FiltrosDeliberacoes = {
@@ -53,12 +65,12 @@ export default async function DeliberacoesPage({
     ate: sp.ate && DATA.test(sp.ate) ? sp.ate : undefined,
     assunto: (sp.assunto ?? "").trim() || undefined,
     situacao: ehSituacaoDeliberacao(sp.situacao) ? sp.situacao : undefined,
-    sigilo: ehSigiloDeliberacao(sp.sigilo) ? sp.sigilo : undefined,
+    sigilo: ehSigiloDeliberacao(sp.sigilo) && sigilos.includes(sp.sigilo) ? sp.sigilo : undefined,
     tipo: TIPOS_REUNIAO.some((t) => t.chave === sp.tipo) ? (sp.tipo as TipoReuniao) : undefined,
   }
   const filtrado = Object.values(filtros).some(Boolean)
 
-  const todas = await listarDeliberacoes(filtros)
+  const todas = await listarDeliberacoes(filtros, sigilos)
   const paginas = Math.max(1, Math.ceil(todas.length / POR_PAGINA))
   const pagina = Math.min(paginas, Math.max(1, Number(sp.pagina) || 1))
   const linhas = todas.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA)
@@ -98,15 +110,18 @@ export default async function DeliberacoesPage({
           </Button>
           <h1 className="text-2xl font-semibold tracking-tight">Deliberações</h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            As decisões registradas nas atas de reunião — o que se decidiu, quando e se já foi cumprido.
+            As decisões registradas nas atas de reunião — o que se decidiu, quando e se já foi cumprido. Seu acesso:{" "}
+            <strong>{ROTULO_NIVEL_SIGILO[nivel]}</strong>.
           </p>
         </div>
-        <Button variant="outline" asChild>
-          <Link href="/painel/institucional/atas">
-            <ScrollText />
-            Atas de reunião
-          </Link>
-        </Button>
+        {verAtas && (
+          <Button variant="outline" asChild>
+            <Link href="/painel/institucional/atas">
+              <ScrollText />
+              Atas de reunião
+            </Link>
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -165,7 +180,7 @@ export default async function DeliberacoesPage({
               <Label htmlFor="sigilo">Sigilo</Label>
               <select id="sigilo" name="sigilo" defaultValue={filtros.sigilo ?? ""} className={SELECT}>
                 <option value="">Todos</option>
-                {SIGILOS_DELIBERACAO.map((s) => (
+                {SIGILOS_DELIBERACAO.filter((s) => sigilos.includes(s.chave)).map((s) => (
                   <option key={s.chave} value={s.chave}>
                     {s.rotulo}
                   </option>
@@ -225,21 +240,29 @@ export default async function DeliberacoesPage({
                           {d.ata.data ? formatarData(d.ata.data) : "—"}
                         </TableCell>
                         <TableCell className="max-w-96 align-top whitespace-normal">
-                          <Link
-                            href={`/painel/institucional/atas/${d.ataId}#deliberacoes`}
-                            className="font-medium hover:underline"
-                          >
-                            {d.assunto}
-                          </Link>
+                          {verAtas ? (
+                            <Link
+                              href={`/painel/institucional/atas/${d.ataId}#deliberacoes`}
+                              className="font-medium hover:underline"
+                            >
+                              {d.assunto}
+                            </Link>
+                          ) : (
+                            <span className="font-medium">{d.assunto}</span>
+                          )}
                           {d.texto && d.texto !== d.assunto && (
                             <p className="text-muted-foreground line-clamp-3 text-xs whitespace-pre-wrap">{d.texto}</p>
                           )}
                           {d.votacao && <p className="text-muted-foreground text-xs">Votação: {d.votacao}</p>}
                         </TableCell>
                         <TableCell className="max-w-56 align-top whitespace-normal text-sm">
-                          <Link href={`/painel/institucional/atas/${d.ataId}`} className="hover:underline">
-                            {d.ata.titulo ?? "(ata sem título)"}
-                          </Link>
+                          {verAtas ? (
+                            <Link href={`/painel/institucional/atas/${d.ataId}`} className="hover:underline">
+                              {d.ata.titulo ?? "(ata sem título)"}
+                            </Link>
+                          ) : (
+                            (d.ata.titulo ?? "(ata sem título)")
+                          )}
                           <span className="text-muted-foreground block text-xs">
                             {d.ata.tipo === "outra" && d.ata.orgao ? d.ata.orgao : ROTULO_TIPO_REUNIAO[d.ata.tipo]}
                           </span>

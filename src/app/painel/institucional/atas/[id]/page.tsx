@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { obterAta, opcoesMandatos } from "@/lib/db/atas"
 import { assuntosUsados, deliberacoesDaAta } from "@/lib/db/deliberacoes"
+import { nivelSigilo, ROTULO_NIVEL_SIGILO, sigilosVisiveis } from "@/lib/deliberacoes-constantes"
 import { formatarData } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 import { ROTULO_TIPO_REUNIAO } from "@/lib/atas-constantes"
@@ -50,12 +51,16 @@ export default async function AtaPage({
   const { editar, salvo } = sp
   const a = await obterAta(id)
   if (!a) notFound()
-  const [deliberacoes, assuntos] = await Promise.all([
-    deliberacoesDaAta(id),
-    podeEditar ? assuntosUsados() : Promise.resolve([]),
+  // Deliberações só até o nível de sigilo do usuário (nenhum = não vê nenhuma).
+  const nivel = nivelSigilo(sessao.permissoes)
+  const sigilos = sigilosVisiveis(nivel)
+  const podeLancar = podeEditar && sigilos.length > 0
+  const [{ visiveis: deliberacoes, ocultas }, assuntos] = await Promise.all([
+    deliberacoesDaAta(id, sigilos),
+    podeLancar ? assuntosUsados(sigilos) : Promise.resolve([]),
   ])
-  const editandoDeliberacao = podeEditar ? (sp.deliberacao ?? null) : null
-  const novaDeliberacao = podeEditar && sp.nova_deliberacao === "1"
+  const editandoDeliberacao = podeLancar ? (sp.deliberacao ?? null) : null
+  const novaDeliberacao = podeLancar && sp.nova_deliberacao === "1"
 
   const editando = podeEditar && editar === "1"
   const mandatos = editando ? await opcoesMandatos() : []
@@ -111,7 +116,7 @@ export default async function AtaPage({
         </CardHeader>
         <CardContent>
           {editando ? (
-            <AtaForm ata={a} mandatos={mandatos} aoCancelarHref={aqui} temDeliberacoes={deliberacoes.length > 0} />
+            <AtaForm ata={a} mandatos={mandatos} aoCancelarHref={aqui} temDeliberacoes={deliberacoes.length + ocultas > 0} />
           ) : (
             <dl className="grid gap-4">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -151,9 +156,11 @@ export default async function AtaPage({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-base">
               Deliberações
-              <span className="text-muted-foreground ml-2 text-sm font-normal">{deliberacoes.length}</span>
+              {nivel !== "nenhum" && (
+                <span className="text-muted-foreground ml-2 text-sm font-normal">{deliberacoes.length}</span>
+              )}
             </CardTitle>
-            {podeEditar && !novaDeliberacao && (
+            {podeLancar && !novaDeliberacao && (
               <Button variant="outline" size="sm" asChild>
                 <Link href={`${aqui}?nova_deliberacao=1#deliberacoes`}>
                   <Plus />
@@ -174,21 +181,31 @@ export default async function AtaPage({
               <AlertDescription>Deliberação excluída.</AlertDescription>
             </Alert>
           )}
-          {deliberacoes.length === 0 && !novaDeliberacao && (
+          {nivel === "nenhum" ? (
             <p className="text-muted-foreground text-sm">
-              Nenhuma deliberação registrada nesta ata.
-              {podeEditar && " Registre cada decisão como um item, com situação e sigilo."}
+              Seu acesso às deliberações é <strong>nenhum</strong>. Para vê-las, peça à administração um nível de
+              sigilo (livre, reservado ou restrito).
             </p>
+          ) : (
+            deliberacoes.length === 0 &&
+            ocultas === 0 &&
+            !novaDeliberacao && (
+              <p className="text-muted-foreground text-sm">
+                Nenhuma deliberação registrada nesta ata.
+                {podeLancar && " Registre cada decisão como um item, com situação e sigilo."}
+              </p>
+            )
           )}
           {deliberacoes.length > 0 && (
             <ol className="grid gap-3">
-              {deliberacoes.map((d, i) =>
+              {deliberacoes.map((d) =>
                 editandoDeliberacao === d.id ? (
                   <li key={d.id}>
                     <DeliberacaoForm
                       ataId={id}
                       deliberacao={d}
                       assuntos={assuntos}
+                      sigilos={sigilos}
                       cancelarHref={`${aqui}#deliberacoes`}
                     />
                   </li>
@@ -196,13 +213,13 @@ export default async function AtaPage({
                   <li key={d.id} className="border-b pb-3 last:border-b-0 last:pb-0">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <p className="font-medium">
-                        <span className="text-muted-foreground mr-1.5 tabular-nums">{i + 1}.</span>
+                        <span className="text-muted-foreground mr-1.5 tabular-nums">{d.ordem}.</span>
                         {d.assunto}
                       </p>
                       <div className="flex flex-wrap items-center gap-1.5">
                         <SeloSituacao situacao={d.situacao} />
                         <SeloSigilo sigilo={d.sigilo} />
-                        {podeEditar && (
+                        {podeLancar && (
                           <>
                             <Button variant="ghost" size="sm" asChild aria-label="Editar deliberação">
                               <Link href={`${aqui}?deliberacao=${d.id}#deliberacoes`}>
@@ -233,8 +250,19 @@ export default async function AtaPage({
               )}
             </ol>
           )}
+          {nivel !== "nenhum" && ocultas > 0 && (
+            <p className="text-muted-foreground text-xs">
+              {ocultas === 1 ? "1 deliberação desta ata está" : `${ocultas} deliberações desta ata estão`} acima do
+              seu acesso ({ROTULO_NIVEL_SIGILO[nivel]}) e não {ocultas === 1 ? "aparece" : "aparecem"} aqui.
+            </p>
+          )}
           {novaDeliberacao && (
-            <DeliberacaoForm ataId={id} assuntos={assuntos} cancelarHref={`${aqui}#deliberacoes`} />
+            <DeliberacaoForm
+              ataId={id}
+              assuntos={assuntos}
+              sigilos={sigilos}
+              cancelarHref={`${aqui}#deliberacoes`}
+            />
           )}
         </CardContent>
       </Card>

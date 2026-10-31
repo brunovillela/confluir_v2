@@ -695,6 +695,9 @@ ACL plana por usuário: uma coluna booleana por área/ação do sistema, mais al
 | `oposicao_configurar` | boolean | sim | `false` |  | nenhum | Oposição com segregação: criar e editar campanhas, questionário, decisões jurídicas e relação ao empregador. |
 | `oposicao_avaliar` | boolean | sim | `false` |  | nenhum | Oposição com segregação: avaliar (uma a uma e em lote), encerrar sem carta e reverificar assinatura. |
 | `diretoria_atas_consulta` | boolean | sim | `false` |  | nenhum | Atas de reunião: só consultar (lista, ata e PDF), sem criar, editar ou excluir — isso é diretoria_reunioes. |
+| `deliberacoes_livre` | boolean | sim | `false` |  | nenhum | Deliberações das atas: consulta as de sigilo livre. Cumulativa com reservado/restrito — vale a mais alta. |
+| `deliberacoes_reservado` | boolean | sim | `false` |  | nenhum | Deliberações das atas: consulta as livres e as reservadas. |
+| `deliberacoes_restrito` | boolean | sim | `false` |  | nenhum | Deliberações das atas: consulta todas (livres, reservadas e restritas). |
 
 Únicas: `UNIQUE (bubble_id)`
 

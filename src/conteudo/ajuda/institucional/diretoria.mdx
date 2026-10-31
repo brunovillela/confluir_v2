@@ -150,7 +150,30 @@ para a mais antiga, com filtros por período (a data da reunião), assunto
 (busca no assunto e no teor), situação, sigilo e tipo de reunião. Os
 quadros no alto contam quantas estão em cada situação e filtram com um
 clique; prazo vencido de decisão ainda não cumprida aparece em vermelho.
-Abre com as mesmas permissões das atas.
+
+**Quem vê o quê.** Cada usuário tem um **nível de sigilo** para as
+deliberações, marcado nas permissões do grupo Diretoria (ou no perfil de
+acesso):
+
+| Nível | Permissão marcada | Vê |
+| --- | --- | --- |
+| Nenhum | nenhuma das três | nenhuma deliberação |
+| Livre | Deliberações — sigilo livre | só as livres |
+| Reservado | Deliberações — até reservado | livres e reservadas |
+| Restrito | Deliberações — até restrito (todas) | todas |
+
+As três são cumulativas: vale a mais alta marcada. O nível vale em todo
+lugar — na tela Deliberações, no cartão da ata e ao registrar: quem é
+*reservado* só escolhe livre ou reservado e não vê nem edita as restritas
+(a ata avisa quantas ficaram de fora). Para a tela Deliberações basta o
+nível; o link para a ata só aparece a quem também pode consultar atas. Na
+virada, quem registrava atas ficou com *restrito*.
+
+<Aviso tipo="nota" titulo="O PDF e o resumo da ata não têm sigilo por item">
+  O sigilo vale para as deliberações registradas como itens. O **PDF da ata**
+  e o **resumo** ficam com quem pode consultar atas — não registre no resumo
+  o que é reservado ou restrito.
+</Aviso>
 
 <Print src="institucional/deliberacoes.png" alt="Tela Deliberações: quadros com quantas estão a cumprir, em execução, cumpridas e canceladas; filtros por assunto, período, situação, sigilo e reunião; e a tabela com data, deliberação, reunião, responsável e prazo (um vencido em vermelho), situação e sigilo." legenda="As deliberações de todas as atas, com a situação e o sigilo de cada uma." />
 

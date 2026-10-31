@@ -59,7 +59,14 @@ function paraDeliberacao(r: Record<string, unknown>): Deliberacao {
 
 // ── Leitura ──────────────────────────────────────────────────────────────────
 
-export async function deliberacoesDaAta(ataId: string): Promise<Deliberacao[]> {
+/**
+ * Deliberações da ata que o usuário pode ver (`sigilos` = os graus que o
+ * nível dele alcança) e quantas ficaram ocultas pelo sigilo.
+ */
+export async function deliberacoesDaAta(
+  ataId: string,
+  sigilos: SigiloDeliberacao[]
+): Promise<{ visiveis: Deliberacao[]; ocultas: number }> {
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("reuniao_deliberacao")
@@ -69,10 +76,12 @@ export async function deliberacoesDaAta(ataId: string): Promise<Deliberacao[]> {
     .order("ordem")
     .order("created_at")
   if (error) {
-    if (/does not exist|schema cache/i.test(error.message)) return []
+    if (/does not exist|schema cache/i.test(error.message)) return { visiveis: [], ocultas: 0 }
     throw new Error(`Falha ao ler as deliberações: ${error.message}`)
   }
-  return (data ?? []).map((r) => paraDeliberacao(r as Record<string, unknown>))
+  const todas = (data ?? []).map((r) => paraDeliberacao(r as Record<string, unknown>))
+  const visiveis = todas.filter((d) => sigilos.includes(d.sigilo))
+  return { visiveis, ocultas: todas.length - visiveis.length }
 }
 
 export async function obterDeliberacao(id: string): Promise<Deliberacao | null> {
@@ -106,7 +115,11 @@ function escaparLike(t: string): string {
  * antiga (e na ordem da ata). Lê tudo sem o teto de 1.000 do PostgREST — o
  * volume é o de uma entidade (dezenas por ano).
  */
-export async function listarDeliberacoes(filtros: FiltrosDeliberacoes = {}): Promise<DeliberacaoComAta[]> {
+export async function listarDeliberacoes(
+  filtros: FiltrosDeliberacoes,
+  sigilos: SigiloDeliberacao[]
+): Promise<DeliberacaoComAta[]> {
+  if (sigilos.length === 0) return []
   const admin = await createAdminClient()
   const emp = await tenantAtual()
   const termo = (filtros.assunto ?? "").trim()
@@ -115,6 +128,7 @@ export async function listarDeliberacoes(filtros: FiltrosDeliberacoes = {}): Pro
       .from("reuniao_deliberacao")
       .select(`${CAMPOS}, ata:ata_id!inner(titulo, data, tipo, orgao)`)
       .eq("emp_proprietaria_id", emp)
+      .in("sigilo", sigilos)
     if (filtros.situacao) q = q.eq("situacao", filtros.situacao)
     if (filtros.sigilo) q = q.eq("sigilo", filtros.sigilo)
     if (filtros.tipo) q = q.eq("ata.tipo", filtros.tipo)
@@ -150,13 +164,15 @@ export async function listarDeliberacoes(filtros: FiltrosDeliberacoes = {}): Pro
   )
 }
 
-/** Assuntos já usados — sugestões no campo (datalist). */
-export async function assuntosUsados(): Promise<string[]> {
+/** Assuntos já usados (dentro do sigilo do usuário) — sugestões no campo. */
+export async function assuntosUsados(sigilos: SigiloDeliberacao[]): Promise<string[]> {
+  if (sigilos.length === 0) return []
   const admin = await createAdminClient()
   const { data } = await admin
     .from("reuniao_deliberacao")
     .select("assunto")
     .eq("emp_proprietaria_id", await tenantAtual())
+    .in("sigilo", sigilos)
     .order("updated_at", { ascending: false })
     .limit(1000)
   const vistos = new Set<string>()

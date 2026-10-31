@@ -9,7 +9,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
-import { SIGILOS_DELIBERACAO, SITUACOES_DELIBERACAO } from "@/lib/deliberacoes-constantes"
+import {
+  SIGILOS_DELIBERACAO,
+  SITUACOES_DELIBERACAO,
+  type SigiloDeliberacao,
+} from "@/lib/deliberacoes-constantes"
 import type { Deliberacao } from "@/lib/db/deliberacoes"
 
 import { excluirDeliberacaoAction, salvarDeliberacaoAction } from "./deliberacao-actions"
@@ -23,15 +27,20 @@ export function DeliberacaoForm({
   deliberacao,
   assuntos,
   cancelarHref,
+  sigilos,
 }: {
   ataId: string
   deliberacao?: Deliberacao
   assuntos: string[]
   cancelarHref: string
+  /** Graus que o nível do usuário alcança — só esses são oferecidos. */
+  sigilos: SigiloDeliberacao[]
 }) {
   const [estado, formAction, pendente] = useActionState(salvarDeliberacaoAction, {})
   const envio = useEnvioFormulario(formAction, estado)
   const sufixo = deliberacao?.id ?? "nova"
+  const opcoesSigilo = SIGILOS_DELIBERACAO.filter((s) => sigilos.includes(s.chave))
+  const sigiloPadrao = deliberacao?.sigilo ?? (sigilos.includes("reservado") ? "reservado" : sigilos[sigilos.length - 1])
 
   return (
     <form action={formAction} {...envio} className="bg-muted/30 grid gap-4 rounded-md border p-4">
@@ -119,9 +128,9 @@ export function DeliberacaoForm({
             id={`sigilo-${sufixo}`}
             name="sigilo"
             className={SELECT}
-            defaultValue={deliberacao?.sigilo ?? "reservado"}
+            defaultValue={sigiloPadrao}
           >
-            {SIGILOS_DELIBERACAO.map((s) => (
+            {opcoesSigilo.map((s) => (
               <option key={s.chave} value={s.chave}>
                 {s.rotulo}
               </option>

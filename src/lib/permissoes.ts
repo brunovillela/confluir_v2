@@ -925,8 +925,8 @@ export const MODULOS: Modulo[] = [
     href: "/painel/institucional/deliberacoes",
     icone: "Gavel",
     descricao: "Decisões das atas de reunião: situação e sigilo",
-    chave: "diretoria_reunioes",
-    chavesAlternativas: ["diretoria_atas_consulta"],
+    chave: "deliberacoes_livre",
+    chavesAlternativas: ["deliberacoes_reservado", "deliberacoes_restrito"],
     oculto: true,
   },
   {
