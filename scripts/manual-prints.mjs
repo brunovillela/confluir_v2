@@ -180,7 +180,7 @@ const SHOTS = process.env.SHOT_UNICO
       // Rodada de 17/10 (25): as outras áreas do Pessoal no padrão de 3 níveis
       // (nível 1 = indicadores, fila e aba Funcionários) e as abas que os artigos descrevem.
       ["/painel/pessoal/contracheques", "pessoal/contracheques-area.png", { esperar: "Valor líquido no ano", altura: 1000 }],
-      ["/painel/pessoal/contracheques/44444444-4444-4444-8444-000000000001", "pessoal/contracheques-remessa.png", { esperar: "Adicionar contracheque", altura: 1100 }],
+      ["/painel/pessoal/contracheques/44444444-4444-4444-8444-000000000001", "pessoal/contracheques-remessa.png", { esperar: "Adicionar contracheque", passos: [{ pausa: 2000 }, { ir: "/painel/pessoal/contracheques/44444444-4444-4444-8444-000000000001" }, { aguardar: "Importar folha" }, { pausa: 1000 }], altura: 1100 }],
       ["/painel/pessoal/ponto?aba=remessas", "pessoal/ponto-remessas.png", { esperar: "Meses sem remessa", altura: 1000 }],
       ["/painel/pessoal/informes", "pessoal/informes-area.png", { esperar: "Anos-base", altura: 900 }],
       ["/painel/pessoal/informes?aba=remessas", "pessoal/informes.png", { esperar: "Anos-base", altura: 900 }],
