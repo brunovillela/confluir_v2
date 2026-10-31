@@ -89,15 +89,16 @@ export type AtaDetalhe = {
   data: string | null
   hora: string | null
   local: string | null
-  pauta: string | null
   /**
-   * Breve resumo da reunião; as decisões são itens (db/deliberacoes). Segue
-   * o sigilo do PDF: null quando acima do nível do usuário (`resumoOculto`).
+   * Pauta, resumo (breve; as decisões são itens, db/deliberacoes) e
+   * observações seguem o sigilo do PDF: null quando acima do nível do
+   * usuário — `ocultos` diz quais existem e foram escondidos.
    */
+  pauta: string | null
   resumo: string | null
-  resumoOculto: boolean
   presentes: string | null
   observacoes: string | null
+  ocultos: { pauta: boolean; resumo: boolean; observacoes: boolean }
   /** Link assinado do PDF — só quando o nível de sigilo do usuário alcança `sigiloDocumento`. */
   documentoUrl: string | null
   /** Há PDF, mesmo que o usuário não possa abri-lo. */
@@ -127,10 +128,12 @@ export async function obterAta(id: string, sigilos: SigiloDeliberacao[]): Promis
   }
   const sigiloDocumento: SigiloDeliberacao = ehSigiloDeliberacao(a.sigilo_documento) ? a.sigilo_documento : "restrito"
   const caminho = texto(a.documento_url)
-  // PDF e resumo: só dentro do nível de sigilo do usuário.
+  // PDF, pauta, resumo e observações: só dentro do nível de sigilo do usuário.
   const alcanca = sigilos.includes(sigiloDocumento)
   const documentoUrl = caminho && alcanca ? await urlDocumentoDiretoria(caminho) : null
+  const pauta = texto(a.pauta)
   const resumo = texto(a.resumo)
+  const observacoes = texto(a.observacoes)
 
   return {
     id: String(a.id),
@@ -142,11 +145,15 @@ export async function obterAta(id: string, sigilos: SigiloDeliberacao[]): Promis
     data: texto(a.data),
     hora: texto(a.hora),
     local: texto(a.local),
-    pauta: texto(a.pauta),
+    pauta: alcanca ? pauta : null,
     resumo: alcanca ? resumo : null,
-    resumoOculto: Boolean(resumo) && !alcanca,
     presentes: texto(a.presentes),
-    observacoes: texto(a.observacoes),
+    observacoes: alcanca ? observacoes : null,
+    ocultos: {
+      pauta: Boolean(pauta) && !alcanca,
+      resumo: Boolean(resumo) && !alcanca,
+      observacoes: Boolean(observacoes) && !alcanca,
+    },
     documentoUrl,
     temDocumento: Boolean(caminho),
     sigiloDocumento,
@@ -176,11 +183,11 @@ export type DadosAta = {
   data: string | null
   hora: string | null
   local: string | null
-  pauta: string | null
-  /** Breve resumo da reunião; undefined = não mexer (resumo acima do nível de quem edita). */
+  /** Pauta, resumo e observações: undefined = não mexer (acima do nível de quem edita). */
+  pauta?: string | null
   resumo?: string | null
   presentes: string | null
-  observacoes: string | null
+  observacoes?: string | null
   /** Caminho já gravável (upload na action); undefined = não mexer. */
   documento_url?: string | null
   /** Sigilo do PDF; undefined = não mexer. */
@@ -196,12 +203,12 @@ function payload(d: DadosAta): Record<string, unknown> {
     data: d.data,
     hora: d.hora,
     local: d.local,
-    pauta: d.pauta,
     presentes: d.presentes,
-    observacoes: d.observacoes,
     updated_at: new Date().toISOString(),
   }
+  if (d.pauta !== undefined) p.pauta = d.pauta
   if (d.resumo !== undefined) p.resumo = d.resumo
+  if (d.observacoes !== undefined) p.observacoes = d.observacoes
   if (d.documento_url !== undefined) p.documento_url = d.documento_url
   if (d.sigilo_documento !== undefined) p.sigilo_documento = d.sigilo_documento
   return p

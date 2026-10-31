@@ -107,7 +107,10 @@ export default async function AtaPage({
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle className="text-base">Ata da reunião</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base">
+              Ata da reunião
+              <SeloSigilo sigilo={a.sigiloDocumento} />
+            </CardTitle>
             {podeEditar && !editando && (
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" asChild>
@@ -138,26 +141,39 @@ export default async function AtaPage({
                 <Campo rotulo="Local" valor={a.local} />
                 <Campo rotulo="Tipo" valor={ROTULO_TIPO_REUNIAO[a.tipo]} />
               </div>
-              <Campo rotulo="Pauta" valor={a.pauta} />
-              {a.resumoOculto ? (
+              {(
+                [
+                  ["Pauta", a.pauta, a.ocultos.pauta],
+                  ["Resumo da reunião", a.resumo, a.ocultos.resumo],
+                ] as const
+              ).map(([rotulo, valor, oculto]) =>
+                oculto ? (
+                  <div key={rotulo}>
+                    <dt className="text-muted-foreground text-xs">{rotulo}</dt>
+                    <dd className="text-muted-foreground mt-0.5 text-sm">
+                      {ROTULO_SIGILO_DELIBERACAO[a.sigiloDocumento]} — acima do seu acesso às deliberações (
+                      {ROTULO_NIVEL_SIGILO[nivel]}).
+                    </dd>
+                  </div>
+                ) : (
+                  <Campo key={rotulo} rotulo={rotulo} valor={valor} />
+                )
+              )}
+              <Campo rotulo="Presentes" valor={a.presentes} />
+              {a.ocultos.observacoes ? (
                 <div>
-                  <dt className="text-muted-foreground text-xs">Resumo da reunião</dt>
+                  <dt className="text-muted-foreground text-xs">Observações</dt>
                   <dd className="text-muted-foreground mt-0.5 text-sm">
-                    O resumo é {ROTULO_SIGILO_DELIBERACAO[a.sigiloDocumento].toLowerCase()} e está acima do seu
-                    acesso às deliberações ({ROTULO_NIVEL_SIGILO[nivel]}).
+                    {ROTULO_SIGILO_DELIBERACAO[a.sigiloDocumento]} — acima do seu acesso às deliberações (
+                    {ROTULO_NIVEL_SIGILO[nivel]}).
                   </dd>
                 </div>
               ) : (
-                <Campo rotulo="Resumo da reunião" valor={a.resumo} />
-              )}
-              <Campo rotulo="Presentes" valor={a.presentes} />
-              {a.observacoes && (
-                <Campo rotulo="Observações" valor={a.observacoes} />
+                a.observacoes && <Campo rotulo="Observações" valor={a.observacoes} />
               )}
               <div>
                 <dt className="text-muted-foreground flex items-center gap-1.5 text-xs">
                   Ata em PDF
-                  {(a.temDocumento || a.resumo || a.resumoOculto) && <SeloSigilo sigilo={a.sigiloDocumento} />}
                 </dt>
                 <dd className="mt-0.5 text-sm">
                   {a.temDocumento && !a.documentoUrl ? (

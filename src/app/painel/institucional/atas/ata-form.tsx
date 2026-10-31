@@ -46,7 +46,7 @@ export function AtaForm({
   /** Graus de sigilo que o nível de quem edita alcança. */
   sigilos: SigiloDeliberacao[]
 }) {
-  // Sigilo do PDF e do resumo: só os graus do nível de quem edita. Já acima do
+  // Sigilo da ata (PDF, pauta, resumo e observações): só os graus do nível de quem edita. Já acima do
   // nível não muda; sem nível, fica restrito (a action confere de novo).
   const sigiloAtual = ata?.sigiloDocumento ?? "restrito"
   const sigiloForaDoAlcance = Boolean(ata && !sigilos.includes(ata.sigiloDocumento))
@@ -130,7 +130,7 @@ export function AtaForm({
           </p>
         )}
         <div className="grid max-w-72 gap-1.5">
-          <Label htmlFor="sigilo_documento">Sigilo do PDF e do resumo</Label>
+          <Label htmlFor="sigilo_documento">Sigilo da ata</Label>
           {sigiloForaDoAlcance ? (
             <p className="text-muted-foreground text-sm">
               {ROTULO_SIGILO_DELIBERACAO[sigiloAtual]} — acima do seu acesso; não muda.
@@ -147,8 +147,8 @@ export function AtaForm({
             </select>
           )}
           <p className="text-muted-foreground text-xs">
-            O PDF traz todas as decisões: ele e o resumo só aparecem para quem tem acesso às deliberações até
-            este grau.
+            O PDF, a pauta, o resumo e as observações só aparecem para quem tem acesso às deliberações até este
+            grau.
           </p>
         </div>
         {leitura?.ok && <p className="text-success-fg text-sm">{leitura.ok}</p>}
@@ -243,7 +243,11 @@ export function AtaForm({
 
       <div className="grid gap-1.5">
         <Label htmlFor="pauta">Pauta</Label>
-        <Textarea id="pauta" name="pauta" rows={3} defaultValue={ata?.pauta ?? ""} />
+        {sigiloForaDoAlcance ? (
+          <p className="text-muted-foreground text-sm">Acima do seu acesso — fica como está.</p>
+        ) : (
+          <Textarea id="pauta" name="pauta" rows={3} defaultValue={ata?.pauta ?? ""} />
+        )}
       </div>
 
       <div className="grid gap-1.5">
@@ -282,12 +286,11 @@ export function AtaForm({
 
       <div className="grid gap-1.5">
         <Label htmlFor="observacoes">Observações</Label>
-        <Textarea
-          id="observacoes"
-          name="observacoes"
-          rows={2}
-          defaultValue={ata?.observacoes ?? ""}
-        />
+        {sigiloForaDoAlcance ? (
+          <p className="text-muted-foreground text-sm">Acima do seu acesso — fica como está.</p>
+        ) : (
+          <Textarea id="observacoes" name="observacoes" rows={2} defaultValue={ata?.observacoes ?? ""} />
+        )}
       </div>
 
       <div className="flex gap-2">
