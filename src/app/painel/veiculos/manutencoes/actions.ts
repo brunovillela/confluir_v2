@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
 import { vincularManutencao } from "@/lib/db/veiculos-apontamentos"
+import { compraParaVinculo } from "@/lib/db/veiculos-manutencoes"
 import { type EstadoForm } from "@/lib/contas"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -82,8 +83,19 @@ export async function salvarManutencao(
   if (hodometro !== null && hodometro < 0) {
     return { erro: "Hodômetro inválido." }
   }
-  const valor = num(fd, "valor")
-  if (valor !== null && valor < 0) return { erro: "Valor inválido." }
+  const valorInformado = num(fd, "valor")
+  if (valorInformado !== null && valorInformado < 0) return { erro: "Valor inválido." }
+
+  // Compra do serviço vinculada: a oficina e o valor vêm dela (o formulário
+  // nem pede); o valor digitado só vale para a parte deste veículo, quando a
+  // compra cobre mais de um. A nota fiscal fica na compra.
+  const compraId = txt(fd, "compra_id") || null
+  const compra = compraId ? await compraParaVinculo(compraId) : null
+  if (compraId && !compra) return { erro: "Compra não encontrada." }
+  const valor = valorInformado ?? compra?.valor ?? null
+  if (compra && compra.valor !== null && valor !== null && valor > compra.valor) {
+    return { erro: `O valor não pode passar do valor da compra (${compra.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}).` }
+  }
 
   const garantiaMeses = num(fd, "garantia_meses")
   const garantiaKm = num(fd, "garantia_km")
@@ -103,7 +115,7 @@ export async function salvarManutencao(
   const emp = await tenantAtual()
 
   // Nome do local congelado junto — o cadastro do fornecedor pode mudar.
-  const localId = txt(fd, "local_id") || null
+  const localId = txt(fd, "local_id") || compra?.fornecedorId || null
   let localNome: string | null = null
   if (localId) {
     const { data: forn } = await admin
@@ -120,7 +132,7 @@ export async function salvarManutencao(
   // Nota fiscal (opcional) no bucket privado do módulo.
   let notaUrl: string | undefined
   const arquivo = fd.get("nota_fiscal")
-  if (arquivo instanceof File && arquivo.size > 0) {
+  if (!compra && arquivo instanceof File && arquivo.size > 0) {
     if (arquivo.size > MAX_NF) {
       return { erro: "A nota fiscal deve ter no máximo 5 MB." }
     }
@@ -147,8 +159,8 @@ export async function salvarManutencao(
     local_id: localId,
     local_nome: localNome,
     valor,
-    compra_id: txt(fd, "compra_id") || null,
-    nota_fiscal_numero: txt(fd, "nota_fiscal_numero") || null,
+    compra_id: compraId,
+    nota_fiscal_numero: compra ? null : txt(fd, "nota_fiscal_numero") || null,
     garantia_meses: garantiaMeses ? Math.trunc(garantiaMeses) : null,
     garantia_km: garantiaKm ? Math.trunc(garantiaKm) : null,
     garantia_ate: garantiaAte,

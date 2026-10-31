@@ -560,32 +560,107 @@ export async function listarManutencoes(filtros: {
  * Compras candidatas ao vínculo: as já COMPRADAS, mais recentes primeiro. Não
  * filtro por "serviço de oficina" porque o sistema não classifica compras por
  * natureza — quem registra sabe qual é a dele, e a lista curta basta.
+ *
+ * Cada opção leva o que a manutenção deixa de pedir quando a compra é
+ * vinculada: a oficina (fornecedor), o valor, a data, o que foi comprado e se
+ * a nota fiscal já está na compra.
  */
+export type CompraParaVinculo = {
+  id: string
+  rotulo: string
+  codigo: string | null
+  fornecedorId: string | null
+  fornecedorNome: string | null
+  valor: number | null
+  data: string | null
+  descricao: string | null
+  /** Nota fiscal anexada em algum desdobramento da compra. */
+  temNota: boolean
+}
+
 export async function comprasParaVinculo(
   limite = 60
-): Promise<{ id: string; rotulo: string }[]> {
+): Promise<CompraParaVinculo[]> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
   const { data, error } = await admin
     .from("compras_solicitacoes")
-    .select("id, codigo, compra_valor, compra_data, solicitacao_produto")
+    .select("id, codigo, compra_valor, compra_data, compra_fornecedor_id, solicitacao_produto, descricao_objetivo")
     .eq("emp_proprietaria_id", emp)
     .not("compra_data", "is", null)
     .order("compra_data", { ascending: false })
     .limit(limite)
   if (error) return []
+  return montarComprasParaVinculo((data ?? []) as Record<string, unknown>[])
+}
 
-  return (data ?? []).map((c) => {
-    const valor = Number(c.compra_valor ?? 0)
-    const partes = [
+/** Uma compra só (a vinculada), com os mesmos dados das opções. */
+export async function compraParaVinculo(
+  id: string
+): Promise<CompraParaVinculo | null> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("compras_solicitacoes")
+    .select("id, codigo, compra_valor, compra_data, compra_fornecedor_id, solicitacao_produto, descricao_objetivo")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("id", id)
+    .maybeSingle()
+  if (!data) return null
+  return (await montarComprasParaVinculo([data as Record<string, unknown>]))[0] ?? null
+}
+
+async function montarComprasParaVinculo(
+  linhas: Record<string, unknown>[]
+): Promise<CompraParaVinculo[]> {
+  if (linhas.length === 0) return []
+  const admin = await createAdminClient()
+  // Desdobramentos: a nota fiscal mora neles, e o fornecedor também quando a
+  // compra (legado) não preencheu o compra_fornecedor_id.
+  const { data: forn } = await admin
+    .from("compras_fornecimentos")
+    .select("processo_id, fornecedor_id, nota_fiscal_url")
+    .in("processo_id", linhas.map((c) => String(c.id)))
+  const desdobramentos = (forn ?? []) as Record<string, unknown>[]
+  const fornecedorDe = (c: Record<string, unknown>): string | null =>
+    (c.compra_fornecedor_id as string | null) ??
+    (desdobramentos.find((f) => f.processo_id === c.id && f.fornecedor_id)?.fornecedor_id as string | undefined) ??
+    null
+  const ids = [...new Set(linhas.map(fornecedorDe).filter((v): v is string => Boolean(v)))]
+  const { data: empresas } = ids.length
+    ? await admin.from("empresa").select("id, nome_fantasia, nome_razao").in("id", ids)
+    : { data: [] }
+  const nomes = new Map(
+    ((empresas ?? []) as Record<string, unknown>[]).map((e) => [
+      String(e.id),
+      (e.nome_fantasia as string | null) ?? (e.nome_razao as string | null) ?? null,
+    ])
+  )
+
+  return linhas.map((c) => {
+    const valor = c.compra_valor === null || c.compra_valor === undefined ? null : Number(c.compra_valor)
+    const fornecedorId = fornecedorDe(c)
+    const fornecedorNome = fornecedorId ? (nomes.get(fornecedorId) ?? null) : null
+    const descricao = (c.solicitacao_produto as string | null) ?? (c.descricao_objetivo as string | null) ?? null
+    const rotulo = [
       c.codigo as string | null,
-      (c.solicitacao_produto as string | null)?.slice(0, 40),
-      valor > 0
-        ? valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-        : null,
-    ].filter(Boolean)
-    return { id: c.id as string, rotulo: partes.join(" · ") || "(sem código)" }
-  }).sort((a, b) => a.rotulo.localeCompare(b.rotulo, "pt-BR"))
+      fornecedorNome,
+      descricao?.slice(0, 40),
+      valor ? valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : null,
+    ]
+      .filter(Boolean)
+      .join(" · ")
+    return {
+      id: String(c.id),
+      rotulo: rotulo || "(sem código)",
+      codigo: (c.codigo as string | null) ?? null,
+      fornecedorId,
+      fornecedorNome,
+      valor,
+      data: (c.compra_data as string | null)?.slice(0, 10) ?? null,
+      descricao,
+      temNota: desdobramentos.some((f) => f.processo_id === c.id && f.nota_fiscal_url),
+    }
+  })
 }
 
 async function codigosDasCompras(ids: string[]): Promise<Map<string, string>> {

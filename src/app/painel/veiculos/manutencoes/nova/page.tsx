@@ -76,7 +76,8 @@ export default async function NovaManutencaoPage({
           <CardHeader>
             <CardTitle>Dados do serviço</CardTitle>
             <CardDescription>
-              Local, descrição, garantia e nota fiscal ficam guardados juntos.
+              Com a compra do serviço vinculada, a oficina, o valor e a nota
+              fiscal vêm de lá — aqui fica o que é do veículo.
             </CardDescription>
           </CardHeader>
           <CardContent>

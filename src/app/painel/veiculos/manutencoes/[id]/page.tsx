@@ -16,6 +16,7 @@ import {
 import { requirePermissao } from "@/lib/auth"
 import { urlArquivoVeiculos } from "@/lib/db/veiculos"
 import {
+  compraParaVinculo,
   hodometroAtual,
   obterManutencao,
 } from "@/lib/db/veiculos-manutencoes"
@@ -49,9 +50,10 @@ export default async function ManutencaoPage({
   const m = await obterManutencao(id)
   if (!m) notFound()
 
-  const [nfUrl, kmAtual] = await Promise.all([
+  const [nfUrl, kmAtual, compra] = await Promise.all([
     urlArquivoVeiculos(m.nota_fiscal_url),
     hodometroAtual(m.veiculo_id),
+    m.compra_id ? compraParaVinculo(m.compra_id) : Promise.resolve(null),
   ])
 
   const hoje = new Date().toISOString().slice(0, 10)
@@ -136,7 +138,17 @@ export default async function ManutencaoPage({
               rotulo="Valor"
               valor={m.valor !== null ? formatarMoeda(m.valor) : null}
             />
-            <Linha rotulo="Nota fiscal" valor={m.nota_fiscal_numero} />
+            <Linha
+              rotulo="Nota fiscal"
+              valor={
+                m.nota_fiscal_numero ??
+                (compra && !nfUrl
+                  ? compra.temNota
+                    ? "na compra"
+                    : "ainda não anexada na compra"
+                  : null)
+              }
+            />
             {nfUrl && (
               <div>
                 <Button asChild size="sm" variant="outline">

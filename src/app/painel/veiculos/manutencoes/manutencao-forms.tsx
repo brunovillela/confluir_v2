@@ -1,22 +1,23 @@
 "use client"
 
 import { useActionState, useState } from "react"
-import { Loader2, Plus, Save, Trash2, Wrench } from "lucide-react"
+import { Loader2, Plus, Save, ShoppingCart, Trash2, Wrench } from "lucide-react"
+import Link from "next/link"
 
 import { CartaoEditavel } from "@/components/cartao-editavel"
-import { EmpresaCombobox, type EmpresaOpcao } from "@/components/empresa-combobox"
+import {
+  EmpresaCombobox,
+  type EmpresaOpcao,
+} from "@/components/empresa-combobox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { formatarData, formatarMoeda } from "@/lib/formato"
 
-import {
-  removerPlano,
-  salvarManutencao,
-  salvarPlano,
-} from "./actions"
+import { removerPlano, salvarManutencao, salvarPlano } from "./actions"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
@@ -24,7 +25,18 @@ const SELECT =
 
 export type VeiculoOpcao = { id: string; rotulo: string }
 export type PlanoOpcao = { id: string; descricao: string; veiculo_id: string }
-export type CompraOpcao = { id: string; rotulo: string }
+/** Espelha CompraParaVinculo (lib/db/veiculos-manutencoes.ts). */
+export type CompraOpcao = {
+  id: string
+  rotulo: string
+  codigo: string | null
+  fornecedorId: string | null
+  fornecedorNome: string | null
+  valor: number | null
+  data: string | null
+  descricao: string | null
+  temNota: boolean
+}
 
 export type ManutencaoInicial = {
   id: string
@@ -68,9 +80,23 @@ export function ManutencaoForm({
   const [estado, formAction, pendente] = useActionState(salvarManutencao, {})
   const envio1 = useEnvioFormulario(formAction, estado)
   const [veiculoId, setVeiculoId] = useState(
-    inicial?.veiculo_id ?? veiculoFixo ?? ""
+    inicial?.veiculo_id ?? veiculoFixo ?? "",
   )
   const [tipo, setTipo] = useState(inicial?.tipo ?? tipoInicial ?? "preventiva")
+  const [compraId, setCompraId] = useState(inicial?.compra_id ?? "")
+  const [descricao, setDescricao] = useState(inicial?.descricao ?? "")
+  const [data, setData] = useState(inicial?.realizada_em ?? "")
+  const compra = compras.find((c) => c.id === compraId) ?? null
+
+  // A compra traz o que já está lá; data e descrição só se ainda vazias
+  // (quem registra complementa: a data do serviço pode ser outra).
+  function escolherCompra(id: string) {
+    setCompraId(id)
+    const c = compras.find((x) => x.id === id)
+    if (!c) return
+    if (!data && c.data) setData(c.data)
+    if (!descricao.trim() && c.descricao) setDescricao(c.descricao)
+  }
 
   // Só as programações do veículo escolhido fazem sentido no seletor.
   const planosDoVeiculo = planos.filter((p) => p.veiculo_id === veiculoId)
@@ -78,7 +104,9 @@ export function ManutencaoForm({
   return (
     <form action={formAction} {...envio1} className="grid gap-4">
       {inicial && <input type="hidden" name="id" value={inicial.id} />}
-      {apontamentoId && <input type="hidden" name="apontamento_id" value={apontamentoId} />}
+      {apontamentoId && (
+        <input type="hidden" name="apontamento_id" value={apontamentoId} />
+      )}
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -135,6 +163,59 @@ export function ManutencaoForm({
         </div>
       </div>
 
+      <div className="grid gap-2">
+        <Label htmlFor="compra_id">Compra do serviço</Label>
+        <select
+          id="compra_id"
+          name="compra_id"
+          className={SELECT}
+          value={compraId}
+          onChange={(e) => escolherCompra(e.target.value)}
+        >
+          <option value="">
+            Nenhuma — registrar oficina, valor e nota aqui
+          </option>
+          {compras.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.rotulo}
+            </option>
+          ))}
+        </select>
+        <p className="text-muted-foreground text-xs">
+          Se o serviço foi pago por uma compra em Aquisição, escolha-a: a
+          oficina, o valor e a nota fiscal vêm de lá.
+        </p>
+      </div>
+
+      {compra && (
+        <div className="bg-muted/40 grid gap-1 rounded-md border p-3 text-sm">
+          <p className="font-medium">Da compra {compra.codigo ?? ""}</p>
+          <p>
+            <span className="text-muted-foreground">Oficina:</span>{" "}
+            {compra.fornecedorNome ?? "— (a compra não tem fornecedor)"}
+          </p>
+          <p>
+            <span className="text-muted-foreground">Valor:</span>{" "}
+            {compra.valor !== null ? formatarMoeda(compra.valor) : "—"}
+            {compra.data ? ` · comprada em ${formatarData(compra.data)}` : ""}
+          </p>
+          <p>
+            <span className="text-muted-foreground">Nota fiscal:</span>{" "}
+            {compra.temNota
+              ? "anexada na compra"
+              : "ainda não anexada na compra — anexe por lá"}
+          </p>
+          <Link
+            href={`/painel/compras/${compra.id}`}
+            target="_blank"
+            className="text-primary inline-flex items-center gap-1 text-xs hover:underline"
+          >
+            <ShoppingCart className="size-3" />
+            Abrir a compra
+          </Link>
+        </div>
+      )}
+
       {tipo === "preventiva" && planosDoVeiculo.length > 0 && (
         <div className="grid gap-2">
           <Label htmlFor="plano_id">Cumpre qual programação?</Label>
@@ -164,7 +245,8 @@ export function ManutencaoForm({
           id="descricao"
           name="descricao"
           rows={3}
-          defaultValue={inicial?.descricao ?? ""}
+          value={descricao}
+          onChange={(e) => setDescricao(e.target.value)}
           placeholder="Troca de óleo e filtro, revisão de freios dianteiros, substituição da correia dentada."
           required
         />
@@ -177,7 +259,8 @@ export function ManutencaoForm({
             id="realizada_em"
             name="realizada_em"
             type="date"
-            defaultValue={inicial?.realizada_em ?? ""}
+            value={data}
+            onChange={(e) => setData(e.target.value)}
             required
           />
         </div>
@@ -192,7 +275,9 @@ export function ManutencaoForm({
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="valor">Valor (R$)</Label>
+          <Label htmlFor="valor">
+            {compra ? "Parte deste veículo (R$)" : "Valor (R$)"}
+          </Label>
           <Input
             id="valor"
             name="valor"
@@ -200,66 +285,56 @@ export function ManutencaoForm({
             min={0}
             step="0.01"
             defaultValue={inicial?.valor ?? ""}
+            placeholder={compra?.valor ? String(compra.valor) : undefined}
           />
+          {compra && (
+            <p className="text-muted-foreground text-xs">
+              Vazio = o valor da compra. Preencha só se ela cobre mais de um
+              veículo ou serviço.
+            </p>
+          )}
         </div>
       </div>
 
-      <div className="grid gap-2">
-        <Label>Local (oficina)</Label>
-        <EmpresaCombobox
-          empresas={fornecedores}
-          name="local_id"
-          defaultId={inicial?.local_id ?? undefined}
-        />
-        <p className="text-muted-foreground text-xs">
-          A oficina é um fornecedor cadastrado em Aquisição. Se ela ainda não
-          estiver lá, cadastre primeiro em Aquisição → Fornecedores.
-        </p>
-      </div>
+      {!compra && (
+        <>
+          <div className="grid gap-2">
+            <Label>Local (oficina)</Label>
+            <EmpresaCombobox
+              empresas={fornecedores}
+              name="local_id"
+              defaultId={inicial?.local_id ?? undefined}
+            />
+            <p className="text-muted-foreground text-xs">
+              A oficina é um fornecedor cadastrado em Aquisição. Se ela ainda
+              não estiver lá, cadastre primeiro em Aquisição → Fornecedores.
+            </p>
+          </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-2">
-          <Label htmlFor="compra_id">Compra que pagou</Label>
-          <select
-            id="compra_id"
-            name="compra_id"
-            className={SELECT}
-            defaultValue={inicial?.compra_id ?? ""}
-          >
-            <option value="">Nenhuma</option>
-            {compras.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.rotulo}
-              </option>
-            ))}
-          </select>
-          <p className="text-muted-foreground text-xs">
-            Amarra o gasto ao processo de compra, sem redigitar valores.
-          </p>
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="nota_fiscal_numero">Nota fiscal (número)</Label>
-          <Input
-            id="nota_fiscal_numero"
-            name="nota_fiscal_numero"
-            defaultValue={inicial?.nota_fiscal_numero ?? ""}
-          />
-        </div>
-      </div>
+          <div className="grid gap-2">
+            <Label htmlFor="nota_fiscal_numero">Nota fiscal (número)</Label>
+            <Input
+              id="nota_fiscal_numero"
+              name="nota_fiscal_numero"
+              defaultValue={inicial?.nota_fiscal_numero ?? ""}
+            />
+          </div>
 
-      <div className="grid gap-2">
-        <Label htmlFor="nota_fiscal">Arquivo da nota fiscal</Label>
-        <Input
-          id="nota_fiscal"
-          name="nota_fiscal"
-          type="file"
-          accept=".pdf,.jpg,.jpeg,.png,.webp"
-        />
-        <p className="text-muted-foreground text-xs">
-          PDF ou imagem, até 5 MB.
-          {inicial ? " Enviar um novo substitui o anterior." : ""}
-        </p>
-      </div>
+          <div className="grid gap-2">
+            <Label htmlFor="nota_fiscal">Arquivo da nota fiscal</Label>
+            <Input
+              id="nota_fiscal"
+              name="nota_fiscal"
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png,.webp"
+            />
+            <p className="text-muted-foreground text-xs">
+              PDF ou imagem, até 5 MB.
+              {inicial ? " Enviar um novo substitui o anterior." : ""}
+            </p>
+          </div>
+        </>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2">
@@ -388,8 +463,8 @@ function CamposPlano({
         </div>
       </div>
       <p className="text-muted-foreground -mt-2 text-xs">
-        Pode preencher só um ou os dois. Com os dois, vale o que vencer
-        primeiro — como no manual do fabricante.
+        Pode preencher só um ou os dois. Com os dois, vale o que vencer primeiro
+        — como no manual do fabricante.
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -515,11 +590,7 @@ export function PlanoEditavel({
     <CartaoEditavel
       titulo={`${plano.descricao} — ${veiculoRotulo}`}
       descricao={plano.ativo ? intervalo : `${intervalo} · inativa`}
-      resumo={
-        <p className="text-muted-foreground text-xs">
-          {resumo}
-        </p>
-      }
+      resumo={<p className="text-muted-foreground text-xs">{resumo}</p>}
     >
       <div className="grid gap-4">
         {estado.erro && (
@@ -588,18 +659,16 @@ export function SeloPreventiva({
   const valor = porData ? dias : km
   if (valor === null) return <Badge variant="secondary">sem referência</Badge>
 
-  const unidade = porData
-    ? Math.abs(valor) === 1
-      ? "dia"
-      : "dias"
-    : "km"
+  const unidade = porData ? (Math.abs(valor) === 1 ? "dia" : "dias") : "km"
   const quantia = porData
     ? Math.abs(valor)
     : Math.abs(valor).toLocaleString("pt-BR")
 
   return (
     <Badge variant={vencido ? "destructive" : "warning"}>
-      {vencido ? `vencida há ${quantia} ${unidade}` : `faltam ${quantia} ${unidade}`}
+      {vencido
+        ? `vencida há ${quantia} ${unidade}`
+        : `faltam ${quantia} ${unidade}`}
     </Badge>
   )
 }
