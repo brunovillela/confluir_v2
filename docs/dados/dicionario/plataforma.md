@@ -267,6 +267,7 @@ Cadastro único de organizações: tenants (sindicatos), empregadores e fontes p
 | `lgpd_encarregado_email` | text | sim |  |  | identificação | Canal de contato do encarregado, divulgado na política de privacidade e usado pelos titulares para exercer direitos. |
 | `lgpd_politica_atualizada_em` | date | sim |  |  |  | Data da última revisão da política de privacidade da entidade, mostrada no topo de /privacidade. |
 | `nit_pis` | text | sim |  |  | identificação | NIT/PIS/PASEP do fornecedor pessoa física (autônomo pago por RPA), só os 11 dígitos — vai para o relatório de RPAs da contabilidade (eSocial/DCTFWeb). |
+| `comprovante_automatico` | boolean | não | `false` |  |  | Fornecedor: o comprovante anexado à ordem paga é enviado automaticamente aos contatos que recebem comprovantes. |
 
 Únicas: `UNIQUE (bubble_id)`
 
@@ -294,6 +295,7 @@ Pessoas de contato de fornecedores e empregadores (nome, cargo, telefone, e-mail
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `updated_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `recebe_ordem_compra` | boolean | não | `false` |  |  |  |
+| `recebe_comprovante` | boolean | não | `false` |  |  | O contato recebe por e-mail os comprovantes de pagamento das ordens do fornecedor (precisa de e-mail). |
 
 Índices: `empresa_contatos_pkey`, `idx_empresa_contatos_empresa`
 

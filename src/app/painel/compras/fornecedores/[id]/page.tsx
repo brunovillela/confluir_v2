@@ -27,6 +27,7 @@ import { SituacaoBadge } from "@/app/painel/financeiro/situacao-badge"
 import { requirePermissao } from "@/lib/auth"
 import {
   buscarFornecedor,
+  comprovanteAutomatico,
   incorporadosPor,
   listarContatos,
   mescladoEm,
@@ -57,6 +58,7 @@ import { pedidoPendente } from "@/lib/db/pedidos-dados-bancarios"
 import { consultarCnpjFornecedor } from "../actions"
 import {
   BotaoAcaoFornecedor,
+  ComprovanteAutomaticoSwitch,
   ContaForm,
   EnderecoForm,
   ContatoForm,
@@ -157,12 +159,13 @@ export default async function FornecedorPage({
   const detalhe = await buscarFornecedor(id)
   if (!detalhe) notFound()
   const { fornecedor: f, enderecos, contas, ordens } = detalhe
-  const [incorporados, destinoMescla, viaMarketplace, contatos, pedidoBancario] = await Promise.all([
+  const [incorporados, destinoMescla, viaMarketplace, contatos, pedidoBancario, enviaComprovante] = await Promise.all([
     incorporadosPor(f.id),
     mescladoEm(f.id),
     comprasViaMarketplace(f.id, f.marketplace),
     listarContatos(f.id),
     pedidoPendente({ tipo: "fornecedor", id: f.id }),
+    comprovanteAutomatico(f.id),
   ])
 
   const editando = brutos.editar === "1" && podeEditar
@@ -438,8 +441,8 @@ export default async function FornecedorPage({
             <div>
               <CardTitle className="text-base">Contatos</CardTitle>
               <CardDescription>
-                Quem atende no fornecedor — telefone e e-mail. A ordem de compra só vai a quem está marcado para
-                recebê-la.
+                Quem atende no fornecedor — telefone e e-mail. A ordem de compra e os comprovantes de pagamento só
+                vão a quem está marcado para recebê-los.
               </CardDescription>
             </div>
             {podeEditar && contatos !== null && contatoParam !== "novo" && (
@@ -453,6 +456,13 @@ export default async function FornecedorPage({
           </div>
         </CardHeader>
         <CardContent className="grid gap-3">
+          {podeEditar && contatos !== null && (
+            <ComprovanteAutomaticoSwitch
+              fornecedorId={f.id}
+              ligado={enviaComprovante}
+              semContato={!contatos.some((c) => c.recebeComprovante && c.email)}
+            />
+          )}
           {contatos === null ? (
             <Alert variant="warning">
               <AlertDescription>
@@ -484,6 +494,11 @@ export default async function FornecedorPage({
                         {c.recebeOrdemCompra && c.email && (
                           <Badge variant="secondary" className="ml-2 align-middle">
                             Recebe ordem de compra
+                          </Badge>
+                        )}
+                        {c.recebeComprovante && c.email && (
+                          <Badge variant="secondary" className="ml-2 align-middle">
+                            Recebe comprovantes
                           </Badge>
                         )}
                       </p>

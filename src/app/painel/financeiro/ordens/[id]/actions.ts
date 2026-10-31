@@ -204,6 +204,12 @@ export async function salvarPagamento(
         : {}),
     }
   )
+  // Comprovante anexado agora: vai sozinho ao fornecedor com o envio
+  // automático ligado (contatos marcados para comprovantes). Não falha o pagamento.
+  if (arquivoPagamento) {
+    const { enviarComprovanteAutomatico } = await import("@/lib/db/comprovante-fornecedor")
+    await enviarComprovanteAutomatico(id, sessao.usuario.id)
+  }
   revalidarOrdem(id)
   redirect(`/painel/financeiro/ordens/${id}?salvo=1`)
 }

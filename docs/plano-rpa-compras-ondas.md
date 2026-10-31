@@ -60,7 +60,7 @@ Decidido (31/10): 3 dias, 2 lembretes.
    vai aos contatos marcados, se a opção estiver ligada (por fornecedor, ou
    para todos nas configurações de Aquisição). Registrado na trilha da ordem.
 
-Decisão: ligado para todos por padrão, ou só nos fornecedores marcados.
+Decidido (31/10): só nos fornecedores marcados.
 
 ## Onda 5 — IRRF acumulado no mês (muda o cálculo)
 
@@ -95,6 +95,6 @@ Decisão: o e-mail da contabilidade (configuração nova) e a data do envio.
 | 1 — Avisar antes de enviar | **concluída** 31/10 — avisos do limite ao vivo, custo total na prévia, NIT/PIS na emissão |
 | 2 — Remessa e linha do tempo | **concluída** 31/10 — pendência de limite na Nova remessa, faixa de etapas no processo |
 | 3 — Assinatura automática | **concluída** 31/10 — link na emissão (marcado por padrão), lembretes a cada 3 dias até 2, depois aviso a quem emitiu |
-| 4 — Comprovante | a fazer (decidir padrão do envio automático) |
+| 4 — Comprovante | **concluída** 31/10 — contato "recebe comprovantes", envio automático por fornecedor marcado (migração 20261031160553) |
 | 5 — IRRF acumulado | aguarda a contabilidade |
 | 6 — Fechamento contábil | a fazer (e-mail da contabilidade) |

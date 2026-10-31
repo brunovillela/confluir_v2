@@ -22,6 +22,7 @@ import type { DadosCnpj } from "@/lib/db/fornecedores-cnpj"
 
 import {
   atualizarFornecedorAction,
+  comprovanteAutomaticoAction,
   criarFornecedorAction,
   definirInativaAction,
   excluirContaAction,
@@ -364,6 +365,15 @@ export function ContatoForm({
         />
         Recebe as ordens de compra por e-mail (precisa de e-mail)
       </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          name="recebe_comprovante"
+          defaultChecked={contato?.recebeComprovante ?? false}
+          className="size-4"
+        />
+        Recebe os comprovantes de pagamento por e-mail (precisa de e-mail)
+      </label>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" asChild>
           <a href={aoCancelarHref}>Cancelar</a>
@@ -610,5 +620,50 @@ export function ContaForm({
         </Button>
       </div>
     </form>
+  )
+}
+
+/**
+ * Envio automático do comprovante de pagamento (onda 4 do plano do RPA): ao
+ * anexar o comprovante à ordem paga, ele vai sozinho aos contatos que recebem
+ * comprovantes. Só nos fornecedores em que isto está ligado.
+ */
+export function ComprovanteAutomaticoSwitch({
+  fornecedorId,
+  ligado,
+  semContato,
+}: {
+  fornecedorId: string
+  ligado: boolean
+  /** Nenhum contato com e-mail marcado para receber comprovantes. */
+  semContato: boolean
+}) {
+  const [valor, setValor] = useState(ligado)
+  const [estado, acao] = useActionState(comprovanteAutomaticoAction, {})
+  const [pendente, iniciar] = useTransition()
+  return (
+    <div className="bg-muted/40 grid gap-1 rounded-md border p-3 text-sm">
+      <label className="flex items-center gap-2 font-medium">
+        <Switch
+          checked={valor}
+          disabled={pendente}
+          aria-label="Enviar o comprovante de pagamento automaticamente"
+          onCheckedChange={(v) => {
+            setValor(v)
+            const fd = new FormData()
+            fd.set("fornecedor_id", fornecedorId)
+            fd.set("ligado", v ? "1" : "0")
+            iniciar(() => acao(fd))
+          }}
+        />
+        Enviar o comprovante de pagamento automaticamente
+      </label>
+      <p className="text-muted-foreground text-xs">
+        Quando o Financeiro anexar o comprovante à ordem paga, ele vai por e-mail aos contatos marcados para receber
+        comprovantes.
+        {valor && semContato ? " Nenhum contato está marcado ainda — marque ao menos um com e-mail." : ""}
+      </p>
+      {estado.erro && <p className="text-destructive text-xs">{estado.erro}</p>}
+    </div>
   )
 }

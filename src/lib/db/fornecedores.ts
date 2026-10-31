@@ -737,6 +737,8 @@ export type ContatoFornecedor = {
   observacao: string | null
   /** Recebe a ordem de compra por e-mail (supabase/fornecedores-contatos-ordem-compra.sql). */
   recebeOrdemCompra: boolean
+  /** Recebe os comprovantes de pagamento por e-mail (migração 20261031160553). */
+  recebeComprovante: boolean
 }
 
 export type DadosContato = Omit<ContatoFornecedor, "id">
@@ -753,8 +755,10 @@ export async function listarContatos(fornecedorId: string): Promise<ContatoForne
       .eq("empresa_id", fornecedorId)
       .order("principal", { ascending: false })
       .order("nome", { ascending: true })
-  let { data, error } = await consulta("id, nome, cargo, telefone, email, principal, observacao, recebe_ordem_compra")
-  // Sem a coluna recebe_ordem_compra: lista igual, ninguém marcado.
+  let { data, error } = await consulta(
+    "id, nome, cargo, telefone, email, principal, observacao, recebe_ordem_compra, recebe_comprovante"
+  )
+  // Sem as colunas novas: lista igual, ninguém marcado.
   if (error?.code === "42703") ({ data, error } = await consulta("id, nome, cargo, telefone, email, principal, observacao"))
   if (error) {
     if (esquemaAusente(error)) return null
@@ -769,6 +773,7 @@ export async function listarContatos(fornecedorId: string): Promise<ContatoForne
     principal: c.principal === true,
     observacao: (c.observacao as string | null) ?? null,
     recebeOrdemCompra: c.recebe_ordem_compra === true,
+    recebeComprovante: c.recebe_comprovante === true,
   }))
 }
 
@@ -800,8 +805,16 @@ export async function salvarContato(
   if (dados.recebeOrdemCompra && !dados.email?.trim()) {
     return { erro: "Para receber a ordem de compra, o contato precisa de e-mail." }
   }
-  const { recebeOrdemCompra, ...resto } = dados
-  const linha = { ...resto, recebe_ordem_compra: recebeOrdemCompra, updated_at: new Date().toISOString() }
+  if (dados.recebeComprovante && !dados.email?.trim()) {
+    return { erro: "Para receber os comprovantes de pagamento, o contato precisa de e-mail." }
+  }
+  const { recebeOrdemCompra, recebeComprovante, ...resto } = dados
+  const linha = {
+    ...resto,
+    recebe_ordem_compra: recebeOrdemCompra,
+    recebe_comprovante: recebeComprovante,
+    updated_at: new Date().toISOString(),
+  }
   const { error } = contatoId
     ? await admin.from("empresa_contatos").update(linha).eq("id", contatoId).eq("empresa_id", fornecedorId)
     : await admin.from("empresa_contatos").insert({ ...linha, empresa_id: fornecedorId, emp_proprietaria_id: emp })
@@ -1057,4 +1070,26 @@ export async function mescladoEm(id: string): Promise<{ id: string; nome: string
         (v): v is string => typeof v === "string" && v.trim() !== ""
       ) ?? "(sem nome)",
   }
+}
+
+/** Fornecedor com o comprovante de pagamento enviado automaticamente (migração 20261031160553). */
+export async function comprovanteAutomatico(fornecedorId: string): Promise<boolean> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("empresa")
+    .select("comprovante_automatico")
+    .eq("id", fornecedorId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  return !error && data?.comprovante_automatico === true
+}
+
+export async function definirComprovanteAutomatico(fornecedorId: string, ligado: boolean): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const { error } = await admin
+    .from("empresa")
+    .update({ comprovante_automatico: ligado })
+    .eq("id", fornecedorId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+  return error ? { erro: `Não foi possível salvar: ${error.message}` } : {}
 }

@@ -22,8 +22,9 @@ import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 /**
  * Comprovante de pagamento da ordem: abre o arquivo e envia por e-mail ao
- * fornecedor (anexo), como a ordem de compra — aos mesmos contatos marcados
- * para recebê-la; sem nenhum, o botão fica desabilitado. Mostra o último envio.
+ * fornecedor (anexo), como a ordem de compra — aos contatos marcados para
+ * receber comprovantes (sem nenhum, aos que recebem a ordem de compra); sem
+ * nenhum dos dois, o botão fica desabilitado. Mostra o último envio.
  */
 export function ComprovanteAcoes({
   processoId,
@@ -69,7 +70,7 @@ export function ComprovanteAcoes({
             size="sm"
             className="h-7"
             disabled
-            title="Nenhum contato do fornecedor com e-mail recebe a ordem de compra"
+            title="Nenhum contato do fornecedor com e-mail recebe comprovantes nem a ordem de compra"
           >
             <Send />
             Enviar ao fornecedor
@@ -123,7 +124,8 @@ export function ComprovanteAcoes({
                   ))}
                 </select>
                 <p className="text-muted-foreground text-xs">
-                  Contatos do fornecedor marcados para receber a ordem de compra.
+                  Contatos do fornecedor marcados para receber comprovantes (sem nenhum, os que recebem a ordem de
+                  compra).
                 </p>
               </div>
               <div className="grid gap-1.5">

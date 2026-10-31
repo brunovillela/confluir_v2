@@ -8,6 +8,7 @@ import { type EstadoForm } from "@/lib/contas"
 import {
   atualizarFornecedor,
   criarFornecedor,
+  definirComprovanteAutomatico,
   definirInativa,
   excluirConta,
   excluirContato,
@@ -166,6 +167,7 @@ export async function salvarContatoAction(
       principal: texto(formData, "principal") === "on",
       observacao: ouNull(texto(formData, "observacao")),
       recebeOrdemCompra: texto(formData, "recebe_ordem_compra") === "on",
+      recebeComprovante: texto(formData, "recebe_comprovante") === "on",
     },
     contatoId
   )
@@ -287,4 +289,16 @@ export async function mesclarFornecedoresAction(
   const q = new URLSearchParams({ mesclado: resumo ?? "" })
   if (pendentes?.length) q.set("pendentes", pendentes.join(","))
   redirect(`/painel/compras/fornecedores/${principal}?${q.toString()}`)
+}
+
+/** Liga/desliga o envio automático do comprovante de pagamento ao fornecedor. */
+export async function comprovanteAutomaticoAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  await requireGestaoFornecedores()
+  const fornecedorId = texto(formData, "fornecedor_id")
+  if (!fornecedorId) return { erro: "Fornecedor inválido." }
+  const ligado = texto(formData, "ligado") === "1"
+  const { erro } = await definirComprovanteAutomatico(fornecedorId, ligado)
+  if (erro) return { erro }
+  revalidarFornecedor(fornecedorId)
+  return { ok: ligado ? "Envio automático ligado." : "Envio automático desligado." }
 }
