@@ -11,6 +11,7 @@ import { rodadasComAptosSemLink, semLinkUrgente } from "@/lib/db/votacao-sem-lin
 import { rodadasComLinkNaoUsado } from "@/lib/db/votacao-link-nao-usado"
 import { rodadasComEntregaRuim } from "@/lib/db/votacao-teste-entrega"
 import { ATENDIMENTO_AGUARDANDO_EQUIPE, EQUIPE_ATENDIMENTO_SAUDE, LEITURA_ATENDIMENTO_GERAL } from "@/lib/atendimento-constantes"
+import { nivelSigilo, sigilosVisiveis } from "@/lib/deliberacoes-constantes"
 import { podeAcessar, type Permissoes } from "@/lib/permissoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -326,6 +327,26 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
         if (lerGeral && lerSaude) return base
         return lerGeral ? base.neq("assunto", "saude") : base.eq("assunto", "saude")
       },
+    })
+  }
+
+  // Deliberações das atas com prazo vencido e ainda não cumpridas — para quem
+  // registra as atas e acompanha as decisões, só até o nível de sigilo dele
+  // (o lembrete diário leva só a contagem, nunca o assunto).
+  const sigilosDeliberacoes = sigilosVisiveis(nivelSigilo(p))
+  if (pode("diretoria_reunioes") && sigilosDeliberacoes.length > 0) {
+    const hojeSP = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date())
+    fontes.push({
+      chave: "deliberacoes_vencidas",
+      titulo: "Deliberações com prazo vencido",
+      descricao: "Decisões das atas a cumprir ou em execução com o prazo passado",
+      href: "/painel/institucional/deliberacoes?prazo=vencido",
+      tabela: "reuniao_deliberacao",
+      montar: (q) =>
+        head(q)
+          .in("situacao", ["a_cumprir", "em_execucao"])
+          .in("sigilo", sigilosDeliberacoes)
+          .lt("prazo", hojeSP),
     })
   }
 

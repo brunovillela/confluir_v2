@@ -49,6 +49,7 @@ export default async function DeliberacoesPage({
     situacao?: string
     sigilo?: string
     tipo?: string
+    prazo?: string
     pagina?: string
   }>
 }) {
@@ -59,6 +60,7 @@ export default async function DeliberacoesPage({
   // O link para a ata só aparece para quem pode abrir atas.
   const verAtas = podeAcessar(sessao.permissoes, "diretoria_reunioes", ["diretoria_atas_consulta"])
   const sp = await searchParams
+  const hoje = hojeSP()
 
   const filtros: FiltrosDeliberacoes = {
     de: sp.de && DATA.test(sp.de) ? sp.de : undefined,
@@ -67,6 +69,7 @@ export default async function DeliberacoesPage({
     situacao: ehSituacaoDeliberacao(sp.situacao) ? sp.situacao : undefined,
     sigilo: ehSigiloDeliberacao(sp.sigilo) && sigilos.includes(sp.sigilo) ? sp.sigilo : undefined,
     tipo: TIPOS_REUNIAO.some((t) => t.chave === sp.tipo) ? (sp.tipo as TipoReuniao) : undefined,
+    vencidasAntesDe: sp.prazo === "vencido" ? hoje : undefined,
   }
   const filtrado = Object.values(filtros).some(Boolean)
 
@@ -74,7 +77,9 @@ export default async function DeliberacoesPage({
   const paginas = Math.max(1, Math.ceil(todas.length / POR_PAGINA))
   const pagina = Math.min(paginas, Math.max(1, Number(sp.pagina) || 1))
   const linhas = todas.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA)
-  const hoje = hojeSP()
+  const vencida = (d: (typeof todas)[number]) =>
+    Boolean(d.prazo && d.prazo < hoje && (d.situacao === "a_cumprir" || d.situacao === "em_execucao"))
+  const totalVencidas = todas.filter(vencida).length
 
   const contagem = SITUACOES_DELIBERACAO.map((s) => ({
     ...s,
@@ -90,6 +95,7 @@ export default async function DeliberacoesPage({
       situacao: filtros.situacao,
       sigilo: filtros.sigilo,
       tipo: filtros.tipo,
+      prazo: filtros.vencidasAntesDe ? "vencido" : undefined,
       pagina: pagina > 1 ? String(pagina) : undefined,
       ...mudancas,
     }
@@ -124,7 +130,7 @@ export default async function DeliberacoesPage({
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {contagem.map((c) => (
           <Link
             key={c.chave}
@@ -135,6 +141,15 @@ export default async function DeliberacoesPage({
             <p className="text-xl font-semibold tabular-nums">{c.total.toLocaleString("pt-BR")}</p>
           </Link>
         ))}
+        <Link
+          href={url({ prazo: filtros.vencidasAntesDe ? undefined : "vencido", pagina: undefined })}
+          className={`rounded-lg border p-3 transition-colors hover:bg-muted/50 ${filtros.vencidasAntesDe ? "border-primary" : ""}`}
+        >
+          <p className="text-muted-foreground text-xs">Prazo vencido</p>
+          <p className={`text-xl font-semibold tabular-nums ${totalVencidas > 0 ? "text-destructive" : ""}`}>
+            {totalVencidas.toLocaleString("pt-BR")}
+          </p>
+        </Link>
       </div>
 
       <Card>
@@ -147,6 +162,7 @@ export default async function DeliberacoesPage({
         </CardHeader>
         <CardContent className="grid gap-4">
           <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6" method="get">
+            {filtros.vencidasAntesDe && <input type="hidden" name="prazo" value="vencido" />}
             <div className="grid gap-1.5 lg:col-span-2">
               <Label htmlFor="assunto">Assunto</Label>
               <Input
@@ -232,8 +248,7 @@ export default async function DeliberacoesPage({
                 </TableHeader>
                 <TableBody>
                   {linhas.map((d) => {
-                    const atrasada =
-                      d.prazo && d.prazo < hoje && (d.situacao === "a_cumprir" || d.situacao === "em_execucao")
+                    const atrasada = vencida(d)
                     return (
                       <TableRow key={d.id}>
                         <TableCell className="align-top whitespace-nowrap text-sm">

@@ -104,6 +104,11 @@ export type FiltrosDeliberacoes = {
   situacao?: SituacaoDeliberacao
   sigilo?: SigiloDeliberacao
   tipo?: TipoReuniao
+  /**
+   * Só as vencidas: a cumprir ou em execução com prazo antes desta data
+   * (hoje, AAAA-MM-DD) — o mesmo critério da caixa de entrada.
+   */
+  vencidasAntesDe?: string
 }
 
 function escaparLike(t: string): string {
@@ -132,6 +137,9 @@ export async function listarDeliberacoes(
     if (filtros.situacao) q = q.eq("situacao", filtros.situacao)
     if (filtros.sigilo) q = q.eq("sigilo", filtros.sigilo)
     if (filtros.tipo) q = q.eq("ata.tipo", filtros.tipo)
+    if (filtros.vencidasAntesDe) {
+      q = q.in("situacao", ["a_cumprir", "em_execucao"]).lt("prazo", filtros.vencidasAntesDe)
+    }
     if (filtros.de) q = q.gte("ata.data", filtros.de)
     if (filtros.ate) q = q.lte("ata.data", filtros.ate)
     if (termo) {
