@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { obterAta, opcoesMandatos } from "@/lib/db/atas"
 import { formatarData } from "@/lib/formato"
+import { podeAcessar } from "@/lib/permissoes"
 import { ROTULO_TIPO_REUNIAO } from "@/lib/atas-constantes"
 
 import { AtaForm, BotaoExcluirAta } from "../ata-form"
@@ -32,13 +33,14 @@ export default async function AtaPage({
   params: Promise<{ id: string }>
   searchParams: Promise<{ editar?: string; salvo?: string }>
 }) {
-  await requirePermissao("diretoria_reunioes")
+  const sessao = await requirePermissao("diretoria_reunioes", ["diretoria_atas_consulta"])
+  const podeEditar = podeAcessar(sessao.permissoes, "diretoria_reunioes")
   const { id } = await params
   const { editar, salvo } = await searchParams
   const a = await obterAta(id)
   if (!a) notFound()
 
-  const editando = editar === "1"
+  const editando = podeEditar && editar === "1"
   const mandatos = editando ? await opcoesMandatos() : []
   const aqui = `/painel/institucional/atas/${id}`
   const voltarHref = a.mandatoId
@@ -77,7 +79,7 @@ export default async function AtaPage({
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-base">Ata da reunião</CardTitle>
-            {!editando && (
+            {podeEditar && !editando && (
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" asChild>
                   <Link href={`${aqui}?editar=1`}>

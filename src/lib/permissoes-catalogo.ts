@@ -126,7 +126,8 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
     flags: [
       { chave: "diretoria_mandatos", rotulo: "Mandatos e integrantes" },
       { chave: "diretoria_diarias", rotulo: "Diárias da diretoria" },
-      { chave: "diretoria_reunioes", rotulo: "Reuniões" },
+      { chave: "diretoria_atas_consulta", rotulo: "Atas de reunião — consultar" },
+      { chave: "diretoria_reunioes", rotulo: "Atas de reunião — criar e editar" },
     ],
   },
   {

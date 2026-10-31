@@ -598,7 +598,7 @@ ACL plana por usuário: uma coluna booleana por área/ação do sistema, mais al
 | `configuracoes` | boolean | sim | `false` |  |  |  |
 | `diretoria_mandatos` | boolean | sim | `false` |  |  |  |
 | `diretoria_passagens` | boolean | sim | `false` |  |  |  |
-| `diretoria_reunioes` | boolean | sim | `false` |  |  |  |
+| `diretoria_reunioes` | boolean | sim | `false` |  | nenhum | Atas de reunião: criar, editar e excluir (inclui consultar). |
 | `ferramentas_agendas` | boolean | sim | `false` |  |  |  |
 | `ferramentas_anomalias` | boolean | sim | `false` |  |  |  |
 | `ferramentas_busca_pessoas` | boolean | sim | `false` |  |  |  |
@@ -694,6 +694,7 @@ ACL plana por usuário: uma coluna booleana por área/ação do sistema, mais al
 | `pessoal_reembolsos` | boolean | sim |  |  |  | Reembolsos do ACT: avaliar os pedidos, tipos do ACT e o histórico por funcionário (sem a Gestão de Pessoal inteira). |
 | `oposicao_configurar` | boolean | sim | `false` |  | nenhum | Oposição com segregação: criar e editar campanhas, questionário, decisões jurídicas e relação ao empregador. |
 | `oposicao_avaliar` | boolean | sim | `false` |  | nenhum | Oposição com segregação: avaliar (uma a uma e em lote), encerrar sem carta e reverificar assinatura. |
+| `diretoria_atas_consulta` | boolean | sim | `false` |  | nenhum | Atas de reunião: só consultar (lista, ata e PDF), sem criar, editar ou excluir — isso é diretoria_reunioes. |
 
 Únicas: `UNIQUE (bubble_id)`
 

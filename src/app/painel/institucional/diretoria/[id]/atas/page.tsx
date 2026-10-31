@@ -10,6 +10,7 @@ import { ROTULO_TIPO_REUNIAO } from "@/lib/atas-constantes"
 import { listarAtas } from "@/lib/db/atas"
 import { obterMandato } from "@/lib/db/diretoria"
 import { formatarData } from "@/lib/formato"
+import { podeAcessar } from "@/lib/permissoes"
 
 import { CabecalhoMandato } from "../cabecalho-mandato"
 
@@ -21,7 +22,8 @@ export default async function AtasDoMandatoPage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  await requirePermissao("diretoria_mandatos", ["configuracoes"])
+  const sessao = await requirePermissao("diretoria_mandatos", ["configuracoes"])
+  const podeCriarAta = podeAcessar(sessao.permissoes, "diretoria_reunioes")
   const { id } = await params
   const mandato = await obterMandato(id)
   if (!mandato) notFound()
@@ -35,12 +37,14 @@ export default async function AtasDoMandatoPage({
         titulo="Atas de reunião"
         descricao="Reuniões deste mandato, com a ata em PDF"
         acoes={
-          <Button size="sm" asChild>
-            <Link href={`/painel/institucional/atas/novo?mandato=${mandato.id}`}>
-              <Plus />
-              Nova ata
-            </Link>
-          </Button>
+          podeCriarAta ? (
+            <Button size="sm" asChild>
+              <Link href={`/painel/institucional/atas/novo?mandato=${mandato.id}`}>
+                <Plus />
+                Nova ata
+              </Link>
+            </Button>
+          ) : undefined
         }
       />
       <Card>

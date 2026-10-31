@@ -17,6 +17,7 @@ import {
 import { requirePermissao } from "@/lib/auth"
 import { listarAtas, opcoesMandatos } from "@/lib/db/atas"
 import { formatarData } from "@/lib/formato"
+import { podeAcessar } from "@/lib/permissoes"
 import {
   ROTULO_TIPO_REUNIAO,
   TIPOS_REUNIAO,
@@ -38,7 +39,9 @@ export default async function AtasPage({
     excluida?: string
   }>
 }) {
-  await requirePermissao("diretoria_reunioes")
+  // Consulta (diretoria_atas_consulta) vê; criar, editar e excluir é diretoria_reunioes.
+  const sessao = await requirePermissao("diretoria_reunioes", ["diretoria_atas_consulta"])
+  const podeEditar = podeAcessar(sessao.permissoes, "diretoria_reunioes")
   const brutos = await searchParams
 
   const tipo = TIPOS_REUNIAO.some((t) => t.chave === brutos.tipo)
@@ -65,12 +68,14 @@ export default async function AtasPage({
           <h1 className="text-2xl font-semibold tracking-tight">
             Atas de reunião
           </h1>
-          <Button asChild>
-            <Link href="/painel/institucional/atas/novo">
-              <Plus />
-              Nova ata
-            </Link>
-          </Button>
+          {podeEditar && (
+            <Button asChild>
+              <Link href="/painel/institucional/atas/novo">
+                <Plus />
+                Nova ata
+              </Link>
+            </Button>
+          )}
         </div>
         <p className="text-muted-foreground mt-1 text-xs">
           Reuniões da entidade (diretoria, conselho, assembleia), com PDF da ata.

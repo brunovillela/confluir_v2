@@ -60,7 +60,7 @@ const AREAS: Area[] = [
     href: "/painel/institucional/atas",
     icone: ScrollText,
     chave: "diretoria_reunioes",
-    chavesAlternativas: ["configuracoes"],
+    chavesAlternativas: ["diretoria_atas_consulta", "configuracoes"],
   },
   {
     titulo: "Registro sindical (MTE)",
@@ -156,6 +156,7 @@ export default async function ConfiguracoesPage() {
     "ferramentas_emails_internos",
     "ferramentas_linhas_telefone",
     "diretoria_reunioes",
+    "diretoria_atas_consulta",
     "apoio_institucional",
     "apoio_institucional_edicao",
     "custeio_institucional",

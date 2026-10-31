@@ -917,7 +917,7 @@ export const MODULOS: Modulo[] = [
     icone: "ScrollText",
     descricao: "Atas das reuniões da entidade, por mandato",
     chave: "diretoria_reunioes",
-    chavesAlternativas: ["configuracoes"],
+    chavesAlternativas: ["diretoria_atas_consulta", "configuracoes"],
     oculto: true,
   },
   {
