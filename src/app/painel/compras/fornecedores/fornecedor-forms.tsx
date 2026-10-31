@@ -551,11 +551,24 @@ export function ContaForm({
       )}
       <input type="hidden" name="fornecedor_id" value={fornecedorId} />
       {conta && <input type="hidden" name="conta_id" value={conta.id} />}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-[1fr_5rem] gap-4">
         <div className="grid gap-1.5">
           <Label htmlFor="cb-banco">Banco</Label>
-          <CampoBanco id="cb-banco" defaultValue={conta?.banco} />
+          <CampoBanco id="cb-banco" defaultValue={conta?.banco} campoCodigo="banco_codigo" />
         </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="cb-banco-codigo">Código</Label>
+          <Input
+            id="cb-banco-codigo"
+            name="banco_codigo"
+            inputMode="numeric"
+            maxLength={3}
+            defaultValue={conta?.banco_codigo ?? ""}
+            placeholder="001"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
         <div className="grid gap-1.5">
           <Label htmlFor="cb-agencia">Agência</Label>
           <Input

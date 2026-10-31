@@ -97,7 +97,7 @@ export async function lerDetalhePagamento(
         if (agencia.erro || !agencia.valor) return { erro: agencia.erro ?? "Informe a agência." }
         const numero = validarConta(conta.conta)
         if (numero.erro || !numero.valor) return { erro: numero.erro ?? "Informe a conta." }
-        const banco = normalizarBanco(conta.banco)
+        const banco = normalizarBanco(conta.banco, texto(formData, "conta_banco_codigo")?.replace(/\D/g, "") || null)
         novoMeio = {
           ...conta,
           banco: banco.banco ?? conta.banco,

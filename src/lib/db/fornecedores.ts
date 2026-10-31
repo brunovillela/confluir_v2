@@ -63,6 +63,8 @@ export type EnderecoFornecedor = {
 export type ContaBancaria = {
   id: string
   banco: string | null
+  /** Código COMPE do banco (lib/bancos). */
+  banco_codigo?: string | null
   agencia: string | null
   conta: string | null
   tipo_conta: string | null
@@ -236,6 +238,7 @@ export async function buscarFornecedor(
       : ((contasRes.data ?? []) as Record<string, unknown>[]).map((x) => ({
           id: String(x.id),
           banco: (x.banco as string | null) ?? null,
+          banco_codigo: (x.banco_codigo as string | null) ?? null,
           agencia: (x.agencia as string | null) ?? null,
           conta: (x.conta as string | null) ?? null,
           tipo_conta: (x.tipo_conta as string | null) ?? null,
@@ -853,6 +856,8 @@ export async function excluirEndereco(
 
 export type DadosConta = {
   banco: string | null
+  /** Código COMPE escolhido na lista (ou digitado); padroniza o nome do banco. */
+  banco_codigo?: string | null
   agencia: string | null
   conta: string | null
   tipo_conta: string | null
@@ -878,7 +883,7 @@ export async function salvarConta(
   if (agencia.erro) return { erro: agencia.erro }
   const numero = validarConta(dados.conta)
   if (numero.erro) return { erro: numero.erro }
-  const banco = normalizarBanco(dados.banco)
+  const banco = normalizarBanco(dados.banco, dados.banco_codigo)
   const linha = { ...dados, banco: banco.banco, banco_codigo: banco.codigo, agencia: agencia.valor, conta: numero.valor }
   const repetida = await dadoRepetido(await donosDaPessoa("fornecedor", fornecedorId), linha, contaId ?? null)
   if (repetida) return { erro: avisoRepetida(repetida, "fornecedor") }

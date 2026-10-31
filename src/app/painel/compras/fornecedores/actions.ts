@@ -202,6 +202,7 @@ export async function salvarContaAction(
     fornecedorId,
     {
       banco: ouNull(texto(formData, "banco")),
+      banco_codigo: ouNull(texto(formData, "banco_codigo").replace(/\D/g, "")),
       agencia: ouNull(texto(formData, "agencia")),
       conta: ouNull(texto(formData, "conta")),
       tipo_conta: ouNull(texto(formData, "tipo_conta")),

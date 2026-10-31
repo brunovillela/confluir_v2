@@ -334,9 +334,13 @@ export function DetalhePagamento({
           </div>
         ) : (
           <div className="grid gap-3 md:grid-cols-5">
-            <div className="grid gap-1.5">
+            <div className="grid gap-1.5 md:col-span-2">
               <Label htmlFor="conta_banco">Banco *</Label>
-              <CampoBanco id="conta_banco" name="conta_banco" required />
+              <CampoBanco id="conta_banco" name="conta_banco" campoCodigo="conta_banco_codigo" required />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="conta_banco_codigo">Código</Label>
+              <Input id="conta_banco_codigo" name="conta_banco_codigo" inputMode="numeric" maxLength={3} placeholder="001" />
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="conta_agencia">Agência *</Label>
