@@ -31,6 +31,7 @@ import { podeAcessar } from "@/lib/permissoes"
 import { cn } from "@/lib/utils"
 
 import { RpaNovoForm } from "../rpa-forms"
+import { aliquotaPatronalRpa } from "@/lib/db/rpa-retencoes"
 
 export const metadata: Metadata = { title: "Novo RPA — Confluir" }
 
@@ -111,6 +112,7 @@ export default async function NovoRpaPage({
             }}
             hoje={hojeLocalISO()}
             config={await obterConfigRpa()}
+            patronal={await aliquotaPatronalRpa()}
             caixas={[]}
           />
         </CartaoRecibo>
@@ -139,6 +141,7 @@ export default async function NovoRpaPage({
               }}
               hoje={hojeLocalISO()}
               config={await obterConfigRpa()}
+            patronal={await aliquotaPatronalRpa()}
               caixas={await contasAbertasParaCompras()}
             />
           </CartaoRecibo>
@@ -168,6 +171,7 @@ export default async function NovoRpaPage({
             compra={null}
             hoje={hojeLocalISO()}
             config={await obterConfigRpa()}
+            patronal={await aliquotaPatronalRpa()}
             caixas={await contasAbertasParaCompras()}
           />
         </CartaoRecibo>

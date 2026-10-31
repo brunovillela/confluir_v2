@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { aliquotaPatronalRpa } from "@/lib/db/rpa-retencoes"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 
@@ -91,6 +92,7 @@ export default async function NovaCompraPage() {
         compradores={compradores}
         compradorPadrao={sessao.usuario.id as string}
         rpaConfig={rpaConfig}
+        rpaPatronal={direta ? await aliquotaPatronalRpa() : null}
         rpasAvulsos={rpasAvulsos}
       />
     </>

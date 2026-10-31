@@ -732,9 +732,9 @@ async function rpasNoMesDePagamento(
 
 function mensagemLimitePagamento(lista: { numero: number | null; paga: boolean }[], anoMes: string, limite: number, acao: string): string {
   const [ano, mes] = anoMes.split("-")
-  const itens = lista.map((r) => `nº ${r.numero ?? "—"}${r.paga ? " (pago)" : " (previsto)"}`).join(", ")
+  const itens = lista.map((r) => `nº ${r.numero ?? "—"} ${r.paga ? "pago" : "previsto"}`).join(", ")
   return (
-    `Este prestador já tem ${lista.length === 1 ? "um RPA" : `${lista.length} RPAs`} com pagamento em ${mes}/${ano} (${itens}) ` +
+    `Este prestador já tem ${lista.length === 1 ? "um RPA" : `${lista.length} RPAs`} com pagamento em ${mes}/${ano} — ${itens} — ` +
     `e o limite é de ${limite === 1 ? "um RPA" : `${limite} RPAs`} por prestador por mês. O IRRF é apurado pelo total que o ` +
     `prestador recebe no mês: ${acao} Ou peça ao Comprador para ajustar o limite em Aquisição › RPA › Tabelas de retenção.`
   )

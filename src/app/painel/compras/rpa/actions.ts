@@ -48,6 +48,7 @@ import {
   registrarRpaAssinado,
 } from "@/lib/db/rpa-assinatura"
 import { podeAcessar } from "@/lib/permissoes"
+import { validarNitPis } from "@/lib/cpf"
 import { tenantAtual } from "@/lib/tenant"
 
 /**
@@ -97,6 +98,35 @@ export async function meiosDoPrestadorRpa(
   await exigirEdicao()
   if (!fornecedorId) return { pix: [], contas: [] }
   return meiosPagamentoFornecedor(fornecedorId)
+}
+
+/**
+ * O que o formulário avisa antes de emitir (onda 1 do plano do RPA): o limite
+ * de RPAs do prestador no mês de emissão e no do pagamento, e se falta o
+ * NIT/PIS no cadastro dele. Só leitura — a emissão confere de novo.
+ */
+export async function situacaoDoPrestadorRpa(p: {
+  fornecedorId: string
+  pagarEm: string | null
+  fornecimentoId?: string | null
+  /** RPA avulso já emitido (nova compra): o mês de emissão não conta de novo. */
+  soPagamento?: boolean
+}): Promise<{ avisos: string[]; semNit: boolean }> {
+  await exigirEdicao()
+  if (!/^[0-9a-f-]{36}$/i.test(p.fornecedorId)) return { avisos: [], semNit: false }
+  const compra = p.fornecimentoId ? await compraDoRpa(p.fornecimentoId) : null
+  const ordemDaCompra = compra?.ordemPendente ?? null
+  const pagarEm = ordemDaCompra ? ordemDaCompra.vencimento : p.pagarEm
+  const admin = await createAdminClient()
+  const [emissao, pagamento, { data: e }] = await Promise.all([
+    p.soPagamento ? Promise.resolve(null) : limiteMensalDoPrestador(p.fornecedorId),
+    limiteMensalPorPagamento(p.fornecedorId, pagarEm, ordemDaCompra?.id ?? null),
+    admin.from("empresa").select("nit_pis").eq("id", p.fornecedorId).eq("emp_proprietaria_id", await tenantAtual()).maybeSingle(),
+  ])
+  return {
+    avisos: [emissao, pagamento].filter((v): v is string => !!v),
+    semNit: !String((e as { nit_pis?: string | null } | null)?.nit_pis ?? "").trim(),
+  }
 }
 
 /** De onde vêm o prestador e a classificação da despesa da ordem do líquido. */
@@ -259,6 +289,20 @@ export async function emitirRpa(
       ordemDaCompra
     )
     if (acimaNoPagamento) return { erro: acimaNoPagamento }
+  }
+
+  // NIT/PIS informado no formulário (prestador sem ele no cadastro): vai para o
+  // cadastro do fornecedor, de onde o PDF do RPA o lê.
+  const nit = (txt(fd, "nit_pis") ?? "").replace(/D/g, "")
+  if (nit) {
+    if (!validarNitPis(nit)) return { erro: "NIT/PIS inválido — confira os 11 dígitos." }
+    const adminNit = await createAdminClient()
+    await adminNit
+      .from("empresa")
+      .update({ nit_pis: nit })
+      .eq("id", fornecedorId)
+      .eq("emp_proprietaria_id", await tenantAtual())
+      .is("nit_pis", null)
   }
 
   const cfg = await obterConfigRpa()

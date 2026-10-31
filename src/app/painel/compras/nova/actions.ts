@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { validarNitPis } from "@/lib/cpf"
 import { redirect } from "next/navigation"
 
 import { FORMAS_PAGAMENTO_RPA } from "@/lib/rpa-calculo"
@@ -25,6 +26,7 @@ import { lerDetalhePagamento } from "@/lib/db/compras-pagamento-form"
 import { FORMA_PAGA_NO_ATO } from "@/lib/compras-constantes"
 import { lerConfirmacao } from "@/lib/db/ordens-verificacao"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { tenantAtual } from "@/lib/tenant"
 import { podeAcessar } from "@/lib/permissoes"
 import { parseValorBR } from "@/lib/valores"
 
@@ -147,6 +149,17 @@ export async function criarCompra(
     // O documento fiscal: um RPA novo com as alíquotas padrão (o valor
     // informado é o bruto ou o líquido) ou um RPA avulso já emitido para o
     // fornecedor. A ordem nasce no LÍQUIDO do recibo.
+    // NIT/PIS informado na tela (prestador sem ele no cadastro): vai para o cadastro.
+    const nit = texto(formData, "nit_pis").replace(/D/g, "")
+    if (nit) {
+      if (!validarNitPis(nit)) return { erro: "NIT/PIS inválido — confira os 11 dígitos.", campo: "nit_pis" }
+      await (await createAdminClient())
+        .from("empresa")
+        .update({ nit_pis: nit })
+        .eq("id", fornecedorId)
+        .eq("emp_proprietaria_id", await tenantAtual())
+        .is("nit_pis", null)
+    }
     // Limite de RPAs por prestador no mês do pagamento ("Pagar em"), novo ou avulso.
     const acimaNoPagamento = await limiteMensalPorPagamento(fornecedorId, vencimentoRpa)
     if (acimaNoPagamento) return { erro: acimaNoPagamento, campo: "vencimento" }

@@ -1,6 +1,6 @@
 "use client"
 
-import { startTransition, useActionState, useRef, useState } from "react"
+import { startTransition, useActionState, useEffect, useRef, useState } from "react"
 import {
   Building2,
   CheckCircle2,
@@ -41,6 +41,7 @@ import {
   type EmpresaOpcao as FornecedorOpcao,
 } from "@/components/empresa-combobox"
 import { criarCompra } from "./actions"
+import { situacaoDoPrestadorRpa } from "../rpa/actions"
 import { ACEITA_NOTA, LIMITE_ENVIO, prepararArquivo } from "@/lib/arquivo-envio"
 import {
   DetalhePagamento,
@@ -87,6 +88,7 @@ export function NovaCompraForm({
   compradores = [],
   compradorPadrao = null,
   rpaConfig = null,
+  rpaPatronal = null,
   rpasAvulsos = [],
   permiteViaCompras = true,
   permiteDireta = true,
@@ -109,6 +111,8 @@ export function NovaCompraForm({
   compradorPadrao?: string | null
   /** Tabelas do RPA (prévia do RPA com as alíquotas padrão). */
   rpaConfig?: ConfigRpa | null
+  /** INSS patronal (%) — a prévia do RPA mostra o custo total para a entidade. */
+  rpaPatronal?: number | null
   /** RPAs avulsos (sem ordem) — escolhidos pelo fornecedor da compra. */
   rpasAvulsos?: RpaAvulsoOpcao[]
 }) {
@@ -208,6 +212,28 @@ export function NovaCompraForm({
     porRpa && rpaOrigem === "novo" && rpaConfig && valorDigitado && valorDigitado > 0
       ? calcularRpaPadrao(valorDigitado, rpaBase, rpaConfig)
       : null
+  // Antes de cadastrar: o limite de RPAs do prestador (mês de emissão do RPA
+  // novo e mês do "Pagar em") e o NIT/PIS que falta. O servidor confere de novo.
+  const [vencimentoTxt, setVencimentoTxt] = useState("")
+  const [situacaoRpa, setSituacaoRpa] = useState<{ avisos: string[]; semNit: boolean } | null>(null)
+  const soPagamentoRpa = rpaOrigem === "avulso"
+  useEffect(() => {
+    if (!porRpa || !fornecedorId) return
+    let vivo = true
+    const t = setTimeout(() => {
+      situacaoDoPrestadorRpa({ fornecedorId, pagarEm: vencimentoTxt || null, soPagamento: soPagamentoRpa })
+        .then((r) => vivo && setSituacaoRpa(r))
+        .catch(() => undefined)
+    }, 300)
+    return () => {
+      vivo = false
+      clearTimeout(t)
+    }
+  }, [porRpa, fornecedorId, vencimentoTxt, soPagamentoRpa])
+  const situacaoRpaAtual = porRpa && fornecedorId ? situacaoRpa : null
+  const patronalPrevia =
+    previaRpa && rpaPatronal !== null ? Math.round(previaRpa.valorBruto * rpaPatronal) / 100 : null
+
   // Marketplace: a nota costuma chegar depois, emitida pelo vendedor.
   const [notaDepois, setNotaDepois] = useState(true)
   const ehMarketplace =
@@ -1009,6 +1035,17 @@ export function NovaCompraForm({
                         {moedaBR(previaRpa.irrf)} - ISS {moedaBR(previaRpa.iss)} ={" "}
                         <strong className="text-foreground">líquido {moedaBR(previaRpa.valorLiquido)}</strong>, o
                         valor da compra e da ordem.
+                        {patronalPrevia !== null && (
+                          <>
+                            {" "}
+                            Com o INSS patronal de {String(rpaPatronal).replace(".", ",")}% ({moedaBR(patronalPrevia)}), o
+                            serviço custa à entidade{" "}
+                            <strong className="text-foreground">
+                              {moedaBR(previaRpa.valorBruto + patronalPrevia)}
+                            </strong>
+                            .
+                          </>
+                        )}
                       </p>
                     )}
                   </div>
@@ -1067,6 +1104,27 @@ export function NovaCompraForm({
                       </p>
                     )}
                   </div>
+                )}
+                {situacaoRpaAtual?.semNit && (
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="nit_pis">NIT/PIS do prestador</Label>
+                    <Input id="nit_pis" name="nit_pis" inputMode="numeric" placeholder="000.00000.00-0" className="max-w-xs" />
+                    <p className="text-muted-foreground text-xs">
+                      O cadastro do prestador está sem o NIT/PIS, que sai no recibo e na planilha da contabilidade.
+                      Informe aqui: ele vai para o cadastro do fornecedor.
+                    </p>
+                  </div>
+                )}
+                {situacaoRpaAtual && situacaoRpaAtual.avisos.length > 0 && (
+                  <Alert variant="warning">
+                    <AlertDescription>
+                      <div className="grid gap-2">
+                        {situacaoRpaAtual.avisos.map((a) => (
+                          <p key={a}>{a}</p>
+                        ))}
+                      </div>
+                    </AlertDescription>
+                  </Alert>
                 )}
               </fieldset>
             )}
@@ -1137,6 +1195,7 @@ export function NovaCompraForm({
                     type="date"
                     required
                     defaultValue={semi ? leitura?.vencimento : undefined}
+                    onChange={(e) => setVencimentoTxt(e.target.value)}
                   />
                 </div>
               )}

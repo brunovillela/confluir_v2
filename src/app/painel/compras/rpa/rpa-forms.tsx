@@ -1,6 +1,6 @@
 "use client"
 
-import { startTransition, useMemo, useRef, useState } from "react"
+import { startTransition, useEffect, useMemo, useRef, useState } from "react"
 import { useActionState } from "react"
 import { FileCheck2, Loader2, Send, Trash2, Upload } from "lucide-react"
 
@@ -38,6 +38,7 @@ import {
   meiosDoPrestadorRpa,
   reenviarLinkRpaAction,
   salvarConfigRpa,
+  situacaoDoPrestadorRpa,
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
@@ -94,6 +95,7 @@ export function RpaNovoForm({
   hoje,
   config,
   caixas,
+  patronal = null,
 }: {
   contrato: ContratoDoForm | null
   compra: CompraDoForm | null
@@ -102,6 +104,8 @@ export function RpaNovoForm({
   hoje: string
   config: ConfigRpa
   caixas: CaixaOpcao[]
+  /** INSS patronal (%) — a prévia mostra o custo total para a entidade. */
+  patronal?: number | null
 }) {
   const [estado, action, pend] = useActionState(emitirRpa, {})
   const formRef = useRef<HTMLFormElement>(null)
@@ -119,6 +123,26 @@ export function RpaNovoForm({
 
   const [prestadorId, setPrestadorId] = useState("")
   const fornecedorId = contrato?.fornecedorId ?? compra?.fornecedorId ?? prestadorId
+  const [pagarEm, setPagarEm] = useState(hoje)
+
+  // Antes de enviar: o limite de RPAs do prestador (mês de emissão e do
+  // pagamento) e o NIT/PIS que falta no cadastro. A emissão confere de novo.
+  const [situacao, setSituacao] = useState<{ avisos: string[]; semNit: boolean } | null>(null)
+  const pagarEmConferido = avulso ? null : pagarEm
+  useEffect(() => {
+    if (!fornecedorId) return
+    let vivo = true
+    const t = setTimeout(() => {
+      situacaoDoPrestadorRpa({ fornecedorId, pagarEm: pagarEmConferido, fornecimentoId: compra?.fornecimentoId ?? null })
+        .then((r) => vivo && setSituacao(r))
+        .catch(() => undefined)
+    }, 300)
+    return () => {
+      vivo = false
+      clearTimeout(t)
+    }
+  }, [fornecedorId, pagarEmConferido, compra?.fornecimentoId])
+  const situacaoAtual = fornecedorId ? situacao : null
 
   const previa = useMemo(() => {
     const valor = lerValor(valorTxt)
@@ -210,6 +234,17 @@ export function RpaNovoForm({
           </p>
         </dl>
       ) : null}
+
+      {situacaoAtual?.semNit && (
+        <div className="border-warning/40 bg-warning/5 grid gap-1.5 rounded-lg border p-3">
+          <Label htmlFor="nit_pis">NIT/PIS do prestador</Label>
+          <Input id="nit_pis" name="nit_pis" inputMode="numeric" placeholder="000.00000.00-0" className="max-w-xs" />
+          <p className="text-muted-foreground text-xs">
+            O cadastro do prestador está sem o NIT/PIS, que sai no recibo e na planilha da contabilidade. Informe
+            aqui: ele vai para o cadastro do fornecedor ao emitir.
+          </p>
+        </div>
+      )}
 
       <div className="grid gap-1.5">
         <Label htmlFor="descricao_servico">Serviço prestado *</Label>
@@ -345,6 +380,19 @@ export function RpaNovoForm({
             valor={moeda(previa.valorLiquido)}
             forte
           />
+          {patronal !== null && (
+            <div className="mt-1 grid gap-1 border-t pt-1">
+              <Linha
+                rotulo={`INSS patronal da entidade (${String(patronal).replace(".", ",")}%)`}
+                valor={`+ ${moeda(Math.round(previa.valorBruto * patronal) / 100)}`}
+              />
+              <Linha
+                rotulo="Custo total para a entidade"
+                valor={moeda(previa.valorBruto + Math.round(previa.valorBruto * patronal) / 100)}
+                forte
+              />
+            </div>
+          )}
           {compra && (
             <p className="text-muted-foreground mt-1 text-xs">
               {Math.abs(previa.valorLiquido - compra.valor) < 0.005 ? (
@@ -396,7 +444,8 @@ export function RpaNovoForm({
               name="pagar_em"
               type="date"
               required
-              defaultValue={hoje}
+              value={pagarEm}
+              onChange={(e) => setPagarEm(e.target.value)}
               className={SELECT_CLS}
             />
           </div>
@@ -458,6 +507,18 @@ export function RpaNovoForm({
         <Label htmlFor="observacoes">Observações</Label>
         <Textarea id="observacoes" name="observacoes" rows={2} />
       </div>
+
+      {situacaoAtual && situacaoAtual.avisos.length > 0 && (
+        <Alert variant="warning">
+          <AlertDescription>
+            <div className="grid gap-2">
+              {situacaoAtual.avisos.map((a) => (
+                <p key={a}>{a}</p>
+              ))}
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="flex justify-end">
         <Button type="submit" disabled={pend}>
