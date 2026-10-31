@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import {
   Building2,
+  Gavel,
   HandCoins,
   HeartHandshake,
   Landmark,
@@ -61,6 +62,14 @@ const AREAS: Area[] = [
     icone: ScrollText,
     chave: "diretoria_reunioes",
     chavesAlternativas: ["diretoria_atas_consulta", "configuracoes"],
+  },
+  {
+    titulo: "Deliberações",
+    descricao: "As decisões das atas: o que se decidiu, a situação e o sigilo",
+    href: "/painel/institucional/deliberacoes",
+    icone: Gavel,
+    chave: "diretoria_reunioes",
+    chavesAlternativas: ["diretoria_atas_consulta"],
   },
   {
     titulo: "Registro sindical (MTE)",

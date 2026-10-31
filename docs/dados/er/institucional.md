@@ -104,6 +104,11 @@ erDiagram
     uuid evento_inscricao_id FK
     uuid atendido_por FK
   }
+  viagens_telegram_conversas {
+    text chat_id PK
+    uuid emp_proprietaria_id FK
+    uuid usuario_id FK
+  }
   institucional_custeio_finalidades }o--o| centros_de_custo : "centro_custo_despesa_id"
   institucional_custeios }o--o| caixa_contas : "caixa_conta_id"
   institucional_custeios }o--o| centros_de_custo : "centro_custo_despesa_id"
@@ -142,4 +147,5 @@ erDiagram
   viagens_solicitacoes }o--o| usuarios : "atendido_por"
   viagens_solicitacoes }o--o| usuarios : "beneficiario_usuario_id"
   viagens_solicitacoes }o--o| usuarios : "solicitante_id"
+  viagens_telegram_conversas }o--|| usuarios : "usuario_id"
 ```

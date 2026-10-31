@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, FileText, Pencil } from "lucide-react"
+import { ArrowLeft, FileText, Pencil, Plus } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -9,11 +9,14 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { obterAta, opcoesMandatos } from "@/lib/db/atas"
+import { assuntosUsados, deliberacoesDaAta } from "@/lib/db/deliberacoes"
 import { formatarData } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 import { ROTULO_TIPO_REUNIAO } from "@/lib/atas-constantes"
 
+import { SeloSigilo, SeloSituacao } from "../../deliberacoes/selos"
 import { AtaForm, BotaoExcluirAta } from "../ata-form"
+import { BotaoExcluirDeliberacao, DeliberacaoForm } from "../deliberacao-form"
 
 export const metadata: Metadata = { title: "Ata de reunião — Confluir" }
 
@@ -31,14 +34,28 @@ export default async function AtaPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ editar?: string; salvo?: string }>
+  searchParams: Promise<{
+    editar?: string
+    salvo?: string
+    deliberacao?: string
+    nova_deliberacao?: string
+    deliberacao_salva?: string
+    deliberacao_excluida?: string
+  }>
 }) {
   const sessao = await requirePermissao("diretoria_reunioes", ["diretoria_atas_consulta"])
   const podeEditar = podeAcessar(sessao.permissoes, "diretoria_reunioes")
   const { id } = await params
-  const { editar, salvo } = await searchParams
+  const sp = await searchParams
+  const { editar, salvo } = sp
   const a = await obterAta(id)
   if (!a) notFound()
+  const [deliberacoes, assuntos] = await Promise.all([
+    deliberacoesDaAta(id),
+    podeEditar ? assuntosUsados() : Promise.resolve([]),
+  ])
+  const editandoDeliberacao = podeEditar ? (sp.deliberacao ?? null) : null
+  const novaDeliberacao = podeEditar && sp.nova_deliberacao === "1"
 
   const editando = podeEditar && editar === "1"
   const mandatos = editando ? await opcoesMandatos() : []
@@ -125,6 +142,99 @@ export default async function AtaPage({
                 </dd>
               </div>
             </dl>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card id="deliberacoes">
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base">
+              Deliberações
+              <span className="text-muted-foreground ml-2 text-sm font-normal">{deliberacoes.length}</span>
+            </CardTitle>
+            {podeEditar && !novaDeliberacao && (
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`${aqui}?nova_deliberacao=1#deliberacoes`}>
+                  <Plus />
+                  Nova deliberação
+                </Link>
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          {sp.deliberacao_salva === "1" && (
+            <Alert className="border-success/40 text-success-fg">
+              <AlertDescription>Deliberação salva.</AlertDescription>
+            </Alert>
+          )}
+          {sp.deliberacao_excluida === "1" && (
+            <Alert>
+              <AlertDescription>Deliberação excluída.</AlertDescription>
+            </Alert>
+          )}
+          {deliberacoes.length === 0 && !novaDeliberacao && (
+            <p className="text-muted-foreground text-sm">
+              Nenhuma deliberação registrada nesta ata.
+              {podeEditar && " Registre cada decisão como um item, com situação e sigilo."}
+            </p>
+          )}
+          {deliberacoes.length > 0 && (
+            <ol className="grid gap-3">
+              {deliberacoes.map((d, i) =>
+                editandoDeliberacao === d.id ? (
+                  <li key={d.id}>
+                    <DeliberacaoForm
+                      ataId={id}
+                      deliberacao={d}
+                      assuntos={assuntos}
+                      cancelarHref={`${aqui}#deliberacoes`}
+                    />
+                  </li>
+                ) : (
+                  <li key={d.id} className="border-b pb-3 last:border-b-0 last:pb-0">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <p className="font-medium">
+                        <span className="text-muted-foreground mr-1.5 tabular-nums">{i + 1}.</span>
+                        {d.assunto}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <SeloSituacao situacao={d.situacao} />
+                        <SeloSigilo sigilo={d.sigilo} />
+                        {podeEditar && (
+                          <>
+                            <Button variant="ghost" size="sm" asChild aria-label="Editar deliberação">
+                              <Link href={`${aqui}?deliberacao=${d.id}#deliberacoes`}>
+                                <Pencil className="size-4" />
+                              </Link>
+                            </Button>
+                            <BotaoExcluirDeliberacao ataId={id} deliberacaoId={d.id} />
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    {d.texto && d.texto !== d.assunto && (
+                      <p className="mt-1 text-sm whitespace-pre-wrap">{d.texto}</p>
+                    )}
+                    {(d.votacao || d.responsavel || d.prazo) && (
+                      <p className="text-muted-foreground mt-1 text-xs">
+                        {[
+                          d.votacao && `Votação: ${d.votacao}`,
+                          d.responsavel && `Responsável: ${d.responsavel}`,
+                          d.prazo && `Prazo: ${formatarData(d.prazo)}`,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    )}
+                  </li>
+                )
+              )}
+            </ol>
+          )}
+          {novaDeliberacao && (
+            <DeliberacaoForm ataId={id} assuntos={assuntos} cancelarHref={`${aqui}#deliberacoes`} />
           )}
         </CardContent>
       </Card>

@@ -921,6 +921,15 @@ export const MODULOS: Modulo[] = [
     oculto: true,
   },
   {
+    titulo: "Deliberações",
+    href: "/painel/institucional/deliberacoes",
+    icone: "Gavel",
+    descricao: "Decisões das atas de reunião: situação e sigilo",
+    chave: "diretoria_reunioes",
+    chavesAlternativas: ["diretoria_atas_consulta"],
+    oculto: true,
+  },
+  {
     titulo: "E-mails institucionais",
     href: "/painel/institucional/emails",
     icone: "Mail",

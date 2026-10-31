@@ -2,7 +2,7 @@
 
 # Representação, acordos e negociações
 
-16 tabelas. Diagrama: [er/representacao.md](../er/representacao.md).
+17 tabelas. Diagrama: [er/representacao.md](../er/representacao.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -22,6 +22,7 @@
 | [representacao_reuniao_participantes](#representacao_reuniao_participantes) | identificação, **sensível: sindical**, trabalhista | Participante de uma reunião com empregador ou setorial, do lado do sindicato, da empresa ou dos trabalhadores, com nome e cargo. |
 | [representacao_reunioes](#representacao_reunioes) | identificação | Reunião com empregador ou setorial registrada em Representação > Empregadores, com pauta, resumo (opcionalmente por IA a partir da ata), enc… |
 | [reuniao_ata](#reuniao_ata) | identificação, **sensível: sindical** | Ata de reunião da diretoria, conselho fiscal ou assembleia, ligada ao mandato, com pauta, deliberações e presentes. Tela de atas da Diretori… |
+| [reuniao_deliberacao](#reuniao_deliberacao) | identificação, **sensível: sindical** | Deliberação (decisão) de uma reunião registrada em ata: assunto, teor, votação, responsável, prazo, situação do cumprimento e grau de sigilo… |
 
 ## acordo_clausulas
 
@@ -436,3 +437,32 @@ Ata de reunião da diretoria, conselho fiscal ou assembleia, ligada ao mandato, 
 Checks: `reuniao_ata_tipo_check` `CHECK ((tipo = ANY (ARRAY['diretoria'::text, 'conselho_fiscal'::text, 'assembleia'::text, 'outra'::text])))`
 
 Índices: `idx_reuniao_ata_data`, `idx_reuniao_ata_emp`, `idx_reuniao_ata_mandato`, `reuniao_ata_pkey`
+
+## reuniao_deliberacao
+
+Deliberação (decisão) de uma reunião registrada em ata: assunto, teor, votação, responsável, prazo, situação do cumprimento e grau de sigilo. Consulta em Institucional › Deliberações.
+
+- **LGPD:** identificação, **sensível: sindical** · titulares: diretores e participantes
+- **RLS:** ligado · policies: `tenant_isolation`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `ata_id` | uuid | não |  | → reuniao_ata (**cascade**) | nenhum | Ata da reunião em que a decisão foi tomada; a data da deliberação é a da ata. |
+| `ordem` | integer | não | `1` |  | nenhum | Posição da deliberação na ata (1, 2, 3…). |
+| `assunto` | text | não |  |  | identificação | Assunto curto da decisão, usado na busca e nos filtros. |
+| `texto` | text | sim |  |  | identificação | Teor da decisão como deliberado. |
+| `votacao` | text | sim |  |  | identificação | Resultado da votação, quando houve (ex.: "aprovada por unanimidade", "5 a 2"). |
+| `responsavel` | text | sim |  |  | identificação | Quem ficou encarregado de cumprir a decisão (texto livre). |
+| `prazo` | date | sim |  |  | nenhum | Prazo para cumprir a decisão, quando fixado. |
+| `situacao` | text | não | `'a_cumprir'::text` |  | nenhum | a_cumprir, em_execucao, cumprida ou cancelada. |
+| `sigilo` | text | não | `'reservado'::text` |  | nenhum | livre, reservado ou restrito: quem pode consultar depende do nível de sigilo concedido ao usuário. |
+| `criado_por` | uuid | sim |  |  | identificação | Usuário que registrou a deliberação. |
+| `atualizado_por` | uuid | sim |  |  | identificação | Usuário que alterou a deliberação por último. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Checks: `reuniao_deliberacao_sigilo_check` `CHECK ((sigilo = ANY (ARRAY['livre'::text, 'reservado'::text, 'restrito'::text])))`; `reuniao_deliberacao_situacao_check` `CHECK ((situacao = ANY (ARRAY['a_cumprir'::text, 'em_execucao'::text, 'cumprida'::text, 'cancelada'::text])))`
+
+Índices: `reuniao_deliberacao_ata_idx`, `reuniao_deliberacao_emp_situacao_idx`, `reuniao_deliberacao_pkey`

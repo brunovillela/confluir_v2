@@ -20,13 +20,13 @@
 | P03 | [Atendimento ao filiado no portal](#p03) | 6 | identificação, **sensível: filiação/posição sindical**, credencial (segredo de acesso, nunca exportar) | sim |
 | P04 | [Oposição à contribuição assistencial](#p04) | 5 | identificação, **sensível: filiação/posição sindical**, trabalhista | sim |
 | P05 | [Assembleias e votações](#p05) | 15 | identificação, **sensível: filiação/posição sindical**, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
-| P06 | [Representação, reuniões e agenda](#p06) | 7 | identificação, **sensível: filiação/posição sindical**, trabalhista | sim |
+| P06 | [Representação, reuniões e agenda](#p06) | 8 | identificação, **sensível: filiação/posição sindical**, trabalhista | sim |
 | P07 | [Diretoria, mandatos e ofícios](#p07) | 8 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P08 | [Saúde do trabalhador (CAT, atendimentos, CIPA)](#p08) | 11 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, trabalhista | sim |
 | P09 | [Jurídico](#p09) | 4 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista | sim |
 | P10 | [Pessoal: RH dos funcionários da entidade](#p10) | 38 | identificação, **sensível: saúde**, financeiro, trabalhista | sim |
 | P11 | [Financeiro, compras, fornecedores e contratos](#p11) | 35 | identificação, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
-| P12 | [Institucional: custeios, viagens, linhas e patrimônio](#p12) | 9 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
+| P12 | [Institucional: custeios, viagens, linhas e patrimônio](#p12) | 10 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P13 | [Hospedagem conveniada e cessão de espaços](#p13) | 12 | identificação, **sensível: filiação/posição sindical**, financeiro, credencial (segredo de acesso, nunca exportar) | sim |
 | P14 | [Frota: veículos e condutores](#p14) | 15 | identificação, financeiro | sim |
 | P15 | [Comunicação, eventos e avisos](#p15) | 9 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
@@ -271,7 +271,7 @@
 
 **Medidas de segurança.** RLS por tenant.
 
-<details><summary>Tabelas (7) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (8) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -282,6 +282,7 @@
 | [representacao_reuniao_participantes](../dados/dicionario/representacao.md#representacao_reuniao_participantes) | identificacao, sens. sindical, trabalhista | `lado` (sens. sindical), `nome` (identificacao), `cargo` (trabalhista) |
 | [representacao_reunioes](../dados/dicionario/representacao.md#representacao_reunioes) | identificacao | `resumo` (identificacao), `encaminhamentos` (identificacao), `ata_caminho` (identificacao) |
 | [reuniao_ata](../dados/dicionario/representacao.md#reuniao_ata) | identificacao, sens. sindical | `deliberacoes` (identificacao), `presentes` (sens. sindical), `observacoes` (identificacao), `documento_url` (identificacao) |
+| [reuniao_deliberacao](../dados/dicionario/representacao.md#reuniao_deliberacao) | identificacao, sens. sindical | `ata_id` (nenhum), `ordem` (nenhum), `assunto` (identificacao), `texto` (identificacao), `votacao` (identificacao), `responsavel` (identificacao), `prazo` (nenhum), `situacao` (nenhum), `sigilo` (nenhum), `criado_por` (identificacao), `atualizado_por` (identificacao) |
 
 </details>
 
@@ -582,7 +583,7 @@
 
 **Observações.** CPF e dados bancários do beneficiário são repetidos em cada custeio.
 
-<details><summary>Tabelas (9) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (10) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -595,6 +596,7 @@
 | [viagens_config](../dados/dicionario/institucional.md#viagens_config) | identificacao | `emails_aviso` (identificacao) |
 | [viagens_itens](../dados/dicionario/institucional.md#viagens_itens) | identificacao, sens. saude | `origem` (identificacao), `destino` (identificacao), `data_viagem` (identificacao), `necessidades_especiais` (sens. saude), `observacoes` (identificacao), `localizador` (identificacao), `voucher` (identificacao) |
 | [viagens_solicitacoes](../dados/dicionario/institucional.md#viagens_solicitacoes) | identificacao | `convidado_nome` (identificacao), `convidado_cpf` (identificacao), `convidado_nascimento` (identificacao), `convidado_email` (identificacao), `convidado_telefone` (identificacao), `motivo` (identificacao) |
+| [viagens_telegram_conversas](../dados/dicionario/institucional.md#viagens_telegram_conversas) | identificacao | `chat_id` (identificacao), `usuario_id` (identificacao), `passo` (nenhum), `dados` (identificacao), `atualizado_em` (nenhum), `expira_em` (nenhum) |
 
 </details>
 
@@ -824,4 +826,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 218 de 218 tabelas com dado pessoal atribuídas a 16 processos.
+Cobertura: 220 de 220 tabelas com dado pessoal atribuídas a 16 processos.

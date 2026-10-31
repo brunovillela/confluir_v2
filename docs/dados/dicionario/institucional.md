@@ -2,7 +2,7 @@
 
 # Institucional, diárias, viagens e patrimônio
 
-15 tabelas. Diagrama: [er/institucional.md](../er/institucional.md).
+16 tabelas. Diagrama: [er/institucional.md](../er/institucional.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -21,6 +21,7 @@
 | [viagens_faturas](#viagens_faturas) | — | Fatura de agência/operadora que cobre itens de viagem. Vira aquisição direta em Compras e ordem de pagamento com rateio. |
 | [viagens_itens](#viagens_itens) | identificação, **sensível: saúde** | Cada trecho de passagem (aérea ou rodoviária) ou estadia de hospedagem de uma viagem. |
 | [viagens_solicitacoes](#viagens_solicitacoes) | identificação | Pedido de viagem (passagens e/ou hospedagens) para diretor, funcionário ou convidado. Os trechos e estadias ficam em viagens_itens. |
+| [viagens_telegram_conversas](#viagens_telegram_conversas) | identificação | Pedido de viagem em andamento no bot do Telegram (/viagem): o passo da conversa e as respostas até ali; apagada ao confirmar ou cancelar e e… |
 
 ## estoque
 
@@ -459,3 +460,23 @@ Pedido de viagem (passagens e/ou hospedagens) para diretor, funcionário ou conv
 Checks: `viagens_solicitacoes_beneficiario_check` `CHECK ((((beneficiario_tipo = 'convidado'::text) AND (convidado_nome IS NOT NULL)) OR ((beneficiario_tipo <> 'convidado'::text) AND (beneficiario_usuario_id IS NOT NULL))))`; `viagens_solicitacoes_beneficiario_tipo_check` `CHECK ((beneficiario_tipo = ANY (ARRAY['funcionario'::text, 'diretor'::text, 'convidado'::text])))`; `viagens_solicitacoes_situacao_check` `CHECK ((situacao = ANY (ARRAY['solicitada'::text, 'em_atendimento'::text, 'atendida'::text, 'cancelada'::text, 'recusada'::text])))`
 
 Índices: `idx_viagens_solic_beneficiario`, `idx_viagens_solic_emp_criacao`, `idx_viagens_solic_evento`, `idx_viagens_solic_situacao`, `idx_viagens_solic_solicitante`, `viagens_solicitacoes_pkey`
+
+## viagens_telegram_conversas
+
+Pedido de viagem em andamento no bot do Telegram (/viagem): o passo da conversa e as respostas até ali; apagada ao confirmar ou cancelar e expira em 30 minutos (src/lib/telegram-viagem.ts).
+
+- **LGPD:** identificação · titulares: funcionários, diretores
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `chat_id` | text | não |  |  | identificação | Chat do Telegram da pessoa (o mesmo de usuarios.telegram_chat_id). |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  | Entidade (tenant). |
+| `usuario_id` | uuid | não |  | → usuarios (**cascade**) | identificação | Quem está pedindo — e quem vai viajar. |
+| `passo` | text | não |  |  | nenhum | Passo atual da conversa (tipo, origem, destino, ida, volta, horário, hotel, motivo, departamento, confirmar). |
+| `dados` | jsonb | não | `'{}'::jsonb` |  | identificação | Respostas dadas até o passo atual: modal, origem, destino, datas, horário, hotel, motivo e departamento. |
+| `atualizado_em` | timestamp with time zone | não | `now()` |  | nenhum | Última resposta. |
+| `expira_em` | timestamp with time zone | não |  |  | nenhum | Depois disso a conversa é descartada e o /viagem recomeça. |
+
+Índices: `viagens_telegram_conversas_expira_idx`, `viagens_telegram_conversas_pkey`
