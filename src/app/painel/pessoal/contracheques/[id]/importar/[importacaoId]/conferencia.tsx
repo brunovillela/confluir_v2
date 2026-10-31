@@ -1,10 +1,11 @@
 "use client"
 
-import { Fragment, useEffect, useRef, useState, useTransition } from "react"
+import { Fragment, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { ExternalLink, FileSearch, Loader2, RotateCcw, Trash2 } from "lucide-react"
 
 import { Trabalhando } from "@/components/trabalhando"
+import { useLeituraEmLotes } from "@/hooks/use-leitura-em-lotes"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -72,29 +73,8 @@ export function ConferenciaCC({
   const router = useRouter()
   const pendentes = itens.filter((i) => i.situacao === "pendente").length
 
-  // ── Leitura pela IA ──
-  const [lendo, iniciarLeitura] = useTransition()
-  const [andamento, setAndamento] = useState<{ feitos: number; total: number } | null>(null)
-  const comecou = useRef(false)
-  const ler = () =>
-    iniciarLeitura(async () => {
-      let feitos = 0
-      for (let volta = 0; volta < 30; volta++) {
-        setAndamento({ feitos, total: pendentes })
-        const r = await lerImportacaoCCAction(remessaId, importacaoId)
-        feitos += r.lidos + r.erros
-        router.refresh()
-        if (!r.faltam || r.lidos + r.erros === 0) break
-      }
-      setAndamento(null)
-    })
-  useEffect(() => {
-    if (pendentes > 0 && !comecou.current) {
-      comecou.current = true
-      ler()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- começa uma vez ao abrir
-  }, [])
+  // ── Leitura pela IA (um lote por chamada, com novas tentativas) ──
+  const { lendo, andamento, parou, ler } = useLeituraEmLotes(() => lerImportacaoCCAction(remessaId, importacaoId), pendentes)
 
   // ── Seleção e ações ──
   const aplicaveis = itens.filter((i) => !i.bloqueio).map((i) => i.id)
@@ -190,7 +170,7 @@ export function ConferenciaCC({
           <Alert className="border-info/40">
             <AlertDescription className="flex flex-wrap items-center gap-3">
               <FileSearch className="size-4" />
-              <span>{pendentes} contracheque(s) a ler.</span>
+              <span>{parou ?? `${pendentes} contracheque(s) a ler.`}</span>
               <Button size="sm" variant="outline" onClick={ler}>
                 Ler agora
               </Button>

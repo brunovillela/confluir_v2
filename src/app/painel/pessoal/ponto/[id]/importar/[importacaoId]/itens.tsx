@@ -1,6 +1,6 @@
 "use client"
 
-import { Fragment, useEffect, useRef, useState, useTransition } from "react"
+import { Fragment, useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { ChevronDown, ChevronRight, FileSearch, Loader2, RotateCcw, Trash2 } from "lucide-react"
 
@@ -24,6 +24,7 @@ import {
   type PosteriorAfetado,
 } from "../actions"
 import { Trabalhando } from "@/components/trabalhando"
+import { useLeituraEmLotes } from "@/hooks/use-leitura-em-lotes"
 import { useLeitura } from "../trabalhando"
 
 const SELECT =
@@ -58,36 +59,12 @@ const hm = (min: number) => formatarMin(min).replace(/^\+/, "")
 
 /** Lê os funcionários pendentes com a IA, em lotes, sozinho ao abrir a página. */
 export function LeitorImportacao({ remessaId, importacaoId, pendentes }: { remessaId: string; importacaoId: string; pendentes: number }) {
-  const router = useRouter()
-  const [rodando, iniciar] = useTransition()
-  const [andamento, setAndamento] = useState<{ feitos: number; total: number } | null>(null)
+  const { lendo: rodando, andamento, parou, ler } = useLeituraEmLotes(() => lerImportacaoAction(remessaId, importacaoId), pendentes)
   const { setLendo } = useLeitura()
-  const comecou = useRef(false)
 
   // Estado mudado dentro da transição só aparece no fim dela: a tabela segue o
   // "rodando" da própria transição.
   useEffect(() => setLendo(rodando), [rodando, setLendo])
-
-  const ler = () =>
-    iniciar(async () => {
-      let feitos = 0
-      for (let volta = 0; volta < 30; volta++) {
-        setAndamento({ feitos, total: pendentes })
-        const r = await lerImportacaoAction(remessaId, importacaoId)
-        feitos += r.lidos + r.erros
-        router.refresh()
-        if (!r.faltam || r.lidos + r.erros === 0) break
-      }
-      setAndamento(null)
-    })
-
-  useEffect(() => {
-    if (pendentes > 0 && !comecou.current) {
-      comecou.current = true
-      ler()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- começa uma vez ao abrir
-  }, [])
 
   if (pendentes === 0 && !rodando) return null
   if (rodando) {
@@ -101,10 +78,10 @@ export function LeitorImportacao({ remessaId, importacaoId, pendentes }: { remes
     )
   }
   return (
-    <Alert className="border-info/40">
+    <Alert className={parou ? "border-warning/40" : "border-info/40"}>
       <AlertDescription className="flex flex-wrap items-center gap-3">
         <FileSearch className="size-4" />
-        <span>{pendentes} cartão(ões) a ler.</span>
+        <span>{parou ?? `${pendentes} cartão(ões) a ler.`}</span>
         <Button size="sm" variant="outline" onClick={ler}>
           Ler agora
         </Button>

@@ -135,37 +135,33 @@ async function lerItem(item: { id: string; arquivo: string }): Promise<"lido" | 
   return "lido"
 }
 
-/** Lê os itens pendentes, alguns por vez, dentro de um orçamento de tempo; a tela chama de novo até zerar. */
+/**
+ * Lê UM lote de itens pendentes (até `paralelos`, em paralelo) e devolve
+ * quantos faltam; a tela chama de novo até zerar (hooks/use-leitura-em-lotes).
+ * Um lote só por chamada: vários estouravam o tempo da função (cada leitura
+ * da IA leva até um minuto ou mais) e a leitura parava no meio.
+ */
 export async function lerPendentesCC(
   importacaoId: string,
-  { orcamentoMs = 200_000, paralelos = 4 }: { orcamentoMs?: number; paralelos?: number } = {}
+  { paralelos = 4 }: { paralelos?: number } = {}
 ): Promise<{ lidos: number; erros: number; faltam: number }> {
-  const inicio = Date.now()
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  let lidos = 0
-  let erros = 0
-  for (;;) {
-    const { data } = await admin
-      .from(ITENS)
-      .select("id, arquivo")
-      .eq("importacao_id", importacaoId)
-      .eq("emp_proprietaria_id", emp)
-      .eq("situacao", "pendente")
-      .order("created_at")
-      .limit(paralelos)
-    const lote = data ?? []
-    if (lote.length === 0 || Date.now() - inicio > orcamentoMs) break
-    const r = await Promise.all(lote.map((i) => lerItem(i)))
-    lidos += r.filter((x) => x === "lido").length
-    erros += r.filter((x) => x === "erro").length
-  }
+  const { data } = await admin
+    .from(ITENS)
+    .select("id, arquivo")
+    .eq("importacao_id", importacaoId)
+    .eq("emp_proprietaria_id", emp)
+    .eq("situacao", "pendente")
+    .order("created_at")
+    .limit(paralelos)
+  const r = await Promise.all((data ?? []).map((i) => lerItem(i)))
   const { count } = await admin
     .from(ITENS)
     .select("id", { count: "exact", head: true })
     .eq("importacao_id", importacaoId)
     .eq("situacao", "pendente")
-  return { lidos, erros, faltam: count ?? 0 }
+  return { lidos: r.filter((x) => x === "lido").length, erros: r.filter((x) => x === "erro").length, faltam: count ?? 0 }
 }
 
 // ── 3. Conferir ──────────────────────────────────────────────────────────────
