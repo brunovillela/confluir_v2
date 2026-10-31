@@ -17,6 +17,8 @@ import { iniciarConfirmacaoPeloBot, PREFIXO_START, registrarContatoPeloBot } fro
 import { enviarTelegram } from "@/lib/telegram"
 import { responderAprovar, tratarCallbackAprovacao, tratarTextoDevolucao } from "@/lib/telegram-aprovacoes"
 import { mensagemFrota } from "@/lib/telegram-frota"
+import { responderPendencias, tratarCallbackPendencia, tratarTextoMotivoPendencia } from "@/lib/telegram-pendencias"
+import { linhasDaAjuda } from "@/lib/telegram-pendencias-fluxo"
 import { tratarArquivoTelegram, tratarCallbackArquivo, tratarTextoArquivo } from "@/lib/telegram-arquivo"
 import { iniciarPedidoViagem, responderMinhasViagens, tratarCallbackViagem, tratarTextoViagem } from "@/lib/telegram-viagem"
 
@@ -44,10 +46,18 @@ export async function POST(req: Request): Promise<Response> {
     return Response.json({ ok: true })
   }
 
-  // Botão inline tocado (aprovar/devolver ordem — onda 4, D3; pedido de viagem).
+  // Botão inline tocado (aprovar/devolver ordem — onda 4, D3; pedido de viagem;
+  // pendências de pessoal, viagens, dados bancários e caixa — 31/10).
   const cb = update.callback_query as Record<string, unknown> | undefined
   if (cb && typeof cb.id === "string") {
-    const cbMsg = cb.message as { chat?: { id?: number | string }; message_id?: number; text?: string } | undefined
+    const cbMsg = cb.message as
+      | {
+          chat?: { id?: number | string }
+          message_id?: number
+          text?: string
+          reply_markup?: { inline_keyboard?: { text?: string; url?: string }[][] }
+        }
+      | undefined
     const cbChat = cbMsg?.chat?.id
     if (cbChat !== undefined) {
       try {
@@ -55,6 +65,15 @@ export async function POST(req: Request): Promise<Response> {
         if (!u || !u.telefoneConfirmado) {
           await enviarTelegram({ chatId: String(cbChat), texto: "Vincule e confirme seu telefone em Meu perfil → Telegram antes de aprovar por aqui." })
         } else if (
+          !(await tratarCallbackPendencia({
+            callbackId: cb.id,
+            chatId: String(cbChat),
+            messageId: typeof cbMsg?.message_id === "number" ? cbMsg.message_id : null,
+            textoDaMensagem: typeof cbMsg?.text === "string" ? cbMsg.text : null,
+            links: (cbMsg?.reply_markup?.inline_keyboard ?? []).flat(),
+            dado: typeof cb.data === "string" ? cb.data : "",
+            u,
+          })) &&
           !(await tratarCallbackArquivo({
             callbackId: cb.id,
             chatId: String(cbChat),
@@ -117,8 +136,10 @@ export async function POST(req: Request): Promise<Response> {
   const texto = typeof msg?.text === "string" ? msg.text.trim() : ""
   if (!chat?.id || !texto) return Response.json({ ok: true })
 
+  // Resposta a uma mensagem do bot: o pedido de motivo leva a referência do item.
+  const respondida = (msg?.reply_to_message as { text?: string } | undefined)?.text ?? null
   try {
-    await tratar(String(chat.id), texto)
+    await tratar(String(chat.id), texto, respondida)
   } catch (e) {
     console.error("Erro no webhook do Telegram:", e)
   }
@@ -199,7 +220,7 @@ function primeiroNome(n: string | null | undefined): string {
   return (n ?? "").trim().split(/\s+/)[0] || "por aí"
 }
 
-async function tratar(chatId: string, texto: string): Promise<void> {
+async function tratar(chatId: string, texto: string, respondida: string | null = null): Promise<void> {
   // /start [codigo] — vínculo (deep link t.me/<bot>?start=<codigo>).
   if (texto === "/start" || texto.startsWith("/start ")) {
     const codigo = texto.split(/\s+/)[1]
@@ -271,21 +292,10 @@ async function tratar(chatId: string, texto: string): Promise<void> {
       texto: [
         `Olá, ${primeiroNome(u.nome)}!${u.entidade ? ` Bot do Confluir · ${u.entidade}.` : ""}`,
         "",
-        "Comandos disponíveis:",
-        "/contracheque — seu contracheque mais recente",
-        "/ferias — seu saldo de férias",
-        "/diarias — suas últimas solicitações de diária",
-        "/viagem — pedir passagem (aérea ou rodoviária) e hospedagem",
-        "/viagens — seus últimos pedidos de viagem",
-        "/informes — seus informes de rendimentos",
-        "/asos — seus atestados de saúde ocupacional",
-        "/carros — frota agora: disponíveis por sede e com quem estão os carros",
-        "/aprovar — ordens de pagamento na sua alçada, com botões para aprovar ou devolver",
-        "/filiado &lt;nome ou CPF&gt; — consulta de filiação",
-        "/eu — confirma sua conta vinculada",
-        "/ajuda — esta mensagem",
+        "Comandos disponíveis (também no botão / do Telegram):",
+        ...linhasDaAjuda(),
         "",
-        "<i>/carros e /filiado dependem da sua permissão no painel.</i>",
+        "<i>/pendencias, /aprovar, /carros e /filiado dependem da sua permissão no painel. Os avisos de pendência chegam com botões para resolver aqui mesmo.</i>",
         "",
         "📎 <b>Comprovantes:</b> mande a foto ou o PDF (até 5 MB) de um recibo de reembolso do ACT, cupom de abastecimento ou atestado. Eu leio, mostro o que entendi e você confirma ou corrige.",
         "",
@@ -295,6 +305,13 @@ async function tratar(chatId: string, texto: string): Promise<void> {
     return
   }
 
+  // Motivo de uma devolução/recusa de pendência (resposta ao pedido do bot).
+  if (await tratarTextoMotivoPendencia(chatId, texto, u, respondida)) return
+
+  if (texto === "/pendencias" || texto === "/pendências" || texto === "/pendentes") {
+    await responderPendencias(chatId, u)
+    return
+  }
   if (texto === "/aprovar" || texto === "/aprovacoes" || texto === "/aprovações") {
     await responderAprovar(chatId, u)
     return
@@ -360,7 +377,7 @@ async function tratar(chatId: string, texto: string): Promise<void> {
 
   // Texto livre → assistente por IA (sem acesso a dados sensíveis da pessoa).
   const { texto: resposta, erro } = await gerarTextoIA({
-    system: `Você é o assistente do Confluir${u.entidade ? ` da entidade ${u.entidade}` : ""}, sistema de gestão de um sindicato, conversando pelo Telegram com um funcionário ou filiado. Responda em português do Brasil, de forma breve e cordial. O bot tem comandos: contracheque → /contracheque, férias → /ferias, diárias → /diarias, pedir passagem aérea ou rodoviária e hospedagem → /viagem, ver os pedidos de viagem → /viagens, informes de rendimentos → /informes, atestados de saúde ocupacional (ASO) → /asos, veículos disponíveis por sede e com quem estão os carros → /carros, aprovar ou devolver ordens de pagamento na alçada → /aprovar, consulta de filiação por nome/CPF → /filiado <termo>. Para lançar recibo de reembolso do ACT, cupom de abastecimento ou atestado, a pessoa manda a foto ou o PDF aqui na conversa (o bot lê e pede confirmação). Oriente a usar o comando adequado. Para o restante (treinamentos, ASO detalhado etc.), oriente a consultar o painel do Confluir (área Meu perfil). Você NÃO tem acesso direto a esses dados nesta conversa em texto livre. Nunca invente informações.`,
+    system: `Você é o assistente do Confluir${u.entidade ? ` da entidade ${u.entidade}` : ""}, sistema de gestão de um sindicato, conversando pelo Telegram com um funcionário ou filiado. Responda em português do Brasil, de forma breve e cordial. O bot tem comandos: o que espera pela pessoa, com botões para resolver → /pendencias, contracheque → /contracheque, férias → /ferias, diárias → /diarias, pedir passagem aérea ou rodoviária e hospedagem → /viagem, ver os pedidos de viagem → /viagens, informes de rendimentos → /informes, atestados de saúde ocupacional (ASO) → /asos, veículos disponíveis por sede e com quem estão os carros → /carros, aprovar ou devolver ordens de pagamento na alçada → /aprovar, consulta de filiação por nome/CPF → /filiado <termo>. Para lançar recibo de reembolso do ACT, cupom de abastecimento ou atestado, a pessoa manda a foto ou o PDF aqui na conversa (o bot lê e pede confirmação). Oriente a usar o comando adequado. Para o restante (treinamentos, ASO detalhado etc.), oriente a consultar o painel do Confluir (área Meu perfil). Você NÃO tem acesso direto a esses dados nesta conversa em texto livre. Nunca invente informações.`,
     prompt: texto,
   })
   await enviarTelegram({
