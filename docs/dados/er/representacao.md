@@ -105,6 +105,7 @@ erDiagram
     uuid id PK
     uuid emp_proprietaria_id FK
     uuid ata_id FK
+    uuid responsavel_id FK
   }
   acordo_clausulas }o--o| acordo_coletivo : "acordo_id"
   acordo_coletivo }o--o| negociacoes : "negociacao_id"
@@ -142,5 +143,6 @@ erDiagram
   representacao_reunioes }o--o| empresa : "empresa_id"
   representacao_reunioes }o--o| usuarios : "criado_por_id"
   reuniao_ata }o--o| diretoria_mandatos : "mandato_id"
+  reuniao_deliberacao }o--o| usuarios : "responsavel_id"
   reuniao_deliberacao }o--|| reuniao_ata : "ata_id"
 ```

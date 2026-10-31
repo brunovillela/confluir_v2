@@ -10,11 +10,12 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 import {
+  ROTULO_SIGILO_DELIBERACAO,
   SIGILOS_DELIBERACAO,
   SITUACOES_DELIBERACAO,
   type SigiloDeliberacao,
 } from "@/lib/deliberacoes-constantes"
-import type { Deliberacao } from "@/lib/db/deliberacoes"
+import type { Deliberacao, ResponsavelPossivel } from "@/lib/db/deliberacoes"
 
 import { excluirDeliberacaoAction, salvarDeliberacaoAction } from "./deliberacao-actions"
 
@@ -28,6 +29,7 @@ export function DeliberacaoForm({
   assuntos,
   cancelarHref,
   sigilos,
+  responsaveis,
 }: {
   ataId: string
   deliberacao?: Deliberacao
@@ -35,6 +37,8 @@ export function DeliberacaoForm({
   cancelarHref: string
   /** Graus que o nível do usuário alcança — só esses são oferecidos. */
   sigilos: SigiloDeliberacao[]
+  /** Usuários com nível de sigilo (o servidor confere se alcança a deliberação). */
+  responsaveis: ResponsavelPossivel[]
 }) {
   const [estado, formAction, pendente] = useActionState(salvarDeliberacaoAction, {})
   const envio = useEnvioFormulario(formAction, estado)
@@ -81,23 +85,43 @@ export function DeliberacaoForm({
         />
       </div>
 
+      <div className="grid gap-1.5">
+        <Label htmlFor={`votacao-${sufixo}`}>Votação</Label>
+        <Input
+          id={`votacao-${sufixo}`}
+          name="votacao"
+          defaultValue={deliberacao?.votacao ?? ""}
+          placeholder="Ex.: aprovada por unanimidade"
+        />
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5">
-          <Label htmlFor={`votacao-${sufixo}`}>Votação</Label>
-          <Input
-            id={`votacao-${sufixo}`}
-            name="votacao"
-            defaultValue={deliberacao?.votacao ?? ""}
-            placeholder="Ex.: aprovada por unanimidade"
-          />
+          <Label htmlFor={`responsavel_id-${sufixo}`}>Responsável no sistema</Label>
+          <select
+            id={`responsavel_id-${sufixo}`}
+            name="responsavel_id"
+            className={SELECT}
+            defaultValue={deliberacao?.responsavelId ?? ""}
+          >
+            <option value="">— ninguém —</option>
+            {responsaveis.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.nome} (acesso: {ROTULO_SIGILO_DELIBERACAO[r.nivel].toLowerCase()})
+              </option>
+            ))}
+          </select>
+          <p className="text-muted-foreground text-xs">
+            Recebe o aviso quando o prazo vence. Precisa ter acesso ao sigilo desta deliberação.
+          </p>
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor={`responsavel-${sufixo}`}>Responsável</Label>
+          <Label htmlFor={`responsavel-${sufixo}`}>Ou responsável fora do sistema</Label>
           <Input
             id={`responsavel-${sufixo}`}
             name="responsavel"
             defaultValue={deliberacao?.responsavel ?? ""}
-            placeholder="Quem cumpre a decisão"
+            placeholder="Ex.: Secretaria-geral, assessoria jurídica"
           />
         </div>
       </div>

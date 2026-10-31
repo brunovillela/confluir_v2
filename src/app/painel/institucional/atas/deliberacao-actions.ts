@@ -9,6 +9,7 @@ import {
   atualizarDeliberacao,
   criarDeliberacao,
   excluirDeliberacao,
+  nivelDoUsuario,
   obterDeliberacao,
   type DadosDeliberacao,
 } from "@/lib/db/deliberacoes"
@@ -16,9 +17,12 @@ import {
   ehSigiloDeliberacao,
   ehSituacaoDeliberacao,
   nivelSigilo,
+  ROTULO_SIGILO_DELIBERACAO,
   sigilosVisiveis,
   type SigiloDeliberacao,
 } from "@/lib/deliberacoes-constantes"
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
  * Item existente fora do sigilo do usuário = como se não existisse (não
@@ -47,6 +51,7 @@ function lerDados(fd: FormData): DadosDeliberacao | { erro: string; campo: strin
     texto: campo(fd, "texto") || null,
     votacao: campo(fd, "votacao") || null,
     responsavel: campo(fd, "responsavel") || null,
+    responsavel_id: UUID.test(campo(fd, "responsavel_id")) ? campo(fd, "responsavel_id") : null,
     prazo: /^\d{4}-\d{2}-\d{2}$/.test(prazo) ? prazo : null,
     situacao: ehSituacaoDeliberacao(situacao) ? situacao : "a_cumprir",
     sigilo,
@@ -73,6 +78,17 @@ export async function salvarDeliberacaoAction(_prev: EstadoForm, fd: FormData): 
   if (id) {
     const fora = await conferirAlcance(id, sigilos)
     if (fora) return { erro: fora }
+  }
+  // O responsável usuário precisa enxergar a deliberação — senão receberia
+  // um aviso que não consegue abrir.
+  if (dados.responsavel_id) {
+    const nivelResp = await nivelDoUsuario(dados.responsavel_id)
+    if (!sigilosVisiveis(nivelResp).includes(dados.sigilo)) {
+      return {
+        erro: `O responsável escolhido não tem acesso a deliberações de sigilo ${ROTULO_SIGILO_DELIBERACAO[dados.sigilo].toLowerCase()}. Escolha outra pessoa, baixe o sigilo ou peça à administração o nível dele.`,
+        campo: "responsavel_id",
+      }
+    }
   }
   const { erro } = id
     ? await atualizarDeliberacao(id, dados, sessao.usuario.id)

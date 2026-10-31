@@ -80,15 +80,15 @@ insert into reuniao_ata (
    E'Membros do Conselho Fiscal');
 
 insert into reuniao_deliberacao (
-  id, emp_proprietaria_id, ata_id, ordem, assunto, texto, votacao, responsavel, prazo, situacao, sigilo
+  id, emp_proprietaria_id, ata_id, ordem, assunto, texto, votacao, responsavel, responsavel_id, prazo, situacao, sigilo
 ) values
   ('a7100000-0000-4000-8000-000000000001','11111111-1111-4111-8111-111111111111','a7000000-0000-4000-8000-000000000001',
-   1,'Prestação de contas do 1º semestre','Aprovada a prestação de contas do 1º semestre de 2026.',null,null,null,'cumprida','livre'),
+   1,'Prestação de contas do 1º semestre','Aprovada a prestação de contas do 1º semestre de 2026.',null,null,null,null,'cumprida','livre'),
   ('a7100000-0000-4000-8000-000000000002','11111111-1111-4111-8111-111111111111','a7000000-0000-4000-8000-000000000001',
    2,'Negociação do ACT 2026/2027','Autorizada a diretoria a negociar o ACT 2026/2027 com a empresa, com retorno à assembleia antes de assinar.',
-   'aprovada por unanimidade','Secretaria-geral',date '2026-09-30','em_execucao','restrito'),
+   'aprovada por unanimidade','Secretaria-geral','22222222-2222-4222-8222-222222222222',date '2026-09-30','em_execucao','restrito'),
   ('a7100000-0000-4000-8000-000000000003','11111111-1111-4111-8111-111111111111','a7000000-0000-4000-8000-000000000002',
-   1,'Contas de maio/2026','Contas aprovadas sem ressalvas.',null,null,null,'cumprida','reservado');
+   1,'Contas de maio/2026','Contas aprovadas sem ressalvas.',null,null,null,null,'cumprida','reservado');
 
 -- ---------------------------------------------------------------------------
 -- 5) Entidade apoiada (empresa) + ajuda (contrato com apoio_institucional).

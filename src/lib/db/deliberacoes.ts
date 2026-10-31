@@ -1,12 +1,16 @@
 import "server-only"
 
-import { lerEmLotes, texto } from "@/lib/db/comum"
+import { lerEmLotes, nomesDosUsuarios, texto } from "@/lib/db/comum"
+import { PERMISSOES_USUARIO_FK, type Permissoes } from "@/lib/permissoes"
+import { resolverPermissoes } from "@/lib/permissoes-resolver"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import { TIPOS_REUNIAO, type TipoReuniao } from "@/lib/atas-constantes"
 import {
   ehSigiloDeliberacao,
   ehSituacaoDeliberacao,
+  nivelSigilo,
+  type NivelSigilo,
   type SigiloDeliberacao,
   type SituacaoDeliberacao,
 } from "@/lib/deliberacoes-constantes"
@@ -26,7 +30,11 @@ export type Deliberacao = {
   assunto: string
   texto: string | null
   votacao: string | null
+  /** Responsável em texto livre (quem não é usuário). */
   responsavel: string | null
+  /** Responsável usuário — recebe o aviso de prazo vencido. */
+  responsavelId: string | null
+  responsavelNome: string | null
   prazo: string | null
   situacao: SituacaoDeliberacao
   sigilo: SigiloDeliberacao
@@ -36,7 +44,7 @@ export type DeliberacaoComAta = Deliberacao & {
   ata: { titulo: string | null; data: string | null; tipo: TipoReuniao; orgao: string | null }
 }
 
-const CAMPOS = "id, ata_id, ordem, assunto, texto, votacao, responsavel, prazo, situacao, sigilo"
+const CAMPOS = "id, ata_id, ordem, assunto, texto, votacao, responsavel, responsavel_id, prazo, situacao, sigilo"
 
 function tipoValido(t: unknown): TipoReuniao {
   return TIPOS_REUNIAO.some((x) => x.chave === t) ? (t as TipoReuniao) : "outra"
@@ -51,10 +59,18 @@ function paraDeliberacao(r: Record<string, unknown>): Deliberacao {
     texto: texto(r.texto),
     votacao: texto(r.votacao),
     responsavel: texto(r.responsavel),
+    responsavelId: texto(r.responsavel_id),
+    responsavelNome: null,
     prazo: texto(r.prazo),
     situacao: ehSituacaoDeliberacao(r.situacao) ? r.situacao : "a_cumprir",
     sigilo: ehSigiloDeliberacao(r.sigilo) ? r.sigilo : "restrito",
   }
+}
+
+/** Preenche o nome dos responsáveis usuários. */
+async function comNomes<T extends Deliberacao>(lista: T[]): Promise<T[]> {
+  const nomes = await nomesDosUsuarios(lista.map((d) => d.responsavelId ?? ""), "guerra")
+  return lista.map((d) => ({ ...d, responsavelNome: d.responsavelId ? (nomes.get(d.responsavelId) ?? null) : null }))
 }
 
 // ── Leitura ──────────────────────────────────────────────────────────────────
@@ -80,7 +96,7 @@ export async function deliberacoesDaAta(
     throw new Error(`Falha ao ler as deliberações: ${error.message}`)
   }
   const todas = (data ?? []).map((r) => paraDeliberacao(r as Record<string, unknown>))
-  const visiveis = todas.filter((d) => sigilos.includes(d.sigilo))
+  const visiveis = await comNomes(todas.filter((d) => sigilos.includes(d.sigilo)))
   return { visiveis, ocultas: todas.length - visiveis.length }
 }
 
@@ -109,6 +125,8 @@ export type FiltrosDeliberacoes = {
    * (hoje, AAAA-MM-DD) — o mesmo critério da caixa de entrada.
    */
   vencidasAntesDe?: string
+  /** Só as de um responsável usuário ("as minhas"). */
+  responsavelId?: string
 }
 
 function escaparLike(t: string): string {
@@ -137,6 +155,7 @@ export async function listarDeliberacoes(
     if (filtros.situacao) q = q.eq("situacao", filtros.situacao)
     if (filtros.sigilo) q = q.eq("sigilo", filtros.sigilo)
     if (filtros.tipo) q = q.eq("ata.tipo", filtros.tipo)
+    if (filtros.responsavelId) q = q.eq("responsavel_id", filtros.responsavelId)
     if (filtros.vencidasAntesDe) {
       q = q.in("situacao", ["a_cumprir", "em_execucao"]).lt("prazo", filtros.vencidasAntesDe)
     }
@@ -164,7 +183,7 @@ export async function listarDeliberacoes(
       },
     }
   })
-  return resultado.sort(
+  return (await comNomes(resultado)).sort(
     (x, y) =>
       (y.ata.data ?? "").localeCompare(x.ata.data ?? "") ||
       x.ataId.localeCompare(y.ataId) ||
@@ -198,6 +217,7 @@ export type DadosDeliberacao = {
   texto: string | null
   votacao: string | null
   responsavel: string | null
+  responsavel_id?: string | null
   prazo: string | null
   situacao: SituacaoDeliberacao
   sigilo: SigiloDeliberacao
@@ -300,4 +320,61 @@ export async function registrarDeliberacoesLidas(
   )
   if (error) return { quantidade: 0, erro: `Falha ao registrar as deliberações lidas: ${error.message}` }
   return { quantidade: itens.length }
+}
+
+// ── Responsável usuário ──────────────────────────────────────────────────────
+
+/** Nível de sigilo de um usuário (permissões próprias + perfis), como no login. */
+async function nivelDe(
+  admin: Awaited<ReturnType<typeof createAdminClient>>,
+  usuarioId: string,
+  base: Permissoes
+): Promise<NivelSigilo> {
+  return nivelSigilo(await resolverPermissoes(admin, usuarioId, base))
+}
+
+export type ResponsavelPossivel = { id: string; nome: string; nivel: Exclude<NivelSigilo, "nenhum"> }
+
+/**
+ * Quem pode ser responsável por uma deliberação: usuários ativos da entidade
+ * com algum nível de sigilo (sem nível, não veria a própria deliberação nem o
+ * aviso). O nível vai junto para o formulário conferir com o sigilo.
+ */
+export async function responsaveisPossiveis(): Promise<ResponsavelPossivel[]> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const [{ data: usuarios }, { data: perms }] = await Promise.all([
+    admin.from("usuarios").select("id, inativo, deletado").eq("emp_proprietaria_id", emp),
+    admin.from("permissoes").select("*"),
+  ])
+  const ativos = new Set(
+    (usuarios ?? []).filter((u) => u.inativo !== true && u.deletado !== true).map((u) => String(u.id))
+  )
+  const linhas = (perms ?? []).filter((p) => ativos.has(String(p[PERMISSOES_USUARIO_FK])))
+  const niveis = await Promise.all(
+    linhas.map(async (p) => {
+      const id = String(p[PERMISSOES_USUARIO_FK])
+      return { id, nivel: await nivelDe(admin, id, p as Permissoes) }
+    })
+  )
+  const comNivel = niveis.filter((n): n is { id: string; nivel: ResponsavelPossivel["nivel"] } => n.nivel !== "nenhum")
+  const nomes = await nomesDosUsuarios(comNivel.map((n) => n.id), "guerra")
+  return comNivel
+    .map((n) => ({ ...n, nome: nomes.get(n.id) ?? "(sem nome)" }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+}
+
+/** Nível de sigilo de um usuário da entidade ("nenhum" se não achar). */
+export async function nivelDoUsuario(usuarioId: string): Promise<NivelSigilo> {
+  const admin = await createAdminClient()
+  const { data: u } = await admin
+    .from("usuarios")
+    .select("id, inativo, deletado")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("id", usuarioId)
+    .maybeSingle()
+  if (!u || u.inativo === true || u.deletado === true) return "nenhum"
+  const { data: p } = await admin.from("permissoes").select("*").eq(PERMISSOES_USUARIO_FK, usuarioId).maybeSingle()
+  if (!p) return "nenhum"
+  return nivelDe(admin, usuarioId, p as Permissoes)
 }

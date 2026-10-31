@@ -50,6 +50,7 @@ export default async function DeliberacoesPage({
     sigilo?: string
     tipo?: string
     prazo?: string
+    responsavel?: string
     pagina?: string
   }>
 }) {
@@ -70,6 +71,7 @@ export default async function DeliberacoesPage({
     sigilo: ehSigiloDeliberacao(sp.sigilo) && sigilos.includes(sp.sigilo) ? sp.sigilo : undefined,
     tipo: TIPOS_REUNIAO.some((t) => t.chave === sp.tipo) ? (sp.tipo as TipoReuniao) : undefined,
     vencidasAntesDe: sp.prazo === "vencido" ? hoje : undefined,
+    responsavelId: sp.responsavel === "eu" ? sessao.usuario.id : undefined,
   }
   const filtrado = Object.values(filtros).some(Boolean)
 
@@ -96,6 +98,7 @@ export default async function DeliberacoesPage({
       sigilo: filtros.sigilo,
       tipo: filtros.tipo,
       prazo: filtros.vencidasAntesDe ? "vencido" : undefined,
+      responsavel: filtros.responsavelId ? "eu" : undefined,
       pagina: pagina > 1 ? String(pagina) : undefined,
       ...mudancas,
     }
@@ -163,6 +166,7 @@ export default async function DeliberacoesPage({
         <CardContent className="grid gap-4">
           <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6" method="get">
             {filtros.vencidasAntesDe && <input type="hidden" name="prazo" value="vencido" />}
+            {filtros.responsavelId && <input type="hidden" name="responsavel" value="eu" />}
             <div className="grid gap-1.5 lg:col-span-2">
               <Label htmlFor="assunto">Assunto</Label>
               <Input
@@ -217,6 +221,11 @@ export default async function DeliberacoesPage({
             <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-5">
               <Button type="submit" variant="secondary" size="sm">
                 Filtrar
+              </Button>
+              <Button asChild variant={filtros.responsavelId ? "default" : "outline"} size="sm">
+                <Link href={url({ responsavel: filtros.responsavelId ? undefined : "eu", pagina: undefined })}>
+                  Sob minha responsabilidade
+                </Link>
               </Button>
               {filtrado && (
                 <Button asChild variant="ghost" size="sm">
@@ -283,7 +292,11 @@ export default async function DeliberacoesPage({
                           </span>
                         </TableCell>
                         <TableCell className="align-top text-sm">
-                          {d.responsavel ?? <span className="text-muted-foreground">—</span>}
+                          {d.responsavelNome || d.responsavel ? (
+                            [d.responsavelNome, d.responsavel].filter(Boolean).join(" · ")
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                           {d.prazo && (
                             <span className={`block text-xs ${atrasada ? "text-destructive font-medium" : "text-muted-foreground"}`}>
                               até {formatarData(d.prazo)}

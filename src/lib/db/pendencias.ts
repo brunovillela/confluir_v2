@@ -334,8 +334,25 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
   // registra as atas e acompanha as decisões, só até o nível de sigilo dele
   // (o lembrete diário leva só a contagem, nunca o assunto).
   const sigilosDeliberacoes = sigilosVisiveis(nivelSigilo(p))
+  const hojeDeliberacoes = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date())
+  // As que estão sob a responsabilidade da própria pessoa (responsável usuário).
+  if (amb.usuarioId && sigilosDeliberacoes.length > 0) {
+    const usuarioId = amb.usuarioId
+    fontes.push({
+      chave: "deliberacoes_minhas_vencidas",
+      titulo: "Deliberações sob sua responsabilidade vencidas",
+      descricao: "Decisões das atas que cabe a você cumprir, com o prazo passado",
+      href: "/painel/institucional/deliberacoes?prazo=vencido&responsavel=eu",
+      tabela: "reuniao_deliberacao",
+      montar: (q) =>
+        head(q)
+          .eq("responsavel_id", usuarioId)
+          .in("situacao", ["a_cumprir", "em_execucao"])
+          .in("sigilo", sigilosDeliberacoes)
+          .lt("prazo", hojeDeliberacoes),
+    })
+  }
   if (pode("diretoria_reunioes") && sigilosDeliberacoes.length > 0) {
-    const hojeSP = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date())
     fontes.push({
       chave: "deliberacoes_vencidas",
       titulo: "Deliberações com prazo vencido",
@@ -346,7 +363,7 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
         head(q)
           .in("situacao", ["a_cumprir", "em_execucao"])
           .in("sigilo", sigilosDeliberacoes)
-          .lt("prazo", hojeSP),
+          .lt("prazo", hojeDeliberacoes),
     })
   }
 

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { obterAta, opcoesMandatos } from "@/lib/db/atas"
-import { assuntosUsados, deliberacoesDaAta } from "@/lib/db/deliberacoes"
+import { assuntosUsados, deliberacoesDaAta, responsaveisPossiveis } from "@/lib/db/deliberacoes"
 import {
   nivelSigilo,
   ROTULO_NIVEL_SIGILO,
@@ -60,12 +60,14 @@ export default async function AtaPage({
   const a = await obterAta(id, sigilos)
   if (!a) notFound()
   const podeLancar = podeEditar && sigilos.length > 0
-  const [{ visiveis: deliberacoes, ocultas }, assuntos] = await Promise.all([
-    deliberacoesDaAta(id, sigilos),
-    podeLancar ? assuntosUsados(sigilos) : Promise.resolve([]),
-  ])
   const editandoDeliberacao = podeLancar ? (sp.deliberacao ?? null) : null
   const novaDeliberacao = podeLancar && sp.nova_deliberacao === "1"
+  const comForm = Boolean(editandoDeliberacao) || novaDeliberacao
+  const [{ visiveis: deliberacoes, ocultas }, assuntos, responsaveis] = await Promise.all([
+    deliberacoesDaAta(id, sigilos),
+    comForm ? assuntosUsados(sigilos) : Promise.resolve([]),
+    comForm ? responsaveisPossiveis() : Promise.resolve([]),
+  ])
 
   const editando = podeEditar && editar === "1"
   const mandatos = editando ? await opcoesMandatos() : []
@@ -235,6 +237,7 @@ export default async function AtaPage({
                       deliberacao={d}
                       assuntos={assuntos}
                       sigilos={sigilos}
+                      responsaveis={responsaveis}
                       cancelarHref={`${aqui}#deliberacoes`}
                     />
                   </li>
@@ -263,11 +266,12 @@ export default async function AtaPage({
                     {d.texto && d.texto !== d.assunto && (
                       <p className="mt-1 text-sm whitespace-pre-wrap">{d.texto}</p>
                     )}
-                    {(d.votacao || d.responsavel || d.prazo) && (
+                    {(d.votacao || d.responsavel || d.responsavelNome || d.prazo) && (
                       <p className="text-muted-foreground mt-1 text-xs">
                         {[
                           d.votacao && `Votação: ${d.votacao}`,
-                          d.responsavel && `Responsável: ${d.responsavel}`,
+                          (d.responsavelNome || d.responsavel) &&
+                            `Responsável: ${[d.responsavelNome, d.responsavel].filter(Boolean).join(" · ")}`,
                           d.prazo && `Prazo: ${formatarData(d.prazo)}`,
                         ]
                           .filter(Boolean)
@@ -290,6 +294,7 @@ export default async function AtaPage({
               ataId={id}
               assuntos={assuntos}
               sigilos={sigilos}
+              responsaveis={responsaveis}
               cancelarHref={`${aqui}#deliberacoes`}
             />
           )}

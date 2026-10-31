@@ -455,7 +455,7 @@ Deliberação (decisão) de uma reunião registrada em ata: assunto, teor, vota�
 | `assunto` | text | não |  |  | identificação | Assunto curto da decisão, usado na busca e nos filtros. |
 | `texto` | text | sim |  |  | identificação | Teor da decisão como deliberado. |
 | `votacao` | text | sim |  |  | identificação | Resultado da votação, quando houve (ex.: "aprovada por unanimidade", "5 a 2"). |
-| `responsavel` | text | sim |  |  | identificação | Quem ficou encarregado de cumprir a decisão (texto livre). |
+| `responsavel` | text | sim |  |  | identificação | Responsável em texto livre, quando não é usuário do sistema (ex.: "Secretaria-geral"). |
 | `prazo` | date | sim |  |  | nenhum | Prazo para cumprir a decisão, quando fixado. |
 | `situacao` | text | não | `'a_cumprir'::text` |  | nenhum | a_cumprir, em_execucao, cumprida ou cancelada. |
 | `sigilo` | text | não | `'reservado'::text` |  | nenhum | livre, reservado ou restrito: quem pode consultar depende do nível de sigilo concedido ao usuário. |
@@ -463,7 +463,8 @@ Deliberação (decisão) de uma reunião registrada em ata: assunto, teor, vota�
 | `atualizado_por` | uuid | sim |  |  | identificação | Usuário que alterou a deliberação por último. |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `updated_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `responsavel_id` | uuid | sim |  | → usuarios (set null) | identificação | Usuário responsável por cumprir a decisão; recebe o aviso de prazo vencido. Precisa ter nível de sigilo que alcance a deliberação. |
 
 Checks: `reuniao_deliberacao_sigilo_check` `CHECK ((sigilo = ANY (ARRAY['livre'::text, 'reservado'::text, 'restrito'::text])))`; `reuniao_deliberacao_situacao_check` `CHECK ((situacao = ANY (ARRAY['a_cumprir'::text, 'em_execucao'::text, 'cumprida'::text, 'cancelada'::text])))`
 
-Índices: `reuniao_deliberacao_ata_idx`, `reuniao_deliberacao_emp_situacao_idx`, `reuniao_deliberacao_pkey`
+Índices: `reuniao_deliberacao_ata_idx`, `reuniao_deliberacao_emp_situacao_idx`, `reuniao_deliberacao_pkey`, `reuniao_deliberacao_responsavel_idx`
