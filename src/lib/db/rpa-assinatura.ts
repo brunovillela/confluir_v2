@@ -99,6 +99,8 @@ export const ROTULO_EVENTO_RPA: Record<string, string> = {
   assinatura: "Assinatura",
   recusa: "Recusa",
   cancelado: "Envio cancelado",
+  lembrete: "Lembrete automático enviado",
+  lembretes_esgotados: "Lembretes esgotados — quem emitiu foi avisado",
 }
 
 function normalizar(l: Record<string, unknown>, eventos: AssinaturaRpa["eventos"] = []): AssinaturaRpa {
@@ -291,6 +293,20 @@ export async function enviarRpaParaAssinatura(
   await evento(a.id, "enviado", null, undefined, emp)
   await convidar(a, rpa)
   return {}
+}
+
+/**
+ * Envio do link ao emitir (onda 3 do plano do RPA): para o e-mail do cadastro
+ * do prestador. Devolve "enviado" ou o motivo de não ter ido — a emissão não
+ * falha por isso; a página do RPA mostra o motivo e o envio manual.
+ */
+export async function enviarLinkAutomatico(rpaId: string, usuarioId: string): Promise<string> {
+  const rpa = await buscarRpa(rpaId)
+  if (!rpa) return "RPA não encontrado"
+  const email = rpa.fornecedorEmail?.trim()
+  if (!email) return "o cadastro do prestador não tem e-mail"
+  const { erro } = await enviarRpaParaAssinatura(rpaId, { nome: rpa.fornecedorNome ?? "", email }, usuarioId)
+  return erro ?? "enviado"
 }
 
 /** Manda de novo o e-mail com o link (o mesmo link). */

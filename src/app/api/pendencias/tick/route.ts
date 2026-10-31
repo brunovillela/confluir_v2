@@ -2,6 +2,7 @@ import { contextoDoTenant } from "@/lib/db/comunicacao-mensagens"
 import { avisarNotasAReceber } from "@/lib/db/compras-marketplace"
 import { lembrarPendencias, tenantsDoLembrete } from "@/lib/db/pendencias-lembrete"
 import { lembretesDoPortal, type ResultadoLembretesDoPortal } from "@/lib/db/portal-lembretes"
+import { lembrarAssinaturasRpa } from "@/lib/db/rpa-lembretes"
 import { createServiceClient } from "@/lib/supabase/admin"
 
 export const runtime = "nodejs"
@@ -28,8 +29,12 @@ export const maxDuration = 300
  * compra sem a nota do vendedor, quem comprou recebe um e-mail — uma vez por
  * compra (lib/db/compras-marketplace.ts).
  *
+ * E os LEMBRETES DA ASSINATURA DO RPA: link pendente há 3 dias sem assinatura
+ * leva um lembrete ao prestador (até 2); esgotados, quem emitiu é avisado
+ * (lib/db/rpa-lembretes.ts).
+ *
  * `?tenant=<uuid>` roda um tenant só (disparo manual e testes na demo);
- * `?etapa=pendencias`, `?etapa=portal` ou `?etapa=notas` roda só uma das partes.
+ * `?etapa=pendencias`, `?etapa=portal`, `?etapa=notas` ou `?etapa=rpa` roda só uma das partes.
  */
 async function handler(req: Request): Promise<Response> {
   const secret = process.env.CRON_SECRET
@@ -47,7 +52,7 @@ async function handler(req: Request): Promise<Response> {
   const tenants = (await tenantsDoLembrete()).filter((t) => !unico || t.id === unico)
 
   const resultados: { tenant: string; pessoas: number; lembretes: number; erro?: string }[] = []
-  if (etapa !== "portal" && etapa !== "notas") {
+  if (!etapa || etapa === "pendencias") {
     for (const t of tenants) {
       try {
         resultados.push({ tenant: t.id, ...(await lembrarPendencias(t.id)) })
@@ -58,7 +63,7 @@ async function handler(req: Request): Promise<Response> {
   }
 
   const portal: ({ tenant: string } & ResultadoLembretesDoPortal)[] = []
-  if (etapa !== "pendencias" && etapa !== "notas") {
+  if (!etapa || etapa === "portal") {
     const svc = createServiceClient()
     for (const t of tenants) {
       try {
@@ -89,7 +94,23 @@ async function handler(req: Request): Promise<Response> {
     }
   }
 
-  return Response.json({ verificados: tenants.length, processados: resultados, portal, notas })
+  const rpa: { tenant: string; lembretes: number; esgotados: number; erros: string[] }[] = []
+  if (!etapa || etapa === "rpa") {
+    const svc = createServiceClient()
+    for (const t of tenants) {
+      try {
+        const contexto = await contextoDoTenant(t.id, svc)
+        rpa.push({ tenant: t.id, ...(await lembrarAssinaturasRpa(svc, t.id, contexto)) })
+      } catch (e) {
+        rpa.push({ tenant: t.id, lembretes: 0, esgotados: 0, erros: [e instanceof Error ? e.message : String(e)] })
+      }
+    }
+    for (const r of rpa) {
+      if (r.erros.length) console.error(`[pendencias/tick] lembretes do RPA (${r.tenant}):`, r.erros.join(" · "))
+    }
+  }
+
+  return Response.json({ verificados: tenants.length, processados: resultados, portal, notas, rpa })
 }
 
 export const GET = handler

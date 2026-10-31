@@ -50,7 +50,7 @@ O usuário descobre os problemas só depois de preencher tudo.
    prestador, até 2 lembretes; aviso ao comprador quando esgotar. Pelo tick
    diário que já existe (`/api/pendencias/tick`).
 
-Decisão: N dias e número de lembretes (proposta: 3 dias, 2 lembretes).
+Decidido (31/10): 3 dias, 2 lembretes.
 
 ## Onda 4 — Comprovante de pagamento
 
@@ -94,7 +94,7 @@ Decisão: o e-mail da contabilidade (configuração nova) e a data do envio.
 |---|---|
 | 1 — Avisar antes de enviar | **concluída** 31/10 — avisos do limite ao vivo, custo total na prévia, NIT/PIS na emissão |
 | 2 — Remessa e linha do tempo | **concluída** 31/10 — pendência de limite na Nova remessa, faixa de etapas no processo |
-| 3 — Assinatura automática | a fazer (decidir N dias / lembretes) |
+| 3 — Assinatura automática | **concluída** 31/10 — link na emissão (marcado por padrão), lembretes a cada 3 dias até 2, depois aviso a quem emitiu |
 | 4 — Comprovante | a fazer (decidir padrão do envio automático) |
 | 5 — IRRF acumulado | aguarda a contabilidade |
 | 6 — Fechamento contábil | a fazer (e-mail da contabilidade) |

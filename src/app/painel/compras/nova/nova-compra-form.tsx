@@ -1105,6 +1105,16 @@ export function NovaCompraForm({
                     )}
                   </div>
                 )}
+                <label className="flex items-start gap-2 text-sm">
+                  <input type="checkbox" name="enviar_link" defaultChecked className="mt-0.5 size-4" />
+                  <span>
+                    Enviar o <strong>link de assinatura</strong> ao prestador por e-mail
+                    <span className="text-muted-foreground block text-xs">
+                      Vai para o e-mail do cadastro dele. Sem assinatura em 3 dias, ele recebe um lembrete (até 2); depois, quem
+                      emitiu é avisado.
+                    </span>
+                  </span>
+                </label>
                 {situacaoRpaAtual?.semNit && (
                   <div className="grid gap-1.5">
                     <Label htmlFor="nit_pis">NIT/PIS do prestador</Label>

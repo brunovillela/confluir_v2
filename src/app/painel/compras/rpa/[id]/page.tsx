@@ -34,7 +34,7 @@ export default async function RpaDetalhePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ salvo?: string }>
+  searchParams: Promise<{ salvo?: string; link?: string }>
 }) {
   // Quem opera a compra de serviço também abre (e cuida d)o RPA dela.
   const permissoesCompra = ["aquisicoes_compras_edicao", "aquisicoes_comprador", "aquisicoes_compra_direta"]
@@ -43,7 +43,7 @@ export default async function RpaDetalhePage({
     ...permissoesCompra,
   ])
   const { id } = await params
-  const { salvo } = await searchParams
+  const { salvo, link } = await searchParams
   const rpa = await buscarRpa(id)
   if (!rpa) notFound()
   const operaCompra = permissoesCompra.some((p) => podeAcessar(sessao.permissoes, p))
@@ -101,6 +101,21 @@ export default async function RpaDetalhePage({
         </Button>
       </div>
 
+      {link === "enviado" && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>
+            Link de assinatura enviado ao prestador{rpa.fornecedorEmail ? ` (${rpa.fornecedorEmail})` : ""}. Sem
+            assinatura em 3 dias, ele recebe um lembrete automático (até 2).
+          </AlertDescription>
+        </Alert>
+      )}
+      {link && link !== "enviado" && (
+        <Alert variant="warning">
+          <AlertDescription>
+            O link de assinatura não foi enviado: {link}. Envie pelo cartão Recibo assinado, abaixo.
+          </AlertDescription>
+        </Alert>
+      )}
       {salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>

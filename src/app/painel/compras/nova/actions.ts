@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { enviarLinkAutomatico } from "@/lib/db/rpa-assinatura"
 import { validarNitPis } from "@/lib/cpf"
 import { redirect } from "next/navigation"
 
@@ -241,7 +242,11 @@ export async function criarCompra(
     if (rpa.erro || !rpa.rpaId) {
       redirect(`/painel/compras/rpa/novo?fornecimento=${fornecimentoId}&falha=${encodeURIComponent(rpa.erro ?? "erro")}`)
     }
-    redirect(`/painel/compras/rpa/${rpa.rpaId}?salvo=1`)
+    const link =
+      texto(formData, "enviar_link") === "on"
+        ? `&link=${encodeURIComponent(await enviarLinkAutomatico(rpa.rpaId, String(sessao.usuario.id)))}`
+        : ""
+    redirect(`/painel/compras/rpa/${rpa.rpaId}?salvo=1${link}`)
   }
 
   const formaBruta = texto(formData, "forma_pagamento")

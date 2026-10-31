@@ -43,6 +43,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { validarAssinaturasPdf, type ValidacaoAssinatura } from "@/lib/assinatura-pdf"
 import {
   cancelarAssinaturaRpa,
+  enviarLinkAutomatico,
   enviarRpaParaAssinatura,
   reenviarLinkRpa,
   registrarRpaAssinado,
@@ -390,10 +391,17 @@ export async function emitirRpa(
     return { erro: `Não foi possível emitir: ${ultimoErro}` }
   }
 
+  // Link de assinatura ao prestador, já na emissão (marcado por padrão).
+  const linkAoEmitir = async () =>
+    fd.get("enviar_link") === "on"
+      ? `&link=${encodeURIComponent(await enviarLinkAutomatico(rpaId!, String(sessao.usuario.id)))}`
+      : ""
+
   // Avulso: só o recibo — a ordem nasce na compra que o usar.
   if (avulso) {
+    const link = await linkAoEmitir()
     revalidatePath("/painel/compras/rpa")
-    redirect(`/painel/compras/rpa/${rpaId}?salvo=1`)
+    redirect(`/painel/compras/rpa/${rpaId}?salvo=1${link}`)
   }
 
   if (ordemDaCompra && origem.compra) {
@@ -477,7 +485,8 @@ export async function emitirRpa(
   }
   revalidatePath("/painel/compras/rpa")
   if (origem.contratoId) revalidatePath(`/painel/compras/contratos/${origem.contratoId}`)
-  redirect(`/painel/compras/rpa/${rpaId}?salvo=1`)
+  const link = await linkAoEmitir()
+  redirect(`/painel/compras/rpa/${rpaId}?salvo=1${link}`)
 }
 
 /**
