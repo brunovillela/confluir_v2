@@ -244,6 +244,8 @@ const SHOTS_RODADA_21 = [
   // ["/painel/pessoal/contracheques/55555555-5555-4555-8555-0000000000c1/importar/<importação>", "pessoal/contracheques-importacao.png", { esperar: "Funcionários da folha", passos: [{ pausa: 2000 }, { ir: "<a mesma rota>" }, { aguardar: "Funcionários da folha" }, { pausa: 1200 }], fullPage: true }],
   // Escolhe um PDF de exemplo qualquer (sem enviar).
   // ["/painel/pessoal/contracheques/44444444-4444-4444-8444-000000000001/importar", "pessoal/contracheques-importar.png", { esperar: "Enviar a folha", passos: [{ pausa: 2000 }, { ir: "/painel/pessoal/contracheques/44444444-4444-4444-8444-000000000001/importar" }, { aguardar: "Enviar a folha" }, { pausa: 2500 }, { anexar: ["#arquivo", "<PDF de exemplo>"] }, { pausa: 800 }], altura: 760 }],
+  // Liberação automática: só preenche as datas no Editar remessa (sem salvar).
+  ["/painel/pessoal/contracheques/44444444-4444-4444-8444-000000000001?editar=1", "pessoal/liberacao-automatica.png", { esperar: "Dados da remessa", passos: [{ pausa: 2000 }, { ir: "/painel/pessoal/contracheques/44444444-4444-4444-8444-000000000001?editar=1" }, { aguardar: "Liberar automaticamente em" }, { pausa: 1500 }, { preencher: ["#data_pagamento", "2026-04-05"] }, { preencher: ["#liberar_em", "2026-04-05"] }, { pausa: 600 }], altura: 620 }],
   // O grupo fica no fim da página: tirar fullPage e recortar as últimas 1440 px (sem a barra lateral, left 540).
   // Os dois abaixo pedem a remessa temporária 55555555-…-0000000000a7 (Julho/2026) e um cartão
   // ponto FICTÍCIO com funcionários da demo (gerado com pdf-lib), apagados depois; nunca o relatório real.
