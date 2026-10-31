@@ -9,10 +9,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
-import { alertasDaLeitura } from "@/lib/contracheque-leitura"
-import { bloqueioDoItemCC, comContrachequeNaRemessa, obterImportacaoCC } from "@/lib/db/contracheque-importacao"
+import { alertasDaLeitura, competenciaDoNome } from "@/lib/contracheque-leitura"
+import { bloqueioDoItemCC, comContrachequeNaRemessa, liquidosAnteriores, obterImportacaoCC } from "@/lib/db/contracheque-importacao"
 import { obterConfigContracheques } from "@/lib/db/contracheques-ordens"
-import { buscarRemessaContracheques, funcionariosParaSelecao, urlArquivoPessoal } from "@/lib/db/pessoal"
+import { buscarRemessaContracheques, funcionariosParaSelecao, naturezaRemessaContracheques, urlArquivoPessoal } from "@/lib/db/pessoal"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
 import { ConferenciaCC, type ItemTelaCC } from "./conferencia"
@@ -43,6 +43,13 @@ export default async function ImportacaoFolhaPage({ params }: { params: Promise<
   }
   opcoes.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
 
+  // Conferências além da conta: competência da remessa e variação do líquido.
+  const competenciaRemessa = competenciaDoNome(remessa.nome_remessa)
+  const anteriores = await liquidosAnteriores(
+    id,
+    imp.itens.map((i) => i.funcionarioId).filter((v): v is string => Boolean(v))
+  )
+
   const itens: ItemTelaCC[] = await Promise.all(
     imp.itens.map(async (i) => ({
       id: i.id,
@@ -54,17 +61,31 @@ export default async function ImportacaoFolhaPage({ params }: { params: Promise<
       situacao: i.situacao,
       erro: i.erro,
       leitura: i.leitura,
+      alertas: i.leitura
+        ? alertasDaLeitura(i.leitura, {
+            competenciaRemessa,
+            liquidoAnterior: i.funcionarioId ? anteriores.get(i.funcionarioId) : null,
+          })
+        : [],
       bloqueio: bloqueioDoItemCC(i, jaTem, config.gerarOrdem),
       urlPdf: await urlArquivoPessoal(i.arquivo),
     }))
   )
   const conta = (s: ItemTelaCC["situacao"]) => itens.filter((i) => i.situacao === s).length
   const semCadastro = itens.filter((i) => !i.funcionarioId && i.situacao !== "descartado").length
-  const comAlerta = itens.filter((i) => i.leitura && i.situacao !== "descartado" && alertasDaLeitura(i.leitura).length > 0).length
+  const comAlerta = itens.filter((i) => i.situacao !== "descartado" && i.alertas.length > 0).length
   const totalLiquido = itens
     .filter((i) => i.situacao !== "descartado")
     .reduce((s, i) => s + (i.leitura?.valorLiquido ?? 0), 0)
   const competencias = [...new Set(itens.map((i) => i.leitura?.competencia).filter(Boolean))]
+
+  // Quem ficou de fora: funcionário ativo sem contracheque na remessa nem
+  // nesta folha. Só na mensal — adiantamento, férias e 13º não são de todos.
+  const naFolha = new Set(itens.filter((i) => i.situacao !== "descartado").map((i) => i.funcionarioId))
+  const deFora =
+    naturezaRemessaContracheques(remessa) === "Mensal" && conta("pendente") === 0
+      ? funcionarios.filter((f) => !jaTem.has(f.usuarioId) && !naFolha.has(f.usuarioId))
+      : []
 
   return (
     <>
@@ -117,7 +138,19 @@ export default async function ImportacaoFolhaPage({ params }: { params: Promise<
         </Alert>
       )}
 
-      {competencias.length > 1 && (
+      {deFora.length > 0 && (
+        <Alert variant="warning">
+          <AlertDescription>
+            <span>
+              {deFora.length} funcionário(s) ativo(s) sem contracheque nesta remessa nem nesta folha — confira se a folha veio
+              completa:
+            </span>
+            <span className="mt-1 block text-xs">{deFora.map((f) => f.nome).join(", ")}</span>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {competenciaRemessa === null && competencias.length > 1 && (
         <Alert variant="warning">
           <AlertDescription>
             A folha traz mais de uma competência ({competencias.map((c) => c!.split("-").reverse().join("/")).join(", ")}). Confira
@@ -130,7 +163,7 @@ export default async function ImportacaoFolhaPage({ params }: { params: Promise<
         <TileIndicador rotulo="Funcionários na folha" valor={String(itens.length)} nota={`${conta("lido") + conta("aplicado")} lido(s) · ${conta("erro")} com erro`} />
         <TileIndicador rotulo="Aplicados à remessa" valor={String(conta("aplicado"))} nota={`${conta("descartado")} descartado(s)`} />
         <TileIndicador rotulo="Líquido lido" valor={formatarMoeda(totalLiquido)} nota="sem os descartados" />
-        <TileIndicador rotulo="Com alertas" valor={String(comAlerta + semCadastro)} nota="sem cadastro, sem líquido ou conta que não fecha" />
+        <TileIndicador rotulo="Com alertas" valor={String(comAlerta + semCadastro)} nota="sem cadastro, conta que não fecha, outra competência ou variação ≥ 30%" />
       </section>
 
       <Card>

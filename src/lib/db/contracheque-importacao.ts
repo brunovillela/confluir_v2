@@ -233,6 +233,48 @@ export async function comContrachequeNaRemessa(remessaId: string): Promise<Set<s
   return new Set((data ?? []).map((r) => String(r.funcionario_id)))
 }
 
+/**
+ * Líquido do contracheque anterior de cada funcionário: o da remessa mais
+ * recente da MESMA natureza (mensal com mensal, férias com férias…) e de ordem
+ * menor que esta. Base do alerta de variação na conferência.
+ */
+export async function liquidosAnteriores(remessaId: string, funcionarioIds: string[]): Promise<Map<string, number>> {
+  const resultado = new Map<string, number>()
+  if (funcionarioIds.length === 0) return resultado
+  const admin = await createAdminClient()
+  const { data: rems } = await admin
+    .from("pessoal_contracheques_remessas")
+    .select("id, ordem, decimo_terceiro, ferias, adiantamento, complementar_mensal")
+    .eq("emp_proprietaria_id", await tenantAtual())
+  const todas = rems ?? []
+  const atual = todas.find((r) => r.id === remessaId)
+  if (!atual) return resultado
+  const natureza = naturezaRemessaContracheques(atual)
+  // As 6 remessas anteriores da mesma natureza bastam: cobre quem faltou num mês.
+  const anteriores = todas
+    .filter((r) => r.id !== remessaId && (r.ordem ?? 0) < (atual.ordem ?? 0) && naturezaRemessaContracheques(r) === natureza)
+    .sort((a, b) => (b.ordem ?? 0) - (a.ordem ?? 0))
+    .slice(0, 6)
+  if (anteriores.length === 0) return resultado
+  const posicao = new Map(anteriores.map((r, i) => [r.id as string, i]))
+  const { data } = await admin
+    .from("pessoal_contracheques")
+    .select("funcionario_id, remessa_id, valor_liquido")
+    .in("remessa_id", [...posicao.keys()])
+    .in("funcionario_id", funcionarioIds)
+    .not("valor_liquido", "is", null)
+  const melhor = new Map<string, number>()
+  for (const c of data ?? []) {
+    const f = String(c.funcionario_id)
+    const p = posicao.get(String(c.remessa_id)) ?? 99
+    if (p < (melhor.get(f) ?? 99)) {
+      melhor.set(f, p)
+      resultado.set(f, Number(c.valor_liquido))
+    }
+  }
+  return resultado
+}
+
 /** Por que um item não pode ir para a remessa (null = pode). */
 export function bloqueioDoItemCC(
   item: Pick<ItemImportacaoCC, "situacao" | "funcionarioId" | "leitura">,

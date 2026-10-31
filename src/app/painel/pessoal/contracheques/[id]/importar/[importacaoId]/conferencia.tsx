@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { confirmar } from "@/components/ui/confirmacao"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { alertasDaLeitura, type LeituraContracheque } from "@/lib/contracheque-leitura"
+import type { LeituraContracheque } from "@/lib/contracheque-leitura"
 import { cn } from "@/lib/utils"
 
 import {
@@ -35,6 +35,8 @@ export type ItemTelaCC = {
   situacao: "pendente" | "lido" | "erro" | "aplicado" | "descartado"
   erro: string | null
   leitura: LeituraContracheque | null
+  /** Conta que não fecha, outra competência, variação grande (lib/contracheque-leitura). */
+  alertas: string[]
   bloqueio: string | null
   /** Link assinado do PDF só com as páginas desta pessoa. */
   urlPdf: string | null
@@ -78,8 +80,8 @@ export function ConferenciaCC({
 
   // ── Seleção e ações ──
   const aplicaveis = itens.filter((i) => !i.bloqueio).map((i) => i.id)
-  // Com alerta (líquido que não fecha), começa desmarcado: aplica quem conferiu e marcou.
-  const semAlerta = new Set(itens.filter((i) => !i.leitura || alertasDaLeitura(i.leitura).length === 0).map((i) => i.id))
+  // Com alerta, começa desmarcado: aplica quem conferiu e marcou.
+  const semAlerta = new Set(itens.filter((i) => i.alertas.length === 0).map((i) => i.id))
   const [marcados, setMarcados] = useState<Set<string>>(() => new Set(aplicaveis.filter((id) => semAlerta.has(id))))
   // Item que fica aplicável depois (lido ou com funcionário escolhido) entra marcado, se não tiver alerta.
   const chave = aplicaveis.join(",")
@@ -229,7 +231,7 @@ export function ConferenciaCC({
             {itens.map((i) => {
               const l = i.leitura
               const podeEditar = i.situacao !== "aplicado"
-              const alertas = l ? alertasDaLeitura(l) : []
+              const alertas = i.alertas
               // Linha ainda na fila da IA: barras pulsando em vez de traços.
               const sendoLido = lendo && i.situacao === "pendente"
               const vazio = sendoLido ? <Skeleton className="ml-auto h-3 w-14" /> : "—"
