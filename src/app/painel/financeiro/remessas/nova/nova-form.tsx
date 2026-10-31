@@ -35,13 +35,24 @@ function LinhaDigitavelForm({ ordemId }: { ordemId: string }) {
   )
 }
 
-export function NovaRemessaForm({ contas, ordens }: { contas: ContaBancaria[]; ordens: OrdemParaRemessa[] }) {
+export function NovaRemessaForm({
+  contas,
+  ordens,
+  escolhidas,
+}: {
+  contas: ContaBancaria[]
+  ordens: OrdemParaRemessa[]
+  /** Vindas do extrato das ordens: só estas começam marcadas. */
+  escolhidas?: string[] | null
+}) {
   const [estado, action, gerando] = useActionState(gerarRemessaAction, {})
   const envio = useEnvioFormulario(action, estado, {
     antes: (e) => confirmarEnvio(e, `Gerar a remessa com ${marcadas.size} ordem(ns), total ${formatarMoeda(total)}?`),
   })
   const prontas = ordens.filter((o) => o.item && !o.emRemessa)
-  const [marcadas, setMarcadas] = useState<Set<string>>(() => new Set(prontas.map((o) => o.id)))
+  const [marcadas, setMarcadas] = useState<Set<string>>(
+    () => new Set(prontas.filter((o) => !escolhidas || escolhidas.includes(o.id)).map((o) => o.id))
+  )
   const total = prontas.filter((o) => marcadas.has(o.id)).reduce((s, o) => s + o.valor, 0)
   const alternar = (id: string) =>
     setMarcadas((atual) => {

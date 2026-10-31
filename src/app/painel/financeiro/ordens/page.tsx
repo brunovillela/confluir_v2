@@ -24,9 +24,11 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
+import { podeAcessar } from "@/lib/permissoes"
 import {
   filtroSituacaoOrdem,
   extratoOrdens,
+  listarCentrosDeDebito,
   listarOrdens,
   opcoesFiltrosOrdens,
   ORDENS_POR_PAGINA,
@@ -208,7 +210,8 @@ export default async function OrdensPage({
 }: {
   searchParams: Promise<ParamsBusca>
 }) {
-  await requirePermissao("financeiro_pagamento", ["financeiro_leitura"])
+  const sessao = await requirePermissao("financeiro_pagamento", ["financeiro_leitura"])
+  const podePagar = podeAcessar(sessao.permissoes, "financeiro_pagamento")
 
   const params = await searchParams
   const filtros = normalizarFiltros(params)
@@ -222,10 +225,16 @@ export default async function OrdensPage({
     const q = u.toString()
     return `/painel/financeiro/ordens${q ? `?${q}` : ""}`
   }
-  const [lista, extrato, opcoes] = await Promise.all([
+  const [lista, extrato, opcoes, debitos] = await Promise.all([
     filtros.visao === "lista" ? listarOrdens(filtros) : null,
     filtros.visao === "extrato" ? extratoOrdens(filtros, { dias, futurosDias: futurosTodos ? null : 30 }) : null,
     opcoesFiltrosOrdens(),
+    // Pagar do extrato: as contas de débito (caixa, banco), como no pagamento da ordem.
+    filtros.visao === "extrato" && podePagar
+      ? listarCentrosDeDebito().then((cs) =>
+          cs.map((c) => ({ id: c.id, nome: [c.acesso, c.nome_da_conta ?? "(sem nome)"].filter(Boolean).join(" — ") }))
+        )
+      : null,
   ])
 
   const nomeFornecedor = (id: string) =>
@@ -485,6 +494,7 @@ export default async function OrdensPage({
           extrato={extrato}
           urlMaisFuturos={futurosTodos ? null : extratoUrl({ futuros: "todos" })}
           urlMaisPassado={extratoUrl({ dias: dias + 30 })}
+          debitos={debitos}
         />
       )}
 

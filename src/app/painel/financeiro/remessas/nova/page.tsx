@@ -12,11 +12,14 @@ import { NovaRemessaForm } from "./nova-form"
 
 export const metadata: Metadata = { title: "Nova remessa — Confluir" }
 
-export default async function NovaRemessaPage() {
+export default async function NovaRemessaPage({ searchParams }: { searchParams: Promise<{ ordens?: string }> }) {
   await requirePermissao("financeiro_pagamento")
+  // Do extrato das ordens: começa só com as marcadas lá.
+  const escolhidas = (await searchParams).ordens?.split(",").filter(Boolean) ?? null
   const [{ disponivel, contas }, { ordens }] = await Promise.all([listarContasBancarias(), ordensParaRemessa().catch(() => ({ disponivel: false, ordens: [] }))])
   const ativas = contas.filter((c) => c.ativa)
   const prontas = ordens.filter((o) => o.item && !o.emRemessa).length
+  const foraDaRemessa = escolhidas ? escolhidas.filter((id) => !ordens.some((o) => o.id === id && o.item && !o.emRemessa)).length : 0
 
   return (
     <>
@@ -50,9 +53,15 @@ export default async function NovaRemessaPage() {
             <CardDescription className="text-xs">
               {ordens.length} {ordens.length === 1 ? "ordem" : "ordens"} a pagar · {prontas} pronta{prontas === 1 ? "" : "s"} para a remessa. A data de pagamento é o vencimento (ou hoje, se já venceu).
             </CardDescription>
+            {escolhidas && (
+              <p className="text-xs">
+                Começa com as {escolhidas.length} marcada{escolhidas.length === 1 ? "" : "s"} no extrato
+                {foraDaRemessa > 0 ? ` — ${foraDaRemessa} não está(ão) pronta(s) para a remessa (veja o que falta na lista)` : ""}.
+              </p>
+            )}
           </CardHeader>
           <CardContent>
-            {ordens.length === 0 ? <p className="text-muted-foreground text-sm">Nenhuma ordem a pagar.</p> : <NovaRemessaForm contas={ativas} ordens={ordens} />}
+            {ordens.length === 0 ? <p className="text-muted-foreground text-sm">Nenhuma ordem a pagar.</p> : <NovaRemessaForm contas={ativas} ordens={ordens} escolhidas={escolhidas} />}
           </CardContent>
         </Card>
       )}

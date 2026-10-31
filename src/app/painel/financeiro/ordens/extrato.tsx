@@ -7,6 +7,12 @@ import { formatarData, formatarMoeda } from "@/lib/formato"
 import { cn } from "@/lib/utils"
 
 import { SituacaoBadge } from "../situacao-badge"
+import { BarraSelecao, MarcarDia, MarcarOrdem, SelecaoExtrato } from "./selecao-extrato"
+
+// O que pode ser pago (e ir para a remessa) a partir do extrato.
+const PAGAVEIS = ["A pagar", "Processando"]
+const pagavel = (o: OrdemLinha) => PAGAVEIS.includes(o.situacao ?? "")
+const valorDe = (o: OrdemLinha) => Number(o.valor_inicial_cobranca ?? o.valor_pago ?? 0)
 
 const DIAS_SEMANA = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"]
 
@@ -21,12 +27,21 @@ function rotuloDia(data: string, hoje: string): string {
   return `${semana}, ${formatarData(data)}`
 }
 
-function Linha({ o, data }: { o: OrdemLinha; data: "vencimento" | "pagamento" }) {
+function Linha({ o, data, selecao }: { o: OrdemLinha; data: "vencimento" | "pagamento"; selecao: boolean }) {
   const valor = o.valor_pago ?? o.valor_inicial_cobranca
   return (
+    <div className="hover:bg-muted/50 flex items-center">
+      {selecao && (
+        <span className="flex w-10 shrink-0 justify-center pl-2">
+          {pagavel(o) && <MarcarOrdem id={o.id} valor={valorDe(o)} rotulo={o.codigo ?? "ordem"} />}
+        </span>
+      )}
     <Link
       href={`/painel/financeiro/ordens/${o.id}`}
-      className="hover:bg-muted/50 grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-0.5 px-4 py-2.5 sm:grid-cols-[minmax(0,1fr)_minmax(0,14rem)_auto_auto]"
+      className={cn(
+        "grid min-w-0 flex-1 grid-cols-[1fr_auto] items-center gap-x-3 gap-y-0.5 py-2.5 pr-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,14rem)_auto_auto]",
+        selecao ? "pl-1" : "pl-4"
+      )}
     >
       <span className="min-w-0">
         <span className="block truncate text-sm font-medium">{o.favorecido ?? o.descricao ?? "—"}</span>
@@ -44,21 +59,42 @@ function Linha({ o, data }: { o: OrdemLinha; data: "vencimento" | "pagamento" })
       </span>
       <span className="text-right text-sm font-medium whitespace-nowrap tabular-nums">{formatarMoeda(valor)}</span>
     </Link>
+    </div>
   )
 }
 
-function Dia({ dia, hoje, data, destaque }: { dia: DiaExtrato; hoje: string; data: "vencimento" | "pagamento"; destaque?: string }) {
+function Dia({
+  dia,
+  hoje,
+  data,
+  destaque,
+  selecao,
+}: {
+  dia: DiaExtrato
+  hoje: string
+  data: "vencimento" | "pagamento"
+  destaque?: string
+  selecao: boolean
+}) {
+  const rotulo = rotuloDia(dia.data, hoje)
   return (
     <div>
-      <div className={cn("bg-muted/40 flex items-baseline justify-between gap-2 border-y px-4 py-1.5 text-xs", destaque)}>
-        <span className="font-medium first-letter:uppercase">{rotuloDia(dia.data, hoje)}</span>
+      <div className={cn("bg-muted/40 flex items-center justify-between gap-2 border-y py-1.5 pr-4 text-xs", selecao ? "pl-0" : "pl-4", destaque)}>
+        <span className="flex items-center font-medium">
+          {selecao && (
+            <span className="flex w-10 shrink-0 justify-center pl-2">
+              <MarcarDia itens={dia.linhas.filter(pagavel).map((o) => ({ id: o.id, valor: valorDe(o) }))} rotulo={rotulo} />
+            </span>
+          )}
+          <span className={cn("first-letter:uppercase", selecao && "pl-1")}>{rotulo}</span>
+        </span>
         <span className="text-muted-foreground tabular-nums">
           {dia.linhas.length} · {formatarMoeda(dia.total)}
         </span>
       </div>
       <div className="divide-y">
         {dia.linhas.map((o) => (
-          <Linha key={o.id} o={o} data={data} />
+          <Linha key={o.id} o={o} data={data} selecao={selecao} />
         ))}
       </div>
     </div>
@@ -76,7 +112,9 @@ function Bloco({
   tom,
   rodape,
   ancora,
+  selecao,
 }: {
+  selecao: boolean
   ancora: string
   titulo: string
   icone: typeof CalendarDays
@@ -106,7 +144,9 @@ function Bloco({
       {quantidade === 0 ? (
         <p className="text-muted-foreground border-t px-4 py-6 text-center text-sm">{vazio}</p>
       ) : (
-        dias.map((d) => <Dia key={d.data} dia={d} hoje={hoje} data={data} destaque={tom === "alerta" ? "bg-warning/10" : undefined} />)
+        dias.map((d) => (
+          <Dia key={d.data} dia={d} hoje={hoje} data={data} selecao={selecao} destaque={tom === "alerta" ? "bg-warning/10" : undefined} />
+        ))
       )}
       {rodape && <div className="border-t px-4 py-2.5 text-sm">{rodape}</div>}
     </details>
@@ -154,7 +194,10 @@ export function ExtratoOrdensView({
   extrato,
   urlMaisFuturos,
   urlMaisPassado,
+  debitos,
 }: {
+  /** Contas de débito para pagar do extrato; null = sem permissão de pagar. */
+  debitos: { id: string; nome: string }[] | null
   extrato: ExtratoOrdens
   /** Link que mostra todos os futuros (null quando já mostra). */
   urlMaisFuturos: string | null
@@ -172,11 +215,13 @@ export function ExtratoOrdensView({
       </div>
     )
   }
-  return (
+  const selecao = debitos !== null
+  const conteudo = (
     <div className="grid gap-4">
       <Resumo resumo={extrato.resumo} />
 
       <Bloco
+        selecao={selecao}
         ancora="futuros"
         titulo="Lançamentos futuros"
         icone={CalendarClock}
@@ -194,6 +239,7 @@ export function ExtratoOrdensView({
       />
 
       <Bloco
+        selecao={selecao}
         ancora="hoje"
         titulo={`Hoje, ${formatarData(hoje)}`}
         icone={CalendarDays}
@@ -205,6 +251,7 @@ export function ExtratoOrdensView({
 
       {extrato.atrasadas.length > 0 && (
         <Bloco
+          selecao={selecao}
           ancora="vencidas"
           titulo="Vencidas, ainda não pagas"
           icone={AlertTriangle}
@@ -217,6 +264,7 @@ export function ExtratoOrdensView({
       )}
 
       <Bloco
+        selecao={selecao}
         ancora="pagas"
         titulo={`Pagas desde ${formatarData(extrato.realizadosDe)}`}
         icone={CheckCircle2}
@@ -230,6 +278,8 @@ export function ExtratoOrdensView({
           </Link>
         }
       />
+      {selecao && <BarraSelecao debitos={debitos} hoje={hoje} />}
     </div>
   )
+  return selecao ? <SelecaoExtrato>{conteudo}</SelecaoExtrato> : conteudo
 }

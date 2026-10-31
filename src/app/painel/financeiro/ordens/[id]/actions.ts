@@ -69,6 +69,40 @@ export async function salvarPagamento(
     return { erro: "Informe o centro de custo do débito — a conta de onde o dinheiro saiu." }
   }
 
+  const arquivo = formData.get("comprovante")
+  const r = await registrarPagamentoDaOrdem({
+    id,
+    valor,
+    dataPagamento,
+    centroReceitaId,
+    usuarioId: sessao.usuario.id,
+    arquivo: arquivo instanceof File && arquivo.size > 0 ? arquivo : null,
+  })
+  if (r.erro) return { erro: r.erro }
+  revalidarOrdem(id)
+  redirect(`/painel/financeiro/ordens/${id}?salvo=1`)
+}
+
+/**
+ * O registro do pagamento em si (travas de autorização, mês fechado, caixa e
+ * conta de débito; débito do caixa; trilha; comprovante ao fornecedor). Serve
+ * ao formulário da ordem e ao pagamento em lote do extrato.
+ */
+async function registrarPagamentoDaOrdem({
+  id,
+  valor,
+  dataPagamento,
+  centroReceitaId,
+  usuarioId,
+  arquivo,
+}: {
+  id: string
+  valor: number
+  dataPagamento: string
+  centroReceitaId: string
+  usuarioId: string
+  arquivo: File | null
+}): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
   const { data: ordem } = await admin
     .from("ordens_pagamento")
@@ -117,8 +151,7 @@ export async function salvarPagamento(
 
   // Comprovante é opcional na edição (mantém o atual se nenhum for enviado).
   let arquivoPagamento: string | undefined
-  const arquivo = formData.get("comprovante")
-  if (arquivo instanceof File && arquivo.size > 0) {
+  if (arquivo) {
     if (arquivo.type !== "application/pdf") {
       return { erro: "O comprovante deve ser um arquivo PDF." }
     }
@@ -160,7 +193,7 @@ export async function salvarPagamento(
       valor_pago: valor,
       data_pagamento: dataPagamento,
       centro_custo_receita_id: centroReceitaId,
-      pagador_id: sessao.usuario.id,
+      pagador_id: usuarioId,
       situacao: "Paga",
       ...(arquivoPagamento ? { arquivo_pagamento: arquivoPagamento } : {}),
     })
@@ -172,7 +205,7 @@ export async function salvarPagamento(
       contaId: caixaId!,
       valor,
       descricao: `Pagamento da ordem ${ordem.codigo ?? ""} — ${ordem.descricao ?? ""}`.slice(0, 500),
-      usuarioId: sessao.usuario.id,
+      usuarioId: usuarioId,
       ordemId: id,
     })
     if (erroCaixa) {
@@ -193,7 +226,7 @@ export async function salvarPagamento(
   await registrarEvento(
     id,
     "paga",
-    sessao.usuario.id,
+    usuarioId,
     [editando ? "Dados do pagamento alterados." : null, avisoRpa].filter(Boolean).join(" ") || null,
     {
       valor_pago: valor,
@@ -209,10 +242,9 @@ export async function salvarPagamento(
   // automático ligado (contatos marcados para comprovantes). Não falha o pagamento.
   if (arquivoPagamento) {
     const { enviarComprovanteAutomatico } = await import("@/lib/db/comprovante-fornecedor")
-    await enviarComprovanteAutomatico(id, sessao.usuario.id)
+    await enviarComprovanteAutomatico(id, usuarioId)
   }
-  revalidarOrdem(id)
-  redirect(`/painel/financeiro/ordens/${id}?salvo=1`)
+  return {}
 }
 
 /**
@@ -538,4 +570,52 @@ export async function reclassificarOrdemAction(
   if (erro) return { erro }
   revalidarOrdem(id)
   redirect(`/painel/financeiro/ordens/${id}?reclassificada=1`)
+}
+
+/**
+ * PAGAMENTO EM LOTE (extrato das ordens, 31/10/2026): as ordens marcadas são
+ * pagas pelo valor cobrado, na mesma data e com a mesma conta de débito, uma
+ * a uma pela mesma regra do formulário (cada uma pode recusar sozinha). O
+ * comprovante, se houver, entra depois em cada ordem.
+ */
+export async function pagarOrdensEmLoteAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao("financeiro_pagamento")
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  const ids = [...new Set(texto(formData, "ordens").split(",").filter((v) => UUID.test(v)))].slice(0, 200)
+  if (ids.length === 0) return { erro: "Marque ao menos uma ordem." }
+  const dataPagamento = texto(formData, "data_pagamento")
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataPagamento)) return { erro: "Informe a data do pagamento.", campo: "data_pagamento" }
+  const centroReceitaId = texto(formData, "centro_custo_receita_id")
+  if (!centroReceitaId) return { erro: "Informe a conta de onde o dinheiro saiu.", campo: "centro_custo_receita_id" }
+
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("ordens_pagamento")
+    .select("id, codigo, situacao, valor_inicial_cobranca")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .in("id", ids)
+  const recusas: string[] = []
+  let pagas = 0
+  for (const o of (data ?? []) as { id: string; codigo: string | null; situacao: string | null; valor_inicial_cobranca: number | null }[]) {
+    const valor = Number(o.valor_inicial_cobranca ?? 0)
+    // A função também edita pagamento já registrado: no lote, só a pagar.
+    const r = !SITUACOES_PAGAVEIS.includes(String(o.situacao))
+      ? { erro: `está "${o.situacao}"` }
+      : valor > 0
+        ? await registrarPagamentoDaOrdem({ id: o.id, valor, dataPagamento, centroReceitaId, usuarioId: sessao.usuario.id, arquivo: null })
+        : { erro: "sem valor" }
+    if (r.erro) recusas.push(`${o.codigo ?? "ordem"}: ${r.erro}`)
+    else {
+      pagas += 1
+      revalidatePath(`/painel/financeiro/ordens/${o.id}`)
+    }
+  }
+  revalidatePath("/painel/financeiro/ordens")
+  revalidatePath("/painel/financeiro")
+  const resumo = `${pagas} ordem(ns) paga(s).`
+  if (recusas.length === 0) return { ok: resumo }
+  return { erro: `${pagas ? `${resumo} ` : ""}Não pagas (${recusas.length}): ${recusas.slice(0, 5).join(" · ")}${recusas.length > 5 ? " …" : ""}` }
 }
