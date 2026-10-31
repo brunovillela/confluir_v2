@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { LiberacaoEmMassa, MarcarLinha, MarcarTodos } from "@/components/liberacao-em-massa"
 import { Paginacao } from "@/components/paginacao"
 import { requirePermissao } from "@/lib/auth"
 import {
@@ -41,6 +42,7 @@ import { podeAcessar } from "@/lib/permissoes"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 
 import { RemessaContrachequesForm } from "../remessa-form"
+import { liberacaoEmMassaContracheques } from "../actions"
 import { AcoesContracheque, NovoContrachequeForm } from "./contracheque-itens"
 
 export const metadata: Metadata = { title: "Remessa de contracheques — Confluir" }
@@ -174,10 +176,25 @@ export default async function RemessaContrachequesPage({
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
+              {!bloqueada && itens.length > 0 && (
+                <LiberacaoEmMassa
+                  formId="massa-contracheques"
+                  acao={liberacaoEmMassaContracheques}
+                  remessaId={id}
+                  bloqueados={itens.filter((i) => i.liberado !== true).length}
+                  liberados={itens.filter((i) => i.liberado === true).length}
+                  rotulo="contracheque(s)"
+                />
+              )}
               <div className="overflow-hidden rounded-lg border">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
+                      {!bloqueada && (
+                        <TableHead className="w-8">
+                          <MarcarTodos formId="massa-contracheques" />
+                        </TableHead>
+                      )}
                       <TableHead>Funcionário</TableHead>
                       <TableHead>Arquivo</TableHead>
                       <TableHead className="text-right">Líquido</TableHead>
@@ -190,7 +207,7 @@ export default async function RemessaContrachequesPage({
                     {paginaAtual.total === 0 && (
                       <TableRow>
                         <TableCell
-                          colSpan={6}
+                          colSpan={bloqueada ? 6 : 7}
                           className="text-muted-foreground h-20 text-center text-sm"
                         >
                           Nenhum contracheque nesta remessa.
@@ -199,6 +216,11 @@ export default async function RemessaContrachequesPage({
                     )}
                     {paginaAtual.linhas.map((i) => (
                       <TableRow key={i.id}>
+                        {!bloqueada && (
+                          <TableCell>
+                            <MarcarLinha formId="massa-contracheques" id={i.id} rotulo={i.funcionarioNome ?? "contracheque"} />
+                          </TableCell>
+                        )}
                         <TableCell className="max-w-64 truncate font-medium">
                           {i.funcionario_id ? (
                             <Link

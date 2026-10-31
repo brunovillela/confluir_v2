@@ -180,7 +180,7 @@ const SHOTS = process.env.SHOT_UNICO
       // Rodada de 17/10 (25): as outras áreas do Pessoal no padrão de 3 níveis
       // (nível 1 = indicadores, fila e aba Funcionários) e as abas que os artigos descrevem.
       ["/painel/pessoal/contracheques", "pessoal/contracheques-area.png", { esperar: "Valor líquido no ano", altura: 1000 }],
-      ["/painel/pessoal/contracheques/44444444-4444-4444-8444-000000000001", "pessoal/contracheques-remessa.png", { esperar: "Adicionar contracheque", passos: [{ pausa: 2000 }, { ir: "/painel/pessoal/contracheques/44444444-4444-4444-8444-000000000001" }, { aguardar: "Importar folha" }, { pausa: 1000 }], altura: 1100 }],
+      ["/painel/pessoal/contracheques/44444444-4444-4444-8444-000000000001", "pessoal/contracheques-remessa.png", { esperar: "Adicionar contracheque", passos: [{ pausa: 2000 }, { ir: "/painel/pessoal/contracheques/44444444-4444-4444-8444-000000000001" }, { aguardar: "Liberar todos" }, { pausa: 1000 }], altura: 1100 }],
       ["/painel/pessoal/ponto?aba=remessas", "pessoal/ponto-remessas.png", { esperar: "Meses sem remessa", altura: 1000 }],
       ["/painel/pessoal/informes", "pessoal/informes-area.png", { esperar: "Anos-base", altura: 900 }],
       ["/painel/pessoal/informes?aba=remessas", "pessoal/informes.png", { esperar: "Anos-base", altura: 900 }],
@@ -234,7 +234,7 @@ const SHOTS_RODADA_21 = [
   ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001?aba=indicadores", "pessoal/ponto-resenha.png", { esperar: "Riscos trabalhistas", scrollTo: "Resenha da IA", altura: 1200 }],
   // Rodada de 21/10: remessa com indicadores e o registro em HH:MM (dados da
   // demo como estão: março sem remessa anterior, saldos zerados).
-  ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001", "pessoal/ponto-remessa.png", { esperar: "Horas pagas no mês", altura: 1250 }],
+  ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001", "pessoal/ponto-remessa.png", { esperar: "Horas pagas no mês", passos: [{ pausa: 2000 }, { ir: "/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001" }, { aguardar: "Liberar todos" }, { pausa: 1000 }], altura: 1250 }],
   ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001?editar=d7c7e57f-4ec9-4ea7-970f-7e40d7d77e31", "pessoal/ponto-registro-form.png", { esperar: "Saldo remanescente", passos: [{ pausa: 2000 }, { ir: "/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001?editar=d7c7e57f-4ec9-4ea7-970f-7e40d7d77e31" }, { aguardar: "Apurar pelas batidas" }, { pausa: 1000 }], altura: 900 }],
   // Pede remessas temporárias Abril/2026 (aberta) e Maio/2026 (finalizada) com registro da Ana, apagadas depois; o print para no diálogo (nada é salvo).
   // ["/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001?editar=d7c7e57f-4ec9-4ea7-970f-7e40d7d77e31", "pessoal/ponto-recalcular-posteriores.png", { esperar: "Saldo remanescente", passos: [{ pausa: 2000 }, { ir: "/painel/pessoal/ponto/55555555-5555-4555-8555-000000000001?editar=d7c7e57f-4ec9-4ea7-970f-7e40d7d77e31" }, { aguardar: "Apurar pelas batidas" }, { preencher: ["#horas_realizadas_70", "10:00"] }, { clicar: 'css=button[type=submit]:has-text("Salvar registro")' }, { aguardar: "Recalcular as remessas posteriores?" }, { pausa: 700 }], altura: 900 }],

@@ -5,6 +5,7 @@ import { ArrowLeft, BarChart3, Download, ExternalLink, FileUp, Pencil, Plus } fr
 
 import { TileIndicador } from "@/components/graficos/tile"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
+import { LiberacaoEmMassa, MarcarLinha, MarcarTodos } from "@/components/liberacao-em-massa"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -45,6 +46,7 @@ import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { LerEspelhosBotao } from "../analise/botoes"
 import { CartaoResenha, PainelIndicadores } from "../analise/componentes"
 import { RemessaPontoForm } from "../remessa-form"
+import { liberacaoEmMassaPonto } from "../actions"
 import { ExcluirRegistroBotao, RegistroPontoForm } from "./registro-itens"
 
 export const metadata: Metadata = {
@@ -340,11 +342,26 @@ export default async function RemessaPontoPage({
                 ficam visíveis ao funcionário.
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="grid gap-4">
+              {!bloqueada && itens.length > 0 && (
+                <LiberacaoEmMassa
+                  formId="massa-ponto"
+                  acao={liberacaoEmMassaPonto}
+                  remessaId={id}
+                  bloqueados={itens.filter((i) => i.liberado !== true).length}
+                  liberados={itens.filter((i) => i.liberado === true).length}
+                  rotulo="registro(s) de ponto"
+                />
+              )}
               <div className="overflow-x-auto rounded-lg border">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
+                      {!bloqueada && (
+                        <TableHead className="w-8">
+                          <MarcarTodos formId="massa-ponto" />
+                        </TableHead>
+                      )}
                       <TableHead>Funcionário</TableHead>
                       <TableHead className="text-right">Realiz. {faixas["70"]}</TableHead>
                       <TableHead className="text-right">Pagas {faixas["70"]}</TableHead>
@@ -361,7 +378,7 @@ export default async function RemessaPontoPage({
                     {paginaAtual.total === 0 && (
                       <TableRow>
                         <TableCell
-                          colSpan={10}
+                          colSpan={bloqueada ? 10 : 11}
                           className="text-muted-foreground h-20 text-center text-sm"
                         >
                           Nenhum registro nesta remessa.
@@ -370,6 +387,11 @@ export default async function RemessaPontoPage({
                     )}
                     {paginaAtual.linhas.map((i) => (
                       <TableRow key={i.id}>
+                        {!bloqueada && (
+                          <TableCell>
+                            <MarcarLinha formId="massa-ponto" id={i.id} rotulo={i.funcionarioNome ?? "registro"} />
+                          </TableCell>
+                        )}
                         <TableCell className="max-w-52 truncate font-medium">
                           {i.funcionario_id ? (
                             <Link

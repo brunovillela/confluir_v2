@@ -439,3 +439,61 @@ export async function excluirContracheque(
   revalidar(remessaId)
   return { ok: ordemId ? "Contracheque excluído e ordem de pagamento cancelada." : "Contracheque excluído." }
 }
+
+/**
+ * Liberar ou bloquear em massa: os marcados (ids) ou todos da remessa. Só
+ * muda quem está do outro lado; liberar avisa cada funcionário, como o
+ * liberar de um a um (components/liberacao-em-massa).
+ */
+export async function liberacaoEmMassaContracheques(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await exigirAcesso()
+  const remessaId = String(formData.get("remessa_id") ?? "")
+  const liberar = formData.get("modo") === "liberar"
+  const todos = formData.get("escopo") === "todos"
+  const ids = formData.getAll("ids").map(String).filter(Boolean)
+  if (!remessaId) return { erro: "Remessa inválida." }
+  if (!todos && ids.length === 0) return { erro: "Marque ao menos um contracheque." }
+
+  const remessa = await remessaAberta(remessaId)
+  if ("erro" in remessa) return remessa
+
+  const admin = await createAdminClient()
+  // Só quem está do outro lado; bloqueado pode estar como null (legado).
+  let consulta = admin.from("pessoal_contracheques").select("id, funcionario_id").eq("remessa_id", remessaId)
+  consulta = liberar ? consulta.or("liberado.is.null,liberado.eq.false") : consulta.eq("liberado", true)
+  if (!todos) consulta = consulta.in("id", ids)
+  const { data: alvo, error: erroAlvo } = await consulta
+  if (erroAlvo) return { erro: `Não foi possível ler os contracheques: ${erroAlvo.message}` }
+  const mudar = alvo ?? []
+  if (mudar.length === 0) return { ok: liberar ? "Nenhum precisava ser liberado." : "Nenhum precisava ser bloqueado." }
+
+  const { error } = await admin
+    .from("pessoal_contracheques")
+    .update({ liberado: liberar })
+    .in("id", mudar.map((m) => m.id))
+    .eq("remessa_id", remessaId)
+  if (error) return { erro: `Não foi possível salvar: ${error.message}` }
+
+  if (liberar) {
+    const { data: r } = await admin
+      .from("pessoal_contracheques_remessas")
+      .select("nome_remessa")
+      .eq("id", remessaId)
+      .maybeSingle()
+    for (const m of mudar) {
+      if (m.funcionario_id) {
+        await notificarLiberacaoPessoal(m.funcionario_id, "contracheque", r?.nome_remessa ?? null, m.id)
+      }
+    }
+  }
+
+  revalidar(remessaId)
+  return {
+    ok: liberar
+      ? `${mudar.length} contracheque(s) liberado(s); cada funcionário foi avisado.`
+      : `${mudar.length} contracheque(s) bloqueado(s).`,
+  }
+}

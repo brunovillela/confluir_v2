@@ -46,7 +46,7 @@ funcionário, com uma situação: **Bloqueado** (só o RH vê) ou **Liberado**
   </Passo>
 </PassoAPasso>
 
-<Print src="pessoal/contracheques-remessa.png" alt="Tela de uma remessa de contracheques: os botões Importar folha e Editar remessa no alto, a tabela de itens com Funcionário, Arquivo, Líquido, Ordem de pagamento, Situação e Ações (Liberar ou Bloquear e excluir), a paginação e o formulário Adicionar contracheque com funcionário, PDF, líquido e a marcação Liberado." legenda="Dentro de uma remessa: Importar folha no alto, os itens por funcionário e o formulário para adicionar um a um." />
+<Print src="pessoal/contracheques-remessa.png" alt="Tela de uma remessa de contracheques: os botões Importar folha e Editar remessa no alto, a barra Liberar todos / Bloquear todos, a tabela de itens com uma caixa para marcar cada linha com Funcionário, Arquivo, Líquido, Ordem de pagamento, Situação e Ações (Liberar ou Bloquear e excluir), a paginação e o formulário Adicionar contracheque com funcionário, PDF, líquido e a marcação Liberado." legenda="Dentro de uma remessa: Importar folha no alto, os itens por funcionário e o formulário para adicionar um a um." />
 
 ## Importar a folha em PDF
 
@@ -152,6 +152,13 @@ Liberar um contracheque o torna visível ao funcionário e dispara o aviso
   <Passo titulo="Libere item a item">
     Na coluna **Ações**, use **Liberar** para mudar a situação de Bloqueado para
     Liberado.
+  </Passo>
+  <Passo titulo="Ou em massa">
+    Acima da tabela, **Liberar todos** e **Bloquear todos** agem na remessa
+    inteira (todas as páginas). Para alguns, marque as caixas das linhas (a do
+    cabeçalho marca a página) e use **Liberar marcados** ou **Bloquear
+    marcados**. Só muda quem estava do outro lado, e cada funcionário liberado
+    recebe o aviso, como no um a um. Bloquear não avisa ninguém.
   </Passo>
   <Passo titulo="Acompanhe">
     A situação de cada item mostra **Liberado** (verde) ou **Bloqueado**.
