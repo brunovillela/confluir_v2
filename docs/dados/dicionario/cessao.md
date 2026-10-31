@@ -113,7 +113,7 @@ Dias da semana e faixas de horário em que o espaço pode ser cedido, por slots 
 
 Checks: `ck_cessao_janela_dia` `CHECK (((dia_semana >= 0) AND (dia_semana <= 6))) NOT VALID`; `ck_cessao_janela_horas` `CHECK ((hora_inicio < hora_termino)) NOT VALID`; `ck_cessao_janela_modo` `CHECK ((modo = ANY (ARRAY['slots'::text, 'livre'::text]))) NOT VALID`; `ck_cessao_janela_slot` `CHECK (((modo <> 'slots'::text) OR ((slot_minutos IS NOT NULL) AND (slot_minutos > 0)))) NOT VALID`
 
-Índices: `cessao_espaco_janelas_pkey`, `idx_cessao_janela_espaco`
+Índices: `cessao_espaco_janelas_pkey`, `ex_cessao_janela_livre_sobreposta`, `idx_cessao_janela_espaco`
 
 ## cessao_espaco_recintos
 
