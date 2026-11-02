@@ -1,6 +1,6 @@
 import { expect, test } from "playwright/test"
 
-import { alertasDaLeitura, competenciaDoNome, type LeituraContracheque } from "@/lib/contracheque-leitura"
+import { alertasDaLeitura, competenciaDoNome, nomeRemessaContracheques, type LeituraContracheque } from "@/lib/contracheque-leitura"
 
 /** Conferência da folha importada (lib/contracheque-leitura.ts). */
 
@@ -25,6 +25,15 @@ test.describe("competenciaDoNome", () => {
     expect(competenciaDoNome("13º salário 2025")).toBeNull()
     expect(competenciaDoNome("Adiantamento")).toBeNull()
     expect(competenciaDoNome(null)).toBeNull()
+  })
+})
+
+test.describe("nomeRemessaContracheques", () => {
+  test("monta Mês/Ano - Natureza, e a competência volta do nome", () => {
+    expect(nomeRemessaContracheques("Março", "2026", "Mensal")).toBe("Março/2026 - Mensal")
+    expect(competenciaDoNome("Março/2026 - Mensal")).toBe("2026-03")
+    expect(competenciaDoNome(nomeRemessaContracheques("Dezembro", "2026", "13º salário"))).toBe("2026-12")
+    expect(competenciaDoNome(nomeRemessaContracheques("Maio", "2026", "Complementar (mensal)"))).toBe("2026-05")
   })
 })
 

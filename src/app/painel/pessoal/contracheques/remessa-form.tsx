@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
 import Link from "next/link"
 import { Loader2, Trash2 } from "lucide-react"
 
@@ -19,6 +19,7 @@ import {
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
+import { competenciaDoNome, MESES_REMESSA, nomeRemessaContracheques } from "@/lib/contracheque-leitura"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -77,6 +78,14 @@ export function RemessaContrachequesForm({
       },
   })
 
+  // Remessa antiga: mês e ano saem do nome; sem isso no nome, ficam para escolher.
+  const competencia = competenciaDoNome(remessa?.nome_remessa)
+  const [mes, setMes] = useState(competencia ? MESES_REMESSA[Number(competencia.slice(5, 7)) - 1] : "")
+  const [ano, setAno] = useState(competencia?.slice(0, 4) ?? "")
+  const [natureza, setNatureza] = useState(naturezaAtual(remessa))
+  const rotulo = NATUREZAS.find((n) => n.valor === natureza)?.rotulo
+  const nomeGerado = mes && /^\d{4}$/.test(ano) && rotulo ? nomeRemessaContracheques(mes, ano, rotulo) : null
+
   const erro = estado.erro ?? estadoExcluir.erro
   const voltar = remessa
     ? `/painel/pessoal/contracheques/${remessa.id}`
@@ -98,12 +107,35 @@ export function RemessaContrachequesForm({
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-1.5">
-              <Label htmlFor="nome_remessa">Nome da remessa *</Label>
+              <Label htmlFor="mes">Mês *</Label>
+              <select
+                id="mes"
+                name="mes"
+                required
+                value={mes}
+                onChange={(e) => setMes(e.target.value)}
+                className={SELECT}
+              >
+                <option value="" disabled>
+                  Escolha o mês
+                </option>
+                {MESES_REMESSA.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="ano">Ano *</Label>
               <Input
-                id="nome_remessa"
-                name="nome_remessa"
-                placeholder="Ex.: Julho/2026 - Mensal"
-                defaultValue={remessa?.nome_remessa ?? ""}
+                id="ano"
+                name="ano"
+                inputMode="numeric"
+                maxLength={4}
+                placeholder="AAAA"
+                value={ano}
+                onChange={(e) => setAno(e.target.value)}
                 required
               />
             </div>
@@ -113,7 +145,8 @@ export function RemessaContrachequesForm({
                 id="natureza"
                 name="natureza"
                 required
-                defaultValue={naturezaAtual(remessa)}
+                value={natureza}
+                onChange={(e) => setNatureza(e.target.value)}
                 className={SELECT}
               >
                 <option value="" disabled>
@@ -125,6 +158,13 @@ export function RemessaContrachequesForm({
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="grid content-center gap-0.5">
+              <span className="text-muted-foreground text-xs">Nome da remessa, gerado pelo sistema</span>
+              <span className="text-sm font-medium">{nomeGerado ?? "Escolha mês, ano e natureza"}</span>
+              {remessa?.nome_remessa && nomeGerado && remessa.nome_remessa !== nomeGerado && (
+                <span className="text-muted-foreground text-xs">Hoje: {remessa.nome_remessa}. Muda ao salvar.</span>
+              )}
             </div>
             {comDataPagamento && (
               <div className="grid gap-1.5">

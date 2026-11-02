@@ -28,9 +28,10 @@ funcionário, com uma situação: **Bloqueado** (só o RH vê) ou **Liberado**
 
 <PassoAPasso>
   <Passo titulo="Nova remessa">
-    Em **Pessoal → Contracheques**, clique em **Nova remessa**. Dê um nome
-    (ex.: “Folha — março/2026”), escolha a natureza e informe a **data de
-    pagamento** — ela vira o vencimento das ordens de pagamento.
+    Em **Pessoal → Contracheques**, clique em **Nova remessa**. Escolha o
+    **mês**, o **ano** e a **natureza**: o Confluir monta o nome da remessa
+    (ex.: “Março/2026 - Mensal”). Informe a **data de pagamento**, que vira o
+    vencimento das ordens de pagamento.
   </Passo>
   <Passo titulo="Abra a remessa">
     Depois de salvar, clique na remessa na lista para abri-la.
@@ -74,8 +75,8 @@ sistema de contabilidade: com **todos** os funcionários, com **alguns** ou com
     **PDF** só com as páginas dele. A linha mostra um alerta e começa
     **desmarcada** quando:
     - proventos − descontos não dá o líquido;
-    - a **competência** lida não é a do mês no nome da remessa (ex.: uma
-      página de abril numa remessa "Folha — Março/2026");
+    - a **competência** lida não é a do mês da remessa (ex.: uma página de
+      abril numa remessa "Março/2026 - Mensal");
     - o líquido mudou **30% ou mais** em relação ao último contracheque do
       funcionário numa remessa da mesma natureza.
 
@@ -187,7 +188,7 @@ Liberar um contracheque o torna visível ao funcionário e dispara o aviso
 
 <Print src="pessoal/liberacao-em-massa.png" alt="Quadro dos registros de uma remessa com três linhas marcadas (funcionários bloqueados) e a barra acima da tabela: 3 marcado(s) nesta página, com os botões Liberar marcados (3) e Bloquear marcados (3). Sem linhas marcadas, a barra mostra Liberar todos e Bloquear todos." legenda="Liberar ou bloquear em massa: marque as linhas (ou nenhuma, para agir em todos) e use a barra acima da tabela." />
 
-<Print src="pessoal/liberacao-automatica.png" alt="Editar remessa Folha — Março/2026: nome, natureza Mensal, data de pagamento 05/04/2026 e o campo Liberar automaticamente em com 05/04/2026, com a explicação de que nesse dia, de manhã, os contracheques ainda bloqueados são liberados e cada funcionário é avisado; vazio, só a liberação manual." legenda="Liberação automática: em Editar remessa, escolha o dia (por exemplo, o do pagamento) e o sistema libera sozinho." />
+<Print src="pessoal/liberacao-automatica.png" alt="Editar remessa Março/2026 - Mensal: mês, ano, natureza, o nome gerado pelo sistema, data de pagamento 05/04/2026 e o campo Liberar automaticamente em com 05/04/2026, com a explicação de que nesse dia, de manhã, os contracheques ainda bloqueados são liberados e cada funcionário é avisado; vazio, só a liberação manual." legenda="Liberação automática: em Editar remessa, escolha o dia (por exemplo, o do pagamento) e o sistema libera sozinho." />
 
 <Aviso tipo="atencao" titulo="Liberar avisa o funcionário">
   Ao liberar, o funcionário é notificado e passa a ver o documento na hora.

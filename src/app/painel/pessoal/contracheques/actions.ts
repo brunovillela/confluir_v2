@@ -7,6 +7,7 @@ import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
+import { MESES_REMESSA, nomeRemessaContracheques } from "@/lib/contracheque-leitura"
 import {
   cancelarOrdemDoContracheque,
   gerarOrdemDoContracheque,
@@ -55,11 +56,16 @@ function lerLiberarEm(formData: FormData) {
   }
 }
 
-/** Nome e natureza são obrigatórios; a natureza é ÚNICA por remessa. */
+/**
+ * Mês, ano e natureza são obrigatórios; a natureza é ÚNICA por remessa. O nome
+ * não é digitado: sai deles ("Março/2026 - Mensal").
+ */
 function lerCamposRemessa(formData: FormData) {
-  const nome = String(formData.get("nome_remessa") ?? "").trim()
+  const mes = String(formData.get("mes") ?? "")
+  const ano = String(formData.get("ano") ?? "").trim()
   const natureza = String(formData.get("natureza") ?? "")
-  if (!nome) return { erro: "Informe o nome da remessa." }
+  if (!MESES_REMESSA.includes(mes)) return { erro: "Escolha o mês da remessa." }
+  if (!/^\d{4}$/.test(ano)) return { erro: "Informe o ano da remessa (AAAA)." }
   if (!(NATUREZAS as readonly string[]).includes(natureza)) {
     return { erro: "Escolha a natureza da remessa." }
   }
@@ -69,15 +75,18 @@ function lerCamposRemessa(formData: FormData) {
   }
   const liberacao = lerLiberarEm(formData)
   if ("erro" in liberacao) return { erro: liberacao.erro as string }
-  return {
-    ...liberacao,
-    // Só vai ao banco quando o campo existe no formulário (SQL da folha).
-    ...(formData.has("data_pagamento") ? { data_pagamento: dataPagamento || null } : {}),
-    nome_remessa: nome,
+  const flags = {
     decimo_terceiro: natureza === "decimo_terceiro",
     ferias: natureza === "ferias",
     adiantamento: natureza === "adiantamento",
     complementar_mensal: natureza === "complementar_mensal",
+  }
+  return {
+    ...liberacao,
+    // Só vai ao banco quando o campo existe no formulário (SQL da folha).
+    ...(formData.has("data_pagamento") ? { data_pagamento: dataPagamento || null } : {}),
+    nome_remessa: nomeRemessaContracheques(mes, ano, naturezaRemessaContracheques(flags)),
+    ...flags,
     finalizada: formData.get("finalizada") === "on",
   }
 }

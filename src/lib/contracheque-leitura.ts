@@ -33,6 +33,13 @@ export function competenciaDoNome(nome: string | null | undefined): string | nul
   return null
 }
 
+export const MESES_REMESSA = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+
+/** Nome da remessa, montado pelo sistema: "Março/2026 - Mensal". */
+export function nomeRemessaContracheques(mes: string, ano: string, natureza: string): string {
+  return `${mes}/${ano} - ${natureza}`
+}
+
 /** Variação do líquido em relação ao contracheque anterior que vira alerta. */
 export const VARIACAO_ALERTA = 0.3
 
