@@ -285,6 +285,61 @@ export function distribuirNoDia<T extends CompromissoBase>(eventos: T[], dia: st
   return blocos
 }
 
+// ── Arrastar ────────────────────────────────────────────────────────────────
+
+/** Passo do encaixe ao arrastar na grade de horas. */
+export const PASSO_ARRASTO_MIN = 15
+
+export function diferencaDias(de: string, ate: string): number {
+  return Math.round((Date.parse(`${ate}T12:00:00Z`) - Date.parse(`${de}T12:00:00Z`)) / 86_400_000)
+}
+
+/** O mesmo momento, `n` dias depois (Brasília não tem horário de verão desde 2019). */
+export function deslocarDias(iso: string, n: number): string {
+  return new Date(new Date(iso).getTime() + n * 86_400_000).toISOString()
+}
+
+export function inicioNoHorario(dia: string, minuto: number): string {
+  return new Date(`${dia}T${horaDeMinutos(minuto)}:00-03:00`).toISOString()
+}
+
+/** Duração para a grade de horas; sem término (ou término inválido), 1 hora. */
+export function duracaoEmMinutos(e: Pick<CompromissoBase, "inicio" | "termino">): number {
+  if (!e.inicio || !e.termino) return 60
+  const min = (new Date(e.termino).getTime() - new Date(e.inicio).getTime()) / 60_000
+  return min > 0 ? min : 60
+}
+
+/** Encaixa no passo e mantém o compromisso inteiro dentro do dia. */
+export function encaixarMinuto(bruto: number, duracao: number): number {
+  const encaixado = Math.round(bruto / PASSO_ARRASTO_MIN) * PASSO_ARRASTO_MIN
+  const ultimo = Math.floor(Math.max(0, 1440 - duracao) / PASSO_ARRASTO_MIN) * PASSO_ARRASTO_MIN
+  return Math.max(0, Math.min(ultimo, encaixado))
+}
+
+/** Novo início e término, com a mesma duração. Vale na tela e no servidor. */
+export function aplicarMovimento(
+  e: Pick<CompromissoBase, "inicio" | "termino">,
+  novoInicio: string
+): { inicio: string; termino: string | null } {
+  const inicio = new Date(novoInicio).toISOString()
+  if (!e.inicio || !e.termino) return { inicio, termino: e.termino }
+  const delta = new Date(inicio).getTime() - new Date(e.inicio).getTime()
+  return { inicio, termino: new Date(new Date(e.termino).getTime() + delta).toISOString() }
+}
+
+/** Os dias ocupados depois de soltar, para destacar o destino. */
+export function diasDoDestino(
+  e: CompromissoBase,
+  diaPego: string,
+  diaAlvo: string
+): { de: string; ate: string } | null {
+  const p = periodoEmDias(e)
+  if (!p) return null
+  const n = diferencaDias(diaPego, diaAlvo)
+  return { de: somarDias(p.diaIni, n), ate: somarDias(p.diaFim, n) }
+}
+
 // ── Criação rápida ──────────────────────────────────────────────────────────
 
 export type VagaNaAgenda = { dia: string; minuto?: number; diaTodo?: boolean }

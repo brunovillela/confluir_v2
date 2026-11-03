@@ -1,5 +1,6 @@
 import "server-only"
 import { esquemaAusente, texto } from "@/lib/db/comum"
+import { aplicarMovimento } from "@/lib/agenda-calendario"
 import { origemDaAgenda, type OrigemAgenda } from "@/lib/agenda-constantes"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -347,6 +348,36 @@ export async function salvarCompromisso(
     return { erro: `Não foi possível salvar o compromisso: ${error?.message ?? "?"}` }
   }
   return { id: String(data.id) }
+}
+
+/**
+ * Muda o compromisso avulso de dia ou horário, mantendo a duração. O término
+ * sai do que está gravado agora, não do que a tela tinha ao arrastar.
+ */
+export async function moverCompromisso(id: string, novoInicio: string): Promise<{ erro?: string }> {
+  const { erro } = await compromissoAvulso(id)
+  if (erro) return { erro }
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data } = await admin
+    .from("agenda")
+    .select("inicio, termino")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  if (!data) return { erro: "Compromisso não encontrado." }
+  const novo = aplicarMovimento({ inicio: texto(data.inicio), termino: texto(data.termino) }, novoInicio)
+
+  const gravar = (comAutoria: boolean) =>
+    admin
+      .from("agenda")
+      .update({ ...novo, ...(comAutoria ? { updated_at: new Date().toISOString() } : {}) })
+      .eq("id", id)
+      .eq("emp_proprietaria_id", emp)
+  let { error } = await gravar(true)
+  if (error && esquemaAusente(error)) ({ error } = await gravar(false))
+  if (error) return { erro: `Não foi possível mover: ${error.message}` }
+  return {}
 }
 
 export async function excluirCompromisso(id: string): Promise<{ erro?: string }> {

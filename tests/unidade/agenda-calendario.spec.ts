@@ -1,7 +1,13 @@
 import { expect, test } from "playwright/test"
 
 import {
+  aplicarMovimento,
   camposDaVaga,
+  deslocarDias,
+  diasDoDestino,
+  duracaoEmMinutos,
+  encaixarMinuto,
+  inicioNoHorario,
   diasDaVisao,
   distribuirNaSemana,
   distribuirNoDia,
@@ -162,5 +168,41 @@ test.describe("criação rápida", () => {
   })
   test("às 23:30 o término cai no dia seguinte", () => {
     expect(camposDaVaga({ dia: "2026-11-03", minuto: 1410 }).termino).toBe("2026-11-04T00:30")
+  })
+})
+
+test.describe("arrastar", () => {
+  test("mover mantém a duração", () => {
+    const novo = aplicarMovimento(
+      { inicio: "2026-11-03T09:00:00-03:00", termino: "2026-11-03T10:30:00-03:00" },
+      "2026-11-05T14:00:00-03:00"
+    )
+    expect(novo).toEqual({ inicio: "2026-11-05T17:00:00.000Z", termino: "2026-11-05T18:30:00.000Z" })
+  })
+  test("sem término continua sem término", () => {
+    expect(aplicarMovimento({ inicio: "2026-11-03T09:00:00-03:00", termino: null }, "2026-11-05T14:00:00-03:00").termino).toBeNull()
+  })
+  test("mudar de dia preserva a hora, inclusive o meio-dia do dia todo", () => {
+    expect(deslocarDias("2026-11-03T15:00:00.000Z", 2)).toBe("2026-11-05T15:00:00.000Z")
+    expect(deslocarDias("2026-12-31T15:00:00.000Z", 1)).toBe("2027-01-01T15:00:00.000Z")
+    expect(deslocarDias("2026-11-03T15:00:00.000Z", -3)).toBe("2026-10-31T15:00:00.000Z")
+  })
+  test("horário solto vale em Brasília", () => {
+    expect(inicioNoHorario("2026-11-03", 600)).toBe("2026-11-03T13:00:00.000Z")
+  })
+  test("encaixa de 15 em 15 e não deixa passar da meia-noite", () => {
+    expect(encaixarMinuto(607, 60)).toBe(600)
+    expect(encaixarMinuto(608, 60)).toBe(615)
+    expect(encaixarMinuto(-20, 60)).toBe(0)
+    expect(encaixarMinuto(1430, 120)).toBe(1320)
+    expect(encaixarMinuto(1430, 95)).toBe(1335)
+  })
+  test("duração sem término ou inválida vale 1 hora", () => {
+    expect(duracaoEmMinutos({ inicio: "2026-11-03T09:00:00-03:00", termino: null })).toBe(60)
+    expect(duracaoEmMinutos({ inicio: "2026-11-03T09:00:00-03:00", termino: "2026-11-01T09:00:00-03:00" })).toBe(60)
+  })
+  test("barra de vários dias pega pelo meio destaca o período certo", () => {
+    const e = ev("a", "2026-11-03T12:00:00-03:00", "2026-11-05T12:00:00-03:00", true)
+    expect(diasDoDestino(e, "2026-11-04", "2026-11-11")).toEqual({ de: "2026-11-10", ate: "2026-11-12" })
   })
 })

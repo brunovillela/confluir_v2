@@ -1,6 +1,16 @@
 "use client"
 
-import { useActionState, useEffect, useRef, useState, useSyncExternalStore } from "react"
+import {
+  startTransition,
+  useActionState,
+  useEffect,
+  useOptimistic,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type DragEvent,
+  type KeyboardEvent,
+} from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ChevronLeft, ChevronRight, ExternalLink, Eye, Loader2, Pencil, Save } from "lucide-react"
@@ -13,13 +23,20 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { TIPOS_AGENDA_AVULSA, TITULO_MAX_AGENDA } from "@/lib/agenda-constantes"
 import {
+  aplicarMovimento,
   camposDaVaga,
   COOKIE_VISAO_AGENDA,
+  deslocarDias,
   diaDaSemana,
+  diasDoDestino,
+  diferencaDias,
   distribuirNaSemana,
   distribuirNoDia,
+  duracaoEmMinutos,
   ehFaixa,
+  encaixarMinuto,
   horaDeMinutos,
+  inicioNoHorario,
   minutosSP,
   navegar,
   rotuloDia,
@@ -33,7 +50,7 @@ import type { EventoLinha } from "@/lib/db/agenda"
 import { cn } from "@/lib/utils"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
-import { salvarCompromissoAction } from "./actions"
+import { moverCompromissoAction, salvarCompromissoAction } from "./actions"
 import { ExcluirCompromissoBotao } from "./agenda-forms"
 
 const BASE = "/painel/ferramentas/agenda"
@@ -124,9 +141,123 @@ type Props = {
   consulta: string
 }
 
-export function Calendario({ visao, dia, dias, hoje, eventos, podeCriar, consulta }: Props) {
+/** O compromisso sendo arrastado e o ponto em que foi pego. */
+type Arrastado = { evento: EventoLinha; diaPego: string; minutosPegos: number }
+/** Onde ele cairia: `minuto` só na grade de horas. */
+type Alvo = { dia: string; minuto?: number }
+
+type ControleArrasto = {
+  atual: Arrastado | null
+  alvo: Alvo | null
+  pode: (e: EventoLinha) => boolean
+  iniciar: (ev: DragEvent<HTMLElement>, evento: EventoLinha, pego: { dia: string; minutos?: number }) => void
+  sobreDias: (ev: DragEvent<HTMLElement>, dias: string[], soFaixas?: boolean) => void
+  soltarNosDias: (ev: DragEvent<HTMLElement>, dias: string[], soFaixas?: boolean) => void
+  sobreHoras: (ev: DragEvent<HTMLElement>, dia: string) => void
+  soltarNasHoras: (ev: DragEvent<HTMLElement>, dia: string) => void
+  terminar: () => void
+}
+
+function diaNoPonto(ev: DragEvent<HTMLElement>, dias: string[]): string {
+  const caixa = ev.currentTarget.getBoundingClientRect()
+  const i = Math.floor(((ev.clientX - caixa.left) / caixa.width) * dias.length)
+  return dias[Math.max(0, Math.min(dias.length - 1, i))]
+}
+
+export function Calendario({ visao, dia, dias, hoje, eventos: eventosDoServidor, podeCriar, consulta }: Props) {
   const [vaga, setVaga] = useState<VagaNaAgenda | null>(null)
   const [aberto, setAberto] = useState<EventoLinha | null>(null)
+  // Move na hora; se o servidor recusar, o compromisso volta sozinho.
+  const [eventos, aplicar] = useOptimistic(
+    eventosDoServidor,
+    (atual, m: { id: string; inicio: string }) =>
+      atual.map((e) => (e.id === m.id ? { ...e, ...aplicarMovimento(e, m.inicio) } : e))
+  )
+  const pego = useRef<Arrastado | null>(null)
+  const [atual, setAtual] = useState<Arrastado | null>(null)
+  const [alvo, setAlvo] = useState<Alvo | null>(null)
+  const [erroMover, setErroMover] = useState<string | null>(null)
+  const [movido, setMovido] = useState<{ evento: EventoLinha; inicioAnterior: string; rotulo: string } | null>(null)
+
+  function mover(evento: EventoLinha, novoInicio: string, desfazendo = false) {
+    const inicioAnterior = evento.inicio
+    setErroMover(null)
+    startTransition(async () => {
+      aplicar({ id: evento.id, inicio: novoInicio })
+      const { erro } = await moverCompromissoAction(evento.id, novoInicio)
+      if (erro) {
+        setErroMover(erro)
+        setMovido(null)
+      } else if (desfazendo || !inicioAnterior) {
+        setMovido(null)
+      } else {
+        const novo = { ...evento, ...aplicarMovimento(evento, novoInicio) }
+        setMovido({ evento: novo, inicioAnterior, rotulo: rotuloPeriodo(novo) })
+      }
+    })
+  }
+
+  function terminar() {
+    pego.current = null
+    setAtual(null)
+    setAlvo(null)
+  }
+
+  function marcarAlvo(novo: Alvo) {
+    setAlvo((a) => (a?.dia === novo.dia && a?.minuto === novo.minuto ? a : novo))
+  }
+
+  const minutoNoPonto = (ev: DragEvent<HTMLElement>, a: Arrastado) =>
+    encaixarMinuto(
+      ((ev.clientY - ev.currentTarget.getBoundingClientRect().top) / ALTURA_HORA) * 60 - a.minutosPegos,
+      duracaoEmMinutos(a.evento)
+    )
+
+  const arrasto: ControleArrasto = {
+    atual,
+    alvo,
+    pode: (e) => podeCriar && e.origem === "avulso" && Boolean(e.inicio),
+    iniciar(ev, evento, ponto) {
+      ev.dataTransfer.effectAllowed = "move"
+      ev.dataTransfer.setData("text/plain", evento.atividade ?? "Compromisso")
+      const a = { evento, diaPego: ponto.dia, minutosPegos: ponto.minutos ?? 0 }
+      pego.current = a
+      setMovido(null)
+      // Mudar a tela durante o dragstart cancela o arrasto no Chrome.
+      setTimeout(() => setAtual(pego.current), 0)
+    },
+    sobreDias(ev, diasAlvo, soFaixas) {
+      const a = pego.current
+      if (!a || (soFaixas && !ehFaixa(a.evento))) return
+      ev.preventDefault()
+      ev.dataTransfer.dropEffect = "move"
+      marcarAlvo({ dia: diaNoPonto(ev, diasAlvo) })
+    },
+    soltarNosDias(ev, diasAlvo, soFaixas) {
+      const a = pego.current
+      if (!a || !a.evento.inicio || (soFaixas && !ehFaixa(a.evento))) return
+      ev.preventDefault()
+      const n = diferencaDias(a.diaPego, diaNoPonto(ev, diasAlvo))
+      terminar()
+      if (n !== 0) mover(a.evento, deslocarDias(a.evento.inicio, n))
+    },
+    sobreHoras(ev, diaAlvo) {
+      const a = pego.current
+      if (!a || ehFaixa(a.evento)) return
+      ev.preventDefault()
+      ev.dataTransfer.dropEffect = "move"
+      marcarAlvo({ dia: diaAlvo, minuto: minutoNoPonto(ev, a) })
+    },
+    soltarNasHoras(ev, diaAlvo) {
+      const a = pego.current
+      if (!a || !a.evento.inicio || ehFaixa(a.evento)) return
+      ev.preventDefault()
+      const novo = inicioNoHorario(diaAlvo, minutoNoPonto(ev, a))
+      terminar()
+      if (new Date(novo).getTime() !== new Date(a.evento.inicio).getTime()) mover(a.evento, novo)
+    },
+    terminar,
+  }
 
   const href = (v: VisaoCalendario, d: string) => {
     const qs = new URLSearchParams(consulta)
@@ -141,6 +272,7 @@ export function Calendario({ visao, dia, dias, hoje, eventos, podeCriar, consult
     href,
     aoCriar: setVaga,
     aoAbrir: setAberto,
+    arrasto,
   }
 
   return (
@@ -164,9 +296,32 @@ export function Calendario({ visao, dia, dias, hoje, eventos, podeCriar, consult
         <h2 aria-live="polite" className="text-lg font-semibold first-letter:uppercase">
           {tituloDaVisao(visao, dia)}
         </h2>
+        {movido && (
+          <p role="status" className="text-muted-foreground ml-auto flex flex-wrap items-center gap-x-2 text-xs">
+            <span>Movido para {movido.rotulo}.</span>
+            <button
+              type="button"
+              className="text-primary font-medium hover:underline"
+              onClick={() => mover(movido.evento, movido.inicioAnterior, true)}
+            >
+              Desfazer
+            </button>
+          </p>
+        )}
       </div>
 
-      <div className="bg-card overflow-hidden rounded-xl border">
+      {erroMover && (
+        <Alert variant="destructive">
+          <AlertDescription>{erroMover}</AlertDescription>
+        </Alert>
+      )}
+
+      <div
+        className="bg-card overflow-hidden rounded-xl border"
+        onDragLeave={(ev) => {
+          if (!ev.currentTarget.contains(ev.relatedTarget as Node | null)) setAlvo(null)
+        }}
+      >
         {visao === "mes" ? (
           <GradeDoMes {...comuns} dias={dias} mes={dia.slice(0, 7)} />
         ) : (
@@ -184,7 +339,7 @@ export function Calendario({ visao, dia, dias, hoje, eventos, podeCriar, consult
       </ul>
       {podeCriar && (
         <p className="text-muted-foreground text-xs">
-          Clique em um dia ou horário livre para marcar um compromisso.
+          Clique em um dia ou horário livre para marcar um compromisso. Arraste para mudar de dia ou horário.
         </p>
       )}
 
@@ -208,6 +363,43 @@ type Comuns = {
   href: (v: VisaoCalendario, d: string) => string
   aoCriar: (v: VagaNaAgenda) => void
   aoAbrir: (e: EventoLinha) => void
+  arrasto: ControleArrasto
+}
+
+/** Clique, teclado e arrasto do compromisso. É div: o Firefox não arrasta <button>. */
+function propsDoCompromisso(
+  evento: EventoLinha,
+  aoAbrir: (e: EventoLinha) => void,
+  arrasto: ControleArrasto,
+  ponto: (ev: DragEvent<HTMLElement>) => { dia: string; minutos?: number }
+) {
+  const pode = arrasto.pode(evento)
+  return {
+    role: "button",
+    tabIndex: 0,
+    draggable: pode,
+    onClick: () => aoAbrir(evento),
+    onKeyDown: (ev: KeyboardEvent) => {
+      if (ev.key === "Enter" || ev.key === " ") {
+        ev.preventDefault()
+        aoAbrir(evento)
+      }
+    },
+    onDragStart: (ev: DragEvent<HTMLElement>) => arrasto.iniciar(ev, evento, ponto(ev)),
+    onDragEnd: arrasto.terminar,
+    classe: cn(
+      pode ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
+      arrasto.atual?.evento.id === evento.id && "opacity-40"
+    ),
+  }
+}
+
+/** O dia recebe o compromisso que está sendo arrastado? */
+function diaDestacado(arrasto: ControleArrasto, dia: string): boolean {
+  const { atual, alvo } = arrasto
+  if (!atual || !alvo || alvo.minuto !== undefined) return false
+  const destino = diasDoDestino(atual.evento, atual.diaPego, alvo.dia)
+  return Boolean(destino) && dia >= destino!.de && dia <= destino!.ate
 }
 
 function NumeroDoDia({ dia, hoje, href, apagado }: { dia: string; hoje: string; href: string; apagado?: boolean }) {
@@ -236,6 +428,8 @@ function BarraEvento({
   continuaAntes,
   continuaDepois,
   aoAbrir,
+  dias,
+  arrasto,
 }: {
   evento: EventoLinha
   coluna: number
@@ -244,18 +438,26 @@ function BarraEvento({
   continuaAntes: boolean
   continuaDepois: boolean
   aoAbrir: (e: EventoLinha) => void
+  dias: string[]
+  arrasto: ControleArrasto
 }) {
   const faixa = ehFaixa(evento)
   const titulo = evento.atividade ?? "(sem título)"
+  const { classe, ...acoes } = propsDoCompromisso(evento, aoAbrir, arrasto, (ev) => {
+    // Em barra de vários dias, conta o dia em que ela foi pega.
+    const caixa = ev.currentTarget.getBoundingClientRect()
+    const i = Math.floor(((ev.clientX - caixa.left) / caixa.width) * span)
+    return { dia: dias[coluna + Math.max(0, Math.min(span - 1, i))] }
+  })
   return (
-    <button
-      type="button"
-      onClick={() => aoAbrir(evento)}
+    <div
+      {...acoes}
       style={{ gridColumn: `${coluna + 1} / span ${span}`, gridRow: linha + 1 }}
       title={`${titulo} — ${rotuloPeriodo(evento)}`}
       className={cn(
         "pointer-events-auto mx-0.5 flex min-w-0 items-center gap-1 overflow-hidden rounded-sm border-l-[3px] px-1 text-left text-xs leading-5 hover:brightness-95 dark:hover:brightness-125",
         corDoEvento(evento),
+        classe,
         continuaAntes && "ml-0 rounded-l-none",
         continuaDepois && "mr-0 rounded-r-none"
       )}
@@ -266,7 +468,7 @@ function BarraEvento({
         </span>
       )}
       <span className="truncate font-medium">{titulo}</span>
-    </button>
+    </div>
   )
 }
 
@@ -300,14 +502,22 @@ function SemanaDoMes({
   href,
   aoCriar,
   aoAbrir,
+  arrasto,
 }: Comuns & { semana: string[]; mes: string }) {
   const { barras, ocultos } = distribuirNaSemana(eventos, semana, LINHAS_NO_MES)
   return (
-    <div className="relative border-b last:border-b-0">
+    <div
+      className="relative border-b last:border-b-0"
+      onDragOver={(ev) => arrasto.sobreDias(ev, semana)}
+      onDrop={(ev) => arrasto.soltarNosDias(ev, semana)}
+    >
       {/* Fundo: cada dia é o alvo do clique; as barras ficam por cima. */}
       <div className="absolute inset-0 grid grid-cols-7">
         {semana.map((d) => {
-          const classe = cn("border-l first:border-l-0", d.slice(0, 7) !== mes && "bg-muted/40")
+          const classe = cn(
+            "border-l first:border-l-0",
+            diaDestacado(arrasto, d) ? "bg-primary/20" : d.slice(0, 7) !== mes && "bg-muted/40"
+          )
           return podeCriar ? (
             <button
               key={d}
@@ -343,6 +553,8 @@ function SemanaDoMes({
               continuaAntes={b.continuaAntes}
               continuaDepois={b.continuaDepois}
               aoAbrir={aoAbrir}
+              dias={semana}
+              arrasto={arrasto}
             />
           ))}
           {ocultos.map((n, i) =>
@@ -377,7 +589,7 @@ function useMinutoAtual(): number | null {
   )
 }
 
-function GradeDeHoras({ dias, eventos, hoje, podeCriar, href, aoCriar, aoAbrir }: Comuns) {
+function GradeDeHoras({ dias, eventos, hoje, podeCriar, href, aoCriar, aoAbrir, arrasto }: Comuns) {
   const rolagem = useRef<HTMLDivElement>(null)
   const agora = useMinutoAtual()
   const faixas = eventos.filter(ehFaixa)
@@ -407,7 +619,12 @@ function GradeDeHoras({ dias, eventos, hoje, podeCriar, href, aoCriar, aoAbrir }
             <div className="text-muted-foreground bg-card sticky left-0 z-10 flex items-start justify-end pt-1 pr-1.5 text-[0.65rem]">
               dia todo
             </div>
-            <div className="relative min-h-7" style={{ gridColumn: `2 / span ${dias.length}` }}>
+            <div
+              className="relative min-h-7"
+              style={{ gridColumn: `2 / span ${dias.length}` }}
+              onDragOver={(ev) => arrasto.sobreDias(ev, dias, true)}
+              onDrop={(ev) => arrasto.soltarNosDias(ev, dias, true)}
+            >
               <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${dias.length}, minmax(0, 1fr))` }}>
                 {dias.map((d) =>
                   podeCriar ? (
@@ -416,7 +633,10 @@ function GradeDeHoras({ dias, eventos, hoje, podeCriar, href, aoCriar, aoAbrir }
                       type="button"
                       onClick={() => aoCriar({ dia: d, diaTodo: true })}
                       aria-label={`Novo compromisso de dia todo em ${rotuloDia(d)}`}
-                      className="hover:bg-accent/60 cursor-pointer border-l outline-none focus-visible:ring-2 focus-visible:ring-inset"
+                      className={cn(
+                        "hover:bg-accent/60 cursor-pointer border-l outline-none focus-visible:ring-2 focus-visible:ring-inset",
+                        diaDestacado(arrasto, d) && "bg-primary/20"
+                      )}
                     />
                   ) : (
                     <div key={d} className="border-l" />
@@ -440,6 +660,8 @@ function GradeDeHoras({ dias, eventos, hoje, podeCriar, href, aoCriar, aoAbrir }
                     continuaAntes={b.continuaAntes}
                     continuaDepois={b.continuaDepois}
                     aoAbrir={aoAbrir}
+                    dias={dias}
+                    arrasto={arrasto}
                   />
                 ))}
               </div>
@@ -465,6 +687,7 @@ function GradeDeHoras({ dias, eventos, hoje, podeCriar, href, aoCriar, aoAbrir }
               agora={d === hoje ? agora : null}
               aoCriar={aoCriar}
               aoAbrir={aoAbrir}
+              arrasto={arrasto}
             />
           ))}
         </div>
@@ -480,6 +703,7 @@ function ColunaDoDia({
   agora,
   aoCriar,
   aoAbrir,
+  arrasto,
 }: {
   dia: string
   eventos: EventoLinha[]
@@ -487,10 +711,19 @@ function ColunaDoDia({
   agora: number | null
   aoCriar: (v: VagaNaAgenda) => void
   aoAbrir: (e: EventoLinha) => void
+  arrasto: ControleArrasto
 }) {
   const blocos = distribuirNoDia(eventos, dia)
+  const { atual, alvo } = arrasto
+  const destino = atual && alvo?.dia === dia && alvo.minuto !== undefined ? alvo.minuto : null
+  const duracaoDestino = atual ? duracaoEmMinutos(atual.evento) : 60
   return (
-    <div className="relative border-l" style={{ height: ALTURA_HORA * 24 }}>
+    <div
+      className="relative border-l"
+      style={{ height: ALTURA_HORA * 24 }}
+      onDragOver={(ev) => arrasto.sobreHoras(ev, dia)}
+      onDrop={(ev) => arrasto.soltarNasHoras(ev, dia)}
+    >
       {Array.from({ length: 24 }, (_, h) =>
         podeCriar ? (
           <button
@@ -513,11 +746,14 @@ function ColunaDoDia({
       {blocos.map((b) => {
         const titulo = b.evento.atividade ?? "(sem título)"
         const curto = b.fimMin - b.inicioMin < 45
+        const { classe, ...acoes } = propsDoCompromisso(b.evento, aoAbrir, arrasto, (ev) => ({
+          dia,
+          minutos: ((ev.clientY - ev.currentTarget.getBoundingClientRect().top) / ALTURA_HORA) * 60,
+        }))
         return (
-          <button
+          <div
             key={b.evento.id}
-            type="button"
-            onClick={() => aoAbrir(b.evento)}
+            {...acoes}
             title={`${titulo} — ${rotuloPeriodo(b.evento)}`}
             style={{
               top: (b.inicioMin / 60) * ALTURA_HORA,
@@ -528,6 +764,7 @@ function ColunaDoDia({
             className={cn(
               "absolute overflow-hidden rounded-sm border-l-[3px] px-1 text-left text-xs leading-4 hover:brightness-95 dark:hover:brightness-125",
               corDoEvento(b.evento),
+              classe,
               curto && "flex items-center gap-1"
             )}
           >
@@ -536,9 +773,18 @@ function ColunaDoDia({
               {horaDeMinutos(b.inicioMin)}
               {b.evento.termino ? ` – ${horaDeMinutos(b.fimMin)}` : ""}
             </span>
-          </button>
+          </div>
         )
       })}
+      {destino !== null && (
+        <div
+          aria-hidden
+          className="border-primary bg-primary/20 pointer-events-none absolute inset-x-0.5 z-10 overflow-hidden rounded-sm border-2 border-dashed px-1 text-xs font-medium"
+          style={{ top: (destino / 60) * ALTURA_HORA, height: (duracaoDestino / 60) * ALTURA_HORA - 1 }}
+        >
+          {horaDeMinutos(destino)} – {horaDeMinutos(destino + duracaoDestino)}
+        </div>
+      )}
       {agora !== null && (
         <div
           aria-hidden

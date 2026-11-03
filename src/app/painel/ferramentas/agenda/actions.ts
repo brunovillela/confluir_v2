@@ -6,7 +6,7 @@ import { redirect } from "next/navigation"
 import { TIPOS_AGENDA_AVULSA, TITULO_MAX_AGENDA } from "@/lib/agenda-constantes"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
-import { excluirCompromisso, salvarCompromisso } from "@/lib/db/agenda"
+import { excluirCompromisso, moverCompromisso, salvarCompromisso } from "@/lib/db/agenda"
 import { deCampoDataHora } from "@/lib/formato"
 
 function texto(fd: FormData, campo: string): string {
@@ -84,6 +84,19 @@ export async function salvarCompromissoAction(
   // Criação rápida no calendário: fica onde está.
   if (fd.get("ficar") === "1") return { ok: "Compromisso salvo." }
   redirect(`/painel/ferramentas/agenda/${salvoId}?salvo=1`)
+}
+
+/** Arrastar no calendário: novo início, mesma duração. */
+export async function moverCompromissoAction(
+  id: string,
+  novoInicio: string
+): Promise<{ erro?: string }> {
+  await requirePermissao("ferramentas_agendas_edicao")
+  if (!id || Number.isNaN(new Date(novoInicio).getTime())) return { erro: "Horário inválido." }
+  const { erro } = await moverCompromisso(id, novoInicio)
+  if (erro) return { erro }
+  revalidar(id)
+  return {}
 }
 
 export async function excluirCompromissoAction(
