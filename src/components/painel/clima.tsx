@@ -50,8 +50,11 @@ export function ClimaSedes({ cidades, className }: { cidades: ClimaCidade[]; cla
   }, [cidades.length, pausado])
 
   if (cidades.length === 0) return null
-  const c = cidades[i % cidades.length]
-  const { texto, Icone } = tempo(c.codigo, c.dia)
+  const atual = i % cidades.length
+
+  // Todas as cidades ficam sobrepostas na mesma célula e só a atual aparece:
+  // a coluna assume a largura da maior, e o cartão não muda de tamanho no rodízio.
+  const sobreposta = (k: number) => cn("col-start-1 row-start-1", k !== atual && "invisible")
 
   return (
     <div
@@ -61,27 +64,38 @@ export function ClimaSedes({ cidades, className }: { cidades: ClimaCidade[]; cla
       aria-live="polite"
       aria-label="Tempo agora"
     >
-      <div className="flex shrink-0 items-center gap-1.5">
-        <Icone className="text-primary size-6 drop-shadow-[0_0_6px_var(--primary)]" />
-        <span className="hud-numero hud-numero-destaque text-2xl leading-none font-semibold">{grau(c.temperatura)}</span>
+      <div className="grid shrink-0">
+        {cidades.map((c, k) => {
+          const { Icone } = tempo(c.codigo, c.dia)
+          return (
+            <div key={`${c.cidade}-${c.uf}`} className={cn(sobreposta(k), "flex items-center gap-1.5")}>
+              <Icone className="text-primary size-6 drop-shadow-[0_0_6px_var(--primary)]" />
+              <span className="hud-numero hud-numero-destaque text-2xl leading-none font-semibold">{grau(c.temperatura)}</span>
+            </div>
+          )
+        })}
       </div>
-      <div className="min-w-0 leading-tight">
-        <p className="truncate text-sm font-semibold">
-          {c.cidade}
-          {c.uf ? <span className="text-muted-foreground font-normal">/{c.uf}</span> : null}
-        </p>
-        <p className="text-muted-foreground flex items-center gap-1.5 truncate text-xs">
-          <span>{texto}</span>
-          <span className="hud-numero">
-            · {grau(c.minima)}/{grau(c.maxima)}
-          </span>
-          {c.chuva !== null && (
-            <span className="hud-numero flex items-center gap-0.5">
-              · <Droplets className="size-3" />
-              {c.chuva}%
-            </span>
-          )}
-        </p>
+      <div className="grid min-w-0 leading-tight">
+        {cidades.map((c, k) => (
+          <div key={`${c.cidade}-${c.uf}`} className={cn(sobreposta(k), "min-w-0")}>
+            <p className="truncate text-sm font-semibold">
+              {c.cidade}
+              {c.uf ? <span className="text-muted-foreground font-normal">/{c.uf}</span> : null}
+            </p>
+            <p className="text-muted-foreground flex items-center gap-1.5 truncate text-xs">
+              <span>{tempo(c.codigo, c.dia).texto}</span>
+              <span className="hud-numero">
+                · {grau(c.minima)}/{grau(c.maxima)}
+              </span>
+              {c.chuva !== null && (
+                <span className="hud-numero flex items-center gap-0.5">
+                  · <Droplets className="size-3" />
+                  {c.chuva}%
+                </span>
+              )}
+            </p>
+          </div>
+        ))}
       </div>
       {cidades.length > 1 && (
         <div className="flex shrink-0 flex-col gap-1">
@@ -91,10 +105,10 @@ export function ClimaSedes({ cidades, className }: { cidades: ClimaCidade[]; cla
               type="button"
               onClick={() => setI(k)}
               aria-label={`Ver ${x.cidade}`}
-              aria-current={k === i % cidades.length}
+              aria-current={k === atual}
               className={cn(
                 "w-1.5 rounded-full transition-all",
-                k === i % cidades.length ? "bg-primary h-3 shadow-[0_0_8px_var(--primary)]" : "bg-muted-foreground/30 h-1.5"
+                k === atual ? "bg-primary h-3 shadow-[0_0_8px_var(--primary)]" : "bg-muted-foreground/30 h-1.5"
               )}
             />
           ))}
