@@ -38,11 +38,14 @@ export function NivelBaseForm({
   cargos,
   degrau,
   tabelaId,
+  voltar,
 }: {
   cargos: { id: string; nome: string }[]
   degrau?: NivelBaseFormDados
   /** Tabela salarial em que o degrau entra. */
   tabelaId: string
+  /** A mesma lista, com o formulário fechado. */
+  voltar: string
 }) {
   const [estado, formAction, pendente] = useActionState(
     degrau ? atualizarNivelBase : criarNivelBase,
@@ -148,11 +151,9 @@ export function NivelBaseForm({
           </div>
 
           <div className="flex items-center justify-end gap-2">
-            {degrau && (
-              <Button variant="ghost" asChild>
-                <Link href={`/painel/pessoal/niveis/tabela?tabela=${tabelaId}`}>Cancelar</Link>
-              </Button>
-            )}
+            <Button variant="ghost" asChild>
+              <Link href={voltar}>Cancelar</Link>
+            </Button>
             <Button type="submit" disabled={pendente}>
               {pendente && <Loader2 className="animate-spin" />}
               {degrau ? "Salvar degrau" : "Adicionar degrau"}

@@ -74,11 +74,9 @@ export function AnuenioBaseForm({ degrau }: { degrau?: DegrauFormDados }) {
           </div>
 
           <div className="flex items-center justify-end gap-2">
-            {degrau && (
-              <Button variant="ghost" asChild>
-                <Link href="/painel/pessoal/anuenios/tabela">Cancelar</Link>
-              </Button>
-            )}
+            <Button variant="ghost" asChild>
+              <Link href="/painel/pessoal/anuenios/tabela">Cancelar</Link>
+            </Button>
             <Button type="submit" disabled={pendente}>
               {pendente && <Loader2 className="animate-spin" />}
               {degrau ? "Salvar degrau" : "Adicionar degrau"}

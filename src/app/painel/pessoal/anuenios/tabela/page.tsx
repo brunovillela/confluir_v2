@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Plus } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -31,13 +31,14 @@ function aliquotaPct(v: number | null): string {
 export default async function TabelaAnuenioPage({
   searchParams,
 }: {
-  searchParams: Promise<{ salvo?: string; editar?: string }>
+  searchParams: Promise<{ salvo?: string; editar?: string; novo?: string }>
 }) {
   await requirePermissao("pessoal_gestao", ["pessoal_anuenios"])
 
-  const { salvo, editar } = await searchParams
+  const { salvo, editar, novo } = await searchParams
   const base = await listarAnuenioBase()
   const emEdicao = editar ? (base.find((b) => b.id === editar) ?? null) : null
+  const adicionando = novo === "1" && !emEdicao
 
   return (
     <>
@@ -48,13 +49,25 @@ export default async function TabelaAnuenioPage({
             Anuênios
           </Link>
         </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Tabela de alíquotas de anuênio
-        </h1>
-        <p className="text-muted-foreground mt-1 text-xs">
-          {base.length} degrau{base.length === 1 ? "" : "s"} — cada ano de casa
-          corresponde a uma alíquota aplicada ao salário básico
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Tabela de alíquotas de anuênio
+            </h1>
+            <p className="text-muted-foreground mt-1 text-xs">
+              {base.length} degrau{base.length === 1 ? "" : "s"} — cada ano de casa
+              corresponde a uma alíquota aplicada ao salário básico
+            </p>
+          </div>
+          {!adicionando && !emEdicao && (
+            <Button asChild>
+              <Link href="/painel/pessoal/anuenios/tabela?novo=1">
+                <Plus />
+                Adicionar degrau
+              </Link>
+            </Button>
+          )}
+        </div>
       </div>
 
       {salvo === "1" && (
@@ -63,7 +76,23 @@ export default async function TabelaAnuenioPage({
         </Alert>
       )}
 
-      <div className="grid items-start gap-4 lg:grid-cols-2">
+      <div className="grid max-w-3xl gap-4">
+        {/* key força remontagem ao alternar criar/editar (defaultValue). */}
+        {(adicionando || emEdicao) && (
+          <AnuenioBaseForm
+            key={emEdicao?.id ?? "novo"}
+            degrau={
+              emEdicao
+                ? {
+                    id: emEdicao.id,
+                    nivel: emEdicao.nivel,
+                    aliquotaPct: aliquotaPct(emEdicao.aliquota),
+                  }
+                : undefined
+            }
+          />
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Degraus</CardTitle>
@@ -124,20 +153,6 @@ export default async function TabelaAnuenioPage({
             </div>
           </CardContent>
         </Card>
-
-        {/* key força remontagem ao alternar criar/editar (defaultValue). */}
-        <AnuenioBaseForm
-          key={emEdicao?.id ?? "novo"}
-          degrau={
-            emEdicao
-              ? {
-                  id: emEdicao.id,
-                  nivel: emEdicao.nivel,
-                  aliquotaPct: aliquotaPct(emEdicao.aliquota),
-                }
-              : undefined
-          }
-        />
       </div>
     </>
   )

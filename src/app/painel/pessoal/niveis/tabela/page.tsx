@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, CalendarRange } from "lucide-react"
+import { ArrowLeft, CalendarRange, Plus } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -51,6 +51,7 @@ export default async function TabelaSalarialPage({
     salvo?: string
     reajustado?: string
     editar?: string
+    novo?: string
     cargo?: string
     tabela?: string
     pagina?: string
@@ -85,6 +86,17 @@ export default async function TabelaSalarialPage({
   const paginaAtual = paginar(filtrados, paginacao)
 
   const emEdicao = editar ? (base.find((b) => b.id === editar) ?? null) : null
+  const adicionando = brutos.novo === "1" && !emEdicao
+
+  // Abrir e fechar o formulário não perde a tabela, o filtro nem a página.
+  const lista = (extra?: string) => {
+    const q = new URLSearchParams()
+    if (tabela) q.set("tabela", tabela.id)
+    if (cargoFiltro !== "todos") q.set("cargo", cargoFiltro)
+    if (brutos.pagina) q.set("pagina", brutos.pagina)
+    if (brutos.porPagina) q.set("porPagina", brutos.porPagina)
+    return `/painel/pessoal/niveis/tabela?${q}${extra ? `&${extra}` : ""}`
+  }
 
   return (
     <>
@@ -114,12 +126,22 @@ export default async function TabelaSalarialPage({
               — salário básico por cargo, nível e carreira
             </p>
           </div>
-          <Button variant="outline" asChild>
-            <Link href="/painel/pessoal/niveis/tabelas">
-              <CalendarRange />
-              Tabelas e vigências
-            </Link>
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/painel/pessoal/niveis/tabelas">
+                <CalendarRange />
+                Tabelas e vigências
+              </Link>
+            </Button>
+            {tabela && !adicionando && !emEdicao && (
+              <Button asChild>
+                <Link href={lista("novo=1")}>
+                  <Plus />
+                  Adicionar degrau
+                </Link>
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -155,8 +177,33 @@ export default async function TabelaSalarialPage({
         </Alert>
       )}
 
-      <div className="grid items-start gap-4 lg:grid-cols-5">
-        <div className="grid gap-4 lg:col-span-3">
+      {/* key força remontagem ao alternar criar/editar (defaultValue). */}
+      {tabela && (adicionando || emEdicao) && (
+        <NivelBaseForm
+          key={emEdicao?.id ?? "novo"}
+          tabelaId={tabela.id}
+          voltar={lista()}
+          cargos={cargos.map((c) => ({
+            id: c.id,
+            nome: c.nome ?? "(sem nome)",
+          }))}
+          degrau={
+            emEdicao
+              ? {
+                  id: emEdicao.id,
+                  cargo_id: emEdicao.cargo_id,
+                  ordem: emEdicao.ordem,
+                  nivel_vertical: emEdicao.nivel_vertical,
+                  nivel_horizontal: emEdicao.nivel_horizontal,
+                  nivel_carreira: emEdicao.nivel_carreira,
+                  salarioTexto: salarioTexto(emEdicao.salario_base),
+                }
+              : undefined
+          }
+        />
+      )}
+
+      <div className="grid gap-4">
           <form method="GET" className="flex flex-wrap items-center gap-2">
             <select
               name="tabela"
@@ -249,11 +296,7 @@ export default async function TabelaSalarialPage({
                               asChild
                               className="h-7 px-2"
                             >
-                              <Link
-                                href={`/painel/pessoal/niveis/tabela?tabela=${tabela?.id}&editar=${b.id}${cargoFiltro !== "todos" ? `&cargo=${cargoFiltro}` : ""}`}
-                              >
-                                Editar
-                              </Link>
+                              <Link href={lista(`editar=${b.id}`)}>Editar</Link>
                             </Button>
                             <ExcluirNivelBaseBotao id={b.id} />
                           </div>
@@ -273,34 +316,6 @@ export default async function TabelaSalarialPage({
               />
             </CardContent>
           </Card>
-        </div>
-
-        <div className="lg:col-span-2">
-          {/* key força remontagem ao alternar criar/editar (defaultValue). */}
-          {tabela && (
-          <NivelBaseForm
-            key={emEdicao?.id ?? "novo"}
-            tabelaId={tabela.id}
-            cargos={cargos.map((c) => ({
-              id: c.id,
-              nome: c.nome ?? "(sem nome)",
-            }))}
-            degrau={
-              emEdicao
-                ? {
-                    id: emEdicao.id,
-                    cargo_id: emEdicao.cargo_id,
-                    ordem: emEdicao.ordem,
-                    nivel_vertical: emEdicao.nivel_vertical,
-                    nivel_horizontal: emEdicao.nivel_horizontal,
-                    nivel_carreira: emEdicao.nivel_carreira,
-                    salarioTexto: salarioTexto(emEdicao.salario_base),
-                  }
-                : undefined
-            }
-          />
-          )}
-        </div>
       </div>
     </>
   )
