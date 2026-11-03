@@ -889,6 +889,8 @@ modulo,tabela,coluna,categoria,titulares,descricao
 "pessoal","pessoal_registro_ponto","saldo_remessa_anterior_100","trabalhista","funcionários",""
 "pessoal","pessoal_registro_ponto","arquivo","trabalhista","funcionários","PDF do espelho de ponto."
 "pessoal","pessoal_registro_ponto","marcacoes","trabalhista","funcionários","Marcações diárias lidas do espelho pela IA: { departamento, carga_diaria, dias: [{ data, ocorrencia, marcacoes[] }] }."
+"pessoal","pessoal_tabelas_salariais","","identificacao","funcionários","Tabela salarial de um período, com os degraus em pessoal_nivel_salarial_base; no máximo uma vigente por entidade (src/lib/db/tabelas-salariais.ts)."
+"pessoal","pessoal_tabelas_salariais","criado_por","identificacao","funcionários","Quem cadastrou."
 "pessoal","pessoal_telegram_arquivos","","identificacao;financeiro;sensivel_saude","funcionários, diretores","Comprovante mandado ao bot do Telegram (foto ou PDF) aguardando confirmação: o que a IA leu e o passo da conversa; apagada ao confirmar ou cancelar e expira em 30 minutos (src/lib/telegram-arquivo.ts)."
 "pessoal","pessoal_telegram_arquivos","chat_id","identificacao","funcionários, diretores","Chat do Telegram da pessoa (o mesmo de usuarios.telegram_chat_id)."
 "pessoal","pessoal_telegram_arquivos","usuario_id","identificacao","funcionários, diretores","Quem mandou o arquivo."

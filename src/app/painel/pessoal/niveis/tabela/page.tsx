@@ -1,8 +1,9 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, CalendarRange } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -22,8 +23,10 @@ import {
 import { Paginacao } from "@/components/paginacao"
 import { requirePermissao } from "@/lib/auth"
 import { listarCargos, listarNivelSalarialBase } from "@/lib/db/carreira"
-import { formatarMoeda } from "@/lib/formato"
+import { listarTabelasSalariais } from "@/lib/db/tabelas-salariais"
+import { formatarData, formatarMoeda } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
+import { rotuloTabelaSalarial } from "@/lib/tabela-salarial"
 
 import { ExcluirNivelBaseBotao, NivelBaseForm } from "./tabela-form"
 
@@ -49,6 +52,7 @@ export default async function TabelaSalarialPage({
     reajustado?: string
     editar?: string
     cargo?: string
+    tabela?: string
     pagina?: string
     porPagina?: string
   }>
@@ -57,10 +61,17 @@ export default async function TabelaSalarialPage({
 
   const brutos = await searchParams
   const { salvo, reajustado, editar } = brutos
-  const [base, cargos] = await Promise.all([
-    listarNivelSalarialBase(),
+  const [tabelas, cargos] = await Promise.all([
+    listarTabelasSalariais(),
     listarCargos(),
   ])
+  // Sem escolha, a vigente; as outras ficam guardadas para consulta e preparo.
+  const tabela =
+    tabelas.find((t) => t.id === brutos.tabela) ??
+    tabelas.find((t) => t.vigente) ??
+    tabelas[0] ??
+    null
+  const base = tabela ? await listarNivelSalarialBase({ tabelaId: tabela.id }) : []
 
   const cargoFiltro = cargos.some((c) => c.id === brutos.cargo)
     ? brutos.cargo!
@@ -84,14 +95,52 @@ export default async function TabelaSalarialPage({
             Níveis salariais
           </Link>
         </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Tabela salarial
-        </h1>
-        <p className="text-muted-foreground mt-1 text-xs">
-          {base.length} degrau{base.length === 1 ? "" : "s"} do acordo coletivo
-          — salário básico por cargo, nível e carreira
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl font-semibold tracking-tight">
+                Tabela salarial{tabela ? ` ${rotuloTabelaSalarial(tabela)}` : ""}
+              </h1>
+              {tabela?.vigente && (
+                <Badge variant="outline" className="border-success/40 text-success-fg">
+                  Vigente
+                </Badge>
+              )}
+            </div>
+            <p className="text-muted-foreground mt-1 text-xs">
+              {tabela?.data_inicio &&
+                `${formatarData(tabela.data_inicio)} a ${formatarData(tabela.data_fim)} · `}
+              {base.length} degrau{base.length === 1 ? "" : "s"} do acordo coletivo
+              — salário básico por cargo, nível e carreira
+            </p>
+          </div>
+          <Button variant="outline" asChild>
+            <Link href="/painel/pessoal/niveis/tabelas">
+              <CalendarRange />
+              Tabelas e vigências
+            </Link>
+          </Button>
+        </div>
       </div>
+
+      {!tabela && (
+        <Alert variant="warning">
+          <AlertDescription>
+            Nenhuma tabela salarial cadastrada. Registre a primeira em{" "}
+            <Link href="/painel/pessoal/niveis/tabelas/nova" className="underline underline-offset-4">
+              Nova tabela
+            </Link>
+            .
+          </AlertDescription>
+        </Alert>
+      )}
+      {tabela && !tabela.vigente && (
+        <Alert variant="warning">
+          <AlertDescription>
+            Esta tabela não é a vigente: mudar os degraus dela não altera o salário de ninguém.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">
@@ -101,7 +150,7 @@ export default async function TabelaSalarialPage({
       {reajustado && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>
-            Reajuste de {reajustado}% aplicado a toda a tabela salarial.
+            Reajuste de {reajustado}% aplicado à tabela vigente.
           </AlertDescription>
         </Alert>
       )}
@@ -109,6 +158,19 @@ export default async function TabelaSalarialPage({
       <div className="grid items-start gap-4 lg:grid-cols-5">
         <div className="grid gap-4 lg:col-span-3">
           <form method="GET" className="flex flex-wrap items-center gap-2">
+            <select
+              name="tabela"
+              defaultValue={tabela?.id}
+              aria-label="Tabela salarial"
+              className={SELECT_FILTRO}
+            >
+              {tabelas.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {rotuloTabelaSalarial(t)}
+                  {t.vigente ? " (vigente)" : ""}
+                </option>
+              ))}
+            </select>
             <select
               name="cargo"
               defaultValue={cargoFiltro}
@@ -188,7 +250,7 @@ export default async function TabelaSalarialPage({
                               className="h-7 px-2"
                             >
                               <Link
-                                href={`/painel/pessoal/niveis/tabela?editar=${b.id}${cargoFiltro !== "todos" ? `&cargo=${cargoFiltro}` : ""}`}
+                                href={`/painel/pessoal/niveis/tabela?tabela=${tabela?.id}&editar=${b.id}${cargoFiltro !== "todos" ? `&cargo=${cargoFiltro}` : ""}`}
                               >
                                 Editar
                               </Link>
@@ -215,8 +277,10 @@ export default async function TabelaSalarialPage({
 
         <div className="lg:col-span-2">
           {/* key força remontagem ao alternar criar/editar (defaultValue). */}
+          {tabela && (
           <NivelBaseForm
             key={emEdicao?.id ?? "novo"}
+            tabelaId={tabela.id}
             cargos={cargos.map((c) => ({
               id: c.id,
               nome: c.nome ?? "(sem nome)",
@@ -235,6 +299,7 @@ export default async function TabelaSalarialPage({
                 : undefined
             }
           />
+          )}
         </div>
       </div>
     </>

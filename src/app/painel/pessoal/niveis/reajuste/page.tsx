@@ -28,6 +28,9 @@ import {
 } from "@/lib/db/carreira"
 import { formatarMoeda } from "@/lib/formato"
 
+import { listarTabelasSalariais } from "@/lib/db/tabelas-salariais"
+import { rotuloTabelaSalarial } from "@/lib/tabela-salarial"
+
 import { lerPercentualReajuste } from "../actions"
 import { ReajusteConfirmarForm } from "./reajuste-form"
 
@@ -45,7 +48,8 @@ export default async function ReajustePage({
 
   const { percentual: bruto = "" } = await searchParams
   const pct = bruto ? await lerPercentualReajuste(bruto) : null
-  const base = await listarNivelSalarialBase()
+  const [base, tabelas] = await Promise.all([listarNivelSalarialBase(), listarTabelasSalariais()])
+  const vigente = tabelas.find((t) => t.vigente) ?? null
   const comSalario = base.filter((b) => b.salario_base !== null)
 
   const fator = pct === null ? 1 : 1 + pct / 100
@@ -64,9 +68,10 @@ export default async function ReajustePage({
           Reajuste salarial
         </h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Aplica o percentual negociado em acordo coletivo de forma linear a
-          todos os {comSalario.length} degraus da tabela salarial, em todos os
-          cargos.
+          Aplica o percentual negociado em acordo coletivo de forma linear aos{" "}
+          {comSalario.length} degraus da tabela vigente
+          {vigente ? ` (${rotuloTabelaSalarial(vigente)})` : ""}, em todos os cargos:
+          ajustando a própria tabela ou gerando uma nova.
         </p>
       </div>
 
@@ -117,8 +122,7 @@ export default async function ReajustePage({
             </CardTitle>
             <CardDescription>
               Amostra de {Math.min(AMOSTRA, comSalario.length)} dos{" "}
-              {comSalario.length} degraus que serão reajustados. Funcionários
-              com nível salarial lançado recebem aviso no sino de notificações.
+              {comSalario.length} degraus que serão reajustados.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
@@ -162,6 +166,7 @@ export default async function ReajustePage({
                 maximumFractionDigits: 2,
               })}
               degraus={comSalario.length}
+              tabelaId={vigente?.id ?? ""}
             />
           </CardContent>
         </Card>

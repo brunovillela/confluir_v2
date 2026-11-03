@@ -14,6 +14,13 @@ import {
   criarNivelSalarial,
   TIPOS_AVANCO,
 } from "@/lib/db/carreira"
+import {
+  criarTabelaSalarial,
+  excluirTabelaSalarial,
+  lerVigencia,
+  salvarVigenciaTabela,
+  tornarTabelaVigente,
+} from "@/lib/db/tabelas-salariais"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 async function exigirAcesso() {
@@ -24,6 +31,7 @@ async function exigirAcesso() {
 function revalidar(funcionarioId?: string | null) {
   revalidatePath("/painel/pessoal/niveis")
   revalidatePath("/painel/pessoal/niveis/tabela")
+  revalidatePath("/painel/pessoal/niveis/tabelas")
   revalidatePath("/painel/perfil/contracheques")
   if (funcionarioId) revalidatePath(`/painel/pessoal/${funcionarioId}`)
 }
@@ -153,7 +161,90 @@ export async function aplicarReajuste(
   )
 }
 
+/** Reajuste que guarda a anterior: gera uma nova tabela, ainda não vigente. */
+export async function gerarTabelaComReajuste(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao("pessoal_gestao")
+
+  const pct = await lerPercentualReajuste(String(formData.get("percentual") ?? ""))
+  if (pct === null) return { erro: "Informe um percentual válido (entre -50% e 100%, diferente de zero)." }
+  const vigencia = lerVigencia(formData)
+  if ("erro" in vigencia) return vigencia
+  const tabelaId = String(formData.get("tabela_id") ?? "")
+  if (!tabelaId) return { erro: "Não há tabela vigente para copiar." }
+
+  const r = await criarTabelaSalarial(vigencia, sessao.usuario.id, { tabelaId, percentual: pct })
+  if (r.erro || !r.id) return { erro: r.erro ?? "Não foi possível criar a tabela." }
+
+  revalidar()
+  redirect(`/painel/pessoal/niveis/tabelas/${r.id}?salvo=1`)
+}
+
+// ── Tabelas salariais (registro e vigência) ────────────────────────────────
+
+export async function salvarTabelaSalarial(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao("pessoal_gestao", ["pessoal_niveis_salariais"])
+
+  const vigencia = lerVigencia(formData)
+  if ("erro" in vigencia) return vigencia
+
+  const id = String(formData.get("id") ?? "")
+  if (id) {
+    const { erro } = await salvarVigenciaTabela(id, vigencia)
+    if (erro) return { erro }
+    revalidar()
+    redirect(`/painel/pessoal/niveis/tabelas/${id}?salvo=1`)
+  }
+
+  const copiarDe = String(formData.get("copiar_de") ?? "")
+  const r = await criarTabelaSalarial(vigencia, sessao.usuario.id, copiarDe ? { tabelaId: copiarDe } : undefined)
+  if (r.erro || !r.id) return { erro: r.erro ?? "Não foi possível criar a tabela." }
+
+  revalidar()
+  redirect(`/painel/pessoal/niveis/tabelas/${r.id}?salvo=1`)
+}
+
+export async function tornarVigente(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  // Muda o salário dos funcionários: só a gestão completa, como o reajuste.
+  await requirePermissao("pessoal_gestao")
+
+  const id = String(formData.get("id") ?? "")
+  const r = await tornarTabelaVigente(id)
+  if (r.erro) return { erro: r.erro }
+
+  revalidar()
+  if (r.falhas?.length) {
+    return { erro: `A tabela passou a ser a vigente e ${r.movidos} funcionário(s) mudaram de degrau, mas estes falharam: ${r.falhas.join("; ")}` }
+  }
+  redirect(`/painel/pessoal/niveis/tabelas/${id}?vigente=${r.movidos ?? 0}&sem=${r.semEquivalente ?? 0}`)
+}
+
+export async function excluirTabela(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await exigirAcesso()
+
+  const { erro } = await excluirTabelaSalarial(String(formData.get("id") ?? ""))
+  if (erro) return { erro }
+
+  revalidar()
+  redirect("/painel/pessoal/niveis/tabelas?excluida=1")
+}
+
 // ── Tabela salarial base (degraus do ACT por cargo) ────────────────────────
+
+/** Volta à tabela do degrau (sem ela, a página abre a vigente). */
+const paginaDaTabela = (tabelaId: string, extra: string) =>
+  `/painel/pessoal/niveis/tabela?${tabelaId ? `tabela=${tabelaId}&` : ""}${extra}`
 
 function lerCamposBase(formData: FormData) {
   const cargo_id = String(formData.get("cargo_id") ?? "")
@@ -194,17 +285,20 @@ export async function criarNivelBase(
 
   const dados = lerCamposBase(formData)
   if ("erro" in dados) return dados
+  const tabelaId = String(formData.get("tabela_id") ?? "")
+  if (!tabelaId) return { erro: "Cadastre a tabela salarial antes de adicionar degraus." }
 
   const admin = await createAdminClient()
   const { error } = await admin.from("pessoal_nivel_salarial_base").insert({
     ...dados,
+    tabela_id: tabelaId,
     emp_proprietaria_id: await tenantAtual(),
     sindicato_id: await tenantAtual(),
   })
   if (error) return { erro: `Não foi possível criar: ${error.message}` }
 
   revalidar()
-  redirect("/painel/pessoal/niveis/tabela?salvo=1")
+  redirect(paginaDaTabela(tabelaId, "salvo=1"))
 }
 
 export async function atualizarNivelBase(
@@ -228,7 +322,7 @@ export async function atualizarNivelBase(
   if (count === 0) return { erro: "Degrau não encontrado." }
 
   revalidar()
-  redirect("/painel/pessoal/niveis/tabela?salvo=1")
+  redirect(paginaDaTabela(String(formData.get("tabela_id") ?? ""), "salvo=1"))
 }
 
 export async function excluirNivelBase(

@@ -35,12 +35,13 @@ export default async function EditarNivelPage({
 
   const { id } = await params
   const { de } = await searchParams
-  const [lancamento, funcionarios, base] = await Promise.all([
+  const [lancamento, funcionarios] = await Promise.all([
     buscarNivelSalarial(id),
     funcionariosParaSelecao(),
-    listarNivelSalarialBase(),
   ])
   if (!lancamento) notFound()
+  // Degraus da vigente + os do próprio lançamento, que pode ser de tabela antiga.
+  const base = await listarNivelSalarialBase({ incluir: [lancamento.nivel_atual_id, lancamento.proximo_nivel_id] })
   const funcionario = lancamento.funcionario_id ? await funcionarioDaArea(lancamento.funcionario_id) : null
   const voltar =
     de === "carreira" && lancamento.funcionario_id

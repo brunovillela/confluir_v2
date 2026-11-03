@@ -37,9 +37,12 @@ const CARREIRAS = ["Júnior", "Pleno", "Sênior"]
 export function NivelBaseForm({
   cargos,
   degrau,
+  tabelaId,
 }: {
   cargos: { id: string; nome: string }[]
   degrau?: NivelBaseFormDados
+  /** Tabela salarial em que o degrau entra. */
+  tabelaId: string
 }) {
   const [estado, formAction, pendente] = useActionState(
     degrau ? atualizarNivelBase : criarNivelBase,
@@ -64,6 +67,7 @@ export function NivelBaseForm({
             </Alert>
           )}
           {degrau && <input type="hidden" name="id" value={degrau.id} />}
+          <input type="hidden" name="tabela_id" value={tabelaId} />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-1.5">
@@ -146,7 +150,7 @@ export function NivelBaseForm({
           <div className="flex items-center justify-end gap-2">
             {degrau && (
               <Button variant="ghost" asChild>
-                <Link href="/painel/pessoal/niveis/tabela">Cancelar</Link>
+                <Link href={`/painel/pessoal/niveis/tabela?tabela=${tabelaId}`}>Cancelar</Link>
               </Button>
             )}
             <Button type="submit" disabled={pendente}>

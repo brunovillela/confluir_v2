@@ -24,16 +24,30 @@ tem um **lançamento** apontando o degrau atual e o próximo.
 
 <PassoAPasso>
   <Passo titulo="Tabela salarial">
-    Em **Tabela salarial**, cadastre os degraus por cargo — cada um com o código
-    (vertical/horizontal), a carreira e o salário básico.
+    Em **Tabela salarial → Tabelas e vigências**, registre a tabela com o
+    **início** e o **término** da vigência: o nome sai deles (ex.: “2025 - 2026”).
+    Depois cadastre os degraus por cargo, cada um com o código
+    (vertical/horizontal), a carreira e o salário básico, ou copie os degraus de
+    outra tabela ao criá-la.
+  </Passo>
+  <Passo titulo="Tabela vigente">
+    Só uma tabela é a **vigente**: os lançamentos e o reajuste trabalham com ela,
+    e as outras ficam guardadas para consulta. Ao abrir uma tabela guardada,
+    **Tornar vigente** mostra uma prévia de quem muda de degrau e de quanto fica o
+    salário. Ao confirmar, cada funcionário ativo vai para o degrau equivalente
+    (mesmo cargo, vertical, horizontal e carreira) e é avisado no sino. Quem não
+    tiver equivalente continua na tabela anterior até você trocar no lançamento.
   </Passo>
   <Passo titulo="Lançamento do funcionário">
     Em **Novo lançamento**, registre o nível atual do funcionário, o próximo e o
     **tipo de avanço** (Inicial, Automático, Por mérito ou Ajuste salarial).
   </Passo>
   <Passo titulo="Reajuste linear">
-    O botão **Reajuste salarial** aplica um percentual a todos os degraus de uma
-    vez, com prévia antes de confirmar.
+    O botão **Reajuste salarial** calcula um percentual sobre todos os degraus da
+    tabela vigente, com prévia, e oferece duas saídas: **Ajustar a tabela atual**
+    substitui os valores dela, e os salários mudam na hora; **Gerar nova tabela**
+    guarda a atual e cria outra com os valores reajustados e as datas que você
+    informar, que só vale depois de **Tornar vigente**.
   </Passo>
 </PassoAPasso>
 
@@ -68,8 +82,9 @@ tem um **lançamento** apontando o degrau atual e o próximo.
 - **"O anuênio não avançou sozinho."** A progressão vai para o degrau seguinte
   **na data do próximo**; confira a data e o lançamento do funcionário.
 - **"O reajuste mudou o salário que eu não queria."** O **Reajuste salarial**
-  aplica o percentual a **todos** os degraus da tabela de uma vez — confira a
-  **prévia** antes de confirmar.
+  aplica o percentual a **todos** os degraus da tabela vigente de uma vez —
+  confira a **prévia** antes de confirmar. Para não perder os valores atuais, use
+  **Gerar nova tabela**.
 - **"A contabilidade não foi avisada do anuênio."** O lançamento fica
   **Pendente** até ser marcado como **Informado**.
 - **"O funcionário está no nível errado."** O nível vem do **lançamento** dele,

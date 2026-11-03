@@ -2,7 +2,7 @@
 
 # Pessoal (RH da entidade)
 
-57 tabelas. Diagrama: [er/pessoal.md](../er/pessoal.md).
+58 tabelas. Diagrama: [er/pessoal.md](../er/pessoal.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -58,6 +58,7 @@
 | [pessoal_reembolsos_act_tipos](#pessoal_reembolsos_act_tipos) | — | Tipos de reembolso previstos no ACT dos funcionários, com teto e proporção reembolsável. Cadastrados em Pessoal > Reembolsos. |
 | [pessoal_registro_ponto](#pessoal_registro_ponto) | trabalhista, financeiro | Espelho de ponto mensal (PDF) de um funcionário numa remessa, com saldos de horas extras 70% e 100% e as marcações diárias lidas por IA. Mig… |
 | [pessoal_registro_ponto_remessas](#pessoal_registro_ponto_remessas) | — | Remessa mensal de espelhos de ponto (mês de referência, finalizada). Migrada do Bubble; gerida em Pessoal > Ponto. |
+| [pessoal_tabelas_salariais](#pessoal_tabelas_salariais) | identificação | Tabela salarial de um período, com os degraus em pessoal_nivel_salarial_base; no máximo uma vigente por entidade (src/lib/db/tabelas-salaria… |
 | [pessoal_telegram_arquivos](#pessoal_telegram_arquivos) | identificação, financeiro, **sensível: saúde** | Comprovante mandado ao bot do Telegram (foto ou PDF) aguardando confirmação: o que a IA leu e o passo da conversa; apagada ao confirmar ou c… |
 | [pessoal_treinamentos](#pessoal_treinamentos) | — | Catálogo de treinamentos (carga horária e validade em meses) usado em SST. Herdado do Bubble; cadastrado em Pessoal > Treinamentos. |
 | [pessoal_treinamentos_alunos](#pessoal_treinamentos_alunos) | trabalhista | Participação de um funcionário num treinamento (datas e certificado), usada no controle de vencimentos. Espelho do Bubble; gravada em Pessoa… |
@@ -1211,10 +1212,11 @@ Tabela salarial: cargo x nível vertical x horizontal x carreira, com o salário
 | `sindicato_id` | uuid | sim |  | → empresa |  |  |
 | `created_at` | timestamp with time zone | sim | `now()` |  |  |  |
 | `updated_at` | timestamp with time zone | sim | `now()` |  |  |  |
+| `tabela_id` | uuid | sim |  | → pessoal_tabelas_salariais |  | Tabela salarial a que o degrau pertence. |
 
 Únicas: `UNIQUE (bubble_id)`
 
-Índices: `pessoal_nivel_salarial_base_bubble_id_key`, `pessoal_nivel_salarial_base_pkey`
+Índices: `pessoal_nivel_salarial_base_bubble_id_key`, `pessoal_nivel_salarial_base_pkey`, `pessoal_nivel_salarial_base_tabela_idx`
 
 ## pessoal_plano_saude
 
@@ -1465,6 +1467,30 @@ Remessa mensal de espelhos de ponto (mês de referência, finalizada). Migrada d
 Únicas: `UNIQUE (bubble_id)`
 
 Índices: `pessoal_registro_ponto_remessas_bubble_id_key`, `pessoal_registro_ponto_remessas_liberar_idx`, `pessoal_registro_ponto_remessas_pkey`
+
+## pessoal_tabelas_salariais
+
+Tabela salarial de um período, com os degraus em pessoal_nivel_salarial_base; no máximo uma vigente por entidade (src/lib/db/tabelas-salariais.ts).
+
+- **LGPD:** identificação · titulares: funcionários
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  | Identificador da tabela. |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  | Entidade (tenant). |
+| `nome` | text | sim |  |  |  | Gerado pelo sistema: "[Ano de início] - [Ano de término]". Vazio até informar a vigência. |
+| `data_inicio` | date | sim |  |  |  | Início da vigência. |
+| `data_fim` | date | sim |  |  |  | Término da vigência. |
+| `vigente` | boolean | não | `false` |  |  | Se é a tabela em uso: os lançamentos e o reajuste trabalham com ela. |
+| `criado_por` | uuid | sim |  | → usuarios | identificação | Quem cadastrou. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  | Criação da tabela. |
+| `updated_at` | timestamp with time zone | sim |  |  |  | Última alteração da tabela. |
+
+Checks: `pessoal_tabelas_salariais_datas_check` `CHECK ((((data_inicio IS NULL) = (data_fim IS NULL)) AND ((data_fim IS NULL) OR (data_fim >= data_inicio))))`
+
+Índices: `pessoal_tabelas_salariais_periodo_idx`, `pessoal_tabelas_salariais_pkey`, `pessoal_tabelas_salariais_vigente_idx`
 
 ## pessoal_telegram_arquivos
 

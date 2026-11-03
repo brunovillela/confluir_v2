@@ -117,14 +117,34 @@ export function rotuloNivelSalarial(
   return [degrau, n.nivel_carreira].filter(Boolean).join(" · ") || "—"
 }
 
-export async function listarNivelSalarialBase(): Promise<NivelSalarialBase[]> {
+/**
+ * Degraus de uma tabela salarial; sem `tabelaId`, os da vigente. `incluir` traz
+ * também degraus avulsos (o lançamento antigo em edição aponta para outra tabela).
+ */
+export async function listarNivelSalarialBase(
+  opcoes: { tabelaId?: string; incluir?: (string | null)[] } = {}
+): Promise<NivelSalarialBase[]> {
   const admin = await createAdminClient()
+  let tabelaId = opcoes.tabelaId
+  if (!tabelaId) {
+    const { data: vigente } = await admin
+      .from("pessoal_tabelas_salariais")
+      .select("id")
+      .eq("emp_proprietaria_id", await tenantAtual())
+      .eq("vigente", true)
+      .maybeSingle()
+    tabelaId = vigente?.id
+  }
+  const incluir = (opcoes.incluir ?? []).filter((v): v is string => Boolean(v))
+  const filtro = [tabelaId ? `tabela_id.eq.${tabelaId}` : "", incluir.length ? `id.in.(${incluir.join(",")})` : ""].filter(Boolean)
+  if (filtro.length === 0) return []
   const [{ data, error }, cargos] = await Promise.all([
     admin
       .from("pessoal_nivel_salarial_base")
       .select(
         "id, ordem, nivel_vertical, nivel_horizontal, nivel_carreira, salario_base, cargo_id"
       )
+      .or(filtro.join(","))
       .order("ordem", { ascending: true, nullsFirst: false }),
     listarCargos(),
   ])
@@ -521,7 +541,7 @@ function registroNivel(dados: DadosNivelSalarial) {
 }
 
 async function avisarNivelSalarial(dados: DadosNivelSalarial): Promise<void> {
-  const base = await listarNivelSalarialBase()
+  const base = await listarNivelSalarialBase({ incluir: [dados.nivel_atual_id] })
   const atual = base.find((b) => b.id === dados.nivel_atual_id) ?? null
   await notificarMudancaCarreira(
     dados.funcionario_id,
@@ -559,8 +579,9 @@ export async function atualizarNivelSalarial(
 }
 
 /**
- * Reajuste salarial linear (acordo anual): aplica o mesmo percentual a TODOS
- * os degraus da tabela salarial, arredondando a 2 casas. Funcionários com
+ * Reajuste salarial linear: aplica o mesmo percentual a TODOS os degraus da
+ * tabela VIGENTE, arredondando a 2 casas (para guardar a anterior, o reajuste
+ * gera uma nova tabela: lib/db/tabelas-salariais). Funcionários com
  * lançamento de nível recebem aviso interno (sem email — o valor individual
  * aparece no painel).
  */

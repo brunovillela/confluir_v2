@@ -25,12 +25,19 @@ on conflict (id) do nothing;
 -- ---------------------------------------------------------------------------
 -- Níveis salariais: tabela (base) + lançamentos por funcionário
 -- ---------------------------------------------------------------------------
+insert into pessoal_tabelas_salariais (id, emp_proprietaria_id, nome, data_inicio, data_fim, vigente) values
+  ('5a300000-0000-4000-8000-000000000001','11111111-1111-4111-8111-111111111111','2025 - 2026','2025-09-01','2026-08-31',true)
+ on conflict (id) do nothing;
+
 insert into pessoal_nivel_salarial_base (id, emp_proprietaria_id, sindicato_id, ordem, nivel_vertical, nivel_horizontal, nivel_carreira, salario_base, cargo_id) values
   ('5a200000-0000-4000-8000-000000000001','11111111-1111-4111-8111-111111111111','11111111-1111-4111-8111-111111111111', 1,'I','A','Júnior', 3200.00,'5a100000-0000-4000-8000-000000000001'),
   ('5a200000-0000-4000-8000-000000000002','11111111-1111-4111-8111-111111111111','11111111-1111-4111-8111-111111111111', 2,'I','B','Júnior', 3520.00,'5a100000-0000-4000-8000-000000000001'),
   ('5a200000-0000-4000-8000-000000000003','11111111-1111-4111-8111-111111111111','11111111-1111-4111-8111-111111111111', 3,'II','A','Pleno', 4200.00,'5a100000-0000-4000-8000-000000000001'),
   ('5a200000-0000-4000-8000-000000000004','11111111-1111-4111-8111-111111111111','11111111-1111-4111-8111-111111111111', 4,'II','B','Pleno', 4620.00,'5a100000-0000-4000-8000-000000000001')
 on conflict (id) do nothing;
+
+update pessoal_nivel_salarial_base set tabela_id = '5a300000-0000-4000-8000-000000000001'
+ where emp_proprietaria_id = '11111111-1111-4111-8111-111111111111' and tabela_id is null;
 
 insert into pessoal_nivel_salarial (id, emp_proprietaria_id, funcionario_id, ano, mes, tipo_avanco, nivel_atual_id, nivel_atual_data, proximo_nivel_id, proximo_nivel_data) values
   ('5a300000-0000-4000-8000-000000000001','11111111-1111-4111-8111-111111111111','33333333-3333-4333-8333-000000000001','2026','Março','Por mérito','5a200000-0000-4000-8000-000000000003', current_date - 120,'5a200000-0000-4000-8000-000000000004', current_date + 240),

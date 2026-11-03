@@ -263,6 +263,7 @@ erDiagram
     uuid emp_proprietaria_id FK
     uuid cargo_id FK
     uuid sindicato_id FK
+    uuid tabela_id FK
   }
   pessoal_plano_saude {
     uuid id PK
@@ -314,6 +315,11 @@ erDiagram
   pessoal_registro_ponto_remessas {
     uuid id PK
     uuid emp_proprietaria_id FK
+  }
+  pessoal_tabelas_salariais {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid criado_por FK
   }
   pessoal_telegram_arquivos {
     text chat_id PK
@@ -431,6 +437,7 @@ erDiagram
   pessoal_nivel_salarial }o--o| usuarios : "funcionario_id"
   pessoal_nivel_salarial_base }o--o| empresa : "sindicato_id"
   pessoal_nivel_salarial_base }o--o| pessoal_cargo : "cargo_id"
+  pessoal_nivel_salarial_base }o--o| pessoal_tabelas_salariais : "tabela_id"
   pessoal_plano_saude }o--o| pessoal_dependentes : "dependente_id"
   pessoal_plano_saude }o--|| usuarios : "titular_id"
   pessoal_ponto_importacao_itens }o--o| pessoal_registro_ponto : "registro_id"
@@ -448,6 +455,7 @@ erDiagram
   pessoal_reembolsos_act }o--|| usuarios : "funcionario_id"
   pessoal_registro_ponto }o--o| pessoal_registro_ponto_remessas : "remessa_id"
   pessoal_registro_ponto }o--o| usuarios : "funcionario_id"
+  pessoal_tabelas_salariais }o--o| usuarios : "criado_por"
   pessoal_telegram_arquivos }o--|| usuarios : "usuario_id"
   pessoal_treinamentos_alunos }o--o| pessoal_treinamentos : "treinamento_id"
   pessoal_treinamentos_alunos }o--o| usuarios : "aluno_id"

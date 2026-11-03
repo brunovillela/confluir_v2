@@ -225,6 +225,7 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "pessoal_reembolsos_act",
   "pessoal_reembolsos_act_tipos",
   "pessoal_registro_ponto_remessas",
+  "pessoal_tabelas_salariais",
   "pessoal_treinamentos",
   "pessoal_treinamentos_alunos",
   "projeto",

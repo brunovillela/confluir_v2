@@ -403,6 +403,12 @@ export async function calcularMovimento(
   }
 
   // 3–4. Alterações contratuais e cadastrais (trilha de auditoria).
+  const { data: tabelaVigente } = await admin
+    .from("pessoal_tabelas_salariais")
+    .select("id")
+    .eq("emp_proprietaria_id", emp)
+    .eq("vigente", true)
+    .maybeSingle()
   const { data: auds } = await admin
     .from("auditoria")
     .select("id, tabela, registro_id, operacao, campos, antes, depois, momento")
@@ -483,6 +489,8 @@ export async function calcularMovimento(
         origem: `/painel/pessoal/${f}`,
       })
     } else if (tabela === "pessoal_nivel_salarial_base" && op === "UPDATE" && campos.includes("salario_base")) {
+      // Mexer numa tabela guardada ou em preparação não muda o salário de ninguém.
+      if (linha.tabela_id && linha.tabela_id !== tabelaVigente?.id) continue
       add({
         ...base,
         chave: `tabela-salarial:${quando}`,
