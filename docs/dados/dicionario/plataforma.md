@@ -700,6 +700,8 @@ ACL plana por usuário: uma coluna booleana por área/ação do sistema, mais al
 | `deliberacoes_livre` | boolean | sim | `false` |  | nenhum | Deliberações das atas: consulta as de sigilo livre. Cumulativa com reservado/restrito — vale a mais alta. |
 | `deliberacoes_reservado` | boolean | sim | `false` |  | nenhum | Deliberações das atas: consulta as livres e as reservadas. |
 | `deliberacoes_restrito` | boolean | sim | `false` |  | nenhum | Deliberações das atas: consulta todas (livres, reservadas e restritas). |
+| `viagens_solicitar` | boolean | sim | `false` |  | nenhum | Viagens: solicita passagem e hospedagem para si (exige ser funcionário com vínculo em vigor ou diretor em exercício). |
+| `viagens_solicitar_terceiros` | boolean | sim | `false` |  | nenhum | Viagens: solicita passagem e hospedagem para outro diretor, funcionário ou convidado. |
 
 Únicas: `UNIQUE (bubble_id)`
 

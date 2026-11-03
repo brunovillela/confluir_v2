@@ -105,7 +105,8 @@ export default async function PainelPage({
         </div>
         {/* À direita, na linha do nome: os atalhos de pedido e o tempo nas sedes. */}
         <div className="flex flex-wrap items-center justify-end gap-2">
-          {quadroViagem && (
+          {((quadroViagem && podeAcessar(sessao.permissoes, "viagens_solicitar")) ||
+            podeAcessar(sessao.permissoes, "viagens_solicitar_terceiros")) && (
             <Button asChild variant={condutor ? "outline" : "default"}>
               <Link href="/painel/perfil/viagens?novo=1">
                 <Plane />

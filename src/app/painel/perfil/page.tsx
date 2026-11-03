@@ -38,6 +38,7 @@ import { ContaBancariaResumo } from "@/components/conta-bancaria-resumo"
 import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
 import { CartaoEditavel } from "@/components/cartao-editavel"
 import { requireSessaoPainel } from "@/lib/auth"
+import { podeAcessar } from "@/lib/permissoes"
 import { usuarioTemCaixa } from "@/lib/db/caixa"
 import { usuarioTemCartao } from "@/lib/db/compras-pagamento"
 import { contarRemessasDiaria } from "@/lib/db/diarias-historico"
@@ -221,7 +222,7 @@ export default async function PerfilPage({
 }: {
   searchParams: Promise<{ area?: string }>
 }) {
-  const { usuario } = await requireSessaoPainel()
+  const { usuario, permissoes } = await requireSessaoPainel()
   const { area: avisoArea } = await searchParams
   const [perfil, telefones, enderecos, temCaixa, temCartao, remessasAnteriores] = await Promise.all([
     obterPerfil(usuario.id),
@@ -616,7 +617,9 @@ export default async function PerfilPage({
       <div>
         <h2 className="text-lg font-semibold">Conexões e atalhos</h2>
         <div className={`mt-4 ${GRADE_AREAS}`}>
-          {(perfil.funcionarioAtivo || diretoria) && (
+          {(perfil.funcionarioAtivo ||
+            diretoria ||
+            podeAcessar(permissoes, "viagens_solicitar_terceiros")) && (
             <CartaoArea
               titulo={MINHAS_VIAGENS.titulo}
               descricao={MINHAS_VIAGENS.descricao}

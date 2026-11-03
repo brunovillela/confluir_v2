@@ -4,7 +4,9 @@ import { avisarQuemPode, depoisDaResposta } from "@/lib/db/avisos"
 import { botoesPendencia } from "@/lib/telegram-pendencias-fluxo"
 import { esquemaAusente, hojeSP, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { listarDepartamentos } from "@/lib/db/compras"
+import { diretoresParaDiaria } from "@/lib/db/diarias-diretoria"
 import { listarEventos } from "@/lib/db/eventos"
+import { funcionariosParaSelecao } from "@/lib/db/pessoal"
 import { formatarData } from "@/lib/formato"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -213,6 +215,23 @@ export async function minhasViagens(usuarioId: string): Promise<{
   return { disponivel: true, viagens: await normalizar((data ?? []) as Record<string, unknown>[]) }
 }
 
+/** Viagens que a pessoa pediu para outra pessoa viajar (inclusive convidado). */
+export async function viagensPedidasParaTerceiros(usuarioId: string): Promise<Viagem[]> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("viagens_solicitacoes")
+    .select(SELECT_VIAGEM)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("solicitante_id", usuarioId)
+    .or(`beneficiario_usuario_id.is.null,beneficiario_usuario_id.neq.${usuarioId}`)
+    .order("created_at", { ascending: false })
+  if (error) {
+    if (esquemaAusente(error)) return []
+    throw new Error(`Falha ao listar as viagens pedidas: ${error.message}`)
+  }
+  return normalizar((data ?? []) as Record<string, unknown>[])
+}
+
 /**
  * Todas as viagens do tenant, mais recentes primeiro (gestão). Em páginas de
  * 1.000: sem `.range` o PostgREST corta em 1.000 linhas calado.
@@ -298,7 +317,86 @@ export async function opcoesDoFormViagem(): Promise<{
   }
 }
 
+/** Diretores e funcionários que podem ser escolhidos no pedido por outra pessoa. */
+export async function pessoasParaViagem(): Promise<{
+  diretores: { usuarioId: string; nome: string; departamentoId: string | null }[]
+  funcionarios: { usuarioId: string; nome: string; departamentoId: string | null }[]
+}> {
+  const [diretores, funcionarios] = await Promise.all([
+    diretoresParaDiaria().catch(() => []),
+    funcionariosParaSelecao().catch(() => []),
+  ])
+  return {
+    diretores: diretores.map((d) => ({
+      usuarioId: d.usuarioId,
+      nome: d.cargo ? `${d.nome} — ${d.cargo}` : d.nome,
+      departamentoId: d.departamentoId,
+    })),
+    funcionarios: funcionarios.map((f) => ({
+      usuarioId: f.usuarioId,
+      nome: f.nome,
+      departamentoId: null,
+    })),
+  }
+}
+
 // ── Escrita ─────────────────────────────────────────────────────────────────
+
+/**
+ * Lê do formulário quem vai viajar quando o pedido é por outra pessoa, e
+ * confere que ela é mesmo do quadro escolhido.
+ */
+export async function lerBeneficiarioDoForm(formData: FormData): Promise<
+  | {
+      beneficiarioTipo: BeneficiarioViagem
+      beneficiarioUsuarioId: string | null
+      convidado?: NovaViagem["convidado"]
+      departamentoDaPessoa: string | null
+    }
+  | { erro: string }
+> {
+  const tipo = String(formData.get("beneficiario_tipo") ?? "")
+  if (tipo === "convidado") {
+    const nome = String(formData.get("convidado_nome") ?? "").trim()
+    const email = String(formData.get("convidado_email") ?? "").trim()
+    if (!nome) return { erro: "Informe o nome do convidado." }
+    if (!email || !email.includes("@")) {
+      return { erro: "Informe o e-mail do convidado — é por ele que vai o aviso das reservas." }
+    }
+    const cpf = String(formData.get("convidado_cpf") ?? "").replace(/\D/g, "")
+    if (cpf && cpf.length !== 11) return { erro: "O CPF do convidado deve ter 11 dígitos." }
+    return {
+      beneficiarioTipo: "convidado",
+      beneficiarioUsuarioId: null,
+      convidado: {
+        nome,
+        email,
+        cpf: cpf || null,
+        nascimento: String(formData.get("convidado_nascimento") ?? "").trim() || null,
+        telefone: String(formData.get("convidado_telefone") ?? "").trim() || null,
+      },
+      departamentoDaPessoa: null,
+    }
+  }
+  if (tipo !== "diretor" && tipo !== "funcionario") return { erro: "Escolha quem vai viajar." }
+
+  const usuarioId = String(formData.get("beneficiario_usuario_id") ?? "").trim()
+  if (!usuarioId) return { erro: "Escolha quem vai viajar." }
+  if (tipo === "diretor") {
+    const diretor = (await diretoresParaDiaria()).find((d) => d.usuarioId === usuarioId)
+    if (!diretor) return { erro: "Esta pessoa não é diretor(a) em exercício." }
+    return {
+      beneficiarioTipo: "diretor",
+      beneficiarioUsuarioId: usuarioId,
+      departamentoDaPessoa: diretor.departamentoId,
+    }
+  }
+  const funcionarios = await funcionariosParaSelecao()
+  if (!funcionarios.some((f) => f.usuarioId === usuarioId)) {
+    return { erro: "Esta pessoa não é funcionário(a) com vínculo em vigor." }
+  }
+  return { beneficiarioTipo: "funcionario", beneficiarioUsuarioId: usuarioId, departamentoDaPessoa: null }
+}
 
 export type NovaViagem = {
   beneficiarioTipo: BeneficiarioViagem

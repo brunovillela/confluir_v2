@@ -95,8 +95,8 @@ function novaHospedagem(itens: ItemRascunho[]): ItemRascunho {
 /**
  * Pedido de viagem: a pessoa (ou a gestão por ela) descreve os trechos de
  * passagem e as estadias. Fica FECHADO até clicarem no botão, como os outros
- * pedidos do painel. Com `pessoas`, é o modo da gestão: escolhe quem viaja,
- * inclusive convidado sem conta.
+ * pedidos do painel. Com `pessoas`, escolhe quem viaja, inclusive convidado
+ * sem conta: sempre no modo da gestão; em Minhas viagens, conforme `paraQuem`.
  */
 export function ViagemForm({
   acao,
@@ -104,6 +104,7 @@ export function ViagemForm({
   departamentoPadrao,
   eventos,
   pessoas,
+  paraQuem,
   abertoInicial = false,
   rotulo = "Solicitar viagem",
   orientacoes = null,
@@ -119,6 +120,8 @@ export function ViagemForm({
   antecedenciaDias?: number | null
   /** Modo gestão: diretores e funcionários que podem ser escolhidos. */
   pessoas?: { diretores: PessoaParaViagem[]; funcionarios: PessoaParaViagem[] }
+  /** Minhas viagens: o que a pessoa pode pedir — para si, para terceiros ou os dois. */
+  paraQuem?: { proprio: boolean; terceiros: boolean }
   abertoInicial?: boolean
   rotulo?: string
 }) {
@@ -129,6 +132,8 @@ export function ViagemForm({
   const [pessoaId, setPessoaId] = useState("")
   const [departamentoId, setDepartamentoId] = useState(departamentoPadrao ?? "")
   const [evento, setEvento] = useState("")
+  const [paraTerceiro, setParaTerceiro] = useState(paraQuem ? !paraQuem.proprio : false)
+  const escolheQuemViaja = !paraQuem || paraTerceiro
 
   if (!aberto) {
     return (
@@ -202,7 +207,37 @@ export function ViagemForm({
           )}
           <input type="hidden" name="itens" value={itensJson} />
 
-          {pessoas && (
+          {paraQuem && (
+            <fieldset className="grid gap-2">
+              <legend className="mb-2 text-sm font-semibold">Para quem é a viagem</legend>
+              <input type="hidden" name="para_quem" value={paraTerceiro ? "terceiro" : "proprio"} />
+              {paraQuem.proprio && paraQuem.terceiros ? (
+                <div className="flex flex-wrap gap-2">
+                  {[false, true].map((terceiro) => (
+                    <Button
+                      key={String(terceiro)}
+                      type="button"
+                      size="sm"
+                      variant={paraTerceiro === terceiro ? "default" : "outline"}
+                      onClick={() => {
+                        setParaTerceiro(terceiro)
+                        setPessoaId("")
+                        setDepartamentoId(terceiro ? "" : (departamentoPadrao ?? ""))
+                      }}
+                    >
+                      {terceiro ? "Para outra pessoa" : "Para mim"}
+                    </Button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-sm">
+                  {paraTerceiro ? "Para outra pessoa." : "Para você."}
+                </p>
+              )}
+            </fieldset>
+          )}
+
+          {pessoas && escolheQuemViaja && (
             <fieldset className="grid gap-4">
               <legend className="mb-2 text-sm font-semibold">Quem vai viajar</legend>
               <input type="hidden" name="beneficiario_tipo" value={beneficiario} />

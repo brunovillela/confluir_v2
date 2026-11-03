@@ -25,15 +25,14 @@ import { ViagemForm } from "@/components/viagem-form"
 import { ResumoItensViagem, SituacaoViagemBadge } from "@/components/viagens"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { requirePermissao } from "@/lib/auth"
-import { diretoresParaDiaria } from "@/lib/db/diarias-diretoria"
 import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
-import { funcionariosParaSelecao } from "@/lib/db/pessoal"
 import {
   filtrarViagens,
   listarViagens,
   obterConfigViagens,
   opcoesDoFormViagem,
   pedidoEmCimaDaHora,
+  pessoasParaViagem,
 } from "@/lib/db/viagens"
 import { formatarData } from "@/lib/formato"
 import { lerFiltroViagens, ROTULO_BENEFICIARIO } from "@/lib/viagens-constantes"
@@ -55,11 +54,10 @@ export default async function ViagensPage({
   await requirePermissao("viagens_gestao")
   const params = await searchParams
   const filtro = lerFiltroViagens(params)
-  const [{ disponivel, viagens: todas }, opcoes, diretores, funcionarios, config] = await Promise.all([
+  const [{ disponivel, viagens: todas }, opcoes, pessoas, config] = await Promise.all([
     listarViagens(),
     opcoesDoFormViagem(),
-    diretoresParaDiaria().catch(() => []),
-    funcionariosParaSelecao().catch(() => []),
+    pessoasParaViagem(),
     obterConfigViagens().catch(() => null),
   ])
 
@@ -122,18 +120,7 @@ export default async function ViagensPage({
           orientacoes={config?.orientacoes ?? null}
           antecedenciaDias={config?.antecedenciaDias ?? null}
           eventos={opcoes.eventos}
-          pessoas={{
-            diretores: diretores.map((d) => ({
-              usuarioId: d.usuarioId,
-              nome: d.cargo ? `${d.nome} — ${d.cargo}` : d.nome,
-              departamentoId: d.departamentoId,
-            })),
-            funcionarios: funcionarios.map((f) => ({
-              usuarioId: f.usuarioId,
-              nome: f.nome,
-              departamentoId: null,
-            })),
-          }}
+          pessoas={pessoas}
         />
       )}
 

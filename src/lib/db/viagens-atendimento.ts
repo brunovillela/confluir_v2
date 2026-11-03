@@ -228,7 +228,11 @@ export async function avisarEquipeNovaViagem(id: string): Promise<void> {
   const corpo = [
     tituloEmail("Pedido de viagem novo"),
     paragrafo(
-      `<strong>${escaparHtml(v.beneficiarioNome)}</strong> pediu a viagem nº ${v.numero ?? "—"} — <em>${escaparHtml(v.motivo)}</em>${evento ? ` (${escaparHtml(evento)})` : ""}.`
+      `${
+        v.solicitanteId && v.solicitanteId !== v.beneficiarioUsuarioId
+          ? `<strong>${escaparHtml(v.solicitanteNome ?? "Alguém")}</strong> pediu para <strong>${escaparHtml(v.beneficiarioNome)}</strong>`
+          : `<strong>${escaparHtml(v.beneficiarioNome)}</strong> pediu`
+      } a viagem nº ${v.numero ?? "—"} — <em>${escaparHtml(v.motivo)}</em>${evento ? ` (${escaparHtml(evento)})` : ""}.`
     ),
     ...v.itens.map((item, i) => blocoItem(item, i, null)),
     emCima
@@ -300,8 +304,8 @@ async function destinatarios(v: Viagem): Promise<Destinatario[]> {
       link: `${origem}/painel/perfil/viagens/${v.id}`,
     })
   }
-  // Quem pediu por outra pessoa é da equipe de viagens (só ela lança por
-  // terceiros): o link dele é o da gestão.
+  // Quem pediu por outra pessoa pode não ser da equipe de viagens: o link é o
+  // de Minhas viagens, que abre para quem pediu.
   if (v.solicitanteId && v.solicitanteId !== v.beneficiarioUsuarioId) {
     const u = porId.get(v.solicitanteId)
     lista.push({
@@ -309,7 +313,7 @@ async function destinatarios(v: Viagem): Promise<Destinatario[]> {
       nome: texto(u?.nome_guerra) ?? texto(u?.nome_completo) ?? v.solicitanteNome,
       usuarioId: v.solicitanteId,
       viaja: false,
-      link: `${origem}/painel/institucional/viagens/${v.id}`,
+      link: `${origem}/painel/perfil/viagens/${v.id}`,
     })
   }
   return lista

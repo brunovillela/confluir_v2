@@ -9,10 +9,13 @@ import { quadroParaDiaria } from "@/lib/db/diarias-diretoria"
 import {
   cancelarMinhaViagem,
   criarViagem,
+  lerBeneficiarioDoForm,
   lerEventoDoForm,
   lerItensDoForm,
+  type NovaViagem,
 } from "@/lib/db/viagens"
 import { avisarEquipeNovaViagem } from "@/lib/db/viagens-atendimento"
+import { podeAcessar } from "@/lib/permissoes"
 
 function revalidar() {
   revalidatePath("/painel/perfil/viagens")
@@ -25,12 +28,14 @@ export async function solicitarViagem(
 ): Promise<EstadoForm> {
   const sessao = await requireSessaoPainel()
   const usuarioId = sessao.usuario.id as string
-  // Mesma régua das diárias: funcionário com vínculo em vigor ou diretor em
-  // exercício. Convidado não tem conta — a equipe de viagens pede por ele.
-  const quadro = await quadroParaDiaria(usuarioId)
-  if (!quadro) {
+  const paraTerceiro = formData.get("para_quem") === "terceiro"
+  if (
+    !podeAcessar(sessao.permissoes, paraTerceiro ? "viagens_solicitar_terceiros" : "viagens_solicitar")
+  ) {
     return {
-      erro: "Só funcionários com vínculo em vigor ou diretores em exercício fazem este pedido.",
+      erro: paraTerceiro
+        ? "Sua conta não tem permissão para pedir viagem para outra pessoa."
+        : "Sua conta não tem permissão para pedir viagem.",
     }
   }
 
@@ -43,12 +48,40 @@ export async function solicitarViagem(
     return { erro: "Informe o nome do evento externo." }
   }
 
+  let quem: Pick<NovaViagem, "beneficiarioTipo" | "beneficiarioUsuarioId" | "convidado"> & {
+    departamentoDaPessoa: string | null
+  }
+  if (paraTerceiro) {
+    const lido = await lerBeneficiarioDoForm(formData)
+    if ("erro" in lido) return { erro: lido.erro }
+    // Senão, quem só pede por terceiros pediria para si por este caminho.
+    if (lido.beneficiarioUsuarioId === usuarioId) {
+      return { erro: "Para viajar você mesmo, escolha “Para mim”." }
+    }
+    quem = lido
+  } else {
+    // Mesma régua das diárias: funcionário com vínculo em vigor ou diretor em
+    // exercício.
+    const quadro = await quadroParaDiaria(usuarioId)
+    if (!quadro) {
+      return {
+        erro: "Só funcionários com vínculo em vigor ou diretores em exercício pedem viagem para si.",
+      }
+    }
+    quem = {
+      beneficiarioTipo: quadro.quadro,
+      beneficiarioUsuarioId: usuarioId,
+      departamentoDaPessoa: quadro.departamentoId,
+    }
+  }
+
   const { erro, id } = await criarViagem({
-    beneficiarioTipo: quadro.quadro,
-    beneficiarioUsuarioId: usuarioId,
+    beneficiarioTipo: quem.beneficiarioTipo,
+    beneficiarioUsuarioId: quem.beneficiarioUsuarioId,
+    convidado: quem.convidado,
     solicitanteId: usuarioId,
     departamentoId:
-      String(formData.get("departamento_id") ?? "").trim() || quadro.departamentoId,
+      String(formData.get("departamento_id") ?? "").trim() || quem.departamentoDaPessoa,
     ...evento,
     motivo,
     itens: lidos.itens,

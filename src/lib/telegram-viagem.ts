@@ -3,9 +3,10 @@ import "server-only"
 import { listarDepartamentos } from "@/lib/db/compras"
 import { hojeSP } from "@/lib/db/comum"
 import { quadroParaDiaria } from "@/lib/db/diarias-diretoria"
-import type { UsuarioTelegram } from "@/lib/db/telegram"
+import { permissoesEfetivasPorUsuario, type UsuarioTelegram } from "@/lib/db/telegram"
 import { buscarViagem, criarViagem, minhasViagens, obterConfigViagens } from "@/lib/db/viagens"
 import { avisarEquipeNovaViagem } from "@/lib/db/viagens-atendimento"
+import { podeAcessar } from "@/lib/permissoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { editarMensagemTelegram, enviarTelegram, responderCallbackTelegram } from "@/lib/telegram"
 import {
@@ -111,6 +112,13 @@ async function impedimento(u: UsuarioTelegram): Promise<string | null> {
   return null
 }
 
+/** O quadro de quem pode pedir para si: a permissão mais a régua das diárias. */
+async function quadroDeQuemPede(u: UsuarioTelegram) {
+  const permissoes = await permissoesEfetivasPorUsuario(u.id).catch(() => null)
+  if (!podeAcessar(permissoes, "viagens_solicitar")) return null
+  return quadroParaDiaria(u.id).catch(() => null)
+}
+
 /** /viagem — começa (ou recomeça) o pedido. */
 export async function iniciarPedidoViagem(chatId: string, u: UsuarioTelegram): Promise<void> {
   const barrado = await impedimento(u)
@@ -118,11 +126,11 @@ export async function iniciarPedidoViagem(chatId: string, u: UsuarioTelegram): P
     await enviarTelegram({ chatId, texto: barrado })
     return
   }
-  const quadro = await quadroParaDiaria(u.id).catch(() => null)
+  const quadro = await quadroDeQuemPede(u)
   if (!quadro) {
     await enviarTelegram({
       chatId,
-      texto: "Só funcionários com vínculo em vigor ou diretores em exercício pedem viagem. Pedido para convidado é com a equipe de Viagens.",
+      texto: "Sua conta não pede viagem por aqui: é preciso ter a permissão e ser funcionário com vínculo em vigor ou diretor em exercício. Pedido para outra pessoa é pelo painel.",
     })
     return
   }
@@ -165,10 +173,10 @@ async function concluir(chatId: string, u: UsuarioTelegram, c: Conversa, ctx: Co
   // Quem apagar a linha é quem grava: dois toques em Confirmar dão um pedido só.
   if (!(await apagarConversa(chatId))) return
 
-  // A régua pode ter mudado no meio da conversa (vínculo encerrado).
-  const quadro = await quadroParaDiaria(u.id).catch(() => null)
+  // A régua pode ter mudado no meio da conversa (vínculo encerrado, permissão retirada).
+  const quadro = await quadroDeQuemPede(u)
   if (!quadro) {
-    await enviarTelegram({ chatId, texto: "Só funcionários com vínculo em vigor ou diretores em exercício pedem viagem." })
+    await enviarTelegram({ chatId, texto: "Sua conta não pode mais pedir viagem: confira a permissão com a administração." })
     return
   }
   const { erro, id } = await criarViagem({
