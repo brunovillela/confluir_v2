@@ -11,8 +11,32 @@ import { CompromissoForm } from "../agenda-forms"
 
 export const metadata: Metadata = { title: "Novo compromisso — Confluir" }
 
-export default async function NovoCompromissoPage() {
+type Params = Partial<
+  Record<"atividade" | "tipo" | "local" | "inicio" | "termino" | "data_inicio" | "data_termino" | "dia_todo", string>
+>
+
+/** Só aceita o formato do campo; o resto da URL não entra no formulário. */
+function campoDataHora(v: string | undefined): string {
+  return v && /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/.test(v) ? v : ""
+}
+
+export default async function NovoCompromissoPage({
+  searchParams,
+}: {
+  searchParams: Promise<Params>
+}) {
   await requirePermissao("ferramentas_agendas_edicao")
+  // Vem do calendário, em "Mais opções": o que já foi digitado.
+  const q = await searchParams
+  const diaTodo = q.dia_todo === "1"
+  const inicial = {
+    atividade: q.atividade ?? null,
+    tipo: q.tipo ?? null,
+    local: q.local ?? null,
+    diaTodo,
+    inicio: campoDataHora(diaTodo ? q.data_inicio : q.inicio),
+    termino: campoDataHora(diaTodo ? q.data_termino : q.termino),
+  }
   const [sedes, departamentos] = await Promise.all([sedesParaAgenda(), listarDepartamentos()])
 
   return (
@@ -30,7 +54,7 @@ export default async function NovoCompromissoPage() {
           sozinhos, pelas próprias áreas.
         </p>
       </div>
-      <CompromissoForm sedes={sedes} departamentos={departamentos} />
+      <CompromissoForm inicial={inicial} sedes={sedes} departamentos={departamentos} />
     </>
   )
 }

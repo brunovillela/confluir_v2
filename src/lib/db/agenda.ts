@@ -8,8 +8,8 @@ import { createAdminClient } from "@/lib/supabase/admin"
 /**
  * Agenda — 654 eventos migrados do Bubble (2024–2026). Dois tipos convivem:
  * "Atividade sindical" (484) e "Equipamento" (106, muitos sem data/título), além
- * de ~64 sem tipo. Como só há 1 evento futuro, a tela é uma lista cronológica
- * (mais recentes primeiro) com filtros — não um calendário vazio.
+ * de ~64 sem tipo. A tela tem a lista cronológica (mais recentes primeiro, com
+ * filtros) e o calendário (mês, semana e dia; regras em lib/agenda-calendario.ts).
  *
  * `agenda_representantes` (participantes) está VAZIA e não veio raw na migração:
  * simplesmente não há dado de participantes. Vínculos `projeto_id`/`assembleia_id`
@@ -84,7 +84,38 @@ export async function listarEventos(
     .limit(500)
   if (error) throw new Error(`Falha ao listar eventos: ${error.message}`)
 
-  const linhas = data ?? []
+  return paraEventoLinhas(data ?? [])
+}
+
+/**
+ * Compromissos que tocam o período [de, ate) — inclusive os que começaram
+ * antes e ainda estão em curso. É o que o calendário mostra.
+ */
+export async function listarEventosDoPeriodo(
+  de: string,
+  ate: string,
+  filtro: Pick<FiltroAgenda, "busca" | "tipo"> = {}
+): Promise<EventoLinha[]> {
+  const admin = await createAdminClient()
+  let query = admin
+    .from("agenda")
+    .select(
+      "id, atividade, tipo, inicio, termino, dia_todo, local, sede_id, departamento_id, evento_id, assembleia_id"
+    )
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .lt("inicio", ate)
+    .or(`inicio.gte."${de}",termino.gte."${de}"`)
+
+  const busca = (filtro.busca ?? "").trim()
+  if (busca) query = query.ilike("atividade", `%${busca}%`)
+  if (filtro.tipo) query = query.eq("tipo", filtro.tipo)
+
+  const { data, error } = await query.order("inicio", { ascending: true }).limit(1000)
+  if (error) throw new Error(`Falha ao listar eventos: ${error.message}`)
+  return paraEventoLinhas(data ?? [])
+}
+
+async function paraEventoLinhas(linhas: Record<string, unknown>[]): Promise<EventoLinha[]> {
   const [sedes, deptos, rodadas] = await Promise.all([
     mapaSedes(),
     mapaDepartamentos(),

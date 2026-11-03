@@ -81,6 +81,8 @@ export async function salvarCompromissoAction(
   if (erro || !salvoId) return { erro: erro ?? "Falha ao salvar." }
 
   revalidar(salvoId)
+  // Criação rápida no calendário: fica onde está.
+  if (fd.get("ficar") === "1") return { ok: "Compromisso salvo." }
   redirect(`/painel/ferramentas/agenda/${salvoId}?salvo=1`)
 }
 
@@ -94,5 +96,6 @@ export async function excluirCompromissoAction(
   const { erro } = await excluirCompromisso(id)
   if (erro) return { erro }
   revalidar()
+  if (fd.get("ficar") === "1") return { ok: "Compromisso excluído." }
   redirect("/painel/ferramentas/agenda?excluido=1")
 }

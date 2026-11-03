@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useState } from "react"
+import { useActionState, useEffect, useState } from "react"
 import Link from "next/link"
 import { Loader2, Save, Trash2 } from "lucide-react"
 
@@ -39,25 +39,31 @@ export type CompromissoFormDados = {
 
 type Opcao = { id: string; nome: string }
 
-/** Cria (sem `compromisso`) ou edita um compromisso avulso. */
+/**
+ * Cria (sem `compromisso`) ou edita um compromisso avulso. `inicial` preenche a
+ * criação com o que veio do calendário ("Mais opções").
+ */
 export function CompromissoForm({
   compromisso,
+  inicial,
   sedes,
   departamentos,
 }: {
   compromisso?: CompromissoFormDados
+  inicial?: Partial<Omit<CompromissoFormDados, "id">>
   sedes: Opcao[]
   departamentos: Opcao[]
 }) {
   const [estado, acao, pendente] = useActionState(salvarCompromissoAction, {})
   const envio = useEnvioFormulario(acao, estado)
-  const [diaTodo, setDiaTodo] = useState(compromisso?.diaTodo ?? false)
+  const valores = compromisso ?? inicial
+  const [diaTodo, setDiaTodo] = useState(valores?.diaTodo ?? false)
   const voltar = compromisso
     ? `/painel/ferramentas/agenda/${compromisso.id}`
     : "/painel/ferramentas/agenda"
   // Tipo legado fora da lista (ex.: vazio do Bubble) não vira opção inválida.
-  const tipoInicial = (TIPOS_AGENDA_AVULSA as readonly string[]).includes(compromisso?.tipo ?? "")
-    ? compromisso!.tipo!
+  const tipoInicial = (TIPOS_AGENDA_AVULSA as readonly string[]).includes(valores?.tipo ?? "")
+    ? valores!.tipo!
     : ""
 
   return (
@@ -78,7 +84,7 @@ export function CompromissoForm({
               required
               maxLength={TITULO_MAX_AGENDA}
               placeholder="Ex.: Reunião com a base do Edise"
-              defaultValue={compromisso?.atividade ?? ""}
+              defaultValue={valores?.atividade ?? ""}
             />
           </div>
 
@@ -116,7 +122,7 @@ export function CompromissoForm({
                   name="data_inicio"
                   type="date"
                   required
-                  defaultValue={compromisso?.inicio.slice(0, 10) ?? ""}
+                  defaultValue={valores?.inicio?.slice(0, 10) ?? ""}
                   className={DATA}
                 />
               </div>
@@ -126,7 +132,7 @@ export function CompromissoForm({
                   id="data_termino"
                   name="data_termino"
                   type="date"
-                  defaultValue={compromisso?.termino.slice(0, 10) ?? ""}
+                  defaultValue={valores?.termino?.slice(0, 10) ?? ""}
                   className={DATA}
                 />
               </div>
@@ -140,7 +146,7 @@ export function CompromissoForm({
                   name="inicio"
                   type="datetime-local"
                   required
-                  defaultValue={compromisso?.inicio ?? ""}
+                  defaultValue={valores?.inicio ?? ""}
                   className={DATA}
                 />
               </div>
@@ -150,7 +156,7 @@ export function CompromissoForm({
                   id="termino"
                   name="termino"
                   type="datetime-local"
-                  defaultValue={compromisso?.termino ?? ""}
+                  defaultValue={valores?.termino ?? ""}
                   className={DATA}
                 />
               </div>
@@ -163,7 +169,7 @@ export function CompromissoForm({
               id="local"
               name="local"
               placeholder="Ex.: Auditório da sede, ou link da reunião on-line"
-              defaultValue={compromisso?.local ?? ""}
+              defaultValue={valores?.local ?? ""}
             />
           </div>
 
@@ -243,9 +249,23 @@ export function CompromissoForm({
   )
 }
 
-/** `compacto`: só o ícone, para a linha da lista. */
-export function ExcluirCompromissoBotao({ id, compacto = false }: { id: string; compacto?: boolean }) {
+/**
+ * `compacto`: só o ícone, para a linha da lista. Com `aoExcluir` (calendário),
+ * fica na página em vez de voltar à lista.
+ */
+export function ExcluirCompromissoBotao({
+  id,
+  compacto = false,
+  aoExcluir,
+}: {
+  id: string
+  compacto?: boolean
+  aoExcluir?: () => void
+}) {
   const [estado, acao, pendente] = useActionState(excluirCompromissoAction, {})
+  useEffect(() => {
+    if (estado.ok) aoExcluir?.()
+  }, [estado.ok, aoExcluir])
   const envio2 = useEnvioFormulario(acao, estado, {
     antes: (e) => {
       confirmarEnvio(e, "Excluir este compromisso da Agenda?")},
@@ -256,6 +276,7 @@ export function ExcluirCompromissoBotao({ id, compacto = false }: { id: string; 
       className="inline-flex items-center"
     >
       <input type="hidden" name="id" value={id} />
+      {aoExcluir && <input type="hidden" name="ficar" value="1" />}
       {estado.erro && <span className="text-destructive mr-2 text-xs">{estado.erro}</span>}
       <Button
         type="submit"

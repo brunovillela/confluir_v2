@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { cookies } from "next/headers"
 import Link from "next/link"
 import { CalendarDays, ExternalLink, Pencil, Plus } from "lucide-react"
 
@@ -15,34 +16,40 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  COOKIE_VISAO_AGENDA,
+  diasDaVisao,
+  ehDia,
+  ehVisaoAgenda,
+  limitesDaConsulta,
+  rotuloPeriodo,
+  type VisaoAgenda,
+} from "@/lib/agenda-calendario"
 import { requirePermissao } from "@/lib/auth"
-import { listarEventos, resumoAgenda, TIPOS_AGENDA } from "@/lib/db/agenda"
-import { formatarData, formatarDataHora } from "@/lib/formato"
+import {
+  listarEventos,
+  listarEventosDoPeriodo,
+  resumoAgenda,
+  TIPOS_AGENDA,
+} from "@/lib/db/agenda"
+import { hojeSP } from "@/lib/db/comum"
 import { podeAcessar } from "@/lib/permissoes"
 
 import { ExcluirCompromissoBotao } from "./agenda-forms"
+import { AlternarVisao, Calendario } from "./calendario"
 
 export const metadata: Metadata = { title: "Agenda — Confluir" }
 
 const SELECT_FILTRO =
   "border-input bg-background text-foreground h-9 max-w-52 truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 
-type Params = { busca?: string; tipo?: string; quando?: string; excluido?: string }
-
-function periodoEvento(
-  inicio: string | null,
-  termino: string | null,
-  diaTodo: boolean
-): string {
-  if (!inicio) return "—"
-  if (diaTodo) return `${formatarData(inicio)} (dia todo)`
-  const ini = formatarDataHora(inicio)
-  if (!termino) return ini
-  // Mesmo dia: mostra só o horário do término.
-  const mesmoDia = inicio.slice(0, 10) === termino.slice(0, 10)
-  return mesmoDia
-    ? `${ini} – ${formatarDataHora(termino).split(" ").pop()}`
-    : `${ini} – ${formatarDataHora(termino)}`
+type Params = {
+  busca?: string
+  tipo?: string
+  quando?: string
+  excluido?: string
+  visao?: string
+  data?: string
 }
 
 export default async function AgendaPage({
@@ -63,10 +70,31 @@ export default async function AgendaPage({
       ? brutos.quando
       : "todos"
 
+  // Sem visão na URL, vale a última usada (ao voltar de um compromisso, por exemplo).
+  const lembrada = (await cookies()).get(COOKIE_VISAO_AGENDA)?.value
+  const visao: VisaoAgenda = ehVisaoAgenda(brutos.visao)
+    ? brutos.visao
+    : ehVisaoAgenda(lembrada)
+      ? lembrada
+      : "lista"
+  const hoje = hojeSP()
+  const dia = ehDia(brutos.data) ? brutos.data : hoje
+  const dias = visao === "lista" ? [] : diasDaVisao(visao, dia)
+  const periodo = visao === "lista" ? null : limitesDaConsulta(dias)
+
   const [resumo, eventos] = await Promise.all([
     resumoAgenda(),
-    listarEventos({ busca, tipo, quando }),
+    periodo
+      ? listarEventosDoPeriodo(periodo.de, periodo.ate, { busca, tipo })
+      : listarEventos({ busca, tipo, quando }),
   ])
+
+  // O que a navegação e a troca de visão preservam da URL.
+  const filtros = new URLSearchParams()
+  if (busca) filtros.set("busca", busca)
+  if (tipo) filtros.set("tipo", tipo)
+  const paraTrocarVisao = new URLSearchParams(filtros)
+  if (ehDia(brutos.data)) paraTrocarVisao.set("data", brutos.data)
 
   return (
     <>
@@ -94,10 +122,13 @@ export default async function AgendaPage({
         </Alert>
       )}
 
+      <div className="flex flex-wrap items-center justify-between gap-2">
       <form
         className="flex flex-wrap items-center gap-2"
         action="/painel/ferramentas/agenda"
       >
+        <input type="hidden" name="visao" value={visao} />
+        {visao !== "lista" && <input type="hidden" name="data" value={dia} />}
         <input
           type="search"
           name="busca"
@@ -113,16 +144,31 @@ export default async function AgendaPage({
             </option>
           ))}
         </select>
-        <select name="quando" defaultValue={quando} className={SELECT_FILTRO}>
-          <option value="todos">Todo o período</option>
-          <option value="futuros">Futuros</option>
-          <option value="passados">Passados</option>
-        </select>
+        {visao === "lista" && (
+          <select name="quando" defaultValue={quando} className={SELECT_FILTRO}>
+            <option value="todos">Todo o período</option>
+            <option value="futuros">Futuros</option>
+            <option value="passados">Passados</option>
+          </select>
+        )}
         <Button type="submit" variant="outline" size="sm">
           Filtrar
         </Button>
       </form>
+      <AlternarVisao atual={visao} consulta={paraTrocarVisao.toString()} />
+      </div>
 
+      {visao !== "lista" ? (
+        <Calendario
+          visao={visao}
+          dia={dia}
+          dias={dias}
+          hoje={hoje}
+          eventos={eventos}
+          podeCriar={podeCriar}
+          consulta={filtros.toString()}
+        />
+      ) : (
       <Card>
         <CardContent>
           {eventos.length === 0 ? (
@@ -156,7 +202,7 @@ export default async function AgendaPage({
                       </Link>
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-sm">
-                      {periodoEvento(e.inicio, e.termino, e.diaTodo)}
+                      {rotuloPeriodo(e)}
                     </TableCell>
                     <TableCell>
                       {e.tipo ? (
@@ -212,6 +258,7 @@ export default async function AgendaPage({
           )}
         </CardContent>
       </Card>
+      )}
     </>
   )
 }
