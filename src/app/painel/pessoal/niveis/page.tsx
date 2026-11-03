@@ -260,6 +260,29 @@ function AbaFuncionarios({
               )
             },
           },
+          {
+            chave: "acoes",
+            rotulo: "",
+            ordenavel: false,
+            className: "text-right",
+            valor: (l) => {
+              const n = nivelDe.get(l.usuarioId)
+              if (!n && !l.ativo) return null
+              return (
+                <Button variant="ghost" size="sm" asChild className="h-7 px-2">
+                  <Link
+                    href={
+                      n
+                        ? `/painel/pessoal/niveis/${n.atual.id}?de=funcionarios`
+                        : `/painel/pessoal/niveis/novo?funcionario=${l.usuarioId}`
+                    }
+                  >
+                    {n ? "Editar" : "Lançar"}
+                  </Link>
+                </Button>
+              )
+            },
+          },
         ]}
       />
     </>

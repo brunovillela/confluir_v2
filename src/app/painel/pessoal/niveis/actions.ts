@@ -33,7 +33,18 @@ function revalidar(funcionarioId?: string | null) {
   revalidatePath("/painel/pessoal/niveis/tabela")
   revalidatePath("/painel/pessoal/niveis/tabelas")
   revalidatePath("/painel/perfil/contracheques")
-  if (funcionarioId) revalidatePath(`/painel/pessoal/${funcionarioId}`)
+  if (funcionarioId) {
+    revalidatePath(`/painel/pessoal/${funcionarioId}`)
+    revalidatePath(`/painel/pessoal/carreira/funcionario/${funcionarioId}`)
+  }
+}
+
+/** Depois de salvar ou excluir, volta à tela de onde o lançamento foi aberto. */
+function destinoDoLancamento(formData: FormData, funcionarioId: string | null, aviso: string) {
+  const de = String(formData.get("de") ?? "")
+  if (de === "carreira" && funcionarioId) return `/painel/pessoal/carreira/funcionario/${funcionarioId}?${aviso}`
+  if (de === "lancamentos") return `/painel/pessoal/niveis?aba=lancamentos&${aviso}`
+  return `/painel/pessoal/niveis?${aviso}`
 }
 
 function lerCamposLancamento(formData: FormData) {
@@ -78,7 +89,7 @@ export async function criarLancamentoNivel(
   if (erro) return { erro }
 
   revalidar(dados.funcionario_id)
-  redirect("/painel/pessoal/niveis?salvo=1")
+  redirect(destinoDoLancamento(formData, dados.funcionario_id, "salvo=1"))
 }
 
 export async function atualizarLancamentoNivel(
@@ -97,7 +108,7 @@ export async function atualizarLancamentoNivel(
   if (erro) return { erro }
 
   revalidar(dados.funcionario_id)
-  redirect("/painel/pessoal/niveis?salvo=1")
+  redirect(destinoDoLancamento(formData, dados.funcionario_id, "salvo=1"))
 }
 
 export async function excluirLancamentoNivel(
@@ -119,7 +130,7 @@ export async function excluirLancamentoNivel(
   if ((data ?? []).length === 0) return { erro: "Lançamento não encontrado." }
 
   revalidar(data![0].funcionario_id)
-  redirect("/painel/pessoal/niveis?excluido=1")
+  redirect(destinoDoLancamento(formData, data![0].funcionario_id, "excluido=1"))
 }
 
 // ── Reajuste salarial linear ───────────────────────────────────────────────

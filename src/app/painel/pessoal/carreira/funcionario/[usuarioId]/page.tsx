@@ -6,7 +6,9 @@ import { Award, TrendingUp } from "lucide-react"
 import { TileIndicador } from "@/components/graficos/tile"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { CabecalhoFuncionario } from "@/components/pessoal/cabecalho-funcionario"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { VoltarLista } from "@/components/voltar-lista"
@@ -25,9 +27,16 @@ export const metadata: Metadata = { title: "Carreira do funcionário — Conflui
  * parte só aparece se a entidade a usa (multitenant) e a pessoa tem a
  * permissão dela; cada lançamento leva ao nível 3 (a edição).
  */
-export default async function CarreiraFuncionarioPage({ params }: { params: Promise<{ usuarioId: string }> }) {
+export default async function CarreiraFuncionarioPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ usuarioId: string }>
+  searchParams: Promise<{ salvo?: string; excluido?: string }>
+}) {
   const sessao = await requirePermissao("pessoal_gestao", ["pessoal_anuenios", "pessoal_niveis_salariais"])
   const { usuarioId } = await params
+  const { salvo, excluido } = await searchParams
   const [funcionario, carreira, uso] = await Promise.all([
     funcionarioDaArea(usuarioId),
     carreiraDoFuncionario(usuarioId),
@@ -62,6 +71,17 @@ export default async function CarreiraFuncionarioPage({ params }: { params: Prom
         permissoes={sessao.permissoes}
         titulo={`Carreira — ${funcionario.nome}`}
       />
+
+      {salvo === "1" && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>Lançamento salvo.</AlertDescription>
+        </Alert>
+      )}
+      {excluido === "1" && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>Lançamento excluído.</AlertDescription>
+        </Alert>
+      )}
 
       {!mostrarAnu && !mostrarNiv && (
         <p className="text-muted-foreground text-sm">A entidade não usa anuênio nem níveis salariais.</p>
@@ -128,6 +148,7 @@ export default async function CarreiraFuncionarioPage({ params }: { params: Prom
                       <TableHead className="text-right">Alíquota</TableHead>
                       <TableHead className="hidden md:table-cell">Próximo</TableHead>
                       <TableHead>Contabilidade</TableHead>
+                      <TableHead className="w-0" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -150,6 +171,11 @@ export default async function CarreiraFuncionarioPage({ params }: { params: Prom
                             <Badge variant="warning">Pendente</Badge>
                           )}
                         </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm" asChild className="h-7 px-2">
+                            <Link href={`/painel/pessoal/anuenios/${a.id}?de=carreira`}>Editar</Link>
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -168,7 +194,7 @@ export default async function CarreiraFuncionarioPage({ params }: { params: Prom
             </CardTitle>
             <CardDescription>
               {carreira.niveis.length} lançamento(s), do mais recente ao mais antigo.{" "}
-              <Link href="/painel/pessoal/niveis/novo" className="text-primary hover:underline">
+              <Link href={`/painel/pessoal/niveis/novo?funcionario=${usuarioId}&de=carreira`} className="text-primary hover:underline">
                 Novo lançamento
               </Link>
             </CardDescription>
@@ -184,6 +210,7 @@ export default async function CarreiraFuncionarioPage({ params }: { params: Prom
                       <TableHead className="text-right">Salário básico</TableHead>
                       <TableHead className="hidden sm:table-cell">Tipo de avanço</TableHead>
                       <TableHead className="hidden md:table-cell">Próximo</TableHead>
+                      <TableHead className="w-0" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -206,6 +233,11 @@ export default async function CarreiraFuncionarioPage({ params }: { params: Prom
                           {n.proximoNivel || n.proximo_nivel_texto
                             ? `${n.proximoNivel ? rotuloNivelSalarial(n.proximoNivel) : n.proximo_nivel_texto}${n.proximo_nivel_data ? ` em ${formatarData(n.proximo_nivel_data)}` : ""}`
                             : "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm" asChild className="h-7 px-2">
+                            <Link href={`/painel/pessoal/niveis/${n.id}?de=carreira`}>Editar</Link>
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}

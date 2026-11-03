@@ -18,21 +18,32 @@ export const metadata: Metadata = {
   title: "Novo lançamento de nível salarial — Confluir",
 }
 
-export default async function NovoNivelPage() {
+export default async function NovoNivelPage({
+  searchParams,
+}: {
+  /** funcionario: já vem escolhido; de=carreira: volta à Carreira dele ao salvar. */
+  searchParams: Promise<{ funcionario?: string; de?: string }>
+}) {
   await requirePermissao("pessoal_gestao", ["pessoal_niveis_salariais"])
 
+  const sp = await searchParams
   const [funcionarios, base] = await Promise.all([
     funcionariosParaSelecao(),
     listarNivelSalarialBase(),
   ])
+  const escolhido = funcionarios.find((f) => f.usuarioId === sp.funcionario)
+  const daCarreira = sp.de === "carreira" && Boolean(escolhido)
+  const voltar = daCarreira
+    ? { href: `/painel/pessoal/carreira/funcionario/${escolhido!.usuarioId}`, rotulo: escolhido!.nome }
+    : { href: "/painel/pessoal/niveis", rotulo: "Níveis salariais" }
 
   return (
     <>
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-          <Link href="/painel/pessoal/niveis">
+          <Link href={voltar.href}>
             <ArrowLeft />
-            Níveis salariais
+            {voltar.rotulo}
           </Link>
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">
@@ -44,6 +55,9 @@ export default async function NovoNivelPage() {
         </p>
       </div>
       <NivelLancamentoForm
+        funcionarioInicial={escolhido?.usuarioId}
+        de={daCarreira ? "carreira" : undefined}
+        voltarHref={voltar.href}
         funcionarios={funcionarios}
         tiposAvanco={TIPOS_AVANCO}
         niveis={base.map((b) => ({

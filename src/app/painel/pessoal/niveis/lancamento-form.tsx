@@ -85,11 +85,19 @@ export function NivelLancamentoForm({
   niveis,
   tiposAvanco,
   lancamento,
+  funcionarioInicial,
+  de,
+  voltarHref = "/painel/pessoal/niveis",
 }: {
   funcionarios: { usuarioId: string; nome: string }[]
   niveis: OpcaoNivelBase[]
   tiposAvanco: readonly string[]
   lancamento?: NivelFormDados
+  /** Novo lançamento aberto a partir de um funcionário: já vem escolhido. */
+  funcionarioInicial?: string
+  /** Tela de origem ("carreira", "funcionarios", "lancamentos"): é para lá que volta ao salvar. */
+  de?: string
+  voltarHref?: string
 }) {
   const [estado, formAction, pendente] = useActionState(
     lancamento ? atualizarLancamentoNivel : criarLancamentoNivel,
@@ -118,6 +126,7 @@ export function NivelLancamentoForm({
 
       <form action={formAction} {...envio} className="grid gap-4">
         {lancamento && <input type="hidden" name="id" value={lancamento.id} />}
+        {de && <input type="hidden" name="de" value={de} />}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Dados do nível salarial</CardTitle>
@@ -143,7 +152,7 @@ export function NivelLancamentoForm({
                   id="funcionario_id"
                   name="funcionario_id"
                   required
-                  defaultValue=""
+                  defaultValue={funcionarioInicial ?? ""}
                   className={SELECT}
                 >
                   <option value="" disabled>
@@ -228,7 +237,7 @@ export function NivelLancamentoForm({
 
         <div className="flex items-center justify-end gap-2">
           <Button variant="ghost" asChild>
-            <Link href="/painel/pessoal/niveis">Cancelar</Link>
+            <Link href={voltarHref}>Cancelar</Link>
           </Button>
           <Button type="submit" disabled={pendente}>
             {pendente && <Loader2 className="animate-spin" />}
@@ -243,6 +252,7 @@ export function NivelLancamentoForm({
           className="flex justify-end border-t pt-4"
         >
           <input type="hidden" name="id" value={lancamento.id} />
+          {de && <input type="hidden" name="de" value={de} />}
           <Button
             type="submit"
             variant="ghost"

@@ -70,6 +70,8 @@ export default async function EditarNivelPage({
         <h1 className="text-2xl font-semibold tracking-tight">Editar lançamento de nível salarial</h1>
       )}
       <NivelLancamentoForm
+        de={de === "carreira" || de === "funcionarios" ? de : "lancamentos"}
+        voltarHref={voltar.href}
         funcionarios={funcionarios}
         tiposAvanco={TIPOS_AVANCO}
         niveis={base.map((b) => ({
