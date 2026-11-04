@@ -137,13 +137,14 @@ function LinhaOrdem({
           </span>
         )}
         <a
-          href={`/painel/compras/${processoId}/ordens/${ordem.id}/extrato`}
+          href={`/painel/compras/${processoId}/ordens/${ordem.id}/extrato?simples=1`}
           target="_blank"
           rel="noreferrer"
+          title="Sem as verificações e a auditoria automática"
           className="text-primary inline-flex items-center gap-1 whitespace-nowrap hover:underline"
         >
           <FileText className="size-3.5" />
-          Extrato
+          Extrato simplificado
         </a>
         {mostrarNota && ordem.notaUrl && (
           <a href={ordem.notaUrl} target="_blank" rel="noreferrer" className="text-primary whitespace-nowrap hover:underline">
