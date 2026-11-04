@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
 import Link from "next/link"
 import { Loader2, Smartphone } from "lucide-react"
 
@@ -32,6 +32,8 @@ export function SegurancaForm({
   const envio2 = useEnvioFormulario(confirmar, confirmacao)
   const [remocao, remover, removendo] = useActionState(desativar2FA, {})
   const envio3 = useEnvioFormulario(remover, remocao)
+  // Fator com o campo de código aberto: Desativar não remove no primeiro clique.
+  const [desativandoId, setDesativandoId] = useState<string | null>(null)
 
   // Passo 2 — QR e código de confirmação.
   if (inicio.fatorId && inicio.qr) {
@@ -119,18 +121,43 @@ export function SegurancaForm({
                     {f.nome}
                     {f.desde && <span className="text-muted-foreground"> · desde {f.desde}</span>}
                   </span>
-                  {sessaoElevada ? (
-                    <form action={remover} {...envio3}>
-                      <input type="hidden" name="fator_id" value={f.id} />
-                      <Button type="submit" variant="outline" size="sm" disabled={removendo}>
-                        {removendo && <Loader2 className="animate-spin" />}
-                        Desativar
-                      </Button>
-                    </form>
-                  ) : (
+                  {!sessaoElevada ? (
                     <Button asChild variant="outline" size="sm">
                       <Link href={rotaVerificacao}>Confirmar o código para alterar</Link>
                     </Button>
+                  ) : desativandoId !== f.id ? (
+                    <Button type="button" variant="outline" size="sm" onClick={() => setDesativandoId(f.id)}>
+                      Desativar
+                    </Button>
+                  ) : (
+                    <form action={remover} {...envio3} className="grid w-full gap-2">
+                      <input type="hidden" name="fator_id" value={f.id} />
+                      <p className="text-muted-foreground text-xs">
+                        Sem a verificação, quem souber a sua senha entra na conta. Para confirmar,
+                        digite o código que o aplicativo mostra agora.
+                      </p>
+                      <Label htmlFor={`codigo-desativar-${f.id}`}>Código do aplicativo</Label>
+                      <Input
+                        id={`codigo-desativar-${f.id}`}
+                        name="codigo"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        pattern="[0-9]{6}"
+                        maxLength={6}
+                        required
+                        autoFocus
+                        className="text-center text-lg tracking-[0.4em]"
+                      />
+                      <div className="flex justify-end gap-2">
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setDesativandoId(null)}>
+                          Cancelar
+                        </Button>
+                        <Button type="submit" variant="destructive" size="sm" disabled={removendo}>
+                          {removendo && <Loader2 className="animate-spin" />}
+                          Desativar a verificação
+                        </Button>
+                      </div>
+                    </form>
                   )}
                 </li>
               ))}

@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation"
 
 import { bloqueioAtivo, limparFalhasLogin, registrarFalhaLogin } from "@/lib/login-bloqueio"
+import { desativarFatorComCodigo } from "@/lib/mfa-desativar"
 import { createClient } from "@/lib/supabase/server"
 
 export type EstadoCadastro2FA = {
@@ -69,19 +70,45 @@ export async function confirmarCadastro2FA(
   redirect("/conta/seguranca?ok=1")
 }
 
-/** Remove o fator. Exige sessão elevada (aal2), como o Supabase impõe. */
+/**
+ * Remove o fator. Exige sessão elevada (aal2), como o Supabase impõe, e o
+ * código do aplicativo digitado agora: ver lib/mfa-desativar.ts.
+ */
 export async function desativar2FA(
   _prev: EstadoCadastro2FA,
   formData: FormData
 ): Promise<EstadoCadastro2FA> {
   const fatorId = String(formData.get("fator_id") ?? "").trim()
-  if (!fatorId) return { erro: "Fator inválido." }
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) redirect("/login")
   const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
   if (aal?.currentLevel !== "aal2") {
     redirect(`/login/verificacao?next=${encodeURIComponent("/conta/seguranca")}`)
   }
-  const { error } = await supabase.auth.mfa.unenroll({ factorId: fatorId })
-  if (error) return { erro: "Não foi possível desativar. Tente de novo." }
+
+  const chave = `mfa:${user.id}`
+  const { erro } = await desativarFatorComCodigo(
+    {
+      bloqueio: () => bloqueioAtivo(chave),
+      verificar: async (factorId, code) => {
+        const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId, code })
+        return { ok: !error }
+      },
+      registrarFalha: async () => {
+        await registrarFalhaLogin(chave)
+      },
+      limparFalhas: () => limparFalhasLogin(chave),
+      remover: async (factorId) => {
+        const { error } = await supabase.auth.mfa.unenroll({ factorId })
+        return { ok: !error }
+      },
+    },
+    fatorId,
+    String(formData.get("codigo") ?? "")
+  )
+  if (erro) return { erro }
   redirect("/conta/seguranca")
 }

@@ -27,10 +27,11 @@ clínico** é sigiloso, cifrado e com acesso restrito por regra própria.
 ## Quem pode ler o relatório
 
 O acesso ao relatório **não vem** da permissão do painel nem de ser a pessoa
-atendida. São exatamente três caminhos, e os mesmos valem para ler e para gravar:
+atendida. São exatamente três caminhos, os mesmos para ler e para gravar, e todos
+exigem **cadastro de profissional ativo**:
 
-- **Autor** — quem **registrou o atendimento** no sistema, ou o **profissional
-  indicado** nele.
+- **Autor** — o **profissional indicado** no atendimento, ou quem o **registrou**
+  no sistema, desde que tenha cadastro de profissional ativo.
 - **Profissional do mesmo tipo** — quem tem cadastro de profissional ativo no
   **mesmo tipo** do atendimento. Atendimento sem tipo não abre por este caminho.
 - **Coordenação clínica** — profissional ativo marcado com **Coordenação
@@ -43,14 +44,12 @@ atendida. São exatamente três caminhos, e os mesmos valem para ler e para grav
   segue por fora do sistema, com um profissional.
 </Aviso>
 
-<Aviso tipo="atencao" titulo="Quem registra o atendimento vira autor dele">
-  O caminho de autor vale para quem clicou em **Registrar atendimento**, mesmo
-  sem cadastro de profissional, com qualquer uma das duas permissões. E
-  **Inativo**, no cadastro do profissional, tira o acesso por tipo, por
-  coordenação e como profissional indicado, mas não tira o de quem registrou o
-  atendimento. **Trocar o tipo ou o profissional** em **Editar** também muda quem
-  lê. Para o relatório ficar restrito aos profissionais, o atendimento precisa
-  ser registrado por um deles.
+<Aviso tipo="atencao" titulo="Registrar o atendimento não abre o relatório">
+  Quem clica em **Registrar atendimento** sem ter cadastro de profissional ativo
+  não lê nem grava o relatório: a secretaria pode registrar e quem atende escreve.
+  **Inativo**, no cadastro do profissional, tira **todo** o acesso, inclusive aos
+  relatórios que a pessoa escreveu. **Trocar o tipo ou o profissional** em
+  **Editar** também muda quem lê.
 </Aviso>
 
 <Aviso tipo="perigo" titulo="A chave de cifragem é insubstituível">
@@ -154,6 +153,9 @@ pedir acesso ao relatório, o portal o orienta a falar com o serviço de saúde.
 
 - **"Sou o gestor da saúde e não abro o relatório."** É proposital — a permissão
   de gestão não dá acesso. Só os três caminhos acima.
+- **"Registrei o atendimento e não leio o relatório."** É o esperado para quem não
+  tem cadastro de profissional ativo. Indique o **Profissional** no atendimento:
+  ele escreve e lê.
 - **"Atendo, mas não leio o relatório de outro tipo."** Você lê os do **seu
   tipo** e os atendimentos em que é autor. Ver todos os tipos exige **Coordenação
   clínica**.

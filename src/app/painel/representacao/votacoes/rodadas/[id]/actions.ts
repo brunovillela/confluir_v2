@@ -78,7 +78,6 @@ export async function salvarRodada(
     inicio: dataISO(texto(formData, "inicio")),
     termino: dataISO(texto(formData, "termino")),
     video_indicativo_url: texto(formData, "video_indicativo_url") || null,
-    apuracao_encerrada: texto(formData, "apuracao_encerrada") === "on",
     clausula_filiacao_coletiva:
       texto(formData, "clausula_filiacao_coletiva") === "on",
     filiacao_coletiva_dias: inteiroPositivo(

@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 
 import { ClausulaColetivaCampos } from "../../clausula-coletiva-campos"
 import { salvarRodada } from "./actions"
@@ -30,7 +29,6 @@ type Rodada = {
   inicio: string | null
   termino: string | null
   video_indicativo_url: string | null
-  apuracao_encerrada: boolean
   clausula_filiacao_coletiva: boolean
   filiacao_coletiva_dias: number | null
   /** Tema da campanha — já aparece no cabeçalho da página. */
@@ -166,8 +164,6 @@ export function RodadaForm({
               diasInicial={rodada.filiacao_coletiva_dias}
             />
 
-            <ApuracaoSwitch inicial={rodada.apuracao_encerrada} />
-
             <div className="flex gap-2">
               <Button type="submit" disabled={pendente}>
                 {pendente ? <Loader2 className="animate-spin" /> : <Save />}
@@ -239,23 +235,3 @@ function LinkArquivo({
   )
 }
 
-function ApuracaoSwitch({ inicial }: { inicial: boolean }) {
-  const [encerrada, setEncerrada] = useState(inicial)
-  return (
-    <label className="flex items-center gap-2 text-sm">
-      <Switch
-        checked={encerrada}
-        onCheckedChange={setEncerrada}
-        aria-label="Encerrar a apuração da rodada"
-      />
-      <span className={encerrada ? "font-medium" : "text-muted-foreground"}>
-        Apuração encerrada
-      </span>
-      <input
-        type="hidden"
-        name="apuracao_encerrada"
-        value={encerrada ? "on" : ""}
-      />
-    </label>
-  )
-}

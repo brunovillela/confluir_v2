@@ -930,7 +930,6 @@ export async function atualizarRodada(
     inicio: string | null
     termino: string | null
     video_indicativo_url: string | null
-    apuracao_encerrada: boolean
     clausula_filiacao_coletiva?: boolean
     filiacao_coletiva_dias?: number | null
     edital_url?: string
@@ -943,7 +942,6 @@ export async function atualizarRodada(
     descricao: dados.descricao,
     termino: dados.termino,
     video_indicativo_url: dados.video_indicativo_url,
-    apuracao_encerrada: dados.apuracao_encerrada,
   }
   if (dados.clausula_filiacao_coletiva !== undefined) {
     base.clausula_filiacao_coletiva = dados.clausula_filiacao_coletiva
@@ -1442,6 +1440,7 @@ export async function criarAssembleia(dados: {
   if (error || !data) {
     return { erro: `Falha ao criar a assembleia: ${error?.message}` }
   }
+  await desmarcarEncerramentoDaRodada(dados.rod_assembleia_id)
   // Publica o evento na agenda do aplicativo (portal do associado).
   await sincronizarAgendaDaAssembleia(data.id)
   return { id: data.id }
@@ -2703,10 +2702,32 @@ export async function reabrirApuracao(
     .eq("id", assembleiaId)
     .eq("emp_proprietaria_id", await tenantAtual())
     .eq("apuracao_encerrada", true)
-    .select("id")
+    .select("id, rod_assembleia_id")
   if (error) return { erro: `Não foi possível reabrir: ${error.message}` }
   if (!data?.length) return { erro: "A apuração desta assembleia não está encerrada." }
+  await desmarcarEncerramentoDaRodada(data[0].rod_assembleia_id)
   return {}
+}
+
+/**
+ * voto_rod_assembleias.apuracao_encerrada é marca antiga: desde 04/11/2026
+ * nenhuma tela a liga (o encerramento é por assembleia, com hash, livro e
+ * conferência). Mas o portal ainda a respeita, e ela não tem mais interruptor
+ * para desligar. Quando uma assembleia da rodada volta a ser votada ou apurada
+ * (criada ou reaberta), a marca sai, para não deixá-la encerrada no portal.
+ */
+async function desmarcarEncerramentoDaRodada(
+  rodadaId: string | null | undefined
+): Promise<void> {
+  if (!rodadaId) return
+  const admin = await createAdminClient()
+  const { error } = await admin
+    .from("voto_rod_assembleias")
+    .update({ apuracao_encerrada: false })
+    .eq("id", rodadaId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("apuracao_encerrada", true)
+  if (error) console.error("[votacao] marca da rodada não saiu:", error.message)
 }
 
 /**

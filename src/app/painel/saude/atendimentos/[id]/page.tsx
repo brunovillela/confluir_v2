@@ -223,13 +223,13 @@ export default async function AtendimentoPage({
               <ShieldAlert />
               <AlertDescription>
                 Você não tem acesso ao relatório deste atendimento. Ele é
-                legível por profissional cadastrado
+                legível por profissional com cadastro ativo: o autor, quem é
                 {atendimento.tipoNome
-                  ? ` no tipo “${atendimento.tipoNome}”`
+                  ? ` do tipo “${atendimento.tipoNome}”`
                   : " do mesmo tipo"}
-                , pelo autor e pela coordenação clínica. Permissão
-                administrativa não abre conteúdo clínico. A tentativa foi
-                registrada.
+                {" "}e a coordenação clínica. Registrar o atendimento ou ter
+                permissão administrativa não abre conteúdo clínico. A tentativa
+                foi registrada.
               </AlertDescription>
             </Alert>
           )}

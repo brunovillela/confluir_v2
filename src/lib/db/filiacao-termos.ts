@@ -1,5 +1,10 @@
 import "server-only"
 import { texto } from "@/lib/db/comum"
+import {
+  filtrosDeAceite,
+  MOTIVO_TERMO_ACEITO,
+  termoFoiAceito,
+} from "@/lib/filiacao-termos-aceite"
 import { tenantAtual } from "@/lib/tenant"
 
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -96,7 +101,24 @@ export async function criarTermo(
   return { id: String(data.id) }
 }
 
-/** Edita o texto de uma versão específica (correção). */
+/** A versão já foi aceita por alguém? Ver lib/filiacao-termos-aceite.ts. */
+export async function versaoAceita(tipo: TipoTermo, id: string): Promise<boolean> {
+  const admin = await createAdminClient()
+  return termoFoiAceito(
+    filtrosDeAceite(tipo, id, await tenantAtual()),
+    async ({ tabela, iguais }) => {
+      let consulta = admin.from(tabela).select("id").limit(1)
+      for (const [coluna, valor] of Object.entries(iguais)) {
+        consulta = consulta.eq(coluna, valor)
+      }
+      const { data, error } = await consulta
+      if (error) throw new Error(error.message)
+      return (data ?? []).length > 0
+    }
+  )
+}
+
+/** Corrige o texto de uma versão que ninguém aceitou; aceita, não se altera. */
 export async function atualizarTermo(
   tipo: TipoTermo,
   id: string,
@@ -104,6 +126,7 @@ export async function atualizarTermo(
 ): Promise<{ erro?: string }> {
   const t = textoNovo.trim()
   if (t.length < 10) return { erro: "Escreva o texto do termo." }
+  if (await versaoAceita(tipo, id)) return { erro: MOTIVO_TERMO_ACEITO }
   const admin = await createAdminClient()
   const { error, count } = await admin
     .from(TABELA[tipo])

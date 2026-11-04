@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, FileText } from "lucide-react"
+import { ArrowLeft, FileText, Lock } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -18,6 +18,7 @@ import {
   ROTULO_TIPO_TERMO,
   type TermoVersao,
   type TipoTermo,
+  versaoAceita,
 } from "@/lib/db/filiacao-termos"
 import { formatarDataHora } from "@/lib/formato"
 
@@ -28,8 +29,8 @@ export const metadata: Metadata = { title: "Termos legais — Confluir" }
 export default async function TermosPage() {
   await requirePermissao("filiacao_gestao")
   const [lgpd, desconto] = await Promise.all([
-    listarTermos("lgpd"),
-    listarTermos("desconto"),
+    comAceite("lgpd"),
+    comAceite("desconto"),
   ])
 
   return (
@@ -55,12 +56,21 @@ export default async function TermosPage() {
   )
 }
 
+type VersaoComAceite = TermoVersao & { aceita: boolean }
+
+async function comAceite(tipo: TipoTermo): Promise<VersaoComAceite[]> {
+  const versoes = await listarTermos(tipo)
+  return Promise.all(
+    versoes.map(async (v) => ({ ...v, aceita: await versaoAceita(tipo, v.id) }))
+  )
+}
+
 function SecaoTermo({
   tipo,
   versoes,
 }: {
   tipo: TipoTermo
-  versoes: TermoVersao[]
+  versoes: VersaoComAceite[]
 }) {
   const vigente = versoes.find((v) => v.emVigor) ?? null
 
@@ -141,13 +151,21 @@ function SecaoTermo({
                   {v.texto ?? "—"}
                 </p>
                 <div className="mt-3">
-                  <GrupoColapsavel titulo="Editar este texto">
-                    <TermoEditor
-                      tipo={tipo}
-                      id={v.id}
-                      textoInicial={v.texto ?? ""}
-                    />
-                  </GrupoColapsavel>
+                  {v.aceita ? (
+                    <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                      <Lock className="size-3" />
+                      Já aceita: o texto não muda. Para alterar, crie uma nova
+                      versão.
+                    </p>
+                  ) : (
+                    <GrupoColapsavel titulo="Editar este texto">
+                      <TermoEditor
+                        tipo={tipo}
+                        id={v.id}
+                        textoInicial={v.texto ?? ""}
+                      />
+                    </GrupoColapsavel>
+                  )}
                 </div>
               </div>
             ))}
