@@ -1,31 +1,107 @@
 As **solicitações que os filiados abrem no portal** chegam aqui e, no mesmo
 instante, viram uma **Demanda** em Ferramentas → Demandas, com prazo pelo
-assunto (jurídico 10 dias, saúde 5, cadastro 3, reembolso 7, reclamação 5,
-outro 5). Quem cuida das demandas recebe um aviso a cada solicitação nova e a
-cada resposta do filiado.
+assunto. A exceção é o assunto **Saúde**: o pedido não vira Demanda e só a equipe
+de saúde o vê. Quem cuida das demandas recebe um aviso a cada solicitação nova e
+a cada resposta do filiado.
 
-<RequerPermissao>Demandas (ou Tarefas, ou Filiados)</RequerPermissao>
+<RequerPermissao>Demandas (ou Tarefas, ou Filiados); para os pedidos de saúde, Atendimentos ou Gestão de saúde</RequerPermissao>
+
+## Os assuntos e os prazos
+
+O prazo é contado em dias corridos, a partir da abertura.
+
+| Assunto | Prazo de resposta | Quem vê |
+| --- | --- | --- |
+| Jurídico | 10 dias | Equipe geral |
+| Saúde | 5 dias | Só a equipe de saúde |
+| Cadastro | 3 dias | Equipe geral |
+| Contribuição | 5 dias | Equipe geral |
+| Reembolso | 7 dias | Equipe geral |
+| Reclamação | 5 dias | Equipe geral |
+| Outro assunto | 5 dias | Equipe geral |
+
+Quem tem as duas permissões vê tudo. Os assuntos que o associado pode escolher
+se definem em [Área do associado](/painel/ajuda/filiados/area-do-associado), no
+cartão Atendimento.
+
+<Aviso tipo="atencao" titulo="Pedido de saúde é sigiloso">
+  O pedido de saúde não aparece para a equipe geral nem gera Demanda. A equipe de
+  saúde recebe um aviso genérico, sem nome, CPF ou título, e lê o pedido aqui.
+</Aviso>
+
+## A lista
+
+No topo ficam os indicadores: **Abertas** (com a conta por assunto), **Com prazo
+vencido**, **Tempo até a 1ª resposta** e **Respondidas no prazo**, estes dois nos
+últimos 90 dias.
+
+Filtre por **Situação**, **Assunto** e **Buscar** (título ou nome). A lista abre
+em **Abertas (todas)**. Use **Esperando a equipe** para ver só o que depende da
+entidade, sem as já respondidas.
+
+| Situação | O que significa |
+| --- | --- |
+| **Aberta** | Recebida, ainda sem resposta. |
+| **Em andamento** | O filiado escreveu de novo depois de uma resposta, ou a solicitação foi reaberta. |
+| **Respondida** | A entidade respondeu. Agora espera o filiado. |
+| **Concluída** | Encerrada. |
 
 ## Como responder
 
 <PassoAPasso>
   <Passo titulo="Abra a solicitação">
-    Pela lista desta tela ou pela Demanda que ela gerou — o bloco "Conversa
-    com o filiado" é o mesmo nos dois lugares.
+    Pela lista desta tela ou pela Demanda que ela gerou. O bloco **Conversa com o
+    filiado** é o mesmo nos dois lugares. No alto ficam o nome, o CPF, o e-mail e
+    os links **Ficha do filiado** e **Demanda**.
+  </Passo>
+  <Passo titulo="Escreva a resposta">
+    O texto em **Resposta ao filiado** aparece no portal e dispara um aviso a ele.
+    Dá para anexar um arquivo de até 3,5 MB.
   </Passo>
   <Passo titulo="Responda ou conclua">
-    **Responder** manda a mensagem ao portal e avisa o filiado; a solicitação
-    fica **Respondida** até ele voltar a escrever. **Responder e concluir**
-    encerra o assunto e marca a Demanda como Feito. Uma solicitação concluída
-    pode ser reaberta.
+    **Responder** manda a mensagem ao portal; a solicitação fica **Respondida**
+    até ele voltar a escrever, e a Demanda passa a **Fazendo**. **Responder e
+    concluir** encerra o assunto e marca a Demanda como **Feito**. Para concluir é
+    preciso escrever: é a mensagem final que o filiado lê.
   </Passo>
-  <Passo titulo="Acompanhe os indicadores">
-    Abertas, com prazo vencido, tempo médio até a primeira resposta e
-    percentual respondido no prazo nos últimos 90 dias.
+  <Passo titulo="Reabra, se o assunto voltar">
+    Numa solicitação concluída, o botão **Reabrir** volta a conversa para **Em
+    andamento** e avisa o filiado no portal. A Demanda volta a **Fazendo**.
   </Passo>
 </PassoAPasso>
+
+O próprio associado também pode reabrir pelo portal por um prazo depois de
+concluída: 15 dias, ou o que a entidade escolher na opção **Prazo para o associado
+reabrir uma solicitação concluída**, em
+[Área do associado](/painel/ajuda/filiados/area-do-associado). Com zero, ele não
+reabre e abre um pedido novo.
 
 <Aviso tipo="atencao" titulo="O prazo conta até a primeira resposta">
   "Prazo vencido" é uma solicitação sem nenhuma resposta da entidade depois
   da data. Responder, mesmo que para pedir mais informações, para o relógio.
 </Aviso>
+
+## Erros comuns
+
+- **"Não vejo as solicitações de saúde."** Elas só aparecem para quem tem as
+  permissões **Atendimentos** ou **Gestão de saúde**, do módulo Saúde.
+- **"Só vejo as solicitações de saúde."** Sua permissão é só da equipe de saúde.
+  As demais exigem Demandas, Tarefas ou Filiados.
+- **"O anexo deve ter no máximo 3,5 MB."** Reduza o arquivo ou envie um link na
+  resposta.
+- **"A solicitação de saúde não tem Demanda."** É assim mesmo: o assunto é
+  sigiloso e fica só nesta tela.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Área do associado",
+      href: "/painel/ajuda/filiados/area-do-associado",
+      descricao: "Assuntos oferecidos, anexos e prazo para reabrir",
+    },
+    {
+      titulo: "Perfil do filiado",
+      href: "/painel/ajuda/filiados/perfil",
+    },
+  ]}
+/>

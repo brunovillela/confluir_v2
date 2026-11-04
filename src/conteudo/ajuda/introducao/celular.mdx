@@ -17,18 +17,31 @@ alçada de aprovação, assinaturas — há duas telas feitas para o polegar:
     iPhone isso só funciona com o app instalado pela tela inicial.
   </Passo>
   <Passo titulo="3. Desligar quando quiser">
-    O mesmo botão desliga; cada aparelho é independente.
+    Com o aparelho ligado, o botão vira **Desligar neste aparelho**; cada aparelho
+    é independente.
   </Passo>
 </PassoAPasso>
 
 ## Aprovar
 
-A tela **Aprovar** lista só o que espera a sua decisão: ordens de pagamento
-dentro da sua alçada, documentos enviados para a sua assinatura e as
-**remessas de diárias** que você avalia (uma por pessoa, com as diárias dela).
-Cada item é um card com **Aprovar** e **Devolver** (ou **Reprovar**); devolver
-pede o motivo. A verificação em duas etapas vale aqui
-como em qualquer tela sensível.
+A tela **Aprovar** lista só o que espera a sua decisão, em cards de uma coluna.
+Para abrir, use os cartões da aba **Gestão** ou a **busca global**. Em aparelhos
+que mostram os atalhos do app, segure o ícone e escolha **Aprovar**.
+
+| Bloco | O que aparece | Como decidir |
+|---|---|---|
+| **Ordens de pagamento na sua alçada** | Valor, tipo, favorecido, departamento, vencimento e os apontamentos da auditoria. **Ver detalhes** abre a ordem | **Aprovar** pede confirmação com o valor. **Devolver** abre o campo de motivo, obrigatório, e **Confirmar devolver** envia |
+| **Documentos para assinar** | Contrato, termo ou ofício, com o papel e a data de envio | **Assinar** abre a página de assinatura do documento |
+| **Remessas de diárias** | Uma por pessoa, com as diárias dela e o total. O link abre a remessa, as despesas e os comprovantes | A remessa é aprovada ou devolvida inteira |
+| **Diárias aguardando** | Diária avulsa, com o período, o motivo e o valor | **Aprovar** ou **Reprovar**, com motivo obrigatório |
+
+O topo avisa quantas ordens estão acima da sua alçada: elas não entram nos cards.
+A verificação em duas etapas vale aqui como em qualquer tela sensível.
+
+<Aviso tipo="atencao" titulo="Confira antes de aprovar">
+  Abra **Ver detalhes** quando a ordem trouxer apontamentos da auditoria. A
+  aprovação segue para pagamento.
+</Aviso>
 
 ## Gestão
 
@@ -36,13 +49,14 @@ A aba **Gestão** do painel é uma só para diretoria e gestão; o conteúdo mud
 conforme a função de cada pessoa:
 
 - **Decisões** — ordens na sua alçada, documentos para assinar e diárias, com o
-  atalho **Aprovar** — para quem tem alçada ou avalia diárias.
+  atalho **Aprovar** — para quem tem alçada, avalia diárias ou tem documento para
+  assinar.
 - **A semana da entidade** — agenda dos próximos 7 dias, votações e
   negociações em curso — só para quem é **do mandato vigente**.
 - **Indicadores** — a visão geral, o churn e os custos, cada bloco conforme a
-  sua permissão. Os indicadores financeiros gerais (**arrecadação, saldo dos
-  caixas e ordens vencidas**) só aparecem para quem tem permissão do
-  Financeiro; filiados ativos seguem a permissão de filiação.
+  sua permissão. **A pagar e ordens vencidas** só aparecem para quem tem
+  permissão do Financeiro, e o **saldo dos caixas** pede também acesso aos
+  caixas. **Filiados ativos e arrecadação** seguem a permissão de filiação.
 
 Os seus pedidos de viagem e diária ficam em **Meu dia**.
 
@@ -68,8 +82,31 @@ departamento:
 
 Quem coordena mais de um departamento troca entre eles pelo topo da tela.
 
-<Aviso tipo="nota" titulo="Sem chaves, sem push">
-  As notificações no aparelho dependem das chaves VAPID configuradas pela
-  entidade na hospedagem. Sem elas, o botão "Ligar neste aparelho" não
+<Aviso tipo="nota" titulo="Sem configuração, sem aviso no aparelho">
+  As notificações no aparelho dependem de uma configuração da entidade na
+  hospedagem. Sem ela, o botão "Ligar neste aparelho" não
   aparece; o app instala e funciona normalmente.
 </Aviso>
+
+## Erros comuns
+
+- **"No iPhone, o botão de ligar não aparece."** A tela pede para instalar o app
+  primeiro. Abra pelo ícone novo e volte a **Avisos e Telegram**. O aparelho
+  precisa estar no iOS 16.4 ou mais novo.
+- **"Notificações bloqueadas neste navegador."** Abra as configurações do site (o
+  cadeado ao lado do endereço, ou as configurações do navegador), permita as
+  notificações e volte à tela.
+- **"Liguei e nada chega."** Ligar o aparelho não basta: marque a coluna
+  **Celular** nos tipos de aviso e clique em **Salvar preferências**.
+- **"Não acho o menu do meu nome no celular."** No celular, as outras interfaces e
+  o **Sair** ficam direto no fim do menu lateral.
+- **"Não aparece o card da ordem."** A ordem está acima da sua alçada ou já foi
+  decidida por outra pessoa.
+
+<VejaTambem
+  links={[
+    { href: "/painel/ajuda/introducao/avisos", titulo: "Avisos e caixa de entrada" },
+    { href: "/painel/ajuda/introducao/telegram", titulo: "Bot do Telegram" },
+    { href: "/painel/ajuda/introducao/indicadores", titulo: "Indicadores" },
+  ]}
+/>

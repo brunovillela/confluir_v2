@@ -1,14 +1,19 @@
 O **faturamento** transforma as hospedagens do hotel em cobrança: a nota
 (**DANFE**), a **fatura** e a **ordem de pagamento** no Financeiro.
 
-<RequerPermissao>Hospedagens</RequerPermissao>
+<RequerPermissao>Hospedagens — gestão</RequerPermissao>
+
+Quem emite a fatura é o **hotel**, na área dele. No painel, o faturamento não tem tela
+própria: em Hospedagem → **Hotéis parceiros**, abra o hotel e veja **Faturas em aberto**
+(aguardando autorização ou pagamento) e **Faturas fechadas** (com a ordem paga).
 
 ## Como o hotel fatura
 
 <PassoAPasso>
   <Passo titulo="Reservas faturáveis">
     O hotel só vê como faturáveis as reservas com **comparecimento** registrado
-    e com **custo** definido, que ainda não foram faturadas.
+    e com **custo** definido, que ainda não foram faturadas. Se o cadastro do hotel
+    exige relatório, a reserva também precisa do relatório anexado.
   </Passo>
   <Passo titulo="Nota e fatura">
     O hotel anexa o **DANFE** (PDF), informa o vencimento e escolhe **como
@@ -17,7 +22,8 @@ O **faturamento** transforma as hospedagens do hotel em cobrança: a nota
   </Passo>
   <Passo titulo="Ordem de pagamento">
     Ao emitir, a fatura gera uma ordem **Em autorização** no sindicato, tendo o
-    hotel como favorecido.
+    hotel como favorecido e o centro de custo do contrato do hotel. Hotel sem
+    contrato vinculado não fatura.
   </Passo>
   <Passo titulo="Pagamento e baixa">
     A ordem segue pela **alçada** do Financeiro; quando paga, a fatura do hotel
@@ -35,7 +41,9 @@ O **faturamento** transforma as hospedagens do hotel em cobrança: a nota
 ## Erros comuns
 
 - **"A lista de reservas para faturar está vazia."** Só entram as com
-  **comparecimento** marcado pelo hotel; sem isso, a reserva não aparece.
+  **comparecimento** marcado; sem isso, a reserva não aparece.
+- **"Não acho o Faturamento no menu da Hospedagem."** Ele fica na ficha do hotel, em
+  **Hotéis parceiros**.
 - **"A fatura foi emitida mas não foi paga."** A ordem nasce **Em autorização** e
   passa pela **alçada** do Financeiro — não nasce autorizada.
 - **"Não aparece a conta para receber por Pix/Depósito."** O hotel precisa ter

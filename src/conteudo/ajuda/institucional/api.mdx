@@ -1,40 +1,91 @@
-Outros sistemas podem **ler** os dados do Confluir (contador, Power BI, site
-da entidade) e **ser avisados** quando algo acontece aqui (ordem paga,
-filiação aprovada, cupom reservado, contribuição Pix recebida, retorno
-bancário). Tudo em **Institucional → API e webhooks**; a documentação técnica
-fica no botão "Documentação" dessa tela.
+Outros sistemas podem **ler** os dados do Confluir (contador, Power BI, site da
+entidade) e **ser avisados** quando algo acontece aqui (ordem autorizada, paga ou
+devolvida, filiação aprovada, cupom reservado, contribuição Pix paga, retorno
+bancário). Tudo fica em **Institucional → API e webhooks**. A documentação técnica
+está no botão **Documentação** dessa tela.
 
-<RequerPermissao>Configurações</RequerPermissao>
+<RequerPermissao>Organização (identidade e sedes)</RequerPermissao>
 
 ## Chaves de API
 
 <PassoAPasso>
-  <Passo titulo="1. Crie uma chave por sistema">
-    Dê um nome (Contador, Power BI, Site) e copie a chave na hora: ela não
-    é mostrada de novo. Revogue quando aquele acesso não for mais necessário.
+  <Passo titulo="Crie uma chave por sistema">
+    Dê um **Nome da chave** (Contador, Power BI, Site), marque **O que a chave pode
+    ler** e clique em **Criar chave**. Copie a chave na hora: ela não é mostrada de
+    novo.
   </Passo>
-  <Passo titulo="2. Use no endereço da entidade">
+  <Passo titulo="Marque só o necessário">
+    Os escopos são **Filiados** (sem CPF), **CPF dos filiados**, **Arrecadação**,
+    **Despesas**, **Agenda** e **Eventos**. É preciso marcar ao menos um. O CPF só
+    vem com o escopo próprio: sem ele, a lista de filiados chega sem o CPF. Marque-o
+    só se o sistema de destino precisar.
+  </Passo>
+  <Passo titulo="Use no endereço da entidade">
     A chave vale só para esta entidade e só funciona no endereço dela. Vai no
-    cabeçalho `Authorization: Bearer cf_…`. Limite de 120 chamadas por
-    minuto.
+    cabeçalho `Authorization: Bearer cf_…`: na URL ela é recusada. O limite é de 120
+    chamadas por minuto por chave.
   </Passo>
-  <Passo titulo="3. O que dá para ler">
-    Filiados, arrecadação mensal, despesas pagas no período (igual à
-    exportação contábil), agenda e eventos — sempre em JSON, só leitura.
+  <Passo titulo="Ajuste ou revogue">
+    Na tabela, a coluna **Pode ler** abre os escopos da chave: altere e clique em
+    **Salvar escopos**, sem trocar a chave. **Revogar** corta o acesso na hora. A
+    tabela mostra também o último uso de cada chave.
   </Passo>
 </PassoAPasso>
 
-## Webhooks
-
-Cadastre a URL (HTTPS) do outro sistema e marque os eventos. Cada evento
-vira um POST com o corpo em JSON e um cabeçalho de **assinatura**
-(HMAC-SHA256 do corpo com o segredo do webhook, mostrado uma vez na criação)
-— o outro lado confere a assinatura antes de confiar. Se a URL não responder
-2xx em 10 segundos, reenviamos em 1 min, 10 min, 1 h e 6 h; depois a entrega
-fica como "falhou" e pode ser reenviada à mão. "Enviar evento de teste"
-dispara um evento `teste` para conferir a integração.
+Tudo é só leitura, em JSON. Uma chamada a um recurso fora dos escopos da chave é
+recusada. Cada chamada fica registrada na
+[Auditoria](/painel/ajuda/institucional/auditoria), aba **API**.
 
 <Aviso tipo="atencao" titulo="A chave é uma senha">
-  Quem tem a chave lê os dados dos filiados. Não a mande por canais abertos
-  e revogue na hora se ela vazar.
+  Quem tem a chave lê os dados marcados nela. Não a mande por canais abertos e
+  revogue na hora se ela vazar.
 </Aviso>
+
+## Webhooks
+
+<PassoAPasso>
+  <Passo titulo="Cadastre">
+    Clique em **Novo webhook** e informe a **URL (HTTPS)** do outro sistema, uma
+    **Descrição** (opcional) e os **Eventos**. Todos vêm marcados, menos **Teste**.
+    Clique em **Criar webhook** e guarde o **segredo**: ele é mostrado uma vez só.
+  </Passo>
+  <Passo titulo="Confira a assinatura">
+    Cada evento vira um POST com o corpo em JSON e o cabeçalho
+    `X-Confluir-Assinatura` (HMAC-SHA256 do corpo com o segredo). O outro lado
+    confere a assinatura antes de confiar no conteúdo.
+  </Passo>
+  <Passo titulo="Teste">
+    **Enviar evento de teste** dispara o evento `teste` para os webhooks ativos
+    inscritos nele. Para testar, marque **Teste** nos eventos do webhook.
+  </Passo>
+</PassoAPasso>
+
+Se a URL não responder 2xx em 10 segundos, o sistema reenvia em 1 min, 10 min, 1 h e
+6 h. Depois, a entrega fica como "falhou". Em **Entregas recentes** (as 50 últimas),
+**Reenviar** tenta de novo à mão. Na lista, o webhook aparece como *ativo*, *com
+falhas* ou *inativo*, e **Editar** permite desmarcar **Ativo** para pausá-lo.
+**Excluir** apaga o webhook e o histórico de entregas dele.
+
+## Erros comuns
+
+- **"Marque ao menos um recurso que a chave pode ler."** Toda chave precisa de pelo
+  menos um escopo.
+- **"O sistema externo recebe recusa ao chamar um recurso."** Falta o escopo na
+  chave. Abra **Pode ler** e marque o recurso; a chave não muda.
+- **"O CPF vem vazio."** Falta o escopo **CPF dos filiados**.
+- **"Recebo erro de limite."** A chave passou de 120 chamadas por minuto. Espace as
+  chamadas.
+- **"Nenhum webhook ativo inscrito no evento teste."** O evento **Teste** vem
+  desmarcado. Edite o webhook, marque-o e tente de novo.
+- **"Perdi a chave ou o segredo."** Eles não são mostrados de novo. Crie outra chave
+  e revogue a antiga.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Auditoria",
+      href: "/painel/ajuda/institucional/auditoria",
+      descricao: "Cada chamada à API, na aba API",
+    },
+  ]}
+/>

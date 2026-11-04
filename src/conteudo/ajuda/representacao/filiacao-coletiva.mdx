@@ -3,30 +3,45 @@ todos passam a ser filiados — a cláusula está no acordo coletivo aprovado.
 Nesse caso não há ficha individual: a deliberação da assembleia substitui a
 adesão de cada um.
 
-<RequerPermissao>Assembleias</RequerPermissao>
+<RequerPermissao>Votações e assembleias</RequerPermissao>
 
 ## Como funciona, do começo ao fim
 
 <PassoAPasso>
   <Passo titulo="Marque a cláusula na rodada">
-    No cadastro da <strong>rodada de assembleia</strong>, ligue a chave “O ACT
-    em discussão tem cláusula de filiação coletiva” e informe o
-    <strong> prazo de desistência em dias corridos</strong>. É esse
-    interruptor que faz a rodada aparecer na área de filiação coletiva.
+    Ao criar a rodada em **Nova rodada**, ou depois, na aba **Divulgação** da
+    rodada, em **Dados da rodada → Editar**, marque “O ACT em discussão tem
+    cláusula de filiação coletiva” e informe o
+    <strong> prazo de desistência em dias corridos</strong>. É essa marca que
+    faz a rodada aparecer na área de filiação coletiva.
   </Passo>
   <Passo titulo="Crie o processo">
-    Em Representação → Filiação coletiva, escolha uma das rodadas disponíveis
-    (só aparecem as que têm a cláusula e ainda não viraram processo), dê um
-    título e confirme o prazo. Opcionalmente vincule o acordo coletivo.
+    Em Representação → Filiação coletiva, no quadro **Novo processo**, escolha
+    a rodada (só aparecem as que têm a cláusula e ainda não viraram processo),
+    dê um título e confirme o prazo, sugerido pela rodada. O acordo coletivo e
+    as observações são opcionais. **Criar e conciliar** abre o processo como
+    *Rascunho*.
   </Passo>
   <Passo titulo="Revise a conciliação">
     O sistema compara a lista de aptos a votar com o cadastro e mostra o que
-    vai acontecer com cada pessoa. <strong>Nada é gravado ainda.</strong>
+    vai acontecer com cada pessoa: aptos na rodada, já ativos, serão cadastrados
+    e mudam de condição. A tabela mostra os 300 primeiros, mas todos são
+    processados. <strong>Nada é gravado ainda.</strong> Se o processo não servir,
+    **Excluir rascunho** o descarta.
   </Passo>
   <Passo titulo="Aplique">
-    Digite APLICAR e confirme. Só então as filiações são criadas e alteradas.
+    Digite APLICAR e clique em **Aplicar processo**, que mostra quantas
+    alterações serão feitas. Só então as filiações são criadas e alteradas, o
+    prazo de desistência começa a contar e o processo passa a *Aplicado*.
   </Passo>
 </PassoAPasso>
+
+<Aviso tipo="nota" titulo="Onde acompanhar">
+  A página do processo mostra o que aconteceu com cada pessoa: **Já era ativo**,
+  **Cadastro criado**, **Condição alterada**, **Ignorado** ou **Desistiu no
+  prazo**. O acompanhamento de todos os processos, e de quem está no prazo, fica
+  em **Filiados → Filiações coletivas**.
+</Aviso>
 
 ## O que acontece com cada apto
 
@@ -114,14 +129,35 @@ marcos desses filiados tem três etapas — diferente da filiação individual:
 **Em processo de filiação coletiva → Filiação informada à fonte → Ativo**
 
 Se não quiser esperar o processamento diário, use o botão **Processar prazos
-agora**.
+agora**, em **Filiados → Filiações coletivas**, no quadro **No prazo de
+desistência**.
 
 ## Desistência do trabalhador
 
-Durante o prazo, o próprio trabalhador pode desistir pela **área do filiado**,
-sem precisar ir ao sindicato. Ao desistir, ele entra na trilha normal de
-desfiliação — o empregador é comunicado para encerrar o desconto. Depois do
-prazo a opção some, e a desfiliação volta a ser pelo atendimento.
+Durante o prazo, o próprio trabalhador pode desistir, sem precisar ir ao
+sindicato, por dois caminhos. Nos dois, ele confirma digitando **CONFIRMO**:
+
+- **Área do filiado**, em Desfiliação, para quem consegue entrar no portal;
+- **Link de desistência**, sem login, para quem não entra no portal. A página
+  pública mostra o nome em parte, a empresa e o prazo; abrir o link não grava
+  nada.
+
+Para obter o link, abra **Ver como filiado** desse trabalhador e, na página de
+desfiliação do portal, use **Copiar link de desistência**, no quadro que só a
+gestão vê. O link é pessoal: mande-o apenas para o próprio trabalhador. Ele vale
+até o fim do prazo e deixa de valer se o processo for revertido ou o cadastro
+mudar.
+
+Ao desistir, ele entra na trilha normal de desfiliação, e o empregador é
+comunicado para encerrar o desconto. Depois do prazo, o link explica que o prazo
+terminou e indica o caminho do pedido de desfiliação, conforme a configuração da
+área do associado.
+
+<Aviso tipo="nota" titulo="O desconto do mês em curso">
+  O trabalhador é avisado de que, se o desconto já tiver começado, o do mês em
+  curso ainda pode aparecer no contracheque: ele para quando a empresa processa
+  o aviso.
+</Aviso>
 
 ## Reversão
 
@@ -134,6 +170,8 @@ anterior. Por ser uma ação de massa e sem volta, ela exige digitar REVERTER
 
 - **“A rodada não aparece na lista.”** Ou a cláusula não foi marcada no
   cadastro da rodada, ou aquela rodada já tem um processo vinculado.
+- **“Não consigo excluir o processo.”** Só o rascunho se exclui. Um processo
+  aplicado se desfaz por **Reverter processo**.
 - **“Muita gente caiu em dúvida.”** É sinal de que a lista de aptos veio sem
   CPF e sem matrícula. Complete a planilha com uma dessas colunas e importe de
   novo — o casamento fica automático. Enquanto isso, use **Ignorar todas** para
@@ -150,4 +188,20 @@ anterior. Por ser uma ação de massa e sem volta, ela exige digitar REVERTER
   “ignorar” não entram.
 - **“O filiado diz que não consegue desistir pelo portal.”** Confira a
   condição dele e o prazo — a opção só existe em “Em processo de filiação
-  coletiva” e dentro da data.
+  coletiva” e dentro da data. Se ele não consegue nem entrar no portal, mande o
+  **link de desistência**.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Votações",
+      href: "/painel/ajuda/representacao/votacoes",
+      descricao: "A rodada, a lista de aptos e a marca da cláusula",
+    },
+    {
+      titulo: "Acordos coletivos",
+      href: "/painel/ajuda/representacao/acordos",
+      descricao: "O acordo que pode ser vinculado ao processo",
+    },
+  ]}
+/>

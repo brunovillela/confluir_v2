@@ -1,5 +1,6 @@
 O módulo **Jurídico** cobre as **homologações** de rescisão, o registro dos
-**processos** judiciais e os **reembolsos** de despesas do escritório.
+**processos** judiciais e os **reembolsos** de despesas do escritório de
+advocacia.
 
 <RequerPermissao>Jurídico geral</RequerPermissao>, <RequerPermissao>Gestão jurídica</RequerPermissao> ou <RequerPermissao>Homologações</RequerPermissao>
 
@@ -11,24 +12,46 @@ O módulo **Jurídico** cobre as **homologações** de rescisão, o registro dos
     data, motivo, empregador e o parecer.
   </Passo>
   <Passo titulo="Processos">
-    Um registro **macro** das ações judiciais: número, tipo, partes, status,
-    filiados envolvidos e o escritório responsável.
+    Um registro **macro** das ações judiciais: número, área do direito, partes,
+    status, filiados envolvidos e o escritório responsável.
   </Passo>
   <Passo titulo="Reembolsos">
-    As despesas do escritório de advocacia que o sindicato reembolsa, em duas
-    etapas de aprovação. <RequerPermissao>Gestão jurídica</RequerPermissao>
+    As despesas do escritório que o sindicato reembolsa. Elas são lançadas na
+    página do processo e avaliadas na fila **Reembolsos jurídicos**.
   </Passo>
 </PassoAPasso>
 
-<Print src="juridico/painel.png" alt="Hub do módulo Jurídico com os indicadores no topo e os cartões de homologações, processos e reembolsos." legenda="As áreas do Jurídico." />
+<Print src="juridico/painel.png" alt="Painel do Jurídico: os cartões Homologações e Processos, os indicadores de homologações e de processos, o alerta de reembolso aguardando aprovação com o link Ver a fila e o quadro Homologações por motivo." legenda="As áreas do Jurídico." />
+
+## O que o painel do módulo mostra
+
+A página de entrada tem os cartões **Homologações** e **Processos**, os
+indicadores e o quadro **Homologações por motivo**. Clicar em um indicador ou em
+um motivo abre a lista já filtrada.
+
+Os reembolsos não têm cartão próprio. Quando há despesa à espera, aparece um
+alerta com a quantidade e o link **Ver a fila**. Quem pode aprovar também recebe
+o aviso e vê **Reembolsos jurídicos a avaliar** na caixa de entrada.
+
+## O que cada permissão libera
+
+| Ação | Homologações | Jurídico geral | Gestão jurídica |
+|---|---|---|---|
+| Ver e editar homologações e processos | Sim | Sim | Sim |
+| Registrar despesa para reembolso e ver a fila | Sim | Sim | Sim |
+| Aprovar ou reprovar reembolso | Não | Sim | Sim |
+| Definir o centro de custo dos reembolsos | Não | Sim | Sim |
 
 ## Erros comuns
 
 - **"Não vejo o módulo Jurídico."** Ele abre para **Jurídico geral**, **Gestão
-  jurídica** ou **Homologações** — peça o acesso em Institucional → Usuários e
+  jurídica** ou **Homologações**. Peça o acesso em Institucional → Usuários e
   permissões.
-- **"Vejo Homologações mas não Reembolsos."** As áreas são permissões
-  separadas; aprovar reembolso exige **Gestão jurídica**.
+- **"Não aparece o botão para aprovar o reembolso."** Aprovar exige **Jurídico
+  geral** ou **Gestão jurídica**; só **Homologações** não basta.
+- **"Não acho a fila de reembolsos."** Sem despesa à espera, o alerta **Ver a
+  fila** não aparece no painel do módulo. As despesas continuam na página de
+  cada processo.
 
 <VejaTambem
   links={[
@@ -45,7 +68,7 @@ O módulo **Jurídico** cobre as **homologações** de rescisão, o registro dos
     {
       titulo: "Reembolsos",
       href: "/painel/ajuda/juridico/reembolsos",
-      descricao: "Despesas do escritório em duas etapas",
+      descricao: "Despesas do escritório e a ordem de pagamento",
     },
   ]}
 />

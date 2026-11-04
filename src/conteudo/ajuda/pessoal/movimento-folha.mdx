@@ -32,7 +32,7 @@ As linhas vêm dos próprios cadastros do sistema, organizadas pelos eventos do 
 | Alterações contratuais | S-2206 | Cargo, lotação, matrícula, regime, jornada, função, progressões e reajuste da tabela salarial |
 | Alterações cadastrais | S-2205 | Nome, CPF, estado civil, conta bancária e Pix, endereço, dependentes |
 | Férias | S-2230 | Gozos autorizados que começam no mês (ou até o dia 2 do mês seguinte, cujo pagamento sai antes) |
-| Afastamentos e licenças | S-2230 | Atestados (com alerta acima de 15 dias, que vão ao INSS) e ausências do tipo Licença |
+| Afastamentos e licenças | S-2230 | Atestados, com o CID quando informado (e alerta acima de 15 dias, que vão ao INSS), e ausências do tipo Licença |
 | Faltas | S-1200 | Faltas justificadas autorizadas e ausências do tipo **Falta injustificada** (a descontar) |
 | Variáveis da remuneração | S-1200 | Horas extras pagas nas duas faixas, com o percentual da entidade (remessa de ponto do mês), anuênios e reembolsos do ACT com pagamento no mês |
 | Descontos | S-1200 | Multas de trânsito a descontar em contracheque |
@@ -109,6 +109,20 @@ mostra o marco.
     passa a **Recebida**.
   </Passo>
 </PassoAPasso>
+
+## Erros comuns
+
+- **"O cartão Movimento da folha dá sem acesso."** Gestão de Pessoal sozinha não
+  abre: é preciso uma das duas permissões do Movimento da folha.
+- **"Só vejo as competências enviadas."** A permissão **Contabilidade** não vê a
+  competência aberta nem envia.
+- **"Já existe competência posterior enviada."** Não dá para enviar uma competência
+  mais antiga depois da seguinte. Lance o que faltou: entra na competência aberta
+  como retroativo.
+- **"Corrigi um lançamento, mas a competência enviada não mudou."** Ela fica
+  congelada como foi entregue.
+- **"A pendência do cadastro aparece todo mês."** A seção lista quem está sem CPF ou
+  sem conta bancária ou Pix até o cadastro ser completado.
 
 <VejaTambem
   links={[

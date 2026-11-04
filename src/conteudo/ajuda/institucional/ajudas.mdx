@@ -2,7 +2,7 @@ As **ajudas institucionais** são apoios da entidade a organizações apoiadas �
 uma relação com a mesma estrutura de um contrato (valor, vigência, ordens de
 pagamento), mas que é ajuda, não compra.
 
-<RequerPermissao>Ajudas institucionais</RequerPermissao>
+<RequerPermissao>Ajudas institucionais</RequerPermissao> para consultar; <RequerPermissao>Ajudas institucionais — editar</RequerPermissao> para cadastrar e gerar ordens
 
 ## Ajuda não é compra
 
@@ -14,22 +14,30 @@ pagamento), mas que é ajuda, não compra.
 
 ## Entidades apoiadas
 
-Antes de registrar uma ajuda, a organização beneficiária precisa estar no
-cadastro de **entidades apoiadas** — um cadastro com a mesma lógica dos
-fornecedores (dados, endereços e dados bancários).
+A organização beneficiária vem do cadastro de **entidades apoiadas**, com a mesma
+lógica dos fornecedores (dados, endereços e dados bancários). A busca da ajuda
+também mostra os **fornecedores comuns**, com a etiqueta *Fornecedor*. Ao salvar a
+ajuda, o fornecedor escolhido passa a constar também como entidade apoiada.
 
 <PassoAPasso>
   <Passo titulo="Cadastre a entidade">
-    Em Entidades apoiadas, registre a organização que pode receber ajuda.
+    Em **Entidades apoiadas**, use **Nova entidade**. Se a organização já é
+    fornecedora, este passo não é necessário.
   </Passo>
   <Passo titulo="Registre a ajuda">
-    Em Nova ajuda, escolha a entidade apoiada como beneficiária, com objeto,
-    valor e vigência. O **centro de custo** só se habilita depois do
-    **departamento** e mostra apenas os centros desse departamento.
+    Em **Nova ajuda**, informe o **Objeto** (obrigatório), a **Entidade apoiada**, o
+    **Valor**, a vigência, o **Departamento**, o **Centro de custo**, o **Responsável
+    (gestor)** e o arquivo (PDF, até 5 MB). O **centro de custo** só se habilita
+    depois do **departamento** e mostra apenas os centros desse departamento. Clique
+    em **Cadastrar ajuda**.
   </Passo>
   <Passo titulo="Gere as ordens">
-    Como nos contratos, a ajuda gera ordens de pagamento (mensal, anual ou
-    única), que passam pela autorização do Financeiro.
+    As ordens não saem sozinhas. Na página da ajuda, abra **Gerar ordens de
+    pagamento** e informe a **Periodicidade** (mensal, anual ou única), o **Valor por
+    parcela**, o **Primeiro vencimento**, as **Parcelas** e a **Forma de pagamento**
+    (obrigatória). As ordens nascem **Em autorização** e passam pela alçada do
+    Financeiro. Vencimentos que já têm ordem são pulados: dá para gerar de novo sem
+    duplicar.
   </Passo>
 </PassoAPasso>
 
@@ -40,15 +48,25 @@ fornecedores (dados, endereços e dados bancários).
   Com ajuda registrada, o cadastro fica.
 </Aviso>
 
+## Acompanhar e alterar
+
+A lista tem os quadros **Vigentes**, **Vencendo (≤30 dias)**, **Vencidas** e **Sem
+termo definido**, que filtram com um clique. Na página da ajuda ficam as ordens
+geradas e o botão **Adicionar aditivo**, que cria um aditivo ligado à ajuda
+principal. O botão de excluir tira a ajuda das listagens, depois de uma confirmação.
+
 <Print src="institucional/ajudas.png" alt="Lista de ajudas institucionais com resumo por situação e o botão de entidades apoiadas." legenda="Ajudas institucionais e o cadastro de entidades apoiadas." />
 
 ## Erros comuns
 
-- **"Não consigo excluir uma entidade apoiada."** Há **ajuda cadastrada** para
-  ela; o cadastro permanece enquanto houver ajuda.
-- **"A ajuda não gerou as parcelas."** Como no contrato, ela gera ordens
-  conforme a **cadência** (mensal, anual ou única) — confira a configuração da
-  ajuda.
+- **"Esta entidade tem N ajuda(s) cadastrada(s), não pode ser excluída."** O cadastro
+  permanece enquanto houver ajuda.
+- **"A ajuda não gerou as parcelas."** As ordens não nascem com a ajuda: use **Gerar
+  ordens de pagamento**, na página dela.
+- **"Um fornecedor virou entidade apoiada."** É o esperado: acontece ao salvar uma
+  ajuda em favor dele.
+- **"Não aparece o botão Nova ajuda."** Cadastrar exige **Ajudas institucionais —
+  editar**.
 - **"O centro de custo está desabilitado."** Escolha antes o **departamento**:
   a lista mostra só os centros dele. Se aparecer "Nenhum centro neste
   departamento", o departamento ainda não tem centro de custo vinculado.

@@ -3,6 +3,9 @@ pessoa vive, o que a equipe decide e qual e-mail sai em cada etapa.
 
 <RequerPermissao>Eventos</RequerPermissao>
 
+Ver a lista de inscrições pede a permissão *Eventos*. Avaliar, enviar o RSVP e conciliar
+pedem *Gestão de eventos*.
+
 ## O que a pessoa vive
 
 <PassoAPasso>
@@ -20,7 +23,11 @@ pessoa vive, o que a equipe decide e qual e-mail sai em cada etapa.
 </PassoAPasso>
 
 Reinscrever com o mesmo CPF **não duplica**: o sistema devolve a inscrição que
-já existe.
+já existe. A inscrição cancelada é reaberta, desde que as inscrições continuem abertas.
+
+O **filiado** também pode se inscrever pelo portal do associado, sem código por e-mail,
+porque já entrou com a conta dele. A coluna **Origem** da lista mostra por onde a
+inscrição veio.
 
 <Print src="eventos/evento.png" alt="Tela de um evento com os indicadores de confirmados, aguardando, convidados, filiados e comparecimento, o bloco de RSVP, a presença por dia e a lista de inscrições com a situação de cada pessoa." legenda="A tela do evento reúne números, RSVP, presença por dia e a lista de inscritos." />
 
@@ -30,17 +37,22 @@ já existe.
 | --- | --- |
 | Pendente | aguarda o e-mail ser confirmado ou a avaliação da equipe |
 | Confirmada | tem vaga garantida |
-| Lista de espera | as vagas acabaram; entra se alguém desistir |
+| Lista de espera | a equipe pôs a pessoa na fila; ela só passa a confirmada quando a equipe confirmar |
 | Recusada | a equipe não aprovou |
-| Cancelada | desistência |
+| Cancelada | a pessoa desistiu pelo portal do associado |
 
 Se o evento **não exige aprovação**, a inscrição vira *confirmada* sozinha
 assim que o e-mail é validado. Se exige, fica *pendente* até alguém avaliar.
 
+<Aviso tipo="atencao" titulo="A lista de espera não anda sozinha">
+  Quando alguém desiste, o sistema não chama a próxima pessoa. Quem organiza decide e
+  confirma na coluna **Avaliar**.
+</Aviso>
+
 ## Avaliar
 
-Na página do evento, coluna **Avaliar** da tabela de inscrições. Três decisões:
-confirmar, recusar ou mandar para a lista de espera.
+Na página do evento, coluna **Avaliar** da tabela de inscrições. Escolha **Confirmar**,
+**Lista de espera** ou **Recusar** e clique em **Aplicar**.
 
 <Aviso tipo="atencao" titulo="Recusa exige motivo">
   O motivo vai no e-mail à pessoa. Negar sem dizer por quê é o que gera o
@@ -49,6 +61,13 @@ confirmar, recusar ou mandar para a lista de espera.
 
 Reavaliar para a **mesma** situação não reenvia e-mail — apertar o botão duas
 vezes não manda duas mensagens iguais.
+
+## Filiados e prontuário
+
+O sistema liga a inscrição ao filiado pelo CPF. Quem é filiado ganha o selo **filiado**
+na lista, e o indicador **Filiados** conta quantos são. A inscrição, a resposta ao RSVP
+e a presença vão para o prontuário da pessoa. Se alguém se filiou depois de se
+inscrever, use **Conciliar inscritos com filiados**, abaixo da lista.
 
 ## Quais e-mails o sistema envia
 

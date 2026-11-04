@@ -7,17 +7,22 @@ a **conta da lotação**. Este artigo passa campo a campo.
 
 <PassoAPasso>
   <Passo titulo="Título">
-    Vira o endereço público. &quot;Congresso dos Petroleiros 2026&quot; gera
-    <strong>/evento/congresso-dos-petroleiros-2026</strong>. Se já existir um
-    igual, o sistema acrescenta um número.
+    Obrigatório. Vira o endereço público. &quot;Congresso dos Petroleiros 2026&quot;
+    gera <strong>/evento/congresso-dos-petroleiros-2026</strong>. Se já existir um
+    igual, o sistema acrescenta um número. O endereço **não muda depois**, mesmo que o
+    título mude: escolha com cuidado.
   </Passo>
-  <Passo titulo="Card">
+  <Passo titulo="Descrição">
+    O que é, para quem é e o que a pessoa precisa levar.
+  </Passo>
+  <Passo titulo="Imagem do card">
     Imagem que aparece no topo da página pública, até 5 MB, em JPG, PNG ou WebP.
     É o que a pessoa vê antes de ler qualquer coisa.
   </Passo>
   <Passo titulo="Início e término">
-    Data e hora. Se o evento dura mais de um dia, cada dia vira uma lista de
-    presença própria.
+    Data e hora, obrigatórios. Se o evento dura mais de um dia, cada dia vira uma
+    lista de presença própria. Ao mudar o período, o dia que sai do intervalo só é
+    removido se não tiver presença registrada.
   </Passo>
   <Passo titulo="Local e endereço">
     Vão no card e nos e-mails de aviso.
@@ -65,21 +70,24 @@ avisa que isso aconteceu.
     Trava por quantidade, independente da lotação. Vale sempre o menor entre os
     dois.
   </Passo>
-  <Passo titulo="Exige aprovação">
+  <Passo titulo="Cada inscrição passa por aprovação">
     Marcado, toda inscrição nasce <strong>pendente</strong> e alguém precisa
     avaliar. Desmarcado, a pessoa fica confirmada assim que valida o e-mail.
   </Passo>
-  <Passo titulo="Confirma filiado automaticamente">
-    Filiado entra sem passar pela fila de aprovação.
+  <Passo titulo="Filiado se inscreve direto">
+    Vem marcado. Quem se inscreve **pela área do filiado, no portal,** é confirmado na
+    hora, mesmo com aprovação ligada. O filiado que usa o link público segue a regra de
+    aprovação como qualquer pessoa.
   </Passo>
-  <Passo titulo="Exige foto">
+  <Passo titulo="Exigir foto para concluir a inscrição">
     Só aparece se a entidade permitir foto em <strong>Configuração</strong>. O
     evento pode pedir menos que a entidade permite, nunca mais.
   </Passo>
-  <Passo titulo="Exige RSVP">
+  <Passo titulo="Pedir RSVP por e-mail">
     Libera o botão &quot;Perguntar quem vem&quot; e pede
-    <strong>quando a confirmação abre</strong> — data obrigatória, porque é ela
-    que separa a pergunta da inscrição. Escolha depois do fim das inscrições.
+    <strong>A confirmação abre em</strong> — data obrigatória, porque é ela
+    que separa a pergunta da inscrição. Escolha depois do fim das inscrições, e nunca
+    depois do fim do evento.
   </Passo>
 </PassoAPasso>
 
@@ -103,7 +111,9 @@ pergunta desativada pode ser reativada depois.
 
 ## Publicar, adiar, cancelar
 
-A situação do evento fica no fim da página dele.
+A situação do evento fica no fim da página dele, no cartão **Situação do evento**:
+escolha a nova situação e clique em **Aplicar**. Com o evento publicado, a página
+ganha os botões **Abrir recepção** e **Ver página pública**.
 
 - **Rascunho** — o link público não existe.
 - **Publicado** — o link está no ar. Exige título e período preenchidos.
@@ -127,6 +137,8 @@ A situação do evento fica no fim da página dele.
   percentual incide sobre a lotação; sem ela não há sobre o que incidir.
 - **&quot;Guardar vagas para convidados exige lotação máxima definida&quot;** —
   mesma lógica: a reserva sai da lotação.
+- **&quot;O término não pode ser anterior ao início&quot;** e **&quot;O fim das
+  inscrições não pode ser antes da abertura&quot;** — confira as datas.
 - **&quot;Descreva o motivo&quot;** ao adiar ou cancelar — o motivo vai no
   e-mail. Sem ele, a pessoa recebe um aviso que gera mais dúvida que informação.
 

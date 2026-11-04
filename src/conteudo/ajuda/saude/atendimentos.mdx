@@ -1,73 +1,174 @@
 Os **atendimentos** do serviço de saúde têm um cuidado especial: o **relatório
 clínico** é sigiloso, cifrado e com acesso restrito por regra própria.
 
-<RequerPermissao>Atendimentos</RequerPermissao>
+<RequerPermissao>Atendimentos</RequerPermissao> ou <RequerPermissao>Gestão de saúde</RequerPermissao>
 
 ## O que é sigiloso e o que não é
 
 <PassoAPasso>
   <Passo titulo="Relatório clínico — sigiloso e cifrado">
-    O conteúdo clínico. É **cifrado pela aplicação** e nunca sai junto com os
-    metadados. Só abre pela função própria, que **registra cada leitura**.
+    O conteúdo clínico: avaliação, hipótese diagnóstica, conduta. É **cifrado
+    pela aplicação** e fica fora da busca e da lista de atendimentos, que mostra
+    só os metadados. Cada leitura fica registrada.
   </Passo>
   <Passo titulo="Observação aberta — visível ao assistido">
-    Um texto **aberto** que o assistido consulta na área de saúde do portal. Use
-    para orientações e recados, nunca para o conteúdo sigiloso.
+    Um texto **aberto**, visível à equipe de saúde e à pessoa atendida, na área
+    de saúde do portal. Use para comparecimento, encaminhamento e retorno, nunca
+    para conteúdo clínico.
   </Passo>
   <Passo titulo="Apontamento no prontuário — genérico">
-    O atendimento gera um registro **genérico** no prontuário do filiado
-    ("atendido pelo serviço de saúde"), **sem revelar a especialidade** nem o
-    conteúdo.
+    Quando o assistido está vinculado a um filiado, o atendimento gera um
+    registro **genérico** no prontuário dele ("Atendido(a) pelo serviço de
+    saúde."), **sem revelar a especialidade** nem o conteúdo. Atendimento a quem
+    não é filiado não gera apontamento.
   </Passo>
 </PassoAPasso>
 
 ## Quem pode ler o relatório
 
 O acesso ao relatório **não vem** da permissão do painel nem de ser a pessoa
-atendida — vem do **perfil clínico** (o cadastro do profissional no serviço de
-saúde). São exatamente três caminhos:
+atendida. São exatamente três caminhos, e os mesmos valem para ler e para gravar:
 
-- **Autor** — quem escreveu o relatório sempre lê o que escreveu.
-- **Profissional do mesmo tipo** — um profissional habilitado no **mesmo tipo**
-  do atendimento lê.
-- **Coordenação clínica** — um profissional com **acesso a todos os tipos**
-  atravessa os tipos (previsto para a coordenação).
+- **Autor** — quem **registrou o atendimento** no sistema, ou o **profissional
+  indicado** nele.
+- **Profissional do mesmo tipo** — quem tem cadastro de profissional ativo no
+  **mesmo tipo** do atendimento. Atendimento sem tipo não abre por este caminho.
+- **Coordenação clínica** — profissional ativo marcado com **Coordenação
+  clínica**, que atravessa os tipos.
 
 <Aviso tipo="perigo" titulo="Quem NÃO acessa — de propósito">
-  **Gestão de saúde** (administração do módulo) vê os metadados, mas **não** lê
-  o relatório. O **próprio assistido** também não — ele vê apenas a observação
-  aberta. Um pedido formal de acesso ao prontuário (LGPD, Art. 18) segue por
-  fora do sistema, com um profissional.
+  **Gestão de saúde** (administração do módulo) vê os metadados, mas a permissão
+  **não** abre o relatório. O **próprio assistido** também não — ele vê apenas a
+  observação aberta. Um pedido formal de acesso ao prontuário (LGPD, Art. 18)
+  segue por fora do sistema, com um profissional.
+</Aviso>
+
+<Aviso tipo="atencao" titulo="Quem registra o atendimento vira autor dele">
+  O caminho de autor vale para quem clicou em **Registrar atendimento**, mesmo
+  sem cadastro de profissional, com qualquer uma das duas permissões. E
+  **Inativo**, no cadastro do profissional, tira o acesso por tipo, por
+  coordenação e como profissional indicado, mas não tira o de quem registrou o
+  atendimento. **Trocar o tipo ou o profissional** em **Editar** também muda quem
+  lê. Para o relatório ficar restrito aos profissionais, o atendimento precisa
+  ser registrado por um deles.
 </Aviso>
 
 <Aviso tipo="perigo" titulo="A chave de cifragem é insubstituível">
   O relatório é cifrado com uma chave que fica **fora do banco**. **Perder a
-  chave é perder os relatórios** — não há recuperação por backup. Toda leitura
-  fica numa **trilha de auditoria**, com o motivo do acesso (autor, mesmo tipo
-  ou coordenação).
+  chave é perder os relatórios** — não há recuperação por backup.
 </Aviso>
 
-## Assistido, agenda e portal
+## Registrar um atendimento
 
-O atendimento é feito a um **assistido** (a pessoa atendida, filiada ou não).
-Há **agenda** de atendimentos, e o filiado acompanha o que lhe cabe pela área de
-saúde do **portal** — nunca o relatório.
+Antes do primeiro atendimento, cadastre os **tipos** e os **profissionais**
+(abaixo) e o **assistido**.
 
-<Print src="saude/atendimentos.png" alt="Tela de um atendimento com a observação aberta, o indicador de que existe relatório e a trilha de acessos." legenda="Atendimento: observação aberta, indicador de relatório e a trilha de acessos." />
+<PassoAPasso>
+  <Passo titulo="Novo atendimento">
+    Em **Saúde → Atendimentos**, clique em **Novo atendimento**. **Assistido** e
+    **Data** são obrigatórios. **Tipo de atendimento** e **Profissional** são
+    opcionais, mas decidem quem poderá ler o relatório. Preencha a **Observação
+    aberta** se houver e clique em **Registrar atendimento**.
+  </Passo>
+  <Passo titulo="Escreva o relatório">
+    Na página do atendimento, escreva no cartão **Relatório clínico** e clique em
+    **Salvar relatório**. O selo ao lado do título diz por qual caminho você
+    entrou (autor, profissional do mesmo tipo ou coordenação clínica).
+  </Passo>
+</PassoAPasso>
+
+<Print src="saude/atendimentos.png" alt="Tela de um atendimento com o assistido, o tipo, o profissional e o vínculo, a observação aberta, o cartão Relatório clínico com o botão Salvar relatório e a trilha Quem acessou este relatório." legenda="Atendimento: observação aberta, relatório e a trilha de acessos." />
+
+<Aviso tipo="atencao" titulo="Salvar o relatório em branco apaga o relatório">
+  Se você limpar o texto e salvar, o relatório é removido. Fica só o registro da
+  gravação na trilha.
+</Aviso>
+
+### A trilha de acessos
+
+O cartão **Quem acessou este relatório** mostra quando, quem, a ação (leitura,
+gravação ou negado) e o motivo. Só aparece para quem tem acesso ao relatório: a
+lista de quem consultou um prontuário também é informação sensível.
+
+**Abrir a página** de um atendimento sem ter acesso já conta como tentativa e
+fica registrada como **negado**.
+
+## Profissionais e tipos
+
+Em **Saúde → Profissionais e tipos** (só **Gestão de saúde**):
+
+- **Tipos de atendimento** — as especialidades (Psicologia, Serviço social…). O
+  tipo é o que decide o acesso ao relatório. Tipo em uso não pode ser excluído:
+  renomeie.
+- **Novo profissional** — **Pessoa** e **Profissão** são obrigatórias; **Conselho**
+  e **Registro** são opcionais. Escolha o **Tipo de atendimento** ou marque
+  **Coordenação clínica**: sem um dos dois, o sistema recusa, porque o cadastro
+  não leria nenhum relatório.
+- **Inativo** — tira o acesso pelo cadastro de imediato (veja o aviso acima).
+
+Quem concede a habilitação continua sem ler o relatório, salvo se também for
+cadastrado como profissional. Enquanto não houver profissional cadastrado, só
+quem registrou o atendimento lê o relatório dele.
+
+## Assistidos
+
+O atendimento é feito a um **assistido** (a pessoa atendida, filiada ou não). Em
+**Saúde → Assistidos**, **Novo assistido** pede o **Nome** e, opcionalmente:
+
+- **Filiado** — o vínculo com o cadastro. É o que permite à pessoa acompanhar o
+  histórico no portal e gera o apontamento no prontuário. Cada filiado só pode
+  ter um assistido.
+- **Observações do cadastro** — informação administrativa, nunca clínica.
+- **Guarda do prontuário** — **Guardar até** vem sugerido com 20 anos a partir do
+  cadastro (NR-07). A norma diz "no mínimo": é piso, não teto.
+
+<Aviso tipo="atencao" titulo="Exposição não muda a data sozinha">
+  Marcar **Cancerígeno químico** ou **Radiação ionizante** troca o texto da
+  sugestão para 40 anos, mas **não altera a data**. Ajuste **Guardar até** à mão.
+</Aviso>
+
+Com a guarda vencida, a página do assistido mostra um alerta para levar o caso à
+análise de descarte. Preencher **Regime especial** (benzeno, radiação, amianto,
+previdenciário) tira o assistido desse alerta. O selo **Cadastro anonimizado**
+indica que o cadastro administrativo foi anonimizado a pedido da pessoa e o
+acervo de saúde segue retido por obrigação legal.
+
+## Agenda
+
+Em **Saúde → Agenda**, a lista abre de hoje em diante; **Todos os períodos**
+mostra o resto. Para agendar, informe **Assistido** e **Data** (obrigatórios),
+**Término**, **Profissional** e **Atendimento online**, e clique em **Agendar**.
+
+A situação é **Agendado**, **Atendido** ou **Sem registro** (a data passou e não
+há atendimento). **Registrar** abre o novo atendimento com o assistido já
+escolhido.
+
+## O que o filiado vê no portal
+
+Com o assistido vinculado, o filiado acompanha na área de saúde do portal os
+próximos agendamentos, o histórico de atendimentos (data, serviço, profissional e
+observação aberta) e as CATs ligadas ao cadastro dele — nunca o relatório. Para
+pedir acesso ao relatório, o portal o orienta a falar com o serviço de saúde.
 
 ## Erros comuns
 
-- **"Sou o gestor da saúde e não abro o relatório."** É proposital — o acesso
-  vem do **perfil clínico**, não da permissão de gestão.
+- **"Sou o gestor da saúde e não abro o relatório."** É proposital — a permissão
+  de gestão não dá acesso. Só os três caminhos acima.
 - **"Atendo, mas não leio o relatório de outro tipo."** Você lê os do **seu
-  tipo** (e os que você mesmo escreveu). Ver todos os tipos exige o perfil de
-  **coordenação** (acesso a todos os tipos).
+  tipo** e os atendimentos em que é autor. Ver todos os tipos exige **Coordenação
+  clínica**.
+- **"Sou da área e não leio este relatório."** O atendimento pode estar sem tipo:
+  sem tipo, só o autor e a coordenação clínica leem.
 - **"O assistido pediu para ver o relatório."** Ele vê só a **observação
   aberta**; o relatório clínico não é exposto no portal. Encaminhe como pedido
   formal, com um profissional.
-- **"Perdi/trocou a chave e os relatórios viraram texto ilegível."** Sem a
-  chave correta não há como decifrar — por isso ela é guardada fora do banco e
-  não pode ser perdida.
+- **"Apareceu que o relatório não pôde ser decifrado."** A chave foi trocada ou o
+  conteúdo foi alterado por fora do sistema. **Não grave por cima**: isso destrói
+  o original. Sem a chave correta não há como decifrar.
+- **"Este filiado já está cadastrado como assistido."** Cada filiado tem um
+  assistido só, para não partir o histórico. Use o cadastro existente.
+- **"Tipo em uso."** Tipo com profissionais ou atendimentos não se exclui:
+  renomeie.
 
 <VejaTambem
   links={[

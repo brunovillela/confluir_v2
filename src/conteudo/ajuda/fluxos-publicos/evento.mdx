@@ -31,29 +31,38 @@ encontrado".
 
 ## O formulário
 
-Nome completo, CPF, telefone, e-mail, as perguntas próprias do evento e o aceite
-do termo. Se o evento pedir foto, ela vem depois — não no formulário.
+Nome completo, CPF, telefone com DDD, e-mail, as perguntas próprias do evento e o
+aceite do termo; o botão é **Quero me inscrever**. Se a foto for obrigatória, o
+formulário avisa e pede o consentimento, mas a foto vem depois — no passo seguinte
+à confirmação do e-mail.
 
 Reinscrever com o mesmo CPF não cria uma segunda inscrição: o sistema devolve a
-que já existe.
+que já existe. A exceção é quem cancelou, que pode voltar enquanto as inscrições
+estiverem abertas. Quem teve a inscrição recusada recebe o aviso para falar com a
+entidade.
 
 ## A página da inscrição
 
 Depois de enviar, a pessoa cai num endereço pessoal e recebe um código de 6
-dígitos por e-mail, válido por 30 minutos. Essa página é o centro de tudo, em
-passos numerados:
+dígitos por e-mail, válido por 30 minutos. Essa página é o centro de tudo. No alto,
+o selo diz a situação: **Inscrição em análise**, **Inscrição confirmada**,
+**Inscrição não confirmada** ou **Inscrição cancelada**. Abaixo, os passos
+numerados:
 
 <PassoAPasso>
   <Passo titulo="Confirmar o e-mail">
-    Digitando o código. Se não chegou, há um botão para enviar outro — e vale
+    Digitando o código. Se não chegou, **Não recebi — enviar outro código** — e vale
     lembrar da caixa de spam.
   </Passo>
   <Passo titulo="Enviar a foto">
-    Só quando o evento exige. A câmera abre com uma moldura oval para centralizar
-    o rosto; a imagem é reduzida antes de subir.
+    Só nos eventos com foto, e só depois de confirmar o e-mail. A página diz se ela é
+    obrigatória, para que serve e em quantos dias é apagada. A câmera abre com uma
+    moldura oval para centralizar o rosto; a imagem é reduzida antes de subir.
   </Passo>
-  <Passo titulo="Dizer se vai comparecer">
-    Só quando o evento pede RSVP, e só depois de a inscrição estar confirmada.
+  <Passo titulo="Confirmar que vai comparecer">
+    Só quando o evento pede RSVP, e só depois de a inscrição estar confirmada:
+    **Vou comparecer** ou **Não vou poder ir**. Antes da data de abertura da
+    pergunta, a página avisa que a pessoa receberá um e-mail e não há nada a fazer.
   </Passo>
 </PassoAPasso>
 
@@ -64,7 +73,9 @@ não impede ninguém de entrar.
 <Aviso tipo="atencao" titulo="O endereço é a credencial">
   Não há senha: quem tem o link é a pessoa. Por isso a página avisa para guardar
   e não compartilhar. Se alguém perder o link, o caminho é
-  <strong>/meus-dados</strong>, que reidentifica pelo e-mail.
+  <strong>/meus-dados</strong>, que reidentifica pelo e-mail. O filiado com a
+  inscrição no portal também a encontra em Eventos, e a página oferece
+  <strong> Voltar ao portal</strong>.
 </Aviso>
 
 ## Meus dados
@@ -90,10 +101,16 @@ Depois de excluir, a tela mostra um **recibo** com a data e o que foi apagado �
 serve de comprovante. Se a foto tinha ido para a catraca, o recibo diz que a
 remoção lá é pendência da equipe, feita fora do Confluir.
 
-### Perguntas que chegam por telefone
+## Erros comuns
 
 - **&quot;Não recebi o código&quot;** — caixa de spam primeiro; depois o botão
   de reenviar. O código vale 30 minutos e há limite de tentativas.
+- **&quot;O botão de inscrição não funciona&quot;** — falta marcar o aceite do termo
+  e, com foto obrigatória, o consentimento da foto.
+- **&quot;Cancelei e quero voltar&quot;** — enquanto as inscrições estiverem abertas,
+  é só se inscrever de novo pela página do evento.
+- **&quot;A página diz que os dados foram anonimizados&quot;** — o titular pediu a
+  exclusão; a inscrição não volta.
 - **&quot;Perdi o link da minha inscrição&quot;** — /meus-dados, com o e-mail
   usado na inscrição.
 - **&quot;Quero trocar meu CPF ou e-mail&quot;** — não dá pelo canal: são os

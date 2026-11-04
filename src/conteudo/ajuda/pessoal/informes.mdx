@@ -15,25 +15,32 @@ Os **informes de rendimentos** são o documento anual para a declaração de imp
 de renda. A equipe organiza uma **remessa** por ano-base e libera o informe de
 cada funcionário.
 
+<RequerPermissao>Gestão de Pessoal</RequerPermissao> ou <RequerPermissao>Informes de rendimentos</RequerPermissao>
+
 ## Remessas por ano-base
 
 <PassoAPasso>
   <Passo titulo="Nova remessa">
-    Crie uma remessa para o ano-base (ex.: 2025). Cada ano tem a sua remessa.
+    Clique em **Nova remessa** e informe o **ano-base** com 4 dígitos (ex.: 2025).
+    Cada ano tem uma remessa só: o sistema recusa a segunda.
   </Passo>
   <Passo titulo="Itens por funcionário">
-    Dentro da remessa, cada funcionário tem o seu informe. A lista mostra quantos
-    informes a remessa reúne.
+    Abra a remessa e, em **Adicionar informe**, escolha o funcionário e envie o
+    **PDF** (até 5 MB). Só aparecem na lista os que ainda não têm informe nesta
+    remessa.
   </Passo>
   <Passo titulo="Liberar">
-    Libere os informes para que o funcionário os veja na área dele. Cada item
-    fica marcado como **liberado** ou não.
+    Marque **Liberado para o funcionário** ao adicionar, ou libere depois na linha.
+    Liberar avisa por notificação e e-mail. Cada item fica **Liberado** ou
+    **Bloqueado**.
   </Passo>
 </PassoAPasso>
 
 <Aviso tipo="nota" titulo="Aberta ou fechada">
   A remessa fica **Aberta** enquanto você organiza os informes e **Fechada**
-  quando conclui. O funcionário acessa o que foi liberado na área "Meu perfil".
+  quando conclui, em **Editar remessa**. Fechada, não aceita inclusão, liberação nem
+  exclusão de informes. O funcionário acessa o que foi liberado na área "Meu
+  perfil".
 </Aviso>
 
 <Print src="pessoal/informes.png" alt="Área de Informes na aba Remessas: a lista de remessas com ano-base, data, quantidade de informes e situação." legenda="A aba Remessas: uma remessa por ano-base." />
@@ -42,10 +49,13 @@ cada funcionário.
 
 - **"O funcionário não vê o informe."** Confira se o item está **liberado** —
   informe não liberado não aparece em "Meu perfil".
-- **"Preciso corrigir depois de fechar a remessa."** **Reabra** a remessa para
-  destravar a inclusão e a edição dos informes.
-- **"Criei duas remessas do mesmo ano."** Cada ano-base tem **uma** remessa;
-  consolide os informes numa só para não confundir o funcionário.
+- **"Preciso corrigir depois de fechar a remessa."** **Reabra** a remessa em
+  **Editar remessa** para destravar os informes.
+- **"Já existe remessa para o ano-base."** Cada ano-base tem **uma** remessa: abra a
+  existente e adicione os informes nela.
+- **"Não consigo excluir a remessa."** Remessa fechada precisa ser reaberta, e os
+  informes dela precisam ser excluídos antes.
+- **"O informe foi recusado."** Só PDF, até 5 MB.
 
 <VejaTambem
   links={[

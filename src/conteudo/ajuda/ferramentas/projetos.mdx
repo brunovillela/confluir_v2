@@ -1,22 +1,81 @@
-**Projetos** e **Demandas** ajudam a organizar o trabalho do time da entidade.
+**Projetos**, **Demandas**, **Tarefas** e **Anomalias** ajudam a organizar o
+trabalho do time da entidade. Em **Ferramentas**, os cartões são **Projetos**,
+**Demandas e tarefas** e **Anomalias**.
 
-<RequerPermissao>Projetos</RequerPermissao> ou <RequerPermissao>Demandas</RequerPermissao>
+<RequerPermissao>Projetos</RequerPermissao>, <RequerPermissao>Demandas</RequerPermissao>, <RequerPermissao>Tarefas</RequerPermissao> ou <RequerPermissao>Anomalias</RequerPermissao>
 
 ## Projetos
 
-Um projeto agrupa um conjunto de trabalho com um objetivo comum, e serve de
-**guarda-chuva** para as demandas relacionadas. É o mesmo cadastro de projeto que
-o **Financeiro** usa: uma compra ou uma ordem vinculada a um projeto puxa o
+Um projeto agrupa um conjunto de trabalho com um objetivo comum. É o mesmo cadastro
+que o **Financeiro** usa: uma compra ou uma ordem vinculada a um projeto puxa o
 **centro de custo** dele.
 
-## Demandas: tarefas e anomalias
+**Projetos** dá a consulta; **Projetos — editar** libera **Novo projeto**, **Editar**
+e a finalização.
 
 <PassoAPasso>
-  <Passo titulo="Tarefa">
-    Algo **a fazer** — atribuível a uma pessoa e acompanhável até a conclusão.
+  <Passo titulo="Cadastre">
+    Em **Novo projeto**, informe o **Título do projeto** e o **Tipo** (Atividades
+    sindicais, Eventos culturais ou Obras e reformas), que são obrigatórios. Depois,
+    **Orçamento**, **Início**, **Término previsto**, **Centro de custo**,
+    **Detalhamento** e, se for o caso, **Projeto estratégico**.
   </Passo>
-  <Passo titulo="Anomalia">
-    Um **problema** identificado, registrado para tratamento e acompanhamento.
+  <Passo titulo="Acompanhe">
+    A página do projeto mostra as **solicitações de compra vinculadas**, com o valor
+    solicitado. A lista traz os totais de projetos, de orçamento em andamento e do
+    solicitado em Aquisição, com busca pelo título e filtros por tipo e situação.
+  </Passo>
+  <Passo titulo="Finalize">
+    **Marcar como finalizado** tira o projeto da visão padrão, que mostra os **Em
+    andamento**. **Reabrir projeto** o traz de volta.
+  </Passo>
+</PassoAPasso>
+
+## Demandas e tarefas
+
+<PassoAPasso>
+  <Passo titulo="Demanda">
+    Uma frente de atuação. **Nova demanda** pede o **Nome da demanda** (obrigatório),
+    a **Situação** (A fazer, Fazendo ou Feito), o **Responsável**, o **Prazo**, o
+    **Orçamento** e a **Descrição**. Na página da demanda, a situação troca direto e
+    as tarefas dela ficam listadas.
+  </Passo>
+  <Passo titulo="Tarefa">
+    Algo **a fazer**, com responsável e prazo. Pode ser ligada a uma demanda, a um
+    projeto ou a uma anomalia, ou ser **avulsa**, criada em **Tarefas**. A tela
+    **Tarefas** filtra por **Pendentes**, **Atrasadas**, **Concluídas** ou **Todas**.
+    O botão da linha conclui ou reabre a tarefa.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="atencao" titulo="Demanda que veio do portal">
+  Quando a demanda nasce de uma solicitação do filiado pelo portal, ela não vai para
+  **Feito** direto. Para concluir, use **Responder e concluir** no bloco **Conversa
+  com o filiado**, na página da demanda: a demanda passa a Feito junto. Mudar para
+  **Fazendo** avisa que a equipe começou.
+</Aviso>
+
+## Anomalias
+
+Uma anomalia é uma **não conformidade**: um problema registrado para ser apurado e
+tratado. Ela tem cartão próprio em Ferramentas.
+
+<PassoAPasso>
+  <Passo titulo="Registre">
+    Em **Nova anomalia**, descreva o **Fato: o que aconteceu** (obrigatório) e a
+    **Conformidade: o que era esperado**. Informe a **Data da ocorrência**, o
+    **Responsável pela apuração** e a **Descrição detalhada**.
+  </Passo>
+  <Passo titulo="Investigue">
+    Preencha até cinco **Por quê?** e a **Causa raiz**.
+  </Passo>
+  <Passo titulo="Trate">
+    As **Providências** são tarefas ligadas à anomalia, adicionadas na página dela.
+  </Passo>
+  <Passo titulo="Marque as etapas">
+    Em **Editar**, marque **Investigada**, **Tratada (providências tomadas)** e
+    **Eficácia verificada**. A lista filtra por **Em aberto**, **Verificadas** e
+    **Todas**.
   </Passo>
 </PassoAPasso>
 
@@ -25,24 +84,31 @@ o **Financeiro** usa: uma compra ou uma ordem vinculada a um projeto puxa o
 | Permissão | O que libera |
 |---|---|
 | **Demandas** | Criar, editar, mudar a situação e excluir demandas; e tudo o que Tarefas libera |
-| **Tarefas** | Ver as demandas (sem editá-las) e trabalhar nas tarefas: criar, editar e concluir — avulsas, de demandas ou de projetos |
-| **Anomalias** | Ver, registrar e tratar anomalias — o fato, a causa raiz e as providências |
+| **Tarefas** | Ver as demandas (sem editá-las) e trabalhar nas tarefas: criar e concluir, avulsas, de demandas ou de projetos |
+| **Anomalias** | Ver, registrar e tratar anomalias: o fato, a causa raiz e as providências |
 
-O **conteúdo das anomalias** só aparece para quem tem a permissão
-**Anomalias**. Quem tem Demandas ou Tarefas vê e executa as **tarefas** ligadas
-a uma anomalia — na lista, o vínculo aparece só como "Anomalia", sem o fato nem
-o link —, mas não abre a anomalia. Quem só tem Anomalias não vê as demandas.
+O **conteúdo das anomalias** só aparece para quem tem a permissão **Anomalias**. Quem
+tem Demandas ou Tarefas vê e executa as **tarefas** ligadas a uma anomalia (na lista,
+o vínculo aparece só como "Anomalia", sem o fato nem o link), mas não abre a anomalia.
+Quem só tem Anomalias não vê as demandas.
 
-<Print src="ferramentas/projetos.png" alt="Acompanhamento de demandas com tarefas e anomalias, atribuídas e com situação." legenda="Projetos e demandas do time." />
+<Print src="ferramentas/projetos.png" alt="Tela Demandas: os botões Tarefas, Anomalias e Nova demanda, os totais por situação, a busca e a lista com responsável, prazo, tarefas e situação." legenda="As demandas do time." />
 
 ## Erros comuns
 
-- **"Editei um projeto e não salvou."** Editar exige **Projetos — editar**; só
-  **Projetos** dá consulta.
-- **"A compra não herdou o centro de custo do projeto."** Confira se o projeto
-  tem **centro de custo** definido — é ele que é atribuído à despesa.
-- **"A demanda não aparece para o responsável."** Verifique se ela foi
-  **atribuída** a ele.
+- **"Não aparece o botão Novo projeto."** Criar e editar exigem **Projetos —
+  editar**; só **Projetos** dá consulta.
+- **"A compra não herdou o centro de custo do projeto."** Confira se o projeto tem
+  **Centro de custo** definido: é ele que é atribuído à despesa.
+- **"A demanda não aparece nas minhas tarefas do painel."** O bloco **Tarefas
+  pendentes** do painel mostra só o que tem a pessoa como demandante ou demandada.
+  Verifique o **Responsável**.
+- **"Só quem criou a demanda pode excluí-la."** A exclusão é de quem criou. Em
+  demanda antiga, sem criador registrado, é do responsável por ela.
+- **"Não consigo marcar a demanda como Feito."** Ela veio do portal: use **Responder
+  e concluir**.
+- **"Descreva o fato (o que aconteceu)."** O fato é o único campo obrigatório da
+  anomalia.
 
 <VejaTambem
   links={[

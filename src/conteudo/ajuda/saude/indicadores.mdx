@@ -3,7 +3,9 @@ em gráficos interativos, no estilo Power BI: você escolhe um recorte e **todos
 os gráficos se ajustam juntos**. Ele fica na página da Saúde, no botão
 **Painel analítico**.
 
-<RequerPermissao>CAT</RequerPermissao>
+<RequerPermissao>CATs</RequerPermissao> ou <RequerPermissao>Gestão de saúde</RequerPermissao>
+
+Quem tem só **Atendimentos** vê o botão, mas o painel não abre.
 
 ## Como filtrar
 
@@ -85,6 +87,21 @@ cópia descartada ficam de fora.
   textos livres das CATs não saem do servidor. Para ver uma CAT específica,
   use a lista de CATs.
 </Aviso>
+
+<Aviso tipo="atencao" titulo="CAT sem conferência entra nos números">
+  As CATs registradas sem conferência já contam no painel. Confira as pendentes
+  antes de usar os números em relatório. Veja
+  [Conferência em fila](/painel/ajuda/saude/cat).
+</Aviso>
+
+## Erros comuns
+
+- **"O painel diz que não há CAT registrada."** Ele só aparece quando há ao menos
+  uma CAT na base.
+- **"O total é menor que o da lista de CATs."** Confira os filtros ativos, logo
+  abaixo das segmentações: **Limpar filtros** zera tudo.
+- **"O óbito aparece sem informação em muitas CATs."** O campo só passou a ser
+  preenchido nas CATs mais recentes. "Sem informação" não quer dizer "não".
 
 <VejaTambem
   links={[

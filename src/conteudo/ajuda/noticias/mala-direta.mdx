@@ -40,11 +40,12 @@ recebe.
 </PassoAPasso>
 
 Todo botão grava o rascunho antes de fazer o que promete; **Salvar
-rascunho** só grava.
+rascunho** só grava. Um rascunho que não vai mais sair pode ser apagado em
+**Excluir rascunho**.
 
 ## Enviar ou agendar
 
-- **Enviar agora** pede confirmação e começa na hora. O envio corre em lotes,
+- **Enviar agora** pede confirmação em **Confirmar envio** e começa na hora. O envio corre em lotes,
   com o andamento na tela. Pode fechar a página: o que faltar continua
   sozinho em até 15 minutos — ou clique em **Continuar** ao voltar. Ninguém
   recebe duas vezes, mesmo com a tela e o envio automático trabalhando
@@ -56,6 +57,9 @@ rascunho** só grava.
   refeita quando você agendar de novo.
 - **Interromper envio** para uma mensagem que está saindo: os que ainda
   estavam na fila não recebem. Não dá para desfazer o que já saiu.
+
+A mensagem passa pelas situações **Rascunho**, **Agendada**, **Enviando**,
+**Enviada** e **Cancelada**.
 
 Depois de enviada, a mensagem mostra cada destinatário com a situação do
 e-mail — **Enviado**, **Na fila**, **Falhou**, **Sem e-mail**,
@@ -76,11 +80,13 @@ Quem não quer mais receber a mala direta tem três caminhos, e todos valem
 para **todos os cadastros do CPF**:
 
 - **O link do e-mail.** Todo e-mail da mala direta termina com "Não quer mais
-  receber estes comunicados? Descadastre-se". O link abre uma página que pede
-  confirmação (e permite voltar a receber). O Gmail, o Outlook e a Apple
+  receber estes comunicados? Descadastre-se". O link abre a página **Comunicados por
+  e-mail**, sem precisar entrar no sistema: a pessoa confirma em **Não quero mais
+  receber** e pode desfazer em **Voltar a receber**. O Gmail, o Outlook e a Apple
   mostram também o botão próprio de "Cancelar inscrição", que funciona com um
   clique.
-- **O portal do filiado**, em **LGPD**, no cartão **Comunicados por e-mail**.
+- **O portal do filiado**, em **Privacidade e dados**, no cartão **Comunicados por
+  e-mail**.
 - **A secretaria**, na ficha do filiado, no cartão **Consentimentos** —
   **Parar de enviar** / **Voltar a enviar** (por exemplo, quando o pedido vem
   por telefone). A ficha mostra quando e por onde a pessoa pediu.
@@ -104,3 +110,23 @@ continuam saindo.
   Confira as condições marcadas — sem nenhuma, vale só **Ativo**.
 - **"Escolha um dia e hora que ainda não passaram"**: para agora, use
   **Enviar agora**.
+- **"A conexão caiu no meio do envio."** Clique em **Continuar**: o envio segue de
+  onde parou, e ninguém recebe duas vezes.
+- **A pessoa diz que abriu o link de descadastro e deu erro.** A página diz "Este
+  link não é válido" quando o endereço foi cortado. Peça para usar o link inteiro
+  do rodapé do e-mail, ou registre o pedido na ficha do filiado.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Aniversariantes",
+      href: "/painel/ajuda/noticias/aniversariantes",
+      descricao: "O parabéns automático e pelo WhatsApp",
+    },
+    {
+      titulo: "Etiquetas para os Correios",
+      href: "/painel/ajuda/noticias/etiquetas",
+      descricao: "Para enviar publicações impressas",
+    },
+  ]}
+/>

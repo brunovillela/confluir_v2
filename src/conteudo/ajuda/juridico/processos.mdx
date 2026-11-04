@@ -1,39 +1,65 @@
-Os **processos** são um registro simples das ações judiciais — sem andamentos e
-prazos, foco no cadastro e no acompanhamento macro.
+Os **processos** são um registro simples das ações judiciais, sem andamentos e
+prazos: o foco é o cadastro e o acompanhamento macro.
 
-<RequerPermissao>Jurídico geral</RequerPermissao> ou <RequerPermissao>Gestão jurídica</RequerPermissao>
+<RequerPermissao>Jurídico geral</RequerPermissao>, <RequerPermissao>Gestão jurídica</RequerPermissao> ou <RequerPermissao>Homologações</RequerPermissao>
 
-## O que se registra
+## Cadastrar um processo
+
+Em **Jurídico → Processos**, abra **Novo processo**. Só o número é obrigatório.
 
 <PassoAPasso>
   <Passo titulo="Dados da ação">
-    Número, tipo (área do direito), individual × coletivo, status, parte
-    assessorada e as outras partes.
+    **Número do processo**, **Data de abertura**, **Área do direito** (Trabalhista,
+    Cível, Previdenciário, Criminal, Administrativo, Tributário ou Outro),
+    **Status** e **Natureza** (Individual ou Coletivo).
+  </Passo>
+  <Passo titulo="Responsáveis">
+    **Responsável pelo acompanhamento**: uma pessoa da equipe. **Escritório
+    responsável**: o escritório de advocacia do caso, escolhido entre os
+    fornecedores. É ele o favorecido dos reembolsos. Fornecedor bloqueado aparece
+    sinalizado e não pode ser escolhido.
   </Passo>
   <Passo titulo="Filiados envolvidos">
-    Um ou vários filiados podem ser vinculados ao processo.
+    Busque por nome, CPF ou matrícula, com pelo menos três caracteres, e adicione
+    um ou vários filiados. O **X** tira um filiado da lista.
   </Passo>
-  <Passo titulo="Escritório responsável">
-    O escritório de advocacia do caso, base para os reembolsos.
+  <Passo titulo="Partes e observações">
+    **Parte assessorada** (em ação coletiva, a categoria ou o grupo), **Parte(s)
+    contrária(s)**, uma por linha, e **Observações**. Clique em **Salvar
+    processo**.
   </Passo>
 </PassoAPasso>
 
-<Aviso tipo="nota" titulo="Status terminais">
-  Alguns status (arquivado, encerrado com/sem êxito) marcam o processo como
-  finalizado automaticamente.
+Para alterar depois, abra o processo e clique no lápis do cartão **Editar
+processo**. Não há exclusão de processo pela tela.
+
+<Aviso tipo="nota" titulo="Status que finalizam">
+  Os status são Em andamento, Suspenso, Em grau de recurso, Acordo, Arquivado,
+  Encerrado com êxito e Encerrado sem êxito. Os **três últimos** marcam o
+  processo como finalizado. Voltar a qualquer outro status o devolve ao
+  andamento. **Acordo** não finaliza.
 </Aviso>
 
 <Print src="juridico/processos.png" alt="Detalhe de um processo com número, tipo, partes, status, filiados vinculados e o escritório responsável." legenda="Registro de um processo judicial." />
 
+## Encontrar e exportar
+
+A lista tem **busca** (número, filiado, parte ou responsável) e filtros por área,
+status, andamento (Em andamento ou Finalizados) e natureza. Clique no título de
+uma coluna para ordenar. **Exportar CSV** baixa a lista com os filtros atuais, e
+a exportação fica registrada na
+[Auditoria](/painel/ajuda/institucional/auditoria).
+
 ## Erros comuns
 
-- **"O processo continua ativo mesmo encerrado."** Marque um **status terminal**
-  (arquivado, encerrado com/sem êxito) — ele finaliza o processo
-  automaticamente.
-- **"Não consigo lançar reembolso do processo."** Falta o **escritório
-  responsável** definido no processo — é ele o favorecido do reembolso.
-- **"Um filiado não aparece ligado ao processo."** Vincule-o na aba de
-  **filiados envolvidos**; um processo pode ter vários.
+- **"Informe o número do processo."** O número é o único campo obrigatório.
+- **"O processo continua em andamento mesmo encerrado."** Escolha um dos status
+  que finalizam: Arquivado, Encerrado com êxito ou Encerrado sem êxito.
+- **"Não consigo aprovar o reembolso do processo."** Falta o **escritório
+  responsável** no processo: é ele o favorecido. A despesa pode ser registrada
+  antes; a aprovação, não.
+- **"Um filiado não aparece ligado ao processo."** Adicione-o em **Filiados
+  envolvidos**, no lápis de **Editar processo**.
 
 <VejaTambem
   links={[

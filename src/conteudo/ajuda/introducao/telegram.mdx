@@ -1,0 +1,141 @@
+O bot do Telegram leva parte do Confluir para a conversa: avisos com botões para
+decidir, consulta dos seus documentos, pedido de viagem e lançamento de
+comprovantes por foto. Ele só responde depois de vincular a conta e confirmar o
+telefone.
+
+## Vincular a conta
+
+Tudo começa em **Meu perfil → Avisos e Telegram**, no cartão **Telegram**. As
+mensagens do bot chamam esse lugar de "Meu perfil → Telegram": é o mesmo cartão.
+
+<PassoAPasso>
+  <Passo titulo="1. Gerar o link">
+    Clique em **Gerar link de vínculo** e depois em **Abrir no Telegram**. O link
+    vale por 15 minutos. Se o botão não aparecer, a tela mostra um comando
+    **/start** com o código para enviar ao bot.
+  </Passo>
+  <Passo titulo="2. Confirmar no Telegram">
+    Na conversa com o bot, toque em iniciar. O bot responde que a conta foi
+    vinculada. Volte ao Confluir e recarregue a página: o cartão passa a mostrar
+    **Vinculado**.
+  </Passo>
+  <Passo titulo="3. Confirmar o telefone">
+    Em **Telefone**, informe o número com DDD e clique em **Enviar código**. O
+    código chega na conversa com o bot e vale por 10 minutos. Digite no Confluir
+    e clique em **Confirmar**. O cartão passa a mostrar **Telefone confirmado**.
+  </Passo>
+</PassoAPasso>
+
+O mesmo cartão tem **Trocar telefone** e **Desvincular**.
+
+Vincular não liga os avisos. Para recebê-los no Telegram, marque cada tipo na
+coluna **Telegram** da mesma página e clique em **Salvar preferências**. Veja
+[Avisos e caixa de entrada](/painel/ajuda/introducao/avisos).
+
+## Comandos
+
+Os comandos aparecem no botão **/** da conversa, e **/ajuda** lista todos.
+
+| Comando | O que faz | Quem pode |
+|---|---|---|
+| /pendencias | Resumo da caixa de entrada e até 8 pedidos com botões para resolver | Conforme as suas permissões |
+| /aprovar | Até 5 ordens de pagamento na sua alçada, com **Aprovar** e **Devolver** | Quem tem alçada |
+| /contracheque | Link do contracheque mais recente. O link é pessoal e expira em 1 hora | Quem tem contracheque liberado |
+| /ferias | Saldo de férias por período em aberto. O pedido de férias é feito no painel | Quem tem períodos de férias |
+| /diarias | As suas últimas solicitações de diária | Quem tem diárias |
+| /viagem | Pedido de passagem e hospedagem, em perguntas | Quem tem a permissão de pedir e é funcionário com vínculo em vigor ou diretor em exercício |
+| /viagens | Os seus últimos pedidos de viagem | Quem tem pedidos |
+| /informes | Links dos informes de rendimentos. Não compartilhe | Quem tem informe liberado |
+| /asos | Os seus ASOs, com vencimento e situação | Quem tem ASO registrado |
+| /carros | A frota agora: disponíveis por sede, em uso e em manutenção | Quem tem acesso a Veículos |
+| /filiado | Consulta de filiação por nome ou CPF, com pelo menos 3 letras. O CPF vem mascarado. Ex.: /filiado Maria Silva | Quem tem acesso a Filiados |
+| /eu | Confirma a conta vinculada | Todos |
+| /ajuda | Lista os comandos | Todos |
+
+**/cancelar** desiste do que estiver em andamento: um motivo, um pedido de
+viagem ou um comprovante.
+
+## Resolver pendências
+
+Os avisos de pendência chegam com os botões da decisão, e **/pendencias** mostra
+tudo o que espera por você. As regras e os botões de cada aviso estão em
+[Resolver pelo Telegram](/painel/ajuda/introducao/avisos).
+
+Em **/aprovar**, depois de tocar em **Devolver**, escreva o motivo na mensagem
+seguinte, com pelo menos 3 letras. Ele vai para quem lançou a ordem.
+
+## Pedir viagem
+
+Mande **/viagem** e responda às perguntas. O bot mostra o resumo e só envia
+depois do **Confirmar pedido**. O passo a passo está em
+[Viagens](/painel/ajuda/viagens). Pedido para outra pessoa é feito no painel.
+
+## Mandar comprovantes
+
+Mande na conversa a foto ou o PDF (JPG, PNG, WebP ou PDF, até 5 MB) de um destes
+documentos:
+
+- **Recibo de reembolso do ACT** — para quem tem vínculo em vigor.
+- **Cupom de abastecimento** — para funcionários, diretores em exercício e a
+  gestão de veículos. Quem mandou fica como condutor.
+- **Atestado** — o próprio, para quem tem vínculo em vigor; de outro funcionário,
+  só para a gestão de pessoal. O chat mostra só o período, e os demais dados ficam
+  no painel.
+
+<PassoAPasso>
+  <Passo titulo="1. Leitura">
+    A IA lê o arquivo. O bot pergunta o que faltar: o tipo do reembolso, o veículo
+    e o km, de quem é o atestado.
+  </Passo>
+  <Passo titulo="2. Conferência">
+    O bot mostra o lançamento com **Confirmar**, **Corrigir** e **Cancelar**.
+    Nada é gravado antes do **Confirmar**.
+  </Passo>
+  <Passo titulo="3. Lançamento">
+    O lançamento segue as mesmas regras do painel. O reembolso vai para a gestão
+    de pessoal avaliar, e você é avisado quando for avaliado.
+  </Passo>
+</PassoAPasso>
+
+A conversa do comprovante e a do pedido de viagem expiram em 30 minutos sem
+resposta.
+
+## Escrever uma dúvida
+
+Fora dos comandos, você pode escrever uma pergunta em texto. Quem responde é um
+assistente de IA, que indica o comando certo ou manda consultar o painel. Ele não
+tem acesso aos seus dados nessa conversa.
+
+<Aviso tipo="nota" titulo="O que não vem pelo Telegram">
+  Pedidos de saúde do portal nunca chegam com detalhe nem botão: o aviso diz só
+  que há um pedido novo e leva ao painel.
+</Aviso>
+
+## Erros comuns
+
+- **"O bot pede para vincular a conta ou confirmar o telefone."** Os comandos,
+  os botões e os comprovantes só funcionam depois dos passos de vínculo e de
+  telefone.
+- **"Código inválido" ou "Código expirado".** Gere um novo link em Avisos e
+  Telegram. Ele vale por 15 minutos.
+- **"O cartão diz que o bot ainda não está configurado."** A entidade ainda não
+  configurou o bot. Fale com a administração.
+- **"Vinculei e os avisos não chegam."** Marque a coluna **Telegram** nos tipos
+  de aviso e clique em **Salvar preferências**.
+- **"Você não tem permissão para consultar a frota"** ou **"consultar
+  filiações".** Esses comandos seguem as permissões do painel.
+- **"Sua conta não pede viagem por aqui."** Falta a permissão de pedir viagem, ou
+  o vínculo em vigor, ou o exercício na diretoria.
+- **"Mande uma foto ou um PDF"** ou **"O arquivo passa de 5 MB".** Mande outra
+  foto do documento ou um PDF menor.
+- **"O link do contracheque não abre."** Ele expira em 1 hora. Mande
+  **/contracheque** de novo.
+
+<VejaTambem
+  links={[
+    { href: "/painel/ajuda/introducao/avisos", titulo: "Avisos e caixa de entrada" },
+    { href: "/painel/ajuda/introducao/meu-perfil", titulo: "Meu perfil" },
+    { href: "/painel/ajuda/viagens", titulo: "Viagens" },
+    { href: "/painel/ajuda/veiculos/agendamentos", titulo: "Agendamentos" },
+  ]}
+/>

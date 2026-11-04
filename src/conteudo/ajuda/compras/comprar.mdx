@@ -2,7 +2,7 @@ Toda aquisição nasce em **Aquisição → Nova compra**. No topo do formulári
 escolhe o caminho (**Via Aquisição** ou **Aquisição direta**) e se a compra está
 **vinculada a um projeto**. O restante do formulário se adapta a essa escolha.
 
-<RequerPermissao>Aquisição — editar</RequerPermissao>
+<RequerPermissao>Aquisição — editar ou Aquisição — registrar aquisição direta</RequerPermissao>
 
 ## Direta × via Aquisição: qual usar
 
@@ -247,17 +247,21 @@ Cada etapa é uma ação no próprio processo:
     **Em cotação**.
   </Passo>
   <Passo titulo="Lançar as propostas">
-    Adicione uma proposta por fornecedor: fornecedor, valor, forma de pagamento e
-    previsão de entrega. Você pode adicionar quantas quiser.
+    Adicione uma proposta por fornecedor: **Fornecedor consultado** e **Valor
+    proposto** (obrigatórios), **Previsão de entrega**, **Forma de pagamento** e o
+    arquivo da **Proposta** (PDF, até 5 MB). Você pode adicionar quantas quiser;
+    **Remover** tira uma proposta não escolhida.
   </Passo>
-  <Passo titulo="Encerrar e escolher">
-    Encerre a cotação e marque a(s) proposta(s) **escolhida(s)**. A situação vai
-    para **Cotada**.
+  <Passo titulo="Escolher e encerrar">
+    Clique em **Escolher** na(s) proposta(s) vencedora(s) (**Desfazer** volta atrás)
+    e depois em **Encerrar cotação**: sem proposta escolhida, ela não encerra. A
+    situação vai para **Cotada**. **Reabrir** volta a cotação, enquanto a compra não
+    foi efetivada.
   </Passo>
-  <Passo titulo="Registrar a compra">
-    Confirma a compra das propostas escolhidas: cada proposta vira um
-    **fornecimento** e o processo fica **Comprado** (o valor é a soma dos
-    fornecimentos).
+  <Passo titulo="Efetivar a compra">
+    Informe a **Data da compra** e clique em **Efetivar compra**: cada proposta
+    escolhida vira um **fornecimento** e o processo fica **Comprado** (o valor é a
+    soma dos fornecimentos). Depois disso, o processo não se cancela mais.
   </Passo>
   <Passo titulo="Gerar os pagamentos">
     De cada fornecimento sai uma **ordem** em **autorização** — que segue para a
@@ -295,9 +299,17 @@ Cada etapa é uma ação no próprio processo:
 
 <Print src="compras/comprador.png" alt="Área do comprador com três blocos — Solicitadas, Em cotação e Cotadas a comprar — cada um listando os processos com código, produto, departamento, prazo e um botão para operar." legenda="A Área do comprador: cada processo na sua etapa, com o prazo e o botão de ação." />
 
+## Cancelar o processo
+
+<RequerPermissao>Aquisição — editar</RequerPermissao>
+
+**Cancelar processo**, no topo da página, vale enquanto a compra não foi efetivada
+e pede confirmação. A tela não tem como desfazer: se precisar de novo, abra outra
+solicitação. Depois de comprado, o caminho é cancelar as ordens no Financeiro.
+
 ## Ordem de compra para o fornecedor
 
-<RequerPermissao>Operar compras, Comprador ou Compra direta (para enviar)</RequerPermissao>
+<RequerPermissao>Aquisição — editar, Comprador ou Aquisição — registrar aquisição direta (para enviar)</RequerPermissao>
 
 Cada **fornecimento** de um processo comprado tem a sua **ordem de compra** — o
 pedido formal ao fornecedor. No quadro do fornecimento, na página do processo:
@@ -347,7 +359,7 @@ pedido formal ao fornecedor. No quadro do fornecimento, na página do processo:
 
 ## Comprovante de pagamento para o fornecedor
 
-<RequerPermissao>Operar compras, Comprador ou Compra direta (para enviar)</RequerPermissao>
+<RequerPermissao>Aquisição — editar, Comprador ou Aquisição — registrar aquisição direta (para enviar)</RequerPermissao>
 
 Quando o Financeiro anexa o **comprovante** à ordem de pagamento, a página do
 processo mostra o comprovante na própria linha do pagamento, na coluna
@@ -374,7 +386,7 @@ Ordem ainda sem comprovante não mostra nem o link nem o botão.
 
 ## RPA de compra de serviço
 
-<RequerPermissao>Operar compras, Comprador ou Compra direta</RequerPermissao>
+<RequerPermissao>Aquisição — editar, Comprador ou Aquisição — registrar aquisição direta</RequerPermissao>
 
 Serviço de **autônomo** (pessoa física, sem nota fiscal) é pago por **RPA** —
 e o RPA sem contrato nasce de uma compra do tipo **Prestação de serviço**:
@@ -447,7 +459,7 @@ ordem, o quadro diz em que competência os impostos entraram em
 
 ## Depois da ordem: Pix expirado e nota fiscal
 
-<RequerPermissao>Operar compras, Comprador ou Compra direta</RequerPermissao>
+<RequerPermissao>Aquisição — editar, Comprador ou Aquisição — registrar aquisição direta</RequerPermissao>
 
 Na página do processo, cada ordem de pagamento e cada fornecimento trazem os
 ajustes que costumam aparecer depois da compra:
@@ -481,7 +493,7 @@ fica na **trilha da ordem**, com a nota anterior.
 
 ## Editar a compra antes da autorização
 
-<RequerPermissao>Operar compras, Comprador ou Compra direta</RequerPermissao>
+<RequerPermissao>Aquisição — editar, Comprador ou Aquisição — registrar aquisição direta</RequerPermissao>
 
 Enquanto **nenhuma ordem da compra foi autorizada**, ela ainda está nas mãos
 de quem a registrou: o botão **Editar compra**, no topo da página do processo,
@@ -528,7 +540,7 @@ o botão some: a compra saiu da sua jurisdição e a correção é com o Finance
 
 ## Compras em marketplace: a nota vem depois
 
-<RequerPermissao>Operar compras, Comprador ou Compra direta</RequerPermissao>
+<RequerPermissao>Aquisição — editar, Comprador ou Aquisição — registrar aquisição direta</RequerPermissao>
 
 Na compra num **marketplace** (Mercado Livre, Amazon, Shopee…), o pagamento vai
 para a **plataforma**, mas a nota fiscal chega depois e é emitida pelo
@@ -580,7 +592,10 @@ Toda ordem gerada por uma compra — direta ou via Aquisição — passa por
 porque a alçada é pelo **valor**, não pela origem. Cada avaliador vê as ordens
 **dentro da sua alçada** (o teto de valor que pode autorizar) e as **acima da
 alçada** apenas como contexto, sem poder aprovar. **Nada é pago antes dessa
-autorização.**
+autorização.** Ordem de **contrato** ou de **custeio** em autorização é pagamento
+extraordinário: aprovar exige também **Contratos — autorizar** ou **Custeio
+institucional — autorizar**. A exceção à fila é o Financeiro levar a ordem para *A
+pagar* à mão (veja [Trocar a situação](/painel/ajuda/financeiro/ordens)).
 
 Antes de decidir, abra o **Extrato (PDF)** de cada ordem: ele traz a
 procedência, os documentos e a **auditoria automática**. A etiqueta **N alertas
@@ -606,7 +621,9 @@ informações*. Ver [Ordens de pagamento](/painel/ajuda/financeiro/ordens).
 Quando o item chega, a baixa é feita em **Aquisição → Recebimentos pendentes**.
 Aparecem ali a aquisição direta marcada como **não recebida** e os
 fornecimentos **via Aquisição já comprados**. A recepção abre o item, confere e
-registra a chegada. <RequerPermissao>Recebimentos</RequerPermissao>
+registra a chegada: **Recebido em** (obrigatório), a chave **Fornecimento adequado
+à solicitação** (já vem ligada; desligue se veio diferente) e a **Observação**.
+<RequerPermissao>Recebimentos ou Aquisição — editar</RequerPermissao>
 
 ## Compras em dinheiro: pagas no ato
 
@@ -655,9 +672,12 @@ com a data de pagamento informada, porque o dinheiro sai do caixa só quando ela
 - **Registrei a compra mas o pagamento não sai.** A ordem nasce **Em
   autorização** — ela só é paga depois de aprovada por quem tem alçada, em
   **Avaliações**.
-- **Comprei via Aquisição mas não consigo escolher a proposta.** É preciso
-  **encerrar a cotação** antes de escolher; e escolher ao menos uma proposta
-  antes de **registrar a compra**.
+- **"Escolha ao menos uma proposta antes de encerrar a cotação."** Primeiro clique
+  em **Escolher** na proposta vencedora, depois em **Encerrar cotação** e, por fim,
+  em **Efetivar compra**.
+- **"Pagamento extraordinário de contrato: além da alçada, aprovar exige a
+  permissão."** Quem aprova precisa também de **Contratos — autorizar** (ou
+  **Custeio institucional — autorizar**, no custeio).
 - **O item não aparece em Recebimentos.** Só entra o que está **por receber**:
   compra direta com **Entregue no ato da compra** desligada, ou via Aquisição já
   comprado. O que já foi recebido não aparece.

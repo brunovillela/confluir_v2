@@ -14,8 +14,9 @@ objetivo final. São dois processos.
 
 <PassoAPasso>
   <Passo titulo="Aguarda ficha assinada">
-    O trabalhador foi cadastrado (por um funcionário ou por autocadastro), mas a
-    filiação depende da ficha assinada digitalmente pelo gov.br.
+    O trabalhador foi cadastrado com esta condição, escolhida no formulário de
+    **Nova filiação** ou em Editar cadastro, mas a filiação depende da ficha
+    assinada.
   </Passo>
   <Passo titulo="Filiação não informada à fonte">
     A ficha já está no cadastro, mas o sindicato ainda não avisou a fonte
@@ -45,6 +46,14 @@ objetivo final. São dois processos.
   </Passo>
 </PassoAPasso>
 
+<Aviso tipo="nota" titulo="Filiação coletiva tem caminho próprio">
+  Quem entra por filiação coletiva começa em <strong>Em processo de filiação
+  coletiva</strong>, com prazo de desistência, e depois segue para Filiação aguarda
+  fonte e Ativo. Essa primeira etapa não aparece nas colunas desta tela: ela fica em
+  <strong> Filiados → Filiações coletivas</strong>. Ver
+  [Filiação coletiva](/painel/ajuda/representacao/filiacao-coletiva).
+</Aviso>
+
 ## O gráfico de etapas
 
 No cadastro do filiado (e no portal, para ele), aparece um **gráfico em linha
@@ -64,20 +73,23 @@ como colunas. Cada coluna mostra quantos estão parados ali e há quanto tempo
 
 <PassoAPasso>
   <Passo titulo="Veja onde estão os gargalos">
-    A contagem de cada etapa mostra, por exemplo, "33 aguardando a fonte". Clique
-    em **Ver todos** para abrir a lista filtrada por aquela condição.
+    O número no alto de cada coluna é o total parado naquela etapa, e cada nome
+    mostra há quanto tempo está ali. A coluna lista só uma parte: quando há mais
+    gente, **Ver todos** abre a lista filtrada por aquela condição.
   </Passo>
   <Passo titulo="Avance a etapa">
-    Em cada filiado há o botão **Avançar** para a próxima etapa (ex.: de "a
-    informar à fonte" para "aguardando fonte"). O sistema carimba a data do marco
-    e registra um apontamento no **prontuário** do filiado.
+    Em cada filiado, o botão com o **nome da próxima etapa** e uma seta avança para
+    ela: "A informar à fonte", "Aguardando fonte", "Ativo" ou "Inativo". O avanço é
+    imediato, sem confirmação. O sistema carimba a data do marco e registra um
+    apontamento no **prontuário** do filiado. No perfil, o mesmo botão se chama
+    **Avançar etapa**.
   </Passo>
 </PassoAPasso>
 
-<Print src="filiados/acompanhamento.png" alt="Área de acompanhamento com as faixas Processo de filiação e Processo de desfiliação; em cada uma, colunas por etapa listando os filiados com o tempo parado e um botão Avançar." legenda="Acompanhamento: as etapas em colunas, com o tempo parado e o botão Avançar." />
+<Print src="filiados/acompanhamento.png" alt="Área de acompanhamento com as faixas Processo de filiação e Processo de desfiliação; em cada uma, colunas por etapa listando os filiados com o tempo parado e um botão com o nome da próxima etapa." legenda="Acompanhamento: as etapas em colunas, com o tempo parado e o botão para a próxima etapa." />
 
 <Aviso tipo="nota" titulo="Ativo e Inativo também saem da remessa">
-  As etapas finais (Ativo/Inativo) podem ser atingidas pelo botão **Avançar**,
+  As etapas finais (Ativo/Inativo) podem ser atingidas pelo botão de avanço,
   mas o caminho normal é a **conferência da remessa** de receitas: ao confirmar o
   início (ou o fim) dos descontos, os cadastros marcados viram Ativo (ou
   Inativo) em lote. Ver [Receitas](/painel/ajuda/filiados/receitas).
@@ -88,15 +100,16 @@ como colunas. Cada coluna mostra quantos estão parados ali e há quanto tempo
 - **"O gráfico não aparece no cadastro."** Ele só é mostrado nas condições
   **intermediárias**. Quem já está Ativo, Inativo, Falecido ou Excluído não tem
   processo em andamento — por isso não aparece.
-- **"O tempo parado está vazio (—)."** O carimbo de data começa a valer a partir
-  da primeira mudança feita neste sistema. Cadastros que já vieram numa etapa não
-  têm a data de quando entraram nela.
+- **"O tempo parado aparece como sem data."** O carimbo de data começa a valer a
+  partir da primeira mudança feita neste sistema. Cadastros que já vieram numa
+  etapa não têm a data de quando entraram nela.
 - **"Avancei sem querer."** Não há um "desfazer" do avanço, mas a condição pode
   ser corrigida no formulário de **edição do cadastro** (campo Condição da
   filiação). A mudança fica registrada no prontuário.
-- **"Cadastrei um filiado e ele já entrou como Ativo."** A importação em massa e
-  alguns cadastros nascem Ativos. Para acompanhar o processo desde o começo, a
-  condição precisa começar em "Aguarda ficha assinada".
+- **"Cadastrei um filiado e ele já entrou como Ativo."** A **Nova filiação** vem
+  com a condição Ativo já escolhida, a importação em massa cria como Ativo e a
+  aprovação da ficha pública também. Para acompanhar o processo desde o começo,
+  escolha "Aguarda ficha assinada" no formulário ou ajuste em Editar cadastro.
 
 <VejaTambem
   links={[
@@ -113,7 +126,7 @@ como colunas. Cada coluna mostra quantos estão parados ali e há quanto tempo
     {
       titulo: "Solicitações de filiação",
       href: "/painel/ajuda/filiados/solicitacoes",
-      descricao: "A ficha assinada que destrava a primeira etapa",
+      descricao: "A ficha pública: aprovada, a filiação nasce Ativa",
     },
   ]}
 />

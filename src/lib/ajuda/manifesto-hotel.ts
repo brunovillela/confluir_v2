@@ -43,6 +43,21 @@ export const AREAS_AJUDA_HOTEL: AreaAjuda[] = [
     ],
   },
   {
+    slug: "recepcao",
+    titulo: "Hóspedes por quarto e Recepção",
+    descricao: "Demanda garantida: a lista da noite e a entrada do hóspede",
+    icone: "BedDouble",
+    ...sem,
+    disponivel: true,
+    artigos: [
+      {
+        slug: "index",
+        titulo: "Hóspedes por quarto e Recepção",
+        resumo: "Preparar a noite, ler o QR Code e registrar a entrada do hóspede",
+      },
+    ],
+  },
+  {
     slug: "emergencial",
     titulo: "Cupom emergencial",
     descricao: "Reserva na hora para o hóspede que chegou sem cupom",

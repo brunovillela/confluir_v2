@@ -10,12 +10,14 @@ do depósito de cada fonte.
 
 <PassoAPasso>
   <Passo titulo="Indicadores do ano">
-    No topo, quatro números do ano selecionado: total recebido, quantidade de
-    contribuições, número de remessas e a média por contribuição.
+    No topo, quatro números do ano selecionado no filtro (ou de **Todos os anos**):
+    total recebido, quantidade de contribuições, número de remessas e a média por
+    contribuição.
   </Passo>
   <Passo titulo="Cartões por remessa">
     Cada remessa aparece como um cartão (ex.: "5/2026 Associativa") com o selo
-    **Aberta** ou **Fechada**. Use **Nova remessa** para criar (mês, ano e tipo).
+    **Aberta** ou **Fechada** e o lápis para editar. Use **Nova remessa** para criar
+    (mês, ano e tipo). Não pode haver duas remessas do mesmo tipo no mesmo mês.
   </Passo>
 </PassoAPasso>
 
@@ -23,10 +25,12 @@ do depósito de cada fonte.
 
 ## Dentro de uma remessa
 
-Ao abrir uma remessa, os valores aparecem por **fonte pagadora**: quantos
-pagantes, o valor informado, a média — e o **recebimento** (o depósito da
-fonte, quando registrado). As fontes que ainda não informaram pagamento ficam
-separadas, para você cobrar.
+Ao abrir uma remessa, os indicadores do topo mostram os valores informados, os
+pagantes, a média e a maior e a menor contribuição. Abaixo, os valores aparecem por
+**fonte pagadora**: quantos pagantes, o valor informado, a média — e o
+**recebimento** (o depósito da fonte, quando registrado). As fontes ativas que ainda
+não informaram pagamento ficam separadas em **Fontes sem pagamentos informados**,
+para você cobrar; clique numa delas para enviar a relação.
 
 <Aviso tipo="nota" titulo="Informado × recebido">
   O valor **informado** vem dos lançamentos por trabalhador (o que deveria ser
@@ -39,7 +43,8 @@ separadas, para você cobrar.
 ## Enviar a relação de uma fonte
 
 Clique numa fonte, dentro da remessa, para abrir a página dela. Ali ficam o
-**recebimento** (o depósito da fonte, com data, valor e comprovante) e o quadro
+**Recebimento** (o depósito da fonte: **Data do depósito** e **Valor depositado**,
+obrigatórios, e o comprovante em PDF, JPG, PNG ou WebP, até 3 MB) e o quadro
 **Enviar relação de pagamentos**, em dois passos:
 
 <PassoAPasso>
@@ -51,7 +56,8 @@ Clique numa fonte, dentro da remessa, para abrir a página dela. Ali ficam o
   </Passo>
   <Passo titulo="2. Envie a lista">
     Três jeitos: **Em massa (CSV)**, com as colunas *cpf* e/ou *matricula* (na
-    fonte) e *valor* — em CSV ou TXT; **Relatório (IA)**, que lê o relatório da
+    fonte), *valor* e, se quiser, *nome* — em CSV ou TXT, até 10.000 linhas, com o
+    botão **Baixar planilha modelo**; **Relatório (IA)**, que lê o relatório da
     empresa em CSV, TXT, Excel, PDF ou imagem (foto ou print em JPG, PNG ou
     WebP); ou **Individual**, um filiado por vez — escolhido na lista de
     ativos da fonte ou pelo CPF ou pela matrícula.
@@ -130,11 +136,14 @@ página do grupo. O depósito é registrado na empresa pagadora.
 Quando a entidade aceita filiação **sem fonte pagadora** (a regra fica em
 Institucional → Organização → **Regras de filiação**), a remessa ganha o botão
 **Recebimentos sem fonte**: são os pagamentos feitos direto à entidade, por Pix
-ou boleto. A página funciona como a de uma fonte, com duas diferenças:
+ou boleto. A página funciona como a de uma fonte, com estas diferenças:
 
 - o casamento é só por **CPF** e nome — o CSV precisa da coluna *cpf* (sem
   fonte, não há matrícula na fonte);
-- não há depósito da fonte nem a lista de ativos não pagantes.
+- não há depósito da fonte nem a lista de ativos não pagantes;
+- **Gerenciar lançamentos** só exclui a relação: não há **Trocar remessa**;
+- os **Não encontrados no cadastro** não podem ser cadastrados dali, porque não há
+  fonte onde abrir o vínculo.
 
 <Aviso tipo="atencao" titulo="Com a regra &quot;sim&quot;, todo recebimento tem fonte">
   Se a entidade exige fonte pagadora, o botão não aparece e o sistema recusa
@@ -151,10 +160,46 @@ e define a condição em lote — **Ativo** para quem passou a ser descontado,
 **Inativo** para quem deixou de ser. É o caminho normal para os estados finais.
 Ver [Acompanhamento](/painel/ajuda/filiados/acompanhamento).
 
-## Fechar a remessa
+## Contribuições não localizadas
 
-Quando a conferência termina, a remessa fica **Fechada**. Reabra-a se precisar
-ajustar algum lançamento ou recebimento.
+Em remessa **Associativa**, o quadro **Contribuições não localizadas**, no fim da
+página, acha os filiados ativos com vínculo aberto numa fonte que mandou a remessa
+e que não constam nela nem em outra remessa associativa do mesmo mês.
+
+<PassoAPasso>
+  <Passo titulo="Confira">
+    **Conferir quem não veio** passa por todos os cadastros e pode levar alguns
+    segundos. A tela mostra o total e as etiquetas **a avisar**, **já avisados**,
+    **sem CPF válido** e **com efeito suspensivo**. Quem paga por Pix fica de fora:
+    para ele, a falta é a cobrança vencida.
+  </Passo>
+  <Passo titulo="Complete o que faltar">
+    Se a relação de alguma fonte ainda está incompleta, complete-a primeiro. Depois,
+    **Conferir de novo**.
+  </Passo>
+  <Passo titulo="Avise">
+    **Avisar** manda um aviso no portal e, para quem não desligou os avisos de
+    contribuição, um e-mail: a contribuição do mês não foi encontrada na remessa da
+    fonte, e a orientação é procurar o sindicato se o desconto apareceu no
+    contracheque. Quem já foi avisado daquele mês não recebe de novo. Os avisos saem
+    em partes: se faltar gente, clique de novo.
+  </Passo>
+</PassoAPasso>
+
+## Editar, fechar e excluir a remessa
+
+**Editar remessa**, no alto da página, muda o mês, o ano, o tipo e a caixa **Remessa
+aberta (ainda recebe lançamentos)**. Quando a conferência termina, desmarque a caixa
+para deixar a remessa **Fechada**; marque de novo para reabrir.
+
+<Aviso tipo="atencao" titulo="Fechada é um sinal, não uma trava">
+  O selo mostra à equipe que a conferência acabou, mas a página da fonte continua
+  aceitando relação e lançamentos numa remessa fechada. Confira o selo antes de
+  enviar.
+</Aviso>
+
+**Excluir remessa**, na mesma tela, só funciona com a remessa vazia: a que tem
+lançamentos ou recebimentos pede que eles sejam movidos ou excluídos antes.
 
 ## Erros comuns
 
@@ -174,6 +219,15 @@ ajustar algum lançamento ou recebimento.
 - **"Marquei Ativo mas o filiado continua em andamento."** Confirme que os
   cadastros certos foram **marcados** antes de aplicar a condição — a marcação é
   por trabalhador.
+- **"A planilha precisa da coluna valor e de cpf ou matricula."** Baixe a planilha
+  modelo e confira o cabeçalho.
+- **"Filiado não encontrado pelo CPF/matrícula."** O modo Individual só aceita quem
+  tem cadastro. Para quem não tem, use a importação em massa, que aceita não
+  encontrados, e cadastre pela lista de **Pagantes não ativos**.
+- **"Escolha a forma de recebimento desta lista."** O passo 1 é obrigatório antes de
+  enviar.
+- **"O botão de cadastrar os não encontrados está travado."** Há linha marcada sem
+  nome. Digite o nome na linha ou desmarque.
 
 <VejaTambem
   links={[

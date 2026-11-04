@@ -8,33 +8,52 @@ portal, e recebe um aviso.
 
 ## Antes de começar
 
+A tela fica em **Filiados → Cobranças Pix**. Os indicadores do topo mostram as
+cobranças **Abertas**, **Vencidas**, **Pagas em 30 dias** e o **Recebedor Pix**,
+com a chave em uso.
+
 <PassoAPasso>
   <Passo titulo="1. Chave Pix da entidade">
     Em **Financeiro → Remessas → Contas bancárias**, a conta ativa precisa
-    ter a **chave Pix**. É ela que vai no QR.
+    ter a **chave Pix**. É ela que vai no QR. Sem ela, a tela avisa e nada é
+    gerado.
   </Passo>
   <Passo titulo="2. Valor e vencimento">
-    Em **Filiados → Cobranças Pix → Configuração**: o valor mensal padrão e
-    o dia do vencimento. Quem tem valor próprio na ficha (campo
-    "contribuição") usa o dela.
+    No quadro **Configuração**, na própria tela: **Valor mensal padrão**, **Dia
+    do vencimento** (de 1 a 28) e a **Mensagem ao filiado** (opcional), que aparece
+    junto do QR no portal. Quem tem valor próprio na ficha (campo "contribuição")
+    usa o dela.
   </Passo>
   <Passo titulo="3. Geração automática">
-    Com "Gerar no dia 1" ligado, a cobrança do mês nasce sozinha. Também dá
-    para gerar à mão qualquer competência; rodar de novo não duplica.
+    Com **Gerar no dia 1 de cada mês** ligado, a cobrança do mês nasce sozinha,
+    desde que o valor mensal padrão esteja preenchido. Também dá para gerar à mão
+    no quadro **Gerar competência**: escolha o mês e clique em **Gerar
+    cobranças**. Rodar de novo não duplica.
   </Passo>
 </PassoAPasso>
+
+Ao gerar, a tela conta quantas cobranças saíram, quantas já existiam, quantos
+filiados ficaram **sem valor definido** e quantos foram avisados por e-mail ou só
+pelo portal (sem e-mail no cadastro, aviso por e-mail desligado ou envio recusado).
+
+## A lista
+
+Os botões **Abertas**, **Vencidas**, **Pagas**, **Canceladas** e **Todas** filtram
+por situação, e a caixa ao lado filtra por competência. **Cancelar** tira a cobrança
+do portal: o filiado não a vê mais. Só cobrança aberta tem esses botões.
 
 ## Como a baixa acontece
 
 - **Pelo extrato**: na Conciliação bancária, um crédito cujo histórico traz o
   identificador (txid) da cobrança é baixado sozinho; sem o identificador, a
   cobrança aparece como candidata pelo valor e você confirma com um clique.
-- **À mão**: em Cobranças Pix, "Dar baixa" com valor e data (comprovante
-  mandado pelo filiado, por exemplo).
+- **À mão**: em Cobranças Pix, **Dar baixa** com valor e data (comprovante
+  mandado pelo filiado, por exemplo), e **Confirmar**.
 
 Em qualquer caso a baixa gera o **recebimento na remessa Associativa da
-competência**, com forma "Pix" — a arrecadação e a inadimplência passam a
-enxergar o pagamento — e o filiado recebe a confirmação no portal.
+competência**, com forma "Pix", sem fonte pagadora. Se a remessa ainda não existe,
+ela é criada. A arrecadação e a inadimplência passam a enxergar o pagamento, e o
+filiado recebe a confirmação no portal.
 
 <Aviso tipo="nota" titulo="Boleto e QR dinâmico">
   O Pix estático não bloqueia pagamento repetido nem gera boleto registrado.
@@ -42,3 +61,31 @@ enxergar o pagamento — e o filiado recebe a confirmação no portal.
   API Pix do banco ou um provedor de cobrança; a cobrança passa a usar esse
   adaptador sem mudar a tela.
 </Aviso>
+
+## Erros comuns
+
+- **"Nenhuma conta bancária ativa tem chave Pix cadastrada."** Cadastre a chave em
+  Financeiro → Remessas → Contas bancárias.
+- **A cobrança do mês não nasceu sozinha.** Confira se **Gerar no dia 1 de cada
+  mês** está ligado e se o **Valor mensal padrão** está preenchido.
+- **"N sem valor definido."** O filiado não tem valor próprio na ficha e não há
+  valor padrão. Preencha um dos dois e gere de novo.
+- **Um filiado não recebeu cobrança.** Só entra quem está **Ativo** e tem a forma
+  de recebimento **Pix** no [perfil](/painel/ajuda/filiados/perfil).
+- **"O dia de vencimento vai de 1 a 28."** Os dias 29, 30 e 31 não existem em todo
+  mês.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Receitas",
+      href: "/painel/ajuda/filiados/receitas",
+      descricao: "A remessa em que a baixa vira recebimento",
+    },
+    {
+      titulo: "Área do associado",
+      href: "/painel/ajuda/filiados/area-do-associado",
+      descricao: "O que a Contribuição mostra no portal",
+    },
+  ]}
+/>

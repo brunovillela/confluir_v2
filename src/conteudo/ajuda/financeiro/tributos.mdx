@@ -12,18 +12,20 @@ pagamento**, que segue o rito normal até ser paga.
 <PassoAPasso>
   <Passo titulo="Novo tributo">
     O botão **Novo tributo**, ao lado do título, abre o cadastro: **nome**,
-    **abreviação** (como a equipe chama — FGTS, DARF, DAM), **esfera** e o
-    **órgão que recebe** (Receita Federal, Caixa, INSS, prefeitura, Detran),
-    que vira o favorecido das ordens.
+    **abreviação** (como a equipe chama — FGTS, DARF, DAM), **esfera** (federal,
+    estadual, municipal, trabalhista e previdenciário) e o **órgão que recebe**
+    (Receita Federal, Caixa, INSS, prefeitura, Detran), que vira o favorecido das
+    ordens. Nome, esfera e órgão são obrigatórios.
   </Passo>
   <Passo titulo="Classificação">
     **Centro de custo** e **departamento** são herdados por todas as ordens do
     tributo.
   </Passo>
   <Passo titulo="Calendário e valor">
-    **Periodicidade**: *mensal* (com o **dia do vencimento**), *anual* ou
-    *eventual*. O **valor esperado** é opcional — preencha só quando a guia vem
-    sempre no mesmo valor.
+    **Periodicidade**: *mensal* (com o **dia do vencimento**, obrigatório), *anual*
+    ou *eventual*. O **valor esperado** é opcional — preencha só quando a guia vem
+    sempre no mesmo valor. **Forma** é a forma de pagamento das ordens (Boleto, se
+    nada for escolhido). **Observações** é livre.
   </Passo>
 </PassoAPasso>
 
@@ -140,7 +142,8 @@ completo e o total pago no ano.
   favorecido da ordem — informe-o em **Editar**.
 - **"A guia do mês não apareceu como prevista."** Só tributos **mensais**,
   **ativos** e com **dia de vencimento** têm previstas. Confira o cadastro, ou
-  use **Guia avulsa**.
+  use **Guia avulsa**. O INSS RPA, o IRRF RPA e o ISS RPA só têm prevista no mês
+  em que um RPA foi pago.
 - **"A ordem foi para a alçada mesmo no valor de sempre."** Cadastre o **valor
   esperado** no tributo; sem ele, toda guia passa pela alçada.
 - **"A IA preencheu errado (ou não preencheu)."** Guia fotografada torta, com

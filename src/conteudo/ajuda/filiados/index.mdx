@@ -8,19 +8,22 @@ termos legais que o associado aceita.
 ## As áreas do módulo
 
 <PassoAPasso>
-  <Passo titulo="Filiados (lista)">
-    A lista de associados, com busca por nome, CPF ou matrícula, filtros por
-    situação e exportação em CSV. Cada linha abre o
-    [perfil completo](/painel/ajuda/filiados/perfil).
+  <Passo titulo="Todos os filiados">
+    A lista de associados, com busca por nome, CPF ou matrícula (sindical ou na
+    fonte), filtros por condição, fonte pagadora e grupo, os botões **Ativas**,
+    **Excluídas** e **Todas**, e exportação em **XLSX** ou **CSV**. Cada linha abre
+    o [perfil completo](/painel/ajuda/filiados/perfil).
   </Passo>
   <Passo titulo="Nova filiação">
-    Cadastro de um filiado pela secretaria, com dois modos no topo da tela:
+    O botão no alto da tela. Cadastro de um filiado pela secretaria, com dois modos
+    no topo:
     **Inclusão individual** (formulário) e **Inclusão em massa** (planilha —
     ver [Importar](/painel/ajuda/filiados/importar)). A **matrícula sindical** é
     a próxima livre, automática; só preencha para manter um número já usado no
     papel. CPF ou matrícula que já estão em outro cadastro são recusados, e
     mesmo nome com a mesma data de nascimento pede confirmação — é assim que se
-    evita cadastrar de novo quem volta a se filiar. O formulário pede também
+    evita cadastrar de novo quem volta a se filiar. A **condição** já vem como
+    Ativo: troque se o processo ainda está em andamento. O formulário pede também
     a **forma de recebimento** e o primeiro vínculo com a **fonte pagadora** —
     obrigatório quando a regra da entidade diz que a filiação depende de fonte
     (Institucional → Organização → Regras de filiação).
@@ -32,9 +35,17 @@ termos legais que o associado aceita.
     [Acompanhamento](/painel/ajuda/filiados/acompanhamento).
     <RequerPermissao>Gestão da filiação</RequerPermissao>
   </Passo>
-  <Passo titulo="Solicitações de filiação">
+  <Passo titulo="Fichas de filiação">
     A fila de fichas recebidas pelo site (fluxo público **/filiar**) — é a
-    aprovação delas que **cria** a filiação.
+    aprovação delas que **cria** a filiação. Ver
+    [Solicitações de filiação](/painel/ajuda/filiados/solicitacoes).
+    <RequerPermissao>Gestão da filiação</RequerPermissao>
+  </Passo>
+  <Passo titulo="Filiações coletivas">
+    Os processos deliberados em assembleia e quem está no prazo de desistência. O
+    cadastro de um processo novo fica em Representação → Filiação coletiva. Ver
+    [Filiação coletiva](/painel/ajuda/representacao/filiacao-coletiva).
+    <RequerPermissao>Gestão da filiação</RequerPermissao>
   </Passo>
   <Passo titulo="Receitas">
     As remessas de recebimento das contribuições, por fonte pagadora. Ver
@@ -55,6 +66,31 @@ termos legais que o associado aceita.
     [Área do associado](/painel/ajuda/filiados/area-do-associado).
     <RequerPermissao>Gestão da filiação</RequerPermissao>
   </Passo>
+  <Passo titulo="Cobranças Pix">
+    A contribuição de quem paga por Pix: QR Code por mês, baixa e vencidas. Ver
+    [Cobranças Pix](/painel/ajuda/filiados/cobrancas).
+  </Passo>
+  <Passo titulo="Atendimentos">
+    As solicitações que os filiados abrem no portal, com prazo de resposta. Ver
+    [Atendimentos](/painel/ajuda/filiados/atendimentos).
+  </Passo>
+  <Passo titulo="Inadimplentes">
+    Quem está na condição definida pelas regras da entidade. Ver
+    [Configurações de filiação](/painel/ajuda/filiados/direitos).
+  </Passo>
+  <Passo titulo="Convênios">
+    Os descontos e serviços negociados para o filiado, com as unidades de
+    atendimento. Ver [Convênios](/painel/ajuda/filiados/convenios).
+  </Passo>
+  <Passo titulo="Reembolsos">
+    Valores devolvidos ao filiado, com a ordem de pagamento. Ver
+    [Reembolsos a filiados](/painel/ajuda/filiados/reembolsos).
+  </Passo>
+  <Passo titulo="Relatórios">
+    Em carência, plenos, inadimplentes e o personalizado. Ver
+    [Relatórios](/painel/ajuda/filiados/relatorios).
+    <RequerPermissao>Gestão da filiação</RequerPermissao>
+  </Passo>
 </PassoAPasso>
 
 <Print src="filiados/lista.png" alt="Tela inicial do módulo Filiados com a busca rápida, os cartões das áreas, os indicadores, o medidor de saúde dos cadastros em 54,5% (Regular) com o link para cadastros pendentes, a engrenagem que abre a configuração, a contagem de pendências e apontamentos e o aviso de 1 possível duplicidade para conferir, os gráficos de sexo, regime, condição na fonte, filiações × desfiliações, fonte pagadora e condição de filiação, e os aniversariantes no fim." legenda="O painel de Filiados: busca rápida, áreas, indicadores, o medidor de saúde dos cadastros (com o aviso de possíveis duplicidades) e os gráficos; os aniversariantes ficam no fim." />
@@ -69,14 +105,19 @@ valores:
 - **Ativo** / **Inativo** — filiado em dia / desfiliado (objetivos finais).
 - **Aguarda ficha assinada**, **Filiação não informada à fonte**, **Filiação
   aguarda fonte** — filiação **em andamento**.
+- **Em processo de filiação coletiva** — no prazo de desistência de uma filiação
+  coletiva.
 - **Desfiliação não informada à fonte**, **Desfiliação aguarda fonte** —
   desfiliação **em andamento**.
 - **Falecido**, **Excluído(a) do quadro associativo** — situações especiais.
 
 <Aviso tipo="dica" titulo="Os cartões do topo são atalhos">
-  Os indicadores "Filiação em andamento" e "Desfiliação em andamento" abrem a
-  lista já filtrada por aquelas condições — o mesmo destino da área de
-  [Acompanhamento](/painel/ajuda/filiados/acompanhamento).
+  Os indicadores <strong>Trabalhadores registrados</strong>, <strong>Filiações
+  ativas</strong>, <strong>Filiação em andamento</strong> e <strong>Desfiliação em
+  andamento</strong> abrem a lista já filtrada, e <strong>Fontes pagadoras com
+  filiados</strong> abre os empregadores. O cartão Filiação em andamento conta quem
+  está a informar ou aguardando a fonte; quem aguarda ficha assinada só aparece na
+  área de [Acompanhamento](/painel/ajuda/filiados/acompanhamento).
 </Aviso>
 
 ## Ver a área do filiado
@@ -84,7 +125,8 @@ valores:
 No perfil, o botão **Visualizar área** abre o **portal** como o associado o vê —
 em **somente leitura**. É útil para dar suporte ("veja o que aparece para
 você") sem risco de alterar nada: as ações de escrita usam a sessão real, então
-a gestão apenas visualiza.
+a gestão apenas visualiza. O cadastro precisa de CPF válido: é por ele que o portal
+acha a pessoa.
 
 <Aviso tipo="dica" titulo="Busca sem acento">
   A busca por nome ignora acentos e maiúsculas — procurar por "jose" encontra
@@ -122,8 +164,12 @@ Os **aniversariantes de hoje** ficam no fim da página, depois dos gráficos.
   um registro (troca de empregador, por exemplo). O
   [perfil](/painel/ajuda/filiados/perfil) agrega e mostra os "outros registros
   deste CPF".
-- **"A exportação veio incompleta."** O CSV respeita os **filtros aplicados** —
-  limpe os filtros para exportar a base inteira.
+- **"A exportação veio incompleta."** O XLSX e o CSV respeitam os **filtros
+  aplicados** — limpe os filtros para exportar a base inteira.
+- **"Cliquei num cartão e caí em sem acesso."** Alguns cartões aparecem para toda a
+  equipe do módulo, mas a tela pede outra permissão: Configurações de filiação e
+  Inadimplentes pedem Gestão da filiação; Cobranças Pix pede Receitas e
+  contribuições ou Gestão; Convênios pede Convênios, Consulta de convênios ou Gestão.
 
 ## Carência, inadimplência e documentos
 

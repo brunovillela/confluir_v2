@@ -18,6 +18,14 @@ Ao lado do nome aparecem o cargo, a matrícula e:
 Quem é as duas coisas vê as duas linhas. Para trocar a foto, clique na
 **câmera** sobre o avatar.
 
+Funcionário em atividade também pode ver alertas logo abaixo do topo, cada um
+com o link **Ver**:
+
+- **Férias a gozar** — quando há saldo de descanso em período não finalizado.
+- **ASO** — quando o ASO vigente vence em até 90 dias ou já venceu.
+- **Novo contracheque disponível** — some assim que você abre **Contracheques**
+  (ou lê a notificação no sino).
+
 ## Dados pessoais
 
 Nome, como quer ser chamado, CPF, nascimento, sexo, estado civil e
@@ -106,26 +114,34 @@ do Confirmar, e o lançamento segue as mesmas regras do painel: reembolso e
 atestado próprio para quem tem vínculo em vigor; abastecimento para
 funcionários, diretores em exercício e a gestão de veículos, com quem mandou
 como condutor; atestado de outro funcionário só para a gestão de pessoal. Do
-atestado, o chat mostra só o período — os demais dados ficam no painel.
-
-O aviso **"Novo contracheque disponível"** no topo do perfil some assim que você
-abre **Contracheques** (ou lê a notificação no sino).
+atestado, o chat mostra só o período — os demais dados ficam no painel. O bot
+inteiro está em [Bot do Telegram](/painel/ajuda/introducao/telegram).
 
 ## Áreas de funcionário e de diretor
 
 Abaixo dos contatos ficam as áreas que dependem de quem você é:
 
-- **Funcionário** — contracheques, ponto, informes, acordos, carreira, férias,
-  ausências, faltas, ASOs e treinamentos; com vínculo em vigor, também diárias
-  e reembolsos do acordo coletivo. Em **Meus reembolsos**, o formulário abre
-  pelo botão **Solicitar reembolso**, e **Minhas solicitações** ordena por
-  qualquer coluna (clique no título) e é paginada.
+- **Funcionário** — em **Meus relatórios e documentos**, por grupo:
+  - **Remuneração**: contracheques, controle de ponto, informes de rendimentos e
+    acordos coletivos.
+  - **Carreira e férias**: minha carreira, minhas férias, ausências e atestados,
+    faltas justificadas.
+  - **Saúde e segurança**: meus ASOs e meus treinamentos.
+  - **Financeiro**, só com vínculo em vigor: minhas diárias e meus reembolsos. Em
+    **Meus reembolsos**, o formulário abre pelo botão **Solicitar reembolso**, e
+    **Minhas solicitações** ordena por qualquer coluna (clique no título) e é
+    paginada.
 - **Diretor** — **Minha diretoria**: mandato, cargo, liberação sindical,
   instâncias, custeios em seu nome e a ficha de diretor.
 
-Em **Conexões e atalhos** ficam **Minhas viagens**, **Meu caixa** e **Despesas
-em caixas** (para quem tem conta de caixa), **Meu cartão** (para quem está com
-um cartão da entidade), **Avisos e Telegram** e **Segurança da conta**.
+Em **Conexões e atalhos** ficam:
+
+- **Minhas viagens** — para funcionário em atividade, diretor do mandato vigente
+  ou quem pode pedir viagem para outras pessoas.
+- **Diárias anteriores** — para quem tem remessas lançadas no sistema anterior.
+- **Meu caixa** e **Despesas em caixas** — para quem tem conta de caixa.
+- **Meu cartão** — para quem está com um cartão da entidade.
+- **Avisos e Telegram** e **Segurança da conta** — para todos.
 
 ## Erros comuns
 
@@ -142,6 +158,7 @@ um cartão da entidade), **Avisos e Telegram** e **Segurança da conta**.
 <VejaTambem
   links={[
     { href: "/painel/ajuda/introducao/avisos", titulo: "Avisos e caixa de entrada" },
+    { href: "/painel/ajuda/introducao/telegram", titulo: "Bot do Telegram" },
     { href: "/painel/ajuda/introducao/seguranca", titulo: "Segurança da conta" },
     { href: "/painel/ajuda/financeiro/ordens", titulo: "Ordens de pagamento e contas bancárias" },
   ]}

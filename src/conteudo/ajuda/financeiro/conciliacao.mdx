@@ -12,21 +12,27 @@ isso que a tela mostra.
   <Passo titulo="1. Exporte o extrato no internet banking">
     Prefira **OFX** (às vezes chamado de Money ou Quicken); todo banco tem.
     Se só houver CSV, também serve: o sistema procura as colunas de data,
-    histórico e valor sozinho.
+    histórico e valor sozinho. O arquivo pode ter até 8 MB; extrato com mais de
+    20 mil linhas precisa ser dividido por período.
   </Passo>
   <Passo titulo="2. Importe">
-    Em **Financeiro → Conciliação bancária**, escolha o arquivo e importe.
+    Em **Financeiro → Conciliação bancária**, escolha o arquivo, diga a **Conta**
+    (opcional, ex.: *BB corrente*) e clique em **Importar**.
     Linhas já importadas num extrato anterior não se repetem. Cada débito
     que casa com **uma única** ordem paga (mesmo valor, pagamento até 3 dias
     de distância) e cada crédito que casa com **um único** depósito registrado
-    (mesmo valor, até 5 dias) é conciliado na hora.
+    (mesmo valor, até 5 dias) é conciliado na hora. O crédito com o identificador
+    (txid) de uma única cobrança Pix de contribuição no histórico também: a
+    cobrança é baixada e conciliada.
   </Passo>
   <Passo titulo="3. Resolva os pendentes">
     Para cada lançamento pendente a tela lista as candidatas. Um clique casa
-    com a ordem ou o depósito. Um crédito sem depósito registrado pode virar
-    o **depósito da fonte** (escolha a remessa e a fonte) — é o mesmo registro
-    da tela de Receitas. Tarifas e transferências entre contas vão para
-    **Ignorar**, com o motivo.
+    com a **Ordem**, o **Depósito** ou a **Contribuição** (cobrança Pix em aberto;
+    casar baixa a cobrança). **Registrar como depósito de fonte** transforma um
+    crédito sem depósito registrado no depósito da fonte (escolha a remessa e a
+    fonte) — é o mesmo registro da tela de Receitas; a fonte que já tem
+    comprovação naquela remessa é recusada. Tarifas e transferências entre contas
+    vão para **Ignorar**, com o motivo (opcional).
   </Passo>
 </PassoAPasso>
 
@@ -41,6 +47,48 @@ isso que a tela mostra.
 
 **Pendentes** (quantos e quanto em débitos e créditos), **Conciliados**,
 **Ordens pagas sem extrato** nos últimos 90 dias (pagamentos que nenhum
-extrato confirmou ainda) e o último extrato importado. "Desfazer" devolve um
-lançamento conciliado ou ignorado para pendentes; excluir um extrato apaga os
-lançamentos dele, desde que nenhum tenha sido conciliado à mão.
+extrato confirmou ainda) e o último extrato importado.
+
+## As abas e os extratos
+
+As abas **Pendentes**, **Conciliados** e **Ignorados** mostram até os 300
+lançamentos mais recentes. Em **Extratos importados**, clique num arquivo para ver
+só os lançamentos dele.
+
+## Desfazer e excluir
+
+**Desfazer** devolve um lançamento conciliado ou ignorado para pendentes. Ele só
+solta o vínculo do lançamento: o depósito registrado e a baixa da contribuição
+continuam como estavam.
+
+**Excluir** um extrato apaga os lançamentos dele e desfaz as conciliações
+automáticas daquele arquivo. Se algum lançamento foi conciliado à mão, desfaça-o
+antes: a exclusão é recusada.
+
+## Erros comuns
+
+- **"Formato não reconhecido."** Exporte de novo em OFX ou CSV.
+- **"Nenhum lançamento encontrado no arquivo."** Confira se é um extrato, com data
+  e valor em cada linha.
+- **"Só uma ordem PAGA pode ser conciliada com o extrato."** Registre o pagamento
+  da ordem antes de conciliar.
+- **"Esta ordem já está conciliada com outro lançamento."** Desfaça o outro
+  lançamento, se o vínculo estava errado.
+- **"A ordem paga não aparece como candidata."** A candidata precisa ter o mesmo
+  valor e o pagamento até 3 dias de distância do lançamento. Confira o valor e a
+  data registrados na ordem.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Ordens de pagamento",
+      href: "/painel/ajuda/financeiro/ordens",
+      descricao: "O registro do pagamento que o extrato confirma",
+    },
+    {
+      titulo: "Remessas bancárias",
+      href: "/painel/ajuda/financeiro/remessas",
+      descricao: "O arquivo de pagamento e o retorno do banco",
+    },
+  ]}
+/>

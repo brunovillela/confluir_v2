@@ -263,8 +263,19 @@ problema. Há três recortes, cada um com os seus indicadores e a sua resenha:
 
 ## Erros comuns
 
-- **O funcionário não vê o espelho.** Verifique se o item está **Liberado**.
+- **O funcionário não vê o espelho.** Verifique se o item está **Liberado**. Depois
+  de aplicar a importação, os registros ficam bloqueados, mesmo os que já estavam
+  liberados: libere de novo.
 - **Remessa travada.** Ela está finalizada; reabra para mexer.
+- **Alguém não entrou na importação.** Quem está isento no mês, quem não tem nenhuma
+  batida (com a regra de só alertar) e quem não foi identificado não são lançados.
+  Na linha sem funcionário, escolha-o.
+- **“O PDF deve ter no máximo 4 MB.”** Separe o relatório em partes menores e importe
+  cada uma: a importação aceita alguns funcionários ou um só.
+- **Quem aparece pendente mesmo isento.** A isenção só tira dos pendentes quando
+  cobre o mês inteiro.
+- **O saldo das remessas seguintes não mudou.** Ao salvar uma remessa antiga, escolha
+  **Recalcular**. O recálculo para na primeira remessa finalizada.
 
 <VejaTambem
   links={[

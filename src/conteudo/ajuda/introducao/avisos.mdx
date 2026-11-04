@@ -10,11 +10,18 @@ São duas coisas diferentes, cada uma com o seu contador no cabeçalho:
 
 - **Caixa de entrada** — o que **espera você agir**: ordens para autorizar,
   pedidos para avaliar, documentos para assinar, atendimentos do portal,
-  relatos do sistema, revisões da frota. Fica no topo do painel, com a
-  quantidade e o link direto para cada fila, e **some quando é resolvido**.
+  relatos do sistema, revisões da frota, dados bancários a confirmar, despesas
+  no seu caixa para reconhecer, guias de tributos a vencer, movimento da folha,
+  notas fiscais a receber, deliberações com prazo e alertas do link pessoal de
+  voto. Fica no topo do painel, com a quantidade e o link direto para cada fila, e
+  **some quando é resolvido**. O texto "paradas" marca o que espera há mais de 7
+  dias.
 - **Sino** — o que **aconteceu e é do seu interesse**: contracheque liberado,
   férias autorizadas, diária ou reembolso avaliado, viagem reservada, estorno,
-  ofício concluído. É um histórico, com lido e não lido.
+  ofício concluído. É um histórico, com lido e não lido: o sino abre a tela
+  **Notificações**, onde as não lidas vêm marcadas como **Nova**. Clicar em uma
+  abre o destino dela e a marca como lida, e **Marcar todas como lidas** limpa o
+  contador.
 
 Uma pendência nunca vai para o sino: ela já está na caixa de entrada, e no
 sino ficaria como "não lida" mesmo depois de resolvida. Os dois contadores se
@@ -47,7 +54,7 @@ aparelho (no topo da mesma página).
 
 O Telegram só entrega depois de vincular o bot e confirmar o telefone (no
 cartão **Telegram** da mesma página, ao lado de Receber no celular); as escolhas ficam guardadas para quando isso
-acontecer.
+acontecer. O passo a passo está em [Bot do Telegram](/painel/ajuda/introducao/telegram).
 
 ## Resolver pelo Telegram
 
@@ -78,7 +85,8 @@ seguinte) — para mudar o valor ou o mês, aprove pelo painel.
 Devolver, reprovar ou recusar pede o **motivo**: o bot manda uma mensagem e
 você responde a ela com o motivo (pelo menos 5 letras), que vai para quem
 pediu. **/cancelar** desiste. Depois da decisão, a mensagem do aviso é
-atualizada com o que foi feito, e os botões somem.
+atualizada com o que foi feito, e os botões somem. Nas ordens tratadas pelo
+**/aprovar**, o motivo vai na mensagem seguinte, com pelo menos 3 letras.
 
 Para ver tudo o que espera por você de uma vez, envie **/pendencias**: o bot
 mostra o resumo da caixa de entrada e, em seguida, até 8 pedidos com os
@@ -139,5 +147,31 @@ aviso em **Meu perfil → Avisos e Telegram**.
 | Revisão preventiva próxima ou vencida | Gestão da frota |
 | Pedido de viagem | Quem atende viagens |
 | Fornecimento comprado ainda não recebido | Quem recebe fornecimentos |
+| Pedido de inclusão, alteração ou exclusão de conta bancária | Quem paga ordens no Financeiro |
+| Despesa lançada no seu caixa | O responsável pela conta de caixa |
+| Movimento da folha enviado | Quem recebe o movimento na contabilidade |
+| Deliberação de ata atribuída | O responsável pela deliberação (o aviso leva só o prazo e o link) |
+| Pedido de saúde pelo portal | A equipe de saúde, com aviso sem dados do filiado |
 
 Quem originou o pedido não é avisado dele, mesmo que tenha a permissão.
+
+## Erros comuns
+
+- **"Marquei o aviso e não chega no Telegram."** Vincule o bot e confirme o
+  telefone. Veja [Bot do Telegram](/painel/ajuda/introducao/telegram).
+- **"Marquei a coluna Celular e não chega."** Toque em **Ligar neste aparelho**.
+  Cada aparelho é ligado à parte. Veja [Celular](/painel/ajuda/introducao/celular).
+- **"Um aviso que eu queria não está na lista."** A lista mostra só os avisos das
+  áreas em que você tem permissão.
+- **"A pendência continua no contador."** Ela só sai da caixa de entrada quando é
+  resolvida. Abrir não basta.
+- **"Li tudo e o sino continua com número."** Clique na notificação ou use
+  **Marcar todas como lidas**.
+
+<VejaTambem
+  links={[
+    { href: "/painel/ajuda/introducao/telegram", titulo: "Bot do Telegram" },
+    { href: "/painel/ajuda/introducao/celular", titulo: "No celular" },
+    { href: "/painel/ajuda/introducao/meu-perfil", titulo: "Meu perfil" },
+  ]}
+/>

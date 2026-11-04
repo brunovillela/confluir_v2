@@ -1,8 +1,12 @@
 O módulo **Financeiro** cuida do dinheiro da entidade: as **ordens de
-pagamento** (as despesas), o **caixa**, os **centros de custo** que classificam
-cada lançamento, e as receitas — contribuições, tributos e apoios.
+pagamento** (as despesas), o **caixa**, os **cartões**, os **tributos**, os
+**centros de custo** que classificam cada lançamento, a remessa ao banco e a
+conciliação com o extrato.
 
 <RequerPermissao>Ordens de pagamento</RequerPermissao> ou <RequerPermissao>Financeiro — somente leitura</RequerPermissao>
+
+Quem tem só **Caixa**, **Tributos**, **Auditoria das ordens** ou **Estorno de
+pagamento** também entra no módulo e vê os cartões da sua permissão.
 
 ## As áreas do módulo
 
@@ -34,15 +38,43 @@ cada lançamento, e as receitas — contribuições, tributos e apoios.
     que geram as ordens. Ver [Tributos](/painel/ajuda/financeiro/tributos).
     <RequerPermissao>Tributos</RequerPermissao>
   </Passo>
+  <Passo titulo="Avaliações de ordens">
+    A fila de autorização por alçada, de todas as origens. Ver
+    [Comprar](/painel/ajuda/compras/comprar).
+    <RequerPermissao>Avaliação de ordens (alçada)</RequerPermissao>
+  </Passo>
+  <Passo titulo="Remessas bancárias">
+    O arquivo CNAB 240 das ordens a pagar e o retorno do banco. Ver
+    [Remessas bancárias](/painel/ajuda/financeiro/remessas).
+  </Passo>
+  <Passo titulo="Contas bancárias">
+    Ordens esperando conta, contas repetidas, titular de outra pessoa e pedidos
+    de funcionários e diretores. Ver
+    [Ordens de pagamento](/painel/ajuda/financeiro/ordens).
+  </Passo>
+  <Passo titulo="Conciliação bancária">
+    Importe o extrato e case cada lançamento com a ordem paga ou o depósito. Ver
+    [Conciliação bancária](/painel/ajuda/financeiro/conciliacao).
+  </Passo>
+  <Passo titulo="Estornos de pagamento">
+    Pagamentos devolvidos pelo banco e o prazo para registrar. Ver
+    [Estornos de pagamento](/painel/ajuda/financeiro/estornos).
+  </Passo>
+  <Passo titulo="Financeiro gerencial e Exportação contábil">
+    O fluxo projetado, o orçado × realizado, a planilha para a contabilidade e o
+    fechamento do mês. Ver
+    [Financeiro gerencial](/painel/ajuda/financeiro/gerencial).
+  </Passo>
 </PassoAPasso>
 
 <Print src="financeiro/painel.png" alt="Painel do módulo Financeiro com os indicadores no topo (ordens em aberto, pagas no mês, saldo em caixa), o gráfico de ordens em aberto por situação e os cartões das áreas." legenda="O painel do Financeiro: indicadores, o gráfico por situação e as áreas." />
 
 ## O painel de entrada
 
-Ao abrir o Financeiro, o topo traz três indicadores — **ordens em aberto** (o
-valor **pendente**, somando o que ainda será pago), **pagas neste mês** e
-**saldo em contas de caixa** — e um **gráfico de rosca** que mostra onde estão
+Ao abrir o Financeiro, primeiro vêm os cartões das áreas. Abaixo deles, três
+indicadores — **ordens em aberto** (o valor **pendente**, somando o que ainda
+será pago), **pagas neste mês** e **saldo em contas de caixa** (só para quem
+tem acesso ao caixa) — e um **gráfico de rosca** que mostra onde estão
 as ordens em aberto por situação (A pagar, Processando, Em autorização,
 Aguardando informações). É a leitura rápida de "quanto ainda há para pagar e em
 que estágio".
@@ -50,9 +82,11 @@ que estágio".
 <Aviso tipo="nota" titulo="De onde vêm as ordens">
   As ordens **não são digitadas aqui**: elas nascem em outros módulos —
   Aquisição, Contratos, Ajudas institucionais, Pessoal, Veículos, Jurídico,
-  Custeio, Hospedagem, Tributos — e chegam ao Financeiro **Em autorização**, para
-  aprovação por alçada (pelo valor) e pagamento. A folha de pagamento e as
-  parcelas ordinárias de valor fixo de contrato já chegam autorizadas.
+  Custeio, Hospedagem, Tributos e a fatura do cartão — e chegam ao Financeiro
+  **Em autorização**, para aprovação por alçada (pelo valor) e pagamento. A
+  folha de pagamento já chega autorizada; a parcela recorrente de contrato
+  autorizado espera a nota e, no valor autorizado, segue direto para *A pagar*.
+  Ver [Ordens de pagamento](/painel/ajuda/financeiro/ordens).
 </Aviso>
 
 ## Erros comuns
@@ -60,9 +94,12 @@ que estágio".
 - **"O valor de 'ordens em aberto' não bate com a soma das ordens."** O
   indicador soma o valor **pendente** (o que ainda será pago), não o total
   histórico. Use os filtros da lista para conferir por situação.
-- **"Não vejo o caixa."** Consultar caixa exige a permissão **Caixa**; abrir e
-  ajustar exige **Caixa — administração**. São separadas de "Ordens de
-  pagamento".
+- **"Não vejo o caixa."** A área exige **Caixa**, **Caixa — administração** ou
+  **Financeiro — somente leitura** (esta só consulta). São separadas de "Ordens
+  de pagamento".
+- **"Cliquei em Exportação contábil e não tenho acesso."** O cartão aparece para
+  todos que entram no Financeiro, mas a página exige **Ordens de pagamento** ou
+  **Financeiro — somente leitura**.
 
 <VejaTambem
   links={[

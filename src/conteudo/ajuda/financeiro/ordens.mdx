@@ -20,6 +20,8 @@ favorecido, valor, vencimento e centro de custo. As origens são:
   **Reembolsos a filiados** e **Reembolsos ao escritório jurídico**.
 - **Hospedagem** — a fatura que o hotel conveniado emite no portal dele.
 - **Veículos** — multas de trânsito e mensalidades de locação.
+- **Tributos** — cada guia lançada.
+- **Cartões** — a fatura do cartão de crédito, no fechamento.
 
 ## O rito: autorização por alçada
 
@@ -28,6 +30,10 @@ favorecido, valor, vencimento e centro de custo. As origens são:
     A ordem chega do módulo e aguarda quem tem alçada. A **alçada é pelo
     valor**, qualquer que seja a origem: quem pode aprovar até R$ 5.000 aprova
     qualquer ordem até esse valor — de compra, de diária, de hotel ou de multa.
+    Duas origens pedem mais que a alçada: ordem de **contrato** em autorização
+    (pagamento extraordinário; ajuda institucional não entra nesta regra) exige
+    também **Contratos — autorizar**, e ordem de **custeio** exige **Custeio
+    institucional — autorizar**.
   </Passo>
   <Passo titulo="Avaliação">
     Em **Aquisição → Avaliações de ordens** (também no painel do Financeiro), o
@@ -46,21 +52,30 @@ favorecido, valor, vencimento e centro de custo. As origens são:
 </PassoAPasso>
 
 <Aviso tipo="nota" titulo="Quando a autorização é dispensada">
-  Duas despesas já foram aprovadas em outra instância e **nascem autorizadas**,
-  com o motivo registrado na ordem:
+  Algumas despesas já foram aprovadas em outra instância e não passam pela
+  alçada, com o motivo registrado na ordem:
   - a **folha de pagamento**;
-  - a **parcela ordinária de valor fixo** de um contrato — o valor foi aprovado
-    na assinatura. Vale também para ajudas institucionais e para a mensalidade
-    de locação de veículo no valor contratado.
+  - a **parcela recorrente** (mensal ou anual) de um **contrato autorizado** —
+    nasce autorizada, *Aguardando documento fiscal*. Com a nota no valor da
+    parcela, vai direto para *A pagar*; com a nota em outro valor, a autorização
+    é desfeita e ela vai para a alçada. Num contrato de valor fixo, a parcela
+    gerada com valor diferente do contratado também espera a nota e depois
+    passa pela alçada;
+  - a **parcela no valor fixo** de uma ajuda institucional e a mensalidade de
+    locação de veículo no valor contratado;
+  - a guia de **tributo recorrente** no valor esperado.
 
-  Já a parcela de contrato **sob demanda** (valor variável) ou com **valor
-  diferente do contratado** (pagamento extraordinário) passa pela alçada
-  normalmente.
+  A periodicidade **única** de contrato é pagamento extraordinário: nasce *Em
+  autorização*, mesmo no valor do contrato. Ver
+  [Contratos](/painel/ajuda/compras/contratos).
 </Aviso>
 
 <Aviso tipo="atencao" titulo="Só se paga ordem autorizada">
-  O botão **Registrar pagamento** só aparece em ordens *A pagar*. Uma ordem em
-  autorização ou devolvida não pode ser paga — primeiro passa pela alçada.
+  O botão **Registrar pagamento** só aparece em ordens *A pagar* ou
+  *Processando*. Uma ordem em autorização ou devolvida não pode ser paga. O
+  caminho é a alçada; a exceção é **Trocar situação → A pagar**, que vale como
+  autorização dada por quem trocou, sem passar pela fila, e fica na trilha (veja
+  *Trocar a situação*).
 </Aviso>
 
 ## O extrato e a lista
@@ -85,9 +100,10 @@ cabeçalho do dia marca todas daquele dia. Com ordens marcadas, aparece uma
 barra embaixo com o total e duas ações:
 
 - **Gerar remessa** — abre a nova remessa começando só com as marcadas (as que
-  ainda não estão prontas para a remessa aparecem com o que falta).
-- **Registrar pagamento** — paga todas de uma vez, pelo valor cobrado, na data
-  e com a conta de débito escolhidas. Cada ordem passa pelas mesmas travas do
+  ainda não estão prontas para a remessa aparecem com o que falta). A remessa só
+  lista ordens *A pagar*: as *Processando* não entram nela.
+- **Registrar pagamento** — paga todas de uma vez (até 200), pelo valor cobrado,
+  na data e com a conta de débito escolhidas. Cada ordem passa pelas mesmas travas do
   pagamento individual (mês fechado, saldo do caixa, conta de débito); a que
   for recusada aparece na mensagem com o motivo, e as outras são pagas. O
   comprovante, se houver, entra depois em cada ordem.
@@ -95,7 +111,7 @@ barra embaixo com o total e duas ações:
 Ordens canceladas, estornadas e compras "Na fatura" (pagas pela fatura do
 cartão) ficam fora do extrato; escolha a situação no filtro para vê-las. Os
 filtros e a busca valem no extrato e na lista. O botão **Lista** volta à
-tabela com todas as ordens.
+tabela com todas as ordens. O botão de exportar baixa as ordens em XLSX.
 
 A lista traz **ordenação por coluna** (clique em Vencimento, Pagamento ou Valor)
 e **quantidade por página**. Os filtros ficam num painel **expansível** —
@@ -108,7 +124,7 @@ clique em **Filtros** para abrir:
   Estornado (legado do sistema anterior) ou Cancelada.
 - **Tipo** — a origem: Compras, Contrato, RPA, Folha de pagamento, Diária,
   Custeio, Reembolso, Hospedagem, Multa de trânsito, Locação de veículos,
-  Fatura de cartão.
+  Fatura de cartão, Tributo.
 - **Favorecido** — busca pelo nome ou CPF/CNPJ de fornecedores, de pessoas do
   quadro (funcionários e diretores) e de filiados (reembolsos e custeios).
 - **Departamento** e **Centro de custo** — encadeados: ao escolher o
@@ -251,7 +267,7 @@ Financeiro**: até lá, os pagamentos seguem na conta antiga. Os pedidos chegam 
 **caixa de entrada** de quem paga ordens ("Dados bancários a confirmar") e ficam
 em **Financeiro › Contas bancárias › Pedidos de funcionários e diretores**.
 
-<RequerPermissao>Pagamento de ordens (quem só consulta o Financeiro vê, sem decidir)</RequerPermissao>
+<RequerPermissao>Ordens de pagamento (quem só consulta o Financeiro vê, sem decidir)</RequerPermissao>
 
 <PassoAPasso>
   <Passo titulo="Conferir">
@@ -304,7 +320,7 @@ Antes de gravar qualquer ordem, o sistema confere as **regras de auditoria**
 configuradas pela entidade para aquela origem — chave Pix de outro titular,
 contrato vencido, compra com uma só proposta acima do limite, qualidade da
 descrição pela IA… Regra marcada como *Bloquear* impede a criação; as demais
-viram alertas gravados na ordem, no cartão **Verificações na criação**. Ver
+viram alertas gravados na ordem, no cartão **Verificações da auditoria**. Ver
 [Auditoria das ordens](/painel/ajuda/financeiro/auditoria).
 
 ## Auditoria automática
@@ -336,11 +352,28 @@ Cada ordem é conferida na hora, com o resultado **OK**, **Alerta**, **Falha**,
 
 <RequerPermissao>Ordens de pagamento</RequerPermissao>
 
-Numa ordem *A pagar* ou *Processando*, o botão **Registrar pagamento** abre o
-formulário: **valor pago**, **data**, **centro de custo do débito** — a conta de
-onde o dinheiro saiu, obrigatório — e o **comprovante** (PDF). Ao salvar, a
-ordem passa a **Paga** e o registro entra no histórico. **Remover pagamento**
-desfaz o registro (a ordem volta a *A pagar*), também registrado.
+Numa ordem *A pagar* ou *Processando*, o botão **Registrar pagamento**, no cartão
+**Detalhes do pagamento**, abre o formulário:
+
+- **Valor do pagamento** e **Data do pagamento** (obrigatórios);
+- **Centro de custo do débito** — a conta de onde o dinheiro saiu (obrigatório);
+- **Comprovante de pagamento** — PDF de até 3 MB. É opcional para gravar, mas a
+  auditoria automática confere se ele foi anexado.
+
+Ao salvar, a ordem passa a **Paga** e o registro entra no histórico. Se o
+fornecedor tem o envio automático ligado, o comprovante anexado sai sozinho para
+os contatos marcados. Na ordem de um RPA, o aviso de outros RPAs do mês não
+impede o pagamento e fica anotado no histórico.
+
+Na ordem já paga, o mesmo botão vira **Editar pagamento**: troca o comprovante, a
+conta de débito, o valor ou a data. O botão **Remover pagamento** (dentro da
+edição) e o **Voltar para "A pagar"** (em Detalhes do pagamento) desfazem o
+registro: valor, data, comprovante e pagador são limpos, e a ordem volta para *A
+pagar*, ou para *Em autorização* se não tinha autorização registrada. Para
+pagamento devolvido pelo banco, use o estorno, não a remoção.
+
+Travas do registro: mês fechado (veja abaixo), saldo do caixa quando a ordem é
+em dinheiro e conta de débito fora da lista.
 
 O débito só oferece **contas de pagamento** — as do tipo *Ativo - Pagamento*
 no plano de contas (caixa, bancos), mais as contas ligadas às contas
@@ -366,8 +399,38 @@ bancárias de remessa e ao caixa. Contas de despesa e de receita não aparecem.
   Já a **parcela de contrato** em dinheiro ainda não tirou nada do caixa:
   autorizada, ela fica **A pagar**, e o caixa é debitado quando o pagamento é
   registrado (o saldo é conferido nessa hora). Remover o pagamento devolve o
-  valor ao caixa.
+  valor ao caixa. Na compra direta em dinheiro, remover o pagamento **não**
+  devolve: só o cancelamento da ordem desfaz esse débito.
 </Aviso>
+
+## Trocar a situação
+
+<RequerPermissao>Ordens de pagamento</RequerPermissao>
+
+Em **Detalhes do pagamento**, **Trocar situação** leva uma ordem ainda não paga
+para outra situação, com o **motivo** (opcional só de *A pagar* para
+*Processando*). A confirmação diz o que vai acontecer:
+
+| Para | O que acontece |
+|---|---|
+| Em autorização | Entra na fila de avaliação por alçada. Se já estava autorizada, a autorização é desfeita. |
+| A pagar | Passa a constar como **autorizada por você** e vai para a fila de pagamento, **sem passar pela alçada**. Em ordem de contrato ou custeio, exige a permissão de autorizar da origem. Compra em dinheiro já debitada fecha como paga pelo caixa. De *Processando* para *A pagar*, a autorização que ela tinha é mantida. |
+| Processando | O pagamento está em curso. Só para ordem já autorizada. |
+| Aguardando informações | É devolvida a quem a lançou, que complementa e reenvia. Sai da fila de pagamento. |
+| Aguardando documento fiscal | Volta ao contrato de origem e espera a nota. Só para ordem de contrato. |
+
+Com estorno pendente, a situação não troca: a ordem só volta pela tela do estorno.
+Compra de uma fatura de cartão já fechada também não troca.
+
+## Anexar nota fiscal e boleto na ordem
+
+<RequerPermissao>Ordens de pagamento</RequerPermissao>
+
+O botão **Documentos**, no cartão **Detalhes da despesa**, inclui ou substitui a
+nota fiscal e o boleto. A troca fica no histórico, com o arquivo anterior. Ordem
+cancelada não recebe documentos. Numa ordem **Aguardando documento fiscal**,
+anexar a nota faz a ordem andar: *A pagar*, se está no valor autorizado, ou *Em
+autorização*.
 
 ## Corrigir, cancelar e reenviar
 
@@ -378,9 +441,14 @@ No cartão **Procedência** de uma ordem ainda não paga:
 - **Corrigir ordem** — descrição, valor, vencimento e forma de pagamento,
   com o **motivo**. O histórico guarda o antes e o
   depois. **Mudar o valor de uma ordem já autorizada a devolve para
-  autorização** — o que foi aprovado era outro valor.
+  autorização** — o que foi aprovado era outro valor. O valor não muda em compra
+  em dinheiro (cancele e lance de novo) nem em compra de fatura de cartão já
+  fechada. O centro de custo se troca em **Reclassificar**.
 - **Cancelar ordem** — com o **motivo**; a ordem sai da fila. Numa compra em
-  dinheiro, o débito do caixa é cancelado junto.
+  dinheiro, o débito do caixa é cancelado junto. Estorno pendente é encerrado
+  junto. Ordem de custeio reflete o cancelamento no custeio. Ordem paga precisa
+  ter o pagamento removido antes; compra de fatura de cartão já fechada não se
+  cancela.
 - **Desfazer cancelamento** — numa ordem **Cancelada**, em *Detalhes do
   pagamento*: o Financeiro escolhe para qual situação ela volta (*Em
   autorização*, *A pagar*, *Aguardando informações*…) e diz o motivo. Os dados
@@ -449,11 +517,18 @@ aplicável*.
 
 ## Erros comuns
 
-- **"Não aparece o botão Registrar pagamento."** A ordem não está *A pagar*:
-  ainda está em autorização, foi devolvida ou já foi paga/cancelada.
+- **"Não aparece o botão Registrar pagamento."** A ordem não está *A pagar* nem
+  *Processando*: ainda está em autorização, foi devolvida, está *Na fatura* do
+  cartão, aguarda o documento fiscal ou já foi cancelada. Paga, o botão é
+  **Editar pagamento**.
 - **"A ordem ficou parada em autorização."** Ninguém com alçada suficiente a
   aprovou. Confira quem tem alçada para aquele valor em **Usuários e
-  permissões**.
+  permissões**. Em ordem de contrato ou custeio, a pessoa também precisa da
+  permissão de autorizar da origem.
+- **"O mês está fechado para a contabilidade."** O pagamento com data num mês
+  fechado não entra nem muda. Reabra o mês em **Exportação contábil**.
+- **"Não consigo cancelar a ordem paga."** Remova o pagamento antes (ou registre
+  o estorno, se o banco devolveu).
 - **"Corrigi o valor e a ordem voltou para autorização."** É o esperado: a
   autorização foi dada para o valor anterior.
 - **"A auditoria acusa CNPJ inválido."** O CNPJ/CPF do cadastro do fornecedor

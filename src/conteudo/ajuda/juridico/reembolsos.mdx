@@ -1,41 +1,71 @@
 Os **reembolsos** cobrem o caminho em que o escritório de advocacia gasta com um
 processo e o sindicato reembolsa.
 
-<RequerPermissao>Jurídico geral</RequerPermissao> para registrar; <RequerPermissao>Gestão jurídica</RequerPermissao> para aprovar
+<RequerPermissao>Jurídico geral</RequerPermissao> ou <RequerPermissao>Gestão jurídica</RequerPermissao> para aprovar; <RequerPermissao>Homologações</RequerPermissao> só registra a despesa
 
-## Fluxo em duas etapas
+## Do lançamento ao pagamento
 
 <PassoAPasso>
   <Passo titulo="Registrar a despesa">
-    No processo, registre a despesa do escritório (valor, descrição, data e o
-    comprovante obrigatório).
+    Na página do processo, no cartão **Reembolsos ao escritório**, abra
+    **Registrar despesa**: **Valor da despesa**, **Descrição da despesa** e
+    **Comprovante** (PDF ou imagem) são obrigatórios; a **Data da despesa** é
+    opcional. A despesa entra como *Aguardando aprovação*, e quem pode aprovar é
+    avisado.
   </Passo>
-  <Passo titulo="Aprovar na gestão jurídica">
-    A gestão jurídica aprova ou reprova. Ao aprovar, gera-se uma ordem de
-    pagamento “Em autorização”, tendo o escritório como favorecido.
+  <Passo titulo="Aprovar ou reprovar">
+    Na fila **Reembolsos jurídicos**, abra **Avaliar reembolso** (ou avalie na
+    página do processo). **Aprovar e gerar ordem** cria uma ordem de pagamento
+    *Em autorização*, tendo o escritório como favorecido. **Reprovar** exige o
+    motivo em **Observação**. Quem lançou a despesa é notificado.
   </Passo>
   <Passo titulo="Autorização no Financeiro">
-    Essa ordem ainda passa pela alçada do Financeiro — nunca nasce autorizada.
+    A ordem ainda passa pela alçada do Financeiro: ela nunca nasce autorizada.
+    Quando a ordem é paga, o reembolso aparece como *Pago*.
   </Passo>
 </PassoAPasso>
 
+| Situação | O que significa |
+|---|---|
+| Aguardando aprovação | Despesa registrada, ainda sem avaliação |
+| Aprovado — aguardando pagamento | Ordem gerada, ainda não paga |
+| Pago | A ordem de pagamento foi paga |
+| Reprovado | Recusado, com o motivo na observação |
+
 <Aviso tipo="atencao" titulo="Escritório é por processo">
-  O favorecido do reembolso é o **escritório responsável pelo processo**. Sem
-  esse escritório definido no processo, a aprovação é bloqueada.
+  O favorecido do reembolso é o **escritório responsável pelo processo**. Sem ele,
+  a aprovação é recusada. Uma despesa já avaliada não pode ser avaliada de novo.
 </Aviso>
 
 <Print src="juridico/reembolsos.png" alt="Fila de reembolsos de processo com situação, valor e link ao processo." legenda="Fila de reembolsos com aprovação da gestão jurídica." />
 
+## A fila de reembolsos
+
+A fila abre em **Aguardando aprovação**. Dá para buscar por processo, escritório,
+despesa ou solicitante e trocar a situação: Aprovados (a pagar), Pagos,
+Reprovados ou todas. Cada linha mostra o valor, o processo, o escritório, o código
+da ordem e o link do comprovante.
+
+## Centro de custo dos reembolsos
+
+No alto da fila, quem pode aprovar define em **Centro de custo dos reembolsos** a
+conta das ordens geradas ao aprovar. Sem conta definida, as ordens saem sem centro
+de custo, e a tela avisa.
+
 ## Erros comuns
 
-- **"A aprovação está bloqueada."** Falta o **escritório responsável** definido
-  no processo — é ele o favorecido. Defina-o no processo e tente de novo.
-- **"Aprovei mas o pagamento não saiu."** A ordem nasce **Em autorização** e
-  ainda passa pela **alçada do Financeiro** — nunca nasce autorizada.
-- **"Não consigo registrar a despesa."** O **comprovante é obrigatório**; anexe-o
-  ao lançar a despesa no processo.
-- **"Só registro, não aprovo."** Aprovar exige **Gestão jurídica**; registrar a
-  despesa abre para **Jurídico geral**.
+- **"Defina o escritório responsável no processo antes de aprovar o reembolso."**
+  Abra o processo, escolha o **Escritório responsável** em **Editar processo** e
+  aprove de novo.
+- **"Aprovei mas o pagamento não saiu."** A ordem nasce **Em autorização** e ainda
+  passa pela **alçada do Financeiro**.
+- **"Anexe o comprovante da despesa."** O **comprovante é obrigatório** ao
+  registrar.
+- **"Informe o motivo da reprovação."** Ao reprovar, preencha a **Observação**.
+- **"Só registro, não aprovo."** Aprovar exige **Jurídico geral** ou **Gestão
+  jurídica**.
+- **"A ordem saiu sem centro de custo."** Defina a conta em **Centro de custo dos
+  reembolsos**. As próximas ordens já saem com ela.
 
 <VejaTambem
   links={[

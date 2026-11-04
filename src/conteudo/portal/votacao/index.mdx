@@ -27,6 +27,10 @@ passo a passo é este:
 Quando a assembleia online tem uma reunião virtual, o cartão dela mostra o
 horário (de Brasília) e o botão **Entrar na sala**.
 
+Na cédula, escolha uma opção em cada pergunta. Depois de confirmar, aparece **Voto
+registrado**, com o **código do comprovante**: guarde esse código, que comprova a
+sua participação. Ele também fica em **Minhas votações**.
+
 ## E-mail de votação
 
 Muitas empresas não informam o CPF nas listas de aptos, só o e-mail
@@ -44,6 +48,12 @@ comprovante** abre a página de conferência, que qualquer pessoa pode acessar
 pelo código. As três participações mais recentes também aparecem na entrada do
 portal, em **Suas últimas votações**.
 
+O resumo SHA-256 é uma espécie de impressão digital do seu comprovante. A lista mostra
+só o começo dele, e **Ver comprovante** mostra o resumo inteiro: é o que você usa
+para conferir com o e-mail. Quando o resultado é publicado, **Conferência do
+resultado** mostra o resumo SHA-256 da apuração, calculado no encerramento: é o
+mesmo do relatório oficial, e mudaria se o resultado mudasse.
+
 Por segurança, o sistema **nunca** mostra em quem você votou — apenas que você
 participou. O comprovante nasce do registro de participação, separado das
 escolhas: nem o sindicato consegue ligar um ao outro.
@@ -60,3 +70,6 @@ escolhas: nem o sindicato consegue ligar um ao outro.
   há pouco tempo vota a partir da data mostrada.
 - **"Já votei pelo link da assembleia."** Então a assembleia aparece como
   **Você já votou** — o voto é o mesmo, por qualquer caminho.
+- **"Aparece 'Voto pelo portal pausado' ou 'Pausa em Votação'."** O voto e o
+  cadastro do e-mail de votação pelo portal estão parados, e o histórico continua.
+  O link pessoal de votação do e-mail e a urna não dependem dessa pausa.

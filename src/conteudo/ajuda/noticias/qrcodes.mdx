@@ -23,7 +23,8 @@ destino. Isso muda tudo para peças impressas:
   <Passo titulo="Preencha os dados">
     Em Comunicação → QR Codes, informe o <strong>título</strong>, a
     <strong>finalidade</strong> (onde a peça será aplicada — é o que organiza a
-    lista depois) e a <strong>URL de destino</strong>.
+    lista depois) e a <strong>URL de destino</strong>, e clique em
+    <strong>Gerar QR Code</strong>. Os três campos são obrigatórios.
   </Passo>
   <Passo titulo="Baixe a imagem no tamanho da peça">
     Na página do QR: <strong>PNG</strong> em 256px (e-mail/assinatura), 512px
@@ -55,12 +56,28 @@ destino. Isso muda tudo para peças impressas:
 
 ## Erros comuns
 
-- **"O QR não abre nada."** Veja se ele está **ativo** na lista — inativo
-  mostra a página de aviso. E confira a URL de destino (precisa começar com
-  `https://`).
+- **"O QR não abre nada."** Veja se ele está **ativo** na lista: inativo mostra a
+  página "Este QR Code foi desativado". Se aparece "QR Code não encontrado", ele foi
+  excluído ou o endereço está errado. Confira também a URL de destino: sem `http`
+  ou `https` no começo, o sistema completa com `https://`.
 - **"Troquei o destino e a imagem mudou?"** Não — a imagem é sempre a mesma
   (ela aponta para o link curto). Só o redirecionamento muda.
 - **"Imprimi e quero trocar o conteúdo."** É exatamente o caso do QR dinâmico:
   edite a **URL de destino** e a peça impressa passa a levar ao novo endereço.
 - **"Excluí sem querer."** Não há recuperação — emita um novo QR e refaça a
   peça. Por isso, prefira **desativar**.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Página de links",
+      href: "/painel/ajuda/noticias/pagina-links",
+      descricao: "Emitir o QR da página pública de links",
+    },
+    {
+      titulo: "Slides para TV",
+      href: "/painel/ajuda/noticias/slides-tv",
+      descricao: "Abrir o link da TV por um QR",
+    },
+  ]}
+/>

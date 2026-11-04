@@ -14,16 +14,26 @@
 Os **treinamentos** guardam os cursos oferecidos, quem participou e os
 certificados — com controle de validade.
 
+<RequerPermissao>Gestão de Pessoal</RequerPermissao>
+
 ## Catálogo e participantes
 
 <PassoAPasso>
   <Passo titulo="Catálogo">
-    Cadastre cada treinamento com a carga horária e a **validade** (em meses, ou
-    "não expira"). A lista mostra quantos alunos cada um teve.
+    Cadastre cada treinamento com o **nome** (obrigatório), a carga horária e a
+    **validade** em meses; em branco, não expira. A lista mostra quantos alunos cada
+    um teve. Treinamento com alunos não pode ser excluído.
   </Passo>
   <Passo titulo="Alunos e certificados">
-    Ao abrir um treinamento, registre os participantes com a data de início e
-    término, e anexe o certificado de cada um.
+    Ao abrir um treinamento, registre os participantes com o **início**
+    (obrigatório) e o término, e anexe o certificado de cada um (PDF, JPG, PNG ou
+    WebP, até 5 MB). Cada funcionário entra uma vez por treinamento.
+  </Passo>
+  <Passo titulo="Exigidos pelas atividades">
+    Na página do funcionário, **Exigidos pelas atividades** cruza o que as atividades
+    dele pedem em [Atribuições e SST](/painel/ajuda/pessoal/atribuicoes-sst) com o
+    que ele já fez: **Em dia**, **Vencido**, **Falta fazer** ou **Sem treinamento no
+    catálogo**.
   </Passo>
 </PassoAPasso>
 
@@ -46,6 +56,9 @@ certificados — com controle de validade.
   vence e entra no painel.
 - **"Não consigo anexar o certificado."** Adicione o participante primeiro; o
   anexo do certificado é por aluno.
+- **"Este funcionário já está neste treinamento."** Edite a linha dele, em vez de
+  adicionar de novo.
+- **"Não consigo excluir o treinamento."** Ele tem alunos: exclua os alunos antes.
 
 <VejaTambem
   links={[

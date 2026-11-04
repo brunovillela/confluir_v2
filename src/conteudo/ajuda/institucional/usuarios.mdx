@@ -24,9 +24,11 @@ pessoa pode ver e editar.
     serviço, jovem aprendiz ou estagiário). Clique em **Cadastrar e conceder acesso**.
   </Passo>
   <Passo titulo="Perfis e convite">
-    A página da pessoa abre em seguida: marque os **perfis de acesso** e clique
-    em **Conceder login** — o convite vai para o e-mail informado, e ela define a
-    própria senha.
+    A página da pessoa abre em seguida: marque os **perfis de acesso**, clique em
+    **Salvar perfis** e depois em **Conceder login (criar acesso)**. O convite vai
+    para o e-mail informado, e ela define a própria senha. A tela também mostra o
+    link, que funciona uma única vez e tem validade: se o e-mail não chegar, copie e
+    entregue à pessoa.
   </Passo>
 </PassoAPasso>
 
@@ -51,6 +53,30 @@ painel, convite em lote). **Sem vínculo** — um consultor, um contador externo
   lista de acessos e nenhum login é criado. Depois, registre-a no posto (veja
   abaixo). Também dá para cadastrá-la direto na página da conta de função.
 </Aviso>
+
+## A lista e a página da pessoa
+
+A lista mostra a pessoa, o e-mail, quantas permissões ela tem e a situação do login:
+**Ativo** ou **Sem login**. *Sem login* quer dizer que o acesso está definido, mas
+que a pessoa ainda não consegue entrar. Na página da pessoa ficam os cartões **Acesso
+ao painel (login)**, **Perfis de acesso**, **Aquisição: departamentos**, **Verificação
+em duas etapas** e **Ajustes finos (exceções)**.
+
+- **Gerar link de redefinição de senha**: aparece para quem já tem login. O link
+  funciona uma única vez; se vencer, gere outro.
+- **Revogar acesso**: remove as permissões da pessoa, depois de uma confirmação. O
+  cadastro de usuário permanece.
+
+## Convidar funcionários em lote
+
+Em **Convidar funcionários em lote**, a tela mostra os funcionários do quadro que
+ainda não têm login e os que estão sem e-mail, que não serão convidados. **Disparar
+convites** cria o login e envia o convite de primeiro acesso a todos os aptos.
+
+Cada um recebe o perfil marcado como **Perfil padrão no convite (onboarding)**. Sem
+perfil marcado, recebe só o autosserviço (contracheques, ponto, férias). Os demais
+acessos entram depois, por perfil. Sem e-mail configurado no sistema, o disparo fica
+bloqueado, para ninguém receber conta sem o convite chegar.
 
 ## Contas de função (e-mails coletivos)
 
@@ -152,9 +178,16 @@ Em vez de marcar dezenas de permissões pessoa por pessoa, você define **perfis
     Ao editar um usuário, marque um ou mais perfis. As permissões do perfil
     passam a valer para ela.
   </Passo>
+  <Passo titulo="Atalhos do perfil">
+    **Perfil ativo** deixa o perfil disponível para atribuição. **Perfil padrão no
+    convite (onboarding)** define o que o convite em lote concede: só um por
+    organização, e marcar um desmarca o anterior. **Excluir perfil** tira essas
+    permissões de quem o tiver, depois de uma confirmação.
+  </Passo>
   <Passo titulo="Gerencie os perfis">
-    Em **Perfis de acesso** você cria perfis e define o que cada um libera. Os
-    perfis “de fábrica” já vêm prontos e podem ser ajustados.
+    Em **Perfis de acesso** você cria perfis (**Nome do perfil**, **Descrição**,
+    **Alçada de aprovação** e as permissões por área) e define o que cada um libera.
+    Os perfis “de fábrica” já vêm prontos e podem ser ajustados.
   </Passo>
 </PassoAPasso>
 
@@ -170,8 +203,8 @@ Em vez de marcar dezenas de permissões pessoa por pessoa, você define **perfis
 
 ### Só leitura, quando faz sentido
 
-Alguns papéis só precisam **ver** — o Conselho Fiscal é o caso clássico. Um
-perfil de leitura mostra os dados sem nenhum botão de escrita, e a navegação já
+Alguns papéis só precisam **ver** — o Conselho Fiscal é o caso clássico, com o
+perfil **Conselho Fiscal (leitura)**. Um perfil de leitura mostra os dados sem nenhum botão de escrita, e a navegação já
 entra restrita ao que ele libera.
 
 <Print src="institucional/conselho-fiscal-painel.png" alt="Painel de um usuário do Conselho Fiscal, com a navegação restrita a poucos módulos." legenda="A navegação já entra restrita ao que o perfil concede." />
@@ -205,12 +238,17 @@ a caso. É a exceção; o normal é resolver pelo perfil.
 - **"A pessoa não aparece na busca."** Ela ainda não está no cadastro de
   usuários: use **Nova pessoa**. Ser filiado não basta — o cadastro de filiação é
   outro; se ela já tiver conta no portal, a Nova pessoa a encontra pelo CPF.
+- **"O usuário não tem e-mail cadastrado."** O login é pelo e-mail: sem ele, o botão
+  de conceder login não aparece.
+- **"Alguém não entrou no convite em lote."** Está sem e-mail ou já tem login. Quem
+  não é funcionário do quadro recebe o acesso um a um, em **Conceder acesso a uma
+  pessoa**.
 - **"Quero passar o recepcao@ para outra pessoa."** Não transfira o e-mail de
   uma pessoa: crie uma **conta de função** para o posto e registre quem o ocupa
   a cada troca.
 - **"Dei o perfil, mas a pessoa não consegue entrar."** Ter permissões não é o
-  mesmo que ter **login** — a pessoa precisa do convite/credencial de acesso
-  (primeiro acesso). Ver [Introdução](/painel/ajuda/introducao).
+  mesmo que ter **login**. Na lista ela aparece como **Sem login**: abra a página
+  dela e clique em **Conceder login (criar acesso)**. Ver [Introdução](/painel/ajuda/introducao).
 - **"Mudei um perfil e afetou várias pessoas."** É esperado — editar um perfil
   repercute em **todos** que o têm. Para uma exceção de uma pessoa só, use o
   **ajuste individual**.
@@ -219,7 +257,7 @@ a caso. É a exceção; o normal é resolver pelo perfil.
 - **"O Conselho Fiscal está editando dados."** Use um **perfil de leitura** — ele
   mostra os dados sem botões de escrita.
 - **"A pessoa perdeu o celular e não consegue o código."** Na ficha dela, o
-  cartão **Verificação em duas etapas** tem o botão **Redefinir**. Confirme
+  cartão **Verificação em duas etapas** tem o botão **Redefinir verificação em duas etapas**. Confirme
   antes, por telefone ou pessoalmente, que é ela mesma — é o que um invasor
   pediria por e-mail. Depois ela entra só com a senha e cadastra o aplicativo
   novo em Meu perfil → Segurança da conta. Ver [Segurança da conta](/painel/ajuda/introducao/seguranca).
@@ -230,6 +268,11 @@ a caso. É a exceção; o normal é resolver pelo perfil.
       titulo: "Introdução",
       href: "/painel/ajuda/introducao",
       descricao: "Primeiro acesso e as interfaces",
+    },
+    {
+      titulo: "Auditoria",
+      href: "/painel/ajuda/institucional/auditoria",
+      descricao: "Quem alterou permissões e perfis",
     },
   ]}
 />

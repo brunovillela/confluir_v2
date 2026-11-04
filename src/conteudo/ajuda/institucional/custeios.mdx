@@ -6,16 +6,17 @@ pagamento ou reembolso de filiado.
 
 ## Quando usar (e quando não)
 
-<Aviso tipo="nota" titulo="Três beneficiários">
-  O custeio atende **diretores** (em atividade sindical), **filiados demitidos
-  políticos** e **convidados de eventos** (especialistas, filiados ou não).
+<Aviso tipo="nota" titulo="Quatro tipos de beneficiário">
+  O custeio atende **Diretor** (em atividade sindical), **Filiado (demitido
+  político)**, **Convidado externo** (especialistas de eventos, filiados ou não) e
+  **Assessoria**, escolhida no cadastro de fornecedores.
 </Aviso>
 
 Use o Custeio — e não outros módulos — quando:
 
 - **Convidado de evento**: em vez de cadastrá-lo como fornecedor e pagar como
   prestador de serviço (o que não reflete a realidade), registre um custeio com
-  o beneficiário do tipo *Convidado*.
+  o beneficiário do tipo *Convidado externo*.
 - **Diretor**: em vez de lançar como reembolso de filiado (aquela área é para
   despesas do filiado em atos do sindicato, não para atividade de diretor),
   registre um custeio do tipo *Diretor*.
@@ -39,8 +40,10 @@ pagamento já nasce classificada.
 
 <PassoAPasso>
   <Passo titulo="Cadastre o custeio">
-    Escolha a finalidade, o beneficiário, o valor e a cadência (pontual ou
-    recorrente). Ele nasce como **rascunho**.
+    Em **Novo custeio**, escolha a **Finalidade**, o **Tipo de beneficiário** e o
+    beneficiário, e descreva o motivo. Informe o **Valor da parcela**, a **Cadência**
+    (*Pontual*, uma parcela, ou *Recorrente*, várias parcelas), o primeiro vencimento
+    e a **Forma** de pagamento (obrigatória). Ele nasce como **rascunho**.
   </Passo>
   <Passo titulo="Submeta para autorização">
     O custeio vai para **aguardando autorização** — o portão interno da
@@ -73,9 +76,18 @@ pagamento já nasce classificada.
 <Print src="institucional/custeio-detalhe.png" alt="Detalhe de um custeio autorizado: dados do custeio, autorização com o botão Cancelar custeio, formalização, o cartão Gerar ordens de pagamento e a lista de ordens com previsto, pago e em aberto, caixas de seleção e as ações de editar e excluir." legenda="Um custeio autorizado, o gerador de novas ordens e as ordens que ele já gerou no Financeiro." />
 
 <Aviso tipo="atencao" titulo="Convidado não é fornecedor">
-  O convidado externo tem um cadastro leve próprio (nome e dados bancários). Ele
-  **não** entra na lista de fornecedores nem na esteira de Aquisição.
+  O convidado externo tem um cadastro leve próprio, no botão **Convidados** da lista:
+  nome, CPF, contato e dados bancários. Ele **não** entra na lista de fornecedores
+  nem na esteira de Aquisição. Já a **Assessoria** sai do cadastro de fornecedores, e
+  as ordens têm o fornecedor como favorecido.
 </Aviso>
+
+## Encontrar e exportar
+
+A lista tem os quadros de resumo (aguardando autorização, autorizados, concluídos e
+total), busca e filtros por situação e finalidade. O botão **CSV** baixa a lista
+com os filtros atuais, e a exportação fica registrada na
+[Auditoria](/painel/ajuda/institucional/auditoria).
 
 ## Gerar novas ordens
 
@@ -136,7 +148,7 @@ ordem autorizada desfaz a autorização — o histórico registra isso.
   **autorização** — um custeio em **rascunho** ou apenas submetido ainda não
   gerou nada.
 - **"Vou pagar um convidado — cadastro como fornecedor?"** Não. Use **Custeio**
-  com beneficiário *Convidado*; ele não entra em Fornecedores nem em Aquisição.
+  com beneficiário *Convidado externo*; ele não entra em Fornecedores nem em Aquisição.
 - **"Não aparece a finalidade que preciso."** Cadastre-a em **Finalidades**, já
   com o **centro de custo padrão** — é ele que a ordem herda.
 - **"Só registro, não autorizo."** Autorizar exige **Custeio institucional —

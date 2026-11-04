@@ -7,29 +7,39 @@ As **notas fiscais** documentam a **entrada** (compra, doação) e a **saída**
 
 <PassoAPasso>
   <Passo titulo="Nova nota">
-    Em **Patrimônio → Notas fiscais**, use **Nova nota** e informe os dados da
-    nota (tipo de movimento — entrada ou saída — número, data e valor).
+    Em **Patrimônio → Notas fiscais**, use **Nova nota**. Informe o **Número da
+    nota** (obrigatório), o **Tipo** (Entrada ou Saída), a **Data da emissão** e o
+    **Fornecedor**.
   </Passo>
   <Passo titulo="Anexar o arquivo">
-    Suba o **arquivo** da nota (PDF). Ele fica guardado em armazenamento
-    **privado** e abre por link temporário.
+    Em **Arquivo da nota**, suba o PDF ou a imagem, com até 4 MB. Ele fica em
+    armazenamento **privado** e abre por link temporário. Clique em **Cadastrar
+    nota fiscal**.
   </Passo>
-  <Passo titulo="Relacionar aos bens">
-    A nota serve de origem/baixa dos itens, ligando o documento fiscal ao
-    patrimônio.
+  <Passo titulo="Corrigir depois">
+    Na página da nota, **Editar nota** altera os dados. Enviar um arquivo novo
+    substitui o atual. Não há exclusão de nota pela tela.
   </Passo>
 </PassoAPasso>
 
-<Print src="patrimonio/notas.png" alt="Lista de notas fiscais do patrimônio com tipo de movimento (entrada/saída), número, data e valor." legenda="Notas fiscais de entrada e saída dos bens." />
+<Print src="patrimonio/notas.png" alt="Lista de notas fiscais do patrimônio com número, tipo (entrada ou saída), emissão, fornecedor e quantidade de itens." legenda="Notas fiscais de entrada e saída dos bens." />
+
+## Itens da nota
+
+O grupo **Itens da nota** lista os bens ligados à nota e mostra se o vínculo é de
+entrada ou de saída. Esse vínculo não é feito pelas telas de item nem de nota: os
+dois são cadastrados separadamente.
 
 ## Erros comuns
 
-- **"O arquivo da nota não abre."** O link é **temporário** (privado); reabra a
-  nota para gerar um link novo.
-- **"Não consigo cadastrar/editar a nota."** Editar exige a permissão
+- **"O arquivo da nota não abre."** O link é **temporário** e vale por uma hora.
+  Recarregue a página da nota para gerar um novo.
+- **"Informe o número da nota."** O número é o único campo obrigatório.
+- **"O arquivo deve ter no máximo 4 MB."** Reduza o PDF ou a imagem.
+- **"Não consigo cadastrar ou editar a nota."** Editar exige a permissão
   **Patrimônio**; a de somente leitura apenas consulta.
-- **"Entrada ou saída?"** **Entrada** documenta a chegada do bem (compra/doação);
-  **saída** documenta a baixa — escolha o tipo conforme o movimento.
+- **"Entrada ou saída?"** **Entrada** documenta a chegada do bem (compra ou
+  doação); **saída** documenta a baixa.
 
 <VejaTambem
   links={[

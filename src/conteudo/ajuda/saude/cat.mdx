@@ -2,23 +2,31 @@ A **CAT** (Comunicação de Acidente de Trabalho) é registrada no formato do
 **formulário oficial**. O sistema traz o histórico migrado e permite incluir
 novas, uma a uma ou em massa.
 
-<RequerPermissao>CATs</RequerPermissao>
+<RequerPermissao>CATs</RequerPermissao> ou <RequerPermissao>Gestão de saúde</RequerPermissao>
+
+Quem tem só **Atendimentos** consulta a listagem e cada CAT, mas não inclui,
+edita, confere nem trata duplicidades.
 
 ## Painel e listagem
 
 <PassoAPasso>
   <Passo titulo="Painel">
-    Indicadores macro: total de CATs, com afastamento, com internação, óbitos,
-    empresas envolvidas, acidentes por ano e os principais tipos, municípios e
-    empresas — **todos clicáveis**, levando à listagem já filtrada.
+    Na página da Saúde: total de CATs, com afastamento, com internação e óbitos,
+    acidentes por ano e as empresas e os municípios com mais CATs levam à
+    listagem já filtrada. Empresas envolvidas, acidente mais recente e os tipos
+    mais comuns são só informativos.
   </Passo>
   <Passo titulo="Listagem">
-    Busca e filtros (ano, tipo, UF, município, afastamento, internação, óbito),
-    ordenação por coluna e **exportação em CSV**.
+    Busca (número da CAT, acidentado, empresa, CID, lesão, local), filtros (ano,
+    tipo, UF, município, afastamento, internação, óbito, descrição e filiado),
+    ordenação por coluna e **Exportar CSV**, que leva os filtros em uso. O filtro
+    de descrição separa **Com código oficial**, **Sem código (revisar)** e
+    **Registradas sem conferência**.
   </Passo>
   <Passo titulo="Detalhe">
     Cada CAT abre no formato do **formulário oficial**, com seus blocos e o
-    **número de cada campo**.
+    **número de cada campo**. É nela que ficam **Editar**, **PDF da CAT**, as
+    CATs ligadas e o **Filiado vinculado**.
   </Passo>
 </PassoAPasso>
 
@@ -43,7 +51,9 @@ novas, uma a uma ou em massa.
     duplicidade** — com o link das CATs parecidas e o que muda. Se já foi
     lançada, dá para **atualizar a CAT existente** com os dados do PDF: o
     sistema mostra quais campos são diferentes. O PDF fica guardado na CAT
-    (botão **PDF da CAT**, na página dela).
+    (botão **PDF da CAT**, na página dela). Funciona com PDF digital e escaneado,
+    de até 4 MB. Só o nome do acidentado e a data do acidente são obrigatórios
+    para salvar.
   </Passo>
   <Passo titulo="Vários PDFs de uma vez">
     Selecione até **30 PDFs** no mesmo envio. A IA lê dois por vez e cada um
@@ -61,9 +71,14 @@ novas, uma a uma ou em massa.
     linha ou todas as pendentes de uma vez.
   </Passo>
   <Passo titulo="Importação em massa (CSV)">
-    Casa cada coluna da planilha pelo **número do campo** do formulário e valida
-    tudo antes de gravar — é **tudo ou nada**: se uma linha falha, nada é
-    importado, para você corrigir e reenviar.
+    Em **Incluir CAT → Importar planilha**, use **Baixar modelo** ou salve a
+    planilha do Excel como CSV (até 10 MB). Cada coluna casa pelo **número do
+    campo** do formulário (ex.: "19 - Data do acidente"), em qualquer ordem;
+    colunas sem correspondência são ignoradas e o aviso final diz quantas. Os
+    campos **11** (nome do acidentado) e **19** (data do acidente, em DD/MM/AAAA)
+    são obrigatórios. A validação vem antes de gravar e é **tudo ou nada**: se uma
+    linha falha ou um número de CAT já existe na base, nada é importado, para você
+    corrigir e reenviar.
   </Passo>
 </PassoAPasso>
 
@@ -78,14 +93,14 @@ Na listagem, essas CATs têm o selo **Sem conferência** e o filtro
 
 ### Conferência em fila
 
-Para conferir várias de uma vez, use **Conferir em fila**. O botão aparece
-no fim do lote (só com as CATs gravadas naquele envio), na listagem (com
-todas as que estão sem conferência) e no alerta de cada CAT. A tela mostra
-o **PDF à esquerda** e os campos à direita, agrupados pelos blocos do
-formulário. Cada bloco diz **Tudo certo** ou quantos campos **pedem
-atenção**:
+Para conferir várias de uma vez, abra a fila. O botão aparece no fim do lote
+(**Conferir as N CATs**, só com as gravadas naquele envio), na listagem
+(**Conferir em fila**, com todas as que estão sem conferência) e no alerta de
+cada CAT. A tela mostra o **PDF à esquerda** e os campos à direita, agrupados
+pelos blocos do formulário. Cada bloco diz **Tudo certo** ou quantos campos
+**pedem atenção**:
 
-- **Para conferir**: a IA deixou um aviso sobre o campo (data não
+- **Leitura da IA**: a IA deixou um aviso sobre o campo (data não
   reconhecida, opção desconhecida, mais de um CID…), mostrado logo abaixo
   dele;
 - **Não encontrado no documento**: o nome do acidentado ou a data do
@@ -101,10 +116,13 @@ No rodapé:
 - **Pular** deixa a CAT para depois, sem salvar nada;
 - **Marcar pendência** anota o que falta resolver (página ilegível, dado a
   pedir à empresa). A CAT continua sem conferência, com o selo **Com
-  pendência** na listagem e o motivo no alerta dela. Ao validar, a pendência
+  pendência** na listagem e o motivo no alerta dela, e sai da sua vez na fila.
+  Os campos editados naquela tela **não são salvos**. Ao validar, a pendência
   sai.
 
-O topo mostra a posição (**CAT X de N**) e quantas já foram conferidas.
+O topo mostra a posição (**CAT X de N**), quantas já foram conferidas e os botões
+**Anterior** e **Próxima**. Numa CAT já conferida, o botão principal vira **Salvar
+e ir para a próxima**.
 
 <Aviso tipo="atencao" titulo="A IA erra">
   CBO, datas e códigos são os campos em que a leitura mais erra. Uma CAT sem
@@ -137,17 +155,33 @@ o que já está na base e precisa de tratamento:
 
 Em cada grupo, marque a CAT que **fica** (ou a **de origem**) e escolha:
 **É a mesma CAT: manter a marcada** (as outras viram cópia descartada), **É
-atualização: ligar à marcada como origem**, ou **Não é duplicidade** (o grupo
-sai da lista). Descartar **não apaga nada**: a cópia sai das listas, do painel
-e da exportação e pode ser **restaurada** na página da CAT que ficou.
+atualização: ligar à marcada como origem**, ou **Não é duplicidade** (**Não é
+atualização**, nos grupos de atualização): o sistema pergunta o motivo, você
+**Confirma** e o grupo sai da lista. Descartar **não apaga nada**: a cópia sai das
+listas, do painel e da exportação e pode ser **restaurada** na página da CAT que
+ficou.
+
+A tela filtra por tipo de caso e busca por acidentado ou número. A varredura fica
+guardada por 10 minutos, e a própria tela mostra quando foi a última.
 
 <Print src="saude/cat-duplicidades.png" alt="Duplicidades e atualizações: contagem por tipo (mesmo número, atualização sem vínculo, mesmo acidentado e data) e um cartão por grupo, com as CATs lado a lado, a escolha da CAT que fica ou da de origem e os botões É a mesma CAT, É atualização e Não é duplicidade." legenda="Cada grupo: marque a CAT que fica (ou a de origem) e escolha o que fazer." />
 
+## Ligar a CAT ao filiado
+
+Na página da CAT, o cartão **Filiado vinculado** liga a CAT ao cadastro do
+filiado. O vínculo é **manual**: busque o filiado ou, quando a CAT traz o CPF,
+use a sugestão das filiações ativas com aquele CPF. Quem tem só **Atendimentos**
+não altera o vínculo.
+
+<Aviso tipo="atencao" titulo="O vínculo aparece para o filiado">
+  A CAT ligada aparece na área de saúde do portal do filiado, com a data do
+  acidente, o número e a empresa. Confira a pessoa antes de vincular.
+</Aviso>
+
 <Aviso tipo="atencao" titulo="Dados históricos com limitações">
   Parte das CATs migradas veio com a **descrição truncada** e **sem código**
-  (limitação da base anterior), e quase nenhuma traz o **CPF** — por isso ainda
-  não há ligação automática entre CAT e filiado. Esses registros ficam
-  **sinalizados** na listagem.
+  (limitação da base anterior), e quase nenhuma traz o **CPF**. As truncadas ficam
+  **sinalizadas** na listagem e reunidas no filtro **Sem código (revisar)**.
 </Aviso>
 
 ## Erros comuns
@@ -159,8 +193,15 @@ e da exportação e pode ser **restaurada** na página da CAT que ficou.
 - **"O sistema diz que a CAT já foi lançada, mas o acidentado é outro."** O
   número provavelmente foi digitado errado em uma das duas — confira o
   formulário original antes de salvar.
-- **"A CAT não aparece ligada ao filiado."** Registros antigos vieram **sem
-  CPF**; a ligação automática depende desse dado.
+- **"A importação recusou um número que já existe."** Número de CAT já lançado
+  também recusa o arquivo inteiro. Tire a linha e reenvie.
+- **"A CAT não aparece ligada ao filiado."** A ligação é manual, no cartão
+  **Filiado vinculado** da página da CAT. Registros antigos vieram **sem CPF**, e
+  nesses não há sugestão: busque o filiado.
+- **"Não aparece o botão Conferir em fila."** Ele só aparece quando há CAT sem
+  conferência e para quem tem **CATs** ou **Gestão de saúde**.
+- **"Validar não funciona na fila."** Sem o nome do acidentado e a data do
+  acidente, a CAT não é validada. Preencha os dois ou use **Marcar pendência**.
 - **"Um mesmo tipo/município aparece escrito de várias formas."** São grafias
   da base antiga; o painel agrupa as variações para os indicadores.
 

@@ -17,11 +17,13 @@ arquivo, ao lado da engrenagem da configuração. Também se chega por **Filiado
 
 <PassoAPasso>
   <Passo titulo="Envie a lista">
-    Planilha (XLSX, XLS), CSV ou TXT, PDF (com texto ou escaneado) ou foto
-    (JPG, PNG, WebP), até 25 MB (foto e PDF escaneado: 20 MB) e 3.000
+    Planilha (XLSX, XLS, ODS), CSV ou TXT, PDF (com texto ou escaneado) ou foto
+    (JPG, PNG, WebP, GIF), até 25 MB (foto e PDF escaneado: 20 MB) e 3.000
     trabalhadores por arquivo. Escolha a **fonte pagadora** da lista sempre
     que puder: com ela, a busca também usa a matrícula, os dados do emprego
-    entram no vínculo e quem não for encontrado pode ser cadastrado.
+    entram no vínculo e quem não for encontrado pode ser cadastrado. Na opção **Sem
+    fonte — só dados pessoais**, nada disso acontece. Depois, clique em **Ler a
+    lista**.
   </Passo>
   <Passo titulo="A IA lê, o sistema padroniza">
     A leitura roda em **segundo plano**: a tela da lista mostra o andamento e
@@ -31,7 +33,8 @@ arquivo, ao lado da engrenagem da configuração. Também se chega por **Filiado
     padroniza: CPF conferido, datas num formato só, telefone com DDD, e-mail
     em minúsculas, nome em maiúsculas virando "Maria das Dores", regime e
     condição na fonte encaixados nas listas do sistema. Valor fora do padrão
-    é ignorado (o resto da linha segue) e contado num aviso.
+    é ignorado (o resto da linha segue) e contado num aviso. O que não pôde ser
+    aproveitado fica em **Linhas descartadas**, com o motivo de cada uma.
   </Passo>
   <Passo titulo="Quem tem cadastro">
     Pelo **CPF**; sem CPF que case, pela **matrícula na fonte**; sem nenhum
@@ -46,7 +49,9 @@ arquivo, ao lado da engrenagem da configuração. Também se chega por **Filiado
     **Troca de valor** e pessoa achada **só pelo nome** vêm **desmarcadas**:
     confira e marque o que quiser trocar. Os botões **Só completar vazios**,
     **Marcar tudo** e **Desmarcar tudo** ajudam em listas grandes, e os
-    filtros mostram só as trocas ou só as sugestões pelo nome.
+    filtros **Com troca de valor** e **Sugestões pelo nome** mostram só esses casos.
+    No topo, os números dão os trabalhadores lidos, quantos têm algo a atualizar, os
+    não encontrados e os descartados.
   </Passo>
   <Passo titulo="Aplique">
     **Aplicar os marcados** grava e põe uma anotação no **prontuário** de cada
@@ -56,11 +61,17 @@ arquivo, ao lado da engrenagem da configuração. Também se chega por **Filiado
   <Passo titulo="Cadastre os não encontrados, se quiser">
     Depois de aplicar, a tela pergunta se você deseja cadastrar quem está na
     lista e não tem cadastro. Nada vem marcado: a lista da empresa traz também
-    quem **não é filiado**. Marque as pessoas, escolha a **condição sindical**
-    dos novos cadastros e clique em **Cadastrar**. Cada uma ganha um cadastro
-    com os dados da lista e um vínculo em aberto na fonte.
+    quem **não é filiado**. Marque as pessoas (ou **Marcar todos**), escolha a
+    **Condição dos novos cadastros** e clique em **Cadastrar**. Até 500 por vez.
+    Cada uma ganha um cadastro com os dados da lista e um vínculo em aberto na fonte.
+    A opção só aparece em lista enviada **com fonte pagadora**.
   </Passo>
 </PassoAPasso>
+
+<Aviso tipo="atencao" titulo="A condição dos novos vem como Ativo">
+  Quem não é filiado não pode virar Ativo por engano: troque a condição antes de
+  cadastrar, ou marque só quem é filiado de fato.
+</Aviso>
 
 <Print src="filiados/atualizar-por-lista-lendo.png" alt="Tela da lista enquanto a IA lê: a marca Lendo… ao lado do nome do arquivo, a barra de andamento e o aviso de que dá para sair e voltar depois." legenda="Enquanto a IA lê, a tela mostra o andamento e troca sozinha para a prévia." />
 
@@ -86,12 +97,13 @@ arquivo, ao lado da engrenagem da configuração. Também se chega por **Filiado
 
 ## Desfazer um lote
 
-A lista estava errada? Abra o lote em **Listas enviadas** e clique em
-**Desfazer o lote**. Cada campo volta ao valor que tinha antes — menos os que
+A lista estava errada? Abra o lote em **Listas enviadas**, que mostra as 30 mais
+recentes, e clique em **Desfazer o lote**. Cada campo volta ao valor que tinha antes — menos os que
 alguém alterou depois do lote, que ficam como estão. O prontuário registra o
 desfazer. Cadastros criados a partir da lista **não** são apagados.
 
-Uma prévia que você não quer aplicar pode ser **descartada**: nada foi gravado.
+Uma prévia que você não quer aplicar pode ser descartada em **Descartar a prévia**:
+nada foi gravado.
 
 ## Erros comuns
 
@@ -107,6 +119,12 @@ Uma prévia que você não quer aplicar pode ser **descartada**: nada foi gravad
 - **Pessoas "sem vínculo em aberto nesta fonte".** Foram encontradas, mas não
   têm vínculo aberto na fonte escolhida: só os dados pessoais delas entram.
   Confira o histórico de filiação.
+- **"Para cadastrar quem não foi encontrado, envie a lista com a fonte pagadora
+  escolhida."** A lista foi enviada sem fonte: não há onde abrir o vínculo. Envie de
+  novo, com a fonte.
+- **Os não encontrados aparecem, mas sem a opção de cadastrar.** Ela só aparece depois
+  de aplicar. Em lista onde ninguém tem algo a atualizar, a tela não oferece o
+  **Aplicar os marcados**: cadastre essas pessoas em **Nova filiação**.
 
 <VejaTambem
   links={[

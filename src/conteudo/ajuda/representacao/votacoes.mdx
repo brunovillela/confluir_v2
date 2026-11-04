@@ -13,17 +13,22 @@ a contagem única dos votos.
 
 ## O painel de Votações
 
-A página inicial de Votações é um **painel geral** (desde 17/10/2026):
+A página inicial de Votações é um **painel geral**. No alto ficam **Entrega das
+votações** e **Nova campanha**. Abaixo:
 
 - **Indicadores** — em votação agora, abrem em 7 dias, rodadas em curso,
   campanhas abertas, participação média das últimas 5 votações e aptos sem link
   pessoal a 48 h da abertura.
-- **Alertas** — cada um com o atalho para resolver: aptos sem link, pessoas
+- **Alertas** — cada um com o atalho para resolver: aptos sem link, link pessoal
+  que não está sendo usado, e-mail da empresa que não chega a quem vota, pessoas
   repetidas na lista, rodada perto de abrir sem perguntas, aptos ou assembleia,
-  envio automático dos links desligado a 72 h da abertura, apuração não
-  encerrada e voto em separado sem decisão.
+  campanha com votação marcada sem fonte pagadora, envio automático dos links
+  desligado a 72 h da abertura, apuração não encerrada e voto em separado sem
+  decisão. O histórico migrado de outro sistema não gera alerta.
 - **Agora e a seguir** — as assembleias em votação e as dos próximos 7 dias,
   com contagem regressiva e a participação ao vivo (nunca o resultado).
+- **Link único de votação** — o endereço para divulgar, com **Copiar link
+  único** (veja abaixo).
 - **Fontes pagadoras com campanhas** — busca por fonte, CNPJ ou tema de
   campanha, filtros de grupo empresarial, situação, ano e "votação em 7 dias",
   e ordenação clicando no título de cada coluna — fonte, campanhas, próxima
@@ -48,18 +53,19 @@ A página inicial de Votações é um **painel geral** (desde 17/10/2026):
 <PassoAPasso>
   <Passo titulo="Fonte pagadora">
     A empresa (ou as empresas) da negociação. A página da fonte mostra todas as
-    campanhas dela — inclusive as compartilhadas com outras fontes —, os
-    indicadores, a **participação rodada a rodada** e os atalhos para a ficha do
-    empregador e os acordos coletivos.
+    campanhas dela — inclusive as compartilhadas com outras fontes —, com filtros
+    (Todas, Abertas, Finalizadas e ano), os indicadores, a **participação rodada
+    a rodada** e os atalhos **Ficha do empregador** e **Acordos coletivos**.
   </Passo>
   <Passo titulo="Campanha">
     O tema geral (ex.: uma pauta de negociação). A página mostra a **linha do
-    tempo das rodadas** — situação, participação e resultado de cada uma — e o
-    que pede atenção agora.
+    tempo das rodadas** — situação, participação e resultado de cada uma —, o
+    que pede atenção agora e os dados da campanha, em **Editar campanha**.
   </Passo>
   <Passo titulo="Rodada">
-    Um ciclo dentro da campanha. É na rodada que vivem as **perguntas** e a lista
-    de **aptos** a votar.
+    Um ciclo dentro da campanha, em abas: **Visão geral** (as assembleias),
+    **Aptos**, **Perguntas** e **Divulgação** (pré-cadastro, teste de entrega,
+    aviso por e-mail, dados da rodada e guarda dos contatos).
   </Passo>
   <Passo titulo="Assembleias">
     Os encontros da rodada — por local/data — onde o voto acontece. Cada uma tem
@@ -76,11 +82,51 @@ A página inicial de Votações é um **painel geral** (desde 17/10/2026):
   contado uma vez só.
 </Aviso>
 
+## Montar uma votação
+
+<PassoAPasso>
+  <Passo titulo="Nova campanha">
+    Informe o **Tema** e marque ao menos uma **fonte pagadora**. Na edição há
+    também **Campanha finalizada**.
+  </Passo>
+  <Passo titulo="Nova rodada">
+    Na página da campanha: **Nome da rodada** (obrigatório), início e término do
+    período, descrição e, se for o caso, a cláusula de
+    [filiação coletiva](/painel/ajuda/representacao/filiacao-coletiva).
+  </Passo>
+  <Passo titulo="Perguntas">
+    Na aba **Perguntas**, **Nova pergunta** pede o texto, a ordem e as **opções
+    de resposta, uma por linha**. Sem ao menos uma pergunta com opções, o sistema
+    não deixa criar assembleia.
+  </Passo>
+  <Passo titulo="Aptos">
+    Na aba **Aptos**, importe a planilha ou cadastre um a um (veja abaixo).
+  </Passo>
+  <Passo titulo="Nova assembleia">
+    Na aba **Visão geral**: nome, início, término e horas, descrição, modalidade,
+    **Voto em separado** (só com urnas), **Somente filiados** e, se houver,
+    **Assembleia virtual**.
+  </Passo>
+  <Passo titulo="Divulgação">
+    Na aba **Divulgação**, avise os aptos e divulgue o link (veja abaixo). Com
+    urnas, siga para **Urnas e mesários**.
+  </Passo>
+</PassoAPasso>
+
+Em **Dados da rodada**, na aba **Divulgação**, **Editar** muda nome, período e
+descrição, anexa o **edital** (PDF), o **card gráfico** (imagem ou PDF) e o
+**vídeo indicativo** e marca a cláusula de filiação coletiva.
+
+<Aviso tipo="atencao" titulo="Não encerre a apuração pelos dados da rodada">
+  O interruptor **Apuração encerrada**, em **Dados da rodada**, não congela o
+  resultado, não calcula o hash nem registra nada no livro da apuração. Encerre
+  sempre pela aba **Apuração** de cada assembleia.
+</Aviso>
+
 ## Pleito interno × assembleia da categoria
 
 Ao criar ou editar a assembleia há o marcador **Somente filiados**, ao lado de
-"Voto em separado". Ele separa duas coisas que o sistema não tinha como
-distinguir:
+"Voto em separado". Ele separa duas situações:
 
 - **Desmarcado** — assembleia da **categoria**: vota toda a base apta, filiada
   ou não. É o caso da maioria (campanha salarial, ACT).
@@ -97,10 +143,10 @@ distinguir:
 
 ## Aptos e voto
 
-Quem pode votar é definido na **rodada**, e a **situação da filiação** entra
-aqui: um associado precisa estar **apto** para votar. O voto efetivo é
-registrado no sistema, o que **evita duplicidade** (a mesma pessoa não vota duas
-vezes, mesmo participando de assembleias diferentes da rodada).
+Quem pode votar é definido na **lista de aptos da rodada**. A filiação só entra
+na conta quando a assembleia está marcada como **Somente filiados**. O voto
+efetivo é registrado no sistema, o que **evita duplicidade** (a mesma pessoa não
+vota duas vezes, mesmo participando de assembleias diferentes da rodada).
 
 A cédula em si é uma **tela pública** que o votante acessa para se identificar e
 votar — ver [Votação pública](/painel/ajuda/fluxos-publicos/votacao).
@@ -113,25 +159,29 @@ votar — ver [Votação pública](/painel/ajuda/fluxos-publicos/votacao).
 
 ## Lista de aptos: importar, cadastrar e conferir
 
-Na página da rodada ficam os aptos a votar.
+Os aptos a votar ficam na aba **Aptos** da rodada, com busca por nome ou CPF e os
+filtros **Todos**, **Já votou** e **Não votou**.
 
 <PassoAPasso>
   <Passo titulo="Baixe a planilha modelo">
     Em **Importar aptos (CSV)**, clique em **Baixar planilha modelo**. Ela já vem
-    com as colunas `cpf`, `nome`, `matricula` e `email` e abre direto no Excel.
-    As linhas de exemplo começam com "EXEMPLO" no nome — apague-as ou deixe:
-    são ignoradas na importação.
+    com as colunas `cpf`, `nome`, `matricula`, `email` e `telefone` e abre direto
+    no Excel. O telefone é opcional e serve para mandar o link por WhatsApp ou
+    Telegram. As linhas de exemplo começam com "EXEMPLO" no nome — apague-as ou
+    deixe: são ignoradas na importação.
   </Passo>
   <Passo titulo="Preencha e importe">
-    Basta uma coluna que identifique a pessoa. O **CPF é opcional** — as empresas
-    não o enviam por causa da LGPD; o eleitor informa no primeiro acesso. Salve
-    em CSV e escolha o arquivo em **Importar**. CPF que já é apto na rodada é
-    ignorado; o resumo mostra quantos entraram, quantos foram ignorados e as
-    linhas com erro. Limite de 20.000 linhas por arquivo.
+    A planilha precisa de ao menos uma coluna de identificação: `cpf`, `nome` ou
+    `matricula`. O **CPF é opcional** — as empresas não o enviam por causa da
+    LGPD; o eleitor informa no primeiro acesso. Salve em CSV e escolha o arquivo
+    em **Importar**. CPF que já é apto na rodada é ignorado; o resumo mostra
+    quantos entraram, quantos foram ignorados e as linhas com erro. Limite de
+    20.000 linhas por arquivo.
   </Passo>
   <Passo titulo="Cadastre ou corrija um a um">
-    **Novo eleitor** cadastra uma pessoa só (nome e e-mail já bastam). O lápis
-    de cada apto corrige os dados. E-mail repetido na rodada é recusado.
+    **Novo eleitor** cadastra uma pessoa só: basta o e-mail, a matrícula, o nome
+    ou o CPF. O lápis de cada apto corrige os dados. E-mail repetido na rodada é
+    recusado.
   </Passo>
   <Passo titulo="Confira os conflitos">
     O aviso **CPF em conflito** aparece quando alguém que entrou pelo e-mail
@@ -146,8 +196,7 @@ Na página da rodada ficam os aptos a votar.
 Quando a mesma pessoa aparece mais de uma vez na lista — mesmo CPF, ou mesmo
 e-mail sem CPFs diferentes —, a página da rodada avisa: **"N pessoas aparecem
 mais de uma vez na lista"**. O voto de uma linha marca as outras, e a
-participação passa a contar linhas em vez de pessoas (na SLB, 703 "votaram"
-para 692 votos).
+participação passa a contar linhas em vez de pessoas.
 
 Em **Ver e unificar**, cada pessoa mostra a linha que **fica** (a que votou, tem
 comprovante, CPF ou recebeu o link) e as que **saem**. **Unificar** apaga as
@@ -155,9 +204,8 @@ repetidas e completa a que fica com o que só elas tinham (CPF, matrícula,
 e-mail, telefone). Uma repetida com comprovante de votação próprio fica, para o
 código continuar valendo.
 
-A **importação** também passou a ignorar a linha sem CPF cujo e-mail e nome já
-estão na rodada (ou no próprio arquivo) — era assim que a lista da SLB vinha
-repetida.
+A **importação** também ignora a linha sem CPF cujo e-mail e nome já estão na
+rodada ou no próprio arquivo.
 
 ### Excluir vários aptos de uma vez
 
@@ -177,15 +225,16 @@ importada errada. Antes de remover, o sistema pede confirmação.
 ### Avisar os aptos por e-mail
 
 Com a lista pronta e ao menos uma assembleia cadastrada, o cartão **Aviso por
-e-mail aos aptos** manda a cada pessoa o e-mail "Você está habilitado a votar",
-na identidade visual do Confluir: nome da rodada, período, onde votar, o botão
-**Ir para a votação** e o passo a passo.
+e-mail aos aptos**, na aba **Divulgação** da rodada, manda a cada pessoa o e-mail
+"Você está habilitado a votar", na identidade visual do Confluir: nome da rodada,
+período, onde votar, o botão **Ir para a votação** e o passo a passo. Com o
+período da rodada terminado, o envio fica bloqueado.
 
-O botão desse e-mail é um **link pessoal**: abre a cédula direto, sem código.
-Ele existe porque o código por e-mail chega mal em algumas caixas — em 22/09
-nenhum dos códigos mandados para Hotmail/Outlook chegou, enquanto o e-mail do
-aviso chegou. O e-mail também diz de quem é o link e traz **Não sou eu**, para
-quem recebeu por causa de um endereço cadastrado errado.
+O botão desse e-mail é um **link pessoal**: abre a cédula direto, sem código,
+porque o código por e-mail chega mal em algumas caixas. O e-mail também diz de
+quem é o link e traz **Não sou eu**, para quem recebeu por causa de um endereço
+cadastrado errado. Quem cadastrou um e-mail pessoal ou o Telegram no link único
+recebe o link também por lá.
 
 <PassoAPasso>
   <Passo titulo="Confira com um teste">
@@ -193,15 +242,18 @@ quem recebeu por causa de um endereço cadastrado errado.
     ver como ele chega.
   </Passo>
   <Passo titulo="Envie">
-    **Avisar N aptos** envia em lotes, com barra de progresso. Mantenha a página
-    aberta; se fechar ou clicar em **Parar**, o próximo clique continua de onde
-    parou, sem repetir ninguém.
+    **Avisar N apto(s)** envia em lotes, com barra de progresso. Mantenha a
+    página aberta; se fechar ou clicar em **Parar**, o próximo clique continua de
+    onde parou, sem repetir ninguém.
   </Passo>
   <Passo titulo="Acompanhe">
     Os números mostram **avisados**, **pendentes**, **sem e-mail** (sem e-mail
     corporativo nem filiado com e-mail), **e-mail repetido** (o mesmo endereço já
     recebeu por outro apto) e **falhas** — estas voltam para a fila em **Tentar
-    de novo as falhas**.
+    de novo as falhas**. O quadro **Na Brevo** mostra entregues, abertos por
+    gente, abertos só pelo robô de segurança da empresa e endereços rejeitados:
+    muita entrega com clique só do robô quer dizer que o e-mail chega ao servidor,
+    mas não a quem vota. Endereço rejeitado conta como sem link.
   </Passo>
 </PassoAPasso>
 
@@ -220,32 +272,40 @@ que o reenvio não apaga — base para saber quantos receberam o link antes da
 abertura.
 
 Quem entrar na lista depois do envio aparece como **pendente** e recebe só o
-dele no próximo clique. **Reenviar a quem não votou** devolve à fila só quem
-falta votar — é o botão do meio da votação. **Reenviar para todos** manda um
-lembrete à lista inteira. O e-mail vai para o e-mail corporativo da lista; sem
-ele, para o e-mail do filiado dono do CPF.
+dele no próximo clique. O e-mail vai para o e-mail corporativo da lista; sem ele,
+para o e-mail do filiado dono do CPF.
+
+Os botões de reenvio **só devolvem as pessoas à fila**. O envio acontece quando
+alguém clica em **Avisar pendentes** ou quando o envio automático passa:
+
+- **Reenviar a quem não votou** — só quem falta votar. É o botão do meio da
+  votação.
+- **Reenviar só pelo e-mail pessoal e Telegram** — só quem não votou e tem esse
+  contato, sem repetir o e-mail da empresa.
+- **Reenviar para todos** — a lista inteira, como lembrete.
+
+Quem já recebeu e voltou à fila continua com o link valendo. O quadro **Quem
+mexeu nos avisos** registra quem enviou, reenviou ou mudou o envio automático,
+com data e quantidade.
 
 ### Aptos sem link pessoal
 
 O link pessoal é o que livra o eleitor do código por e-mail, que o firewall da
-empresa costuma barrar. Na assembleia da SLB (14/10), em que todos os aptos
-receberam o link, 79% votaram por ele e quase ninguém reclamou de código; na da
-Baker (07/10), só 20% tinham recebido o link.
-
-Por isso, numa rodada com voto pela internet ainda por abrir ou aberta, o
-sistema avisa quem ainda **não votou e está sem o link**: aviso ainda não
+empresa costuma barrar. Por isso, numa rodada com voto pela internet ainda por
+abrir ou aberta, o sistema avisa quem ainda **não votou e está sem o link**: aviso ainda não
 enviado, **sem e-mail** ou **falha no envio**. ("E-mail repetido" não conta: o
 mesmo endereço já recebeu o link por outro apto.)
 
 - **Alerta no topo da rodada** — "N aptos ainda sem link pessoal de voto", com
   a data de abertura. Fica **âmbar** a 48 h da abertura e **vermelho** a 24 h ou
-  com a votação aberta. Traz **Ir para o envio**, **Ver quem está sem link** e
-  **Baixar os links (planilha)**.
+  com a votação aberta. Traz **Ver quem está sem link**, **Baixar os links
+  (planilha)** e, quando há pendentes ou falhas, **Ir para o envio**.
 - **Filtros na lista de aptos** — em **Link pessoal**: Sem link, Sem e-mail,
   Falha no envio e E-mail repetido. Na linha de quem ainda não votou, um selo
-  diz o que falta.
-- **Selo nas listas** — "N sem link" na campanha (por rodada) e na lista de
-  Votações (por campanha).
+  diz o que falta: **Link não enviado**, **Sem e-mail**, **Falha no envio** ou
+  **Endereço rejeitado**.
+- **Selo nas listas** — "N sem link" na página da campanha (por rodada) e na da
+  fonte pagadora (por campanha).
 - **Caixa de entrada do painel** — com a votação aberta ou abrindo em até 48 h,
   entra a pendência **Aptos sem link pessoal de voto** para quem cuida das
   votações. Vai também no lembrete diário de pendências, para quem o ligou em
@@ -255,10 +315,54 @@ A **planilha** traz nome, CPF, matrícula, telefone, situação e o link pessoal
 cada um: serve para distribuir por WhatsApp, delegados ou na portaria a quem não
 tem e-mail. Cada link vota por aquela pessoa — trate a planilha como sigilosa.
 
+### Pré-cadastro e kit de divulgação
+
+Na aba **Divulgação**, o cartão **Pré-cadastro e divulgação** leva os aptos ao
+link único antes da abertura. Quem se cadastra pelo Telegram ou com um e-mail
+pessoal recebe ali o link pessoal e não depende do e-mail da empresa nem de
+código no dia. A lista de aptos precisa estar importada, para o cadastro achar a
+pessoa.
+
+- **Pré-cadastrados** — quantos dos aptos, por Telegram e por e-mail pessoal. O
+  link sai para eles no envio do aviso (botão ou automático); depois do primeiro
+  envio, quem se cadastrar recebe em até 15 minutos.
+- **Texto para WhatsApp e delegados** — **Copiar texto**, **Abrir no WhatsApp** e
+  **Copiar só o link**. Com a votação aberta, o cartão vira **Divulgação** e o
+  texto traz as dicas do Telegram e do lixo eletrônico.
+- **QR** baixa o QR code do link, e **Cartaz** abre um cartaz A4 para imprimir ou
+  salvar em PDF.
+
+### Teste de entrega
+
+O cartão **Teste de entrega** mede, antes da votação, se o e-mail da empresa
+chega a quem vota. **Enviar aviso prévio (N)** manda um e-mail com o botão
+**Recebi**; em **Envio automático**, ele sai sozinho 3, 5 ou 7 dias antes da
+abertura. Depois que a votação abre, o aviso prévio não é mais enviado.
+
+Abrir o e-mail não conta: só o clique da pessoa no botão da página confirma,
+porque o robô de segurança da empresa abre os links, mas não aperta o botão. A
+taxa de confirmação vale a partir de 24 h do primeiro envio, e o selo do cartão
+diz **Chega**, **Não chega**, **Incerto**, **Medindo** ou **Sem teste**. O cartão
+mostra também como foi nas votações anteriores da mesma empresa. Se quase ninguém
+confirmar, aposte no pré-cadastro e no Telegram.
+
+### Quando o link não chega a quem vota
+
+Dois alertas podem aparecer no topo da rodada e no painel de Votações, ambos com
+**Ir para a divulgação** na rodada:
+
+- **"O e-mail de @empresa não está chegando a quem vota"** — medido no aviso
+  prévio desta rodada ou numa votação anterior da mesma empresa. Divulgue o
+  pré-cadastro antes da abertura.
+- **"O link pessoal não está sendo usado: os votos estão entrando pelo código"** —
+  com a votação aberta, o link foi entregue, mas não chega a quem vota. Reenviar
+  para o mesmo endereço não resolve: na divulgação, oriente a procurar o código
+  também no lixo eletrônico e ofereça a entrada pelo Telegram.
+
 ### Mandar o link por WhatsApp ou Telegram
 
 Quando alguém diz que não recebeu o e-mail, o ícone de **corrente** na linha do
-apto abre o **link de voto** daquela pessoa, com dois botões: copiar o link e
+apto (ou em **Ainda não votaram**, na aba **Votantes** da assembleia) abre o **link de voto** daquela pessoa, com dois botões: copiar o link e
 copiar uma mensagem pronta. Cole onde quiser — WhatsApp, Telegram, SMS.
 
 <Aviso tipo="atencao" titulo="O link vota por aquela pessoa">
@@ -284,8 +388,12 @@ confirmado (ou "pelo Telegram"). É por ali que a pessoa recebe o
 comprovante; quem confirmou pelo Telegram também fica com o telefone no
 registro, quando ele estava vazio.
 
-Tentativas que não conferem deixam o registro com **Conferir cadastro** e o
-motivo começando por "Link único (e-mail)…", para a secretaria olhar.
+Tentativas que não conferem deixam o registro com **CPF em conflito** e o motivo
+começando por "Link único (e-mail)…", para a secretaria olhar.
+
+Assembleia marcada como **Somente filiados** aparece na página, mas não se vota
+por ela: o eleitor é levado à área do filiado ou, com a área desabilitada, ao
+link pessoal do e-mail.
 
 ### Quando o cadastro não confere
 
@@ -295,13 +403,11 @@ precisa olhar":
 - **CPF em conflito** — o CPF informado é de um filiado com outro nome ou
   nascimento, ou já está em outro apto da rodada, ou não bate com o CPF da
   lista na hora da confirmação.
-- **Conferir cadastro** também aparece quando o eleitor é **filiado** e o nome
-  da lista da empresa difere do cadastro da entidade. Nesse caso o voto é
-  liberado pelo cadastro da entidade (é o registro do sindicato, mais
-  confiável) e fica o aviso para a secretaria acertar a lista.
 - **Conferir cadastro** — o eleitor avisou que o **nome da lista está errado**
   (botão "Meu nome está diferente na lista") ou que **o e-mail não é dele**
-  (botão "Não sou eu").
+  (botão "Não sou eu"). Também aparece quando o eleitor é **filiado** e o nome da
+  lista da empresa difere do cadastro da entidade: o voto é liberado pelo cadastro
+  da entidade, e fica o aviso para a secretaria acertar a lista.
 
 Passe o mouse no selo para ver o motivo e, quando houver, o que a pessoa
 declarou. Corrija no lápis da linha: feito isso, quem avisou nome errado volta
@@ -315,9 +421,12 @@ eleitor** (ícone de olho) na linha do apto. A tela de votação dele abre com u
 tarja de **somente leitura**: você vê exatamente o que ele vê — inclusive o
 passo do primeiro acesso, se ainda faltar —, mas os botões que gravam (dados do
 primeiro acesso e voto) ficam desligados. **Sair da visualização** volta para a
-rodada. A visualização dura 30 minutos e exige a permissão de assembleias.
+rodada. A visualização dura 30 minutos e exige a permissão **Votações e
+assembleias**. Ela abre a assembleia do apto ou, se ele está só na rodada, a
+assembleia online dela. Se a tela disser que o apto não está habilitado, confira
+a lista, o período da rodada e se a votação é online.
 
-<Print src="representacao/campanha.png" alt="Página de uma campanha com a trilha Painel › Representação Sindical › Votações › Campanhas, o cartão da campanha no topo e, abaixo, a tabela de rodadas de assembleias." legenda="A página da campanha: a campanha em cima, as rodadas que nascem dela embaixo." />
+<Print src="representacao/campanha.png" alt="Página de uma campanha: a trilha Votações › fonte › campanha, os indicadores de rodadas, aptos, votaram e resultado, a Linha do tempo das rodadas com situação, participação e assembleias de cada uma, o botão Nova rodada e o cartão Campanha com Editar campanha." legenda="A página da campanha: a linha do tempo das rodadas e, ao lado, os dados da campanha." />
 
 ## Como circular entre os níveis
 
@@ -325,12 +434,12 @@ A trilha no alto da tela mostra o **nome** de cada nível, e cada degrau volta
 para o registro de cima:
 
 ```
-Votações › Baker Hughes › ACT 2026/2028 › 2ª rodada › Assembleia online
+Votações › Petro Fictícia › ACT 2026/2028 › 2ª rodada › Assembleia online
 ```
 
 - **O caminho de volta não se perde.** Uma campanha pode ter várias fontes: a
-  fonte de onde você veio acompanha a descida (fica no endereço, `?fonte=`), e
-  a trilha e o botão **←** sobem por ela. Na campanha, os botões das fontes trocam
+  fonte de onde você veio acompanha a descida, e a trilha e o botão **←** sobem
+  por ela. Na campanha, os botões das fontes trocam
   esse contexto.
 - **Abas no endereço.** A rodada (Visão geral, Aptos, Perguntas, Divulgação) e a
   assembleia guardam a aba aberta no endereço: o voltar do navegador e o link
@@ -347,8 +456,9 @@ Cada assembleia tem uma **modalidade**, escolhida ao criá-la:
 
 <PassoAPasso>
   <Passo titulo="Reunião de colaboradores">
-    Encontro presencial na base, com ata assinada. O resultado entra
-    **agregado** na apuração (você digita os números).
+    Encontro presencial na base, com ata assinada. Não há cédula online nem urna,
+    e a aba **Apuração** não tem campo para digitar os números: o resultado fica
+    na ata, em **Anexar ata**.
   </Passo>
   <Passo titulo="Online">
     O eleitor vota pela **área do filiado** ou pelo **ambiente público**
@@ -358,7 +468,7 @@ Cada assembleia tem uma **modalidade**, escolhida ao criá-la:
     Votação no local, com **mesário** e **urnas** — que podem ser **físicas**
     (voto em papel) ou **digitais** (cédula num terminal de votação).
   </Passo>
-  <Passo titulo="Híbrida">
+  <Passo titulo="Híbrida (online + urnas)">
     **Online e presencial com urnas ao mesmo tempo** — quem preferir vota pelo
     sistema; quem for ao local vota na urna. A contagem é única.
   </Passo>
@@ -379,9 +489,11 @@ Três regras protegem a votação de mudanças no meio do caminho:
 - **A assembleia que começou não se edita nem se exclui.** O lápis e a
   lixeira somem quando a janela abre. O que resta é **Prorrogar**: muda só a
   data e a hora do **término**, que precisa ficar depois do término atual e no
-  futuro. Se a nova data passar do fim da rodada, o período da rodada é
-  estendido junto (o diálogo avisa antes). Com a apuração encerrada, reabra-a
-  antes de prorrogar.
+  futuro, e exige um **motivo** de ao menos 5 caracteres. Cada assembleia aceita
+  até **3 prorrogações**, de no máximo **30 dias** cada, e todas ficam no livro
+  da apuração, com o seu nome. Se a nova data passar do fim da rodada, o período
+  da rodada é estendido junto (o diálogo avisa antes). Com a apuração encerrada,
+  reabra-a antes de prorrogar.
 
 A **ata** não depende da edição: o botão **Anexar ata** (ou **Trocar ata**,
 quando já existe uma) fica na linha da assembleia a qualquer momento, inclusive
@@ -391,7 +503,7 @@ A linha de cada assembleia mostra em que pé ela está: **Agendada**, **Em
 votação**, **Encerrada · a apurar** ou **Apuração encerrada**.
 
 <Aviso tipo="nota" titulo="Enquanto nada começou, mexa à vontade">
-  Cadastrar a assembleia não trava mais as perguntas: o que trava é o começo da
+  Cadastrar a assembleia não trava as perguntas: o que trava é o começo da
   votação. Assim dá para montar rodada e assembleias juntas e ainda ajustar o
   texto da consulta até a véspera.
 </Aviso>
@@ -403,10 +515,9 @@ inteiro: 0h às 23h59). A janela abre e fecha a votação online: antes da hora,
 cédula avisa o dia e a hora em que abre e ninguém consegue votar; depois do
 término, a assembleia sai da lista de quem pode votar.
 
-<Aviso tipo="nota" titulo="Por que isso importa">
-  Sem hora, a votação fechava no começo do dia do término — quem deixava para o
-  último dia perdia o voto. Com hora de término (por exemplo, 18:00), o
-  encerramento é o que o edital diz.
+<Aviso tipo="nota" titulo="Confira com o edital">
+  Preencha a hora de término que o edital diz (por exemplo, 18:00). Em branco, a
+  votação fica aberta até 23h59 do dia de término.
 </Aviso>
 
 ### Assembleia virtual
@@ -419,22 +530,27 @@ sala**, a **data** e a **hora**. O link precisa ser o endereço completo
 A sala aparece na linha da assembleia, com **abrir link**, e vai junto no
 **e-mail de aviso aos aptos** (bloco "Assembleia virtual", com **Entrar na sala
 da assembleia**) e na mensagem pronta do link copiável por WhatsApp ou
-Telegram. Dá para incluir ou trocar o link até o fim do período da rodada —
-quem receber o aviso depois disso já recebe o link novo.
+Telegram. O cartão da votação no link único também mostra **Entrar na sala**. O
+link só se inclui ou troca na edição da assembleia, ou seja, **até a assembleia
+começar**; quem receber o aviso depois da troca já recebe o link novo.
 
 ## Presencial com urnas: mesários e terminais
 
-Na página da assembleia, o botão **Urnas e mesários** abre o cadastro:
+Na página da assembleia, a aba **Urnas e mesários** abre o cadastro. Ela só existe
+nas modalidades com urna.
 
 <PassoAPasso>
   <Passo titulo="Cadastre as urnas">
-    Dê um nome, escolha o **tipo** (física ou digital) e defina o **horário**
-    (abertura e fechamento). Fora dessa janela, o mesário não consegue operar a
-    urna.
+    **Nova urna**: dê um nome, escolha o **tipo** (física ou digital) e defina o
+    **horário** (abertura e fechamento). Fora dessa janela, o mesário não consegue
+    operar a urna. Sem horário, a urna fica sempre aberta. Na edição há **Urna
+    ativa**.
   </Passo>
   <Passo titulo="Cadastre os mesários">
-    **Nome completo, CPF e e-mail.** O mesário acessa o ambiente dele em
-    `/mesario` entrando com esse e-mail (recebe um código por e-mail).
+    **Cadastrar mesário**: **nome completo e e-mail** (obrigatórios) e CPF
+    (opcional). O mesário é da **rodada** e acessa o ambiente dele em `/mesario`
+    entrando com esse e-mail (recebe um código por e-mail). Em **Operar urna**, ele
+    trabalha na urna escolhida.
   </Passo>
   <Passo titulo="O mesário registra a PRESENÇA">
     No dia, o mesário busca o eleitor pela lista e registra a **presença** — ele
@@ -449,10 +565,12 @@ Na página da assembleia, o botão **Urnas e mesários** abre o cadastro:
 </PassoAPasso>
 
 <Aviso tipo="nota" titulo="Como parear o terminal de votação (urna digital)">
-  Abra `/urna` no computador de votação e clique em **Iniciar terminal** — ele
-  mostra um **código**. No ambiente do mesário, em **Parear terminal**, digite
-  esse código. A partir daí, cada presença registrada abre a cédula naquele
-  terminal para o eleitor votar.
+  Abra `/urna` no computador de votação e clique em **Iniciar terminal de
+  votação** — ele mostra um **código**. No ambiente do mesário, em **Parear
+  terminal de votação**, digite esse código e clique em **Parear**. Esse quadro só
+  aparece dentro do horário da urna. A partir daí, cada presença registrada abre a
+  cédula naquele terminal para o eleitor votar, uma de cada vez: enquanto houver
+  cédula aberta, a próxima presença é recusada.
 </Aviso>
 
 <Aviso tipo="atencao" titulo="O voto é secreto — inclusive no banco">
@@ -477,13 +595,16 @@ A urna física segue um ritual, com **ata** a cada evento:
   <Passo titulo="Abertura do dia">
     Mesmo dentro do horário, a urna fica **fechada** até a **Abertura do dia**,
     feita com o **primeiro eleitor**, que atesta que o lacre da boca foi
-    **rompido** e **introduzido na urna**. Só então libera as presenças. A
-    primeira abertura de todas gera a ata de **Instalação**; as demais, ata de
-    **Abertura**.
+    **rompido** e **introduzido na urna**. O nome do primeiro eleitor e esse
+    atestado são obrigatórios; o número do lacre, quando informado, já entra no
+    controle de lacres como rompido. Só então libera as presenças. A primeira
+    abertura de todas gera a ata de **Instalação**; as demais, ata de **Abertura**.
   </Passo>
   <Passo titulo="Fechamento do dia">
-    Ao fim do dia, faça o **Fechamento** (lacrando a boca). A presença de um
-    eleitor para atestar é **facultativa**. Gera ata de **Fechamento**.
+    Ao fim do dia, use **Fechar o dia** (lacrando a boca). O número do novo lacre é
+    opcional e, quando informado, entra no controle de lacres como instalado. A
+    presença de um eleitor para atestar é **facultativa**. Gera ata de
+    **Fechamento**.
   </Passo>
   <Passo titulo="Encerramento">
     No último fechamento (prazo esgotado ou urna cheia), use **Encerrar** — gera
@@ -513,7 +634,9 @@ votação pela internet, quem não está na lista não vota (a chave nem aparece
 para assembleia só online).
 
 No ambiente do mesário, em **Voto em separado**, cadastre o eleitor (nome
-completo, CPF, data de nascimento, telefone e e-mail). O sistema mostra na tela
+completo obrigatório; CPF, data de nascimento, telefone e e-mail) e clique em
+**Cadastrar e liberar**. Na urna física, é preciso ter feito a Abertura do dia; na
+digital, ter um terminal pareado e sem cédula aberta. O sistema mostra na tela
 as **orientações do procedimento** (anotações e envelope) e:
 
 <PassoAPasso>
@@ -554,8 +677,8 @@ também só contam os votos válidos.
 
 ## Entrega da votação pela internet
 
-Na **apuração** de uma assembleia com voto pela internet, o cartão **Entrega da
-votação pela internet** mostra, sem nunca tocar no voto:
+Na aba **Visão geral** de uma assembleia com voto pela internet, o cartão **Entrega
+da votação pela internet** mostra, sem nunca tocar no voto:
 
 - **Receberam o link pessoal** — quantos aptos, e quantos antes da abertura.
 - **Votaram sem código** — quem entrou pelo link pessoal, pelo Telegram, pelo
@@ -568,19 +691,28 @@ votação pela internet** mostra, sem nunca tocar no voto:
   votos anteriores aparecem como "não registrado".
 
 O mesmo bloco pode entrar no **relatório completo** (seção "Entrega da votação
-pela internet"), e a relação de votantes passa a dizer o canal de cada um. Em
-**Votações → Entrega das votações**, as últimas assembleias aparecem lado a
-lado, para comparar uma com a outra.
+pela internet"), e a relação de votantes diz o canal de cada um. Em **Comparar
+assembleias**, no cartão, ou em **Votações → Entrega das votações**, as últimas 12
+assembleias aparecem lado a lado, para comparar uma com a outra.
 
 ## Acompanhamento e lacres
 
-- **Acompanhar** (hoje, as abas **Votantes** e **Urnas e mesários** da assembleia): veja **quem já votou**, os **votos por
-  urna**, os **lacres usados por dia** e a **lista** de votos em separado — sem
-  nunca mostrar o conteúdo do voto.
-- **Lacres** (em cada urna, na página de Urnas e mesários): controle por
+- **Aba Visão geral**: as informações, a contagem regressiva e **Votos ao longo do
+  tempo**, com quantos votaram em cada faixa de horário, para marcar lembretes.
+- **Aba Votantes**: **Votaram** (por onde e quando) e **Ainda não votaram** (com o
+  link pessoal), com busca por nome, CPF ou matrícula. Depois do término, **Relação
+  em PDF**.
+- **Aba Urnas e mesários**: os **votos por urna**, os **lacres por dia** e a
+  **lista** de votos em separado — sem nunca mostrar o conteúdo do voto.
+- **Lacres** (em cada urna, na mesma aba, em **Registrar lacre**): controle por
   **número de série** dos dois lacres — o da **boca** (onde entram as cédulas) e
-  o **principal** (abertura total). Registre instalação e rompimento; o lacre
-  rompido é guardado dentro da urna e isso fica anotado.
+  o **principal** (abertura total). Registre o evento (instalado ou rompido),
+  a data e a hora e se o lacre rompido foi guardado dentro da urna.
+
+<Aviso tipo="atencao" titulo="Registro de lacre não se apaga">
+  Lançou errado? **Anular** pede um motivo de ao menos 5 caracteres. O registro
+  continua no histórico, riscado, com o motivo.
+</Aviso>
 
 <Aviso tipo="nota" titulo="Rotina dos lacres">
   A **principal** é lacrada no primeiro uso e só rompe na apuração. A **boca** é
@@ -590,22 +722,32 @@ lado, para comparar uma com a outra.
 
 ## Apurador
 
-Cadastre apuradores em **Urnas e mesários** (nome, CPF e e-mail) e **atribua**
-uma ou mais urnas a cada um (no cartão da urna). O apurador acessa `/apurador`
-pelo e-mail (código por e-mail) e, para cada urna:
+Cadastre apuradores em **Urnas e mesários** (nome e e-mail obrigatórios, CPF
+opcional) e **atribua** uma ou mais urnas a cada um: no cartão da urna, escolha o
+apurador e clique em **Atribuir**. Cada urna tem um apurador. O apurador acessa
+`/apurador` pelo e-mail (código por e-mail) e, em **Apurar urna**:
 
 <PassoAPasso>
   <Passo titulo="Abre e atesta os lacres">
-    Confere os lacres recebidos e **atesta a integridade** antes de começar.
+    Confere os lacres recebidos, marca o atestado de que recebeu a urna com os
+    lacres íntegros e clica em **Abrir urna e iniciar apuração**. Só dá para
+    começar depois que o mesário encerra a urna ou que a votação da assembleia
+    acaba.
   </Passo>
   <Passo titulo="Conta os votos">
     Lança a contagem **por opção** cadastrada na rodada, mais **branco** e
-    **nulo**.
+    **nulo**, e clica em **Salvar contagem**.
   </Passo>
   <Passo titulo="Conclui">
-    Ao concluir, os números da urna entram no **resultado final** da assembleia.
+    **Concluir apuração da urna**: os números entram no **resultado final** da
+    assembleia. Salve antes: depois de concluída, a contagem não muda mais.
   </Passo>
 </PassoAPasso>
+
+<Aviso tipo="atencao" titulo="Lacre com problema: ressalva, não atestado">
+  Sem marcar o atestado, o apurador só abre a urna descrevendo em **Observação** o
+  que encontrou, com ao menos 10 caracteres. A ressalva fica no livro da apuração.
+</Aviso>
 
 ## Comprovante de votação
 
@@ -631,24 +773,54 @@ são as cadastradas na rodada — não há resposta fixa), somando os votos
 **digitais/online** e o que os **apuradores** lançaram nas urnas físicas, com
 **branco** e **nulo**. O botão só fica liberado **depois do término da
 assembleia** (antes disso aparece apagado, com a data em que abre) — nada de
-resultado parcial. Ao **encerrar**, o resultado é congelado e liberado ao
-filiado em **Minhas votações**.
+resultado parcial.
+
+### Encerrar e reabrir
+
+**Encerrar apuração**, no cartão **Resultado e fechamento**, congela o resultado,
+libera-o ao filiado em **Minhas votações**, avisa quem votou, calcula o hash e roda
+a conferência da votação. O sistema recusa o encerramento se houver voto em
+separado sem decisão.
+
+**Reabrir apuração** exige um **motivo** de ao menos 5 caracteres. Ele fica no
+livro da apuração, com o seu nome, a hora e o resultado que deixa de valer, e não
+se apaga. A decisão dos votos em separado continua definitiva.
+
+### Integridade do resultado
+
+Depois do encerramento, o cartão **Integridade do resultado** mostra:
+
+- **Hash do resultado (SHA-256)** — com o selo que diz se ele confere com o
+  resultado congelado. **Ver o texto que o hash cobre** abre o texto exato, para
+  qualquer pessoa recalcular e comparar. O mesmo hash sai no relatório oficial e
+  na área do filiado, em **Minhas votações**.
+- **Conferência no encerramento** — as verificações automáticas da votação, com
+  **tudo OK** ou **há falha**. São só números: nenhum nome, CPF ou voto.
+- **Livro da apuração** — encerramentos, reaberturas, prorrogações e ressalvas de
+  lacre, com quem fez, quando e o motivo. O sistema só acrescenta linhas: não há
+  como alterar nem apagar.
+
+<Aviso tipo="atencao" titulo="Selo 'não confere' ou conferência com falha">
+  A tela mostra qual verificação falhou. Apure a causa com quem administra o
+  sistema antes de divulgar o resultado.
+</Aviso>
 
 ### Relatórios da votação online
 
-Nas assembleias **online** e **híbridas**, a apuração traz o cartão
-**Relatórios**, em PDF:
+Nas assembleias **online** e **híbridas**, depois do término, a apuração traz o
+cartão **Relatórios**, em PDF:
 
 - **Relação dos votantes** — quem votou, com CPF, matrícula, canal e horário.
   Registra a participação, nunca o voto.
 - **Informações e resultado** — dados da assembleia, comparecimento e o
   resultado por pergunta.
 - **Relatório completo** — abre um formulário para marcar o que entra:
-  informações, comparecimento, resultado, perguntas e opções, votantes, votos
-  em separado e (na híbrida) comparecimento por urna.
+  informações, comparecimento, resultado, perguntas e opções, votantes, entrega
+  da votação pela internet, votos em separado e (na híbrida) comparecimento por
+  urna.
 
 Enquanto a apuração não for encerrada, o PDF indica que o resultado é
-provisório.
+provisório. Encerrada, o PDF traz o hash do resultado.
 
 <Aviso tipo="nota" titulo="Rodada com várias assembleias">
   O apto vota uma vez na rodada, em qualquer assembleia dela. Quando a rodada
@@ -663,8 +835,9 @@ provisório.
 
 ## Erros comuns
 
-- **"Um associado não consegue votar."** Verifique se ele está **apto** na
-  rodada — a situação da filiação define a aptidão.
+- **"Um associado não consegue votar."** Verifique se ele está na **lista de
+  aptos** da rodada. Em assembleia **Somente filiados**, confira também a filiação
+  e a carência. **Visualizar área do eleitor** mostra o que ele vê.
 - **"Criei a pergunta na assembleia errada."** As perguntas são da **rodada**;
   edite-as no nível da rodada, não da assembleia.
 - **"A mesma pessoa aparece podendo votar em duas assembleias."** É esperado —
@@ -676,9 +849,15 @@ provisório.
   urna (código de `/urna` digitado no ambiente do mesário) e a presença do
   eleitor precisa ter sido registrada.
 - **"Não consigo encerrar a apuração."** Ela só pode ser encerrada **após o
-  término da assembleia**.
+  término da assembleia** e com todos os **votos em separado decididos**.
 - **"Sumiu o lápis da assembleia."** Ela já começou: só dá para **Prorrogar**
-  o término.
+  o término. O link da sala virtual também não muda mais.
+- **"A prorrogação foi recusada."** Falta o motivo, o novo término passa de 30 dias
+  além do atual ou a assembleia já foi prorrogada 3 vezes.
+- **"O apurador não consegue abrir a urna."** A votação nessa urna ainda não
+  terminou, ou ele não marcou o atestado e não escreveu a ressalva.
+- **"A presença foi recusada na urna digital."** Falta parear o terminal, ou o
+  terminal ainda está com a cédula de outro eleitor.
 - **"O mesário não registra presença na urna física."** Falta a **Abertura do
   dia** — faça-a com o primeiro eleitor antes.
 - **"O apurador não vê a urna."** Confira se a urna foi **atribuída** a ele e se

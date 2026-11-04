@@ -23,8 +23,9 @@ escolha quantas linhas por página e clique numa linha para **editar**.
   <Passo titulo="Envie o relatório">
     Em **Incluir abastecimentos**, envie a fatura do cartão-combustível, o
     extrato do posto ou o cupom, **em qualquer layout**: PDF (inclusive
-    escaneado), Excel, CSV ou **foto**. Se o relatório for de um veículo só e
-    não trouxer a placa, escolha o veículo no campo abaixo do arquivo.
+    escaneado), Excel, CSV ou **foto**, até 20 MB. Se o relatório for de um
+    veículo só e não trouxer a placa, escolha o veículo no campo abaixo do
+    arquivo. Depois, clique em **Ler relatório com IA**.
   </Passo>
   <Passo titulo="A IA lê e o sistema confere">
     Cada transação vira uma linha com data, hora, placa, posto, combustível,
@@ -44,7 +45,9 @@ escolha quantas linhas por página e clique numa linha para **editar**.
     fora da frota), **Já lançado** ou **Repetido no arquivo** — e os pontos a
     conferir: preço por litro fora do normal (sinal de litros e valor
     trocados), hodômetro abaixo do último registrado, condutor não
-    identificado. No topo, o total a lançar: confira com o total da fatura.
+    identificado. No topo, o total a lançar: confira com o total da fatura. A
+    leitura descarta as linhas sem data, litros ou valor, e o topo informa
+    quantas foram.
   </Passo>
   <Passo titulo="Confirme">
     **Confirmar e lançar** grava **todas** as linhas, menos as já lançadas e as
@@ -67,7 +70,8 @@ escolha quantas linhas por página e clique numa linha para **editar**.
 
 Clique na linha para abrir o lançamento. Dá para corrigir **veículo**,
 **condutor**, data e hora, hodômetro, posto, cidade, combustível, litros e
-valor. Abaixo do veículo e do condutor aparece o que **veio no relatório**.
+valor. Abaixo do veículo e do condutor aparece o que **veio no relatório**. O
+lançamento feito pelo Telegram mostra o link **Ver o cupom** no alto.
 
 Ao escolher o veículo de um lançamento **sem veículo identificado**, se houver
 outros com a mesma placa, a opção **Vincular também os outros** já vem marcada
@@ -83,12 +87,24 @@ gastos do veículo e não pode ser recuperado.
 Se a planilha já estiver no layout do sistema, **Importar fatura (CSV no
 modelo)** importa sem IA. Cabeçalho: `placa; data; hora; posto; cidade;
 combustivel; litros; valor; hodometro` — datas em DD/MM/AAAA e valores com
-vírgula. Todas as placas precisam existir na frota, senão nada é importado.
+vírgula. O arquivo vai até 5 MB. Hora, cidade e hodômetro podem ficar vazios
+(sem hora, vale meio-dia); as demais colunas são obrigatórias. Todas as placas
+precisam existir na frota, senão nada é importado. Uma linha com problema também
+barra o arquivo inteiro: a mensagem diz qual linha corrigir.
 
 ## Lançamento manual
 
 Um abastecimento por vez, com veículo, condutor, data e hora, hodômetro,
-posto, combustível, litros e valor.
+posto, combustível, litros e valor, todos obrigatórios. Só a cidade é opcional.
+
+## Pelo Telegram
+
+Com o Telegram vinculado, quem é funcionário, diretor em exercício ou tem Gestão
+de veículos manda a foto ou o PDF do cupom (até 5 MB) ao bot. A IA lê o cupom, o
+bot pergunta o que faltar, como o veículo e o km, e mostra o lançamento com
+**Confirmar**, **Corrigir** e **Cancelar**. Quem mandou fica como condutor. O bot
+faz a mesma conferência da leitura de relatório e não deixa confirmar um
+abastecimento já lançado. Veja [Meu perfil](/painel/ajuda/introducao/meu-perfil).
 
 ## Erros comuns
 
@@ -100,6 +116,10 @@ posto, combustível, litros e valor.
   contam). Escolha o condutor na edição.
 - **"Tudo apareceu como Já lançado."** Esse relatório (ou esse período) já foi
   importado.
+- **"A planilha no modelo foi recusada inteira."** Há placa fora da frota ou linha
+  com data, litros ou valor inválidos. A mensagem aponta o problema. Se a placa
+  não for da frota, use a leitura por IA, que lança sem veículo para vincular
+  depois.
 
 <VejaTambem
   links={[

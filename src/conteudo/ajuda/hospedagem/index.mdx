@@ -3,6 +3,21 @@ O módulo **Hospedagem** administra os hotéis conveniados, suas **tarifas** e
 
 <RequerPermissao>Hospedagens</RequerPermissao>
 
+São três níveis de acesso:
+
+- **Hospedagens**: consulta o módulo, os cupons, as reservas e o mapa de hóspedes.
+- **Hospedagens — editar**: também emite e cancela cupons e cuida das reservas.
+- **Hospedagens — gestão**: também cadastra hotéis, vê as faturas, as avaliações e
+  os não comparecimentos, remaneja hóspedes e abre a área do hotel.
+
+## Dois tipos de convênio
+
+- **Pagamento por uso**: o cupom é uma autorização, e a reserva é montada depois,
+  juntando os cupons. É o caminho descrito abaixo e em
+  [Reservas](/painel/ajuda/hospedagem/reservas).
+- **Demanda garantida**: o hotel dedica quartos à entidade, e o pedido já é a
+  reserva. Veja [Demanda garantida](/painel/ajuda/hospedagem/demanda-garantida).
+
 ## Três lados da mesma hospedagem
 
 A hospedagem passa por **três ambientes** diferentes. Saber quem faz o quê em
@@ -11,7 +26,7 @@ cada um evita a maior parte das dúvidas:
 - **Painel do sindicato (aqui)** — cadastra hotéis, tarifas e cupons, emite o
   cupom para o filiado e acompanha reservas e faturamento.
 - **Área do hotel** — o hotel parceiro tem um acesso **próprio** (login
-  separado) para confirmar as reservas a partir dos cupons, registrar o
+  separado) para efetivar as reservas a partir dos cupons, registrar o
   comparecimento e emitir as faturas. Ele só enxerga o **próprio** hotel.
 - **Portal do filiado** — o filiado **pede o cupom** e acompanha a situação pela
   área de Hospedagem do portal.
@@ -50,23 +65,64 @@ cada um evita a maior parte das dúvidas:
 ## As áreas no painel do sindicato
 
 <PassoAPasso>
-  <Passo titulo="Hotéis e tarifas">
-    O cadastro dos hotéis e as **tarifas** por quantidade de hóspedes no quarto
-    (custo por hóspede e custo da entidade).
-  </Passo>
   <Passo titulo="Cupons">
-    Os cupons de hospedagem — emitidos ao filiado e acompanhados até virarem
-    reserva.
+    As autorizações de subsídio emitidas aos filiados, acompanhadas até virarem
+    reserva. A retirada do cupom não garante a reserva.
   </Passo>
-  <Passo titulo="Reservas">
-    As reservas confirmadas pelos hotéis, do pedido à hospedagem.
+  <Passo titulo="Reservas (serviços)">
+    As reservas efetivadas nos hotéis, agrupando os cupons dos hóspedes.
   </Passo>
-  <Passo titulo="Faturamento">
-    O faturamento do hotel, com nota (DANFE) e a ordem de pagamento.
+  <Passo titulo="Mapa de hóspedes">
+    Na demanda garantida, quem está em cada quarto, noite a noite.
+  </Passo>
+  <Passo titulo="Não comparecimentos">
+    Reservas de demanda garantida sem entrada no hotel, com abono de faltas e
+    liberação de punição. Só para a gestão.
+  </Passo>
+  <Passo titulo="Avaliações">
+    As notas dos filiados às estadias e o ranking dos hotéis. Só para a gestão.
+  </Passo>
+  <Passo titulo="Hotéis parceiros">
+    O cadastro dos hotéis, as tarifas, as faturas e os acessos de cada um. Só para
+    a gestão. O faturamento não tem tela própria: fica na ficha do hotel.
   </Passo>
 </PassoAPasso>
 
-<Print src="hospedagem/painel.png" alt="Painel do módulo Hospedagem com os cartões de hotéis e tarifas, cupons, reservas e faturamento." legenda="As áreas da Hospedagem no painel do sindicato." />
+Abaixo dos cartões, o painel mostra os hotéis parceiros ativos, os cupons aguardando
+reserva, as reservas abertas e o comparecimento, além dos últimos cupons emitidos.
+Cupons aguardando e reservas abertas contam só o pagamento por uso. A lista de cupons
+traz também as reservas de demanda garantida.
+
+<Print src="hospedagem/painel.png" alt="Painel do módulo Hospedagem com os cartões Cupons, Reservas (serviços), Mapa de hóspedes, Não comparecimentos, Avaliações e Hotéis parceiros, os indicadores e os últimos cupons emitidos." legenda="As áreas da Hospedagem no painel do sindicato." />
+
+## Cadastrar um hotel
+
+<RequerPermissao>Hospedagens — gestão</RequerPermissao>
+
+Em **Hotéis parceiros**, são obrigatórios o **Nome** e o **Contrato do convênio**,
+que precisa existir antes em Aquisição → Contratos. A **vigência** do contrato limita
+a retirada de cupons, e o **centro de custo** dele vai para a ordem do faturamento.
+O **Telefone da recepção** aparece para o filiado no portal.
+
+Duas opções mudam o funcionamento: **Hotel ativo** (hotel inativo não recebe cupons
+novos) e **Exigir relatório/extrato assinado da reserva para o serviço ser
+faturável**.
+
+Depois de criar, abra o hotel para lançar:
+
+- as **Tarifas por acomodação**: **Pessoas por quarto**, **Custo por filiado** e
+  **Custo da entidade**;
+- os **Usuários do hotel**: informe o e-mail e clique em **Convidar**. A pessoa
+  recebe o convite para criar a senha.
+
+## Condições de uso
+
+A entidade define quem pode pedir hospedagem em Filiação → **Configurações de
+filiação**, no quadro **Condições da hospedagem**: restringir por **fonte pagadora**,
+por **regime de trabalho** ou a uma **lista de beneficiários** e limitar a **quantidade
+de cupons** por mês ou por ano, além de um texto livre. Sem condição ligada, não há
+restrição. As condições valem no portal e na emissão pela equipe, e o filiado as vê
+em **Regras de utilização**.
 
 ## Atender o hotel vendo a tela dele
 
@@ -127,11 +183,17 @@ Cupons, com o motivo, e a gestão é avisada no sino.
 - **"Entrei para ver a área do hotel e não consigo salvar nada."** É o esperado:
   a visualização é somente leitura. Para mudar algo, use as telas do painel — ou
   peça ao hotel que faça pela conta dele.
-- **"O filiado pediu, mas não há reserva."** O cupom fica **aguardando** até o
-  **hotel** confirmar a reserva — o sindicato acompanha, mas quem confirma é o
-  hotel.
+- **"O filiado pediu, mas não há reserva."** No pagamento por uso, o cupom fica
+  **aguardando** até a reserva ser efetivada. Normalmente é o hotel quem faz isso;
+  quem tem **Hospedagens — editar** também pode, em **Reservas (serviços)**.
 - **"A reserva não entra no faturamento."** Só entram reservas com
-  **comparecimento** registrado pelo hotel e com **custo** definido.
+  **comparecimento** registrado e com **custo** definido. Se o hotel exige
+  relatório, ele também precisa estar anexado.
+- **"Não consigo emitir o cupom."** O filiado precisa estar com a condição **Ativo**,
+  o hotel ativo, com contrato vigente, e as condições da hospedagem atendidas. A
+  mensagem da tela diz qual falhou.
+- **"Não aparece nenhum contrato para vincular ao hotel."** Crie o contrato em
+  Aquisição → Contratos primeiro.
 
 <VejaTambem
   links={[
@@ -144,6 +206,16 @@ Cupons, com o motivo, e a gestão é avisada no sino.
       titulo: "Faturamento",
       href: "/painel/ajuda/hospedagem/faturamento",
       descricao: "Como a reserva vira nota e ordem de pagamento",
+    },
+    {
+      titulo: "Demanda garantida",
+      href: "/painel/ajuda/hospedagem/demanda-garantida",
+      descricao: "Reserva na hora, mapa de hóspedes, lista de espera e faltas",
+    },
+    {
+      titulo: "Avaliações",
+      href: "/painel/ajuda/hospedagem/avaliacoes",
+      descricao: "As notas dos filiados às estadias",
     },
   ]}
 />

@@ -5,16 +5,28 @@ indicadores e todo o histórico de uso.
 <RequerPermissao>Gestão de veículos</RequerPermissao>
 
 <Aviso tipo="nota" titulo="Só retira veículo quem está apto">
-  Um condutor está **apto** quando está autorizado e a CNH está dentro da
-  validade. CNH vencida ou autorização retirada impedem a saída na recepção.
+  Um condutor está **apto** quando está autorizado e a CNH não está vencida. CNH
+  vencida ou autorização retirada impedem a solicitação e a saída na recepção.
+  Sem validade preenchida, o sistema não bloqueia: por isso, informe sempre a
+  validade.
 </Aviso>
 
 ## Cadastrar e autorizar
 
 **Cadastrar condutor** vincula um **usuário do painel** — o condutor é sempre
 uma pessoa com conta — e registra a CNH: número, categoria, validade e o
-arquivo digitalizado (PDF ou imagem). A lista mostra a situação de cada um e o
-botão para **autorizar** ou **desautorizar**.
+arquivo digitalizado (PDF ou imagem), além de uma observação. Só o usuário é
+obrigatório. A lista oferece apenas quem ainda não é condutor.
+
+<Aviso tipo="atencao" titulo="Cadastrar não autoriza">
+  O cadastro novo fica como **Não autorizado**. Depois de salvar, clique em
+  **Autorizar** na linha da pessoa e confirme. Só então ela pode solicitar e
+  retirar veículo.
+</Aviso>
+
+A coluna **Situação** mostra **Apto**, **CNH vencida** ou **Não autorizado**, e a
+última coluna traz o botão **Autorizar** ou **Desautorizar**, com confirmação. A
+tela registra quem autorizou e quando.
 
 <Print src="veiculos/condutores.png" alt="Condutores: o quadro Cadastrar condutor, a lista com condutor, CNH, categoria, validade, a situação Apto e o botão Desautorizar, e o quadro Atualizar cadastro de um condutor." legenda="A lista de condutores; o nome abre a página do condutor." />
 
@@ -101,6 +113,8 @@ mais recente primeiro.
 
 - **"O condutor não aparece para retirar o veículo."** Confira na lista se ele
   está **apto**: autorizado e com a CNH na validade.
+- **"Cadastrei a pessoa e ela não consegue solicitar veículo."** Falta clicar em
+  **Autorizar** na lista.
 - **"Renovei a CNH e sumiu a antiga."** Ela está no **Histórico de CNH**, na
   página do condutor.
 - **"A página do condutor mostra poucos usos."** Pode haver outro cadastro da

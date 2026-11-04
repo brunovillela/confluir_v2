@@ -1,6 +1,7 @@
-A **reserva** liga um filiado a uma hospedagem em um hotel conveniado, com a
-tarifa acordada e, quando houver, um cupom de desconto. Ela **nasce de um
-cupom** e é **confirmada pelo hotel**.
+A **reserva** (também chamada de **serviço**) é a hospedagem efetivada em um hotel
+conveniado, com a tarifa acordada. Ela **nasce de um ou mais cupons**, um por
+hóspede. Este artigo trata do convênio de **pagamento por uso**; no outro tipo, veja
+[Demanda garantida](/painel/ajuda/hospedagem/demanda-garantida).
 
 <RequerPermissao>Hospedagens</RequerPermissao>
 
@@ -11,31 +12,56 @@ cupom** e é **confirmada pelo hotel**.
     O filiado solicita o cupom pelo portal (ou o sindicato emite), escolhendo o
     hotel e a data. O cupom fica **aguardando** reserva.
   </Passo>
-  <Passo titulo="Reserva (feita pelo hotel)">
+  <Passo titulo="Reserva">
     O hotel vê o cupom em "aguardando reserva", informa check-in e check-out e
     **efetiva a reserva** — o cupom passa a **Reservado** e a **tarifa** aparece.
+    Quem tem **Hospedagens — editar** também pode fazer isso no painel.
   </Passo>
   <Passo titulo="Comparecimento">
-    Na chegada, o hotel marca **Compareceu** para cada hóspede. Só então a
-    reserva fica **faturável**.
+    Na chegada, marca-se **Compareceu** para cada hóspede. Só então a reserva fica
+    **faturável**.
   </Passo>
   <Passo titulo="Encerramento">
     O hotel anexa o relatório (quando pedido) e **finaliza** a reserva.
   </Passo>
 </PassoAPasso>
 
-<Aviso tipo="nota" titulo="Quem confirma a reserva é o hotel">
-  O sindicato **emite e acompanha** os cupons e vê as reservas, mas a
-  confirmação da hospedagem (check-in/check-out, comparecimento) é feita pelo
-  **hotel**, na interface própria dele.
-</Aviso>
+## Emitir um cupom pelo painel
 
-## Tarifa, cupom e quarto coletivo
+<RequerPermissao>Hospedagens — editar</RequerPermissao>
 
-A **tarifa** vem do acordo com o hotel, por quantidade de pessoas no quarto. Um
-**cupom** pode dar desconto. O **quarto coletivo** vale quando dois ou mais
-hóspedes aceitam dividir o quarto — ampliando as opções de vaga e ajustando a
-tarifa por hóspede.
+Em Hospedagem → **Cupons → Novo cupom**, escolha o **filiado**, o **Hotel** e o
+**Check-in previsto**. **Sexo** e **Aceita quarto coletivo** são opcionais. O filiado
+precisa estar com a condição **Ativo**, o hotel precisa estar ativo e com contrato
+vigente, o check-in precisa caber na vigência, e valem as condições da hospedagem.
+
+A lista de Cupons filtra por nome ou CPF, hotel e situação (**Aguardando reserva**,
+**Reservados** e **Cancelados**). O selo **Emergencial (hotel)** marca os cupons feitos
+pelo próprio hotel.
+
+**Cancelar** um cupom pede confirmação e não pode ser desfeito. Se o check-in ainda não
+passou, o filiado é avisado.
+
+## A reserva pelo painel
+
+<RequerPermissao>Hospedagens — editar</RequerPermissao>
+
+Em Hospedagem → **Reservas (serviços) → Nova reserva**, escolha o **Hotel**, o
+**Check-in**, o **Check-out** e os cupons dos hóspedes. A lista filtra por hotel e por
+**Abertas** ou **Finalizadas**. Na página da reserva, dá para:
+
+- marcar **Compareceu** em cada hóspede, ou **Desfazer comparecimento**;
+- **Desvincular** um cupom, que volta a aguardar reserva, ou **Vincular cupom**;
+- finalizar a reserva, com confirmação. A reserva finalizada não recebe cupons até ser
+  reaberta.
+
+## Tarifa e quarto coletivo
+
+A **tarifa** vem do acordo com o hotel, por quantidade de pessoas no quarto: o custo
+por filiado e o custo da entidade. Sem tarifa para aquela quantidade de pessoas, a
+reserva é recusada. O **quarto coletivo** vale quando dois ou mais hóspedes aceitam
+dividir o quarto. Um quarto dividido só recebe pessoas do mesmo sexo que aceitaram
+dividir.
 
 <Print src="hospedagem/reserva.png" alt="Reserva de hospedagem com hotel, período, hóspede, cupom e a tarifa aplicada." legenda="Uma reserva de hospedagem, com tarifa e cupom." />
 
@@ -49,13 +75,18 @@ para mandar de novo ou por WhatsApp quando o e-mail não chegou.
 
 ## Erros comuns
 
-- **"O cupom está aguardando há dias."** Ele depende do **hotel** confirmar a
-  reserva — se demora, contate o hotel; o sindicato não confirma no lugar dele.
-- **"A reserva não vai para o faturamento."** Falta o **comparecimento**
-  (marcado pelo hotel) ou a reserva **não tem custo** definido.
+- **"O cupom está aguardando há dias."** Falta efetivar a reserva. Contate o hotel
+  ou, se for o caso, efetive em **Reservas (serviços)**.
+- **"A reserva não vai para o faturamento."** Falta o **comparecimento**, a reserva
+  **não tem custo** definido ou o hotel exige relatório e ele não foi anexado.
 - **"O filiado quer cancelar depois de reservado."** Pelo portal, o filiado só
   cancela enquanto o cupom está **aguardando**; depois de reservado, o ajuste é
-  feito com a entidade/hotel.
+  feito com a entidade ou o hotel.
+- **"Não há tarifa acordada para N pessoas por quarto."** Cadastre a tarifa dessa
+  quantidade na ficha do hotel.
+- **"O cupom não aparece para vincular."** O cupom precisa ser daquele hotel e estar
+  aguardando. Num quarto ocupado, só entra quem aceitou dividir, do mesmo sexo, e o
+  hóspede que já está no quarto também precisa ter aceitado.
 
 <VejaTambem
   links={[
@@ -68,6 +99,11 @@ para mandar de novo ou por WhatsApp quando o e-mail não chegou.
       titulo: "Visão geral da Hospedagem",
       href: "/painel/ajuda/hospedagem",
       descricao: "Os três ambientes e o caminho de ponta a ponta",
+    },
+    {
+      titulo: "Demanda garantida",
+      href: "/painel/ajuda/hospedagem/demanda-garantida",
+      descricao: "Quando o pedido já é a reserva",
     },
   ]}
 />

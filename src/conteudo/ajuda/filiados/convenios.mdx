@@ -3,7 +3,10 @@ Convênio é o desconto ou serviço que a entidade negocia para o associado —
 reúne a carteira inteira e as **unidades** onde o filiado é atendido; o
 portal mostra ao filiado só o que está **vigente**.
 
-<RequerPermissao>Convênios</RequerPermissao>
+<RequerPermissao>Convênios (ou Gestão da filiação)</RequerPermissao>
+
+Quem tem só **Consulta de convênios** vê a lista, mas não cria nem edita: os
+botões **Categorias** e **Novo convênio** e o lápis não aparecem.
 
 ## O que a tela mostra
 
@@ -26,15 +29,16 @@ anexado, o link **contrato** abre o arquivo.
 
 ## Cadastrar e editar
 
-O botão **Novo convênio** pede o conveniador (a empresa que dá o desconto,
-escolhida entre as empresas cadastradas), a categoria, a data de término, o
-resumo e as vantagens. Criado o convênio, a mesma tela ganha dois blocos:
+O botão **Novo convênio** pede o **Conveniador** (obrigatório: a empresa que dá o
+desconto, escolhida entre as empresas cadastradas), a categoria, o **Término da
+vigência**, o resumo e as vantagens. Criado o convênio, a mesma tela ganha dois
+blocos:
 
-- **Unidades de atendimento** — cada unidade tem nome, endereço, telefones,
-  e-mails, site e se atende no balcão ou online. É o que o filiado vê para
-  saber aonde ir.
-- **Arquivos** — o contrato ou regulamento (vira o link "Regras do convênio"
-  no portal) e a foto principal.
+- **Unidades de atendimento** — cada unidade tem nome (obrigatório), endereço,
+  telefones e e-mails (um por linha), site e as chaves **Atende no balcão** e
+  **Atende online**. É o que o filiado vê para saber aonde ir.
+- **Arquivos** — o **Contrato ou regulamento** em PDF, JPG ou PNG (vira o link
+  "Regras do convênio" no portal) e a **Foto principal** em JPG, PNG ou WebP.
 
 Para editar, clique no conveniador na lista ou no lápis da linha.
 
@@ -55,6 +59,18 @@ Os convênios, as categorias e as unidades vieram do sistema antigo na virada
 da Filiação (setembro de 2026). A carteira nasceu com 21 convênios em 6
 categorias e 19 unidades. Alguns contratos e fotos ainda apontam para o
 sistema antigo: a tela avisa, e basta baixar e reenviar o arquivo.
+
+## Erros comuns
+
+- **O filiado não vê o convênio no portal.** Confira a situação na lista: só
+  **vigente** aparece. Se está **vencido**, atualize o Término da vigência; se está
+  **inativo**, marque **Ativo**.
+- **"Selecione o conveniador."** O conveniador é o único campo obrigatório do
+  convênio. A empresa precisa estar no cadastro de empresas.
+- **"Dê um nome à unidade."** Toda unidade precisa de um nome, como Loja Centro,
+  Matriz ou Atendimento online.
+- **Não consigo editar.** Sua permissão é só de consulta. Editar exige **Convênios**
+  ou **Gestão da filiação**.
 
 <VejaTambem
   links={[

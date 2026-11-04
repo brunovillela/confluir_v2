@@ -1,8 +1,10 @@
 O **Financeiro gerencial** mostra o caixa antes de a direção aprovar: o que
 vence nos próximos meses contra a receita que costuma entrar, onde o dinheiro
 está sendo gasto, o orçado × realizado por centro de custo, o que já venceu
-sem pagamento e as fontes pagadoras que atrasaram a remessa. Abre pelo hub do
-Financeiro para quem lê o Financeiro.
+sem pagamento e as fontes pagadoras que atrasaram a remessa. Abre pelo cartão
+**Financeiro gerencial**, na página do Financeiro.
+
+<RequerPermissao>Financeiro — somente leitura ou Ordens de pagamento</RequerPermissao>
 
 ## Fluxo projetado
 
@@ -80,7 +82,10 @@ retenções e a cota patronal são as mesmas que formam as guias do mês em
 
 ### Fechamento do mês
 
-No fim da página, o cartão **Fechamento do mês** lista os últimos doze meses.
+<RequerPermissao>Ordens de pagamento (para fechar, reabrir e salvar o e-mail)</RequerPermissao>
+
+No fim da página, o cartão **Fechamento do mês** lista os últimos doze meses e os
+fechados mais antigos. Mês que ainda não começou não pode ser fechado.
 Quando a contabilidade receber a planilha, clique em **Fechar** no mês (com uma
 observação, se quiser — *enviado em 05/11*). Mês fechado trava, pela data do
 pagamento, tudo o que mudaria a planilha daquele mês — o que o sistema mostra
@@ -97,7 +102,7 @@ continua igual ao que foi escriturado:
   autorizada depois, fica *A pagar* (o caixa já foi debitado): reabra o mês e
   registre o pagamento.
 
-Precisou corrigir depois? **Reabrir**, com o motivo, libera o mês de novo; o
+Precisou corrigir depois? **Reabrir**, com o motivo (obrigatório), libera o mês de novo; o
 fechamento anterior e a reabertura ficam registrados. Feche outra vez depois de
 reenviar à contabilidade.
 
@@ -118,3 +123,29 @@ enviados não saem mais sozinhos: baixe a planilha e mande pela exportação.
 Sem e-mail informado, nada é enviado.
 
 <Print src="financeiro/contabil-fechamento.png" alt="Cartão Fechamento do mês da Exportação contábil: o campo E-mail da contabilidade preenchido com contabilidade@escritorio-exemplo.com.br e o botão Salvar; na tabela dos meses, set/2026 fechado em 30/10/2026 com a observação planilha enviada à contabilidade e a linha Relatório de RPAs enviado à contabilidade em 31/10/2026, com o e-mail; os outros meses abertos, com o campo de observação e o botão Fechar." legenda="O e-mail da contabilidade e, em cada mês fechado, o envio do relatório de RPAs." />
+
+## Erros comuns
+
+- **"O mês está fechado para a contabilidade."** A ação mexe num pagamento com data
+  em mês fechado. Reabra o mês aqui, faça o ajuste e feche de novo.
+- **"Não aparece o botão Fechar."** Fechar e reabrir exigem **Ordens de pagamento**;
+  quem só lê o Financeiro vê a situação dos meses.
+- **"A aba Receitas saiu vazia."** Os números da arrecadação vêm da camada
+  analítica; a página avisa quando ela não está disponível.
+- **"Há ordens em vermelho na conferência."** Estão sem centro de custo.
+  Reclassifique-as na própria ordem antes de mandar a planilha.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Ordens de pagamento",
+      href: "/painel/ajuda/financeiro/ordens",
+      descricao: "Reclassificar e o que o mês fechado trava",
+    },
+    {
+      titulo: "Tributos",
+      href: "/painel/ajuda/financeiro/tributos",
+      descricao: "As guias formadas pelas retenções do RPA",
+    },
+  ]}
+/>

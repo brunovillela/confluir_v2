@@ -2,18 +2,20 @@ A tela da porta fica em **/recepcao** e é a única do módulo feita para ser us
 de pé, com fila na frente e muitas vezes num tablet. Tudo nela é maior que o
 normal do sistema.
 
-<RequerPermissao>Recepção de eventos</RequerPermissao>
+<RequerPermissao>Recepção (confirmar presença)</RequerPermissao>
 
 ## Quem opera
 
-Quem fica na porta não é quem cadastrou o evento. A permissão *Recepção de
-eventos* dá acesso só a esta tela: encontrar a pessoa e confirmar que ela
+Quem fica na porta não é quem cadastrou o evento. A permissão *Recepção (confirmar
+presença)* dá acesso só a esta tela: encontrar a pessoa e confirmar que ela
 entrou. Não dá para editar evento, ver lista completa nem mexer em inscrição.
 
 ## Antes de abrir a porta
 
 Escolha o **evento** e o **dia**. A presença é registrada por dia — num congresso
-de três dias, quem veio só no sábado aparece no sábado.
+de três dias, quem veio só no sábado aparece no sábado. Só aparecem eventos
+**publicados**. Quem tem a gestão também entra pelo botão **Abrir recepção**, na página
+do evento.
 
 O topo mostra quantas pessoas já entraram, e o número sobe a cada confirmação.
 
@@ -63,12 +65,14 @@ O botão **Confirmar** só funciona para quem está com a inscrição
 etiqueta vermelha e o botão desligado — assim a recepção vê a pessoa e sabe
 dizer o que houve, em vez de simplesmente não achá-la.
 
-Se a pessoa já tinha entrado, a tela avisa em vez de contar duas vezes.
+Se a pessoa já tinha entrado, a tela avisa em vez de contar duas vezes. Se for filiada,
+a presença vai para o prontuário dela uma vez por evento.
 
 ### Erros comuns
 
 - **&quot;Ninguém encontrado com esse dado&quot;** — confira o dia escolhido e
   tente pelo CPF; nome tem grafia variável.
+- **O evento não aparece na lista** — ele precisa estar publicado.
 - **A pessoa aparece mas o botão está desligado** — a inscrição não está
   confirmada. Quem tem *Gestão de eventos* resolve pela página do evento.
 - **A câmera não abre** — o navegador precisa de permissão de câmera, e a página

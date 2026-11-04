@@ -76,9 +76,10 @@ dá para enviar, mas o preço e a disponibilidade podem não ser os melhores.
 
 ### Pelo Telegram
 
-Quem tem o Telegram vinculado em *Meu perfil → Telegram* (com o telefone
-confirmado) pode pedir pelo bot: mande **/viagem** e responda às perguntas, uma
-por vez, tocando nos botões ou digitando.
+Quem tem a permissão **Solicitar viagem para si**, é funcionário com vínculo em
+vigor ou diretor em exercício e tem o Telegram vinculado em *Meu perfil → Avisos e Telegram*
+(com o telefone confirmado) pode pedir pelo bot: mande **/viagem** e responda às
+perguntas, uma por vez, tocando nos botões ou digitando.
 
 1. **O que precisa** — passagem aérea, rodoviária ou só hospedagem.
 2. **Origem e destino** — o nome das cidades.
@@ -118,6 +119,21 @@ detalhes, quem emitiu e o link do bilhete ou voucher. O valor pago fica só com
 a equipe.
 
 <Print src="viagens/minha-viagem.png" alt="Viagem atendida vista por quem viaja: os dados da viagem e, em cada item, o bloco Reservado com o localizador, a empresa que emitiu e os detalhes da reserva." legenda="A viagem atendida, do jeito que quem viaja vê." />
+
+## Erros comuns
+
+- **"Não vejo o botão Solicitar viagem."** Falta a permissão **Solicitar viagem
+  para si** ou **para terceiros**, em Institucional → Usuários e permissões. A
+  pessoa recém-contratada não recebe essa permissão sozinha.
+- **"Tenho a permissão e o pedido para mim é recusado."** Para si, só pede quem é
+  funcionário com vínculo em vigor ou diretor em exercício.
+- **"Não consigo cancelar."** O atendimento já começou. Peça o cancelamento à
+  equipe de viagens.
+- **"O envio foi recusado."** O **motivo** e ao menos uma passagem ou hospedagem
+  são obrigatórios. Em evento externo, informe o nome do evento.
+- **"O bot diz que minha conta não pede viagem."** Vale a mesma regra do painel:
+  permissão para si e vínculo em vigor ou exercício. Pedido para outra pessoa é só
+  pelo painel.
 
 <VejaTambem links={[
   { titulo: "Atendimento", href: "/painel/ajuda/viagens/atendimento", descricao: "Lista, filtros, reservas e o aviso" },

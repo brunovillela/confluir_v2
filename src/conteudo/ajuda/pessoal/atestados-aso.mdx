@@ -24,10 +24,14 @@ A saúde ocupacional do funcionário tem duas áreas: os **atestados e ausência
 
 ## Atestados e ausências
 
+<RequerPermissao>Gestão de Pessoal</RequerPermissao>
+
 <PassoAPasso>
   <Passo titulo="Atestados médicos">
-    Registre o início, a quantidade de dias, o CID-10, se há acompanhamento e o
-    arquivo do atestado. O último dia é calculado — o dia de início conta como
+    Registre o início, a quantidade de dias, o CID-10, as considerações e o
+    arquivo do atestado (PDF, JPG, PNG ou WebP, até 5 MB). Em **Atestado de
+    acompanhamento**, informe o nome do acompanhado e se é **filho(a) menor de 6
+    anos**. O último dia é calculado — o dia de início conta como
     o primeiro (3 dias a partir de 01/10 vão até 03/10). Ao salvar, o atestado
     já entra na aba **Ausências** como **Afastamento médico**, no mesmo período
     — não é preciso lançar de novo. Editar o atestado ajusta a ausência, e
@@ -61,14 +65,21 @@ A saúde ocupacional do funcionário tem duas áreas: os **atestados e ausência
 
 ## ASO — atestado de saúde ocupacional
 
+<RequerPermissao>Gestão de Pessoal</RequerPermissao> ou <RequerPermissao>ASO</RequerPermissao>
+
 <PassoAPasso>
   <Passo titulo="Registrar o exame">
-    Cada ASO tem um tipo (Admissional, Periódico, Retorno ao trabalho, Mudança de
-    riscos ocupacionais, Demissional), a data e o vencimento.
+    Cada ASO tem um **tipo** (Admissional, Periódico, Retorno ao trabalho, Mudança
+    de riscos ocupacionais, Demissional) e a **data do exame**, obrigatórios, além
+    do **vencimento**, que não pode ser antes do exame, e do arquivo (PDF, JPG, PNG
+    ou WebP, até 5 MB). Marque **Exame realizado** e **Enviado ao
+    funcionário/contabilidade** quando for o caso. Sem **Exame realizado**, o ASO
+    aparece como **Pendente**.
   </Passo>
   <Passo titulo="Vigência">
-    O ASO mais recente de cada funcionário é o **vigente**; a área destaca os que
-    estão **vencidos** ou vencendo.
+    O ASO de data mais recente de cada funcionário é o **vigente**; a área destaca
+    os que estão **vencidos** ou vencendo. A situação de cada pessoa (Em dia, Vence
+    em 90 dias, Vencido ou Sem ASO) olha o último exame **realizado**.
   </Passo>
 </PassoAPasso>
 
@@ -91,7 +102,8 @@ A saúde ocupacional do funcionário tem duas áreas: os **atestados e ausência
   atestado (falta, licença, trabalho externo) fica só na aba Ausências.
 - **"Não consigo editar nem excluir uma ausência."** É a ausência de um
   atestado: na linha aparece **Ver atestado**. Ajuste ou exclua o atestado, e a
-  ausência acompanha. O CID fica só no atestado.
+  ausência acompanha. O CID fica no atestado, não na ausência.
+- **"O vencimento foi recusado."** Ele não pode ser antes da data do exame.
 - **"O tipo que eu usava não está mais na lista."** Registros antigos com
   descrição solta foram reclassificados para o tipo mais próximo, e o texto
   original foi guardado na **observação** — nada se perdeu. Ausências antigas

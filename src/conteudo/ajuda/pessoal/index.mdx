@@ -6,26 +6,42 @@ informes de rendimentos e o movimento da folha enviado à contabilidade.
 <RequerPermissao>Gestão de Pessoal</RequerPermissao>
 
 Algumas áreas abrem também para permissões específicas (por exemplo, quem tem
-só **Contracheque** enxerga Funcionários e Contracheques, mas não Férias).
+só **Contracheques** enxerga Funcionários e Contracheques, mas não Férias):
+
+| Área | Abre para |
+|---|---|
+| Funcionários e Contracheques | Gestão de pessoal ou Contracheques (a configuração dos contracheques, os dados bancários e a carreira na ficha são só da Gestão) |
+| Controle de ponto, Férias, Atestados e ausências, Treinamentos, Atribuições e SST | Só Gestão de pessoal |
+| Anuênios | Gestão de pessoal ou Anuênios |
+| Níveis salariais | Gestão de pessoal ou Níveis salariais (o reajuste é só da Gestão) |
+| Diárias | Gestão de pessoal ou Diárias |
+| Reembolsos do ACT | Gestão de pessoal ou Reembolsos do ACT |
+| ASO | Gestão de pessoal ou ASO |
+| Faltas justificadas | Gestão de pessoal ou Faltas justificadas |
+| Informes de rendimentos | Gestão de pessoal ou Informes de rendimentos |
+| Movimento da folha | Só as duas permissões de Movimento da folha: Gestão de pessoal sozinha não abre |
 
 ## A tela inicial do Pessoal
 
 Ao entrar em **Pessoal**, você vê duas seções:
 
 <PassoAPasso>
-  <Passo titulo="Precisa de atenção">
-    Alertas acionáveis — remessas de diárias e reembolsos aguardando avaliação, gozos de
-    férias a autorizar, ASOs a vencer, certificados vencidos, ausências do dia.
-    Cada alerta leva direto à área correspondente. Só aparece quando há
-    pendência **e** você tem permissão naquela área.
-  </Passo>
   <Passo titulo="Áreas">
     Um cartão por área do departamento, cada um com o indicador mais útil (ex.:
     remessas abertas, funcionários ativos). Clique para entrar.
   </Passo>
+  <Passo titulo="Precisa de atenção">
+    Abaixo dos cartões, os alertas acionáveis: remessas de diárias e reembolsos
+    aguardando avaliação, reembolsos a lançar no contracheque, gozos de férias a
+    autorizar, períodos de férias perto do fim do concessivo, anuênios e níveis
+    que avançam em 30 dias, ASOs a vencer, certificados vencidos, ausências do
+    dia, treinamentos exigidos pendentes e atividades sem avaliação SST. Cada
+    alerta leva direto à área correspondente. Só aparece quando há pendência
+    **e** você tem permissão naquela área.
+  </Passo>
 </PassoAPasso>
 
-<Print src="pessoal/painel-visao-geral.png" alt="Tela inicial do módulo Pessoal, com a seção 'Precisa de atenção' no topo e a grade de cartões de áreas abaixo." legenda="Painel do Pessoal: pendências em destaque e as áreas do departamento." />
+<Print src="pessoal/painel-visao-geral.png" alt="Tela inicial do módulo Pessoal, com a grade de cartões de áreas no topo e, abaixo, a seção 'Precisa de atenção' com os alertas." legenda="Painel do Pessoal: as áreas do departamento e as pendências em destaque." />
 
 ## Como cada área se organiza
 
@@ -82,9 +98,8 @@ Cada página do **Meu perfil** abre com os mesmos números que a gestão vê na 
 
 <Aviso tipo="nota" titulo="Cartão marcado como “Configurar”">
   Uma área só funciona depois que a instalação dela é feita no banco — até lá o
-  cartão mostra **Configurar** e a própria descrição diz qual script falta. É um
-  passo único, de implantação. **Diárias** e **Reembolsos do ACT** já estão
-  ativas aqui.
+  cartão mostra **Configurar** e a própria descrição diz o que falta. É um
+  passo único, de implantação.
 </Aviso>
 
 <VejaTambem

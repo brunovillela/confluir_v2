@@ -1,9 +1,10 @@
 O módulo **Institucional** cuida da entidade em si: a organização (identidade e
-sedes), a diretoria, as atas de reunião, o registro sindical no MTE, os e-mails
-e as linhas institucionais, os ramais e telefones diretos, os usuários do
-painel e as ajudas institucionais.
+sedes), a diretoria, as atas e as deliberações, o registro sindical no MTE, os
+e-mails e as linhas institucionais, os ramais e telefones diretos, as ajudas e o
+custeio, as viagens, os usuários do painel, a LGPD, a auditoria e a API. Cada pessoa
+vê só os cartões das permissões que tem.
 
-<RequerPermissao>Organização (identidade e sedes)</RequerPermissao>
+<RequerPermissao>Organização (identidade e sedes)</RequerPermissao> para a Organização; as demais áreas têm permissão própria
 
 ## As áreas do módulo
 
@@ -15,20 +16,39 @@ painel e as ajudas institucionais.
     botão de editar. Esses dados aparecem em ofícios, fichas e rodapés.
   </Passo>
   <Passo titulo="Diretoria e Atas">
-    Os mandatos e integrantes da diretoria (base dos signatários de ofícios) e
-    as atas das reuniões da entidade.
+    Os mandatos e integrantes da diretoria (base dos signatários de ofícios), as
+    atas das reuniões da entidade e as **deliberações**, com situação e sigilo. Ver
+    [Diretoria](/painel/ajuda/institucional/diretoria).
   </Passo>
   <Passo titulo="Registro sindical (MTE), E-mails e Linhas">
     Os registros no Ministério do Trabalho, os endereços institucionais e os
     celulares da entidade, com o responsável por cada um.
   </Passo>
-  <Passo titulo="Usuários e Ajudas institucionais">
-    Quem acessa o painel e o que cada um pode ver/editar; e os apoios da
-    entidade a organizações apoiadas.
+  <Passo titulo="Ajudas, Custeio e Viagens">
+    Os apoios da entidade a organizações, as despesas bancadas em favor de pessoas e
+    as passagens e hospedagens. Ver [Ajudas](/painel/ajuda/institucional/ajudas),
+    [Custeio](/painel/ajuda/institucional/custeios) e
+    [Viagens](/painel/ajuda/viagens).
+  </Passo>
+  <Passo titulo="Usuários, LGPD, Auditoria e API">
+    Quem acessa o painel e o que cada um pode ver e editar; os prazos de guarda dos
+    dados; quem alterou ou exportou o quê; e as chaves para outros sistemas. Ver
+    [Usuários](/painel/ajuda/institucional/usuarios),
+    [LGPD](/painel/ajuda/institucional/lgpd),
+    [Auditoria](/painel/ajuda/institucional/auditoria) e
+    [API](/painel/ajuda/institucional/api).
   </Passo>
 </PassoAPasso>
 
 <Print src="institucional/painel.png" alt="Hub do módulo Institucional com os cartões de cada área." legenda="As áreas do Institucional." />
+
+## Dados da organização
+
+**Editar organização** abre a **Razão social** (obrigatória), o **Nome fantasia**, o
+**CNPJ**, o **Site institucional**, o **E-mail de contato**, a **Página de notícias**,
+o **Feed RSS de notícias**, o **Logo** e o grupo **Privacidade (LGPD)**, com o
+encarregado. Ver [LGPD](/painel/ajuda/institucional/lgpd). O endereço e os telefones
+de cada **sede** compõem o rodapé dos ofícios.
 
 ## Regras de filiação
 
@@ -119,6 +139,27 @@ responsável deduzido pelo telefone: quando o número da linha estava no cadastr
 de uma pessoa (telefone, WhatsApp ou ficha de filiação), a linha foi atribuída a
 ela. Confira essas e preencha **Com quem está** nas demais.
 
+## Registro sindical (MTE)
+
+<RequerPermissao>Registro sindical (MTE)</RequerPermissao>
+
+Os registros da entidade no Ministério do Trabalho e Emprego. **Novo registro** pede
+o **Tipo** (Registro sindical, CNES ou Carta sindical), a **Situação** (Ativo, Em
+análise ou Cancelado), o **Nº do processo / registro**, a **Categoria representada**,
+a **Data do registro**, a **Data de publicação (DOU)**, a **Base territorial /
+abrangência**, as **Observações** e o **Documento** em PDF. Na página do registro
+ficam **Editar** e **Excluir**. Ao editar, deixar o documento vazio mantém o atual.
+
+## E-mails institucionais
+
+<RequerPermissao>E-mails institucionais</RequerPermissao>
+
+Os endereços da entidade e o responsável por cada um. Em **Adicionar e-mail
+institucional**, informe o **Endereço** e o **Responsável**. A lista tem busca por
+endereço ou responsável, e cada item pode ser editado ou removido. O e-mail aparece
+no **Meu perfil** do responsável, em **Contatos corporativos**. O cadastro aqui é só
+um registro: criar ou apagar a caixa de e-mail continua sendo no provedor.
+
 ## Ramais e telefones diretos
 
 As linhas **fixas** da entidade: o **ramal**, o **telefone direto** (com DDD) ou
@@ -149,7 +190,8 @@ que estão com ela. O perfil só espelha: a correção é feita aqui.
 ## Erros comuns
 
 - **"Vejo uma área e não as outras."** Cada uma tem **permissão própria**
-  (Organização, Mandatos e integrantes, Ajudas, Custeio, Usuários).
+  (Organização, Mandatos e integrantes, Atas, Deliberações, Ajudas, Custeio, Usuários,
+  Auditoria). **API e webhooks** e **LGPD** exigem a de Organização.
 - **"O coordenador que quero não aparece."** Ele precisa estar entre as
   **pessoas marcadas** do departamento — marque-o na lista primeiro.
 - **"Excluir (tornar legado) está bloqueado."** Ainda há pessoas ou coordenador
@@ -174,6 +216,11 @@ que estão com ela. O perfil só espelha: a correção é feita aqui.
       titulo: "Usuários e permissões",
       href: "/painel/ajuda/institucional/usuarios",
       descricao: "Acesso ao painel por área",
+    },
+    {
+      titulo: "LGPD: retenção e descarte",
+      href: "/painel/ajuda/institucional/lgpd",
+      descricao: "Prazos de guarda, bloqueios por litígio e encarregado",
     },
   ]}
 />

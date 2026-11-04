@@ -12,8 +12,11 @@ da inclusão individual, com um seletor no topo para trocar de modo.
 <PassoAPasso>
   <Passo titulo="Baixar o modelo">
     Use **Baixar modelo da planilha** para começar do formato certo. As colunas
-    obrigatórias são **nome_completo** e **cpf**; as demais são opcionais e
-    preenchem o cadastro quando presentes.
+    obrigatórias são **nome_completo** e **cpf**. As demais são opcionais e
+    preenchem o cadastro quando presentes: **matricula_sindical**, **sexo**,
+    **nascimento**, **email**, **telefone**, **cargo**, **lotacao**,
+    **matricula_fonte**, **admissao**, **filiacao** e **condicao**. Datas em
+    DD/MM/AAAA.
   </Passo>
   <Passo titulo="Escolher a fonte pagadora">
     Selecione a **fonte pagadora** à qual esses trabalhadores estão vinculados —
@@ -24,15 +27,17 @@ da inclusão individual, com um seletor no topo para trocar de modo.
     linhas por envio).
   </Passo>
   <Passo titulo="Ler o resumo">
-    Ao final, um resumo mostra quantos foram **criados**, **vinculados**,
-    **ignorados** e a lista de **erros** (linha a linha).
+    Ao final, um resumo mostra quantos foram **criados** (filiados novos),
+    **vinculados** (já tinham cadastro e ganharam o vínculo), **ignorados** (o
+    vínculo aberto naquela fonte já existia) e a lista de **erros**, linha a linha.
   </Passo>
 </PassoAPasso>
 
 <Aviso tipo="atencao" titulo="CPF novo cria; CPF existente vincula">
   Se o CPF **já existe**, a planilha cria apenas o **vínculo** com a fonte
-  (não duplica a pessoa). Se é um CPF **novo**, cria um filiado com condição
-  **Ativo**. É o comportamento que evita cadastros repetidos.
+  (não duplica a pessoa). Se é um CPF **novo**, cria um filiado com a condição da
+  coluna **condicao** ou, com ela em branco, **Ativo**. É o comportamento que evita
+  cadastros repetidos.
 </Aviso>
 
 <Print src="filiados/importar.png" alt="Tela de importação de filiados com o select de fonte pagadora, o botão de baixar o modelo e o envio da planilha CSV." legenda="Importar filiados: a fonte pagadora e a planilha em CSV." />
@@ -42,12 +47,14 @@ da inclusão individual, com um seletor no topo para trocar de modo.
 - **"A importação recusou o arquivo."** Comece do **modelo** — os nomes das
   colunas precisam bater, e **nome_completo** e **cpf** não podem faltar. Salve
   como **CSV** (não .xlsx).
-- **"Muitas linhas ignoradas."** Em geral são CPFs já existentes (viraram só
-  vínculo) ou linhas sem os campos obrigatórios. O resumo diz o motivo de cada
-  uma.
+- **"Muitas linhas ignoradas."** São pessoas que já têm vínculo aberto nessa
+  fonte: nada mudou nelas, nem mesmo o cadastro.
+- **"Linhas com erro."** A lista diz o motivo de cada uma: nome vazio, CPF
+  inválido, condição desconhecida ou data fora do formato DD/MM/AAAA. As demais
+  linhas entram normalmente; corrija só as erradas e envie de novo.
 - **"Importei todo mundo como Ativo, mas eles ainda estão em processo."** A
-  importação cria como Ativo por padrão. Se você quer acompanhar o processo
-  desde o começo, ajuste a condição depois ou cadastre por outro caminho. Ver
+  importação cria como Ativo quando a coluna **condicao** está em branco. Preencha
+  a coluna com o nome exato da condição ou ajuste depois em Editar cadastro. Ver
   [Acompanhamento](/painel/ajuda/filiados/acompanhamento).
 - **"Uma linha deu erro de matrícula sindical."** A matrícula da planilha já é
   de outro cadastro (ou tem dígitos demais). Deixe a coluna em branco: quem é

@@ -19,6 +19,7 @@ export const INDICE_AJUDA_PORTAL = "/portal/ajuda"
 /** Seção do portal → "<área>" ou "<área>/<artigo>" de manifesto-portal.ts. */
 const ARTIGO_DA_SECAO: Record<string, string> = {
   "/portal/inicio": "visao-geral",
+  "/portal/sindicato": "visao-geral",
   // O artigo de boas-vindas tem a seção "Primeiro acesso" (#primeiro-acesso).
   // Depois do Início: a parte do artigo (parteDoArtigoPortal) segue a dele.
   "/portal/primeiro-acesso": "visao-geral",

@@ -1,0 +1,128 @@
+Em **Institucional → LGPD: retenção e descarte** ficam os prazos de guarda dos
+dados pessoais, a simulação do que sairia e os bloqueios por litígio. Este artigo
+também explica o **encarregado** e a **política de privacidade** da entidade.
+
+<RequerPermissao>Organização (identidade e sedes)</RequerPermissao>
+
+## Como o descarte funciona
+
+Todo mês, no **dia 2**, o sistema confere cada regra:
+
+- **Regra desligada** (selo *Só simulação*): só simula e mostra na tela o que
+  sairia. Nada é apagado.
+- **Regra ligada** (selo *Execução real*): apaga de fato o que venceu.
+
+Toda regra começa desligada. Pessoas com **bloqueio por litígio** ficam fora de
+todas as regras.
+
+## As regras
+
+| Regra | O que sai | Prazo |
+|---|---|---|
+| **RT30**: foto do inscrito em evento | A foto enviada na inscrição. A inscrição continua | Definido em Eventos › Configuração (padrão de 30 dias) |
+| **RT31**: registros de tentativas de acesso | As contagens de senha errada e os códigos pedidos | 183 dias, sem poder reduzir (Marco Civil) |
+| **RT02**: fichas públicas não concluídas | A ficha de filiação que parou antes da avaliação, com o histórico de etapas e o PDF | 365 dias, com mínimo de 90 |
+
+## Ligar uma regra
+
+<PassoAPasso>
+  <Passo titulo="Simule">
+    Clique em **Simular** na regra ou em **Simular todas as regras agora**. A tela
+    mostra quantos registros e arquivos sairiam e quantos foram poupados por
+    bloqueio. Nada é apagado.
+  </Passo>
+  <Passo titulo="Ajuste o prazo, se puder">
+    Em **Prazo (dias)**, informe um valor igual ou maior que o mínimo. Em branco,
+    vale o padrão. A RT30 não tem esse campo: o prazo dela é o de Eventos ›
+    Configuração, com o link no próprio cartão.
+  </Passo>
+  <Passo titulo="Ligue a execução real">
+    Marque **Execução real ligada** e clique em **Salvar**. A caixa só libera se
+    houver simulação dos últimos **45 dias**.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="perigo" titulo="A execução real não tem volta">
+  Ligada a regra, no próximo dia 2 os registros vencidos são apagados de verdade. O
+  sistema pede confirmação ao ligar. Antes, confira a simulação e crie os bloqueios
+  necessários.
+</Aviso>
+
+Cada rodada tem um teto de 20 mil registros. O que passar disso sai na rodada
+seguinte, e a tela avisa.
+
+## Bloqueios por litígio
+
+Para uma pessoa em processo judicial ou administrativo, abra um bloqueio: enquanto
+ele estiver vigente, nenhum dado ligado ao CPF ou ao e-mail dela é apagado por
+estas regras.
+
+<PassoAPasso>
+  <Passo titulo="Crie o bloqueio">
+    Informe o **CPF** ou o **e-mail**, o **Motivo** (obrigatório) e, se houver, o
+    **Processo**. Clique em **Bloquear descarte**.
+  </Passo>
+  <Passo titulo="Encerre quando o processo terminar">
+    Na tabela, **Encerrar** devolve os dados da pessoa aos prazos normais. O
+    bloqueio continua listado, com a data do encerramento.
+  </Passo>
+</PassoAPasso>
+
+## Livro de execuções
+
+O **Livro de execuções** lista as últimas rodadas, simuladas e reais: quando, qual
+regra, se veio do agendamento mensal ou da tela e as quantidades de registros,
+arquivos e poupados. Só há contagens: nenhum dado das pessoas fica ali.
+
+## Encarregado e política de privacidade
+
+A **Política de privacidade** é uma página pública, no endereço da entidade. O link
+está no grupo **Privacidade (LGPD)**, abaixo. O nome, o CNPJ e o endereço saem do
+cadastro da organização, e o texto é o mesmo para todas as entidades.
+
+Para indicar o encarregado, vá a **Institucional → Organização**, clique em
+**Editar organização** e preencha o grupo **Privacidade (LGPD)**:
+
+- **Encarregado (DPO)** e **E-mail do encarregado**: aparecem na política, como
+  pede a LGPD. Sem nome indicado, a política mostra o e-mail do encarregado ou o
+  **E-mail de contato** da organização. Sem nenhum deles, orienta procurar a
+  secretaria.
+- **Política revisada em**: a data mostrada no topo da política.
+
+## Onde mais a LGPD aparece
+
+- **Exportações**: quem levou dado pessoal para fora em arquivo fica registrado na
+  [Auditoria](/painel/ajuda/institucional/auditoria), aba **Exportações**.
+- **API**: cada chave lê só o que foi marcado, e cada chamada fica registrada. Ver
+  [API e webhooks](/painel/ajuda/institucional/api).
+- **Pedidos do titular**: o filiado pede pelo portal, em **Privacidade e dados**, e
+  o participante de evento, em **Meus dados**. Ver
+  [Dados dos participantes](/painel/ajuda/eventos/dados-participantes).
+
+## Erros comuns
+
+- **"A caixa Execução real ligada está desabilitada."** Não há simulação válida:
+  simule a regra (ela vale 45 dias) e tente de novo.
+- **"O prazo mínimo desta regra é de N dias."** O prazo não pode ficar abaixo do
+  mínimo da regra.
+- **"Informe o CPF ou o e-mail da pessoa."** O bloqueio precisa de um dos dois. O
+  CPF tem 11 dígitos.
+- **"A simulação mostrou zero, mas ainda há dados antigos."** Só as três regras
+  acima são executadas por esta tela. Outros prazos não saem por aqui.
+- **"Não vejo a área de LGPD."** Ela exige a permissão **Organização (identidade e
+  sedes)**.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Auditoria",
+      href: "/painel/ajuda/institucional/auditoria",
+      descricao: "Alterações, exportações e chamadas à API",
+    },
+    {
+      titulo: "Visão geral do Institucional",
+      href: "/painel/ajuda/institucional",
+      descricao: "Organização, sedes e departamentos",
+    },
+  ]}
+/>

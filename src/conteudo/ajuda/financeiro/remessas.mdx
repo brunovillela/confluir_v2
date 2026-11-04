@@ -14,9 +14,12 @@ paga; o que ele rejeitou volta para a fila com o motivo.
     de lote. Sem esse contrato o banco recusa o arquivo.
   </Passo>
   <Passo titulo="2. Cadastre a conta">
-    Em **Financeiro → Remessas bancárias → Contas bancárias**: banco, agência,
-    conta, convênio e, se quiser, o centro de custo do débito (gravado na
-    ordem quando o retorno confirma) — só contas de pagamento (caixa, bancos). O titular sai do cadastro da entidade.
+    Em **Financeiro → Remessas bancárias → Contas bancárias**: **Nome da conta**,
+    **Banco**, **Agência** e **Conta** (obrigatórios), tipo, **Convênio de
+    pagamentos**, as versões do layout e, se quiser, o **Centro de custo do
+    débito** (gravado na ordem quando o retorno confirma) — só contas de pagamento
+    (caixa, bancos). O titular sai do cadastro da entidade; sem nome e CNPJ lá,
+    preencha **Titular** na conta, ou a remessa não é gerada.
   </Passo>
 </PassoAPasso>
 
@@ -27,17 +30,25 @@ paga; o que ele rejeitou volta para a fila com o motivo.
     A tela lista as ordens "A pagar" prontas (favorecido com CPF/CNPJ e
     chave Pix, conta bancária ou boleto). O que falta aparece em vermelho:
     resolva no cadastro do fornecedor ou na ordem. Boleto exige a **linha
-    digitável**, que pode ser gravada ali mesmo.
+    digitável** (47 dígitos, ou os 44 do código de barras), que pode ser gravada
+    ali mesmo. Ordem em dinheiro ou no cartão não entra. A conta de outro titular
+    aparece como aviso em amarelo, sem travar. A data de pagamento do arquivo é o
+    vencimento, ou hoje se ele já passou.
   </Passo>
   <Passo titulo="2. Baixe e envie">
-    Marque as ordens, gere, baixe o arquivo `.rem` e envie pelo internet
+    Escolha a conta, marque as ordens, clique em **Gerar remessa** (pede
+    confirmação com o total), baixe o arquivo `.rem` e envie pelo internet
     banking. **Marcar como enviada** registra o passo. Enquanto a remessa
-    está ativa, as ordens não entram em outra.
+    está ativa, as ordens não entram em outra. As ordens que vêm do botão **Gerar
+    remessa**, no extrato, já chegam marcadas.
   </Passo>
   <Passo titulo="3. Importe o retorno">
-    Quando o banco devolver o arquivo de retorno, importe-o na página da
-    remessa. Pago → ordem **Paga** com a data e o valor do banco; rejeitado →
-    a ordem continua a pagar e o motivo fica no histórico dela e no item.
+    Quando o banco devolver o arquivo de retorno (CNAB 240, até 4 MB), importe-o
+    na página da remessa. Pago → ordem **Paga** com a data e o valor do banco;
+    rejeitado → a ordem continua a pagar e o motivo fica no histórico dela e no
+    item. A mensagem diz quantas foram pagas, rejeitadas e sem correspondência. Se
+    a data de um pagamento cai num mês fechado, o item fica sem baixa, com um
+    aviso: reabra o mês e importe o retorno de novo.
   </Passo>
 </PassoAPasso>
 
@@ -59,4 +70,34 @@ paga; o que ele rejeitou volta para a fila com o motivo.
 <Aviso tipo="nota" titulo="Cancelar uma remessa">
   Enquanto não há retorno, a remessa pode ser cancelada: as ordens voltam a
   ficar disponíveis. Se o arquivo já foi enviado ao banco, cancele lá também.
+  Depois do retorno, não dá mais para cancelar, e remessa cancelada não recebe
+  retorno.
 </Aviso>
+
+## Erros comuns
+
+- **"Informe o nome e o CNPJ do titular."** Complete o cadastro da entidade, ou o
+  **Titular** da conta bancária.
+- **"Linha digitável inválida."** Precisa ter 47 dígitos, ou os 44 do código de
+  barras. Confira o boleto.
+- **"O arquivo não tem registros de detalhe."** O arquivo não é o retorno CNAB 240
+  de pagamentos. Peça ao banco o arquivo certo.
+- **"A ordem não aparece na nova remessa."** Só entram ordens *A pagar*. Ordem
+  *Processando*, em autorização ou já em outra remessa ativa fica de fora.
+- **"O banco pagou, mas a ordem continua A pagar."** O retorno ainda não foi
+  importado, ou o mês do pagamento está fechado.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Ordens de pagamento",
+      href: "/painel/ajuda/financeiro/ordens",
+      descricao: "O extrato, a seleção de ordens e o pagamento",
+    },
+    {
+      titulo: "Conciliação bancária",
+      href: "/painel/ajuda/financeiro/conciliacao",
+      descricao: "Conferir os pagamentos com o extrato do banco",
+    },
+  ]}
+/>

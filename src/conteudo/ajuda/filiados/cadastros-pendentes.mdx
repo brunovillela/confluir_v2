@@ -19,9 +19,10 @@ nenhuma das pendências abaixo. A cor e a etiqueta dizem a faixa:
 | acima de 70% até 85% | Confiável | verde |
 | acima de 85% | Excelente | azul |
 
-O link **Cadastros pendentes**, no canto do cartão, abre a lista para resolver.
-O cartão é apurado junto com a lista (a mesma varredura), então os números
-batem.
+O link **Cadastros pendentes**, no canto do cartão, abre a lista para resolver, e
+os números **com pendência** e **com apontamento**, abaixo do medidor, abrem a lista
+já filtrada. O cartão é apurado junto com a lista (a mesma varredura), então os
+números batem. Quem só tem a permissão de Receitas não vê o cartão.
 
 ## O que conta como pendência
 
@@ -109,8 +110,8 @@ e a lista são recalculadas na hora.
 
 <PassoAPasso>
   <Passo titulo="Abra o cadastro ou o vínculo">
-    Quando a única pendência é o vínculo, o botão abre direto a edição dele;
-    nos demais casos abre o cadastro, onde o histórico de filiação marca com
+    Quando a única pendência é o vínculo, o botão **Abrir vínculo** vai direto à
+    edição dele; nos demais casos, **Abrir cadastro** abre a ficha, onde o histórico de filiação marca com
     um triângulo as linhas incompletas e a edição do vínculo lista o que falta.
   </Passo>
   <Passo titulo="Sem vínculo em aberto">
@@ -119,10 +120,13 @@ e a lista são recalculadas na hora.
     sistema antigo, que trouxe o histórico pela metade.
   </Passo>
   <Passo titulo="Termos legais">
-    O aceite é registrado na ficha pública ou pela secretaria. Em 10/09/2026 o
-    termo de desconto em vigor foi registrado como aceito para todos os ativos,
-    porque a ficha assinada já o menciona. O de LGPD fica pendente só para
-    quem tem conta na área do associado e ainda não o aceitou lá.
+    A secretaria não registra o aceite por esta tela. Ele vem da ficha pública e,
+    para o termo de LGPD, do **Primeiro acesso** no portal. Em 10/09/2026 o termo
+    de desconto em vigor foi registrado como aceito para todos os ativos, porque a
+    ficha assinada já o menciona. O de LGPD fica pendente só para quem tem conta na
+    área do associado e ainda não o aceitou lá. Quando um termo novo entra em vigor,
+    quem aceitou o anterior volta a contar aqui. Ver
+    [Termos legais](/painel/ajuda/filiados/termos).
   </Passo>
 </PassoAPasso>
 
@@ -134,6 +138,21 @@ e a lista são recalculadas na hora.
 
 A varredura passa por todos os cadastros ativos e por todos os vínculos e fica
 guardada por 10 minutos; a hora da última apuração aparece no rodapé da tela.
+
+## Erros comuns
+
+- **"Corrigi e o número não mudou."** A apuração fica guardada por 10 minutos.
+  Salvar um vínculo, a configuração ou uma lista recalcula na hora; uma correção em
+  Editar cadastro pode levar até esse tempo para aparecer.
+- **"A saúde caiu de um dia para o outro."** Veja se entrou um termo legal novo: quem
+  aceitou o anterior passa a contar como pendente.
+- **"O cadastro está completo, mas continua na lista."** Confira as etiquetas: a
+  tracejada é apontamento e não derruba a saúde. Para tirá-la da lista, resolva ou
+  mude o nível em **Configurar**.
+- **"Não vejo os botões Atualizar por lista e Configurar."** Exigem Gestão da
+  filiação.
+- **"Possíveis duplicidades me leva a sem acesso."** Essa tela também exige Gestão
+  da filiação.
 
 <VejaTambem
   links={[

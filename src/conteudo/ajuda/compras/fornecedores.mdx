@@ -1,7 +1,11 @@
 O cadastro de **fornecedores** é a base de quem a entidade contrata e para quem
 paga. Todo favorecido de uma ordem de pagamento sai daqui.
 
-<RequerPermissao>Fornecedores</RequerPermissao>
+<RequerPermissao>Fornecedores</RequerPermissao> (consultar) · <RequerPermissao>Fornecedores — cadastrar, editar e mesclar</RequerPermissao>
+
+Os valores pagos e em aberto e as ordens do fornecedor só aparecem para quem tem
+**Ordens de pagamento** ou **Financeiro — somente leitura**. Os dados bancários, para
+quem edita o cadastro ou é do Financeiro.
 
 ## O painel de fornecedores
 
@@ -31,7 +35,8 @@ O botão **Lista completa** (ou a busca do painel) abre a lista de todos os
 fornecedores. Filtre por situação (ativos, bloqueados, inativos), natureza
 (PJ, PF, entidade apoiada) e problema — inclusive **Travam pagamento**. Clique
 no título de uma coluna para ordenar (nome, CPF/CNPJ, pago em 12 meses, última
-ordem, data do cadastro ou alertas) e escolha quantas linhas ver por página.
+ordem, data do cadastro ou alertas) e escolha quantas linhas ver por página. O
+botão de exportar baixa a lista em XLSX.
 
 <Print src="compras/fornecedores-lista.png" alt="Lista de fornecedores ordenada pelos alertas, com filtros no topo e etiquetas de problema em cada linha." legenda="A lista ordenada pelos alertas do cadastro." />
 
@@ -50,6 +55,10 @@ As **pendências** (conta e endereço) aparecem em cinza e não entram na
 contagem de "com problema no cadastro" — são dados a completar, não erros.
 
 ## Dados do fornecedor
+
+No cadastro novo, comece pelo CNPJ: **Preencher pelo CNPJ** traz a razão social, o
+nome fantasia e o endereço do cadastro da Receita Federal, padronizados pela IA.
+Confira antes de salvar.
 
 Cada fornecedor tem nome fantasia, razão social, CNPJ/CPF e a marcação de
 pessoa física ou jurídica. Na **pessoa física** aparece também o **NIT/PIS**
@@ -153,12 +162,25 @@ alerta, um aviso lista cada um com o detalhe e o link **Corrigir o cadastro**.
 ## Excluir × inativar
 
 <Aviso tipo="atencao" titulo="Com histórico, inative">
-  Só dá para excluir um fornecedor sem nenhum vínculo (ordens, propostas,
-  contratos…). Quando há histórico, o caminho é **inativar** — preserva os
-  registros passados.
+  **Excluir**, na ficha, só funciona sem nenhum vínculo (ordens, propostas,
+  contratos…): com histórico, o sistema recusa e diz onde há registro. Nesse caso,
+  o caminho é **Inativar**, que tira o fornecedor das buscas de cotação e compra e
+  preserva os registros passados. **Reativar** o traz de volta.
 </Aviso>
 
 <Print src="compras/fornecedor.png" alt="Detalhe de um fornecedor com aviso de CPF/CNPJ inválido, seis indicadores, dados básicos, endereços, dados bancários e contratos." legenda="O fornecedor com o aviso do cadastro e os indicadores no topo." />
+
+## Erros comuns
+
+- **"O CPF/CNPJ já é de outro cadastro."** O sistema não deixa trocar o documento por
+  um que já existe. Use **Mesclar**.
+- **"Não vejo os dados bancários nem os valores pagos."** Dependem das permissões do
+  início desta página.
+- **"Enviar ao fornecedor está desabilitado."** Falta um contato com e-mail marcado
+  para receber a ordem de compra ou o comprovante.
+- **"NIT/PIS inválido."** Confira os 11 dígitos. O campo só aparece na pessoa física.
+- **"O fornecedor não aparece na cotação."** Pode estar bloqueado ou inativo. Confira
+  na lista, com o filtro de situação.
 
 <VejaTambem
   links={[

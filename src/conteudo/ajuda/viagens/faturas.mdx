@@ -14,9 +14,10 @@ pagamento em autorização, avaliação por alçada e pagamento pelo Financeiro.
     agência informada).
   </Passo>
   <Passo titulo="Preencher os dados">
-    Número, PDF da fatura (ou da nota fiscal), emissão, vencimento e forma de
-    pagamento. O departamento da compra pode ficar automático — é o que mais
-    pesa nos itens.
+    **Número da fatura**, **PDF da fatura** (ou da nota fiscal) e **Emissão** são
+    obrigatórios; vencimento e forma de pagamento completam. O departamento da
+    compra pode ficar automático — é o que mais pesa nos itens. Se nenhum item
+    tiver departamento, o sistema pede para escolher.
   </Passo>
   <Passo titulo="Marcar os itens">
     Marque os itens que a fatura cobra. Cada linha traz o **valor** da reserva e
@@ -72,6 +73,17 @@ Na viagem, o item faturado ganha o selo **Faturado**, que leva à fatura.
 Lançou errado? Enquanto a ordem está **em autorização**, **Desfazer fatura**
 apaga a ordem e a compra e devolve os itens para *a faturar*. Depois de
 autorizada, peça ao Financeiro para cancelar a ordem antes.
+
+## Erros comuns
+
+- **"O item não aparece na fatura."** Ele precisa estar reservado com a agência
+  escolhida, ou sem agência informada, e ainda não ter sido faturado.
+- **"Todo item marcado precisa de valor ou conta."** Preencha o valor, maior que
+  zero, e a conta na linha, ou configure o de-para.
+- **"Esta fatura desta agência já foi lançada."** O número já existe para a agência.
+  Confira em Faturas antes de lançar de novo.
+- **"Não consigo desfazer."** A ordem já saiu de *Em autorização*. Peça ao
+  Financeiro para cancelá-la antes.
 
 <VejaTambem links={[
   { titulo: "Atendimento", href: "/painel/ajuda/viagens/atendimento", descricao: "Reservas e o aviso por e-mail" },

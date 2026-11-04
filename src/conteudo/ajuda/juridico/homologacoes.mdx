@@ -1,57 +1,74 @@
 As **homologações** registram as rescisões de contrato de trabalho homologadas
-pelo sindicato — de **filiado** ou de **não-filiado**.
+pelo sindicato, de **filiado** ou de **não-filiado**.
 
 <RequerPermissao>Jurídico geral</RequerPermissao>, <RequerPermissao>Gestão jurídica</RequerPermissao> ou <RequerPermissao>Homologações</RequerPermissao>
 
 ## O que cada homologação guarda
 
-Data da homologação, data de demissão, **motivo** da rescisão, **empregador**
-(fonte pagadora) e, quando há, o **parecer** em PDF. O trabalhador pode ser um
-**filiado** (ligado ao cadastro) ou um **não-filiado** (nome e CPF informados no
-próprio registro).
+Data da homologação, data da demissão, **motivo** da rescisão, **empregador**
+(fonte pagadora), observações e, quando há, o **parecer** em PDF. O trabalhador
+pode ser um **filiado** (ligado ao cadastro) ou um **não-filiado** (nome e CPF
+informados no próprio registro).
 
 ## Registrar uma homologação
 
+Em **Jurídico → Homologações**, abra **Nova homologação**.
+
 <PassoAPasso>
-  <Passo titulo="Filiado ou não-filiado">
-    Para **filiado**, busque e selecione o cadastro — nome e CPF vêm dele. Para
-    **não-filiado**, informe o **nome** (obrigatório) e o CPF.
+  <Passo titulo="Datas">
+    **Data da homologação** (obrigatória) e **Data da demissão** (opcional).
   </Passo>
-  <Passo titulo="Dados da rescisão">
-    Data, motivo e o empregador (a fonte pagadora).
+  <Passo titulo="Motivo e empregador">
+    **Motivo da rescisão**: A pedido do empregado, Despedida sem justa causa,
+    Acordo empregado e empregador, Extinção antecipada de contrato por prazo
+    determinado ou Extinção de contrato por prazo determinado. **Empregador**: a
+    fonte pagadora. Os dois podem ficar como *Não informado*.
   </Passo>
-  <Passo titulo="Parecer">
-    Anexe o **parecer em PDF** quando houver. Ele fica em bucket privado e abre
-    por link temporário.
+  <Passo titulo="Trabalhador">
+    Escolha **Filiado** e busque o cadastro: nome e CPF vêm dele. Ou escolha
+    **Não-filiado** e informe o **Nome** (obrigatório) e o **CPF** (opcional, mas
+    conferido quando preenchido).
+  </Passo>
+  <Passo titulo="Observações e parecer">
+    Anote pendências do acerto rescisório, se houver, e anexe o **Parecer
+    jurídico (PDF)**. Depois clique em **Salvar homologação**.
   </Passo>
 </PassoAPasso>
+
+## Corrigir uma homologação
+
+Abra o registro na lista. No cartão **Editar homologação**, clique no lápis,
+altere o que precisar e use **Salvar alterações**. Enviar um novo PDF substitui
+o parecer atual. A página mostra quem registrou e quando. Não há exclusão de
+homologação pela tela.
 
 <Print src="juridico/homologacoes.png" alt="Lista de homologações com a busca, os filtros por ano, motivo e vínculo (filiado/não-filiado), a ordenação por coluna e a exportação em CSV." legenda="Homologações: busca, filtros, ordenação e exportação." />
 
 ## Encontrar e exportar
 
-A lista tem **busca** (trabalhador, CPF, empregador ou motivo), **filtros** por
-ano, motivo e vínculo (filiado × não-filiado), **ordenação por coluna** e
-**exportação em CSV**. Também dá para filtrar pelo **empregador**, a partir do
-hub.
+A lista tem **busca** (trabalhador, CPF, empregador ou motivo) e **filtros** por
+ano, motivo e vínculo. Clique no título de uma coluna para ordenar por data,
+trabalhador, empregador ou motivo.
+
+**Exportar CSV** baixa a lista com os filtros e a ordem atuais. Cada exportação
+fica registrada na [Auditoria](/painel/ajuda/institucional/auditoria).
 
 <Aviso tipo="nota" titulo="Registros históricos anônimos">
   Parte das homologações migradas de não-filiados veio **sem nome/CPF** (a base
-  anterior não guardava esses campos) — ficam com data, motivo e empregador, mas
-  sem identificação. As homologações **novas** de não-filiado já capturam o nome
-  e o CPF normalmente.
+  anterior não guardava esses campos): elas têm data, motivo e empregador, mas
+  não a identificação. O formulário exige o nome do não-filiado.
 </Aviso>
 
 ## Erros comuns
 
-- **"Não deixa salvar sem escolher o trabalhador."** Ou você **seleciona um
-  filiado** na busca, ou informa o **nome** do não-filiado — um dos dois é
-  obrigatório.
-- **"O CPF foi recusado."** O CPF do não-filiado é validado; confira os dígitos.
-- **"Uma homologação antiga aparece sem nome."** É um registro migrado anônimo —
+- **"Escolha um filiado ou informe o nome do trabalhador não-filiado."** Um dos
+  dois é obrigatório: selecione o filiado na busca ou preencha o nome.
+- **"CPF do trabalhador inválido."** O CPF do não-filiado é validado; confira os
+  dígitos ou deixe em branco.
+- **"Uma homologação antiga aparece sem nome."** É um registro migrado anônimo:
   a base anterior não trouxe o nome do não-filiado.
-- **"O parecer não abre."** O link do PDF é **temporário** (assinado na hora);
-  reabra a homologação para gerar um link novo.
+- **"O parecer não abre."** O link do PDF é **temporário** e vale por uma hora.
+  Recarregue a página da homologação para gerar um link novo.
 
 <VejaTambem
   links={[

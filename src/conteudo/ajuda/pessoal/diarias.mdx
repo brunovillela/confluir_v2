@@ -11,6 +11,8 @@
 
 <Print src="pessoal/perfil-diarias.png" alt="Minhas diárias: diárias recebidas no ano, valor recebido e as que aguardam avaliação; o botão Solicitar diária; as despesas extras com Lançar despesa; e as solicitações com situação, pagamento e Cancelar." legenda="O que o funcionário vê: Meu perfil → Diárias, onde ele solicita e acompanha." />
 
+<RequerPermissao>Gestão de Pessoal</RequerPermissao> ou <RequerPermissao>Diárias</RequerPermissao>
+
 As **diárias** cobrem despesas de viagens e deslocamentos. A equipe cadastra os
 tipos, o funcionário solicita, e as diárias de cada pessoa se juntam numa
 **remessa**, que é avaliada inteira — aprovada, vira uma ordem de pagamento só,
@@ -96,7 +98,8 @@ e a tela da diária mostra a remessa em que ela entrou, com o botão **Abrir a
 remessa para avaliar** — é lá que se aprova ou devolve. Quem avalia diárias de funcionário também pode decidir
 pelo celular, em **Aprovar**, e o **coordenador do departamento** decide a
 remessa dos funcionários dele na aba **Coordenação** do painel — ninguém avalia
-a própria remessa.
+a própria remessa. Quem recebe o aviso pelo Telegram também decide por lá; veja
+[Avisos](/painel/ajuda/introducao/avisos).
 
 ### Devolver com observação
 
@@ -223,9 +226,8 @@ diretores e funcionários são as que as faturas das agências usam, e a aba
 <Print src="pessoal/diarias-contas.png" alt="Centros de custo das diárias: os botões Funcionário e Diretoria, os departamentos, um select de conta para a diária e para cada tipo de despesa, e o cartão Tipos de despesa extra com hospedagem, alimentação, passagem, táxi, pedágio e outra despesa." legenda="Centros de custo: a conta de cada gasto, por quadro e por departamento." />
 
 <Aviso tipo="atencao" titulo="Precisa da configuração">
-  As diárias dependem de uma configuração inicial (os arquivos `diarias.sql` e
-  `diarias-diretoria.sql`). Sem ela, a área mostra um aviso para configurar —
-  fale com quem administra o sistema.
+  As diárias dependem de uma configuração inicial. Sem ela, a área mostra um aviso
+  para configurar — fale com quem administra o sistema.
 </Aviso>
 
 ## Histórico do sistema anterior
@@ -243,8 +245,8 @@ atalho aparece para quem tem alguma, diretor ou funcionário.
 
 ## Erros comuns
 
-- **"A área pede para configurar."** Falta rodar a configuração inicial
-  (`diarias.sql`) — fale com quem administra o sistema.
+- **"A área pede para configurar."** Falta a configuração inicial — fale com quem
+  administra o sistema.
 - **"A lista está vazia, mas havia diárias no sistema antigo."** Elas estão em
   **Histórico** — a lista principal mostra só as solicitações novas.
 - **"Não acho o botão de aprovar na diária."** A avaliação é da **remessa**:

@@ -1,38 +1,79 @@
-A Auditoria mostra **quem alterou o quê** nas tabelas sensíveis do sistema:
-permissões individuais e perfis de acesso, usuários, filiações e vínculos,
-dados bancários, fornecedores, ordens de pagamento, contratos, espaços,
-configuração financeira, contas de caixa e a organização.
+A Auditoria mostra **quem fez o quê** com os dados sensíveis do sistema. Ela tem
+três abas: **Alterações**, **Exportações** e **API**.
 
-O registro é feito pelo próprio banco de dados, no momento da gravação. Não
-há como uma tela gravar sem deixar rastro, e o rastro não pode ser editado
-pelo painel.
+<RequerPermissao>Auditoria (quem alterou o quê)</RequerPermissao>, <RequerPermissao>Gerenciar usuários e permissões</RequerPermissao> ou <RequerPermissao>Organização (identidade e sedes)</RequerPermissao>
 
-## O que cada linha mostra
+## Alterações
+
+Registra as mudanças em permissões individuais e perfis de acesso, usuários e
+identidades de acesso, filiações e vínculos, dados bancários, fornecedores, ordens
+de pagamento, contratos, espaços, configuração financeira, contas de caixa e a
+organização.
+
+O registro é feito pelo próprio banco de dados, no momento da gravação. Não há como
+uma tela gravar sem deixar rastro, e o rastro não pode ser editado pelo painel.
+
+### O que cada linha mostra
 
 - **Quando** a alteração aconteceu.
 - **O tipo**: criação, alteração ou exclusão.
-- **A tabela** e o identificador do registro. Clique no identificador para
-  ver todo o histórico daquele registro.
-- **Quem**: o usuário do painel que estava na sessão. Quando a mudança veio
-  de uma rotina automática (agendador, importação, fluxo público sem login)
-  aparece "sistema (sem sessão)".
-- **Os campos**: numa alteração, só os campos que mudaram, com o valor de
-  antes e o de depois. Numa criação ou exclusão, o registro inteiro.
+- **A tabela** e o identificador do registro. Clique no identificador para ver todo
+  o histórico daquele registro.
+- **Quem**: o usuário do painel que estava na sessão. Quando a mudança veio de uma
+  rotina automática (agendador, importação, fluxo público sem login) aparece
+  "sistema (sem sessão)".
+- **Os campos**: numa alteração, só os campos que mudaram, com o valor de antes e o
+  de depois. Numa criação ou exclusão, o registro inteiro. Clique na linha de campos
+  para abrir o detalhe.
 
-Campos sigilosos (relatórios clínicos cifrados, chaves) aparecem como
-"[oculto]". Mudanças só em carimbos de data (atualizado em) não são
-registradas.
+Campos sigilosos (relatórios clínicos cifrados, chaves) aparecem como "[oculto]".
+Mudanças só em carimbos de data (atualizado em) não são registradas.
 
-## Filtros
+### Filtros
 
-Tabela, quem alterou, identificador do registro e período. A combinação
-tabela + identificador é a mais útil: ela conta a vida de um registro, por
-exemplo todas as mudanças de permissão de uma pessoa.
+Tabela, quem alterou, ID do registro e período (De e Até). A combinação tabela + ID
+é a mais útil: ela conta a vida de um registro, por exemplo todas as mudanças de
+permissão de uma pessoa.
 
-## Quem vê
+## Exportações
 
-Quem tem a permissão **Auditoria (quem alterou o quê)**, na área
-Institucional, ou as permissões de usuários e permissões ou de configurações.
+Mostra quem levou dado pessoal para fora em arquivo (planilha, PDF ou remessa
+bancária): listas e relatórios de filiados, etiquetas, links de voto, relação de
+votantes, CATs, folha, ponto, remessas, ordens, lançamentos contábeis, compras,
+contratos, fornecedores, reembolsos, custeios, viagens, processos, homologações,
+patrimônio e oposições.
+
+Cada linha traz:
+
+- **Quando**, **o que** foi exportado, o **formato**, **quantas linhas** e **quem**
+  exportou.
+- **As categorias de dado** do arquivo (identificação, CPF, filiação sindical,
+  saúde, financeiro, trabalhista, votação). CPF, saúde e votação vêm destacados.
+- **O recorte**: os filtros usados na hora de exportar.
+
+Filtre por **O que foi exportado**, **Quem exportou** e período.
+
+## API
+
+Mostra cada chamada à [API pública](/painel/ajuda/institucional/api): quando, qual
+chave, a rota com os parâmetros, o status, quantas linhas levou e o endereço de
+origem. O status em verde indica chamada aceita. Uma chave errada aparece como
+*chave inválida*.
+
+Filtre por **Chave**, **Só as recusadas** e período. É o lugar para responder "o que
+esse sistema externo leu?" antes de revogar uma chave.
+
+## Erros comuns
+
+- **"Não vejo a alteração que fiz."** Só as áreas listadas em **Alterações** são
+  registradas, e uma mudança só no carimbo de data não conta.
+- **"Aparece sistema (sem sessão) em vez do nome."** A mudança veio de uma rotina
+  automática ou de um fluxo público, sem usuário logado.
+- **"Não acho a busca por nome da pessoa alterada."** O filtro **Quem alterou** é por
+  quem fez a mudança. Para a vida de um registro, use tabela + ID do registro, ou
+  clique no identificador em uma linha.
+- **"Uma exportação não aparece."** Confira o período e o filtro **O que foi
+  exportado**. Só os arquivos listados acima entram nesta aba.
 
 <VejaTambem
   links={[
@@ -40,6 +81,16 @@ Institucional, ou as permissões de usuários e permissões ou de configuraçõe
       titulo: "Usuários e permissões",
       href: "/painel/ajuda/institucional/usuarios",
       descricao: "Perfis, ajustes finos e a redefinição da verificação em duas etapas",
+    },
+    {
+      titulo: "API e webhooks",
+      href: "/painel/ajuda/institucional/api",
+      descricao: "As chaves cujas chamadas aparecem na aba API",
+    },
+    {
+      titulo: "LGPD: retenção e descarte",
+      href: "/painel/ajuda/institucional/lgpd",
+      descricao: "Prazos de guarda e bloqueios por litígio",
     },
   ]}
 />

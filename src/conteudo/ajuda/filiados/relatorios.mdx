@@ -3,7 +3,7 @@ mais faz: quem ainda está em carência, quem já é pleno, quem está inadimple
 — e qualquer outro recorte, montado com filtros. Todos exportam em **CSV** e
 **imprimem**.
 
-<RequerPermissao>Gestão de filiados</RequerPermissao>
+<RequerPermissao>Gestão da filiação</RequerPermissao>
 
 ## Os relatórios fixos
 
@@ -17,6 +17,11 @@ Em **Filiados → Relatórios**, três recortes prontos sobre os filiados ativos
   inadimplência, com o tipo de contribuição, as remessas em falta e o último
   pagamento.
 
+A mesma tela tem o cartão **Etiquetas para os Correios**, que leva às etiquetas
+Pimaco com o endereço dos filiados, em
+[Etiquetas](/painel/ajuda/noticias/etiquetas). Quando a carência de voto está
+desligada ou nenhuma regra de inadimplência está ligada, um aviso no alto diz isso.
+
 <Print src="filiados/relatorios.png" alt="Hub de relatórios de filiados com os quatro cartões: filiados em carência, filiados plenos, filiados inadimplentes e relatório personalizado, cada um com o total." legenda="Os relatórios: três recortes prontos e o personalizado." />
 
 <Print src="filiados/relatorio-carencia.png" alt="Relatório de filiados em carência com busca, ordenação, botões de exportar CSV e imprimir, e a tabela com nome, CPF, matrícula, fonte, filiação, data em que a carência libera e dias restantes." legenda="Um relatório fixo: o recorte já vem travado; sobram busca, ordenação, CSV e impressão." />
@@ -25,7 +30,8 @@ Em **Filiados → Relatórios**, três recortes prontos sobre os filiados ativos
   É a mesma regra do portal: conta da <strong>filiação mais recente</strong> do
   CPF; com efeito suspensivo, da primeira. Quem não tem vínculo datado usa a
   competência mais antiga em que aparece numa remessa. Quem não tem nem isso
-  aparece como <em>sem data para contar</em>.
+  aparece como <em>sem data para contar</em>: use o filtro <strong>Carência de
+  voto → Sem data para contar</strong> no personalizado para ver quem são.
 </Aviso>
 
 ## O relatório personalizado
@@ -56,8 +62,9 @@ recebimento, datas de filiação e de desfiliação, carência, inadimplência, 
   </Passo>
   <Passo titulo="Exporte ou imprima">
     <strong>Exportar CSV</strong> traz todos os filiados do recorte com as
-    colunas escolhidas. <strong>Imprimir</strong> sai com a página atual da
-    tabela, sem menu e sem filtros.
+    colunas escolhidas, e a exportação fica registrada no livro de exportações da
+    entidade. <strong>Imprimir</strong> sai com a página atual da tabela, sem menu e
+    sem filtros. <strong>Limpar</strong> volta ao recorte inicial.
   </Passo>
 </PassoAPasso>
 

@@ -4,14 +4,22 @@ Você chega a ele clicando em qualquer linha da lista de filiados.
 ## O topo: identidade e situação
 
 Mostra o **nome**, o **CPF**, a **matrícula** e o selo da **condição** atual da
-filiação. À direita, dois botões:
+filiação. Acima, à direita, os botões:
 
 - **Visualizar área** — abre o portal como o filiado o vê, em somente leitura
-  (bom para dar suporte).
+  (bom para dar suporte). Precisa de CPF válido no cadastro: sem ele, a tela avisa
+  e não abre, porque a área do associado é encontrada pelo CPF.
 - **Editar cadastro** — abre o formulário de edição (dados pessoais, contato,
-  endereço e a condição da filiação) e, à parte, o cartão **CPF e matrícula
-  sindical**, que confere repetição e registra a correção no prontuário.
+  endereço, a condição da filiação e a forma de recebimento) e, à parte, o cartão
+  **CPF e matrícula sindical**, que confere repetição e registra a correção no
+  prontuário.
   <RequerPermissao>Gestão da filiação</RequerPermissao>
+- **LGPD** — abre o pedido de eliminação dos dados. Ver
+  [LGPD: direito ao esquecimento](#lgpd), mais abaixo.
+
+O selo **Filiação excluída** marca cadastro excluído, que na lista só aparece nos
+filtros Excluídas e Todas. Se o cadastro foi incorporado a outro numa mesclagem, um aviso no topo traz o link **Abrir o cadastro
+que ficou**.
 
 <Aviso tipo="nota" titulo="O CPF é a identidade da pessoa">
   Registros antigos da mesma pessoa (mesmo CPF válido) aparecem no cartão
@@ -73,6 +81,46 @@ agência e conta, e se o pagamento sai por Pix ou na conta.
   ou cadastre outra como principal.
 - Dados bancários não contam na **saúde dos cadastros**: a falta deles não
   gera pendência nem apontamento.
+- A linha **Também valem aqui** lista as contas da mesma pessoa (mesmo CPF) em
+  outros cadastros, como Pessoal ou fornecedor. Elas também servem para os
+  pagamentos a ela; para mudar, edite onde estão.
+
+Cada conta precisa de banco, agência e número; cada chave Pix, do tipo da chave.
+**Pagar por Pix (em vez da conta)** exige a chave. O sistema não aceita a mesma
+conta ou chave repetida.
+
+#### Pedir os dados bancários ao filiado
+
+O botão **Pedir dados bancários**, no alto do cartão, manda um link para o próprio
+filiado informar a chave Pix ou a conta, sem precisar de senha.
+<RequerPermissao>Gestão da filiação</RequerPermissao>
+
+<PassoAPasso>
+  <Passo titulo="Escolha como enviar">
+    **Enviar** manda por e-mail. **Gerar**, ao lado do WhatsApp, cria o link e abre
+    a conversa com a mensagem pronta. **Só gerar o link** deixa o link na tela, para
+    copiar. E-mail e telefone vêm do cadastro e podem ser trocados.
+  </Passo>
+  <Passo titulo="O filiado responde">
+    Pelo link, ele vê a página **Seus dados bancários**, com o nome da entidade, e
+    informa a chave, a conta ou as duas. O link vale **7 dias** e serve **uma vez**.
+  </Passo>
+  <Passo titulo="A conta entra sozinha">
+    A resposta vira uma conta nova no cartão, sem alterar as que já existem. As ordens
+    de pagamento que esperavam a conta seguem sozinhas.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="atencao" titulo="A conta tem de estar no CPF do filiado">
+  A página recusa conta de outra pessoa: &quot;A conta precisa estar no seu
+  CPF/CNPJ&quot;. Se o filiado quer receber em conta de terceiro, cadastre você mesmo
+  no cartão, com o <strong>Favorecido</strong> preenchido, depois de conferir.
+</Aviso>
+
+Enquanto não há resposta, abaixo do botão aparecem a data do pedido, para quem foi
+e se o link já foi aberto, com **Cancelar pedido**. Um pedido novo substitui o
+anterior. Quem abrir um link antigo lê que ele foi substituído, expirou ou já foi
+usado, e deve pedir outro à entidade.
 
 ### Outros contatos
 
@@ -101,14 +149,17 @@ reescreve o passado. Ver [Termos legais](/painel/ajuda/filiados/termos).
 O mesmo cartão mostra se o filiado **recebe a mala direta** e, se pediu para
 não receber, quando e por onde (link do e-mail, portal ou secretaria). Com
 **Parar de enviar** / **Voltar a enviar**, a secretaria registra o pedido feito
-por telefone ou no balcão — vale para todos os cadastros do CPF. Ver
+por telefone ou no balcão — vale para todos os cadastros do CPF. Os botões exigem
+Gestão da filiação ou a permissão de mensagens da Comunicação. Ver
 [Mala direta](/painel/ajuda/noticias/mala-direta).
 
 ## Histórico de filiação
 
 A tabela reúne, num só lugar, os vínculos do associado: **fonte pagadora**,
-cargo, lotação, **matrícula**, datas de **admissão** e **saída na fonte**, e as
-datas de **filiação** e **desfiliação**. Na edição do vínculo há ainda a
+cargo, lotação, **matrícula**, datas de **admissão** e **saída na fonte** (coluna
+Demissão), e as datas de **filiação** e **desfiliação**. Em fundo de pensão, cargo
+e lotação vazios aparecem como **não aplicável**. O botão **Adicionar vínculo** e
+o lápis de cada linha exigem Gestão da filiação. Na edição do vínculo há ainda a
 **condição na fonte pagadora** (trabalhador da ativa, beneficiário aposentado
 ou pensionista — diferente da condição sindical, que é junto ao sindicato; o
 padrão segue o tipo da fonte: empresa → ativa, fundo de pensão → aposentado) e
@@ -227,22 +278,46 @@ Mais abaixo, o perfil traz:
 
 - **Contribuições** — as últimas contribuições recebidas do associado, com link
   para ver todas.
-- **Reembolsos** — o que a entidade reembolsou à pessoa por participação
-  (reunião, ato, assembleia), com a data, a justificativa e a situação do
+- **Reembolsos** — o que a entidade devolveu à pessoa (desconto de greve,
+  cobrança indevida, despesas), com a data, a justificativa e a situação do
   pagamento. O total pago aparece no título. O botão **Lançar reembolso**
-  abre o lançamento com a pessoa já escolhida; ver
-  [Reembolsos a filiados](/painel/ajuda/filiados/reembolsos).
+  abre o lançamento com a pessoa já escolhida, e **Ver todos** abre a lista filtrada
+  nela; ver [Reembolsos a filiados](/painel/ajuda/filiados/reembolsos).
 - **Ordens de pagamento em favor do filiado** — os pagamentos do Financeiro
   em que a pessoa é a favorecida; alcança quem tem login no sistema.
-- **Prontuário** — os últimos apontamentos da linha do tempo, com link para o
-  [prontuário](/painel/ajuda/filiados/prontuarios) completo.
+- **Prontuário** — os últimos apontamentos da linha do tempo, com o botão **Ver
+  todos / registrar** para o [prontuário](/painel/ajuda/filiados/prontuarios)
+  completo.
 
 <Print src="filiados/perfil-reembolsos.png" alt="Cartões Contribuições e Reembolsos lado a lado; o de reembolsos lista data, justificativa com o projeto, valor e a situação da ordem de pagamento." legenda="Reembolsos ao lado das contribuições, cada um com a situação do pagamento." />
 
+<span id="lgpd" className="block scroll-mt-20" />
+
+## LGPD: direito ao esquecimento
+
+Quem tem a permissão **LGPD — anonimizar cadastro** ou a de **Organização
+(identidade e sedes)** vê, no topo da ficha, o botão **LGPD**. Ele abre a página
+que executa o pedido de eliminação do titular: os identificadores do cadastro
+(nome, CPF, nascimento, sexo, contatos, endereço, dados bancários, contatos de
+emergência) são destruídos em todos os registros da pessoa, a conta de acesso ao
+portal e a identidade de votação são apagadas, e o cadastro passa a constar como
+"Titular anonimizado". Não há como reverter.
+
+Ficam retidos, com base legal: a linha da filiação sem identificadores
+(matrícula e estatística), os vínculos e o histórico de contribuições, o
+prontuário administrativo e o acervo de saúde ocupacional, que recebe uma
+cópia cifrada do nome e do CPF e é desvinculado do cadastro (NR-07: guarda de
+20 ou 40 anos).
+
+Só execute com o pedido do titular documentado e depois de conferir que não
+há cobrança, ação judicial ou prestação em aberto. O livro de solicitações,
+na mesma página, registra o que foi feito sem guardar dados pessoais.
+
 ## Exportação
 
-A **lista** de filiados exporta em CSV respeitando os filtros aplicados — útil
-para conferências e planilhas.
+A **lista** de filiados exporta em **XLSX** ou **CSV** respeitando os filtros
+aplicados — útil para conferências e planilhas. A exportação fica registrada no
+livro de exportações da entidade.
 
 ## Erros comuns
 
@@ -254,6 +329,13 @@ para conferências e planilhas.
 - **"O histórico está vazio."** O associado pode não ter vínculos registrados
   ainda — eles entram pela importação, pela ficha ou manualmente em "Adicionar
   vínculo".
+- **"Não dá para visualizar a área deste filiado."** O CPF do cadastro está ausente
+  ou inválido. Corrija em Editar cadastro, no cartão **CPF e matrícula sindical**, e
+  tente de novo.
+- **"Não vejo o cartão Dados bancários."** Ele só aparece para quem tem Gestão da
+  filiação ou a permissão Reembolsos.
+- **"Informe a data de desfiliação para registrar o motivo."**
+  O motivo só existe em vínculo encerrado. Preencha a data de desfiliação primeiro.
 
 <VejaTambem
   links={[
@@ -274,22 +356,3 @@ para conferências e planilhas.
     },
   ]}
 />
-
-## LGPD: direito ao esquecimento
-
-Quem tem a permissão **LGPD — anonimizar cadastro** vê, no topo da ficha, o
-botão **LGPD**. Ele abre a página que executa o pedido de eliminação do
-titular: os identificadores do cadastro (nome, CPF, nascimento, contatos,
-endereço, dados bancários, contatos de emergência) são destruídos em todos os
-registros da pessoa, a conta de acesso ao portal é apagada e o cadastro passa
-a constar como "Titular anonimizado". Não há como reverter.
-
-Ficam retidos, com base legal: a linha da filiação sem identificadores
-(matrícula e estatística), os vínculos e o histórico de contribuições, o
-prontuário administrativo e o acervo de saúde ocupacional, que recebe uma
-cópia cifrada do nome e do CPF e é desvinculado do cadastro (NR-07: guarda de
-20 ou 40 anos).
-
-Só execute com o pedido do titular documentado e depois de conferir que não
-há cobrança, ação judicial ou prestação em aberto. O livro de solicitações,
-na mesma página, registra o que foi feito sem guardar dados pessoais.

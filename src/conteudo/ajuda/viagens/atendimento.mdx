@@ -75,9 +75,9 @@ a viagem. O convidado recebe só o e-mail.
 
 ## Recusar ou cancelar
 
-**Recusar** é para o pedido que não será atendido; **Cancelar viagem** vale
-também depois de atendida, quando a viagem não vai mais acontecer. Os dois pedem
-o **motivo**, que vai no e-mail. Uma viagem cancelada com reserva ainda pode ser
+**Recusar** é para o pedido que não será atendido e só vale antes de a viagem ser
+atendida; **Cancelar viagem** vale também depois de atendida, quando a viagem não
+vai mais acontecer. Os dois pedem o **motivo**, que vai no e-mail. Uma viagem cancelada com reserva ainda pode ser
 faturada — a agência pode cobrar a multa.
 
 ## Configurações
@@ -98,6 +98,20 @@ Em **Institucional → Viagens → Configurações** ficam as regras da entidade
   e para a equipe que lança.
 - **Quem atende** — quem tem a permissão de Viagens, direto ou por perfil, com o
   atalho para Usuários e permissões.
+
+## Erros comuns
+
+- **"Concluir e avisar está bloqueado."** Falta a reserva de algum item. O sistema
+  diz quantos faltam.
+- **"A reserva não grava."** Informe o **localizador** ou os **detalhes da
+  reserva**: um dos dois é obrigatório.
+- **"Não consigo alterar a reserva."** O item já está numa fatura, ou a viagem foi
+  recusada ou cancelada. Com fatura, desfaça a fatura enquanto a ordem está em
+  autorização.
+- **"Lançar para convidado foi recusado."** Nome e e-mail são obrigatórios. O CPF,
+  se informado, precisa ter 11 dígitos.
+- **"A viagem foi atendida, mas nenhum e-mail saiu."** Quem viaja não tem e-mail
+  cadastrado. A tela avisa ao concluir.
 
 <VejaTambem links={[
   { titulo: "Visão geral de Viagens", href: "/painel/ajuda/viagens", descricao: "O pedido e o acompanhamento" },

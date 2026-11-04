@@ -1,6 +1,6 @@
 Um **recinto** é um local onde os bens ficam (uma sala, um depósito, uma sede).
-Cada recinto tem um ou mais **responsáveis** — quem responde pelos itens
-guardados ali.
+Cada recinto tem um **responsável** atual, que responde pelos itens guardados ali,
+e guarda o histórico dos anteriores.
 
 <RequerPermissao>Patrimônio</RequerPermissao> para editar; <RequerPermissao>Patrimônio — somente leitura</RequerPermissao> para consultar
 
@@ -8,29 +8,34 @@ guardados ali.
 
 <PassoAPasso>
   <Passo titulo="Novo recinto">
-    Em **Patrimônio → Recintos**, use **Novo recinto** e informe o nome e a
-    localização.
+    Em **Patrimônio → Recintos**, use **Novo recinto**. Informe o **Nome do
+    recinto** (obrigatório), o **Código**, a **Sede** e a **Descrição física**
+    (localização, andar, características). Clique em **Cadastrar recinto**.
   </Passo>
-  <Passo titulo="Responsáveis">
-    Indique quem responde pelo recinto. É o vínculo que liga uma pessoa aos bens
-    daquele local.
+  <Passo titulo="Responsável">
+    Na página do recinto, no grupo **Responsáveis**, escolha o **Novo responsável**
+    e o **Início** e clique em **Definir responsável**. O anterior é encerrado
+    sozinho, com a mesma data, e fica no histórico.
   </Passo>
   <Passo titulo="Itens do recinto">
-    Abrindo um recinto, você vê os **itens** que estão nele.
+    O grupo **Itens no recinto** lista os bens alocados ali, ativos e inativos.
+    Para colocar um bem no recinto, defina o recinto na ficha do item.
   </Passo>
 </PassoAPasso>
 
-<Print src="patrimonio/recintos.png" alt="Lista de recintos com o local, os responsáveis e a quantidade de itens em cada um." legenda="Recintos: locais, responsáveis e os itens guardados." />
+<Print src="patrimonio/recintos.png" alt="Lista de recintos com o nome, o código, a sede e a quantidade de itens em cada um." legenda="Recintos: os locais e os itens guardados em cada um." />
 
 ## Erros comuns
 
-- **"Um item está no recinto errado."** Corrija o **recinto** na ficha do item —
-  é ela que define onde o bem está.
-- **"O responsável saiu e continua no recinto."** Atualize os **responsáveis** do
-  recinto para refletir quem responde hoje.
-- **"Quero apagar um recinto com itens."** Mova os **itens** para outro recinto
-  antes — um recinto com bens não deve ser removido, para não perder a
-  localização deles.
+- **"Um item está no recinto errado."** Corrija o **Recinto** na ficha do item, em
+  **Editar cadastro**.
+- **"O responsável saiu e continua no recinto."** Defina o **Novo responsável**: o
+  anterior passa a *Encerrado*. Não há como deixar o recinto sem responsável pela
+  tela.
+- **"Nenhum usuário disponível para designar."** A lista traz só pessoas ativas
+  com acesso ao painel.
+- **"Quero apagar um recinto."** Não há exclusão de recinto pela tela. Se ele
+  deixou de existir, mova os itens para outro recinto.
 
 <VejaTambem
   links={[

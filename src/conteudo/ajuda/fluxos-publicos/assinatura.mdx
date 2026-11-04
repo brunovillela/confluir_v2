@@ -1,0 +1,88 @@
+Quem recebe um documento para assinar **não precisa de login**. O convite traz um
+link pessoal, `/assinar/…`, que abre o documento e o passo a passo. Este artigo
+mostra o que essa pessoa vê, para a equipe conseguir orientá-la.
+
+## O que se assina por este link
+
+| Documento | Quem assina | O que pede para assinar | Se a pessoa não vai assinar |
+| --- | --- | --- | --- |
+| **Ofício** | O assinante indicado | Aceite e código, por e-mail ou Telegram | **Recusar assinatura**: o ofício volta para correção |
+| **Contrato** (minuta) | Cada parte, na ordem mostrada na página | Código, nome completo, CPF e aceites | **Não vou assinar**: a entidade é avisada |
+| **Termo de cessão de espaço** | As duas partes, cada uma na sua vez | Código e aceite | **Não vou assinar**: a entidade é avisada |
+| **Recibo de autônomo (RPA)** | O prestador | Código, nome completo, CPF e aceites | **Não vou assinar**: o contratante vê o motivo |
+| **Aviso de férias** | O funcionário, como ciente | Código, nome completo e CPF | **As datas estão erradas**: o departamento de pessoal recebe o motivo |
+
+## O passo a passo
+
+<PassoAPasso>
+  <Passo titulo="Ler o documento">
+    A página mostra o documento e o botão para abri-lo ou baixá-lo. No celular, a
+    pré-visualização do ofício não aparece: use **Abrir em tela cheia**.
+  </Passo>
+  <Passo titulo="Pedir o código">
+    No ofício, marque primeiro o aceite e clique em **Enviar código para…**; o
+    código de 6 dígitos vale por 10 minutos. Nos demais, **Enviar código para o meu
+    e-mail**. Se não chegou, dá para pedir outro.
+  </Passo>
+  <Passo titulo="Assinar">
+    Digite o código e, quando a página pedir, o nome completo e o CPF, e marque as
+    confirmações. O botão muda conforme o documento: **Assinar o ofício**, **Assinar
+    o contrato**, **Assinar o recibo**, **Assinar o aviso** ou **Assinar**.
+  </Passo>
+  <Passo titulo="Guardar o comprovante">
+    Depois de assinar, a página mostra o **certificado** da assinatura. O ofício
+    traz **Baixar assinado** e **Ver verificação**; os outros documentos oferecem o
+    PDF, que traz o certificado.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="atencao" titulo="O link é pessoal">
+  Cada passo — envio, abertura, código e assinatura — fica registrado com data e
+  hora. Não peça o código à pessoa, e não encaminhe o link a outra.
+</Aviso>
+
+## O que a página pode dizer
+
+- **Aguardando sua assinatura** — o link está valendo.
+- **Assinado** — já foi assinado, com a data e a hora. Se o ofício foi cancelado
+  depois, a página avisa que ele não está mais em vigor.
+- **Recusado** ou **Não assinado** — a página mostra o motivo.
+- **Envio cancelado** ou **Link cancelado** — o link não vale mais. Se ainda houver
+  algo a assinar, chega um novo e-mail.
+- **Recibo já entregue** — no RPA, a entidade anexou o recibo assinado por outro
+  caminho (no papel ou pelo gov.br), e não é preciso assinar pelo link.
+- **Ainda não é a sua vez** — no contrato e na cessão, outra parte assina antes, e
+  a pessoa recebe um e-mail quando chegar a vez dela.
+
+## Erros comuns
+
+- **"Link de assinatura não encontrado."** O endereço foi copiado pela metade.
+  Abra de novo pelo e-mail.
+- **"O código não chega."** Confira o spam e o destino que a página mostra, em
+  parte. Se o destino estiver errado, quem enviou precisa corrigir o cadastro e
+  enviar de novo.
+- **"O CPF não confere com o do cadastro."** A pessoa precisa digitar o CPF do
+  cadastro usado no envio. Se o cadastro estiver errado, a equipe corrige e reenvia.
+- **"Digite seu nome completo."** O nome precisa ter ao menos nome e sobrenome.
+- **"Assinei e o documento continua pendente."** No contrato e na cessão, ele só se
+  completa quando todas as partes assinam.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Ofícios",
+      href: "/painel/ajuda/ferramentas/oficios",
+      descricao: "Enviar para assinatura, cancelar e corrigir",
+    },
+    {
+      titulo: "Minutas de contrato",
+      href: "/painel/ajuda/compras/minutas",
+      descricao: "As partes e a ordem das assinaturas",
+    },
+    {
+      titulo: "Contratos e RPA",
+      href: "/painel/ajuda/compras/contratos",
+      descricao: "O link do prestador, os lembretes e o anexo",
+    },
+  ]}
+/>

@@ -1,7 +1,8 @@
-Na **votação pública** de uma assembleia, o eleitor vota sem login no sistema.
-Desde 22/09/2026 o caminho normal é o **link pessoal** que vai no e-mail de
-aviso: ele abre a cédula direto, sem código. O código por e-mail continua
-existindo para quem chega pelo endereço da assembleia.
+Na **votação pública** de uma assembleia, o eleitor vota sem login no sistema. O
+caminho normal é o **link pessoal** que vai no e-mail de aviso: ele abre a cédula
+direto, sem código. Quem não recebeu pede o link no endereço da assembleia ou usa
+o **link único** `/votar`. O filiado também vota pela área do filiado, em Votação;
+é para lá que o link único manda a assembleia marcada como **Somente filiados**.
 
 ## Caminho 1 — link pessoal (o que a maioria usa)
 
@@ -27,59 +28,70 @@ existindo para quem chega pelo endereço da assembleia.
 
 <Aviso tipo="atencao" titulo="O link é pessoal — e o e-mail avisa isso">
   Quem abrir o link vota no lugar do titular. Por isso o e-mail diz de quem ele
-  é ("vota em nome de Fulano de Tal") e traz o **Não sou eu**: um clique
-  desativa o link na hora e marca o cadastro para a secretaria conferir. É a
-  saída de quem recebeu por causa de um e-mail digitado errado pela empresa.
+  é ("vota em nome de Fulano de Tal") e traz o **Não sou eu**. Ele abre uma página
+  com o botão **Confirmo: este e-mail não é meu**: só esse clique desativa o link e
+  marca o cadastro para a secretaria conferir. Abrir a página não muda nada, porque
+  o antivírus de e-mail das empresas abre todos os links da mensagem. É a saída de
+  quem recebeu por causa de um e-mail digitado errado pela empresa.
 </Aviso>
 
-## Caminho 2 — código por e-mail
+## Caminho 2 — pedir o link no endereço da assembleia
 
 Quem abre o endereço da assembleia (`/votar/…`) direto se identifica ali:
 
 <PassoAPasso>
   <Passo titulo="Escolher a porta">
     **Sou filiado (CPF):** digita o CPF; o sistema confere a lista de aptos e a
-    filiação ativa, e manda o código ao e-mail cadastrado. **Não sou filiado
-    (e-mail):** digita o e-mail corporativo que veio na lista da empresa.
+    filiação ativa. **Não sou filiado (e-mail):** digita o e-mail que a empresa
+    informou na lista. O botão é **Receber meu link de votação**.
   </Passo>
-  <Passo titulo="Digitar o código">
-    O código chega no e-mail e vale por 2 horas, uma vez só.
+  <Passo titulo="Abrir o e-mail">
+    O sistema manda o **link pessoal**, e a tela diz para qual endereço, em parte.
+    A pessoa abre o e-mail e clica em **Ir para a votação**.
+  </Passo>
+  <Passo titulo="Se o link não puder sair: o código">
+    Só quando o link não pode sair, o sistema manda um código, e a tela pede para
+    digitá-lo. Ele vale por 2 horas, uma vez só. Dá para pedir um por minuto e 5 por
+    hora.
   </Passo>
   <Passo titulo="Confirmar a identidade e votar">
     Daí em diante é igual ao caminho do link.
   </Passo>
 </PassoAPasso>
 
-<Print src="fluxos-publicos/votacao.png" alt="Tela pública de votação com as opções de entrar pelo CPF ou pelo e-mail corporativo." legenda="Identificação por CPF ou e-mail, quando o eleitor chega pelo endereço da assembleia." />
+<Print src="fluxos-publicos/votacao.png" alt="Tela pública Votação online: as opções Sou filiado (CPF) e Não sou filiado (e-mail), o campo do CPF e o botão Receber meu link de votação." legenda="Identificação por CPF ou e-mail, quando o eleitor chega pelo endereço da assembleia." />
 
 ## Caminho 3 — link único (quem não recebe o e-mail da empresa)
 
 O endereço `/votar` (sem nada depois) é o **link único** da entidade: uma
 página com todas as votações online abertas e as próximas. É para quem não
 recebe as nossas mensagens no e-mail corporativo — os filtros de algumas
-empresas barram tudo.
+empresas barram tudo. Quando todas as votações ainda vão abrir, a página funciona
+como **pré-cadastro**: oferece o Telegram primeiro, e o link pessoal chega no canal
+escolhido na abertura.
 
 <PassoAPasso>
   <Passo titulo="Confirmar um e-mail que recebe — ou o Telegram">
     A pessoa digita um e-mail seu — de preferência o pessoal (Gmail, por
-    exemplo) — e recebe um código. Digitou o código, está dentro. Quem não
-    recebe e-mail pode tocar em **Confirmar pelo Telegram**: abre a conversa
+    exemplo) — e clica em **Receber código**. Digitou o código, está dentro. Quem
+    não recebe e-mail pode tocar em **Confirmar pelo Telegram**: abre a conversa
     com o bot do sindicato, aperta **Iniciar** e toca em **📱 Compartilhar meu
     número** (o Telegram já confirmou esse número por SMS). A página percebe
     sozinha e segue.
   </Passo>
   <Passo titulo="Identificar-se na lista">
     Informa **nome completo**, **e-mail da empresa** (o que veio na lista),
-    **CPF** e **data de nascimento**. O sistema procura o registro dela em
-    todas as votações abertas de uma vez.
+    **CPF** e **data de nascimento** e clica em **Confirmar meus dados**. O sistema
+    procura o registro dela em todas as votações abertas e agendadas de uma vez.
   </Passo>
   <Passo titulo="Votar">
     Cada votação em que ela está ganha o botão **Votar**, que abre a cédula. O
     comprovante vai para o e-mail confirmado no primeiro passo (ou chega pelo
     Telegram, para quem confirmou por lá). Votações em que
     ela já votou aparecem como "Você já votou"; as que ainda não abriram dizem
-    quando abrem. Se houver assembleia virtual, o link da sala aparece no
-    cartão.
+    quando abrem e que o link pessoal chegará no canal dela. Se houver assembleia
+    virtual, **Entrar na sala** aparece no cartão. Votação **Somente filiados**
+    manda para a área do filiado.
   </Passo>
 </PassoAPasso>
 
@@ -108,6 +120,14 @@ empresas barram tudo.
   o e-mail da empresa recebe um alerta de que o cadastro foi feito — se o dono
   verdadeiro não reconhecer, ele avisa o sindicato.
 </Aviso>
+
+## O aviso prévio com o botão Recebi
+
+Antes da votação, o sindicato pode mandar um e-mail de teste ao endereço da empresa.
+O botão dele abre uma página com **Recebi o e-mail**: um clique avisa o sindicato de
+que o e-mail chega até a pessoa. **Não é o voto** e não pede nenhum dado. A página
+de agradecimento oferece **Cadastrar Telegram ou e-mail pessoal**, para receber o
+link também no celular.
 
 ## A conferência de identidade
 
@@ -165,15 +185,22 @@ comprovante fica na área do filiado e pode ser conferido por qualquer um em
 - **"Não recebi o e-mail."** Confira o endereço na lista de aptos e o lixo
   eletrônico. Na rodada, **Reenviar a quem não votou** manda de novo só para
   quem falta.
-- **"O link diz que não é mais válido."** Ou a pessoa já votou, ou clicou em
-  "Não sou eu", ou o link foi copiado pela metade. Ela ainda pode entrar pelo
-  endereço da assembleia, com código.
-- **"Aparece 'CPF não está na lista' ou 'não localizado'."** O CPF precisa
-  constar na lista da **rodada** e ter filiação ativa com e-mail. Quem não é
-  filiado entra pelo **e-mail corporativo**.
+- **"O link diz que não é mais válido."** Ou a pessoa já votou, ou confirmou "Não
+  sou eu", ou o link foi copiado pela metade. Ela ainda pode se identificar ali
+  mesmo para receber outro, ou pedir um novo link ao sindicato.
+- **"Não foi possível localizar um eleitor apto com este CPF."** O CPF precisa
+  constar na lista da **rodada** e ter filiação ativa com e-mail. A tela não diz
+  qual dos três falhou, de propósito. Quem não é filiado entra pelo **e-mail**.
+- **"Este e-mail não está na lista de aptos."** Confira a lista da rodada. O e-mail
+  é o que a empresa informou.
 - **"Os dados não conferem."** Nome ou nascimento diferentes do cadastro, ou o
   CPF já está em outro apto. A equipe vê o motivo no aviso do apto, na rodada.
-- **"Recebi o link de outra pessoa."** Clique em **Não sou eu** no e-mail.
+- **"Muitas tentativas que não conferem."** No link único, depois de 5 tentativas a
+  conta trava: a secretaria confere o cadastro.
+- **"Seu acesso a esta página terminou."** A pessoa abre de novo o link do e-mail:
+  ele vale até o fim da votação.
+- **"Recebi o link de outra pessoa."** Clique em **Não sou eu** no e-mail e
+  confirme na página que abrir.
 - **"A votação ainda não começou."** A assembleia tem hora de abertura; a tela
   diz o dia e a hora em que abre.
 - **"A pessoa tentou votar duas vezes."** O voto é **único** por eleitor na

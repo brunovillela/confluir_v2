@@ -28,6 +28,8 @@ título) e é paginada (10 por página, ou 30, 50 e 100).
 
 Em **Tipos do ACT**, cadastre cada tipo de reembolso com o nome, uma descrição, a
 **porcentagem paga** e, se houver, o **teto**. Mantenha ativos os que estão em vigor.
+Tipos usados em solicitações não podem ser excluídos: desative-os para tirar do
+formulário.
 
 O valor que o ACT reembolsa sai dos dois juntos: a porcentagem aplicada sobre a
 despesa, **limitada ao teto**.
@@ -45,14 +47,18 @@ se **reembolsa**, não sobre a despesa — a despesa pode passar dele.
 
 <PassoAPasso>
   <Passo titulo="Solicitar">
-    A solicitação traz o funcionário, o tipo, o **valor da despesa** e a
-    descrição. Ao escolher o tipo e digitar o valor, o formulário já mostra o
+    O funcionário pede em **Meu perfil → Reembolsos**: a área do Pessoal avalia, mas
+    não abre pedido pelo funcionário. A solicitação traz o tipo, o **valor da
+    despesa** e a descrição. Ao escolher o tipo e digitar o valor, o formulário já mostra o
     **reembolso previsto**.
   </Passo>
   <Passo titulo="Avaliar">
     Enquanto está **aguardando**, a ação **Avaliar** mostra a conta do ACT
     (ex.: "70% de R$ 750,00") e já traz o **reembolsável** como valor aprovado.
-    Quem avalia pode **reduzir** o valor (glosa), nunca aumentar — ou reprova.
+    Quem avalia pode **reduzir** o valor (glosa), nunca aumentar — ou reprova, com
+    a **Observação** obrigatória. O funcionário é avisado da decisão. Quem recebe o
+    aviso pelo Telegram também decide por lá: aprovar pelo bot usa o valor
+    reembolsável e o mês sugerido. Veja [Avisos](/painel/ajuda/introducao/avisos).
   </Passo>
   <Passo titulo="Pagar em folha">
     Os aprovados ficam **a lançar no contracheque**, no mês/ano de pagamento
@@ -64,16 +70,19 @@ se **reembolsa**, não sobre a despesa — a despesa pode passar dele.
 </PassoAPasso>
 
 <Aviso tipo="atencao" titulo="Precisa da configuração">
-  Os reembolsos dependem de uma configuração inicial (`reembolsos-act.sql`). Sem
-  ela, a área mostra um aviso para configurar.
+  Os reembolsos dependem de uma configuração inicial. Sem ela, a área mostra um
+  aviso para configurar.
 </Aviso>
 
 <Print src="pessoal/reembolsos.png" alt="Reembolsos do ACT na aba Solicitações: funcionário, tipo, valor solicitado, aprovado e situação." legenda="A aba Solicitações: da solicitação ao pagamento em folha." />
 
 ## Erros comuns
 
-- **"A área pede para configurar."** Falta rodar a configuração inicial
-  (`reembolsos-act.sql`) — fale com quem administra o sistema.
+- **"A área pede para configurar."** Falta a configuração inicial — fale com quem
+  administra o sistema.
+- **"Informe o mês e o ano do contracheque."** Para aprovar, o mês e o ano de
+  pagamento são obrigatórios.
+- **"Não consigo reprovar."** A reprovação exige a **Observação**.
 - **"Aprovei um valor menor que o calculado — está certo?"** Sim: o **valor
   aprovado** pode ser menor que o reembolsável (glosa), e é ele que vai para a folha.
 - **"O valor aprovado passa do reembolsável."** O máximo é a porcentagem do tipo

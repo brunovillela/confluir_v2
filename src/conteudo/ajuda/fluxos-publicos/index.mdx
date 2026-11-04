@@ -1,8 +1,8 @@
-Alguns fluxos do Confluir são **públicos**: o trabalhador os acessa **sem login**,
-normalmente uma única vez, por um link divulgado pelo sindicato. Esta área
-reúne essas telas para a equipe conhecer e dar suporte.
+Alguns fluxos do Confluir são **públicos**: a pessoa os acessa **sem login no
+sistema**, por um link divulgado pelo sindicato ou enviado a ela. Esta área reúne
+essas telas para a equipe conhecer e dar suporte.
 
-## Os três fluxos públicos
+## Os fluxos públicos
 
 <PassoAPasso>
   <Passo titulo="Filiação pública">
@@ -11,20 +11,35 @@ reúne essas telas para a equipe conhecer e dar suporte.
     Solicitações**.
   </Passo>
   <Passo titulo="Oposição à contribuição">
-    O trabalhador registra a oposição numa campanha aberta. Filiado entra pelo
-    portal; não-filiado se cadastra na própria tela. A equipe acompanha em
-    **Representação → Oposição**.
+    O trabalhador registra a oposição numa campanha aberta, em `/portal/oposicao`,
+    com um código que chega por e-mail. A equipe acompanha em **Representação →
+    Oposição**.
   </Passo>
   <Passo titulo="Votação pública">
-    Em assembleias, o eleitor se identifica por CPF e recebe um código por
-    e-mail. A apuração fica em **Representação → Votações**.
+    O eleitor vota pelo link pessoal do e-mail de aviso ou pelo link único
+    `/votar`. A apuração fica em **Representação → Votações**.
+  </Passo>
+  <Passo titulo="Inscrição em evento">
+    A pessoa se inscreve em `/evento/…` e acompanha pela página pessoal da
+    inscrição. A equipe acompanha em **Eventos**.
+  </Passo>
+  <Passo titulo="Assinatura eletrônica">
+    Quem recebe um ofício, contrato, termo, recibo ou aviso de férias assina pelo
+    link pessoal `/assinar/…`, com um código de uso único.
+  </Passo>
+  <Passo titulo="Desistência da filiação coletiva">
+    Quem entrou por filiação coletiva e não consegue abrir o portal desiste pelo
+    link pessoal `/desistir/…`, dentro do prazo. Ver
+    [Filiação coletiva](/painel/ajuda/representacao/filiacao-coletiva).
   </Passo>
 </PassoAPasso>
 
 <Aviso tipo="nota" titulo="Sem login, por um link">
   Essas telas não pedem usuário e senha do sistema — a identidade é confirmada
-  por código enviado ao e-mail ou por um link único. Cada fluxo tem o seu
-  endereço público, que o sindicato divulga.
+  por código enviado ao e-mail, pelo Telegram ou por um link pessoal. Mesários e
+  apuradores também entram sem senha, em `/mesario` e `/apurador`, com um código
+  por e-mail: ver
+  [Montar uma votação presencial](/painel/ajuda/representacao/votacao-presencial).
 </Aviso>
 
 <Print src="fluxos-publicos/filiar.png" alt="Formulário público de filiação em branco, com as seções de dados pessoais, contato, endereço, vínculo e autorizações." legenda="A ficha de filiação pública, aberta a qualquer trabalhador." />
@@ -35,8 +50,8 @@ reúne essas telas para a equipe conhecer e dar suporte.
   spam** e o **e-mail digitado**; os códigos **expiram** (a tela permite
   reenviar).
 - **"Qual é o link de cada fluxo?"** São endereços diferentes — `/filiar`,
-  a tela de oposição e `/votar/…` — divulgados pelo **sindicato**. A equipe
-  acompanha cada um no painel.
+  `/portal/oposicao`, `/votar` e `/evento/…` são divulgados pelo **sindicato**;
+  `/assinar/…` e `/desistir/…` são pessoais. A equipe acompanha cada um no painel.
 - **"Preciso ajudar alguém que travou."** Cada artigo abaixo tem o passo a passo
   e os erros comuns do fluxo específico.
 
@@ -55,7 +70,17 @@ reúne essas telas para a equipe conhecer e dar suporte.
     {
       titulo: "Votação pública",
       href: "/painel/ajuda/fluxos-publicos/votacao",
-      descricao: "A identificação do eleitor por CPF",
+      descricao: "Link pessoal, link único e a identificação do eleitor",
+    },
+    {
+      titulo: "Inscrição em evento",
+      href: "/painel/ajuda/fluxos-publicos/evento",
+      descricao: "A página do evento, a inscrição e Meus dados",
+    },
+    {
+      titulo: "Assinatura eletrônica",
+      href: "/painel/ajuda/fluxos-publicos/assinatura",
+      descricao: "O que o assinante vê no link",
     },
   ]}
 />

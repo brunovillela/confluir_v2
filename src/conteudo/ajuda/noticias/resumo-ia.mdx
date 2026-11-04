@@ -1,5 +1,5 @@
-O **resumo de notícias por IA** acompanha os sites que você configura e destila
-o que interessa num resumo que aparece no painel.
+O **Resumo de notícias** acompanha os sites que você configura e destila o que
+interessa num resumo, com título e texto, que aparece no painel.
 
 <RequerPermissao>Notícias</RequerPermissao>
 
@@ -7,12 +7,20 @@ o que interessa num resumo que aparece no painel.
 
 <PassoAPasso>
   <Passo titulo="Configure as fontes">
-    Informe os sites a acompanhar, o tamanho do resumo e a recorrência (com
-    presets prontos).
+    Em Comunicação → Resumo de notícias, adicione cada site com a **URL do site**
+    e, se quiser, um **Nome**, e clique em **Adicionar**.
+  </Passo>
+  <Passo titulo="Escolha a recorrência e o tamanho">
+    Marque **Geração automática ativa** e escolha a **Recorrência**: **Diária**,
+    **Dias úteis (seg–sex)** ou **Semanal**, com o **Horário** (e o **Dia da
+    semana**, na semanal), ou **A cada N horas**, com o **Intervalo**. Em **Tamanho
+    do resumo**, escolha **Curto** (cerca de 1.000 caracteres), **Médio** (cerca de
+    2.000) ou **Longo** (cerca de 3.000).
   </Passo>
   <Passo titulo="Ajuste o prompt">
-    O texto que orienta a IA é editável — e há um “Melhorar com IA” para
-    refiná-lo.
+    O **Prompt da IA** é o texto que orienta a geração. Ele é obrigatório e
+    editável, e o botão **Melhorar com IA** ajuda a refiná-lo. Clique em **Salvar
+    configuração**.
   </Passo>
   <Passo titulo="Gere">
     Use “Gerar agora” para produzir na hora, ou deixe a recorrência cuidar. O
@@ -20,18 +28,21 @@ o que interessa num resumo que aparece no painel.
   </Passo>
 </PassoAPasso>
 
-<Aviso tipo="atencao" titulo="Depende de chave de IA e do agendador">
-  A geração usa a IA (precisa de chave e saldo). A execução automática pela
-  recorrência depende do agendador estar ligado no ambiente — até lá, use o
-  “Gerar agora”.
+<Aviso tipo="atencao" titulo="A geração depende da IA">
+  A geração usa a IA, que precisa de chave e saldo. A geração automática só roda com
+  a caixa **Geração automática ativa** marcada; o sistema confere a agenda a cada
+  15 minutos. Para ver o resultado na hora, use **Gerar agora**.
 </Aviso>
 
 <Print src="noticias/resumo-ia.png" alt="Configuração do resumo de notícias por IA com fontes, tamanho, recorrência e prompt." legenda="Configuração do resumo por IA." />
 
 ## Erros comuns
 
-- **"O resumo não gera sozinho."** A execução automática depende do **agendador**
-  ligado no ambiente; enquanto isso, use **Gerar agora**.
+- **"O resumo não gera sozinho."** Confira se **Geração automática ativa** está
+  marcada e salva. O sistema confere a agenda a cada 15 minutos, então o resumo
+  pode sair alguns minutos depois do horário.
+- **"Escreva o prompt que a IA vai usar no resumo."** O **Prompt da IA** não pode
+  ficar vazio. O **Melhorar com IA** também só funciona com algum texto escrito.
 - **"Deu erro ao gerar."** A IA precisa de **chave e saldo** configurados —
   confira com quem administra o sistema.
 - **"O resumo veio ruim/genérico."** Ajuste o **prompt** (com o "Melhorar com

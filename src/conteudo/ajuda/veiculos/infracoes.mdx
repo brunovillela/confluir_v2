@@ -1,22 +1,52 @@
 As **infrações** registram as multas dos veículos e permitem **cobrar o
 infrator**, com baixa no Financeiro e histórico para a prestação de contas.
 
-<RequerPermissao>Infrações</RequerPermissao>
+<RequerPermissao>Veículos ou Gestão de veículos</RequerPermissao>
+
+## Quem faz o quê
+
+- **Condutor** (com a permissão Veículos): vê só as próprias infrações, recebe o
+  aviso e apresenta a justificativa.
+- **Gestão de veículos**: vê todas, registra, registra a justificativa em nome do
+  condutor, avalia e gera a ordem de pagamento da multa.
+- **Financeiro**: dá a baixa da cobrança em **Cobranças de multas**.
+  <RequerPermissao>Ordens de pagamento</RequerPermissao>
 
 ## Registrar e cobrar
 
 <PassoAPasso>
   <Passo titulo="Registre a infração">
-    Vincule a multa ao **veículo** e ao **condutor infrator**, com a data, o
-    valor e a descrição.
+    Em Veículos → Infrações, abra **Registrar infração**. São obrigatórios o
+    **Veículo**, o **Condutor infrator**, a **Data da infração**, a **Gravidade**
+    (Leve, Média, Grave ou Gravíssima), o **Órgão autuador** e a **Descrição da
+    infração**. São opcionais o nº do auto, o local, o valor da multa e o arquivo
+    da notificação (PDF, JPG ou PNG). Ao registrar, o condutor é avisado.
   </Passo>
-  <Passo titulo="Cobre o infrator">
-    Quando o infrator é do quadro, a cobrança pode ir para o **contracheque**
-    (desconto). Fica registrado o que há **a cobrar**.
+  <Passo titulo="Justificativa do condutor">
+    O condutor abre a infração e, em **Apresentar justificativa**, explica as
+    circunstâncias e clica em **Enviar justificativa**. A gestão também pode
+    registrar a justificativa recebida dele.
   </Passo>
-  <Passo titulo="Baixa no Financeiro">
-    A quitação gera a **baixa no Financeiro**, com histórico — o que serve à
-    prestação de contas ao **Conselho Fiscal**.
+  <Passo titulo="Avaliação da gestão">
+    Com a justificativa apresentada, a gestão decide em **Avaliar justificativa**:
+    **Atividade sindical** (o sindicato assume a multa e não há cobrança) ou **Não
+    sindical** (cobrar do condutor). Na cobrança, escolha a **Forma de cobrança**
+    (**Desconto em contracheque** ou **Desconto em diárias**) e confira o valor,
+    que já vem com o da multa. O condutor é avisado do resultado.
+  </Passo>
+  <Passo titulo="Ordem de pagamento da multa">
+    Quem paga o órgão autuador é a entidade. Em **Ordem de pagamento da multa**,
+    informe o vencimento e o boleto, se tiver, e clique em **Gerar ordem de
+    pagamento**. A ordem nasce **Em autorização**, na forma Boleto. A infração
+    precisa ter o valor da multa preenchido, e cada uma só gera uma ordem.
+  </Passo>
+  <Passo titulo="Baixa da cobrança">
+    A cobrança fica **pendente** até a baixa. A de **contracheque** entra no
+    movimento da folha enquanto pendente, e o Financeiro dá a baixa em Financeiro
+    → **Cobranças de multas**, descrevendo como o valor foi recebido. A de
+    **diárias** é baixada sozinha quando uma diária do infrator é aprovada com o
+    desconto aplicado e o valor cabe nela. A baixa fica no **Histórico (auditoria)** da infração, o que
+    serve à prestação de contas ao **Conselho Fiscal**.
   </Passo>
 </PassoAPasso>
 
@@ -47,11 +77,19 @@ infração e apresentar a justificativa.
 
 ## Contratos de aluguel
 
-<RequerPermissao>Contratos de aluguel</RequerPermissao>
+<RequerPermissao>Gestão de veículos</RequerPermissao>
 
 Quando a frota inclui veículos alugados, o **contrato de aluguel** registra o
-período (vigência), o fornecedor e as **cobranças**. Os **Alertas** do painel
-de Veículos avisam, para cada contrato vigente:
+período (vigência), o fornecedor e as **cobranças**. Em Veículos → Contratos de
+aluguel, a lista filtra por **Vigentes**, **Finalizados** ou **Todos**.
+
+Em **Novo contrato**, são obrigatórios o **Nº do contrato na locadora**, a
+**Locadora** (do cadastro de fornecedores de Aquisição), o **Início da vigência**
+e o **Uso do carro** com a justificativa. Os demais campos são término, valor
+mensal, responsável, departamento, centro de custo, finalidade e o contrato
+assinado (PDF, JPG ou PNG).
+
+Os **Alertas** do painel de Veículos avisam, para cada contrato vigente:
 
 - que ele termina nos próximos 30 dias — o link já abre o **Prorrogar**;
 - que ele **já terminou** e não foi prorrogado nem finalizado (em destaque);
@@ -60,7 +98,7 @@ de Veículos avisam, para cada contrato vigente:
 - cobranças ainda não pagas **sem a fatura** anexada.
 
 Todo contrato novo diz o **uso** do carro, com a **justificativa** da
-necessidade:
+necessidade (ao menos 10 caracteres):
 
 - **Dedicado** — o carro fica com um condutor (escolhido no contrato). Ele não
   é oferecido a quem pede carro na recepção, nem aparece como disponível no
@@ -144,12 +182,16 @@ O código da ordem abre a ordem no Financeiro.
   se aparecer "sem e-mail cadastrado", atualize o e-mail em Meu perfil (dele)
   ou no cadastro de usuários. O aviso no sino chega de qualquer forma.
 
-- **"Registrei a multa mas não descontou."** A cobrança no contracheque só vale
-  para infrator **do quadro**; e o desconto é lançado na folha — confira a
-  situação **a cobrar**.
-- **"A baixa não aparece para o Conselho Fiscal."** A baixa fica no
-  **Financeiro** com histórico; verifique se a infração foi efetivamente
-  **quitada/baixada**, não apenas registrada.
+- **"Registrei a multa mas não há cobrança."** A cobrança só nasce na **avaliação**,
+  depois da justificativa, e só quando ela é **Não sindical**. Confira a coluna
+  **Justificativa** na lista: *Pendente*, *Aguardando avaliação*, *Aceita
+  (sindical)* ou *Não sindical*.
+- **"Não aparece Gerar ordem de pagamento."** A área é só da gestão e some depois
+  que a ordem é gerada. Sem o valor da multa, o sistema recusa.
+- **"O desconto em diárias não saiu."** A cobrança só é abatida quando cabe no
+  valor da diária aprovada. Se não couber, fica pendente.
+- **"A baixa não aparece para o Conselho Fiscal."** Confira no **Histórico
+  (auditoria)** da infração se houve a baixa, não apenas o registro.
 - **"O contrato de aluguel venceu sem aviso."** O alerta cobre os próximos **30
   dias** — contratos com término mais distante ainda não aparecem no painel.
 

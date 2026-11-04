@@ -72,7 +72,8 @@ fica registrada no livro de exportações da entidade.
 filiado (de qualquer cadastro da pessoa com o mesmo CPF): a **chave Pix**
 quando ele prefere Pix; senão a **conta principal** (TED); sem conta, a chave
 Pix que houver. Sem chave nem conta, a ordem não nasce — cadastre os dados
-bancários na ficha ou peça-os ao filiado pelo link.
+bancários na ficha ou peça-os ao filiado pelo link (ver
+[Dados bancários](/painel/ajuda/filiados/perfil), no perfil).
 
 <Print src="filiados/reembolso-novo.png" alt="Formulário de novo reembolso com o filiado já escolhido, data de referência, valor, tipo, justificativa e projeto." legenda="Lançar reembolso a partir do perfil: o filiado já vem escolhido." />
 
@@ -94,9 +95,10 @@ uma greve, por exemplo —, use **Lançar em lote**.
   </Passo>
   <Passo titulo="A lista">
     Uma linha por filiado com o **CPF e o valor**: copie as duas colunas do
-    Excel e cole, ou envie a planilha (.xlsx ou .csv). Outras colunas (nome,
-    matrícula) são ignoradas; o valor é o último número da linha, e o
-    cabeçalho é pulado sozinho. Até 1.000 linhas por lote.
+    Excel e cole em **Lista colada**, ou envie a planilha (.xlsx, .xls ou .csv).
+    Com planilha, a lista colada é ignorada. Outras colunas (nome, matrícula) são
+    ignoradas; o valor é o último número da linha, e o cabeçalho é pulado sozinho.
+    Até 1.000 linhas por lote.
   </Passo>
   <Passo titulo="Conferir">
     Nada é gravado ainda. A tabela mostra cada linha com o filiado achado
@@ -142,8 +144,9 @@ indevido se trata no Financeiro.
 
 ## Configuração
 
-Em **Reembolsos → Configuração** a entidade define o **centro de custo**: a
-ordem nasce com ele como centro de custo de despesa.
+Em **Reembolsos → Configuração** a entidade define o **centro de custo** (ou **Sem
+centro de custo**): a ordem nasce com ele como centro de custo de despesa. A regra
+vale para os próximos lançamentos; os já feitos não mudam.
 
 ## De onde vieram
 
@@ -158,6 +161,15 @@ guardava — e aparecem com **sem ordem** na situação.
   **Reembolsos** ou **Gestão da filiação**.
 - **"A situação não muda para Paga."** O pagamento é registrado no
   Financeiro, na ordem. Aqui só se lê.
+- **"Não foi possível gerar a ordem de pagamento: a ordem precisa de forma de
+  pagamento..."** O filiado não tem chave Pix nem conta em nenhum cadastro do CPF.
+  Cadastre na ficha ou use **Pedir dados bancários**.
+- **"Este reembolso não tem ordem de pagamento ativa para receber o comprovante."**
+  É o caso dos que aparecem com **sem ordem**, ou de ordem excluída.
+- **"O arquivo deve ter no máximo 4 MB."** Reduza o comprovante.
+- **"Nenhuma linha com CPF e valor."** No lote, cada linha precisa do CPF e do valor.
+- **"Nenhum filiado com este CPF."** Quem não tem cadastro não entra no lote: faça o
+  cadastro antes e confira de novo.
 
 <VejaTambem
   links={[

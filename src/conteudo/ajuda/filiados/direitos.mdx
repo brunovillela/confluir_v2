@@ -2,9 +2,10 @@ Duas regras que quase todo estatuto tem: **quanto tempo** o filiado espera para
 usar um direito, e **quantas contribuições em falta** o colocam no relatório de
 inadimplência. As duas se configuram em **Filiados → Configurações de
 filiação**, que também dá acesso aos **termos legais** (LGPD e autorização de
-desconto) aceitos na ficha.
+desconto) aceitos na ficha, no botão **Abrir termos legais**, e às [condições da
+hospedagem](#condicoes-hospedagem).
 
-<RequerPermissao>Gestão de filiados</RequerPermissao>
+<RequerPermissao>Gestão da filiação</RequerPermissao>
 
 ## Carência
 
@@ -23,7 +24,8 @@ Cada direito tem a sua, e liga por conta própria:
 | Votar em pleito de filiados | eleição de diretoria, consulta interna |
 
 Direito com a carência **desligada** vale desde a filiação. É o padrão: o
-sistema não inventa restrição que a entidade não pediu.
+sistema não inventa restrição que a entidade não pediu. Cada direito tem os campos
+**Dias** (até 3.650) e uma observação, como o artigo do estatuto.
 
 <Aviso tipo="atencao" titulo="Assembleia da categoria fica de fora">
   A carência de votação alcança apenas os pleitos marcados como
@@ -54,6 +56,34 @@ Sobra um caso: quem não tem vínculo datado **nem** nenhuma contribuição. Aí
 há de onde contar, e a carência barra — a tela diz isso com todas as letras e
 pede que se registre o vínculo. São poucos, e cada um é caso de secretaria.
 
+<span id="condicoes-hospedagem" className="block scroll-mt-20" />
+
+## Condições da hospedagem
+
+Quem pode solicitar cupom, além de ter a filiação ativa. Valem no portal e na
+emissão pelo painel, e o associado as vê em Hospedagem, nas regras de utilização.
+Cada condição liga por conta própria, e nenhuma vem ligada:
+
+| Condição | O que faz |
+| --- | --- |
+| **Restringir por fonte pagadora** | Só quem tem vínculo em aberto com uma das fontes marcadas. |
+| **Restringir por regime de trabalho** | Vale o regime do vínculo em aberto. Quem não tem regime registrado, como aposentados, fica de fora. |
+| **Limitar a quantidade de cupons** | Até quantos cupons por período. Conta os não cancelados com check-in no mesmo mês ou ano do cupom pedido. |
+| **Somente a lista de beneficiários** | Só as pessoas incluídas na lista, logo abaixo. |
+
+O campo **Texto para o associado** é opcional. A **Lista de beneficiários da
+hospedagem** recebe o CPF do filiado e uma observação; ela precisa ter alguém antes
+de ligar a condição.
+
+### Não comparecimento na hospedagem
+
+Vale para reservas em hotéis de demanda garantida. **Punir o não comparecimento**
+conta como falta a reserva não cancelada e sem entrada registrada no hotel até o
+fim do dia do check-in. Defina **Faltas para punir** (com 1, a punição vale já na
+primeira), **Em quantos meses** e a punição: o período consumido (o mês ou o ano da
+falta) ou os dias de suspensão. Abonos e liberações ficam em Hospedagem → Não
+comparecimentos.
+
 ## Quem é "filiado ativo"
 
 Em toda esta área, ativo é quem tem a **condição sindical do cadastro** marcada
@@ -74,7 +104,7 @@ Uma regra por **tipo de contribuição** — Associativa, Assistencial, Sindical
 alimentada pelos tipos que a entidade realmente usa. Cada uma tem três ajustes:
 
 <PassoAPasso>
-  <Passo titulo="Quantas faltas">
+  <Passo titulo="Faltas para entrar na lista">
     O número de contribuições não pagas que caracteriza a inadimplência.
   </Passo>
   <Passo titulo="Precisam ser seguidas?">
@@ -83,8 +113,8 @@ alimentada pelos tipos que a entidade realmente usa. Cada uma tem três ajustes:
     lista. Desmarcado, soma faltas avulsas dentro da janela.
   </Passo>
   <Passo titulo="Janela">
-    Quantas remessas olhar para trás. Sem janela, uma falta de 2019 pesaria
-    hoje.
+    Quantas remessas olhar para trás, de 1 a 120. Sem janela, uma falta de 2019
+    pesaria hoje.
   </Passo>
 </PassoAPasso>
 
@@ -131,7 +161,7 @@ tirada de uma das duas regras, com justificativa:
   situações em que não houve desconto porque não havia como haver.
 
 <PassoAPasso>
-  <Passo titulo="Informe o CPF">
+  <Passo titulo="Abra Conceder efeito suspensivo e informe o CPF">
     A suspensão vale para a pessoa, não para um registro de filiação — quem tem
     vários vínculos é a mesma pessoa.
   </Passo>
@@ -149,7 +179,9 @@ tirada de uma das duas regras, com justificativa:
 </PassoAPasso>
 
 Quem tem efeito suspensivo aparece **esmaecido e marcado** no relatório — some
-da conta, não da vista.
+da conta, não da vista. O quadro **Efeitos suspensivos em vigor**, no fim da tela,
+lista cada um com a justificativa, quem concedeu e quando, e tem o botão para
+revogar.
 
 ### Erros comuns
 
@@ -162,6 +194,12 @@ da conta, não da vista.
   menos uma frase. É de propósito.
 - **A lista de inadimplentes está vazia** — confira se alguma regra está
   ligada. Sem regra, ninguém é inadimplente.
+- **&quot;A lista de beneficiários está vazia&quot;** — inclua as pessoas antes de
+  ligar Somente a lista de beneficiários.
+- **&quot;Marque ao menos uma fonte pagadora&quot;** — ou desligue a restrição por
+  fonte. O mesmo vale para o regime de trabalho.
+- **&quot;Informe um CPF válido&quot;** — o efeito suspensivo e a lista de
+  beneficiários só aceitam CPF válido.
 
 <VejaTambem
   links={[

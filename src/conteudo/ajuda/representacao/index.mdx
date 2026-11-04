@@ -1,7 +1,7 @@
 O módulo **Representação Sindical** reúne as frentes de atuação coletiva da
 entidade: **votações**, **oposição** à contribuição assistencial, **acordos
-coletivos**, **negociações sindicais** e o cadastro de **empregadores** (fontes
-pagadoras).
+coletivos**, **negociações sindicais**, **filiação coletiva** e o cadastro de
+**empregadores** (fontes pagadoras).
 
 <RequerPermissao>Votações e assembleias</RequerPermissao>, <RequerPermissao>Oposição à contribuição assistencial</RequerPermissao>, <RequerPermissao>Acordos coletivos</RequerPermissao>, <RequerPermissao>Negociações sindicais (pauta e propostas — sigiloso)</RequerPermissao> ou <RequerPermissao>Empregadores e fontes pagadoras</RequerPermissao>
 
@@ -9,8 +9,11 @@ pagadoras).
 
 <PassoAPasso>
   <Passo titulo="Votações">
-    Campanhas, rodadas e assembleias com perguntas, aptos a votar e o registro
-    do voto. <RequerPermissao>Votações e assembleias</RequerPermissao>
+    O painel das votações, com as fontes pagadoras, as campanhas, as rodadas e
+    as assembleias: perguntas, aptos a votar, entrega do link, urnas e apuração.
+    Ver [Votações](/painel/ajuda/representacao/votacoes) e o guia
+    [Montar uma votação presencial](/painel/ajuda/representacao/votacao-presencial).
+    <RequerPermissao>Votações e assembleias</RequerPermissao>
   </Passo>
   <Passo titulo="Oposição">
     O fluxo em que o trabalhador se opõe à contribuição assistencial, do cadastro
@@ -32,14 +35,22 @@ pagadoras).
     [Negociações sindicais](/painel/ajuda/representacao/negociacoes).
     <RequerPermissao>Negociações sindicais (pauta e propostas — sigiloso)</RequerPermissao>
   </Passo>
+  <Passo titulo="Filiação coletiva">
+    Quando o acordo aprovado em assembleia tem cláusula de filiação coletiva:
+    os aptos a votar tornam-se filiados, com prazo para desistir. Ver
+    [Filiação coletiva](/painel/ajuda/representacao/filiacao-coletiva).
+    <RequerPermissao>Votações e assembleias</RequerPermissao>
+  </Passo>
   <Passo titulo="Empregadores">
-    As fontes pagadoras (empresas onde os filiados trabalham), a documentação
-    legal e o registro sindical junto ao MTE.
+    As fontes pagadoras (empresas onde os filiados trabalham), com acordos,
+    votações, oposições, reuniões, setoriais, arrecadação, documentação legal e
+    grupos empresariais. O registro sindical da própria entidade fica em
+    **Institucional → Registro sindical (MTE)**.
     <RequerPermissao>Empregadores e fontes pagadoras</RequerPermissao>
   </Passo>
 </PassoAPasso>
 
-<Print src="representacao/painel.png" alt="Hub do módulo Representação Sindical com os cartões de votações, oposição, acordos coletivos e empregadores." legenda="As áreas da Representação Sindical." />
+<Print src="representacao/painel.png" alt="Página do módulo Representação Sindical com os cartões Votações, Oposição à contribuição assistencial, Acordos coletivos, Negociações sindicais, Filiação coletiva e Empregadores." legenda="As áreas da Representação Sindical." />
 
 ## Erros comuns
 
@@ -69,6 +80,11 @@ pagadoras).
       titulo: "Negociações sindicais",
       href: "/painel/ajuda/representacao/negociacoes",
       descricao: "Pauta, propostas e o quadro comparativo",
+    },
+    {
+      titulo: "Filiação coletiva",
+      href: "/painel/ajuda/representacao/filiacao-coletiva",
+      descricao: "Quando uma cláusula do acordo vira filiação",
     },
     {
       titulo: "Empregadores",

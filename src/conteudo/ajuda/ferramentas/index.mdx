@@ -1,58 +1,73 @@
 O módulo **Ferramentas** reúne apoios ao dia a dia da entidade: **projetos**,
-**demandas** (tarefas e anomalias), **documentos**, **agenda**, **ofícios** e
-**e-mails institucionais**.
+**demandas e tarefas**, **anomalias**, **documentos**, **agenda** e **ofícios**.
+Cada pessoa vê só os cartões das permissões que tem.
 
 <RequerPermissao>Projetos</RequerPermissao>, <RequerPermissao>Documentos</RequerPermissao>, <RequerPermissao>Ofícios</RequerPermissao> ou outra permissão de Ferramentas
 
 ## As áreas do módulo
 
 <PassoAPasso>
-  <Passo titulo="Projetos e Demandas">
-    Projetos e o acompanhamento de **demandas** — tarefas e anomalias — do time.
-    No painel inicial, o bloco **Tarefas pendentes** mostra só as demandas em
-    que a pessoa é demandante ou demandada.
+  <Passo titulo="Projetos">
+    Os projetos da entidade, o orçamento e o que foi solicitado em Aquisição.
+    <RequerPermissao>Projetos</RequerPermissao>
+  </Passo>
+  <Passo titulo="Demandas e tarefas">
+    O acompanhamento das frentes de atuação e das tarefas do time. No painel inicial,
+    o bloco **Tarefas pendentes** mostra só as demandas em que a pessoa é demandante
+    ou demandada. <RequerPermissao>Demandas</RequerPermissao> ou <RequerPermissao>Tarefas</RequerPermissao>
+  </Passo>
+  <Passo titulo="Anomalias">
+    As não conformidades, a causa raiz e as providências.
+    <RequerPermissao>Anomalias</RequerPermissao>
   </Passo>
   <Passo titulo="Documentos">
-    O repositório de documentos da entidade, por categoria.
+    O repositório de documentos da entidade, por categoria e com versões.
     <RequerPermissao>Documentos</RequerPermissao>
   </Passo>
   <Passo titulo="Agenda">
-    Os compromissos e eventos — inclusive o compromisso avulso. Ver
+    Os compromissos e eventos, inclusive o compromisso avulso. Ver
     [Agenda](/painel/ajuda/ferramentas/agenda). <RequerPermissao>Agenda</RequerPermissao>
   </Passo>
-  <Passo titulo="Ofícios e E-mails">
-    A emissão de ofícios (com PDF) e o cadastro dos e-mails institucionais.
+  <Passo titulo="Ofícios">
+    A emissão de ofícios, com numeração por ano, assinatura eletrônica e PDF.
     <RequerPermissao>Ofícios</RequerPermissao>
   </Passo>
 </PassoAPasso>
 
-<Print src="ferramentas/painel.png" alt="Hub do módulo Ferramentas com os cartões das áreas: projetos e demandas, documentos, agenda, ofícios e e-mails." legenda="As áreas do módulo Ferramentas." />
+<Print src="ferramentas/painel.png" alt="Hub do módulo Ferramentas com os cartões Projetos, Demandas e tarefas, Anomalias, Documentos, Agenda e Ofícios." legenda="As áreas do módulo Ferramentas." />
 
 ## Erros comuns
 
-- **"Vejo uma ferramenta e não as outras."** Cada uma é uma **permissão
-  separada** (Projetos, Documentos, Agenda, Ofícios…) — peça o acesso em
-  Institucional → Usuários e permissões.
+- **"Vejo uma ferramenta e não as outras."** Cada uma é uma **permissão separada**
+  (Projetos, Documentos, Agenda, Ofícios…). Peça o acesso em Institucional → Usuários
+  e permissões.
+- **"Não acho os e-mails institucionais."** Eles ficam em **Institucional → E-mails
+  institucionais**. Ver [Institucional](/painel/ajuda/institucional).
 - **"Ferramentas é o mesmo que Institucional?"** Não: aqui é o apoio operacional
-  (tarefas, documentos, ofícios); o cadastro da organização e da diretoria fica
-  em **Institucional**.
+  (tarefas, documentos, ofícios); o cadastro da organização e da diretoria fica em
+  **Institucional**.
 
 <VejaTambem
   links={[
     {
       titulo: "Projetos e demandas",
       href: "/painel/ajuda/ferramentas/projetos",
-      descricao: "Organizar o trabalho do time",
+      descricao: "Projetos, demandas, tarefas e anomalias",
     },
     {
       titulo: "Documentos",
       href: "/painel/ajuda/ferramentas/documentos",
-      descricao: "Repositório por categoria",
+      descricao: "Repositório por categoria, com versões",
+    },
+    {
+      titulo: "Agenda",
+      href: "/painel/ajuda/ferramentas/agenda",
+      descricao: "Lista, calendário e compromisso avulso",
     },
     {
       titulo: "Ofícios",
       href: "/painel/ajuda/ferramentas/oficios",
-      descricao: "Emissão com numeração e PDF",
+      descricao: "Emissão com numeração, assinatura e PDF",
     },
   ]}
 />

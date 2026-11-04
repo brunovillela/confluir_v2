@@ -1,22 +1,63 @@
-Os **documentos** são o repositório de arquivos da entidade, organizados por
-**categoria**.
+Os **documentos** são o repositório de arquivos da entidade (alvarás, estatuto,
+certidões), organizados por **categoria** e com **versões**: cada documento guarda
+os PDFs que teve ao longo do tempo.
 
 <RequerPermissao>Documentos</RequerPermissao>
 
-## Organização por categoria
+Quem tem essa permissão consulta, cadastra, edita e exclui. Quem não a tem não vê
+a área.
 
-Cada documento pertence a uma **categoria**, o que mantém o acervo navegável.
-Você sobe, consulta e organiza os arquivos por aqui — eles ficam no
-armazenamento próprio da entidade.
+## Cadastrar um documento
+
+<PassoAPasso>
+  <Passo titulo="Novo documento">
+    Em **Ferramentas → Documentos**, clique em **Novo documento** e informe o
+    **Título do documento** (obrigatório).
+  </Passo>
+  <Passo titulo="Categorias">
+    Marque uma ou mais **categorias**. Um documento pode estar em várias, ou em
+    nenhuma.
+  </Passo>
+  <Passo titulo="Primeira versão (opcional)">
+    Informe o **Nome da versão** e anexe o **Arquivo**: só PDF, até 20 MB. Defina
+    o **Início da vigência** e o **Término da vigência**, ou marque **Sem vigência
+    definida (validade indeterminada)**.
+  </Passo>
+</PassoAPasso>
+
+## Novas versões
+
+Na página do documento, abra **Adicionar nova versão** e suba o PDF, com o nome e
+a vigência. As versões ficam listadas com a data, a vigência e o botão **Abrir
+PDF**. Uma versão antiga não é substituída: as duas continuam lá, até que alguém
+exclua a que não serve mais pela lixeira da linha.
+
+**Editar** muda o título e as categorias. **Excluir** apaga o documento, com todas
+as versões e arquivos, depois de uma confirmação. A exclusão não tem como ser
+desfeita pela tela.
+
+## Encontrar um documento
+
+A lista tem busca pelo nome e filtro por categoria, e mostra as categorias, o
+número de versões e a data da última atualização.
+
+## Categorias
+
+O botão **Categorias** abre o cadastro: **Nova categoria** e a lista das existentes,
+que podem ser renomeadas. Uma categoria em uso não pode ser excluída: tire-a dos
+documentos antes.
 
 ## Erros comuns
 
-- **"Não acho um documento."** Confira a **categoria** — o acervo é navegado por
-  categoria; um arquivo na categoria errada some da vista.
-- **"Não consigo subir arquivo."** Enviar exige a permissão **Documentos**;
-  quem não a tem apenas consulta.
-- **"Um documento antigo não abre."** Alguns arquivos migrados podem ter
-  endereço legado — nesse caso, reenvie o arquivo pela categoria correta.
+- **"Não acho um documento."** Limpe o filtro de **categoria**: um documento em
+  outra categoria não aparece com o filtro ligado.
+- **"O arquivo deve ser um PDF."** Só PDF é aceito, com até 20 MB.
+- **"Categoria em uso."** Tire a categoria dos documentos que a usam e tente de
+  novo.
+- **"O documento foi criado, mas o arquivo não pôde ser enviado."** O cadastro
+  ficou salvo: suba o arquivo em **Adicionar nova versão**.
+- **"Um documento antigo não abre."** Alguns arquivos migrados podem ter endereço
+  legado. Nesse caso, suba o arquivo de novo como uma nova versão.
 
 <VejaTambem
   links={[

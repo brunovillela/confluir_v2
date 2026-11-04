@@ -1,26 +1,60 @@
-O **caixa** é onde o dinheiro entra e sai. A entidade pode ter mais de um caixa
-(por sede, por finalidade), e cada um mostra o **saldo** e a **movimentação**.
+O **caixa** é o dinheiro em espécie que fica com uma pessoa autorizada, para as
+compras do dia a dia. Cada conta tem um **responsável** (funcionário ou diretor;
+uma pessoa só tem uma conta ativa) e mostra o **saldo** e a **movimentação**.
 
-<RequerPermissao>Caixa</RequerPermissao>
+<RequerPermissao>Caixa</RequerPermissao> ou <RequerPermissao>Caixa — administração</RequerPermissao> ou <RequerPermissao>Financeiro — somente leitura</RequerPermissao>
 
 ## Saldo e movimentação
 
 Cada conta de caixa lista as entradas e saídas em ordem, com o **saldo
 resultante** a cada lançamento. As **saídas** vêm das ordens de pagamento pagas e
 das **compras diretas pagas em dinheiro** — que debitam o caixa escolhido no
-momento em que são registradas (sem saldo, a compra não passa); as
-**entradas**, das receitas e aportes lançados. O saldo de todas as contas
-abertas aparece somado no painel do Financeiro.
+momento em que são registradas (sem saldo, a compra não passa) — além das perdas
+apuradas e do acerto de fechamento; as **entradas**, dos aportes confirmados pelo
+responsável. O saldo de todas as contas abertas aparece somado no painel do
+Financeiro.
 
 <Print src="financeiro/caixa-detalhe.png" alt="Tela de uma conta de caixa com o saldo no topo e a lista de entradas e saídas com o saldo acumulado." legenda="Saldo e movimentação de uma conta de caixa." />
 
 ## Administração do caixa
 
-<RequerPermissao>Caixa — administração</RequerPermissao>
+<RequerPermissao>Caixa</RequerPermissao> ou <RequerPermissao>Caixa — administração</RequerPermissao>
 
-Abrir uma conta, fechá-la, lançar aportes e prestar contas exige a permissão de
-**administração** — separada da permissão de apenas **consultar** o saldo. Uma
-conta **fechada** fica travada para novos lançamentos.
+Em **Financeiro → Contas de caixa**, o topo mostra os indicadores (contas
+abertas, total em caixas abertas, aportes aguardando confirmação, prestações a
+aprovar e ocorrências abertas), a lista das contas com as pendências de cada uma
+e os relatos de problemas com dinheiro. Quem tem só **Financeiro — somente
+leitura** vê tudo, sem agir. Uma conta **fechada** fica travada para novos
+lançamentos.
+
+<PassoAPasso>
+  <Passo titulo="Nova conta">
+    **Nova conta** pede a **pessoa responsável** e o **nome da conta**.
+    **Autorizar conta de caixa** cria a conta **fechada**: ela só abre quando o
+    responsável confirmar o primeiro aporte.
+  </Passo>
+  <Passo titulo="Lançar aporte de verba">
+    Na página da conta: **valor** (obrigatório) e descrição. O valor fica pendente
+    até o responsável confirmar. Não dá para lançar aporte enquanto a conta está
+    em prestação de contas: decida a prestação antes.
+  </Passo>
+  <Passo titulo="Decidir a prestação de contas">
+    A página da conta mostra o saldo declarado e a observação do responsável.
+    **Aprovar e fechar a conta** lança o saldo restante como **acerto**, zera a
+    conta e a **fecha** até o próximo aporte; não aprova enquanto houver despesa
+    a reconhecer. **Rejeitar prestação** exige o motivo, e a conta volta a ficar
+    aberta.
+  </Passo>
+  <Passo titulo="Tratar as ocorrências">
+    Cada relato do responsável fica **Aberta**. Na página da conta, marque **Em
+    investigação** ou **Resolvida**, com o parecer. **Resolvida** com **Perda
+    apurada** debita esse valor do extrato; sem ela, o saldo não muda.
+  </Passo>
+  <Passo titulo="Desativar conta">
+    **Desativar conta** tira a conta das opções de pagamento. **Reativar conta**
+    a traz de volta.
+  </Passo>
+</PassoAPasso>
 
 ### Compras pagas em dinheiro
 
@@ -31,7 +65,7 @@ dada como **paga pelo caixa** — nada sai do banco. O **centro de custo do
 caixa** (ex.: Caixa Movimento) é o que vai no débito dessas ordens: ele aparece
 no topo de Contas de caixa, e o **lápis** ao lado abre a página de configuração
 para trocá-lo (só contas de pagamento — caixa, bancos). Enquanto não houver um definido, a página avisa e oferece o link
-**Configurar**. <RequerPermissao>Caixa — administração</RequerPermissao> Se a ordem for **cancelada**,
+**Configurar**. <RequerPermissao>Caixa — administração ou Ordens de pagamento</RequerPermissao> Se a ordem for **cancelada**,
 o débito do caixa é cancelado junto e o saldo volta.
 
 ### Aporte: confirmar ou recusar
@@ -59,14 +93,17 @@ janela:
   pagamento para **Dinheiro**, com este caixa, e lança a despesa no extrato
   (sem saldo, não passa). Ordem ainda não paga fica **Paga** na hora. O
   histórico da ordem registra a vinculação.
-- **Prestar contas** — fecha o ciclo; travado enquanto houver despesa a
-  reconhecer. Enviada a prestação, a conta trava até o gestor dos caixas
+- **Prestar contas** — fecha o ciclo: informe o **Dinheiro em mãos** e, se quiser,
+  **Observações**. Travado enquanto houver despesa a reconhecer e com a conta
+  fechada. Enviada a prestação, a conta trava até o gestor dos caixas
   decidir; **até ele avaliar**, o aviso em Meu caixa traz o botão **Desfazer
   envio**, que tira a prestação da fila e reabre a conta para compras. No
   histórico de prestações do Financeiro ela aparece como *Desfeita pelo
   responsável*. Depois de aprovada ou rejeitada, não dá mais para desfazer.
-- **Relatar problema** — perda, extravio ou diferença; a janela também lista
-  os relatos anteriores, e o botão mostra quantos estão em aberto.
+- **Relatar problema** — perda, extravio ou diferença: **O que aconteceu**
+  (obrigatório) e o **Valor envolvido**. O relato não mexe no saldo; só a perda
+  apurada pelo Financeiro debita. A janela também lista os relatos anteriores, e
+  o botão mostra quantos estão em aberto.
 
 O **extrato** mostra o **beneficiário** de cada despesa ligada a uma ordem,
 ordena por qualquer coluna (data, movimentação, beneficiário, valor — clique
@@ -119,11 +156,15 @@ quem lançou.
 
 ## Erros comuns
 
-- **"Não consigo lançar nada no caixa."** A conta pode estar **fechada**, ou
-  você tem só a permissão de **consulta** (Caixa), não a de **administração**.
-- **"O saldo não fecha com o extrato do banco."** O caixa reflete o que foi
-  **lançado** no sistema; confira se todas as saídas (ordens pagas) e entradas
-  foram registradas no período.
+- **"Não consigo lançar nada no caixa."** A conta pode estar **fechada** (abre com
+  a confirmação de um aporte) ou em prestação de contas, ou você tem só
+  **Financeiro — somente leitura**.
+- **"O saldo não bate com o dinheiro em mãos."** O caixa reflete o que foi
+  **lançado** no sistema: aportes confirmados, menos compras, perdas e acertos.
+  Aporte pendente ou recusado não conta. Se houve perda ou extravio, use
+  **Relatar problema**.
+- **"Esta pessoa já tem uma conta de caixa ativa."** Cada pessoa tem uma só:
+  desative a antiga antes de criar outra.
 - **"Não vejo a área de caixa."** Ela exige a permissão **Caixa**; peça a quem
   administra os acessos em Institucional → Usuários e permissões.
 

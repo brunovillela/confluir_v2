@@ -57,7 +57,10 @@ CLT.
   </Passo>
   <Passo titulo="Autorize">
     Um gozo entra aguardando autorização. Autorize-o para confirmá-lo — o alerta
-    “gozos aguardam autorização” some da tela inicial do Pessoal.
+    “gozos aguardam autorização” some da tela inicial do Pessoal. Se o funcionário
+    pediu **Venda de 1/3**, autorizar confirma o abono no período. Quem recebe o
+    aviso pelo Telegram também autoriza por lá; veja
+    [Avisos](/painel/ajuda/introducao/avisos).
   </Passo>
 </PassoAPasso>
 
@@ -93,6 +96,10 @@ Cada gozo conta de um jeito, conforme a situação:
 O resumo de cada período mostra *direito · gozados · aguardando · saldo*. O
 gozo não autorizado também deixa de ocupar uma das **3 partes** permitidas ao
 fracionar as férias.
+
+Não há botão de recusar um gozo. **Desfazer** volta um gozo autorizado para
+*Aguardando autorização*. Para não conceder um pedido, combine com o funcionário e
+exclua o gozo: a exclusão não avisa ninguém pelo sistema.
 
 ## Aviso de férias assinado pelo funcionário
 
@@ -150,7 +157,20 @@ quando o aviso não pode ser enviado (cadastro sem e-mail ou sem CPF).
   férias vencerem.
 </Aviso>
 
-- O sistema aplica as regras da CLT ao fracionar e validar os gozos.
+- O sistema aplica as regras da CLT ao validar cada gozo, e recusa com a mensagem
+  do motivo:
+  - cada gozo tem no mínimo **5 dias**, e até **3 gozos** por período;
+  - um deles precisa ter no mínimo **14 dias** (a conferência vem quando há 3 gozos
+    ou quando a soma fecha o descanso disponível);
+  - o gozo fica **dentro do concessivo** e não sobrepõe outro do período;
+  - não pode **começar** na sexta, no sábado nem nos 2 dias antes de um feriado
+    nacional (art. 134, § 3º);
+  - a soma não passa do **descanso disponível** (com abono, já descontado 1/3);
+  - dividir as férias exige marcar **O funcionário concordou com a divisão**.
+- **Dias de direito** é 30 por padrão: reduza no período conforme as faltas
+  injustificadas do aquisitivo (CLT art. 130). **Período finalizado** não aceita
+  gozos novos; reabra em **Editar período**.
+- O campo **Aviso de férias (PDF)** do gozo é opcional, com até 5 MB.
 - No autosserviço (**Meu perfil → Férias**), o funcionário vê os mesmos
   números (saldo, prazo, próximas férias e dias autorizados) e escolhe o período
   aquisitivo, informa o início, a quantidade de dias e se quer **vender 1/3**
@@ -178,6 +198,16 @@ quando o aviso não pode ser enviado (cadastro sem e-mail ou sem CPF).
   **autorização** — confirme-o. Enquanto isso, ele já reserva os dias no saldo.
 - **Não acho o período de alguém.** Ajuste o filtro de situação (um período já
   concluído aparece em **Finalizados**).
+- **“Início inválido.”** As férias não podem começar na sexta, no sábado nem nos 2
+  dias antes de um feriado nacional. Escolha outra data.
+- **“O gozo deve estar dentro do período concessivo.”** Confira as datas do período
+  em **Editar período** e o último dia do gozo.
+- **“Um dos períodos deve ter no mínimo 14 dias.”** Reorganize as partes: nenhuma
+  delas chegou a 14 dias.
+- **“A divisão das férias exige a concordância do funcionário.”** Marque a
+  confirmação no formulário do gozo.
+- **O funcionário não recebeu o aviso para assinar.** Veja a coluna **Aviso** do
+  gozo: sem e-mail ou sem CPF válido, complete a ficha e use **Enviar aviso**.
 
 <VejaTambem
   links={[

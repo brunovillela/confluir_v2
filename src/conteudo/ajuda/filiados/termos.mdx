@@ -10,12 +10,20 @@ Cada entidade tem os seus próprios textos — não são compartilhados entre
 sindicatos. Você edita cada um aqui, e é essa versão que passa a valer na
 ficha pública.
 
+A tela abre em **Filiados → Configurações de filiação**, no botão **Abrir termos
+legais**. Há um cartão para cada termo, com a versão **Vigente**, o quadro **Nova
+versão do termo** e o **Histórico**.
+
 ## Versionamento
 
 <PassoAPasso>
   <Passo titulo="Uma versão em vigor por vez">
-    Ao salvar um novo texto, ele passa a ser o **vigente**; a versão anterior
-    fica guardada no histórico, não é apagada.
+    Em **Nova versão do termo**, escreva o texto e clique em **Salvar como
+    vigente**. Ele passa a ser o **vigente**; a versão anterior fica guardada no
+    histórico, não é apagada.
+  </Passo>
+  <Passo titulo="Voltar a uma versão anterior">
+    No Histórico, **Tornar vigente** põe de volta em vigor uma versão antiga.
   </Passo>
   <Passo titulo="O aceite guarda a versão">
     Cada filiado fica ligado à **versão exata** que aceitou — visível no perfil,
@@ -30,6 +38,30 @@ ficha pública.
   com data.
 </Aviso>
 
+<Aviso tipo="perigo" titulo="Para mudar o sentido, crie uma versão nova">
+  <strong>Editar este texto</strong>, no Histórico, altera aquela versão no próprio
+  lugar e não guarda o texto anterior. O filiado que aceitou essa versão passa a
+  apontar para o texto novo. Use só para corrigir erro de digitação em versão que
+  ninguém aceitou. Para qualquer outra mudança, use <strong>Nova versão do
+  termo</strong>.
+</Aviso>
+
+## O que acontece quando um termo novo entra em vigor
+
+- A ficha pública passa a apresentar o termo novo.
+- Quem já é filiado fica apontando para a versão que aceitou. Em
+  [Cadastros pendentes](/painel/ajuda/filiados/cadastros-pendentes), ele passa a
+  contar como **Termo LGPD não aceito** ou **Termo de desconto não aceito**, porque
+  o cadastro não aponta para a versão em vigor.
+- Um termo de LGPD novo volta a ser pedido no **Primeiro acesso** do portal, se
+  essa opção estiver ligada em
+  [Área do associado](/painel/ajuda/filiados/area-do-associado).
+
+## Excluir uma versão
+
+A lixeira, no Histórico, exclui a versão depois de confirmar. Versão que alguém já
+aceitou não se exclui.
+
 ## Melhorar com IA
 
 Ao redigir um termo, o botão **Melhorar com IA** reescreve o texto com mais
@@ -43,8 +75,12 @@ se aceita.
 
 ## Erros comuns
 
-- **"Editei o termo e sumiu o texto antigo."** Não sumiu — ele foi para o
-  **histórico**. O que você vê é sempre a versão vigente.
+- **"Salvei uma versão nova e sumiu o texto antigo."** Não sumiu — ele foi para o
+  **histórico**. O que você vê no alto é sempre a versão vigente. Já **Editar este
+  texto** troca o texto no lugar e não guarda o anterior.
+- **"Este termo já foi aceito por alguém — não pode ser excluído."** Crie uma nova
+  versão: a antiga fica no histórico.
+- **"Escreva o texto do termo."** O texto precisa ter pelo menos 10 caracteres.
 - **"Um filiado aparece com uma versão diferente da atual."** É o esperado: ele
   está ligado à versão que aceitou na época, não à mais recente.
 - **"A ficha pública mostra um texto desatualizado."** Salve a nova versão aqui;

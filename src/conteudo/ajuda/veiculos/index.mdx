@@ -9,9 +9,13 @@ O módulo **Veículos** cuida da frota da entidade: os veículos e suas fichas, 
 
 <PassoAPasso>
   <Passo titulo="Frota">
-    O cadastro dos veículos e a **ficha** de cada um (placa, modelo, cor,
-    lotação, próprio × alugado, seguro). Criar e editar veículos exige
-    <RequerPermissao>Gestão de veículos</RequerPermissao>.
+    O cadastro dos veículos e a **ficha** de cada um. Criar e editar veículos
+    exige <RequerPermissao>Gestão de veículos</RequerPermissao>. Em **Novo
+    veículo**, só a **placa** e a **marca e modelo** são obrigatórias; os demais
+    campos são cor, combustível, lotação (sede), Renavam, anos de fabricação e
+    do modelo, vencimento do seguro e contrato de aluguel. O veículo passa a
+    constar como **Alugado** quando tem um contrato vinculado; sem contrato, é
+    **Próprio**.
   </Passo>
   <Passo titulo="Agendamentos">
     A solicitação de um veículo pelo condutor, feita no **painel inicial**.
@@ -37,15 +41,19 @@ O módulo **Veículos** cuida da frota da entidade: os veículos e suas fichas, 
   <Passo titulo="Condutores">
     Os motoristas, a validade e o histórico da **CNH**, e a página de cada
     condutor, com indicadores e todo o uso da frota. Ver
-    [Condutores](/painel/ajuda/veiculos/condutores). <RequerPermissao>Condutores</RequerPermissao>
+    [Condutores](/painel/ajuda/veiculos/condutores). <RequerPermissao>Gestão de veículos</RequerPermissao>
   </Passo>
   <Passo titulo="Infrações">
-    As multas, com cobrança do infrator e baixa no Financeiro.
-    <RequerPermissao>Infrações</RequerPermissao>
+    As multas, com justificativa do condutor, avaliação, cobrança do infrator e
+    baixa no Financeiro. Quem tem a permissão Veículos vê só as próprias
+    infrações; registrar e avaliar exige a gestão. Veja
+    [Infrações](/painel/ajuda/veiculos/infracoes).
+    <RequerPermissao>Veículos ou Gestão de veículos</RequerPermissao>
   </Passo>
   <Passo titulo="Contratos de aluguel">
-    Locações da frota, com período e mensalidades.
-    <RequerPermissao>Contratos de aluguel</RequerPermissao>
+    Locações da frota, com vigência, uso do carro e cobranças. Veja
+    [Infrações e contratos de aluguel](/painel/ajuda/veiculos/infracoes).
+    <RequerPermissao>Gestão de veículos</RequerPermissao>
   </Passo>
 </PassoAPasso>
 
@@ -60,6 +68,12 @@ está** diz o local de agora: o disponível está na **sede da última devoluç�
 que está fora mostra o destino e de onde saiu. Os indicadores do topo resumem a
 frota (ativa, em uso agora, em manutenção, solicitações pendentes).
 
+A coluna **Vínculo** diz se o carro é **Próprio** ou **Alugado**. Os alugados com
+uso definido no contrato ficam em listas próprias, abaixo da frota: **Locados —
+uso coletivo** (entram na escala da recepção como os da frota) e **Locados — uso
+dedicado** (ficam com um condutor, cujo nome aparece na linha, e não são
+oferecidos a quem pede carro).
+
 <Aviso tipo="dica" titulo="Lotação não é onde o carro está">
   A **lotação** é a sede a que o veículo pertence. O carro lotado em Campos que
   foi devolvido em Macaé aparece **disponível em Macaé** — é lá que ele está.
@@ -69,10 +83,13 @@ A situação vem da **última movimentação** de cada veículo. Saídas antigas
 nunca foram fechadas no sistema anterior não deixam o carro "em uso" para
 sempre: basta ter uma movimentação mais recente.
 
-<Aviso tipo="atencao" titulo="Alertas dos próximos 30 dias">
-  Para quem tem gestão, o painel destaca o que vence em breve: **CNH** de
-  condutor, **seguro** de veículo e **contrato de aluguel**. Cada alerta leva
-  direto ao cadastro correspondente.
+<Aviso tipo="atencao" titulo="Alertas do painel (só para a gestão)">
+  O bloco **Alertas** aparece só para quem tem **Gestão de veículos**. Ele mostra
+  **CNH** de condutor e **seguro** de veículo vencidos ou a vencer em 30 dias,
+  **contrato de aluguel** terminando em 30 dias, preventivas vencidas ou se
+  aproximando, **apontamentos do checklist** sem manutenção e as pendências da
+  locação (contrato vencido, período sem cobrança, cobrança sem fatura, uso não
+  definido). Cada alerta leva direto à tela correspondente.
 </Aviso>
 
 ## A página do veículo
@@ -86,15 +103,16 @@ Abrir um veículo mostra a **visão geral** dele, nesta ordem:
     voltou; a saída, se está fora). Ao lado, os botões que levam às áreas do veículo:
     **Registrar saída** ou **Registrar devolução** (muda conforme o veículo está
     na garagem ou fora; só recepção e gestão), **Manutenções**, **Checklist**,
-    **Abastecimentos**, **Infrações** e **Histórico de uso**. O gestor ainda
-    tem **Inativar veículo**; o botão **Enviar para manutenção** fica dentro
-    de Manutenções.
+    **Abastecimentos** (só gestão), **Infrações** e **Histórico de uso**. O
+    gestor ainda tem **Inativar veículo** (ou **Reativar veículo**), com
+    confirmação: o inativo sai da frota ativa e não pode ser retirado. O botão
+    **Enviar para manutenção** fica dentro de Manutenções.
   </Passo>
   <Passo titulo="Avisos">
     Veículo fora (com quem, destino e previsão de retorno — em destaque se a
     previsão já venceu), seguro vencido ou vencendo em 30 dias, seguro sem
-    vencimento cadastrado, contrato de aluguel terminando, checklist e
-    preventivas vencidas.
+    vencimento cadastrado, contrato de aluguel terminando, checklist,
+    **Apontamentos do checklist** e preventivas vencidas.
   </Passo>
   <Passo titulo="Indicadores de uso">
     Km rodado (total e nos últimos 12 meses), usos registrados, média de km e
@@ -137,9 +155,9 @@ se cancela.
   veículos**; sem ela você só consulta e solicita.
 - **"A frota parece incompleta."** A lista mostra só os **ativos** por padrão —
   use o filtro **Inativos** ou **Todos**.
-- **"As áreas de condutores/abastecimentos/infrações não aparecem."** Cada uma é
-  uma **permissão separada** — peça o acesso em Institucional → Usuários e
-  permissões.
+- **"As áreas de condutores, abastecimentos ou contratos não aparecem."** Essas
+  três são só de quem tem **Gestão de veículos**. **Agendamentos** aparece para a
+  recepção e a gestão. Peça o acesso em Institucional → Usuários e permissões.
 - **"Checklist e manutenção são a mesma coisa?"** Não. O **checklist** é a
   inspeção de rotina que *aponta* o que está errado; a **manutenção** é o
   serviço que *conserta* — e que pode ter sido programado muito antes.
@@ -165,6 +183,16 @@ se cancela.
       titulo: "Infrações",
       href: "/painel/ajuda/veiculos/infracoes",
       descricao: "Multas, cobrança do infrator e contratos de aluguel",
+    },
+    {
+      titulo: "Condutores",
+      href: "/painel/ajuda/veiculos/condutores",
+      descricao: "CNH, autorização e a página de cada condutor",
+    },
+    {
+      titulo: "Abastecimentos",
+      href: "/painel/ajuda/veiculos/abastecimentos",
+      descricao: "Relatório lido pela IA, planilha e lançamento manual",
     },
   ]}
 />

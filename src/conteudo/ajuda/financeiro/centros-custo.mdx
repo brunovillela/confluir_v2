@@ -3,7 +3,7 @@ receita: **"em quê?"**. É a classificação que permite, depois, saber quanto 
 gasto ou recebido em cada frente — a base da prestação de contas ao Conselho
 Fiscal.
 
-<RequerPermissao>Centros de custo</RequerPermissao>
+<RequerPermissao>Ordens de pagamento ou Caixa</RequerPermissao> (com **Financeiro — somente leitura**, só consulta)
 
 ## Para que serve
 
@@ -20,11 +20,15 @@ Fiscal.
 
 ## O cadastro de um centro
 
-Cada centro tem um **código** (o "acesso"), um **classificador**, um **nome** e
-um **tipo de conta**, e pode estar ligado a um **departamento** (é isso que
-permite filtrar os centros pelo departamento nas telas de compra e de ordens).
-Um centro pode ser marcado como **não usável** para sair das listas de escolha
-sem apagar o histórico que já aponta para ele.
+Cada centro tem um **Nome da conta** (obrigatório), um **Código de acesso**, um
+**Classificador** e um **Tipo da conta**, e pode estar ligado a um **departamento**
+(é isso que permite filtrar os centros pelo departamento nas telas de compra e de
+ordens). **Indicações** e **Contraindicações** dizem quando usar e quando não usar
+a conta. Desmarcar **Conta usável** tira o centro das listas de escolha sem apagar
+o histórico que já aponta para ele.
+
+O tipo da conta tem efeito no pagamento: só as contas de pagamento (*Ativo -
+Pagamento*) aparecem como conta de débito das ordens.
 
 Nas listas de escolha do sistema (compra, ordem, contrato, configurações), o
 centro aparece como **código - conta** — por exemplo, *1.5 - Custeio
@@ -44,8 +48,9 @@ Institucional*.
 - **"O centro que preciso não aparece na hora de lançar."** Ele pode estar
   marcado como **não usável**, ou pertencer a **outro departamento** (nas telas
   com filtro por departamento). Ajuste o cadastro ou o departamento escolhido.
-- **"Quero apagar um centro antigo."** Se ele já classifica lançamentos, prefira
-  marcá-lo como **não usável** — apagar quebraria o histórico e os relatórios.
+- **"Quero apagar um centro antigo."** Centro usado em ordens de pagamento ou
+  contratos não pode ser excluído: o sistema recusa e diz em quantos está.
+  Desmarque **Conta usável**.
 - **"Os relatórios não somam certo por área."** Verifique se as ordens estão com
   o centro **correto**; a consolidação é tão boa quanto a classificação de cada
   lançamento.

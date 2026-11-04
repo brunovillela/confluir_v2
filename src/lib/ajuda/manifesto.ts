@@ -87,8 +87,13 @@ export const AREAS_AJUDA: AreaAjuda[] = [
       },
       {
         slug: "celular",
-        titulo: "No celular: app, Aprovar e home do diretor",
+        titulo: "No celular: app, Aprovar e aba Gestão",
         resumo: "Instalar o Confluir, receber avisos no aparelho, aprovar e assinar com o polegar",
+      },
+      {
+        slug: "telegram",
+        titulo: "Bot do Telegram",
+        resumo: "Vincular a conta, comandos, resolver pendências, pedir viagem e mandar comprovantes pelo bot",
       },
       {
         slug: "suporte",
@@ -227,7 +232,7 @@ export const AREAS_AJUDA: AreaAjuda[] = [
       {
         slug: "prontuarios",
         titulo: "Prontuários",
-        resumo: "O histórico e os documentos de cada filiado",
+        resumo: "A linha do tempo de cada filiado",
       },
       {
         slug: "direitos",
@@ -268,7 +273,7 @@ export const AREAS_AJUDA: AreaAjuda[] = [
       {
         slug: "reembolsos",
         titulo: "Reembolsos a filiados",
-        resumo: "Reembolso por participação, com a ordem de pagamento gerada no ato",
+        resumo: "Devoluções ao filiado (greve, cobrança indevida, despesa), com a ordem de pagamento gerada no ato",
       },
       {
         slug: "termos",
@@ -287,7 +292,7 @@ export const AREAS_AJUDA: AreaAjuda[] = [
   {
     slug: "representacao",
     titulo: "Representação Sindical",
-    descricao: "Votações, oposição, acordos, negociações e empregadores",
+    descricao: "Votações, oposição, acordos, negociações, empregadores e filiação coletiva",
     icone: "Megaphone",
     ...permissaoDoModulo("/painel/representacao"),
     disponivel: true,
@@ -295,7 +300,7 @@ export const AREAS_AJUDA: AreaAjuda[] = [
       {
         slug: "index",
         titulo: "Visão geral da Representação",
-        resumo: "Votações, oposição, acordos e empregadores",
+        resumo: "Votações, oposição, acordos, negociações, empregadores e filiação coletiva",
       },
       {
         slug: "votacoes",
@@ -621,7 +626,12 @@ export const AREAS_AJUDA: AreaAjuda[] = [
       {
         slug: "reservas",
         titulo: "Reservas",
-        resumo: "Do pedido do filiado à hospedagem, com tarifa e cupom",
+        resumo: "Cupons e reservas no pagamento por uso, com tarifa e comparecimento",
+      },
+      {
+        slug: "demanda-garantida",
+        titulo: "Demanda garantida",
+        resumo: "Reserva na hora, mapa de hóspedes, lista de espera e não comparecimentos",
       },
       {
         slug: "faturamento",
@@ -742,7 +752,12 @@ export const AREAS_AJUDA: AreaAjuda[] = [
       {
         slug: "auditoria",
         titulo: "Auditoria",
-        resumo: "Quem alterou o quê nas tabelas sensíveis: filtros e leitura das linhas",
+        resumo: "Alterações, exportações e chamadas à API: filtros e leitura das linhas",
+      },
+      {
+        slug: "lgpd",
+        titulo: "LGPD: retenção e descarte",
+        resumo: "Prazos de guarda, simulação do descarte, bloqueios por litígio, encarregado e política de privacidade",
       },
     ],
   },
@@ -856,7 +871,7 @@ export const AREAS_AJUDA: AreaAjuda[] = [
   {
     slug: "fluxos-publicos",
     titulo: "Fluxos públicos",
-    descricao: "As telas que o trabalhador usa sem login: filiação, oposição e votação",
+    descricao: "As telas que o trabalhador usa sem login: filiação, oposição, votação, eventos e assinatura",
     icone: "Globe",
     // Referência transversal (filiados + representação) — visível a toda a equipe.
     chave: null,
@@ -888,6 +903,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         titulo: "Inscrição em evento",
         resumo:
           "A página do evento, a página da inscrição e o canal Meus dados",
+      },
+      {
+        slug: "assinatura",
+        titulo: "Assinatura eletrônica",
+        resumo: "O que o assinante vê no link: documento, código, assinatura e recusa",
       },
     ],
   },

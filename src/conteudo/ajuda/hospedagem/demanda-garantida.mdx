@@ -1,0 +1,145 @@
+No convênio de **demanda garantida**, o hotel dedica quartos à entidade e é
+obrigado a hospedar. O pedido **já é a reserva**, com o quarto escolhido pelo
+Confluir na hora. É diferente do **pagamento por uso**, em que o cupom é uma
+autorização e o hotel monta a reserva depois.
+
+<RequerPermissao>Hospedagens — gestão</RequerPermissao>
+
+## Configurar o hotel
+
+Em Hospedagem → **Hotéis parceiros**, abra o hotel e, em **Tipo de convênio**,
+escolha **Demanda garantida**.
+
+<PassoAPasso>
+  <Passo titulo="Quartos e vagas">
+    Em **Dados do hotel**, informe **Quartos dedicados** e **Máx. hóspedes por
+    quarto**, que são as vagas de cada quarto. Os dois são obrigatórios nesse
+    convênio. Em **Quartos dedicados por dia da semana**, preencha só os dias
+    diferentes do padrão; em branco, vale o número geral.
+  </Passo>
+  <Passo titulo="Distribuição dos hóspedes">
+    **Lotação por quarto** completa um quarto antes de abrir o próximo.
+    **Distribuição pelos quartos** põe uma pessoa por quarto enquanto houver quarto
+    vazio. Nas duas, cada quarto recebe só pessoas do mesmo sexo, e o hóspede fica
+    no mesmo quarto a estadia toda.
+  </Passo>
+  <Passo titulo="Guardar o último quarto">
+    Com **Guardar o último quarto para o outro sexo** marcado, quando todos os
+    outros quartos da noite estão com pessoas do mesmo sexo, o último quarto vazio
+    só abre para esse sexo depois do prazo: **Dias antes da noite** e **Até a
+    hora** (de fábrica, 3 dias, às 12:00).
+  </Passo>
+  <Passo titulo="Prazos">
+    **Máximo de noites** (de fábrica, 7), **Horário do check-in** (14:00),
+    **Cancelar até (horas antes)** (24) e **Confirmar vaga da espera (horas)** (12).
+  </Passo>
+</PassoAPasso>
+
+## Como a reserva acontece
+
+O filiado reserva pelo portal, e a equipe reserva em nome dele em Hospedagem →
+**Cupons → Novo cupom**. Ao escolher um hotel de demanda garantida, o formulário
+pede também o **Check-out** e o botão passa a ser **Reservar**.
+
+Valem as mesmas conferências nas duas pontas: filiação ativa, condições da
+hospedagem, regra de não comparecimento, vigência do convênio e o sexo no cadastro
+do filiado. O check-in precisa ser de hoje em diante, e a estadia não passa do
+máximo de noites do hotel.
+
+Com a reserva feita, o filiado recebe o e-mail **Reserva confirmada**, com o link
+da reserva. Esse link abre **sem senha** e mostra o **QR Code**, o quarto e as
+datas. Na chegada, ele apresenta o QR Code na recepção do hotel com um documento
+oficial com foto.
+
+Em **Cupons**, cada reserva ativa tem **Reenviar e-mail** e **Copiar link**, para
+quando o e-mail não chegou. Se o filiado não tem e-mail no cadastro, copie o link e
+envie por outro meio.
+
+## Mapa de hóspedes
+
+Em Hospedagem → **Mapa de hóspedes**, escolha o hotel e a noite, ou use **Anterior**
+e **Próxima**. Cada quarto mostra o sexo, as vagas ocupadas e os hóspedes, com a
+situação: **aguardando chegada**, **vaga oferecida, sem confirmação** ou **entrou**.
+
+Quem tem a gestão pode **remanejar** um hóspede para outro quarto ou **cancelar** a
+reserva, enquanto a entrada não foi registrada. Ao cancelar, a vaga vai para a lista
+de espera.
+
+<Aviso tipo="atencao" titulo="Hóspedes além dos quartos do dia">
+  Se os quartos do dia diminuíram depois da reserva, o mapa avisa quem ficou em
+  quarto além dos dedicados. Remaneje essas pessoas.
+</Aviso>
+
+## Lista de espera
+
+Sem vaga nas datas, o filiado pode entrar na **lista de espera** pelo portal. Quando
+abre vaga, a primeira pessoa da fila recebe um e-mail com o botão de confirmação, e
+a vaga fica guardada pelo prazo configurado no hotel. Esse botão abre sem senha a
+página **Vaga na hospedagem**. Sem confirmação no prazo, a vaga passa para a próxima
+pessoa.
+
+Com a Hospedagem suspensa ou desabilitada na Área do associado, a página da oferta
+mostra um aviso no lugar do botão, e a fila não oferece novas vagas.
+
+## Cancelamento
+
+O filiado cancela pelo portal até o prazo do hotel. Depois disso, só a equipe
+cancela, no Mapa de hóspedes ou em Cupons. Depois da entrada registrada no hotel,
+ninguém cancela.
+
+## Não comparecimentos
+
+Falta é a reserva não cancelada e sem entrada registrada até o fim do dia do
+check-in. A tela Hospedagem → **Não comparecimentos** lista as faltas e diz qual
+punição está em vigor. A regra é configurada em Filiação → **Configurações de
+filiação**, no quadro **Não comparecimento na hospedagem**:
+
+- **Consumir a hospedagem do período**: a falta conta como hospedagem usada, e a
+  pessoa não reserva outra estadia com check-in no mesmo mês ou ano da falta.
+- **Suspender por um tempo**: a pessoa fica sem reservar por alguns dias, contados da
+  data da falta.
+- **Desabilitar o direito**: a pessoa perde o direito até a equipe liberar.
+
+<PassoAPasso>
+  <Passo titulo="Abonar uma falta">
+    Na linha da falta, escreva a justificativa e abone. A falta deixa de contar para
+    a punição.
+  </Passo>
+  <Passo titulo="Liberar uma punição">
+    Em **Liberar punição**, informe o **CPF do filiado** e a **Justificativa**. A
+    partir da liberação, as faltas anteriores da pessoa deixam de contar.
+  </Passo>
+</PassoAPasso>
+
+## Erros comuns
+
+- **"Na demanda garantida, informe os quartos dedicados."** Preencha os quartos
+  dedicados ou ao menos um dia da semana, e o máximo de hóspedes por quarto.
+- **"O filiado não consegue reservar por causa do sexo."** A escolha do quarto usa o
+  sexo do cadastro. Regularize o cadastro do filiado.
+- **"Este hotel não tem quartos dedicados para todas as noites escolhidas."** Algum
+  dia da semana da estadia está com zero quartos. Confira no cadastro do hotel.
+- **"O filiado não recebeu a confirmação."** Em Cupons, use **Reenviar e-mail** ou
+  **Copiar link**. Reserva cancelada não tem link válido.
+- **"O mapa diz que não há hotel de demanda garantida."** Confira o **Tipo de
+  convênio** no cadastro do hotel.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Visão geral da Hospedagem",
+      href: "/painel/ajuda/hospedagem",
+      descricao: "Os três ambientes e o caminho de ponta a ponta",
+    },
+    {
+      titulo: "Reservas",
+      href: "/painel/ajuda/hospedagem/reservas",
+      descricao: "O convênio de pagamento por uso",
+    },
+    {
+      titulo: "Carência e direitos",
+      href: "/painel/ajuda/filiados/direitos",
+      descricao: "Configurações de filiação",
+    },
+  ]}
+/>
