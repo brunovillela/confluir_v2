@@ -3,8 +3,8 @@
  * (server-only) para poder ser testado: tests/unidade/termo-aceite.spec.ts.
  *
  * O aceite vale para o texto exato: é isso que dá validade ao consentimento.
- * Por isso versão aceita não se edita (decisão do usuário, 04/11/2026): muda-se
- * com uma versão nova.
+ * Por isso versão aceita não se edita nem se exclui (decisão do usuário,
+ * 04/11/2026): muda-se com uma versão nova.
  *
  * Três lugares guardam o aceite, porque ele nasce por caminhos diferentes:
  * o cadastro (`filiacoes`), a ficha pública (`filiacao_solicitacoes`) e o
@@ -51,3 +51,6 @@ export async function termoFoiAceito(
 
 export const MOTIVO_TERMO_ACEITO =
   "Esta versão já foi aceita e não pode ser alterada. Para mudar o texto, crie uma nova versão."
+
+export const MOTIVO_EXCLUSAO_TERMO_ACEITO =
+  "Este termo já foi aceito por alguém — não pode ser excluído. Crie uma nova versão."

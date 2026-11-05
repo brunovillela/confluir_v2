@@ -2,6 +2,7 @@ import "server-only"
 import { texto } from "@/lib/db/comum"
 import {
   filtrosDeAceite,
+  MOTIVO_EXCLUSAO_TERMO_ACEITO,
   MOTIVO_TERMO_ACEITO,
   termoFoiAceito,
 } from "@/lib/filiacao-termos-aceite"
@@ -193,10 +194,16 @@ export async function obterTermosAceitos(
   return { lgpd, desconto }
 }
 
+/**
+ * Exclui uma versão que ninguém aceitou. A consulta vem antes do delete porque
+ * `filiacao_tl_aceites` não tem chave estrangeira para a versão: sem ela, o
+ * aceite registrado só ali ficaria apontando para um texto apagado.
+ */
 export async function excluirTermo(
   tipo: TipoTermo,
   id: string
 ): Promise<{ erro?: string }> {
+  if (await versaoAceita(tipo, id)) return { erro: MOTIVO_EXCLUSAO_TERMO_ACEITO }
   const admin = await createAdminClient()
   const { error, count } = await admin
     .from(TABELA[tipo])
@@ -204,12 +211,8 @@ export async function excluirTermo(
     .eq("id", id)
     .eq("emp_proprietaria_id", await tenantAtual())
   if (error) {
-    // FK de solicitações/filiações que apontam p/ este termo.
-    if (error.code === "23503") {
-      return {
-        erro: "Este termo já foi aceito por alguém — não pode ser excluído. Crie uma nova versão.",
-      }
-    }
+    // FK de solicitações/filiações: um aceite gravado depois da consulta acima.
+    if (error.code === "23503") return { erro: MOTIVO_EXCLUSAO_TERMO_ACEITO }
     return { erro: `Não foi possível excluir: ${error.message}` }
   }
   if (count === 0) return { erro: "Termo não encontrado." }
