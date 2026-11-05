@@ -3,8 +3,10 @@ import "server-only"
 import { cpfConfiavel } from "@/lib/cpf"
 import { esquemaAusente, texto } from "@/lib/db/comum"
 import { invalidarCacheCadastrosPendentes } from "@/lib/db/filiacao-cadastros-pendentes"
+import { ehArquivo, urlDocumentoDoVinculo } from "@/lib/db/filiacao-documentos"
 import { normalizarMatricula } from "@/lib/db/filiacao-matricula"
-import { lerLotes } from "@/lib/db/fontes"
+import { lerLotes, nomesDeEmpresas } from "@/lib/db/fontes"
+import { COLUNAS_ESCOLHA, montarEnvio, type Decisao, type FichaMesclagem } from "@/lib/mesclagem-cadastros"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import { semAcento } from "@/lib/texto"
@@ -183,42 +185,15 @@ export async function listarDuplicidades(): Promise<Duplicidades> {
 
 // ── Mesclagem ───────────────────────────────────────────────────────────────
 
-/** Campos que a mesclagem deixa escolher (espelha `permitidos` na função SQL). */
-export const CAMPOS_MESCLAGEM = [
-  { campo: "nome_completo", rotulo: "Nome completo" },
-  { campo: "nome_social", rotulo: "Nome social" },
-  { campo: "cpf", rotulo: "CPF" },
-  { campo: "matricula_sindical", rotulo: "Matrícula sindical" },
-  { campo: "filiacao_condicao", rotulo: "Condição" },
-  { campo: "nascimento_data", rotulo: "Nascimento" },
-  { campo: "sexo", rotulo: "Sexo" },
-  { campo: "email_pessoal", rotulo: "E-mail pessoal" },
-  { campo: "email_corporativo", rotulo: "E-mail corporativo" },
-  { campo: "telefone_1", rotulo: "Telefone 1" },
-  { campo: "telefone_2", rotulo: "Telefone 2" },
-  { campo: "endereco_cep", rotulo: "CEP" },
-  { campo: "endereco_logradouro", rotulo: "Logradouro" },
-  { campo: "endereco_numero", rotulo: "Número" },
-  { campo: "endereco_complemento", rotulo: "Complemento" },
-  { campo: "endereco_bairro", rotulo: "Bairro" },
-  { campo: "endereco_cidade", rotulo: "Cidade" },
-  { campo: "endereco_estado", rotulo: "UF" },
-  { campo: "tl_lgpd_id", rotulo: "Termo LGPD" },
-  { campo: "tl_desconto_id", rotulo: "Termo de desconto" },
-] as const
+const textoOuNulo = (v: unknown): string | null => (v === null || v === undefined || v === "" ? null : String(v))
 
-export type CadastroParaMesclar = {
-  id: string
-  valores: Record<string, string | null>
-  condicao: string | null
-  criadoEm: string | null
-  vinculos: number
-  contribuicoes: number
-  prontuario: number
-}
-
-/** Os cadastros escolhidos, com o que cada um carrega (para decidir o principal). */
-export async function cadastrosParaMesclar(ids: string[]): Promise<CadastroParaMesclar[]> {
+/**
+ * Os cadastros escolhidos, INTEIROS, cada um só com o que é dele (o perfil junta
+ * tudo o que tem o mesmo CPF; aqui é justamente o que não se quer). A tela mostra
+ * lado a lado, e a gravação recalcula daqui o que vai para o banco: o navegador
+ * só manda a decisão, nunca os valores.
+ */
+export async function fichasParaMesclar(ids: string[], comLinks = true): Promise<FichaMesclagem[]> {
   const unicos = [...new Set(ids)].slice(0, 10)
   if (unicos.length < 2) return []
   const admin = await createAdminClient()
@@ -229,33 +204,139 @@ export async function cadastrosParaMesclar(ids: string[]): Promise<CadastroParaM
     .eq("emp_proprietaria_id", emp)
     .in("id", unicos)
     .not("filiacao_excluida", "is", true)
-  const linhas = (data ?? []) as Record<string, unknown>[]
+  const linhas = ((data ?? []) as Record<string, unknown>[]).sort(
+    (a, b) => unicos.indexOf(String(a.id)) - unicos.indexOf(String(b.id))
+  )
+  const achados = linhas.map((l) => String(l.id))
+  if (achados.length < 2) return []
 
+  const [emails, telefones, enderecos, emergencia, contas, vinculos, contribuicoes] = await Promise.all([
+    admin.from("emails").select("filiado_id, email, tipo_email").eq("emp_proprietaria_id", emp).in("filiado_id", achados),
+    admin.from("telefones").select("filiado_id, numero, tipo, whatsapp").eq("emp_proprietaria_id", emp).in("filiado_id", achados),
+    admin
+      .from("enderecos")
+      .select("id, filiado_id, cep, logradouro, numero, complemento, bairro, cidade, estado")
+      .eq("emp_proprietaria_id", emp)
+      .in("filiado_id", achados),
+    admin
+      .from("filiacao_contatos_emergencia")
+      .select("id, filiado_id, nome, telefone, vinculo")
+      .eq("emp_proprietaria_id", emp)
+      .in("filiado_id", achados),
+    admin
+      .from("dados_bancarios")
+      .select("id, filiado_id, banco, agencia, conta, pix, favorecido, favorito, created_at")
+      .in("filiado_id", achados)
+      .order("created_at", { ascending: true }),
+    admin
+      .from("filiacao_vinculos")
+      .select(
+        "id, filiado_id, fonte_pagadora_id, matricula, cargo, lotacao, data_entrada_admissao, data_saida_demissao, data_filiacao, filiacao_data_adesao, data_desfiliacao, filiacao_data_saida, ficha_filiacao, carta_desfiliacao, fonte_pg_cargo, fonte_pg_admissao"
+      )
+      .eq("emp_proprietaria_id", emp)
+      .in("filiado_id", achados)
+      .order("data_filiacao", { ascending: true }),
+    lerLotes<{ filiado_id: string; valor: number | null }>((de, ate) =>
+      admin
+        .from("filiacao_recebe")
+        .select("filiado_id, valor")
+        .eq("emp_proprietaria_id", emp)
+        .in("filiado_id", achados)
+        .order("id", { ascending: true })
+        .range(de, ate)
+    ),
+  ])
+  if (vinculos.error) throw new Error(`Falha ao carregar os vínculos: ${vinculos.error.message}`)
+
+  const fontes = await nomesDeEmpresas([
+    ...new Set((vinculos.data ?? []).map((v) => v.fonte_pagadora_id).filter((v): v is string => Boolean(v))),
+  ])
   const contar = async (tabela: string, coluna: string, id: string) => {
     const { count } = await admin.from(tabela).select("id", { count: "exact", head: true }).eq(coluna, id)
     return count ?? 0
   }
+  const documento = async (v: unknown) => {
+    const caminho = typeof v === "string" ? v : null
+    if (!ehArquivo(caminho)) return null
+    return comLinks ? urlDocumentoDoVinculo(caminho) : caminho
+  }
+
   return Promise.all(
-    linhas.map(async (l) => {
+    linhas.map(async (l): Promise<FichaMesclagem> => {
       const id = String(l.id)
-      const [vinculos, contribuicoes, prontuario] = await Promise.all([
-        contar("filiacao_vinculos", "filiado_id", id),
-        contar("filiacao_recebe", "filiado_id", id),
+      const [prontuario, reembolsos, eventos] = await Promise.all([
         contar("filiacao_prontuario", "filiacao_id", id),
+        contar("filiacao_reembolsos", "filiado_id", id),
+        contar("eventos_inscricoes", "filiacao_id", id),
       ])
       const valores: Record<string, string | null> = {}
-      for (const { campo } of CAMPOS_MESCLAGEM) {
-        const v = l[campo]
-        valores[campo] = v === null || v === undefined || v === "" ? null : String(v)
-      }
+      for (const coluna of COLUNAS_ESCOLHA) valores[coluna] = textoOuNulo(l[coluna])
+      const recebidos = contribuicoes.filter((c) => c.filiado_id === id)
       return {
         id,
         valores,
-        condicao: texto(l.filiacao_condicao),
-        criadoEm: texto(l.created_at),
-        vinculos,
-        contribuicoes,
-        prontuario,
+        whatsapp1: l.telefone_1_whatsapp === true,
+        whatsapp2: l.telefone_2_whatsapp === true,
+        criadoEm: textoOuNulo(l.created_at),
+        atualizadoEm: textoOuNulo(l.updated_at),
+        optoutEm: textoOuNulo(l.comunicados_optout_em),
+        emails: (emails.data ?? [])
+          .filter((e) => e.filiado_id === id && e.email)
+          .map((e) => ({ email: String(e.email), tipo: texto(e.tipo_email) })),
+        telefones: (telefones.data ?? [])
+          .filter((t) => t.filiado_id === id && t.numero)
+          .map((t) => ({ numero: String(t.numero), whatsapp: t.whatsapp === true, tipo: texto(t.tipo) })),
+        enderecos: (enderecos.data ?? [])
+          .filter((e) => e.filiado_id === id)
+          .map((e) => ({
+            id: String(e.id),
+            cep: texto(e.cep),
+            logradouro: texto(e.logradouro),
+            numero: texto(e.numero),
+            complemento: texto(e.complemento),
+            bairro: texto(e.bairro),
+            cidade: texto(e.cidade),
+            estado: texto(e.estado),
+          })),
+        emergencia: (emergencia.data ?? [])
+          .filter((c) => c.filiado_id === id)
+          .map((c) => ({ id: String(c.id), nome: texto(c.nome) ?? "", telefone: texto(c.telefone) ?? "", vinculo: texto(c.vinculo) })),
+        contas: (contas.data ?? [])
+          .filter((c) => c.filiado_id === id)
+          .map((c) => ({
+            id: String(c.id),
+            banco: texto(c.banco),
+            agencia: texto(c.agencia),
+            conta: texto(c.conta),
+            pix: texto(c.pix),
+            favorecido: texto(c.favorecido),
+            favorito: c.favorito === true,
+          })),
+        vinculos: await Promise.all(
+          (vinculos.data ?? [])
+            .filter((v) => v.filiado_id === id)
+            .map(async (v) => ({
+              id: String(v.id),
+              fonteId: texto(v.fonte_pagadora_id),
+              fonte: v.fonte_pagadora_id ? (fontes.get(v.fonte_pagadora_id) ?? null) : null,
+              matricula: texto(v.matricula),
+              cargo: texto(v.cargo) ?? texto(v.fonte_pg_cargo),
+              lotacao: texto(v.lotacao),
+              admissao: texto(v.data_entrada_admissao) ?? texto(v.fonte_pg_admissao),
+              demissao: texto(v.data_saida_demissao),
+              filiacao: texto(v.data_filiacao) ?? texto(v.filiacao_data_adesao),
+              desfiliacao: texto(v.data_desfiliacao) ?? texto(v.filiacao_data_saida),
+              fichaUrl: await documento(v.ficha_filiacao),
+              cartaUrl: await documento(v.carta_desfiliacao),
+            }))
+        ),
+        contagens: {
+          contribuicoes: recebidos.length,
+          valorContribuicoes: recebidos.reduce((s, c) => s + (Number(c.valor) || 0), 0),
+          prontuario,
+          reembolsos,
+          eventos,
+        },
       }
     })
   )
@@ -265,44 +346,56 @@ export type ResultadoMesclagem = {
   erro?: string
   movidos?: Record<string, number>
   pendentes?: string[]
-  /** Vínculos do mesmo emprego (mesma fonte e matrícula) que estavam em dois cadastros e viraram um. */
+  /** Vínculos que viraram um só. */
   vinculosUnificados?: number
+  /** Pares que a pessoa pediu para unir e o banco não deixou. */
+  vinculosNaoUnificados?: number
 }
 
+/**
+ * Grava a mesclagem. Lê os cadastros de novo e calcula o envio a partir da
+ * decisão: o que entra no banco é sempre o que está nos cadastros.
+ */
 export async function mesclarCadastros(dados: {
-  principal: string
-  secundarios: string[]
-  campos: Record<string, string | null>
+  decisao: Decisao
+  ids: string[]
   usuarioId: string | null
 }): Promise<ResultadoMesclagem> {
-  const permitidos = new Set<string>(CAMPOS_MESCLAGEM.map((c) => c.campo))
-  const campos = Object.fromEntries(Object.entries(dados.campos).filter(([k]) => permitidos.has(k)))
+  const fichas = await fichasParaMesclar(dados.ids, false)
+  if (fichas.length !== dados.ids.length || !fichas.some((f) => f.id === dados.decisao.principal)) {
+    return { erro: "Algum destes cadastros já foi excluído ou mesclado. Volte à lista e abra de novo." }
+  }
+  const envio = montarEnvio(fichas, dados.decisao)
+  const campos = envio.campos
 
   // CPF e matrícula escolhidos precisam ser válidos — a mesclagem não pode
   // perpetuar o "0" nem uma matrícula que é CPF.
-  if (campos.cpf && !cpfConfiavel(campos.cpf)) {
-    return { erro: "O CPF escolhido não é válido. Escolha outro ou deixe em branco." }
+  if (typeof campos.cpf === "string") {
+    const cpf = cpfConfiavel(campos.cpf)
+    if (!cpf) return { erro: "O CPF escolhido não é válido. Escolha outro ou deixe em branco." }
+    campos.cpf = cpf
   }
-  if (campos.matricula_sindical) {
+  if (typeof campos.matricula_sindical === "string") {
     const m = normalizarMatricula(campos.matricula_sindical)
     if (!m || m.length > 7) return { erro: "A matrícula sindical escolhida não é válida." }
     campos.matricula_sindical = m
   }
-  if (campos.cpf) campos.cpf = cpfConfiavel(campos.cpf)
 
   // Chamada com service role: a função é revogada para `authenticated` e
   // valida sozinha que principal e incorporados são do tenant passado.
   const service = await createAdminClient()
   const { data, error } = await service.rpc("mesclar_filiacoes", {
     p_emp: await tenantAtual(),
-    p_principal: dados.principal,
-    p_secundarios: dados.secundarios,
+    p_principal: dados.decisao.principal,
+    p_secundarios: fichas.map((f) => f.id).filter((id) => id !== dados.decisao.principal),
     p_campos: campos,
     p_usuario: dados.usuarioId,
+    p_vinculos: envio.vinculos,
+    p_contatos: envio.contatos,
   })
   if (error) {
     if (/could not find the function/i.test(error.message)) {
-      return { erro: "Mesclagem ainda não configurada — rode supabase/filiacao-duplicidades.sql." }
+      return { erro: "Mesclagem ainda não configurada — falta aplicar a migração." }
     }
     return { erro: error.message }
   }
@@ -312,11 +405,13 @@ export async function mesclarCadastros(dados: {
     movidos?: Record<string, number>
     pendentes?: string[]
     vinculos_unificados?: number
+    vinculos_nao_unificados?: number
   }
   return {
     movidos: resultado.movidos ?? {},
     pendentes: resultado.pendentes ?? [],
     vinculosUnificados: resultado.vinculos_unificados ?? 0,
+    vinculosNaoUnificados: resultado.vinculos_nao_unificados ?? 0,
   }
 }
 

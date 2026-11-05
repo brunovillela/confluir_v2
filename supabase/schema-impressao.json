@@ -49,7 +49,7 @@
  "funcao:filiacoes_nascimento_dia_mes()": "2691707be083a7a21d2bcc6585e7952a",
  "funcao:filiados_por_matricula_vinculo(p_emp uuid, p_termo text, p_limite integer)": "984958f7c9d40715560b67a0b10f4f88",
  "funcao:hospedagem_gravar_alocacao(p_emp uuid, p_hotel uuid, p_versao bigint, p_cupom uuid, p_quarto integer, p_sexo text, p_noites date[])": "9dd6f45f2dcddeff8c0036ff28f1fb35",
- "funcao:mesclar_filiacoes(p_emp uuid, p_principal uuid, p_secundarios uuid[], p_campos jsonb, p_usuario uuid)": "220d620c8c30c1849d5f0fcb34731033",
+ "funcao:mesclar_filiacoes(p_emp uuid, p_principal uuid, p_secundarios uuid[], p_campos jsonb, p_usuario uuid, p_vinculos jsonb, p_contatos jsonb)": "b8b0163e9de89a96ba1749fa63b93211",
  "funcao:mesclar_fornecedores(p_emp uuid, p_principal uuid, p_secundarios uuid[], p_usuario uuid)": "b8ba3221b568db2e9f307a3f549f81ec",
  "funcao:oposicao_envios_imutavel()": "6f92b65d08d851f2827dabd4c212400d",
  "funcao:oposicao_eventos_imutavel()": "8e87bae87acf4f1f38eff54a5f0480fa",

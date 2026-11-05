@@ -145,7 +145,7 @@ export default async function FiliadoPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ salvo?: string; etapa?: string; mesclado?: string; vinculos?: string; pendentes?: string; visualizar?: string }>
+  searchParams: Promise<{ salvo?: string; etapa?: string; mesclado?: string; vinculos?: string; naoUnidos?: string; pendentes?: string; visualizar?: string }>
 }) {
   const sessao = await requirePermissao("filiacao_filiados", [
     "filiacao_gestao",
@@ -157,7 +157,7 @@ export default async function FiliadoPage({
   const podeLgpd = podeAcessar(sessao.permissoes, "filiacao_lgpd", ["configuracoes"])
 
   const { id } = await params
-  const { salvo, etapa, mesclado, vinculos: vinculosUnificados, pendentes, visualizar } = await searchParams
+  const { salvo, etapa, mesclado, vinculos: vinculosUnificados, naoUnidos, pendentes, visualizar } = await searchParams
   const [perfil, prontuario] = await Promise.all([
     buscarPerfilFiliado(id),
     listarProntuario(id, 5),
@@ -279,8 +279,9 @@ export default async function FiliadoPage({
               O histórico foi movido e a mesclagem ficou no prontuário.
               {vinculosUnificados &&
                 (vinculosUnificados === "1"
-                  ? " 1 vínculo repetido (mesma fonte e matrícula, em cadastros diferentes) virou um só."
-                  : ` ${vinculosUnificados} vínculos repetidos (mesma fonte e matrícula, em cadastros diferentes) viraram um só.`)}
+                  ? " 1 vínculo repetido foi unido a outro da mesma fonte."
+                  : ` ${vinculosUnificados} vínculos repetidos foram unidos a outros da mesma fonte.`)}
+              {naoUnidos && ` Não foi possível unir ${naoUnidos} vínculo(s): eles continuam separados.`}
               {pendentes &&
                 ` Não foi possível mover: ${pendentes.split(",").join(", ")} (o cadastro principal já tinha o mesmo registro).`}
             </AlertDescription>

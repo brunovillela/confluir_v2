@@ -5,12 +5,8 @@ import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
-import {
-  CAMPOS_MESCLAGEM,
-  ignorarDuplicidade,
-  mesclarCadastros,
-  type TipoDuplicidade,
-} from "@/lib/db/filiacao-duplicidades"
+import { ignorarDuplicidade, mesclarCadastros, type TipoDuplicidade } from "@/lib/db/filiacao-duplicidades"
+import type { Decisao } from "@/lib/mesclagem-cadastros"
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -27,17 +23,16 @@ export async function mesclarAction(_prev: EstadoForm, formData: FormData): Prom
     return { erro: "Confirme que conferiu que é a mesma pessoa." }
   }
 
-  const campos: Record<string, string | null> = {}
-  for (const { campo } of CAMPOS_MESCLAGEM) {
-    if (!formData.has(`campo_${campo}`)) continue
-    const valor = String(formData.get(`campo_${campo}`) ?? "")
-    campos[campo] = valor === "" ? null : valor
+  let decisao: Decisao
+  try {
+    decisao = { ...(JSON.parse(String(formData.get("decisao") ?? "")) as Decisao), principal }
+  } catch {
+    return { erro: "Não foi possível ler as escolhas. Recarregue a página e tente de novo." }
   }
 
   const r = await mesclarCadastros({
-    principal,
-    secundarios,
-    campos,
+    decisao,
+    ids: [principal, ...secundarios],
     usuarioId: sessao.usuario.id as string,
   })
   if (r.erro) return { erro: r.erro }
@@ -48,7 +43,8 @@ export async function mesclarAction(_prev: EstadoForm, formData: FormData): Prom
   revalidatePath(`/painel/filiados/${principal}`)
   const pendentes = r.pendentes?.length ? `&pendentes=${encodeURIComponent(r.pendentes.join(","))}` : ""
   const vinculos = r.vinculosUnificados ? `&vinculos=${r.vinculosUnificados}` : ""
-  redirect(`/painel/filiados/${principal}?mesclado=${secundarios.length}${vinculos}${pendentes}`)
+  const naoUnidos = r.vinculosNaoUnificados ? `&naoUnidos=${r.vinculosNaoUnificados}` : ""
+  redirect(`/painel/filiados/${principal}?mesclado=${secundarios.length}${vinculos}${naoUnidos}${pendentes}`)
 }
 
 export async function ignorarAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {

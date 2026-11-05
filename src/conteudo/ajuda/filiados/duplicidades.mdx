@@ -37,50 +37,75 @@ nomes não batem.
 
 ## Mesclar
 
+**Mesclar** abre os cadastros inteiros, um ao lado do outro, com uma última
+coluna, **Como fica**, que mostra o resultado enquanto você decide.
+
+<Print src="filiados/mesclar-lado-a-lado.png" alt="Tela Mesclar cadastros: uma coluna para cada cadastro, com a opção Este é o cadastro que fica, os links Usar tudo deste e Abrir, e a coluna Como fica à direita; nas linhas de identificação, o valor escolhido aparece marcado; nas de telefone, cada número tem uma lista para escolher o lugar dele." legenda="Os cadastros lado a lado: clique no valor que fica e acompanhe o resultado na última coluna." />
+
 <PassoAPasso>
   <Passo titulo="Escolha o cadastro que fica">
-    Em **Mesclar**, cada cadastro mostra quantos vínculos, contribuições e
-    apontamentos de prontuário carrega. O sistema sugere o que tem mais
-    histórico; mude se outro for o certo. **Abrir cadastro** abre cada um em
-    outra aba para conferir.
+    No alto de cada coluna, marque **Este é o cadastro que fica**. O sistema
+    sugere o que tem mais histórico. **Abrir** mostra o cadastro em outra aba, e
+    **Usar tudo deste** escolhe de uma vez todos os valores daquele cadastro.
   </Passo>
-  <Passo titulo="Escolha os dados">
-    Onde os cadastros divergem — nome, CPF, matrícula, contato, endereço, termos
-    —, marque o valor certo. Campos vazios no principal são completados pelos
-    outros.
+  <Passo titulo="Clique nos valores que ficam">
+    Nome, CPF, matrícula, nascimento, endereço, termos: clique no valor certo. O
+    ponto laranja marca o que diverge. Sem escolha, vale o do cadastro que fica,
+    e o que estiver vazio nele é completado pelo outro. A condição **Ativo** em
+    qualquer dos cadastros já vem escolhida. Em **Endereço**, **Usar o endereço
+    inteiro deste** evita misturar a rua de um com o número do outro.
+  </Passo>
+  <Passo titulo="Una o que dá para somar">
+    Telefones, e-mails, endereços, contas e vínculos podem ficar todos: veja
+    abaixo.
   </Passo>
   <Passo titulo="Confirme">
     Marque que conferiu que é a mesma pessoa e clique em **Mesclar cadastros**.
   </Passo>
 </PassoAPasso>
 
-Na mesclagem, tudo o que pertencia aos outros cadastros passa para o principal:
-vínculos de filiação e trabalhistas, contribuições, prontuário, contatos,
-dados bancários, reembolsos, hospedagens, atendimentos de saúde, processos,
-inscrições em eventos, pessoas de ofícios. Os outros cadastros ficam
-excluídos, com um aviso que leva ao que ficou, e a mesclagem é registrada no
-prontuário do principal.
+### O que dá para unir
 
-### Vínculos repetidos
+- **Telefones e e-mails:** cada valor aparece uma vez, mesmo escrito de jeitos
+  diferentes, e na coluna **Como fica** você escolhe o lugar dele: Telefone 1 ou
+  2, E-mail pessoal ou corporativo, **Outros contatos** ou **Não guardar**. Dois
+  telefones diferentes já vêm como Telefone 1 e Telefone 2; o que não couber vai
+  para Outros contatos.
+- **Endereços:** um fica no cadastro. Os outros são guardados em Outros contatos,
+  a não ser que você desmarque.
+- **Dados bancários:** todas as contas passam, porque ordens de pagamento apontam
+  para elas. A mesma conta nos dois cadastros vira uma, e você escolhe a principal.
+- **Contatos de emergência:** o mesmo telefone conta como o mesmo contato; desmarque
+  o que não deve ficar.
 
-Quem se refiliou com um cadastro novo costuma ter o **mesmo emprego** nos dois
-cadastros. Na mesclagem, dois vínculos viram um só quando:
+O que você decide não guardar é citado no prontuário e continua no cadastro
+incorporado, que fica excluído, mas não é apagado.
 
-- estão em **cadastros diferentes** da pessoa;
-- são da **mesma fonte pagadora** e têm a **mesma matrícula na fonte**;
-- os **períodos se sobrepõem** (os dois abertos, por exemplo).
+### Vínculos
 
-Fica o vínculo que tem ficha ou carta anexada (ou, entre iguais, o do cadastro
-principal), com a **data de filiação mais antiga** dos dois. Campos vazios nele
-são completados pelo outro. Onde os dois divergem, vale o que ficou, e o
-prontuário guarda uma **cópia completa do vínculo removido**.
+Todos os vínculos passam para o cadastro que fica. Vínculos da **mesma fonte
+pagadora** em cadastros diferentes aparecem na mesma linha, e **Unir num vínculo
+só** decide se são o mesmo emprego. A caixa já vem marcada quando a matrícula na
+fonte é a mesma e os períodos se sobrepõem. Nos outros casos, a decisão é sua, e a
+tela avisa quando os períodos são separados, porque uma refiliação (saiu em 2023 e
+voltou em 2024) conta outra história.
 
-Não são unificados:
+Ao unir, **Valem os dados deste** indica qual vínculo prevalece: já vem marcado o
+que tem ficha ou carta anexada ou, entre iguais, o do cadastro que fica. O vínculo
+unido fica com a **data de filiação mais antiga**, os campos vazios são completados
+pelo outro, e o prontuário guarda uma **cópia completa do vínculo removido**.
 
-- vínculos repetidos que já estavam **no mesmo cadastro** — um filiado pode ter
-  mais de um vínculo na mesma fonte;
-- uma **refiliação com períodos separados** (saiu em 2023 e voltou em 2024): os
-  dois vínculos contam a história e continuam.
+Vínculos de fontes diferentes nunca são unidos, nem dois vínculos que já estavam
+**no mesmo cadastro**: um filiado pode ter mais de um vínculo na mesma fonte.
+
+### O que passa sem escolha
+
+Contribuições, prontuário, vínculos trabalhistas, reembolsos, hospedagens,
+atendimentos de saúde, processos, inscrições em eventos e pessoas de ofícios passam
+inteiros para o cadastro que fica, assim como o acesso à área do associado. Quem
+pediu para não receber a mala direta em qualquer dos cadastros continua sem receber.
+Os outros cadastros ficam excluídos, com um aviso que leva ao que ficou, e a
+mesclagem é registrada no prontuário.
 
 ## Não é duplicidade
 

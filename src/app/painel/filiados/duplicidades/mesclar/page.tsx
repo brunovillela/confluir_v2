@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { requirePermissao } from "@/lib/auth"
-import { CAMPOS_MESCLAGEM, cadastrosParaMesclar } from "@/lib/db/filiacao-duplicidades"
+import { fichasParaMesclar } from "@/lib/db/filiacao-duplicidades"
 
 import { MesclarForm } from "./mesclar-form"
 
@@ -18,14 +18,14 @@ export default async function MesclarPage({
 }) {
   await requirePermissao("filiacao_gestao")
   const { ids = "" } = await searchParams
-  const cadastros = await cadastrosParaMesclar(ids.split(",").filter(Boolean))
+  const fichas = await fichasParaMesclar(ids.split(",").filter(Boolean))
 
   // Principal sugerido: o que carrega mais histórico; empate → ativo → mais antigo.
-  const peso = (c: (typeof cadastros)[number]) => c.vinculos + c.contribuicoes + c.prontuario
-  const sugerido = [...cadastros].sort(
+  const peso = (f: (typeof fichas)[number]) => f.vinculos.length + f.contagens.contribuicoes + f.contagens.prontuario
+  const sugerido = [...fichas].sort(
     (a, b) =>
       peso(b) - peso(a) ||
-      Number(b.condicao === "Ativo") - Number(a.condicao === "Ativo") ||
+      Number(b.valores.filiacao_condicao === "Ativo") - Number(a.valores.filiacao_condicao === "Ativo") ||
       (a.criadoEm ?? "").localeCompare(b.criadoEm ?? "")
   )[0]
 
@@ -40,24 +40,18 @@ export default async function MesclarPage({
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">Mesclar cadastros</h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Junta cadastros da mesma pessoa num só, com todo o histórico.
+          Os cadastros lado a lado: clique no valor que fica e veja, na última coluna, como o cadastro vai ficar.
         </p>
       </div>
 
-      {cadastros.length < 2 || !sugerido ? (
+      {fichas.length < 2 || !sugerido ? (
         <Alert>
           <AlertDescription>
             Escolha ao menos dois cadastros não excluídos na lista de possíveis duplicidades.
           </AlertDescription>
         </Alert>
       ) : (
-        <div className="max-w-4xl">
-          <MesclarForm
-            cadastros={cadastros}
-            campos={CAMPOS_MESCLAGEM.map((c) => ({ campo: c.campo, rotulo: c.rotulo }))}
-            sugerido={sugerido.id}
-          />
-        </div>
+        <MesclarForm fichas={fichas} sugerido={sugerido.id} />
       )}
     </>
   )
