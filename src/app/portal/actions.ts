@@ -16,6 +16,8 @@ import {
   vincularIdentidade,
 } from "@/lib/auth-identidade"
 import { limparCpf, validarCpf } from "@/lib/cpf"
+import { recusaQueNaoESenha, sessaoDaMesmaConta } from "@/lib/entrada-senha"
+import type { User } from "@supabase/supabase-js"
 import { situacaoDoPortal } from "@/lib/db/portal-partes"
 import { destinoAoEntrar } from "@/lib/db/portal-primeiro-acesso"
 import { destinoDoPortal } from "@/lib/portal-destino"
@@ -93,40 +95,66 @@ export async function loginFiliadoSenha(
 
   if (!validarCpf(cpf)) return { erro: "CPF inválido." }
   if (!senha) return { erro: "Informe sua senha." }
-  const erroHumano = await exigirHumano(formData)
-  if (erroHumano) return { erro: erroHumano }
-  // O bloqueio vem ANTES da busca e conta também CPF desconhecido: se só os
-  // CPFs do cadastro chegassem a "Muitas tentativas", o próprio bloqueio
-  // confirmava quem existe.
-  const chave = chaveDeLogin("senha", cpf)
-  const bloqueio = await bloqueioAtivo(chave)
-  if (bloqueio) return { erro: bloqueio }
 
-  // Cadastro sem e-mail recebe a MESMA resposta (e no mesmo tempo) de CPF
-  // inexistente: a mensagem específica confirmava a quem chutasse CPFs que
-  // aquele existe. A orientação "sem e-mail no cadastro? procure o sindicato"
-  // fica fixa na tela, para todo mundo.
-  const recusar = async (): Promise<EstadoForm> => {
-    await registrarFalhaLogin(chave)
-    await igualarTempo(inicio, PISO_SENHA_MS)
-    return { erro: "CPF ou senha incorretos." }
+  // Envio repetido com a sessão desta mesma conta já aberta (ver
+  // lib/entrada-senha.ts): segue para dentro sem gastar outro token. Só
+  // consulta o cadastro quando há sessão — o caminho normal fica igual.
+  const supabase = await createClient()
+  let filiado: Filiado | null = null
+  let user: User | null = null
+  const { data: sessao } = await supabase.auth.getUser()
+  if (sessao.user) {
+    filiado = await buscarFiliadoPorCpf(cpf)
+    if (filiado?.email) user = await sessaoDaMesmaConta(supabase, filiado.email)
   }
 
-  const filiado = await buscarFiliadoPorCpf(cpf)
-  if (!filiado || !filiado.email) return recusar()
+  if (!user) {
+    const erroHumano = await exigirHumano(formData)
+    if (erroHumano) return { erro: erroHumano }
+    // O bloqueio vem ANTES da busca e conta também CPF desconhecido: se só os
+    // CPFs do cadastro chegassem a "Muitas tentativas", o próprio bloqueio
+    // confirmava quem existe.
+    const chave = chaveDeLogin("senha", cpf)
+    const bloqueio = await bloqueioAtivo(chave)
+    if (bloqueio) return { erro: bloqueio }
 
-  const supabase = await createClient()
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: filiado.email,
-    password: senha,
-    options: { captchaToken: tokenHumano(formData) },
-  })
-  if (error || !data.user) return recusar()
-  await limparFalhasLogin(chave)
+    // Cadastro sem e-mail recebe a MESMA resposta (e no mesmo tempo) de CPF
+    // inexistente: a mensagem específica confirmava a quem chutasse CPFs que
+    // aquele existe. A orientação "sem e-mail no cadastro? procure o sindicato"
+    // fica fixa na tela, para todo mundo.
+    const recusar = async (): Promise<EstadoForm> => {
+      await registrarFalhaLogin(chave)
+      await igualarTempo(inicio, PISO_SENHA_MS)
+      return { erro: "CPF ou senha incorretos." }
+    }
+
+    filiado ??= await buscarFiliadoPorCpf(cpf)
+    if (!filiado || !filiado.email) return recusar()
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: filiado.email,
+      password: senha,
+      options: { captchaToken: tokenHumano(formData) },
+    })
+    if (error || !data.user) {
+      // Captcha, limite ou rede: diz o que houve, sem contar como senha errada.
+      const outroMotivo = recusaQueNaoESenha(error, "portal")
+      if (outroMotivo) {
+        await igualarTempo(inicio, PISO_SENHA_MS)
+        return { erro: outroMotivo }
+      }
+      return recusar()
+    }
+    await limparFalhasLogin(chave)
+    user = data.user
+  }
+  if (!filiado) return { erro: "CPF ou senha incorretos." }
 
   // Só informa o status da filiação a quem provou a senha (anti-enumeração).
+  // As saídas encerram só a sessão deste navegador (o padrão global derrubava
+  // a pessoa nos outros aparelhos).
   if (!filiado.ativo) {
-    await supabase.auth.signOut()
+    await supabase.auth.signOut({ scope: "local" })
     return { erro: mensagemFiliacaoNaoAtiva(await emFiliacaoColetiva(cpf)) }
   }
 
@@ -134,14 +162,14 @@ export async function loginFiliadoSenha(
   // identidade (ou confirma a existente). Conta já de OUTRO CPF (e-mail
   // compartilhado, dado legado) é recusada — ver lib/auth-identidade.ts.
   const vinculo = await vincularIdentidade({
-    userId: data.user.id,
-    emailVerificado: data.user.email,
+    userId: user.id,
+    emailVerificado: user.email,
     tipo: "filiado",
     cpf,
     por: "senha",
   })
   if (!vinculo.ok) {
-    await supabase.auth.signOut()
+    await supabase.auth.signOut({ scope: "local" })
     return { erro: vinculo.erro }
   }
 

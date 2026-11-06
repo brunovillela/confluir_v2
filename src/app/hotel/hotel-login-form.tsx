@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useRef } from "react"
 import { Loader2 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -15,7 +15,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Turnstile } from "@/components/auth/turnstile"
+import { renovarTurnstile, Turnstile } from "@/components/auth/turnstile"
+import type { EstadoForm } from "@/lib/contas"
 
 import { loginHotel, recuperarSenhaHotel } from "./actions"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
@@ -39,13 +40,27 @@ function Mensagens({ erro, ok }: { erro?: string; ok?: string }) {
 }
 
 export function HotelLoginForm() {
-  const [estadoLogin, actionLogin, pendenteLogin] = useActionState(loginHotel, {})
-  const envio1 = useEnvioFormulario(actionLogin, estadoLogin)
-  const [estadoSenha, actionSenha, pendenteSenha] = useActionState(
-    recuperarSenhaHotel,
+  // Token novo do Turnstile a cada resposta: o anterior já foi gasto.
+  const form1 = useRef<HTMLFormElement>(null)
+  const form2 = useRef<HTMLFormElement>(null)
+  const [estadoLogin, actionLogin, pendenteLogin] = useActionState(
+    async (prev: EstadoForm, fd: FormData) => {
+      const r = await loginHotel(prev, fd)
+      renovarTurnstile(form1.current)
+      return r
+    },
     {}
   )
-  const envio2 = useEnvioFormulario(actionSenha, estadoSenha)
+  const envio1 = useEnvioFormulario(actionLogin, estadoLogin, { ref: form1 })
+  const [estadoSenha, actionSenha, pendenteSenha] = useActionState(
+    async (prev: EstadoForm, fd: FormData) => {
+      const r = await recuperarSenhaHotel(prev, fd)
+      renovarTurnstile(form2.current)
+      return r
+    },
+    {}
+  )
+  const envio2 = useEnvioFormulario(actionSenha, estadoSenha, { ref: form2 })
 
   return (
     <Card>

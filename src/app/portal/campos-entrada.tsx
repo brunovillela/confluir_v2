@@ -62,22 +62,5 @@ export function descritoPor(...ids: (string | false | null | undefined)[]): stri
   return lista || undefined
 }
 
-type ApiTurnstile = { reset: (widget?: string | HTMLElement) => void }
-
-/**
- * Pede um token novo ao Turnstile do formulário depois de cada envio. O token
- * vale uma conferência só (lib/turnstile.ts): sem renovar, o segundo envio do
- * mesmo formulário — senha digitada errado, "Reenviar código" — esbarrava em
- * "não foi possível confirmar que você não é um robô". Sem o widget (chaves
- * ausentes), não faz nada.
- */
-export function renovarTurnstile(form: HTMLFormElement | null): void {
-  const widget = form?.querySelector<HTMLElement>(".cf-turnstile")
-  const turnstile = (window as typeof window & { turnstile?: ApiTurnstile }).turnstile
-  if (!widget || !turnstile) return
-  try {
-    turnstile.reset(widget)
-  } catch {
-    // Widget ainda não desenhado: o token atual segue valendo.
-  }
-}
+// Mudou para o componente do widget (06/11/2026): o painel e o hotel também usam.
+export { renovarTurnstile } from "@/components/auth/turnstile"

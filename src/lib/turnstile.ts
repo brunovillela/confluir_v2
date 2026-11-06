@@ -17,8 +17,9 @@ import { headers } from "next/headers"
  * Sem as variáveis, tudo passa — nada muda até as chaves existirem.
  */
 
-export const ERRO_HUMANO =
-  "Não foi possível confirmar que você não é um robô. Recarregue a página e tente de novo."
+// A mensagem mora no módulo puro (também usada na recusa por captcha do Supabase).
+import { ERRO_HUMANO } from "@/lib/entrada-senha-recusa"
+export { ERRO_HUMANO }
 
 /** O token que o widget colocou no formulário (ou undefined). */
 export function tokenHumano(fd: FormData): string | undefined {

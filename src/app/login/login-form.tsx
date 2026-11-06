@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useRef } from "react"
 import Link from "next/link"
 import { Loader2 } from "lucide-react"
 
@@ -16,8 +16,9 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Turnstile } from "@/components/auth/turnstile"
+import { renovarTurnstile, Turnstile } from "@/components/auth/turnstile"
 import { mensagemLinkRecusado } from "@/lib/auth-email-constantes"
+import type { EstadoForm } from "@/lib/contas"
 
 import { loginFuncionario } from "./actions"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
@@ -34,8 +35,17 @@ export function LoginForm({
   next?: string
   erroInicial?: string
 }) {
-  const [estado, formAction, pendente] = useActionState(loginFuncionario, {})
-  const envio = useEnvioFormulario(formAction, estado)
+  const form = useRef<HTMLFormElement>(null)
+  // Token novo do Turnstile a cada resposta: o anterior já foi gasto.
+  const [estado, formAction, pendente] = useActionState(
+    async (prev: EstadoForm, fd: FormData) => {
+      const r = await loginFuncionario(prev, fd)
+      renovarTurnstile(form.current)
+      return r
+    },
+    {}
+  )
+  const envio = useEnvioFormulario(formAction, estado, { ref: form })
   const erro =
     estado.erro ??
     (erroInicial

@@ -8,6 +8,7 @@ import { SITE_URL } from "@/lib/env"
 import { createClient } from "@/lib/supabase/server"
 import { bloqueioAtivo, chaveDeLogin, limparFalhasLogin, registrarFalhaLogin } from "@/lib/login-bloqueio"
 import { exigirHumano, tokenHumano } from "@/lib/turnstile"
+import { recusaQueNaoESenha, sessaoDaMesmaConta } from "@/lib/entrada-senha"
 
 /** Porta 4 — pessoal dos hotéis parceiros: email + senha. */
 export async function loginHotel(
@@ -22,28 +23,35 @@ export async function loginHotel(
   if (!email || !senha) {
     return { erro: "Informe email e senha." }
   }
-  const erroHumano = await exigirHumano(formData)
-  if (erroHumano) return { erro: erroHumano }
-  const chave = chaveDeLogin("senha", email)
-  const bloqueio = await bloqueioAtivo(chave)
-  if (bloqueio) return { erro: bloqueio }
-
   const supabase = await createClient()
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password: senha,
-    options: { captchaToken: tokenHumano(formData) },
-  })
-  if (error || !data.user) {
-    await registrarFalhaLogin(chave)
-    return { erro: "Email ou senha incorretos." }
+  // Envio repetido com a sessão já aberta: segue (ver lib/entrada-senha.ts).
+  let user = await sessaoDaMesmaConta(supabase, email)
+  if (!user) {
+    const erroHumano = await exigirHumano(formData)
+    if (erroHumano) return { erro: erroHumano }
+    const chave = chaveDeLogin("senha", email)
+    const bloqueio = await bloqueioAtivo(chave)
+    if (bloqueio) return { erro: bloqueio }
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password: senha,
+      options: { captchaToken: tokenHumano(formData) },
+    })
+    if (error || !data.user) {
+      const outroMotivo = recusaQueNaoESenha(error, "hotel")
+      if (outroMotivo) return { erro: outroMotivo }
+      await registrarFalhaLogin(chave)
+      return { erro: "Email ou senha incorretos." }
+    }
+    await limparFalhasLogin(chave)
+    user = data.user
   }
-  await limparFalhasLogin(chave)
 
   // A conta precisa estar vinculada (e ativa) a um hotel parceiro.
-  const vinculo = await usuarioHotelDaConta(data.user.id, data.user.email ?? email)
+  const vinculo = await usuarioHotelDaConta(user.id, user.email ?? email)
   if (!vinculo) {
-    await supabase.auth.signOut()
+    await supabase.auth.signOut({ scope: "local" })
     return {
       erro: "Esta conta não está vinculada a um hotel parceiro. Fale com o sindicato.",
     }

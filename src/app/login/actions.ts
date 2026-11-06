@@ -13,6 +13,7 @@ import { bloqueioAtivo, chaveDeLogin, limparFalhasLogin, registrarFalhaLogin } f
 import { fatorVerificado, ROTA_VERIFICACAO } from "@/lib/mfa"
 import { exigirHumano, tokenHumano } from "@/lib/turnstile"
 import { escaparLike } from "@/lib/texto"
+import { recusaQueNaoESenha, sessaoDaMesmaConta } from "@/lib/entrada-senha"
 
 /** Porta 1 — funcionários internos: email + senha. */
 export async function loginFuncionario(
@@ -28,41 +29,52 @@ export async function loginFuncionario(
   if (!email || !senha) {
     return { erro: "Informe email e senha." }
   }
-  const erroHumano = await exigirHumano(formData)
-  if (erroHumano) return { erro: erroHumano }
-  const chave = chaveDeLogin("senha", email)
-  const bloqueio = await bloqueioAtivo(chave)
-  if (bloqueio) return { erro: bloqueio }
 
   const supabase = await createClient()
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password: senha,
-    options: { captchaToken: tokenHumano(formData) },
-  })
-  if (error || !data.user) {
-    await registrarFalhaLogin(chave)
-    return { erro: "Email ou senha incorretos." }
+  // Envio repetido depois de a sessão já ter aberto (ver lib/entrada-senha.ts):
+  // segue para dentro em vez de recusar com o token do Turnstile já gasto.
+  let user = await sessaoDaMesmaConta(supabase, email)
+  if (!user) {
+    const erroHumano = await exigirHumano(formData)
+    if (erroHumano) return { erro: erroHumano }
+    const chave = chaveDeLogin("senha", email)
+    const bloqueio = await bloqueioAtivo(chave)
+    if (bloqueio) return { erro: bloqueio }
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password: senha,
+      options: { captchaToken: tokenHumano(formData) },
+    })
+    if (error || !data.user) {
+      const outroMotivo = recusaQueNaoESenha(error, "painel")
+      if (outroMotivo) return { erro: outroMotivo }
+      await registrarFalhaLogin(chave)
+      return { erro: "Email ou senha incorretos." }
+    }
+    await limparFalhasLogin(chave)
+    user = data.user
   }
-  await limparFalhasLogin(chave)
 
   // Conta autenticada precisa estar vinculada a um funcionário ativo do tenant.
+  // As saídas abaixo encerram só a sessão DESTE navegador (scope local): o
+  // padrão do signOut é global e derrubava a pessoa nos outros aparelhos.
   const admin = await createAdminClient()
   const { data: usuario } = await admin
     .from("usuarios")
     .select("id, inativo, deletado")
-    .eq("auth_user_id", data.user.id)
+    .eq("auth_user_id", user.id)
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
 
   if (!usuario) {
-    await supabase.auth.signOut()
+    await supabase.auth.signOut({ scope: "local" })
     return {
       erro: "Esta conta não está vinculada a um funcionário. Filiados devem usar o Portal do Associado.",
     }
   }
   if (usuario.inativo === true || usuario.deletado === true) {
-    await supabase.auth.signOut()
+    await supabase.auth.signOut({ scope: "local" })
     return { erro: "Este cadastro está inativo. Fale com a administração." }
   }
 
@@ -75,7 +87,7 @@ export async function loginFuncionario(
     .maybeSingle()
 
   if (!permissao) {
-    await supabase.auth.signOut()
+    await supabase.auth.signOut({ scope: "local" })
     return {
       erro: "Sua conta não possui perfil de acesso ao painel. Filiados devem usar o Portal do Associado.",
     }
@@ -83,7 +95,7 @@ export async function loginFuncionario(
 
   const destino = next.startsWith("/painel") ? next : "/painel"
   // Conta com aplicativo autenticador: a senha é só a primeira etapa.
-  if (fatorVerificado(data.user)) {
+  if (fatorVerificado(user)) {
     redirect(`${ROTA_VERIFICACAO}?next=${encodeURIComponent(destino)}`)
   }
   redirect(destino)
