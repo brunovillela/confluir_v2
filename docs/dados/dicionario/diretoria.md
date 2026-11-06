@@ -173,7 +173,7 @@ Roster de integrantes de cada mandato da diretoria. O signatário de um ofício 
 
 - **LGPD:** identificação, **sensível: sindical** · titulares: diretores
 - **RLS:** ligado · policies: `tenant_isolation`
-- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`, `viagens_solicitar_ao_entrar` → `viagens_solicitar_ao_entrar_diretoria`
 
 | Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
 |---|---|---|---|---|---|---|

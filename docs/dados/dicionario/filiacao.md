@@ -1547,7 +1547,7 @@ Vínculos empregatícios de pessoas (funcionários da entidade no módulo Pessoa
 
 - **LGPD:** trabalhista, identificação · titulares: funcionários, filiados
 - **RLS:** ligado · policies: `tenant_isolation`
-- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`, `viagens_solicitar_ao_entrar` → `viagens_solicitar_ao_entrar_vinculo`
 
 | Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
 |---|---|---|---|---|---|---|
