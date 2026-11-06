@@ -3,6 +3,7 @@ import "server-only"
 import { nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { vinculoComSindicato } from "@/lib/db/perfil"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { tenantAtual } from "@/lib/tenant"
 import { semAcento } from "@/lib/texto"
 
 /**
@@ -28,6 +29,7 @@ export async function diretoresParaDiaria(): Promise<DiretorParaDiaria[]> {
   const { data: mandatos } = await admin
     .from("diretoria_mandatos")
     .select("id, data_inicio, data_termino")
+    .eq("emp_proprietaria_id", await tenantAtual())
     .order("data_inicio", { ascending: false })
   const hoje = new Date().toISOString().slice(0, 10)
   const vigente =
@@ -87,6 +89,7 @@ async function departamentosDosUsuarios(usuarioIds: string[]): Promise<{
   const { data } = await admin
     .from("empresa_departamentos")
     .select("id, departamento, coordenador_id, legado")
+    .eq("emp_proprietaria_id", await tenantAtual())
   const ativos = ((data ?? []) as Record<string, unknown>[]).filter((d) => d.legado !== true)
   const lista = ativos.map((d) => ({
     id: String(d.id),
