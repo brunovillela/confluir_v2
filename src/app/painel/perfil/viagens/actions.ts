@@ -14,7 +14,10 @@ import {
   lerItensDoForm,
   type NovaViagem,
 } from "@/lib/db/viagens"
-import { avisarEquipeNovaViagem } from "@/lib/db/viagens-atendimento"
+import {
+  avisarEquipeNovaViagem,
+  avisarViajantePedidoPorOutro,
+} from "@/lib/db/viagens-atendimento"
 import { podeAcessar } from "@/lib/permissoes"
 
 function revalidar() {
@@ -90,6 +93,10 @@ export async function solicitarViagem(
 
   // Aviso à equipe (Configurações): falha de e-mail não desfaz o pedido.
   await avisarEquipeNovaViagem(id).catch((e) => console.error("Aviso de viagem nova:", e))
+  // Pedido para outra pessoa: quem viaja fica sabendo.
+  await avisarViajantePedidoPorOutro(id).catch((e) =>
+    console.error("Aviso a quem viaja:", e)
+  )
   revalidar()
   redirect(`/painel/perfil/viagens/${id}?salvo=1`)
 }

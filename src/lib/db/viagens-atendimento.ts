@@ -251,6 +251,60 @@ export async function avisarEquipeNovaViagem(id: string): Promise<void> {
   }
 }
 
+/**
+ * Pedido feito por outra pessoa (pelo "Para outra pessoa" ou pela gestão):
+ * avisa quem vai viajar, para que não seja surpreendido e possa conferir
+ * datas e horários. Vai pelo sino e pelo Telegram, e por e-mail conforme a
+ * preferência. Convidado sem conta só recebe o aviso da reserva.
+ */
+export async function avisarViajantePedidoPorOutro(id: string): Promise<void> {
+  const v = await buscarViagem(id)
+  if (
+    !v ||
+    v.beneficiarioTipo === "convidado" ||
+    !v.beneficiarioUsuarioId ||
+    !v.solicitanteId ||
+    v.solicitanteId === v.beneficiarioUsuarioId
+  ) {
+    return
+  }
+  const quemPediu = v.solicitanteNome ?? "Alguém"
+  const curta = `${quemPediu} pediu a viagem ${resumoCurto(v)} para você — ${v.motivo}.`
+  try {
+    await criarNotificacao({
+      usuarioId: v.beneficiarioUsuarioId,
+      texto: curta,
+      link: `/painel/perfil/viagens/${v.id}`,
+    })
+  } catch (e) {
+    console.error("Falha ao notificar viagem pedida por outro:", e)
+  }
+  await enviarPushTelegram(v.beneficiarioUsuarioId, curta, "viagens")
+
+  if (!(await querEmail(v.beneficiarioUsuarioId, "viagens"))) return
+  const [d] = (await destinatarios(v)).filter((x) => x.viaja)
+  if (!d?.email) return
+  const evento = nomeDoEvento(v)
+  const corpo = [
+    tituloEmail("Pediram uma viagem para você"),
+    paragrafo(`Olá${d.nome ? `, ${escaparHtml(d.nome.split(" ")[0])}` : ""}!`),
+    paragrafo(
+      `<strong>${escaparHtml(quemPediu)}</strong> pediu a viagem nº ${v.numero ?? "—"} em seu nome — <em>${escaparHtml(v.motivo)}</em>${evento ? ` (${escaparHtml(evento)})` : ""}. A equipe de viagens vai cotar e reservar; você recebe outro aviso quando estiver reservada.`
+    ),
+    ...v.itens.map((item, i) => blocoItem(item, i, null)),
+    d.link ? botaoEmail(d.link, "Ver a viagem no Confluir") : "",
+    textoSuave(
+      "Confira as datas e os horários. Se algo não estiver certo, fale com quem pediu ou responda a este e-mail."
+    ),
+  ]
+  await enviarEmail({
+    email: d.email,
+    nome: d.nome,
+    assunto: `Viagem nº ${v.numero ?? ""} pedida para você — {ENTIDADE}`,
+    html: corpo.join("\n"),
+  }).catch(() => false)
+}
+
 // ── Aviso ───────────────────────────────────────────────────────────────────
 
 type Destinatario = {

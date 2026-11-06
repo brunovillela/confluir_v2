@@ -12,6 +12,7 @@ import {
   lerItensDoForm,
 } from "@/lib/db/viagens"
 import {
+  avisarViajantePedidoPorOutro,
   concluirAtendimento,
   encerrarViagem,
   iniciarAtendimento,
@@ -54,6 +55,12 @@ export async function lancarViagem(
     itens: lidos.itens,
   })
   if (erro) return { erro }
+  // Lançado pela gestão: quem viaja (com conta) fica sabendo.
+  if (id) {
+    await avisarViajantePedidoPorOutro(id).catch((e) =>
+      console.error("Aviso a quem viaja:", e)
+    )
+  }
 
   revalidatePath("/painel/institucional/viagens", "layout")
   revalidatePath("/painel/perfil/viagens")
