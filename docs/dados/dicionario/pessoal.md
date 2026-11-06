@@ -1009,8 +1009,12 @@ Configuração do movimento da folha para a contabilidade, uma linha por entidad
 | `he_tolerancia_diaria_min` | integer | não | `10` |  |  | Apuração do ponto: diferença diária até estes minutos não conta, nem a mais nem a menos (CLT art. 58, § 1º: até 10). |
 | `he_ocorrencias_abonam` | text[] | não | `ARRAY['Feriado'::text, 'Férias'::text, 'Atestado'::text, 'Folga'::text, 'Compensado'::text, 'Recesso'::text, 'DSR'::text, 'Abono'::text, 'Abonado'::text, 'Licença'::text]` |  |  | Apuração do ponto: ocorrências do cartão que abonam o dia (sem jornada prevista nem falta). |
 | `he_mes_sem_batidas` | text | não | `'alertar'::text` |  |  | Apuração do ponto: funcionário sem nenhuma batida no mês — só alertar (alertar) ou lançar o negativo mesmo assim (lancar). |
+| `ferias_pagamento_dias` | smallint | sim |  |  |  | Prazo do pagamento das férias: quantos dias antes do início do gozo (úteis ou corridos, ver ferias_pagamento_dias_uteis). Nulo: o aviso de férias não mostra data de pagamento. |
+| `ferias_pagamento_dias_uteis` | boolean | não | `false` |  |  | Se o prazo do pagamento das férias conta dias úteis (pula sábado, domingo e feriados nacionais) ou corridos. |
+| `ferias_pagamento_descricao` | text | sim |  |  |  | O que é pago nas férias, como aparece no aviso (ex.: gratificação de férias de 100% da remuneração). |
+| `ferias_pagamento_fundamento` | text | sim |  |  |  | Fundamento da regra de pagamento citado no aviso (ex.: cláusula 3ª do ACT). Opcional. |
 
-Checks: `pessoal_folha_config_he_mes_sem_batidas_check` `CHECK ((he_mes_sem_batidas = ANY (ARRAY['alertar'::text, 'lancar'::text])))`; `pessoal_folha_config_he_negativas_check` `CHECK ((he_negativas = ANY (ARRAY['faixa1'::text, 'faixa1_depois_faixa2'::text])))`; `pessoal_folha_config_he_tolerancia_check` `CHECK (((he_tolerancia_diaria_min >= 0) AND (he_tolerancia_diaria_min <= 60)))`
+Checks: `ck_folha_config_ferias_pagamento_dias` `CHECK (((ferias_pagamento_dias IS NULL) OR ((ferias_pagamento_dias >= 0) AND (ferias_pagamento_dias <= 60))))`; `pessoal_folha_config_he_mes_sem_batidas_check` `CHECK ((he_mes_sem_batidas = ANY (ARRAY['alertar'::text, 'lancar'::text])))`; `pessoal_folha_config_he_negativas_check` `CHECK ((he_negativas = ANY (ARRAY['faixa1'::text, 'faixa1_depois_faixa2'::text])))`; `pessoal_folha_config_he_tolerancia_check` `CHECK (((he_tolerancia_diaria_min >= 0) AND (he_tolerancia_diaria_min <= 60)))`
 
 Índices: `pessoal_folha_config_pkey`
 

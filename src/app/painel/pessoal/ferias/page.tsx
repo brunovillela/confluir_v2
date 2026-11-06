@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, ChevronLeft, ChevronRight, Plus, TreePalm } from "lucide-react"
+import { ArrowLeft, ChevronLeft, ChevronRight, Plus, Settings2, TreePalm } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AvatarPessoa } from "@/components/pessoa-nome"
@@ -144,12 +144,20 @@ export default async function FeriasPage({
               conta como o primeiro dia de férias
             </p>
           </div>
-          <Button asChild>
-            <Link href="/painel/pessoal/ferias/novo">
-              <Plus />
-              Novo período
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/painel/pessoal/ferias/regras">
+                <Settings2 />
+                Regras de férias
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="/painel/pessoal/ferias/novo">
+                <Plus />
+                Novo período
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
 

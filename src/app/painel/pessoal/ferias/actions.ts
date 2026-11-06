@@ -14,7 +14,8 @@ import {
   excluirGozo,
   excluirPeriodoFerias,
 } from "@/lib/db/ferias"
-import { enviarAvisoFerias, gozosSemAviso, reenviarAvisoFerias } from "@/lib/db/ferias-aviso"
+import { enviarAvisoFerias, gozosSemAviso, reenviarAvisoFerias, refazerAvisosPendentes } from "@/lib/db/ferias-aviso"
+import { salvarRegraPagamentoFerias } from "@/lib/db/ferias-regras"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 async function exigirAcesso() {
@@ -292,4 +293,27 @@ export async function enviarAvisosPendentesAction(): Promise<EstadoForm> {
   revalidar()
   if (erros.length) return { erro: `${enviados} aviso(s) enviado(s). Não enviados: ${erros.join(" ")}` }
   return { ok: `${enviados} aviso(s) enviado(s) para assinatura.` }
+}
+
+// ── Regras de férias da entidade (pagamento no aviso) ──────────────────────
+
+export async function salvarRegrasFerias(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const sessao = await exigirAcesso()
+
+  const diasBruto = String(formData.get("dias") ?? "").trim()
+  const dias = diasBruto === "" ? null : Number(diasBruto)
+  if (dias !== null && (!Number.isInteger(dias) || dias < 0 || dias > 60)) {
+    return { erro: "O prazo deve ser um número inteiro de 0 a 60 dias.", campo: "dias" }
+  }
+  const uteis = String(formData.get("contagem") ?? "") === "uteis"
+  const descricao = String(formData.get("descricao") ?? "").trim().slice(0, 300) || null
+  const fundamento = String(formData.get("fundamento") ?? "").trim().slice(0, 200) || null
+
+  const { erro } = await salvarRegraPagamentoFerias({ dias, uteis, descricao, fundamento })
+  if (erro) return { erro }
+
+  // Avisos ainda não assinados passam a valer com o texto novo.
+  const { refeitos, falhas } = await refazerAvisosPendentes(sessao.usuario.id)
+  revalidar()
+  redirect(`/painel/pessoal/ferias/regras?salvo=1&refeitos=${refeitos}&falhas=${falhas.length}`)
 }

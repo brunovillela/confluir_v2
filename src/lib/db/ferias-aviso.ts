@@ -31,6 +31,8 @@ import {
   textoSuave,
   tituloEmail,
 } from "@/lib/email-layout"
+import { pagamentoDoAviso } from "@/lib/ferias-pagamento"
+import { regraPagamentoFerias } from "@/lib/db/ferias-regras"
 import { formatarData } from "@/lib/formato"
 import { somarDiasISO } from "@/lib/periodo-dias"
 import { AvisoFeriasPDF, type DadosAvisoFerias } from "@/lib/pdf/aviso-ferias"
@@ -41,11 +43,12 @@ import { origemAtual } from "@/lib/tenant-url"
 /**
  * Aviso de férias assinado pelo funcionário (pedido de 19/10).
  *
- * Gozo AUTORIZADO → o sistema gera o Aviso de Férias (CLT art. 135), manda
+ * Gozo AUTORIZADO → o sistema gera o Aviso de Férias, manda
  * por e-mail ao funcionário o link pessoal e colhe a assinatura eletrônica
  * dele: código de uso único no e-mail + nome completo e CPF conferido com o
  * cadastro + aceite expresso. O conteúdo (funcionário, período aquisitivo,
- * datas do gozo, retorno e abono) é congelado por SHA-256. Assinado, o PDF com
+ * datas do gozo, retorno, abono e a regra de pagamento da entidade) é
+ * congelado por SHA-256. Assinado, o PDF com
  * a página de certificado vira o aviso do gozo (aviso_ferias_url).
  *
  * Ajustar as datas muda o conteúdo: o link antigo é cancelado e sai um aviso
@@ -140,7 +143,7 @@ export async function carregarAviso(gozoId: string): Promise<AvisoDoGozo | null>
     .eq("emp_proprietaria_id", emp)
     .maybeSingle()
   if (!g || !g.funcionario_id || !g.inicio || !g.termino || !g.dias) return null
-  const [{ data: p }, { data: u }, { data: vs }] = await Promise.all([
+  const [{ data: p }, { data: u }, { data: vs }, regra] = await Promise.all([
     g.ferias_periodo_id
       ? admin.from("pessoal_ferias").select("aquisitivo_inicio, aquisitivo_termino, abono_pecuniario").eq("id", g.ferias_periodo_id).maybeSingle()
       : Promise.resolve({ data: null }),
@@ -150,6 +153,7 @@ export async function carregarAviso(gozoId: string): Promise<AvisoDoGozo | null>
       .select("cargo, matricula, contrato_demissao, contrato_admissao")
       .eq("trabalhador_id", g.funcionario_id)
       .eq("empregador_id", emp),
+    regraPagamentoFerias(),
   ])
   const vinculo = (vs ?? []).sort((a, b) => Number(Boolean(a.contrato_demissao)) - Number(Boolean(b.contrato_demissao)))[0]
   const cpf = limparCpf(String(u?.cpf ?? ""))
@@ -171,6 +175,7 @@ export async function carregarAviso(gozoId: string): Promise<AvisoDoGozo | null>
       aquisitivo: { inicio: texto(p?.aquisitivo_inicio), termino: texto(p?.aquisitivo_termino) },
       gozo: { inicio: String(g.inicio), termino: String(g.termino), dias: Number(g.dias), retorno: somarDiasISO(String(g.termino), 1) },
       abono: g.abono_solicitado === true || p?.abono_pecuniario === true,
+      pagamento: pagamentoDoAviso(String(g.inicio), regra),
     },
   }
 }
@@ -188,6 +193,9 @@ export function hashDoAviso(d: DadosAvisoFerias): string {
       d.gozo.dias,
       d.gozo.retorno,
       d.abono,
+      // Só entra quando a entidade informou a regra: os avisos de antes dela
+      // (sem pagamento no texto) seguem com o mesmo resumo.
+      ...(d.pagamento ? [d.pagamento] : []),
     ])
   )
 }
@@ -339,7 +347,8 @@ async function convidar(a: AssinaturaAviso, d: DadosAvisoFerias, autorizacao?: C
 export async function enviarAvisoFerias(
   gozoId: string,
   usuarioId: string | null,
-  autorizacao?: ContextoAutorizacao
+  autorizacao?: ContextoAutorizacao,
+  motivoTroca = "As datas do gozo mudaram — um aviso novo foi enviado"
 ): Promise<{ erro?: string; enviado?: boolean }> {
   const aviso = await carregarAviso(gozoId)
   if (!aviso) return { erro: "Gozo sem datas ou não encontrado." }
@@ -349,7 +358,7 @@ export async function enviarAvisoFerias(
   if (envios.some((a) => a.hashDocumento === hash && (a.situacao === "pendente" || a.situacao === "assinado"))) {
     return { enviado: false }
   }
-  await cancelarAvisoFerias(gozoId, usuarioId, "As datas do gozo mudaram — um aviso novo foi enviado")
+  await cancelarAvisoFerias(gozoId, usuarioId, motivoTroca)
   if (!aviso.email || !EMAIL.test(aviso.email)) {
     return { erro: `${aviso.dados.funcionario.nome} não tem e-mail no cadastro — o aviso não foi enviado.` }
   }
@@ -390,6 +399,43 @@ export async function enviarAvisoFerias(
   await evento(a.id, "enviado", null, undefined, emp)
   await convidar(a, aviso.dados, autorizacao)
   return { enviado: true }
+}
+
+/** Quantos gozos têm aviso aguardando assinatura (o que a troca da regra refaz). */
+export async function contarAvisosPendentes(): Promise<number> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("documento_assinaturas")
+    .select("documento_id")
+    .eq("documento_tipo", "ferias")
+    .eq("situacao", "pendente")
+    .eq("emp_proprietaria_id", await tenantAtual())
+  return new Set((data ?? []).map((l) => String(l.documento_id))).size
+}
+
+/**
+ * A regra de pagamento mudou: cada aviso ainda não assinado é refeito com o
+ * texto novo (o link antigo é cancelado e sai outro). Assinados não mudam.
+ */
+export async function refazerAvisosPendentes(
+  usuarioId: string | null
+): Promise<{ refeitos: number; falhas: string[] }> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("documento_assinaturas")
+    .select("documento_id")
+    .eq("documento_tipo", "ferias")
+    .eq("situacao", "pendente")
+    .eq("emp_proprietaria_id", await tenantAtual())
+  const gozos = [...new Set((data ?? []).map((l) => String(l.documento_id)))]
+  let refeitos = 0
+  const falhas: string[] = []
+  for (const gozoId of gozos) {
+    const r = await enviarAvisoFerias(gozoId, usuarioId, undefined, "A regra de pagamento das férias mudou — um aviso novo foi enviado")
+    if (r.erro) falhas.push(r.erro)
+    else if (r.enviado) refeitos++
+  }
+  return { refeitos, falhas }
 }
 
 /** Manda de novo o e-mail com o mesmo link. */

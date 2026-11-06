@@ -2,11 +2,13 @@ import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/render
 
 import type { CertificacaoPDF } from "@/lib/db/minuta-assinatura"
 import { formatarCnpjCpf, formatarData } from "@/lib/formato"
-import { somarDiasISO } from "@/lib/periodo-dias"
+import { frasePagamento, prazoPagamento, type PagamentoDoAviso } from "@/lib/ferias-pagamento"
 
 /**
- * Aviso de Férias (CLT art. 135) — a comunicação por escrito ao empregado,
- * com a ciência dele (só ele assina; a entidade emissora fica no cabeçalho).
+ * Aviso de Férias — a comunicação por escrito ao empregado, com a ciência
+ * dele (só ele assina; a entidade emissora fica no cabeçalho). Não cita lei:
+ * o pagamento segue a regra que a entidade informou (lib/ferias-pagamento),
+ * e sem regra o aviso não fala de pagamento.
  * Assinado eletronicamente pelo link, ganha a página de certificado com a
  * trilha da assinatura.
  */
@@ -15,8 +17,24 @@ export type DadosAvisoFerias = {
   funcionario: { nome: string; cpf: string | null; cargo: string | null; matricula: string | null }
   aquisitivo: { inicio: string | null; termino: string | null }
   gozo: { inicio: string; termino: string; dias: number; retorno: string }
-  /** Venda de 1/3 das férias (abono pecuniário, CLT art. 143). */
+  /** Venda de 1/3 das férias (abono pecuniário). */
   abono: boolean
+  /** Regra de pagamento da entidade aplicada ao gozo; null = não informada. */
+  pagamento: PagamentoDoAviso | null
+}
+
+const ABONO_SIM = "Sim — conversão de 1/3 das férias em dinheiro"
+
+function comunicacao(d: DadosAvisoFerias): string {
+  return `Comunicamos que suas férias relativas ao período aquisitivo de ${formatarData(d.aquisitivo.inicio)} a ${formatarData(d.aquisitivo.termino)} serão concedidas de ${formatarData(d.gozo.inicio)} a ${formatarData(d.gozo.termino)}, num total de ${d.gozo.dias} dias corridos, devendo V. Sa. reassumir suas funções em ${formatarData(d.gozo.retorno)}.`
+}
+
+function itensComunicacao(d: DadosAvisoFerias): string[] {
+  return [
+    ...(d.pagamento ? [frasePagamento(d.pagamento, d.abono)] : []),
+    "Férias são período de descanso: nesses dias não há prestação de serviço à entidade.",
+    "Havendo divergência nas datas, comunique o departamento de pessoal antes de assinar.",
+  ]
 }
 
 const CM = 28.35
@@ -76,7 +94,6 @@ function porExtenso(iso?: string | null): string {
  */
 export function textoDoAviso(dados: DadosAvisoFerias, entidade: string): string {
   const { funcionario: f, aquisitivo, gozo } = dados
-  const pagamentoAte = formatarData(somarDiasISO(gozo.inicio, -2))
   return [
     "AVISO DE FÉRIAS",
     entidade,
@@ -84,7 +101,9 @@ export function textoDoAviso(dados: DadosAvisoFerias, entidade: string): string 
     `Início das férias: ${formatarData(gozo.inicio)}`,
     `Último dia: ${formatarData(gozo.termino)} (${gozo.dias} dias corridos)`,
     `Retorno ao trabalho: ${formatarData(gozo.retorno)}`,
-    `Pagamento até: ${pagamentoAte} (férias + 1/3, CLT art. 145)`,
+    ...(dados.pagamento
+      ? [`Pagamento até: ${formatarData(dados.pagamento.ate)} (${prazoPagamento(dados.pagamento.dias, dados.pagamento.uteis)} antes do início)`]
+      : []),
     "",
     "EMPREGADO(A)",
     `Nome: ${f.nome}`,
@@ -95,13 +114,11 @@ export function textoDoAviso(dados: DadosAvisoFerias, entidade: string): string 
     "FÉRIAS",
     `Período aquisitivo: ${formatarData(aquisitivo.inicio)} a ${formatarData(aquisitivo.termino)}`,
     `Período de gozo: ${formatarData(gozo.inicio)} a ${formatarData(gozo.termino)} (${gozo.dias} dias)`,
-    `Abono pecuniário: ${dados.abono ? "sim — conversão de 1/3 das férias em dinheiro (CLT art. 143)" : "não"}`,
+    `Abono pecuniário: ${dados.abono ? ABONO_SIM.toLowerCase() : "não"}`,
     "",
     "COMUNICAÇÃO",
-    `Nos termos do art. 135 da Consolidação das Leis do Trabalho, comunicamos que suas férias relativas ao período aquisitivo de ${formatarData(aquisitivo.inicio)} a ${formatarData(aquisitivo.termino)} serão concedidas de ${formatarData(gozo.inicio)} a ${formatarData(gozo.termino)}, num total de ${gozo.dias} dias corridos, devendo V. Sa. reassumir suas funções em ${formatarData(gozo.retorno)}.`,
-    `A remuneração das férias, acrescida do terço constitucional${dados.abono ? " e do abono pecuniário" : ""}, será paga até ${pagamentoAte}, 2 (dois) dias antes do início do gozo (CLT art. 145).`,
-    "Férias são período de descanso: nesses dias não há prestação de serviço à entidade.",
-    "Havendo divergência nas datas, comunique o departamento de pessoal antes de assinar.",
+    comunicacao(dados),
+    ...itensComunicacao(dados),
   ].join("\n")
 }
 
@@ -138,7 +155,6 @@ export function AvisoFeriasPDF({
 }) {
   const { funcionario: f, aquisitivo, gozo } = dados
   const assinado = certificacao?.concluida ? certificacao.assinantes[0] : null
-  const pagamentoAte = somarDiasISO(gozo.inicio, -2)
   return (
     <Document>
       <Page size="A4" style={s.page}>
@@ -153,7 +169,13 @@ export function AvisoFeriasPDF({
           <Data rotulo="Início das férias" valor={formatarData(gozo.inicio)} destaque />
           <Data rotulo="Último dia" valor={formatarData(gozo.termino)} nota={`${gozo.dias} dias corridos`} />
           <Data rotulo="Retorno ao trabalho" valor={formatarData(gozo.retorno)} destaque />
-          <Data rotulo="Pagamento até" valor={formatarData(pagamentoAte)} nota="férias + 1/3 (art. 145)" />
+          {dados.pagamento ? (
+            <Data
+              rotulo="Pagamento até"
+              valor={formatarData(dados.pagamento.ate)}
+              nota={`${prazoPagamento(dados.pagamento.dias, dados.pagamento.uteis)} antes`}
+            />
+          ) : null}
         </View>
 
         <View style={s.bloco}>
@@ -173,7 +195,7 @@ export function AvisoFeriasPDF({
             <Campo rotulo="Período de gozo" valor={`${formatarData(gozo.inicio)} a ${formatarData(gozo.termino)} (${gozo.dias} dias)`} />
             <Campo
               rotulo="Abono pecuniário"
-              valor={dados.abono ? "Sim — conversão de 1/3 das férias em dinheiro (CLT art. 143)" : "Não"}
+              valor={dados.abono ? ABONO_SIM : "Não"}
               largo
             />
           </View>
@@ -183,13 +205,9 @@ export function AvisoFeriasPDF({
           <Text style={s.blocoTitulo}>Comunicação</Text>
           {/* Uma string só: em pedaços, o @react-pdf dobra o entrelinha. */}
           <Text style={s.texto}>
-            {`Nos termos do art. 135 da Consolidação das Leis do Trabalho, comunicamos que suas férias relativas ao período aquisitivo de ${formatarData(aquisitivo.inicio)} a ${formatarData(aquisitivo.termino)} serão concedidas de ${formatarData(gozo.inicio)} a ${formatarData(gozo.termino)}, num total de ${gozo.dias} dias corridos, devendo V. Sa. reassumir suas funções em ${formatarData(gozo.retorno)}.`}
+            {comunicacao(dados)}
           </Text>
-          {[
-            `A remuneração das férias, acrescida do terço constitucional${dados.abono ? " e do abono pecuniário" : ""}, será paga até ${formatarData(pagamentoAte)}, 2 (dois) dias antes do início do gozo (CLT art. 145).`,
-            "Férias são período de descanso: nesses dias não há prestação de serviço à entidade.",
-            "Havendo divergência nas datas, comunique o departamento de pessoal antes de assinar.",
-          ].map((t, i) => (
+          {itensComunicacao(dados).map((t, i) => (
             <View key={i} style={s.item}>
               <Text style={s.marcador}>•</Text>
               <Text style={s.itemTexto}>{t}</Text>
@@ -202,8 +220,7 @@ export function AvisoFeriasPDF({
           {porExtenso(dataDocumento)}.
         </Text>
 
-        {/* Só o empregado assina: o art. 135 pede a comunicação por escrito e o
-            recibo dele; o empregador fica identificado no cabeçalho. */}
+        {/* Só o empregado assina (ciência); o empregador fica identificado no cabeçalho. */}
         <View style={s.assinaturas} wrap={false}>
           <View style={s.assinatura}>
             {assinado ? (

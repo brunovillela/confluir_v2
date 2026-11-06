@@ -103,11 +103,11 @@ exclua o gozo: a exclusão não avisa ninguém pelo sistema.
 
 ## Aviso de férias assinado pelo funcionário
 
-Ao **autorizar** um gozo, o sistema gera o **Aviso de Férias** (CLT art. 135) e
+Ao **autorizar** um gozo, o sistema gera o **Aviso de Férias** e
 manda por e-mail ao funcionário um link pessoal para ler e assinar. A
 assinatura é eletrônica: ele pede um código de 6 dígitos no e-mail e confirma
 com o nome completo e o CPF do cadastro. Só o funcionário assina, dando
-ciência, como pede o art. 135; a entidade fica identificada no cabeçalho. O
+ciência; a entidade fica identificada no cabeçalho. O
 aviso assinado — com a página de
 certificado (data, hora, IP e QR de verificação) — passa a ser o **Aviso** do
 gozo, e quem cuida do Pessoal é avisado.
@@ -125,13 +125,20 @@ quando o aviso não pode ser enviado (cadastro sem e-mail ou sem CPF).
   o link.
 - Sem **e-mail** ou sem **CPF válido** no cadastro, o aviso não sai — complete a
   ficha do funcionário e use **Enviar aviso**.
+- O aviso não cita lei. A **data de pagamento** segue as **Regras de férias** da
+  entidade (botão no alto da área de Férias): o prazo em dias **úteis** ou
+  **corridos** antes do início, o que é pago e o fundamento, como diz o acordo
+  coletivo. Em dias úteis, o prazo pula sábado, domingo e feriado nacional.
+  Sem prazo informado, o aviso não mostra data de pagamento. Ao salvar as
+  regras, os avisos que aguardam assinatura são refeitos e reenviados com o
+  texto novo; os já assinados não mudam.
 - Gozos autorizados antes deste recurso, que ainda vão começar, aparecem num
   aviso no alto da área de Férias, com o botão **Enviar avisos para
   assinatura**.
 
 <Print src="pessoal/ferias-aviso-pendentes.png" alt="Área de Férias com o aviso de 1 gozo autorizado, ainda por começar, sem aviso de férias enviado para assinatura e o botão Enviar avisos para assinatura, acima dos indicadores." legenda="Gozos autorizados antes do aviso eletrônico: um clique envia o aviso de todos." />
 
-<Print src="pessoal/ferias-aviso-assinar.png" alt="Página que o funcionário abre pelo link do e-mail: Aviso de férias aguardando sua assinatura, com as datas do gozo e do retorno, os botões para abrir e baixar o PDF, o próprio aviso em PDF na página (cabeçalho com a entidade, dados da empregada, períodos, texto do art. 135 e uma única linha de assinatura, a dela), o passo a passo para receber o código e assinar com código, nome completo, CPF e os dois aceites, e o cartão As datas estão erradas para não assinar com o motivo." legenda="O que o funcionário vê: o aviso em PDF (só ele assina), o código por e-mail e a assinatura com nome e CPF." />
+<Print src="pessoal/ferias-aviso-assinar.png" alt="Página que o funcionário abre pelo link do e-mail: Aviso de férias aguardando sua assinatura, com as datas do gozo e do retorno, os botões para abrir e baixar o PDF, o próprio aviso em PDF na página (cabeçalho com a entidade, dados da empregada, períodos, a comunicação das férias e uma única linha de assinatura, a dela), o passo a passo para receber o código e assinar com código, nome completo, CPF e os dois aceites, e o cartão As datas estão erradas para não assinar com o motivo." legenda="O que o funcionário vê: o aviso em PDF (só ele assina), o código por e-mail e a assinatura com nome e CPF." />
 
 <Aviso tipo="nota" titulo="Gozo autorizado vira ausência">
   Ao **autorizar** um gozo, ele entra nas **ausências** do funcionário como
