@@ -9,6 +9,7 @@ import QRCode from "qrcode"
 import { texto } from "@/lib/db/comum"
 import { criarNotificacao } from "@/lib/db/notificacoes"
 import {
+  assinantesDoOficio,
   dadosImpressao,
   numerarOficio,
   obterOficio,
@@ -46,6 +47,11 @@ import { origemAtual } from "@/lib/tenant-url"
  *     assinatura e página de certificado com a trilha — vai para o bucket.
  *  4. RECUSA ou CANCELAMENTO: o ofício volta ao rascunho com o número
  *     reservado; quem enviou é avisado.
+ *  6. VÁRIOS ASSINANTES (06/11/2026): um envelope por pessoa, todos na mesma
+ *     RODADA e enviados juntos. O ofício é emitido quando o último assina; a
+ *     recusa de qualquer um cancela os convites que faltam e devolve ao
+ *     rascunho. Assinatura dada numa rodada que não terminou fica registrada,
+ *     mas não vale para o ofício (a verificação diz isso).
  *  5. OFÍCIO CANCELADO DEPOIS DE ASSINADO: o envelope, o hash, o PDF guardado
  *     e a trilha NÃO mudam; a trilha ganha "documento_cancelado", /verificar
  *     mostra o cancelamento em destaque e o PDF gerado na hora sai com tarja
@@ -96,6 +102,10 @@ export type Assinatura = {
   motivoRecusa: string | null
   ip: string | null
   userAgent: string | null
+  /** Envelopes do mesmo envio (vários assinantes). Nulo no envio de um só. */
+  rodada: string | null
+  ordem: number
+  criadoEm: string
   eventos: EventoAssinatura[]
 }
 
@@ -150,6 +160,8 @@ export function hashDoConteudo(o: DetalheOficio): string {
     pessoas: o.filiados.map((f) => [f.nome, f.matricula]),
     fecho: o.fecho,
     assinante: [o.assinanteNome, o.assinanteCargo],
+    // Só entra com vários assinantes: o resumo dos ofícios já assinados não muda.
+    ...(o.coassinantes.length ? { coassinantes: o.coassinantes.map((c) => [c.nome, c.cargo]) } : {}),
   }
   return createHash("sha256").update(JSON.stringify(conteudo)).digest("hex")
 }
@@ -213,8 +225,59 @@ function normalizar(linha: Record<string, unknown>, eventos: EventoAssinatura[] 
     motivoRecusa: texto(linha.motivo_recusa),
     ip: texto(linha.ip),
     userAgent: texto(linha.user_agent),
+    rodada: texto(linha.rodada),
+    ordem: Number(linha.ordem ?? 1),
+    criadoEm: String(linha.created_at ?? ""),
     eventos,
   }
+}
+
+// ── rodadas (vários assinantes) ─────────────────────────────────────────────
+
+/**
+ * Envelopes do envio mais recente, na ordem do documento. Envelope sem rodada
+ * (envio de um assinante só) é a sua própria rodada.
+ */
+export function rodadaAtual(lista: Assinatura[]): Assinatura[] {
+  const ultima = [...lista].sort((a, b) => b.criadoEm.localeCompare(a.criadoEm))[0]
+  if (!ultima) return []
+  if (!ultima.rodada) return [ultima]
+  return lista.filter((a) => a.rodada === ultima.rodada).sort((a, b) => a.ordem - b.ordem)
+}
+
+/** A rodada terminou sem emitir: alguém recusou ou o envio foi cancelado. */
+export function rodadaEncerrada(rodada: Assinatura[]): boolean {
+  return rodada.some((a) => a.situacao === "recusado" || a.situacao === "cancelado")
+}
+
+/** O que vale para o ofício: a rodada atual, se ela ainda está de pé. */
+export function rodadaVigente(lista: Assinatura[]): Assinatura[] {
+  const rodada = rodadaAtual(lista)
+  return rodadaEncerrada(rodada) ? [] : rodada
+}
+
+/** Todos da rodada assinaram (o ofício foi emitido por ela). */
+export function rodadaConcluida(rodada: Assinatura[]): boolean {
+  return rodada.length > 0 && rodada.every((a) => a.situacao === "assinado")
+}
+
+async function envelopesDaRodada(a: Assinatura): Promise<Assinatura[]> {
+  if (!a.rodada) return [a]
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("documento_assinaturas")
+    .select("*")
+    .eq("rodada", a.rodada)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .order("ordem", { ascending: true })
+  const lista = data ?? []
+  const eventos = await eventosDe(lista.map((x) => String(x.id)))
+  return lista.map((x) => normalizar(x, eventos.get(String(x.id)) ?? []))
+}
+
+const listaDeNomes = (nomes: (string | null)[]) => {
+  const n = nomes.map((x) => x ?? "assinante")
+  return n.length <= 1 ? (n[0] ?? "") : `${n.slice(0, -1).join(", ")} e ${n[n.length - 1]}`
 }
 
 async function registrarEvento(
@@ -352,6 +415,12 @@ export async function telegramDoIntegrante(
   return { disponivel: Boolean(chatId && telefone), chatId, telefone }
 }
 
+/** Os outros assinantes do ofício, para o convite dizer com quem se assina. */
+function tambemAssinam(a: Assinatura, oficio: DetalheOficio): string | null {
+  const outros = assinantesDoOficio(oficio).filter((x) => x.integranteId !== a.integranteId)
+  return outros.length ? listaDeNomes(outros.map((x) => x.nome)) : null
+}
+
 async function enviarConviteTelegram(
   a: Assinatura,
   oficio: DetalheOficio,
@@ -360,6 +429,7 @@ async function enviarConviteTelegram(
   if (!a.telegramChatId) return false
   const link = await linkAssinatura(a.token)
   const remetente = await nomeRemetente()
+  const outros = tambemAssinam(a, oficio)
   return enviarTelegram({
     chatId: a.telegramChatId,
     formato: null,
@@ -368,6 +438,7 @@ async function enviarConviteTelegram(
       ``,
       `Assunto: ${oficio.assunto ?? "—"}`,
       `Para: ${oficio.destinatarioNome ?? oficio.destinatarioTexto ?? "—"}`,
+      ...(outros ? [`Também assinam: ${outros}`] : []),
       ``,
       `Revisar e assinar: ${link}`,
       ``,
@@ -381,6 +452,7 @@ async function enviarConvite(a: Assinatura, oficio: DetalheOficio, reenvio: bool
   if (!a.email) return false
   const link = await linkAssinatura(a.token)
   const remetente = await nomeRemetente()
+  const outros = tambemAssinam(a, oficio)
   return enviarEmail({
     email: a.email,
     nome: a.nome,
@@ -391,7 +463,8 @@ async function enviarConvite(a: Assinatura, oficio: DetalheOficio, reenvio: bool
         `${escaparHtml(remetente)} enviou o <strong>Ofício ${escaparHtml(numeroDoOficio(oficio))}</strong> para a sua assinatura eletrônica.`
       ) +
       caixaAviso(
-        `<strong>Assunto:</strong> ${escaparHtml(oficio.assunto ?? "—")}<br><strong>Para:</strong> ${escaparHtml(oficio.destinatarioNome ?? oficio.destinatarioTexto ?? "—")}`
+        `<strong>Assunto:</strong> ${escaparHtml(oficio.assunto ?? "—")}<br><strong>Para:</strong> ${escaparHtml(oficio.destinatarioNome ?? oficio.destinatarioTexto ?? "—")}` +
+          (outros ? `<br><strong>Também assinam:</strong> ${escaparHtml(outros)}` : "")
       ) +
       botaoEmail(link, "Revisar e assinar") +
       linkReserva(link) +
@@ -401,29 +474,50 @@ async function enviarConvite(a: Assinatura, oficio: DetalheOficio, reenvio: bool
   })
 }
 
-/** Rascunho → "Aguardando assinatura": numera, congela o conteúdo e manda o convite. */
+/** Por onde vai o convite de cada assinante. */
+export type DestinoEnvio = {
+  integranteId: string
+  canal: CanalAssinatura
+  email: string
+}
+
+/**
+ * Rascunho → "Aguardando assinatura": numera, congela o conteúdo e manda um
+ * convite a cada assinante, todos ao mesmo tempo e na mesma rodada.
+ */
 export async function enviarParaAssinatura(dados: {
   oficioId: string
-  email: string
-  canal: CanalAssinatura
+  destinos: DestinoEnvio[]
   numeroManual: number | null
   usuarioId: string
-}): Promise<{ erro?: string; numero?: number; ano?: number; entregue?: boolean; destino?: string }> {
-  const email = dados.email.trim().toLowerCase()
-  const porTelegram = dados.canal === "telegram"
-  if (!porTelegram && !EMAIL.test(email)) {
-    return { erro: "Informe um e-mail válido para o assinante." }
-  }
-
+}): Promise<{ erro?: string; numero?: number; ano?: number; entregues?: string[]; naoEntregues?: string[] }> {
   const preparo = await prepararEmissao(dados.oficioId)
   if ("erro" in preparo) return preparo
 
-  const telegram = porTelegram
-    ? await telegramDoIntegrante(preparo.assinanteIntegranteId)
-    : { disponivel: false, chatId: null, telefone: null }
-  if (porTelegram && !telegram.disponivel) {
-    return {
-      erro: "O assinante não tem o Telegram vinculado e confirmado — peça a ele em Meu perfil › Telegram, ou envie por e-mail.",
+  // Cada assinante do ofício precisa de um destino válido, antes de numerar.
+  const porId = new Map(dados.destinos.map((d) => [d.integranteId, d]))
+  const envios: {
+    assinante: (typeof preparo.assinantes)[number]
+    canal: CanalAssinatura
+    email: string | null
+    telegram: { chatId: string | null; telefone: string | null }
+  }[] = []
+  for (const assinante of preparo.assinantes) {
+    const destino = porId.get(assinante.integranteId)
+    const nome = assinante.nome ?? "o assinante"
+    if (!destino) return { erro: `Informe para onde vai o convite de ${nome}.` }
+    const email = destino.email.trim().toLowerCase()
+    if (destino.canal === "telegram") {
+      const telegram = await telegramDoIntegrante(assinante.integranteId)
+      if (!telegram.disponivel) {
+        return {
+          erro: `${nome} não tem o Telegram vinculado e confirmado — peça em Meu perfil › Telegram, ou envie por e-mail.`,
+        }
+      }
+      envios.push({ assinante, canal: "telegram", email: EMAIL.test(email) ? email : null, telegram })
+    } else {
+      if (!EMAIL.test(email)) return { erro: `Informe um e-mail válido para ${nome}.` }
+      envios.push({ assinante, canal: "email", email, telegram: { chatId: null, telefone: null } })
     }
   }
 
@@ -438,86 +532,114 @@ export async function enviarParaAssinatura(dados: {
   if (!oficio) return { erro: "Ofício não encontrado depois da numeração." }
 
   // O e-mail usado fica no integrante para o próximo envio.
-  if (EMAIL.test(email)) {
-    await admin.from("diretoria_integrantes").update({ email }).eq("id", preparo.assinanteIntegranteId)
+  for (const e of envios) {
+    if (e.email) await admin.from("diretoria_integrantes").update({ email: e.email }).eq("id", e.assinante.integranteId)
   }
 
   const agora = new Date().toISOString()
-  let criada: Record<string, unknown> | null = null
-  for (let tentativa = 0; tentativa < 3 && !criada; tentativa++) {
+  const hash = hashDoConteudo(oficio)
+  const emp = await tenantAtual()
+  // Rodada só com mais de um assinante: o envio de um só segue como antes.
+  const rodada = envios.length > 1 ? randomUUID() : null
+  let criadas: Record<string, unknown>[] | null = null
+  for (let tentativa = 0; tentativa < 3 && !criadas; tentativa++) {
+    // Um insert só: ou entram todos os envelopes, ou nenhum.
     const { data, error } = await admin
       .from("documento_assinaturas")
-      .insert({
-        // O envelope serve a mais de um documento desde 24/09/2026; o par
-        // (tipo, id) é o vínculo novo, e `oficio_id` segue para o cascade.
-        documento_tipo: "oficio",
-        documento_id: dados.oficioId,
-        oficio_id: dados.oficioId,
-        integrante_id: preparo.assinanteIntegranteId,
-        nome: preparo.assinanteNome,
-        cargo: preparo.assinanteCargo,
-        email: EMAIL.test(email) ? email : null,
-        canal: dados.canal,
-        telegram_chat_id: telegram.chatId,
-        telegram_telefone: telegram.telefone,
-        certificado: novoCertificado(),
-        situacao: "pendente",
-        hash_documento: hashDoConteudo(oficio),
-        enviado_em: agora,
-        enviado_por_id: dados.usuarioId,
-        emp_proprietaria_id: await tenantAtual(),
-      })
+      .insert(
+        envios.map((e, i) => ({
+          // O envelope serve a mais de um documento desde 24/09/2026; o par
+          // (tipo, id) é o vínculo novo, e `oficio_id` segue para o cascade.
+          documento_tipo: "oficio",
+          documento_id: dados.oficioId,
+          oficio_id: dados.oficioId,
+          integrante_id: e.assinante.integranteId,
+          nome: e.assinante.nome,
+          cargo: e.assinante.cargo,
+          email: e.email,
+          canal: e.canal,
+          telegram_chat_id: e.telegram.chatId,
+          telegram_telefone: e.telegram.telefone,
+          certificado: novoCertificado(),
+          situacao: "pendente",
+          hash_documento: hash,
+          enviado_em: agora,
+          enviado_por_id: dados.usuarioId,
+          ordem: i + 1,
+          ...(rodada ? { rodada } : {}),
+          emp_proprietaria_id: emp,
+        }))
+      )
       .select("*")
-      .single()
-    if (!error) criada = data
+    if (!error) criadas = data ?? []
     else if (error.code !== "23505") {
-      // Sem o envelope o ofício não pode ficar travado: volta ao rascunho.
+      // Sem os envelopes o ofício não pode ficar travado: volta ao rascunho.
       await admin.from("oficios").update({ situacao: "Rascunho" }).eq("id", dados.oficioId)
-      return {
-        erro: /canal|telegram_chat_id/.test(error.message)
-          ? "Envio pelo Telegram ainda não configurado — rode supabase/oficios-assinatura-telegram.sql."
-          : /documento_assinaturas/.test(error.message)
-            ? "Assinatura eletrônica ainda não configurada — rode supabase/oficios-assinatura.sql."
-            : `Falha ao criar a assinatura: ${error.message}`,
-      }
+      return { erro: `Falha ao criar a assinatura: ${error.message}` }
     }
   }
-  if (!criada) return { erro: "Não foi possível gerar o certificado. Tente novamente." }
+  if (!criadas?.length) {
+    await admin.from("oficios").update({ situacao: "Rascunho" }).eq("id", dados.oficioId)
+    return { erro: "Não foi possível gerar o certificado. Tente novamente." }
+  }
 
-  const assinatura = normalizar(criada)
-  const destino = destinoDaAssinatura(assinatura)
-  await registrarEvento(assinatura, "enviado", { detalhe: `Para ${destino}` })
-  const entregue = await enviarConvite(assinatura, oficio, false)
-  return { numero: numerado.numero, ano: numerado.ano, entregue, destino }
+  const entregues: string[] = []
+  const naoEntregues: string[] = []
+  for (const linha of criadas.sort((a, b) => Number(a.ordem) - Number(b.ordem))) {
+    const assinatura = normalizar(linha)
+    const destino = destinoDaAssinatura(assinatura)
+    await registrarEvento(assinatura, "enviado", { detalhe: `Para ${destino}` })
+    const ok = await enviarConvite(assinatura, oficio, false)
+    ;(ok ? entregues : naoEntregues).push(`${assinatura.nome ?? "assinante"} (${destino})`)
+  }
+  return { numero: numerado.numero, ano: numerado.ano, entregues, naoEntregues }
 }
 
-async function pendenteDoOficio(oficioId: string): Promise<Assinatura | null> {
-  return (await assinaturasDoOficio(oficioId)).find((a) => a.situacao === "pendente") ?? null
+/** Envelopes pendentes do envio atual. */
+async function pendentesDoOficio(oficioId: string): Promise<Assinatura[]> {
+  return rodadaAtual(await assinaturasDoOficio(oficioId)).filter((a) => a.situacao === "pendente")
 }
 
+/** Reenvia o convite a um assinante pendente, ou a todos os pendentes. */
 export async function reenviarConvite(
-  oficioId: string
-): Promise<{ erro?: string; entregue?: boolean; destino?: string }> {
-  const [a, oficio] = await Promise.all([pendenteDoOficio(oficioId), obterOficio(oficioId)])
-  if (!a || !oficio) return { erro: "Não há assinatura pendente neste ofício." }
-  const destino = destinoDaAssinatura(a)
-  await registrarEvento(a, "reenviado", { detalhe: `Para ${destino}` })
-  return { entregue: await enviarConvite(a, oficio, true), destino }
+  oficioId: string,
+  assinaturaId?: string | null
+): Promise<{ erro?: string; entregues?: string[]; naoEntregues?: string[] }> {
+  const [pendentes, oficio] = await Promise.all([pendentesDoOficio(oficioId), obterOficio(oficioId)])
+  const alvo = assinaturaId ? pendentes.filter((a) => a.id === assinaturaId) : pendentes
+  if (!alvo.length || !oficio) return { erro: "Não há assinatura pendente neste ofício." }
+  const entregues: string[] = []
+  const naoEntregues: string[] = []
+  for (const a of alvo) {
+    const destino = destinoDaAssinatura(a)
+    await registrarEvento(a, "reenviado", { detalhe: `Para ${destino}` })
+    ;((await enviarConvite(a, oficio, true)) ? entregues : naoEntregues).push(`${a.nome ?? "assinante"} (${destino})`)
+  }
+  return { entregues, naoEntregues }
 }
 
-/** Cancela o envio: o link deixa de valer e o ofício volta ao rascunho com o número. */
-export async function cancelarEnvio(oficioId: string, motivo: string | null): Promise<{ erro?: string }> {
-  const a = await pendenteDoOficio(oficioId)
-  if (!a) return { erro: "Não há assinatura pendente neste ofício." }
+/** Cancela os convites que faltam numa rodada (recusa ou cancelamento do envio). */
+async function cancelarPendentes(pendentes: Assinatura[], detalhe: string | null): Promise<void> {
   const admin = await createAdminClient()
   const agora = new Date().toISOString()
-  const { error } = await admin
-    .from("documento_assinaturas")
-    .update({ situacao: "cancelado", codigo_hash: null, updated_at: agora })
-    .eq("id", a.id)
-    .eq("situacao", "pendente")
-  if (error) return { erro: `Falha ao cancelar o envio: ${error.message}` }
-  await registrarEvento(a, "cancelado", { detalhe: motivo })
+  for (const a of pendentes) {
+    const { data } = await admin
+      .from("documento_assinaturas")
+      .update({ situacao: "cancelado", codigo_hash: null, updated_at: agora })
+      .eq("id", a.id)
+      .eq("situacao", "pendente")
+      .select("id")
+    if (data?.length) await registrarEvento(a, "cancelado", { detalhe })
+  }
+}
+
+/** Cancela o envio: os links deixam de valer e o ofício volta ao rascunho com o número. */
+export async function cancelarEnvio(oficioId: string, motivo: string | null): Promise<{ erro?: string }> {
+  const pendentes = await pendentesDoOficio(oficioId)
+  if (!pendentes.length) return { erro: "Não há assinatura pendente neste ofício." }
+  const admin = await createAdminClient()
+  const agora = new Date().toISOString()
+  await cancelarPendentes(pendentes, motivo)
   await admin
     .from("oficios")
     .update({ situacao: "Rascunho", updated_at: agora })
@@ -562,7 +684,9 @@ export async function registrarCancelamentoNaAssinatura(dados: {
   }
 
   // Relido: se o assinante assinou no mesmo instante, o envelope é "assinado".
-  const assinadas = (await assinaturasDoOficio(dados.oficioId)).filter((a) => a.situacao === "assinado")
+  // Só o envio atual: assinatura de uma rodada que já tinha sido recusada não
+  // chegou a valer para o ofício.
+  const assinadas = rodadaAtual(await assinaturasDoOficio(dados.oficioId)).filter((a) => a.situacao === "assinado")
   if (assinadas.length === 0) return { assinado: false }
   const oficio = await obterOficio(dados.oficioId)
   for (const a of assinadas) {
@@ -646,6 +770,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export type Envelope = {
   assinatura: Assinatura
+  /** Todos os envelopes do mesmo envio, na ordem do documento (inclui este). */
+  rodada: Assinatura[]
   oficio: DetalheOficio
   remetente: string
 }
@@ -666,7 +792,8 @@ export async function envelopePorToken(token: string): Promise<Envelope | null> 
     nomeRemetente(),
   ])
   if (!oficio) return null
-  return { assinatura: normalizar(data, eventos.get(String(data.id)) ?? []), oficio, remetente }
+  const assinatura = normalizar(data, eventos.get(String(data.id)) ?? [])
+  return { assinatura, rodada: await envelopesDaRodada(assinatura), oficio, remetente }
 }
 
 /** Abertura do link pelo assinante (uma marca a cada 10 min, para não inflar a trilha). */
@@ -810,16 +937,70 @@ export async function assinar(
   if (error || !gravada?.length) return { erro: "Não foi possível registrar a assinatura. Tente novamente." }
 
   await registrarEvento(a, "assinado", { detalhe: `Aceite dos termos e código de uso único conferido`, ...contexto })
-  await admin
+
+  // Com vários assinantes, o ofício só é emitido quando o último assina.
+  const rodada = await envelopesDaRodada({ ...a, situacao: "assinado", assinadoEm })
+  const faltam = rodada.filter((x) => x.situacao === "pendente")
+  if (faltam.length > 0 || !rodadaConcluida(rodada)) {
+    await avisarAssinaturaParcial(envelope, faltam).catch(() => undefined)
+    return {}
+  }
+  // Dois assinando no mesmo instante: só quem tirou o ofício de "Aguardando"
+  // gera o PDF e manda os avisos.
+  const { data: emitido } = await admin
     .from("oficios")
     .update({ situacao: "Emitido", emitido_em: assinadoEm, updated_at: assinadoEm })
     .eq("id", a.oficioId)
     .eq("situacao", "Aguardando assinatura")
+    .select("id")
+  if (!emitido?.length) return {}
 
   // O PDF final e os avisos não podem desfazer a assinatura se falharem.
   const arquivo = await guardarPdfAssinado(a.oficioId).catch(() => null)
-  await avisarConclusao(envelope, "assinado", null, arquivo !== null).catch(() => undefined)
+  await avisarConclusao({ ...envelope, rodada }, "assinado", null, arquivo !== null).catch(() => undefined)
   return {}
+}
+
+/** Um assinou e ainda faltam outros: confirma a quem assinou e avisa quem enviou. */
+async function avisarAssinaturaParcial(envelope: Envelope, faltam: Assinatura[]): Promise<void> {
+  const { assinatura: a, oficio } = envelope
+  const admin = await createAdminClient()
+  const origem = await origemAtual()
+  const numero = numeroDoOficio(oficio)
+  const pendentes = listaDeNomes(faltam.map((x) => x.nome))
+  const falta = faltam.length ? `Falta${faltam.length > 1 ? "m" : ""} ${pendentes}.` : ""
+
+  if (a.canal === "telegram" && a.telegramChatId) {
+    await enviarTelegram({
+      chatId: a.telegramChatId,
+      formato: null,
+      texto: [
+        `Sua assinatura eletrônica no Ofício ${numero} foi registrada.`,
+        `Certificado: ${a.certificado ?? "—"}`,
+        ``,
+        `O ofício é emitido quando todos assinarem. ${falta}`.trim(),
+      ].join("\n"),
+    }).catch(() => false)
+  } else if (a.email) {
+    await enviarEmail({
+      email: a.email,
+      nome: a.nome,
+      assunto: `Você assinou o Ofício ${numero}`,
+      html:
+        paragrafo(`A sua assinatura eletrônica no <strong>Ofício ${escaparHtml(numero)}</strong> foi registrada.`) +
+        caixaAviso(`<strong>Certificado:</strong> ${escaparHtml(a.certificado ?? "—")}`) +
+        paragrafo(`O ofício é emitido quando todos assinarem. ${escaparHtml(falta)}`) +
+        botaoEmail(`${origem}/assinar/${a.token}`, "Ver o documento"),
+    }).catch(() => false)
+  }
+
+  const { data: o } = await admin.from("oficios").select("enviado_por_id").eq("id", oficio.id).maybeSingle()
+  const remetenteId = texto(o?.enviado_por_id)
+  if (!remetenteId) return
+  await criarNotificacao({
+    usuarioId: remetenteId,
+    texto: `Ofício ${numero}: ${a.nome ?? "um assinante"} assinou. ${falta}`.trim(),
+  }).catch(() => undefined)
 }
 
 export async function recusar(
@@ -852,6 +1033,11 @@ export async function recusar(
     .select("id")
   if (!gravada?.length) return { erro: "Não foi possível registrar a recusa. Tente novamente." }
   await registrarEvento(a, "recusado", { detalhe: razao, ...contexto })
+  // Uma recusa encerra o envio: os outros convites deixam de valer.
+  await cancelarPendentes(
+    envelope.rodada.filter((x) => x.id !== a.id && x.situacao === "pendente"),
+    `${a.nome ?? "Outro assinante"} recusou a assinatura`
+  )
   await admin
     .from("oficios")
     .update({ situacao: "Rascunho", updated_at: agora })
@@ -871,6 +1057,8 @@ async function avisarConclusao(
   const admin = await createAdminClient()
   const origem = await origemAtual()
   const numero = numeroDoOficio(oficio)
+  const varios = envelope.rodada.length > 1
+  const todos = listaDeNomes(envelope.rodada.map((x) => x.nome))
 
   if (resultado === "assinado" && a.canal === "telegram" && a.telegramChatId) {
     await enviarTelegram({
@@ -901,7 +1089,7 @@ async function avisarConclusao(
   if (!remetenteId) return
   const textoAviso =
     resultado === "assinado"
-      ? `Ofício ${numero} assinado por ${a.nome ?? "assinante"} e emitido.`
+      ? `Ofício ${numero} assinado por ${varios ? todos : (a.nome ?? "assinante")} e emitido.`
       : `Ofício ${numero}: ${a.nome ?? "o assinante"} recusou a assinatura — ${motivo}`
   await criarNotificacao({ usuarioId: remetenteId, texto: textoAviso }).catch(() => undefined)
   const { data: u } = await admin.from("usuarios").select("email, nome_completo").eq("id", remetenteId).maybeSingle()
@@ -914,8 +1102,10 @@ async function avisarConclusao(
     html:
       paragrafo(
         resultado === "assinado"
-          ? `<strong>${escaparHtml(a.nome ?? "O assinante")}</strong> assinou o Ofício ${escaparHtml(numero)} em ${escaparHtml(formatarMomento(new Date().toISOString()))}. O ofício está emitido.`
-          : `<strong>${escaparHtml(a.nome ?? "O assinante")}</strong> recusou a assinatura do Ofício ${escaparHtml(numero)}. O ofício voltou ao rascunho, com o número reservado.`
+          ? varios
+            ? `O Ofício ${escaparHtml(numero)} foi assinado por todos — ${escaparHtml(todos)} — e está emitido. A última assinatura foi em ${escaparHtml(formatarMomento(new Date().toISOString()))}.`
+            : `<strong>${escaparHtml(a.nome ?? "O assinante")}</strong> assinou o Ofício ${escaparHtml(numero)} em ${escaparHtml(formatarMomento(new Date().toISOString()))}. O ofício está emitido.`
+          : `<strong>${escaparHtml(a.nome ?? "O assinante")}</strong> recusou a assinatura do Ofício ${escaparHtml(numero)}. O ofício voltou ao rascunho, com o número reservado${varios ? ", e os convites que faltavam deixaram de valer" : ""}.`
       ) +
       (motivo ? caixaAviso(`<strong>Motivo:</strong> ${escaparHtml(motivo)}`) : "") +
       botaoEmail(link, "Abrir o ofício"),
@@ -935,6 +1125,7 @@ export async function assinaturaParaPdf(a: Assinatura): Promise<AssinaturaPDF> {
     ? await QRCode.toDataURL(url, { margin: 0, width: 240, errorCorrectionLevel: "M" })
     : null
   return {
+    integranteId: a.integranteId,
     situacao: a.situacao,
     nome: a.nome,
     cargo: a.cargo,
@@ -980,25 +1171,26 @@ export async function logoDataUri(url: string | null): Promise<string | null> {
 }
 
 /**
- * PDF do ofício com o estado de assinatura: pendente mostra "Aguardando
- * assinatura eletrônica"; assinado leva QR, carimbo e certificado.
+ * PDF do ofício com o estado de assinatura de cada assinante: pendente mostra
+ * "Aguardando assinatura eletrônica"; assinado leva o carimbo; com todos
+ * assinados, o QR e a página de certificado. `assinaturas` é a rodada (ver
+ * rodadaVigente); recusada ou cancelada não aparece.
  */
 export async function renderizarPdfOficio(
   dados: DadosImpressao,
-  assinatura: Assinatura | null,
+  assinaturas: Assinatura[],
   /** O PDF guardado no bucket na assinatura nunca leva a marca de cancelado. */
   opcoes: { marcarCancelamento?: boolean } = {}
 ): Promise<Buffer> {
-  const [logo, assinaturaPdf] = await Promise.all([
+  const validas = rodadaEncerrada(assinaturas) ? [] : assinaturas
+  const [logo, assinaturasPdf] = await Promise.all([
     logoDataUri(dados.organizacao.logoUrl),
-    assinatura && assinatura.situacao !== "cancelado" && assinatura.situacao !== "recusado"
-      ? assinaturaParaPdf(assinatura)
-      : Promise.resolve(null),
+    Promise.all(validas.map((a) => assinaturaParaPdf(a))),
   ])
   const elemento = createElement(OficioPDF, {
     dados,
     logoDataUri: logo,
-    assinatura: assinaturaPdf,
+    assinaturas: assinaturasPdf,
     cancelamento: opcoes.marcarCancelamento === false ? null : cancelamentoParaPdf(dados.oficio),
   }) as Parameters<typeof renderToBuffer>[0]
   return renderToBuffer(elemento)
@@ -1017,17 +1209,12 @@ export function cancelamentoParaPdf(o: DetalheOficio): CancelamentoPDF | null {
   }
 }
 
-/** Assinatura que vale para o PDF: a assinada, senão a pendente. */
-export function assinaturaVigente(lista: Assinatura[]): Assinatura | null {
-  return lista.find((a) => a.situacao === "assinado") ?? lista.find((a) => a.situacao === "pendente") ?? null
-}
-
 async function guardarPdfAssinado(oficioId: string): Promise<string | null> {
   const [dados, lista] = await Promise.all([dadosImpressao(oficioId), assinaturasDoOficio(oficioId)])
-  const a = lista.find((x) => x.situacao === "assinado")
-  if (!dados || !a) return null
-  const buffer = await renderizarPdfOficio(dados, a, { marcarCancelamento: false })
-  const caminho = `oficios/${oficioId}/assinado-${a.certificado}.pdf`
+  const rodada = rodadaVigente(lista)
+  if (!dados || !rodadaConcluida(rodada)) return null
+  const buffer = await renderizarPdfOficio(dados, rodada, { marcarCancelamento: false })
+  const caminho = `oficios/${oficioId}/assinado-${rodada[0].certificado}.pdf`
   const admin = await createAdminClient()
   const { error } = await admin.storage
     .from("documentos")
@@ -1053,6 +1240,10 @@ export type Verificacao = {
   /** Cancelamento posterior do ofício (a assinatura segue autêntica). */
   canceladoEm: string | null
   cancelamentoMotivo: string | null
+  /** Todos os assinantes do mesmo envio, na ordem do documento (inclui este). */
+  assinantes: { nome: string | null; cargo: string | null; situacao: SituacaoAssinatura; assinadoEm: string | null }[]
+  /** O envio terminou sem emitir (outro recusou ou o envio foi cancelado). */
+  envioEncerrado: boolean
 }
 
 export async function verificarCertificado(certificado: string): Promise<Verificacao | null> {
@@ -1066,9 +1257,15 @@ export async function verificarCertificado(certificado: string): Promise<Verific
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
   if (!data) return null
-  const [oficio, remetente] = await Promise.all([obterOficio(String(data.oficio_id)), nomeRemetente()])
+  const [oficio, remetente, rodada] = await Promise.all([
+    obterOficio(String(data.oficio_id)),
+    nomeRemetente(),
+    envelopesDaRodada(normalizar(data)),
+  ])
   if (!oficio) return null
   return {
+    assinantes: rodada.map((x) => ({ nome: x.nome, cargo: x.cargo, situacao: x.situacao, assinadoEm: x.assinadoEm })),
+    envioEncerrado: rodadaEncerrada(rodada),
     certificado: codigo,
     situacao: (texto(data.situacao) ?? "pendente") as SituacaoAssinatura,
     oficioSituacao: oficio.situacao,
@@ -1114,8 +1311,7 @@ export async function anexarAssinadoAMao(
   if (o.situacao === "Aguardando assinatura") {
     return { erro: "Este ofício está em assinatura eletrônica — cancele o envio antes de anexar um documento assinado à mão." }
   }
-  const assinaturas = await assinaturasDoOficio(oficioId)
-  if (assinaturas.some((a) => a.situacao === "assinado")) {
+  if (rodadaConcluida(rodadaVigente(await assinaturasDoOficio(oficioId)))) {
     return { erro: "Este ofício já tem assinatura eletrônica: o PDF assinado é gerado pelo próprio sistema." }
   }
 

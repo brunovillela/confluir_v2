@@ -87,7 +87,7 @@ export async function GET(
   const dados = await dadosImpressao(envelope.oficio.id)
   if (!dados) return new Response("Documento indisponível", { status: 404 })
 
-  const buffer = await renderizarPdfOficio(dados, envelope.assinatura)
+  const buffer = await renderizarPdfOficio(dados, envelope.rodada)
   const numero =
     envelope.oficio.numero != null ? `${envelope.oficio.numero}-${envelope.oficio.ano}` : "oficio"
   const baixar = new URL(req.url).searchParams.get("baixar") === "1"

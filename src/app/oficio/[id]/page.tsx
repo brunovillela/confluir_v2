@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
-import { dadosImpressao } from "@/lib/db/oficios"
+import { assinantesDoOficio, dadosImpressao } from "@/lib/db/oficios"
 import { podeVerOficio } from "@/lib/db/oficios-acesso"
 import { formatarMomento } from "@/lib/db/oficios-assinatura"
 import { formatarCnpjCpf } from "@/lib/formato"
@@ -53,7 +53,9 @@ const CSS = `
   .oficio-corpo { margin: 18px 0; }
   .oficio-lista { margin: 6px 0 18px; padding-left: 4px; }
   .oficio-lista li { list-style: none; padding: 1px 0; }
-  .oficio-assinatura { margin-top: 48px; text-align: center; }
+  .oficio-assinaturas { display: flex; flex-wrap: wrap; justify-content: center; }
+  .oficio-assinatura { margin-top: 48px; text-align: center; flex: 0 0 100%; padding: 0 8px; }
+  .oficio-assinaturas.varios .oficio-assinatura { flex-basis: 50%; }
   .oficio-assinatura .nome { font-weight: 600; }
   .oficio-rodape {
     margin-top: auto; padding-top: 18px; border-top: 1px solid #ddd;
@@ -154,9 +156,13 @@ export default async function ImpressaoOficioPage({
 
         <p>{oficio.fecho ?? "Cordialmente,"}</p>
 
-        <div className="oficio-assinatura">
-          <p className="nome">{oficio.assinanteNome ?? "________________________"}</p>
-          {oficio.assinanteCargo && <p>{oficio.assinanteCargo}</p>}
+        <div className={`oficio-assinaturas${assinantesDoOficio(oficio).length > 1 ? " varios" : ""}`}>
+          {(assinantesDoOficio(oficio).length ? assinantesDoOficio(oficio) : [{ nome: null, cargo: null }]).map((a, i) => (
+            <div key={i} className="oficio-assinatura">
+              <p className="nome">{a.nome ?? "________________________"}</p>
+              {a.cargo && <p>{a.cargo}</p>}
+            </div>
+          ))}
         </div>
 
         <div className="oficio-rodape">

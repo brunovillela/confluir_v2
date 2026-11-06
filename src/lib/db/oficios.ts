@@ -229,6 +229,30 @@ export type FiliadoOficio = {
   vinculoId: string | null
 }
 
+/** Quem assina o ofício. No rascunho, nome e cargo vêm da diretoria; emitido, do retrato. */
+export type AssinanteOficio = {
+  integranteId: string | null
+  nome: string | null
+  cargo: string | null
+}
+
+function lerCoassinantes(valor: unknown): AssinanteOficio[] {
+  if (!Array.isArray(valor)) return []
+  return valor.flatMap((v) => {
+    const item = (v ?? {}) as Record<string, unknown>
+    const integranteId = texto(item.integrante_id)
+    return integranteId ? [{ integranteId, nome: texto(item.nome), cargo: texto(item.cargo) }] : []
+  })
+}
+
+/** Todos os assinantes, na ordem do documento: o principal e os demais. */
+export function assinantesDoOficio(o: Pick<DetalheOficio, "assinanteIntegranteId" | "assinanteNome" | "assinanteCargo" | "coassinantes">): AssinanteOficio[] {
+  const principal = o.assinanteIntegranteId || o.assinanteNome
+    ? [{ integranteId: o.assinanteIntegranteId, nome: o.assinanteNome, cargo: o.assinanteCargo }]
+    : []
+  return [...principal, ...o.coassinantes]
+}
+
 export type DetalheOficio = {
   id: string
   tipo: string | null
@@ -247,6 +271,8 @@ export type DetalheOficio = {
   assinanteIntegranteId: string | null
   assinanteNome: string | null
   assinanteCargo: string | null
+  /** Assinantes além do principal, na ordem do documento. */
+  coassinantes: AssinanteOficio[]
   situacao: string | null
   filiados: FiliadoOficio[]
   /** Departamento do ofício — decide quem o vê (ver oficios-acesso.ts). */
@@ -339,6 +365,7 @@ export async function obterOficio(id: string): Promise<DetalheOficio | null> {
     assinanteIntegranteId: texto(o.assinante_integrante_id),
     assinanteNome: texto(o.assinante_nome),
     assinanteCargo: texto(o.assinante_cargo),
+    coassinantes: lerCoassinantes(o.coassinantes),
     situacao: texto(o.situacao),
     filiados: (filiados ?? []).map((f) => ({
       id: f.id as string,
@@ -371,6 +398,8 @@ export type DadosOficio = {
   assunto: string | null
   corpo: string | null
   assinante_integrante_id: string | null
+  /** Demais assinantes, só o integrante (o retrato de nome e cargo vem na emissão). */
+  coassinantes: { integrante_id: string }[]
   departamento_id: string | null
 }
 
@@ -439,9 +468,11 @@ export type PreparoEmissao = {
   assinanteIntegranteId: string
   assinanteNome: string | null
   assinanteCargo: string | null
+  /** Todos, na ordem do documento (o primeiro é o principal acima). */
+  assinantes: { integranteId: string; nome: string | null; cargo: string | null }[]
 }
 
-/** Confere se o rascunho pode sair (assinante, destinatário) e tira o snapshot do assinante. */
+/** Confere se o rascunho pode sair (assinantes, destinatário) e tira o snapshot dos assinantes. */
 export async function prepararEmissao(
   id: string
 ): Promise<{ erro: string } | PreparoEmissao> {
@@ -449,7 +480,7 @@ export async function prepararEmissao(
   const { data: o } = await admin
     .from("oficios")
     .select(
-      "situacao, data, numero, ano, assinante_integrante_id, destinatario_empresa_id, destinatario_texto"
+      "situacao, data, numero, ano, assinante_integrante_id, coassinantes, destinatario_empresa_id, destinatario_texto"
     )
     .eq("id", id)
     .eq("emp_proprietaria_id", await tenantAtual())
@@ -460,20 +491,31 @@ export async function prepararEmissao(
   if (!o.destinatario_empresa_id && !texto(o.destinatario_texto))
     return { erro: "Informe o destinatário antes de emitir." }
 
-  const { data: integrante } = await admin
+  const ids = [
+    String(o.assinante_integrante_id),
+    ...lerCoassinantes(o.coassinantes).map((c) => c.integranteId as string),
+  ]
+  if (new Set(ids).size !== ids.length) return { erro: "A mesma pessoa aparece mais de uma vez entre os assinantes." }
+  const { data: integrantes } = await admin
     .from("diretoria_integrantes")
-    .select("nome, cargo")
-    .eq("id", o.assinante_integrante_id)
-    .maybeSingle()
-  if (!integrante) return { erro: "Assinante não encontrado na diretoria." }
+    .select("id, nome, cargo")
+    .in("id", ids)
+  const porId = new Map((integrantes ?? []).map((i) => [String(i.id), i]))
+  if (ids.some((i) => !porId.has(i))) return { erro: "Assinante não encontrado na diretoria." }
+  const assinantes = ids.map((i) => ({
+    integranteId: i,
+    nome: texto(porId.get(i)!.nome),
+    cargo: texto(porId.get(i)!.cargo),
+  }))
 
   const ano = anoDe(texto(o.data))
   return {
     ano,
     numeroAtual: o.numero != null && o.ano === ano ? (o.numero as number) : null,
-    assinanteIntegranteId: String(o.assinante_integrante_id),
-    assinanteNome: texto(integrante.nome),
-    assinanteCargo: texto(integrante.cargo),
+    assinanteIntegranteId: assinantes[0].integranteId,
+    assinanteNome: assinantes[0].nome,
+    assinanteCargo: assinantes[0].cargo,
+    assinantes,
   }
 }
 
@@ -497,6 +539,9 @@ export async function numerarOficio(
         ano,
         assinante_nome: preparo.assinanteNome,
         assinante_cargo: preparo.assinanteCargo,
+        coassinantes: preparo.assinantes
+          .slice(1)
+          .map((a) => ({ integrante_id: a.integranteId, nome: a.nome, cargo: a.cargo })),
         ...campos,
         updated_at: new Date().toISOString(),
       })

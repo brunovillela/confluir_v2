@@ -8,7 +8,7 @@ import {
   View,
 } from "@react-pdf/renderer"
 
-import type { DadosImpressao } from "@/lib/db/oficios"
+import { assinantesDoOficio, type DadosImpressao } from "@/lib/db/oficios"
 import { formatarCnpjCpf } from "@/lib/formato"
 import { lerCorpo, linkSeguro, marcadoresDaLista, type Trecho } from "@/lib/oficio-formatacao"
 
@@ -23,6 +23,8 @@ import { lerCorpo, linkSeguro, marcadoresDaLista, type Trecho } from "@/lib/ofic
  */
 
 export type AssinaturaPDF = {
+  /** Liga o envelope ao bloco de assinatura do mesmo integrante. */
+  integranteId: string | null
   situacao: "pendente" | "assinado" | "recusado" | "cancelado"
   nome: string | null
   cargo: string | null
@@ -89,8 +91,9 @@ const s = StyleSheet.create({
   itemTexto: { flex: 1, lineHeight: 1.3 },
   lista: { marginVertical: 12, paddingLeft: 4 },
   item: { marginBottom: 2 },
-  assinatura: { marginTop: 48, alignItems: "center" },
-  assinaturaNome: { fontFamily: "Helvetica-Bold" },
+  assinaturas: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center" },
+  assinatura: { marginTop: 48, alignItems: "center", paddingHorizontal: 8 },
+  assinaturaNome: { fontFamily: "Helvetica-Bold", textAlign: "center" },
   rodape: {
     position: "absolute",
     bottom: CM + 12,
@@ -309,16 +312,24 @@ function AvisoCancelado({
 export function OficioPDF({
   dados,
   logoDataUri,
-  assinatura = null,
+  assinaturas = [],
   cancelamento = null,
 }: {
   dados: DadosImpressao
   logoDataUri: string | null
-  assinatura?: AssinaturaPDF | null
+  /** Um por assinante do envio vigente (vazio sem assinatura eletrônica). */
+  assinaturas?: AssinaturaPDF[]
   cancelamento?: CancelamentoPDF | null
 }) {
-  const assinado = assinatura?.situacao === "assinado"
+  // O documento só está assinado quando todos assinaram: aí entram o QR e o certificado.
+  const assinado = assinaturas.length > 0 && assinaturas.every((a) => a.situacao === "assinado")
+  const assinatura = assinaturas[0] ?? null
   const { oficio, cidade, organizacao, sedes } = dados
+  const blocos = assinantesDoOficio(oficio)
+  const varios = blocos.length > 1
+  // Envelope de cada bloco: pelo integrante; o índice cobre envelopes antigos.
+  const envelopeDoBloco = (integranteId: string | null, i: number) =>
+    assinaturas.find((a) => integranteId && a.integranteId === integranteId) ?? assinaturas[i] ?? null
   const numero =
     oficio.numero != null ? `${oficio.numero} / ${oficio.ano}` : "— (rascunho)"
   const destinatario =
@@ -384,20 +395,35 @@ export function OficioPDF({
 
         <Text>{oficio.fecho ?? "Cordialmente,"}</Text>
 
-        <View style={s.assinatura}>
-          <Text style={s.assinaturaNome}>
-            {oficio.assinanteNome ?? "________________________"}
-          </Text>
-          {oficio.assinanteCargo ? <Text>{oficio.assinanteCargo}</Text> : null}
-          {assinado && assinatura ? (
-            <View style={s.carimbo}>
-              <Text>Assinado eletronicamente em {assinatura.assinadoEm} (horário de Brasília)</Text>
-              <Text>Certificado {assinatura.certificado} · verifique em {assinatura.urlVerificacao}</Text>
-            </View>
-          ) : assinatura?.situacao === "pendente" ? (
-            <Text style={s.carimboPendente}>Aguardando assinatura eletrônica</Text>
-          ) : null}
+        <View style={s.assinaturas}>
+          {(blocos.length ? blocos : [{ integranteId: null, nome: null, cargo: null }]).map((b, i) => {
+            const env = envelopeDoBloco(b.integranteId, i)
+            return (
+              <View key={i} style={[s.assinatura, { width: varios ? "50%" : "100%" }]} wrap={false}>
+                <Text style={s.assinaturaNome}>{b.nome ?? "________________________"}</Text>
+                {b.cargo ? <Text style={{ textAlign: "center" }}>{b.cargo}</Text> : null}
+                {env?.situacao === "assinado" ? (
+                  <View style={s.carimbo}>
+                    <Text style={{ textAlign: "center" }}>
+                      Assinado eletronicamente em {env.assinadoEm} (horário de Brasília)
+                    </Text>
+                    <Text style={{ textAlign: "center" }}>
+                      Certificado {env.certificado}
+                      {varios ? "" : ` · verifique em ${env.urlVerificacao}`}
+                    </Text>
+                  </View>
+                ) : env?.situacao === "pendente" ? (
+                  <Text style={s.carimboPendente}>Aguardando assinatura eletrônica</Text>
+                ) : null}
+              </View>
+            )
+          })}
         </View>
+        {assinado && varios && assinatura ? (
+          <Text style={[s.carimboPendente, { color: "#444444", marginTop: 10 }]}>
+            Verifique as assinaturas em {assinatura.urlVerificacao}
+          </Text>
+        ) : null}
 
         <View style={s.rodape} fixed>
           <Text style={s.rodapeRazao}>
@@ -449,17 +475,25 @@ export function OficioPDF({
           <LinhaCert rotulo="Assunto" valor={oficio.assunto} />
           <LinhaCert rotulo="Remetente" valor={organizacao.nomeRazao ?? remetente} />
           <LinhaCert rotulo="Destinatário" valor={destinatario} />
-          <LinhaCert rotulo="Certificado" valor={assinatura.certificado} />
+          <LinhaCert
+            rotulo={assinaturas.length > 1 ? "Certificados" : "Certificado"}
+            valor={assinaturas.map((a) => a.certificado).join(" · ")}
+          />
           <LinhaCert rotulo="Resumo do conteúdo (SHA-256)" valor={assinatura.hash} mono />
 
-          <Text style={s.certSecao}>Assinante</Text>
-          <LinhaCert rotulo="Nome" valor={assinatura.nome} />
-          <LinhaCert rotulo="Cargo" valor={assinatura.cargo} />
-          <LinhaCert rotulo="Contato" valor={assinatura.destino} />
-          <LinhaCert rotulo="Autenticação" valor={assinatura.autenticacao} />
-          <LinhaCert rotulo="Assinado em" valor={`${assinatura.assinadoEm} (horário de Brasília)`} />
-          <LinhaCert rotulo="Endereço IP" valor={assinatura.ip} />
-          <LinhaCert rotulo="Navegador" valor={assinatura.navegador} />
+          {assinaturas.map((a, i) => (
+            <View key={i}>
+              <Text style={s.certSecao}>{assinaturas.length > 1 ? `Assinante ${i + 1}` : "Assinante"}</Text>
+              <LinhaCert rotulo="Nome" valor={a.nome} />
+              <LinhaCert rotulo="Cargo" valor={a.cargo} />
+              {assinaturas.length > 1 ? <LinhaCert rotulo="Certificado" valor={a.certificado} /> : null}
+              <LinhaCert rotulo="Contato" valor={a.destino} />
+              <LinhaCert rotulo="Autenticação" valor={a.autenticacao} />
+              <LinhaCert rotulo="Assinado em" valor={`${a.assinadoEm} (horário de Brasília)`} />
+              <LinhaCert rotulo="Endereço IP" valor={a.ip} />
+              <LinhaCert rotulo="Navegador" valor={a.navegador} />
+            </View>
+          ))}
 
           {cancelamento ? (
             <>
@@ -468,19 +502,25 @@ export function OficioPDF({
               <LinhaCert rotulo="Motivo" valor={cancelamento.motivo} />
               <LinhaCert
                 rotulo="Efeito"
-                valor="O ofício deixou de valer. A assinatura acima continua autêntica: o documento foi de fato assinado antes do cancelamento."
+                valor={`O ofício deixou de valer. ${assinaturas.length > 1 ? "As assinaturas acima continuam autênticas" : "A assinatura acima continua autêntica"}: o documento foi de fato assinado antes do cancelamento.`}
               />
             </>
           ) : null}
 
-          <Text style={s.certSecao}>Trilha de auditoria</Text>
-          {assinatura.trilha.map((e, i) => (
-            <View key={i} style={s.trilhaLinha} wrap={false}>
-              <Text style={s.trilhaQuando}>{e.quando}</Text>
-              <Text style={s.trilhaEvento}>{e.evento}</Text>
-              <Text style={s.trilhaDetalhe}>
-                {[e.detalhe, e.ip ? `IP ${e.ip}` : null].filter(Boolean).join(" · ")}
+          {assinaturas.map((a, i) => (
+            <View key={i}>
+              <Text style={s.certSecao}>
+                Trilha de auditoria{assinaturas.length > 1 ? ` — ${a.nome ?? `assinante ${i + 1}`}` : ""}
               </Text>
+              {a.trilha.map((e, j) => (
+                <View key={j} style={s.trilhaLinha} wrap={false}>
+                  <Text style={s.trilhaQuando}>{e.quando}</Text>
+                  <Text style={s.trilhaEvento}>{e.evento}</Text>
+                  <Text style={s.trilhaDetalhe}>
+                    {[e.detalhe, e.ip ? `IP ${e.ip}` : null].filter(Boolean).join(" · ")}
+                  </Text>
+                </View>
+              ))}
             </View>
           ))}
 

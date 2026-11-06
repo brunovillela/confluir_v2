@@ -1,7 +1,7 @@
 import { requirePermissao } from "@/lib/auth"
 import {
   assinaturasDoOficio,
-  assinaturaVigente,
+  rodadaVigente,
   renderizarPdfOficio,
 } from "@/lib/db/oficios-assinatura"
 import { dadosImpressao } from "@/lib/db/oficios"
@@ -22,7 +22,7 @@ export async function GET(
 
   // Assinado leva QR, carimbo e certificado; enviado mostra "aguardando".
   // Cancelado ganha a tarja aqui, na hora — o PDF assinado guardado não muda.
-  const buffer = await renderizarPdfOficio(dados, assinaturaVigente(assinaturas))
+  const buffer = await renderizarPdfOficio(dados, rodadaVigente(assinaturas))
 
   const numero =
     dados.oficio.numero != null

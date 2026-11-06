@@ -34,6 +34,7 @@ import {
 } from "@/lib/db/oficios-acesso"
 import { assinantesVigentes, liberacoesDoOficio } from "@/lib/db/diretoria"
 import {
+  assinantesDoOficio,
   candidatosDaEmpresa,
   listarEmpresas,
   obterOficio,
@@ -41,11 +42,13 @@ import {
 } from "@/lib/db/oficios"
 import {
   assinaturasDoOficio,
-  assinaturaVigente,
   destinoDaAssinatura,
   emailSugeridoDoIntegrante,
   formatarMomento,
   mascararTelefone,
+  rodadaAtual,
+  rodadaConcluida,
+  rodadaVigente,
   ROTULO_EVENTO,
   telegramDoIntegrante,
   type Assinatura,
@@ -63,6 +66,8 @@ import {
   AcoesEnvioPendente,
   AnexarAssinadoAMao,
   EnviarParaAssinatura,
+  ReenviarConvite,
+  type AssinanteParaEnvio,
 } from "./assinatura-acoes"
 import { OficioForm } from "../oficio-form"
 import {
@@ -91,7 +96,8 @@ export default async function OficioPage({
   const rascunho = oficio.situacao === "Rascunho"
   const automatico = eAutomatico(oficio.tipo)
 
-  const [empresas, { sedes }, assinantes, proximoNumero, candidatos, assinaturas, emailSugerido, liberacoes] =
+  const quemAssina = assinantesDoOficio(oficio)
+  const [empresas, { sedes }, assinantes, proximoNumero, candidatos, assinaturas, liberacoes] =
     await Promise.all([
       rascunho ? listarEmpresas() : Promise.resolve([]),
       rascunho ? listarSedes() : Promise.resolve({ disponivel: true, sedes: [] }),
@@ -105,20 +111,38 @@ export default async function OficioPage({
           )
         : Promise.resolve([]),
       assinaturasDoOficio(id),
-      rascunho ? emailSugeridoDoIntegrante(oficio.assinanteIntegranteId) : Promise.resolve(null),
       rascunho ? Promise.resolve([]) : liberacoesDoOficio(id),
     ])
-  const telegram = rascunho
-    ? await telegramDoIntegrante(oficio.assinanteIntegranteId)
-    : { disponivel: false, telefone: null }
+  // Para onde vai o convite de cada assinante (só no rascunho, antes do envio).
+  const paraEnvio: AssinanteParaEnvio[] = rascunho
+    ? await Promise.all(
+        quemAssina
+          .filter((q): q is typeof q & { integranteId: string } => Boolean(q.integranteId))
+          .map(async (q) => {
+            const [emailSugerido, telegram] = await Promise.all([
+              emailSugeridoDoIntegrante(q.integranteId),
+              telegramDoIntegrante(q.integranteId),
+            ])
+            const daDiretoria = assinantes.find((x) => x.id === q.integranteId)
+            return {
+              integranteId: q.integranteId,
+              nome: daDiretoria?.nome ?? q.nome,
+              cargo: daDiretoria?.cargo ?? q.cargo,
+              emailSugerido,
+              telegram: {
+                disponivel: telegram.disponivel,
+                telefone: telegram.telefone ? mascararTelefone(telegram.telefone) : null,
+              },
+            }
+          })
+      )
+    : []
   const aguardando = oficio.situacao === "Aguardando assinatura"
   const cancelado = oficio.situacao === "Cancelado"
-  const assinadoEletronicamente = assinaturas.some((a) => a.situacao === "assinado")
-  // Cartão de assinatura: a vigente (assinada ou pendente), senão a última.
-  const assinaturaDoCartao = assinaturaVigente(assinaturas) ?? assinaturas[0] ?? null
-  const ultimaRecusa = rascunho && assinaturas[0]?.situacao === "recusado" ? assinaturas[0] : null
-  const nomeAssinante =
-    assinantes.find((x) => x.id === oficio.assinanteIntegranteId)?.nome ?? oficio.assinanteNome
+  const assinadoEletronicamente = rodadaConcluida(rodadaVigente(assinaturas))
+  // Cartão de assinatura: o envio mais recente (com um ou vários assinantes).
+  const rodada = rodadaAtual(assinaturas)
+  const ultimaRecusa = rascunho ? (rodada.find((a) => a.situacao === "recusado") ?? null) : null
 
   return (
     <>
@@ -239,6 +263,7 @@ export default async function OficioPage({
                 assunto: oficio.assunto,
                 corpo: oficio.corpo,
                 assinanteIntegranteId: oficio.assinanteIntegranteId,
+                coassinantesIds: oficio.coassinantes.map((c) => c.integranteId as string),
                 departamentoId: oficio.departamentoId,
               }}
               empresas={empresas.map((e) => ({ ...e }))}
@@ -257,10 +282,10 @@ export default async function OficioPage({
             <Campo rotulo="Assunto" valor={oficio.assunto} />
             <Campo rotulo="Data" valor={oficio.data ? formatarData(oficio.data) : null} />
             <Campo
-              rotulo="Assinante"
+              rotulo={quemAssina.length > 1 ? "Assinantes" : "Assinante"}
               valor={
-                oficio.assinanteNome
-                  ? `${oficio.assinanteNome}${oficio.assinanteCargo ? ` — ${oficio.assinanteCargo}` : ""}`
+                quemAssina.length
+                  ? quemAssina.map((q) => `${q.nome ?? "—"}${q.cargo ? ` — ${q.cargo}` : ""}`).join("; ")
                   : null
               }
             />
@@ -381,9 +406,10 @@ export default async function OficioPage({
               Enviar para assinatura eletrônica
             </CardTitle>
             <CardDescription>
-              Ao enviar, o ofício recebe o número e fica travado. Quem assina recebe um e-mail para
-              revisar o documento e assinar com um código de uso único; assinado, o ofício é emitido
-              com QR Code e certificado de verificação.
+              Ao enviar, o ofício recebe o número e fica travado. Quem assina recebe um convite para
+              revisar o documento e assinar com um código de uso único; com mais de um assinante,
+              todos recebem juntos e o ofício é emitido, com QR Code e certificado de verificação,
+              quando o último assinar.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
@@ -393,6 +419,8 @@ export default async function OficioPage({
                   {ultimaRecusa.nome ?? "O assinante"} recusou a assinatura em{" "}
                   {formatarMomento(ultimaRecusa.recusadoEm)}: {ultimaRecusa.motivoRecusa}. Corrija e
                   envie de novo — o número {oficio.numero}/{oficio.ano} continua reservado.
+                  {rodada.length > 1 &&
+                    " Um novo envio vai a todos os assinantes, inclusive a quem já tinha assinado."}
                 </AlertDescription>
               </Alert>
             )}
@@ -401,12 +429,7 @@ export default async function OficioPage({
                 oficioId={id}
                 proximoNumero={proximoNumero}
                 numeroReservado={oficio.numero}
-                emailSugerido={emailSugerido}
-                assinante={nomeAssinante}
-                telegram={{
-                  disponivel: telegram.disponivel,
-                  telefone: telegram.telefone ? mascararTelefone(telegram.telefone) : null,
-                }}
+                assinantes={paraEnvio}
               />
             ) : (
               <p className="text-muted-foreground text-sm">
@@ -428,7 +451,7 @@ export default async function OficioPage({
         </Card>
       )}
 
-      {assinaturaDoCartao && <CartaoAssinatura assinatura={assinaturaDoCartao} oficioId={id} />}
+      {rodada.length > 0 && <CartaoAssinaturas rodada={rodada} oficioId={id} />}
 
       {/* Emitido à mão: o PDF digitalizado fica junto do ofício */}
       {!rascunho && !aguardando && !assinadoEletronicamente && (!cancelado || oficio.arquivoAssinadoUrl) && (
@@ -486,10 +509,55 @@ export default async function OficioPage({
   )
 }
 
-function CartaoAssinatura({ assinatura: a, oficioId }: { assinatura: Assinatura; oficioId: string }) {
-  const cancelamento = [...a.eventos].reverse().find((e) => e.tipo === "cancelado")
+/** O envio mais recente: um bloco por assinante, com o cancelamento do envio uma vez só. */
+function CartaoAssinaturas({ rodada, oficioId }: { rodada: Assinatura[]; oficioId: string }) {
+  const varios = rodada.length > 1
+  const assinaram = rodada.filter((a) => a.situacao === "assinado").length
+  const pendentes = rodada.some((a) => a.situacao === "pendente")
   // Ofício cancelado DEPOIS de assinado: evento novo na trilha, envelope intacto.
-  const cancelamentoPosterior = a.eventos.find((e) => e.tipo === "documento_cancelado")
+  const cancelamentoPosterior = rodada.flatMap((a) => a.eventos).find((e) => e.tipo === "documento_cancelado")
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <ShieldCheck className="size-4" />
+          Assinatura eletrônica
+        </CardTitle>
+        <CardDescription>
+          {varios
+            ? `${assinaram} de ${rodada.length} assinaram${pendentes ? " — o ofício é emitido quando o último assinar" : ""}`
+            : `${rodada[0].nome ?? "Assinante"}${rodada[0].cargo ? ` — ${rodada[0].cargo}` : ""}`}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        {rodada.map((a) => (
+          <BlocoAssinante key={a.id} assinatura={a} oficioId={oficioId} comNome={varios} />
+        ))}
+
+        {pendentes && <AcoesEnvioPendente oficioId={oficioId} />}
+
+        {cancelamentoPosterior && (
+          <p className="text-destructive text-sm">
+            Ofício cancelado em {formatarMomento(cancelamentoPosterior.quando)}, depois da assinatura.
+            {varios ? " As assinaturas continuam válidas" : " A assinatura continua válida"} como
+            registro do que foi assinado; a página de verificação avisa que o ofício não está em vigor.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function BlocoAssinante({
+  assinatura: a,
+  oficioId,
+  comNome,
+}: {
+  assinatura: Assinatura
+  oficioId: string
+  comNome: boolean
+}) {
+  const cancelamento = [...a.eventos].reverse().find((e) => e.tipo === "cancelado")
   const passos = [
     {
       rotulo: "Enviado",
@@ -505,18 +573,33 @@ function CartaoAssinatura({ assinatura: a, oficioId }: { assinatura: Assinatura;
         : { rotulo: "Assinado", quando: a.assinadoEm, detalhe: a.assinadoEm && a.ip ? `IP ${a.ip}` : null, falha: false },
   ]
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <ShieldCheck className="size-4" />
-          Assinatura eletrônica
-        </CardTitle>
-        <CardDescription>
-          {a.nome ?? "Assinante"}
-          {a.cargo ? ` — ${a.cargo}` : ""}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4">
+    <div className={comNome ? "grid gap-3 rounded-md border px-4 py-3" : "grid gap-4"}>
+      {comNome && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-medium">
+            {a.nome ?? "Assinante"}
+            {a.cargo ? <span className="text-muted-foreground font-normal"> — {a.cargo}</span> : null}
+          </p>
+          <Badge
+            variant="outline"
+            className={
+              a.situacao === "assinado"
+                ? "border-success/40 text-success-fg"
+                : a.situacao === "pendente"
+                  ? "border-info/40 text-info-fg"
+                  : "text-muted-foreground"
+            }
+          >
+            {a.situacao === "assinado"
+              ? "Assinou"
+              : a.situacao === "pendente"
+                ? "Aguardando"
+                : a.situacao === "recusado"
+                  ? "Recusou"
+                  : "Envio cancelado"}
+          </Badge>
+        </div>
+      )}
         <ol className="grid gap-3 sm:grid-cols-3">
           {passos.map((p) => (
             <li key={p.rotulo} className="flex items-start gap-2 text-sm">
@@ -540,14 +623,10 @@ function CartaoAssinatura({ assinatura: a, oficioId }: { assinatura: Assinatura;
           ))}
         </ol>
 
-        {a.situacao === "pendente" && <AcoesEnvioPendente oficioId={oficioId} />}
-
-        {cancelamentoPosterior && (
-          <p className="text-destructive text-sm">
-            Ofício cancelado em {formatarMomento(cancelamentoPosterior.quando)}, depois da assinatura.
-            A assinatura continua válida como registro do que foi assinado; a página de verificação
-            avisa que o ofício não está em vigor.
-          </p>
+        {a.situacao === "pendente" && (
+          <div>
+            <ReenviarConvite oficioId={oficioId} assinaturaId={a.id} />
+          </div>
         )}
 
         {a.situacao === "assinado" && a.certificado && (
@@ -592,8 +671,7 @@ function CartaoAssinatura({ assinatura: a, oficioId }: { assinatura: Assinatura;
             </p>
           )}
         </details>
-      </CardContent>
-    </Card>
+    </div>
   )
 }
 

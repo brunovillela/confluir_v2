@@ -615,10 +615,11 @@ Envelope de assinatura eletrônica de um documento (ofício, termo de cessão), 
 | `cpf` | text | sim |  |  | identificação | CPF do assinante (só dígitos), informado no envio. Na assinatura da minuta a pessoa digita o CPF e ele precisa bater. |
 | `nome_declarado` | text | sim |  |  | identificação | Nome digitado pelo assinante ao assinar. |
 | `cpf_conferido_em` | timestamp with time zone | sim |  |  |  |  |
+| `rodada` | uuid | sim |  |  | nenhum | Envio do mesmo documento para vários assinantes ao mesmo tempo: os envelopes de um envio têm a mesma rodada. Nulo nos envios de um assinante só. |
 
 Checks: `ck_doc_assinaturas_papel` `CHECK (((papel IS NULL) OR (papel = ANY (ARRAY['cedente'::text, 'concessionario'::text, 'assinante'::text, 'contratante'::text, 'contratada'::text, 'testemunha'::text, 'prestador'::text])))) NOT VALID`; `ck_doc_assinaturas_tipo` `CHECK (((documento_tipo IS NULL) OR (documento_tipo = ANY (ARRAY['oficio'::text, 'cessao'::text, 'minuta'::text, 'rpa'::text, 'ferias'::text])))) NOT VALID`; `oficios_assinaturas_canal_check` `CHECK ((canal = ANY (ARRAY['email'::text, 'telegram'::text])))`; `oficios_assinaturas_situacao_check` `CHECK ((situacao = ANY (ARRAY['pendente'::text, 'assinado'::text, 'recusado'::text, 'cancelado'::text])))`
 
-Índices: `idx_doc_assinaturas_documento`, `idx_oficios_assinaturas_oficio`, `oficios_assinaturas_pkey`, `ux_oficios_assinaturas_certificado`, `ux_oficios_assinaturas_token`
+Índices: `documento_assinaturas_rodada_idx`, `idx_doc_assinaturas_documento`, `idx_oficios_assinaturas_oficio`, `oficios_assinaturas_pkey`, `ux_oficios_assinaturas_certificado`, `ux_oficios_assinaturas_token`
 
 ## fa_documentos
 

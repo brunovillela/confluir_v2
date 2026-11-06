@@ -31,7 +31,7 @@ import {
   reenviarConvite,
   type CanalAssinatura,
 } from "@/lib/db/oficios-assinatura"
-import { TIPOS_OFICIO, eAutomatico, type TipoOficio } from "@/lib/oficios-constantes"
+import { MAX_ASSINANTES_OFICIO, TIPOS_OFICIO, eAutomatico, type TipoOficio } from "@/lib/oficios-constantes"
 
 function texto(formData: FormData, campo: string): string {
   return String(formData.get(campo) ?? "").trim()
@@ -57,8 +57,24 @@ function lerDados(formData: FormData): DadosOficio {
     aos_cuidados: texto(formData, "aos_cuidados") || null,
     assunto: texto(formData, "assunto") || null,
     corpo: texto(formData, "corpo") || null,
-    assinante_integrante_id: texto(formData, "assinante_integrante_id") || null,
+    ...lerAssinantes(formData),
     departamento_id: texto(formData, "departamento_id") || null,
+  }
+}
+
+/**
+ * Principal + demais assinantes, sem repetição e sem vazios. Quem tira o
+ * principal e deixa os outros: o primeiro dos outros vira o principal.
+ */
+function lerAssinantes(formData: FormData): Pick<DadosOficio, "assinante_integrante_id" | "coassinantes"> {
+  const ids = [
+    texto(formData, "assinante_integrante_id"),
+    ...formData.getAll("coassinante_integrante_id").map((v) => String(v).trim()),
+  ].filter(Boolean)
+  const unicos = [...new Set(ids)].slice(0, MAX_ASSINANTES_OFICIO)
+  return {
+    assinante_integrante_id: unicos[0] ?? null,
+    coassinantes: unicos.slice(1).map((integrante_id) => ({ integrante_id })),
   }
 }
 
@@ -255,11 +271,15 @@ export async function enviarParaAssinaturaAction(
   if (!id) return { erro: "Ofício inválido." }
   const fora = await foraDoEscopo(id)
   if (fora) return { erro: fora }
-  const canal: CanalAssinatura = texto(formData, "canal") === "telegram" ? "telegram" : "email"
+  // Um destino por assinante: canal_<id> e email_<id>.
+  const destinos = formData.getAll("integrante_id").map((v) => {
+    const integranteId = String(v)
+    const canal: CanalAssinatura = texto(formData, `canal_${integranteId}`) === "telegram" ? "telegram" : "email"
+    return { integranteId, canal, email: texto(formData, `email_${integranteId}`) }
+  })
   const r = await enviarParaAssinatura({
     oficioId: id,
-    email: texto(formData, "email"),
-    canal,
+    destinos,
     // Número não se escolhe: último do ano + 1 (ou o já reservado).
     numeroManual: null,
     usuarioId: sessao.usuario.id as string,
@@ -267,10 +287,11 @@ export async function enviarParaAssinaturaAction(
   if (r.erro) return { erro: r.erro }
   revalidatePath("/painel/ferramentas/oficios")
   revalidatePath(`/painel/ferramentas/oficios/${id}`)
+  const naoSaiu = r.naoEntregues ?? []
   return {
-    ok: r.entregue
-      ? `Ofício ${r.numero}/${r.ano} enviado para assinatura — convite em ${r.destino}.`
-      : `Ofício ${r.numero}/${r.ano} aguardando assinatura, mas o convite não saiu — use "Reenviar convite".`,
+    ok: naoSaiu.length
+      ? `Ofício ${r.numero}/${r.ano} aguardando assinatura, mas o convite não saiu para ${naoSaiu.join(", ")} — use "Reenviar convite".`
+      : `Ofício ${r.numero}/${r.ano} enviado para assinatura — convite para ${(r.entregues ?? []).join(", ")}.`,
   }
 }
 
@@ -282,12 +303,12 @@ export async function reenviarConviteAction(
   const id = texto(formData, "oficio_id")
   const fora = await foraDoEscopo(id)
   if (fora) return { erro: fora }
-  const r = await reenviarConvite(id)
+  const r = await reenviarConvite(id, texto(formData, "assinatura_id") || null)
   if (r.erro) return { erro: r.erro }
   revalidatePath(`/painel/ferramentas/oficios/${id}`)
-  return r.entregue
-    ? { ok: `Convite reenviado para ${r.destino}.` }
-    : { erro: "O convite não saiu. Tente de novo em instantes." }
+  return r.naoEntregues?.length
+    ? { erro: `O convite não saiu para ${r.naoEntregues.join(", ")}. Tente de novo em instantes.` }
+    : { ok: `Convite reenviado para ${(r.entregues ?? []).join(", ")}.` }
 }
 
 export async function cancelarEnvioAction(

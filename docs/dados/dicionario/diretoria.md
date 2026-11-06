@@ -298,6 +298,7 @@ Ofício numerado por ano emitido pela entidade: manual ou automático de filiaç
 | `cancelado_em` | timestamp with time zone | sim |  |  |  | Quando o ofício foi cancelado (situacao = Cancelado). Ofícios cancelados antes de 02/10/2026 ficam sem data. |
 | `cancelado_por_id` | uuid | sim |  | → usuarios (set null) |  | Usuário do painel que cancelou o ofício. |
 | `cancelamento_motivo` | text | sim |  |  |  | Motivo do cancelamento (obrigatório no painel, mín. 10 caracteres). Aparece na página pública /verificar quando o ofício tinha assinatura eletrônica. |
+| `coassinantes` | jsonb | não | `'[]'::jsonb` |  | identificação | Assinantes além do principal, na ordem do documento: [{integrante_id, nome, cargo}] (nome e cargo gravados na emissão). Vazio = só o assinante principal. |
 
 Únicas: `UNIQUE (emp_proprietaria_id, ano, numero)`
 

@@ -60,3 +60,6 @@ export function padraoOficio(
       return { assunto: "", corpo: "" }
   }
 }
+
+/** Assinantes de um ofício, contando o principal (vários assinam ao mesmo tempo). */
+export const MAX_ASSINANTES_OFICIO = 6

@@ -1,7 +1,7 @@
 "use client"
 
 import { useActionState, useRef, useState } from "react"
-import { Loader2, Save, Sparkles } from "lucide-react"
+import { Loader2, Plus, Save, Sparkles, X } from "lucide-react"
 
 import { EditorOficio, type EditorOficioRef } from "@/components/editor-oficio"
 import { EmpresaCombobox, type EmpresaOpcao } from "@/components/empresa-combobox"
@@ -12,6 +12,7 @@ import { type EstadoForm } from "@/lib/contas"
 import { corpoEmTexto } from "@/lib/oficio-formatacao"
 import {
   EXPLICACAO_TIPO_OFICIO,
+  MAX_ASSINANTES_OFICIO,
   padraoOficio,
   ROTULOS_TIPO_OFICIO,
   TIPOS_OFICIO,
@@ -36,7 +37,94 @@ export type OficioFormDados = {
   assunto?: string | null
   corpo?: string | null
   assinanteIntegranteId?: string | null
+  /** Demais assinantes, na ordem do documento. */
+  coassinantesIds?: string[]
   departamentoId?: string | null
+}
+
+type OpcaoAssinante = { id: string; nome: string; cargo: string | null }
+
+/**
+ * Assinantes da diretoria: o primeiro é o principal e os demais assinam junto,
+ * na ordem da lista (é a ordem dos nomes no documento).
+ */
+function CampoAssinantes({ opcoes, iniciais }: { opcoes: OpcaoAssinante[]; iniciais: string[] }) {
+  // Chave estável por linha, para remover uma do meio sem trocar os valores.
+  const [linhas, setLinhas] = useState(() => {
+    const ids = iniciais.filter((v, i) => v || i === 0)
+    return (ids.length ? ids : [""]).map((id, i) => ({ chave: i, id }))
+  })
+  const nova = (atual: { chave: number }[]) => ({ chave: Math.max(-1, ...atual.map((x) => x.chave)) + 1, id: "" })
+  const escolhidos = linhas.map((l) => l.id).filter(Boolean)
+
+  return (
+    <div className="grid gap-1.5">
+      <Label htmlFor="assinante_integrante_id">
+        {linhas.length > 1 ? "Assinantes (diretoria)" : "Assinante (diretoria)"}
+      </Label>
+      {linhas.map((l, i) => (
+        <div key={l.chave} className="flex items-center gap-2">
+          <select
+            id={i === 0 ? "assinante_integrante_id" : undefined}
+            aria-label={i === 0 ? undefined : `Assinante ${i + 1}`}
+            name={i === 0 ? "assinante_integrante_id" : "coassinante_integrante_id"}
+            value={l.id}
+            onChange={(e) =>
+              setLinhas((atual) => atual.map((x) => (x.chave === l.chave ? { ...x, id: e.target.value } : x)))
+            }
+            className={SELECT}
+          >
+            <option value="">(selecione)</option>
+            {opcoes
+              .filter((a) => a.id === l.id || !escolhidos.includes(a.id))
+              .map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.nome}
+                  {a.cargo ? ` — ${a.cargo}` : ""}
+                </option>
+              ))}
+          </select>
+          {linhas.length > 1 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              title="Tirar este assinante"
+              aria-label={`Tirar o assinante ${i + 1}`}
+              onClick={() => setLinhas((atual) => atual.filter((x) => x.chave !== l.chave))}
+            >
+              <X />
+            </Button>
+          )}
+        </div>
+      ))}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {opcoes.length === 0 ? (
+          <span className="text-warning-fg text-xs">
+            Nenhum assinante — cadastre a diretoria vigente em Institucional.
+          </span>
+        ) : (
+          <span className="text-muted-foreground text-xs">
+            {linhas.length > 1
+              ? "Todos recebem o convite juntos; o ofício é emitido quando o último assinar."
+              : "Precisa de mais de uma assinatura? Adicione os demais."}
+          </span>
+        )}
+        {linhas.length < MAX_ASSINANTES_OFICIO && escolhidos.length < opcoes.length && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={() => setLinhas((atual) => [...atual, nova(atual)])}
+          >
+            <Plus />
+            Adicionar assinante
+          </Button>
+        )}
+      </div>
+    </div>
+  )
 }
 
 function tipoSalvo(valor: string | null | undefined): TipoOficio | "" {
@@ -293,29 +381,12 @@ export function OficioForm({
                   ))}
                 </select>
               </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="assinante_integrante_id">Assinante (diretoria)</Label>
-                <select
-                  id="assinante_integrante_id"
-                  name="assinante_integrante_id"
-                  defaultValue={dados?.assinanteIntegranteId ?? ""}
-                  className={SELECT}
-                >
-                  <option value="">(selecione)</option>
-                  {assinantes.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.nome}
-                      {a.cargo ? ` — ${a.cargo}` : ""}
-                    </option>
-                  ))}
-                </select>
-                {assinantes.length === 0 && (
-                  <span className="text-warning-fg text-xs">
-                    Nenhum assinante — cadastre a diretoria vigente em Institucional.
-                  </span>
-                )}
-              </div>
             </div>
+
+            <CampoAssinantes
+              opcoes={assinantes}
+              iniciais={[dados?.assinanteIntegranteId ?? "", ...(dados?.coassinantesIds ?? [])]}
+            />
 
             <div className="grid gap-1.5">
               <Label htmlFor="assunto">Assunto *</Label>

@@ -37,12 +37,13 @@ filtro por departamento.
   <Passo titulo="Rascunho">
     Escolha o **departamento** do ofício (só aparecem os seus; se você tem um só,
     ele já vem escolhido) e preencha destinatário, assunto e corpo — o corpo tem barra de formatação
-    (ver *Formatar o texto*, abaixo). O **signatário** vem dos integrantes
-    **vigentes** da diretoria. Há um campo opcional "Aos cuidados".
+    (ver *Formatar o texto*, abaixo). O **assinante** vem dos integrantes
+    **vigentes** da diretoria; para mais de uma assinatura, **Adicionar
+    assinante** (ver *Vários assinantes*, abaixo). Há um campo opcional "Aos cuidados".
   </Passo>
   <Passo titulo="Enviar para assinatura">
     No cartão **Enviar para assinatura eletrônica**, escolha **por onde** vai o
-    convite — e-mail ou **Telegram** — confira o endereço (o sistema sugere o
+    convite de cada assinante — e-mail ou **Telegram** — confira o endereço (o sistema sugere o
     último usado, o do usuário do painel ou o da filiação) e o **número** (o
     próximo do ano é sugerido). Ao enviar, o ofício recebe o número, fica
     **travado** em "Aguardando assinatura" e o assinante recebe o convite.
@@ -53,7 +54,7 @@ filtro por departamento.
     canal, vale 10 minutos) e assina. Não precisa de login no Confluir.
   </Passo>
   <Passo titulo="Emitido, com QR Code e certificado">
-    Assinado, o ofício passa a **Emitido** sozinho. O PDF final leva o **QR
+    Assinado (por todos, quando há mais de um assinante), o ofício passa a **Emitido** sozinho. O PDF final leva o **QR
     Code** ao lado do cabeçalho, o carimbo "Assinado eletronicamente em … ·
     Certificado …" sob a assinatura e uma página final **Certificado de
     assinatura eletrônica** com a trilha. Quem enviou recebe e-mail e
@@ -100,6 +101,25 @@ com IA** mantém a formatação do texto.
 
 ## Assinatura eletrônica
 
+### Vários assinantes
+
+No rascunho, **Adicionar assinante** inclui outro integrante da diretoria (até
+seis no total); o **X** tira um da lista. A ordem da lista é a ordem dos nomes
+no documento, e quem já está escolhido não aparece de novo.
+
+Ao enviar, **todos recebem o convite ao mesmo tempo** e assinam na ordem que
+quiserem, cada um com o seu código. Enquanto falta alguém, o ofício fica em
+"Aguardando assinatura" e o cartão mostra quantos já assinaram; a cada
+assinatura, quem enviou recebe uma notificação. Quando o **último** assina, o
+ofício é emitido: o PDF traz um bloco de assinatura por pessoa, cada um com o
+seu certificado, e a página de certificado lista todos, com a trilha de cada
+um.
+
+Se **alguém recusar**, os convites que faltavam deixam de valer e o ofício
+volta ao rascunho com o número reservado. No novo envio, **todos assinam de
+novo**, inclusive quem já tinha assinado: a assinatura anterior fica registrada,
+mas a página de verificação avisa que ela não valeu para o ofício.
+
 ### Quem assina não tem e-mail
 
 O Telegram resolve: se o assinante tem **conta vinculada e telefone
@@ -115,9 +135,9 @@ aberto pelo assinante, assinado — com data e hora, e a **trilha de auditoria**
 cada envio, abertura do link, código enviado ou digitado errado, assinatura,
 recusa e cancelamento, com endereço IP. Enquanto aguarda:
 
-- **Reenviar e-mail** — manda o convite de novo (lembrete) para o mesmo
-  endereço.
-- **Cancelar envio** — o link deixa de valer e o ofício volta ao rascunho **com
+- **Reenviar convite** — manda o convite de novo (lembrete) para o mesmo
+  endereço; com vários assinantes, o botão fica em cada um que ainda não assinou.
+- **Cancelar envio** — os links que faltavam deixam de valer e o ofício volta ao rascunho **com
   o número reservado**. Use para corrigir o texto ou o e-mail.
 
 Quando o assinante abre o link depois de assinado, recusado ou cancelado, a

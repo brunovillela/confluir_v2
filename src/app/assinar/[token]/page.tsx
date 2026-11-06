@@ -119,7 +119,9 @@ export default async function AssinarOficioPage({
     userAgent: h.get("user-agent"),
   })
 
-  const { assinatura: a, oficio, remetente } = envelope
+  const { assinatura: a, oficio, remetente, rodada } = envelope
+  const outros = rodada.filter((x) => x.id !== a.id)
+  const faltam = outros.filter((x) => x.situacao === "pendente")
   const numero = oficio.numero != null ? `${oficio.numero}/${oficio.ano}` : "sem número"
   const status = STATUS[a.situacao]
   const pdf = `/assinar/${token}/pdf`
@@ -147,6 +149,10 @@ export default async function AssinarOficioPage({
               {formatarMomento(a.assinadoEm)} (horário de Brasília).
               {oficio.situacao === "Cancelado" &&
                 ` Depois disso, o remetente cancelou o ofício${oficio.canceladoEm ? ` em ${formatarMomento(oficio.canceladoEm)}` : ""}${oficio.cancelamentoMotivo ? ` — motivo: ${oficio.cancelamentoMotivo}` : ""}. A assinatura continua registrada, mas o ofício não está mais em vigor.`}
+              {oficio.situacao === "Aguardando assinatura" && faltam.length > 0 &&
+                ` O ofício é emitido quando todos assinarem — falta${faltam.length > 1 ? "m" : ""} ${faltam.map((x) => x.nome ?? "assinante").join(", ")}.`}
+              {oficio.situacao === "Rascunho" && outros.some((x) => x.situacao === "recusado" || x.situacao === "cancelado") &&
+                " Depois disso, o envio foi encerrado sem emitir o ofício (outro assinante recusou ou o envio foi cancelado). Se ele for reenviado, chegará um novo convite."}
             </AlertDescription>
           </Alert>
         )}
@@ -161,8 +167,11 @@ export default async function AssinarOficioPage({
         {a.situacao === "cancelado" && (
           <Alert>
             <AlertDescription>
-              {remetente} cancelou este envio — este link não vale mais. Se ainda houver algo a
-              assinar, você receberá um novo e-mail.
+              {outros.some((x) => x.situacao === "recusado")
+                ? `O envio foi encerrado porque ${outros.find((x) => x.situacao === "recusado")?.nome ?? "outro assinante"} recusou a assinatura`
+                : `${remetente} cancelou este envio`}{" "}
+              — este link não vale mais. Se ainda houver algo a assinar, você receberá um novo
+              convite.
             </AlertDescription>
           </Alert>
         )}
@@ -204,6 +213,29 @@ export default async function AssinarOficioPage({
                 <Campo rotulo="Para" valor={oficio.destinatarioNome ?? oficio.destinatarioTexto} />
                 <Campo rotulo="Data do ofício" valor={oficio.data ? formatarData(oficio.data) : null} />
                 <Campo rotulo="Enviado para assinatura" valor={formatarMomento(a.enviadoEm)} />
+                {outros.length > 0 && (
+                  <div className="sm:col-span-2">
+                    <dt className="text-muted-foreground text-xs">Também assinam</dt>
+                    <dd className="mt-0.5 grid gap-0.5">
+                      {outros.map((x) => (
+                        <span key={x.id}>
+                          {x.nome ?? "—"}
+                          <span className="text-muted-foreground">
+                            {" "}
+                            —{" "}
+                            {x.situacao === "assinado"
+                              ? "assinou"
+                              : x.situacao === "pendente"
+                                ? "ainda não assinou"
+                                : x.situacao === "recusado"
+                                  ? "recusou"
+                                  : "envio cancelado"}
+                          </span>
+                        </span>
+                      ))}
+                    </dd>
+                  </div>
+                )}
               </dl>
               <iframe
                 src={pdf}

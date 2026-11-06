@@ -51,12 +51,35 @@ export default async function VerificarCertificadoPage({
         </Alert>
       ) : (
         <div className="grid gap-4">
-          {v.situacao === "assinado" && v.oficioSituacao !== "Cancelado" ? (
+          {v.situacao === "assinado" && v.envioEncerrado ? (
+            // Vários assinantes: este assinou, mas o envio não terminou — o
+            // ofício não foi emitido com esta assinatura.
+            <Alert>
+              <AlertTriangle />
+              <AlertDescription>
+                A assinatura é <strong>autêntica</strong>, mas o envio em que ela foi dada{" "}
+                <strong>não foi concluído</strong>: outro assinante recusou ou o remetente cancelou o
+                envio. O ofício não foi emitido com esta assinatura.
+              </AlertDescription>
+            </Alert>
+          ) : v.situacao === "assinado" && v.assinantes.some((x) => x.situacao === "pendente") ? (
+            <Alert>
+              <Clock3 />
+              <AlertDescription>
+                Assinatura <strong>válida</strong>. O ofício ainda aguarda a assinatura de{" "}
+                {v.assinantes
+                  .filter((x) => x.situacao === "pendente")
+                  .map((x) => x.nome ?? "assinante")
+                  .join(", ")}{" "}
+                e só vale depois que todos assinarem.
+              </AlertDescription>
+            </Alert>
+          ) : v.situacao === "assinado" && v.oficioSituacao !== "Cancelado" ? (
             <Alert className="border-success/40 text-success-fg">
               <BadgeCheck />
               <AlertDescription>
                 Assinatura <strong>válida</strong>: este certificado corresponde a um ofício assinado
-                eletronicamente.
+                eletronicamente{v.assinantes.length > 1 ? " por todos os assinantes" : ""}.
               </AlertDescription>
             </Alert>
           ) : v.situacao === "assinado" ? (
@@ -124,6 +147,30 @@ export default async function VerificarCertificadoPage({
                   rotulo="Data e hora da assinatura"
                   valor={v.assinadoEm ? `${formatarMomento(v.assinadoEm)} (horário de Brasília)` : null}
                 />
+                {v.assinantes.length > 1 && (
+                  <div className="sm:col-span-2">
+                    <dt className="text-muted-foreground text-xs">Assinantes do ofício</dt>
+                    <dd className="mt-1 grid gap-1">
+                      {v.assinantes.map((x, i) => (
+                        <span key={i} className="flex flex-wrap items-baseline justify-between gap-x-3">
+                          <span>
+                            {x.nome ?? "—"}
+                            {x.cargo ? <span className="text-muted-foreground"> — {x.cargo}</span> : null}
+                          </span>
+                          <span className="text-muted-foreground text-xs">
+                            {x.situacao === "assinado"
+                              ? `assinou em ${formatarMomento(x.assinadoEm)}`
+                              : x.situacao === "pendente"
+                                ? "aguardando"
+                                : x.situacao === "recusado"
+                                  ? "recusou"
+                                  : "envio cancelado"}
+                          </span>
+                        </span>
+                      ))}
+                    </dd>
+                  </div>
+                )}
                 <div className="sm:col-span-2">
                   <dt className="text-muted-foreground text-xs">Resumo do conteúdo (SHA-256)</dt>
                   <dd className="mt-0.5 font-mono text-xs break-all">{v.hash ?? "—"}</dd>
