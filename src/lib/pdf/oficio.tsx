@@ -82,14 +82,18 @@ const s = StyleSheet.create({
   meta: { lineHeight: 1, marginBottom: 2 },
   metaLabel: { fontFamily: "Helvetica-Bold" },
   saudacao: { marginTop: 24 },
-  corpo: { marginVertical: 18 },
+  // Espaço em volta de blocos que se dividem entre páginas = PADDING, nunca
+  // margem: no @react-pdf, um View com margem que não cabe no resto da página
+  // não se divide — vai inteiro para a seguinte e deixa a anterior em branco
+  // (ofício 331/2026: a página 1 terminava em "Prezados,").
+  corpo: { paddingVertical: 18 },
   paragrafo: { lineHeight: 1.3 },
   titulo: { lineHeight: 1.3, fontFamily: "Helvetica-Bold", fontSize: 12, marginTop: 4, marginBottom: 2 },
-  listaCorpo: { marginVertical: 3 },
+  listaCorpo: { paddingVertical: 3 },
   itemCorpo: { flexDirection: "row", alignItems: "flex-start" },
   marcador: { width: 18, textAlign: "right", marginRight: 5, lineHeight: 1.3 },
   itemTexto: { flex: 1, lineHeight: 1.3 },
-  lista: { marginVertical: 12, paddingLeft: 4 },
+  lista: { paddingVertical: 12, paddingLeft: 4 },
   item: { marginBottom: 2 },
   assinaturas: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center" },
   assinatura: { marginTop: 48, alignItems: "center", paddingHorizontal: 8 },
@@ -393,37 +397,40 @@ export function OficioPDF({
           </View>
         )}
 
-        <Text>{oficio.fecho ?? "Cordialmente,"}</Text>
+        {/* Fecho e assinaturas andam juntos: "Cordialmente," nunca fica sozinho no pé da página. */}
+        <View wrap={false}>
+          <Text>{oficio.fecho ?? "Cordialmente,"}</Text>
 
-        <View style={s.assinaturas}>
-          {(blocos.length ? blocos : [{ integranteId: null, nome: null, cargo: null }]).map((b, i) => {
-            const env = envelopeDoBloco(b.integranteId, i)
-            return (
-              <View key={i} style={[s.assinatura, { width: varios ? "50%" : "100%" }]} wrap={false}>
-                <Text style={s.assinaturaNome}>{b.nome ?? "________________________"}</Text>
-                {b.cargo ? <Text style={{ textAlign: "center" }}>{b.cargo}</Text> : null}
-                {env?.situacao === "assinado" ? (
-                  <View style={s.carimbo}>
-                    <Text style={{ textAlign: "center" }}>
-                      Assinado eletronicamente em {env.assinadoEm} (horário de Brasília)
-                    </Text>
-                    <Text style={{ textAlign: "center" }}>
-                      Certificado {env.certificado}
-                      {varios ? "" : ` · verifique em ${env.urlVerificacao}`}
-                    </Text>
-                  </View>
-                ) : env?.situacao === "pendente" ? (
-                  <Text style={s.carimboPendente}>Aguardando assinatura eletrônica</Text>
-                ) : null}
-              </View>
-            )
-          })}
+          <View style={s.assinaturas}>
+            {(blocos.length ? blocos : [{ integranteId: null, nome: null, cargo: null }]).map((b, i) => {
+              const env = envelopeDoBloco(b.integranteId, i)
+              return (
+                <View key={i} style={[s.assinatura, { width: varios ? "50%" : "100%" }]} wrap={false}>
+                  <Text style={s.assinaturaNome}>{b.nome ?? "________________________"}</Text>
+                  {b.cargo ? <Text style={{ textAlign: "center" }}>{b.cargo}</Text> : null}
+                  {env?.situacao === "assinado" ? (
+                    <View style={s.carimbo}>
+                      <Text style={{ textAlign: "center" }}>
+                        Assinado eletronicamente em {env.assinadoEm} (horário de Brasília)
+                      </Text>
+                      <Text style={{ textAlign: "center" }}>
+                        Certificado {env.certificado}
+                        {varios ? "" : ` · verifique em ${env.urlVerificacao}`}
+                      </Text>
+                    </View>
+                  ) : env?.situacao === "pendente" ? (
+                    <Text style={s.carimboPendente}>Aguardando assinatura eletrônica</Text>
+                  ) : null}
+                </View>
+              )
+            })}
+          </View>
+          {assinado && varios && assinatura ? (
+            <Text style={[s.carimboPendente, { color: "#444444", marginTop: 10 }]}>
+              Verifique as assinaturas em {assinatura.urlVerificacao}
+            </Text>
+          ) : null}
         </View>
-        {assinado && varios && assinatura ? (
-          <Text style={[s.carimboPendente, { color: "#444444", marginTop: 10 }]}>
-            Verifique as assinaturas em {assinatura.urlVerificacao}
-          </Text>
-        ) : null}
 
         <View style={s.rodape} fixed>
           <Text style={s.rodapeRazao}>
