@@ -19,7 +19,7 @@ import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 
-export type Responsavel = { id: string; nome: string }
+export type Responsavel = { id: string; nome: string; origem: string }
 
 function SeletorResponsavel({
   responsaveis,
@@ -28,13 +28,20 @@ function SeletorResponsavel({
   responsaveis: Responsavel[]
   padrao?: string | null
 }) {
+  const grupos = [...new Set(responsaveis.map((r) => r.origem))]
   return (
     <select name="usuario_id" className={SELECT} defaultValue={padrao ?? ""}>
       <option value="">Sem responsável</option>
-      {responsaveis.map((r) => (
-        <option key={r.id} value={r.id}>
-          {r.nome}
-        </option>
+      {grupos.map((g) => (
+        <optgroup key={g} label={g}>
+          {responsaveis
+            .filter((r) => r.origem === g)
+            .map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.nome}
+              </option>
+            ))}
+        </optgroup>
       ))}
     </select>
   )

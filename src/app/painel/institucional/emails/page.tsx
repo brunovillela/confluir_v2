@@ -36,11 +36,11 @@ export default async function EmailsInstitucionaisPage({
   const { busca = "" } = await searchParams
   const termo = busca.trim()
 
-  const [emails, responsaveis] = await Promise.all([
-    listarEmailsInstitucionais(termo),
-    opcoesResponsaveis(),
+  const emails = await listarEmailsInstitucionais(termo)
+  const [responsaveis, fotos] = await Promise.all([
+    opcoesResponsaveis(emails),
+    fotosDosUsuarios(emails.map((e) => e.usuarioId)),
   ])
-  const fotos = await fotosDosUsuarios(emails.map((e) => e.usuarioId))
 
   return (
     <>
@@ -55,8 +55,8 @@ export default async function EmailsInstitucionaisPage({
           E-mails institucionais
         </h1>
         <p className="text-muted-foreground mt-1 text-xs">
-          Endereços institucionais da organização e o funcionário responsável
-          por cada um.
+          Endereços institucionais da organização e quem responde por cada um:
+          diretoria, funcionários, prestadores ou outra pessoa com acesso ao painel.
         </p>
       </div>
 

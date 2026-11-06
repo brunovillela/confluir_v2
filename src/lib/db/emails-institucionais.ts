@@ -2,7 +2,7 @@ import "server-only"
 import { texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
-import { listarFuncionarios } from "@/lib/db/pessoal"
+import { opcoesResponsaveisLinha, type ResponsavelLinha } from "@/lib/db/linhas-institucionais"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
@@ -83,14 +83,15 @@ export async function listarEmailsInstitucionais(
     )
 }
 
-/** Funcionários ativos para o seletor de responsável. */
-export async function opcoesResponsaveis(): Promise<
-  { id: string; nome: string }[]
-> {
-  const { linhas } = await listarFuncionarios({ situacao: "ativos" })
-  return linhas
-    .map((f) => ({ id: f.usuarioId, nome: f.nome ?? "(sem nome)" }))
-    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+/**
+ * Seletor de responsável: o mesmo das linhas institucionais — diretoria,
+ * funcionários, prestadores e quem tem acesso ao painel, por grupo. Quem já é
+ * responsável por um e-mail continua na lista mesmo fora do quadro.
+ */
+export async function opcoesResponsaveis(
+  atuais: EmailInstitucional[]
+): Promise<ResponsavelLinha[]> {
+  return opcoesResponsaveisLinha(atuais)
 }
 
 export type DadosEmail = { endereco: string; usuarioId: string | null }

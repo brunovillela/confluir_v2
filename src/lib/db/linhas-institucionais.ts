@@ -1,5 +1,5 @@
 import "server-only"
-import { texto } from "@/lib/db/comum"
+import { lerEmLotes, lerEmLotesPorIds, texto } from "@/lib/db/comum"
 import { pessoasParaDepartamento } from "@/lib/db/departamentos"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -84,15 +84,59 @@ export async function listarLinhasInstitucionais(busca?: string): Promise<LinhaI
     )
 }
 
+/** Ordem dos grupos no seletor de responsável. */
+const ORDEM_ORIGEM = [
+  "Diretoria",
+  "Funcionários",
+  "Prestadores",
+  "Outros com acesso ao painel",
+  "Fora do quadro atual",
+]
+
+/** Classificação do Quadro da entidade → grupo do seletor. */
+function origemDaClassificacao(c: string | null): string | null {
+  if (c === "Diretor(a)") return "Diretoria"
+  if (c === "Prestador(a) de serviço") return "Prestadores"
+  if (c === "Funcionário(a)" || c === "Jovem aprendiz" || c === "Estagiário(a)") return "Funcionários"
+  return null
+}
+
 /**
- * Quem pode ficar com uma linha: funcionários ativos e diretores do mandato
- * vigente com conta de usuário. Quem já está com uma linha e saiu do quadro
- * continua na lista — senão, salvar a linha o tiraria sem ninguém ver.
+ * Quem pode ficar com uma linha, um e-mail ou um ramal: funcionários ativos e
+ * diretores do mandato vigente, os classificados no Quadro da entidade
+ * (prestadores inclusive) e quem tem acesso ao painel. Quem já é responsável
+ * e saiu de tudo isso continua na lista — senão, salvar o registro o tiraria
+ * sem ninguém ver.
  */
 export async function opcoesResponsaveisLinha(
-  atuais: LinhaInstitucional[]
+  atuais: Pick<LinhaInstitucional, "usuarioId" | "responsavelNome">[]
 ): Promise<ResponsavelLinha[]> {
-  const pessoas = await pessoasParaDepartamento()
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const [pessoas, classificados, comAcesso] = await Promise.all([
+    pessoasParaDepartamento(),
+    lerEmLotes<Record<string, unknown>>((de, ate) =>
+      admin
+        .from("usuarios")
+        .select("id, nome_completo, nome_guerra, vinculo_instituicao")
+        .eq("emp_proprietaria_id", emp)
+        .not("vinculo_instituicao", "is", null)
+        .not("deletado", "is", true)
+        .not("inativo", "is", true)
+        .order("id")
+        .range(de, ate)
+    ).catch(() => []),
+    lerEmLotes<Record<string, unknown>>((de, ate) =>
+      admin
+        .from("permissoes")
+        .select("usuario_id")
+        .eq("emp_proprietaria_id", emp)
+        .not("usuario_id", "is", null)
+        .order("id")
+        .range(de, ate)
+    ).catch(() => []),
+  ])
+
   const opcoes = new Map<string, ResponsavelLinha>()
   for (const p of pessoas) {
     if (!p.usuarioId) continue
@@ -102,6 +146,31 @@ export async function opcoesResponsaveisLinha(
       origem: p.origem === "diretor" ? "Diretoria" : "Funcionários",
     })
   }
+  for (const u of classificados) {
+    const id = String(u.id)
+    const origem = origemDaClassificacao(texto(u.vinculo_instituicao))
+    if (!origem || opcoes.has(id)) continue
+    opcoes.set(id, { id, nome: nomeUsuario(u) ?? "(sem nome)", origem })
+  }
+
+  // Acesso ao painel sem estar no quadro: nome lido à parte.
+  const semGrupo = [
+    ...new Set(comAcesso.map((p) => texto(p.usuario_id)).filter((v): v is string => !!v)),
+  ].filter((id) => !opcoes.has(id))
+  const extras = await lerEmLotesPorIds<Record<string, unknown>>(semGrupo, (fatia, de, ate) =>
+    admin
+      .from("usuarios")
+      .select("id, nome_completo, nome_guerra, inativo, deletado")
+      .in("id", fatia)
+      .order("id")
+      .range(de, ate)
+  ).catch(() => [])
+  for (const u of extras) {
+    if (u.inativo === true || u.deletado === true) continue
+    const id = String(u.id)
+    opcoes.set(id, { id, nome: nomeUsuario(u) ?? "(sem nome)", origem: "Outros com acesso ao painel" })
+  }
+
   for (const l of atuais) {
     if (l.usuarioId && !opcoes.has(l.usuarioId)) {
       opcoes.set(l.usuarioId, {
@@ -111,7 +180,11 @@ export async function opcoesResponsaveisLinha(
       })
     }
   }
-  return [...opcoes.values()].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+  return [...opcoes.values()].sort(
+    (a, b) =>
+      ORDEM_ORIGEM.indexOf(a.origem) - ORDEM_ORIGEM.indexOf(b.origem) ||
+      a.nome.localeCompare(b.nome, "pt-BR")
+  )
 }
 
 export type DadosLinha = {
