@@ -22,6 +22,7 @@ import {
 import { Paginacao } from "@/components/paginacao"
 import { requirePermissao } from "@/lib/auth"
 import {
+  enderecoDaFichaPublica,
   listarSolicitacoes,
   ROTULO_SITUACAO_SOLICITACAO,
   SITUACOES_FILA_FILTRO,
@@ -29,6 +30,8 @@ import {
 } from "@/lib/db/filiacao-publica"
 import { formatarData } from "@/lib/formato"
 import { mascaraCpf } from "@/lib/mascaras"
+
+import { EnderecoFicha } from "./endereco-ficha"
 
 export const metadata: Metadata = {
   title: "Fichas de filiação — Confluir",
@@ -59,7 +62,10 @@ export default async function SolicitacoesFiliacaoPage({
   const busca = (brutos.busca ?? "").trim()
   const pagina = Math.max(1, Number(brutos.pagina) || 1)
 
-  const lista = await listarSolicitacoes({ situacao, busca, pagina })
+  const [lista, endereco] = await Promise.all([
+    listarSolicitacoes({ situacao, busca, pagina }),
+    enderecoDaFichaPublica(),
+  ])
   const aqui = "/painel/filiados/solicitacoes"
 
   return (
@@ -79,6 +85,18 @@ export default async function SolicitacoesFiliacaoPage({
           avaliação.
         </p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Ficha de filiação online</CardTitle>
+          <CardDescription>
+            O endereço para divulgar: quem preenche não precisa de login, e a ficha chega aqui para avaliar.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <EnderecoFicha endereco={endereco} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

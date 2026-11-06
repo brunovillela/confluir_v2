@@ -7,6 +7,8 @@ import { validarAssinaturasPdf, type ValidacaoAssinatura } from "@/lib/assinatur
 import { emitirEvento } from "@/lib/db/webhooks"
 
 import { tenantAtual } from "@/lib/tenant"
+import { slugDoTenantAtual } from "@/lib/db/plataforma"
+import { origemAtual, origemDoTenant } from "@/lib/tenant-url"
 
 import { atribuirMatriculaSindical } from "@/lib/db/filiacao-identidade"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
@@ -910,4 +912,14 @@ export async function avaliarSolicitacao(
   await registrarEvento(id, "aprovada", `filiacao_id=${filiacaoId}`, null, null)
   void emitirEvento("filiacao.aprovada", { solicitacaoId: id, filiacaoId, nome: texto(s.nome_completo), cpf: texto(s.cpf), protocolo: s.protocolo ?? null })
   return { ok: true, email: texto(s.email), nome: texto(s.nome_completo), aprovado: true }
+}
+
+/**
+ * Endereço da ficha online para divulgar: sempre o subdomínio da entidade
+ * (`https://<slug>.confluir.online/filiar`), mesmo quando quem copia entrou por
+ * outro endereço. Sem slug cadastrado, o da requisição atual.
+ */
+export async function enderecoDaFichaPublica(): Promise<string> {
+  const slug = await slugDoTenantAtual()
+  return `${slug ? origemDoTenant(slug) : await origemAtual()}/filiar`
 }

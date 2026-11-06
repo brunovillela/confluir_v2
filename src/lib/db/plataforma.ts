@@ -6,6 +6,7 @@ import { avisoValidadeLinkHtml, enviarEmail } from "@/lib/email"
 import { botaoEmail, linkReserva, tituloEmail } from "@/lib/email-layout"
 import { CHAVES_PERMISSAO } from "@/lib/permissoes-catalogo"
 import { createServiceClient } from "@/lib/supabase/admin"
+import { tenantAtual } from "@/lib/tenant"
 import { subdominioReservado } from "@/lib/tenant-host"
 import { origemDoTenant } from "@/lib/tenant-url"
 
@@ -357,4 +358,18 @@ export async function atualizarTenant(
     .eq("id", empresaId)
   if (eEmp) return { erro: `Tenant salvo, mas a organização falhou: ${eEmp.message}` }
   return {}
+}
+
+/**
+ * Subdomínio da entidade da requisição atual — o que monta os endereços públicos
+ * dela (`<slug>.confluir.online`). Só o da própria entidade: `tenants` não é
+ * lido pelo JWT da sessão.
+ */
+export async function slugDoTenantAtual(): Promise<string | null> {
+  const { data } = await createServiceClient()
+    .from("tenants")
+    .select("slug")
+    .eq("empresa_id", await tenantAtual())
+    .maybeSingle()
+  return typeof data?.slug === "string" && data.slug ? data.slug : null
 }
