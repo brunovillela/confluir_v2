@@ -1,6 +1,7 @@
 import "server-only"
 import { lerEmLotes, lerEmLotesPorIds, texto } from "@/lib/db/comum"
 import { pessoasParaDepartamento } from "@/lib/db/departamentos"
+import { listarMandatos } from "@/lib/db/diretoria"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -113,8 +114,9 @@ export async function opcoesResponsaveisLinha(
 ): Promise<ResponsavelLinha[]> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  const [pessoas, classificados, comAcesso] = await Promise.all([
+  const [pessoas, mandatos, classificados, comAcesso] = await Promise.all([
     pessoasParaDepartamento(),
+    listarMandatos().catch(() => []),
     lerEmLotes<Record<string, unknown>>((de, ate) =>
       admin
         .from("usuarios")
@@ -145,6 +147,21 @@ export async function opcoesResponsaveisLinha(
       nome: p.nome,
       origem: p.origem === "diretor" ? "Diretoria" : "Funcionários",
     })
+  }
+  // Diretores ligados à conta pelo próprio integrante (usuario_id): a lista
+  // acima casa pelo CPF e perde quem tem o CPF ausente ou diferente no cadastro.
+  const vigente = mandatos.find((m) => m.vigente) ?? mandatos[0]
+  if (vigente) {
+    const { data: integrantes } = await admin
+      .from("diretoria_integrantes")
+      .select("usuario_id, nome, situacao")
+      .eq("mandato_id", vigente.id)
+      .not("usuario_id", "is", null)
+    for (const i of (integrantes ?? []) as Record<string, unknown>[]) {
+      const id = texto(i.usuario_id)
+      if (!id || i.situacao === "excluido" || opcoes.has(id)) continue
+      opcoes.set(id, { id, nome: texto(i.nome) ?? "(sem nome)", origem: "Diretoria" })
+    }
   }
   for (const u of classificados) {
     const id = String(u.id)
