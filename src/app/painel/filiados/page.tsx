@@ -37,13 +37,14 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
-import { contarSolicitacoesPendentes } from "@/lib/db/filiacao-publica"
+import { contarSolicitacoesPendentes, enderecoDaFichaPublica } from "@/lib/db/filiacao-publica"
 import { resumoFiliados } from "@/lib/db/filiados"
 import { resumoDoPortal } from "@/lib/db/portal-partes"
 import { podeAcessar } from "@/lib/permissoes"
 
 import { indicadorDoPortal } from "./area-do-associado/resumo"
 import { BuscaRapida } from "./busca-rapida"
+import { EnderecoFicha } from "./solicitacoes/endereco-ficha"
 import { SaudeCadastros, SaudeCadastrosCarregando } from "./saude-cadastros"
 
 export const metadata: Metadata = { title: "Filiados — Confluir" }
@@ -370,11 +371,13 @@ export default async function FiliadosPage({
   const periodo =
     periodoBruto === "semana" || periodoBruto === "ano" ? periodoBruto : "mes"
 
-  const [resumo, pendentesFicha, portal] = await Promise.all([
+  const [resumo, pendentesFicha, portal, enderecoFicha] = await Promise.all([
     resumoFiliados(periodo),
     podeRegistrar ? contarSolicitacoesPendentes() : Promise.resolve(0),
     // Indicador da Área do associado: erro aqui só tira o indicador.
     podeRegistrar ? resumoDoPortal().catch(() => null) : Promise.resolve(null),
+    // O link é público: qualquer um daqui pode divulgá-lo.
+    enderecoDaFichaPublica().catch(() => null),
   ])
 
   const condicao = (nome: string) =>
@@ -454,14 +457,17 @@ export default async function FiliadosPage({
             Visão geral do quadro de filiação.
           </p>
         </div>
-        {podeRegistrar && (
-          <Button asChild>
-            <Link href="/painel/filiados/novo">
-              <Plus />
-              Nova filiação
-            </Link>
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {enderecoFicha && <EnderecoFicha endereco={enderecoFicha} compacto />}
+          {podeRegistrar && (
+            <Button asChild>
+              <Link href="/painel/filiados/novo">
+                <Plus />
+                Nova filiação
+              </Link>
+            </Button>
+          )}
+        </div>
       </div>
 
       <BuscaRapida />

@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
  * bloquear a área de transferência, o endereço fica selecionado para copiar
  * à mão.
  */
-export function EnderecoFicha({ endereco }: { endereco: string }) {
+export function EnderecoFicha({ endereco, compacto = false }: { endereco: string; compacto?: boolean }) {
   const [copiado, setCopiado] = useState(false)
   const [manual, setManual] = useState(false)
 
@@ -22,6 +22,24 @@ export function EnderecoFicha({ endereco }: { endereco: string }) {
     } catch {
       setManual(true)
     }
+  }
+
+  // No topo de Filiados: só os dois botões, o endereço vai no título do link.
+  if (compacto) {
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="outline" asChild>
+          <a href={endereco} target="_blank" rel="noreferrer" title={endereco}>
+            <ExternalLink />
+            Ficha de filiação online
+          </a>
+        </Button>
+        <Button type="button" variant="outline" size="icon" onClick={copiar} aria-label="Copiar link da ficha de filiação online" title={copiado ? "Copiado" : "Copiar link"}>
+          {copiado ? <Check /> : <Copy />}
+        </Button>
+        {manual && <span className="text-muted-foreground w-full text-xs">Copie à mão: {endereco}</span>}
+      </div>
+    )
   }
 
   return (
