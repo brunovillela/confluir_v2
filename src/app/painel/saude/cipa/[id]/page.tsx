@@ -3,6 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { CircleCheck, FileText, Pencil, Users } from "lucide-react"
 
+import { AbrirFormulario } from "@/components/abrir-formulario"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
@@ -228,7 +229,9 @@ export default async function ReuniaoCipaPage({
           )}
 
           <div className="border-t pt-4">
-            <RepresentanteForm reuniaoId={id} usuarios={usuarios} />
+            <AbrirFormulario rotulo="Adicionar representante" icone="novo">
+              <RepresentanteForm reuniaoId={id} usuarios={usuarios} />
+            </AbrirFormulario>
           </div>
         </CardContent>
       </Card>
@@ -289,7 +292,9 @@ export default async function ReuniaoCipaPage({
               Nenhuma ata enviada.
             </p>
           )}
-          <AtaForm reuniaoId={id} />
+          <AbrirFormulario rotulo="Enviar ata" icone="novo">
+            <AtaForm reuniaoId={id} />
+          </AbrirFormulario>
         </CardContent>
       </Card>
     </>

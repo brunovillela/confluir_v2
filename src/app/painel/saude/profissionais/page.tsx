@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { CircleCheck, Info, Stethoscope, Tags, TriangleAlert } from "lucide-react"
 
+import { AbrirFormulario } from "@/components/abrir-formulario"
 import { PessoaNome } from "@/components/pessoa-nome"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -173,7 +174,11 @@ export default async function ProfissionaisPage({
             </Table>
           )}
 
-          {!tipoEmEdicao && <TipoForm />}
+          {!tipoEmEdicao && (
+            <AbrirFormulario rotulo="Novo tipo" icone="novo">
+              <TipoForm />
+            </AbrirFormulario>
+          )}
         </CardContent>
       </Card>
 

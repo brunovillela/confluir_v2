@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowLeft, QrCode } from "lucide-react"
 
+import { AbrirFormulario } from "@/components/abrir-formulario"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -157,7 +158,9 @@ export default async function QrCodesPage({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <QrNovoForm defaultDestino={destino} />
+          <AbrirFormulario rotulo="Gerar QR Code" icone="novo" abertoInicial={Boolean(destino)}>
+            <QrNovoForm defaultDestino={destino} />
+          </AbrirFormulario>
         </CardContent>
       </Card>
     </>

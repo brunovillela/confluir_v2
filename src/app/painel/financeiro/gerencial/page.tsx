@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowLeft, ChartColumn } from "lucide-react"
 
+import { AbrirFormulario } from "@/components/abrir-formulario"
 import { GraficoColunas } from "@/components/graficos/colunas"
 import { TileIndicador } from "@/components/graficos/tile"
 import { compacto, moeda, rotuloMes } from "@/components/graficos/base"
@@ -258,10 +259,17 @@ export default async function FinanceiroGerencialPage({ searchParams }: { search
               </div>
             )}
             {podeOrcar && orcamento.orcamentosDisponiveis && (
-              <div className="grid gap-1.5">
-                <p className="text-muted-foreground text-xs">Definir o orçamento anual de um centro de custo que ainda não aparece acima:</p>
+              <AbrirFormulario
+                rotulo="Orçar outro centro"
+                icone="novo"
+                resumo={
+                  <p className="text-muted-foreground text-xs">
+                    Definir o orçamento anual de um centro de custo que ainda não aparece acima.
+                  </p>
+                }
+              >
                 <OrcamentoForm ano={ano} centros={orcamento.centros.filter((c) => !orcamento.linhas.some((l) => l.centroId === c.id))} />
-              </div>
+              </AbrirFormulario>
             )}
           </CardContent>
         </Card>

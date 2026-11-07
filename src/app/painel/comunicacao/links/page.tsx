@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowLeft, ExternalLink, Link2, QrCode } from "lucide-react"
 
+import { AbrirFormulario } from "@/components/abrir-formulario"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -153,7 +154,9 @@ export default async function PaginaLinksAdminPage() {
                 ))}
               </ul>
             )}
-            <NovoLinkForm />
+            <AbrirFormulario rotulo="Novo link" icone="novo">
+              <NovoLinkForm />
+            </AbrirFormulario>
           </CardContent>
         </Card>
       </div>

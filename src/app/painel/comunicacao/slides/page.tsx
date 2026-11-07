@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowLeft, MonitorPlay } from "lucide-react"
 
+import { AbrirFormulario } from "@/components/abrir-formulario"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -153,7 +154,9 @@ export default async function SlidesTvPage({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <NovoConjuntoForm />
+          <AbrirFormulario rotulo="Criar conjunto" icone="novo">
+            <NovoConjuntoForm />
+          </AbrirFormulario>
         </CardContent>
       </Card>
     </>

@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowLeft, BookOpen, Plug } from "lucide-react"
 
+import { AbrirFormulario } from "@/components/abrir-formulario"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -75,7 +76,9 @@ export default async function ApiPage({ searchParams }: { searchParams: Promise<
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
-              <NovaChaveForm />
+              <AbrirFormulario rotulo="Nova chave" icone="novo">
+                <NovaChaveForm />
+              </AbrirFormulario>
               {chaves.length > 0 && (
                 <Table>
                   <TableHeader>

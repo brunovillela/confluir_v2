@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowLeft, ExternalLink, Rss, Sparkles } from "lucide-react"
 
+import { AbrirFormulario } from "@/components/abrir-formulario"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -79,7 +80,9 @@ export default async function ResumoPage({
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
-          <AdicionarFonteForm />
+          <AbrirFormulario rotulo="Adicionar site" icone="novo">
+            <AdicionarFonteForm />
+          </AbrirFormulario>
           {fontes.length > 0 && (
             <ul className="divide-y">
               {fontes.map((f) => (

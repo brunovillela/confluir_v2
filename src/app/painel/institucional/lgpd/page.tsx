@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowLeft, ShieldCheck } from "lucide-react"
 
+import { AbrirFormulario } from "@/components/abrir-formulario"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -149,7 +150,9 @@ export default async function LgpdPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
-              <NovoBloqueioForm />
+              <AbrirFormulario rotulo="Novo bloqueio" icone="novo">
+                <NovoBloqueioForm />
+              </AbrirFormulario>
               {dados.bloqueios.length > 0 && (
                 <Table>
                   <TableHeader>
