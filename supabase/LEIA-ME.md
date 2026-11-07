@@ -26,6 +26,7 @@ npm run db:aplicar                      # aplica em produção as pendentes, em 
 npm run db:dicionario                   # regera docs/dados/ (dicionário, ER, RLS, dados pessoais)
 npm run db:deriva                       # o banco mudou fora das migrações?
 npm run db:restaurar -- --seed          # reconstrói num projeto VAZIO (SUPABASE_DB_URL_RESTAURO) e compara com produção
+npm run db:isolamento                   # nenhuma entidade lê dados de outra nem a chave pública lê nada (RLS)
 ```
 
 **Restauração.** `db:restaurar` aplica `migrations/` num projeto Supabase
@@ -40,6 +41,12 @@ O `db:aplicar` regrava a impressão, e ela vai no mesmo commit da migração. O
 `db:deriva` compara a impressão com o banco, e o cron `/api/schema/deriva/tick`
 faz o mesmo toda segunda e avisa no Sentry. Uma diferença que não veio de
 migração significa mudança pelo dashboard: transforme-a em migração.
+
+**Isolamento.** Depois de aplicar migração que cria tabela ou view, rode
+`db:isolamento`: ele confere, só lendo e uma consulta leve por vez, o que
+uma entidade inexistente e a chave pública conseguem ver em cada tabela com `emp_proprietaria_id` — tem de ser
+nada. Também avisa a tabela que a própria entidade não lê (política esquecida
+ou tabela só do servidor, a registrar em `SO_DO_SERVIDOR` no script).
 
 Regras:
 - Uma migração por mudança, **idempotente** (`if not exists`, `or replace`, `drop … if exists`), com o cabeçalho POR QUÊ / COMO que os arquivos de `historico/` já usam.

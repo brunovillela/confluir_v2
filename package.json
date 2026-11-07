@@ -16,6 +16,7 @@
     "db:deriva": "node scripts/db.mjs deriva",
     "db:dicionario": "node scripts/gerar-dicionario.mjs",
     "db:restaurar": "node scripts/restaurar.mjs",
+    "db:isolamento": "node scripts/conferir-isolamento.mjs",
     "lgpd:ropa": "node scripts/gerar-ropa.mjs",
     "votacao:auditar": "node scripts/auditar-votacao.mjs",
     "produto:notas": "node --no-warnings scripts/gerar-notas-versao.mjs"
