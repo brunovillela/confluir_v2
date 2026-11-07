@@ -87,7 +87,15 @@ export default async function CategoriasFontePage() {
             <CardTitle className="text-base">Nova categoria</CardTitle>
           </CardHeader>
           <CardContent>
-            <AbrirFormulario rotulo="Criar categoria" icone="novo">
+            <AbrirFormulario
+              rotulo="Criar categoria"
+              icone="novo"
+              resumo={
+                <p className="text-muted-foreground text-sm">
+                  Dê um nome e escolha as regras de vínculo que ela segue: as de Empregador ou as de Fundo de pensão.
+                </p>
+              }
+            >
               <NovaCategoriaForm />
             </AbrirFormulario>
           </CardContent>

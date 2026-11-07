@@ -94,7 +94,12 @@ export default async function ComparacoesPage({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <AbrirFormulario rotulo="Comparar acordos" icone="novo" abertoInicial={Boolean(sp.a || sp.b)}>
+          <AbrirFormulario
+            rotulo="Comparar acordos"
+            icone="novo"
+            abertoInicial={Boolean(sp.a || sp.b)}
+            resumo={<p className="text-muted-foreground text-sm">Escolha os dois acordos e a IA aponta as diferenças cláusula por cláusula.</p>}
+          >
             <NovaComparacaoForm acordos={acordos} inicialA={sp.a} inicialB={sp.b} />
           </AbrirFormulario>
         </CardContent>
