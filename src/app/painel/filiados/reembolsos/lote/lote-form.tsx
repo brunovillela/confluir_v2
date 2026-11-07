@@ -242,7 +242,13 @@ export function LoteForm({ hoje, projetos }: { hoje: string; projetos: { id: str
                 disabled={lancando || conferindo || prontas.length === 0 || lancadas === prontas.length}
               >
                 {lancando ? <Loader2 className="animate-spin" /> : <Send />}
-                {falhas && !lancando ? `Lançar de novo os ${falhas} que falharam` : `Lançar ${prontas.length - lancadas} reembolso(s)`}
+                {falhas && !lancando
+                  ? `Lançar de novo os ${falhas} que falharam`
+                  : prontas.length === 0
+                    ? "Nada a lançar"
+                    : lancadas === prontas.length
+                      ? "Todos lançados"
+                      : `Lançar ${prontas.length - lancadas} reembolso(s)`}
               </Button>
             </div>
 
