@@ -2,7 +2,7 @@
 
 import { Fragment, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { ExternalLink, FileSearch, Loader2, RotateCcw, Trash2 } from "lucide-react"
+import { Check, ExternalLink, FileSearch, Loader2, Pencil, RotateCcw, Trash2, X } from "lucide-react"
 
 import { Trabalhando } from "@/components/trabalhando"
 import { useLeituraEmLotes } from "@/hooks/use-leitura-em-lotes"
@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils"
 import {
   aplicarItensCCAction,
   associarFuncionarioCCAction,
+  corrigirLiquidoCCAction,
   descartarItemCCAction,
   lerImportacaoCCAction,
 } from "../actions"
@@ -104,6 +105,34 @@ export function ConferenciaCC({
       else n.add(id)
       return n
     })
+  // Marcar todos: inclui os com alerta — é a escolha explícita de quem conferiu.
+  const todosMarcados = aplicaveis.length > 0 && selecionados.length === aplicaveis.length
+  const algunsMarcados = selecionados.length > 0 && !todosMarcados
+  const alternarTodos = () => setMarcados(todosMarcados ? new Set() : new Set(aplicaveis))
+
+  // ── Correção do líquido (antes de aplicar) ──
+  const [editando, setEditando] = useState<{ id: string; valor: string } | null>(null)
+  const [erroEdicao, setErroEdicao] = useState<string | null>(null)
+  const abrirEdicao = (i: ItemTelaCC) => {
+    setErroEdicao(null)
+    const v = i.leitura?.valorLiquido
+    setEditando({ id: i.id, valor: v === null || v === undefined ? "" : v.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) })
+  }
+  const salvarEdicao = () => {
+    if (!editando) return
+    const { id, valor } = editando
+    iniciar({ titulo: "Corrigindo o valor líquido…" }, async () => {
+      const r = await corrigirLiquidoCCAction(remessaId, importacaoId, id, valor)
+      if (r.erro) {
+        setErroEdicao(r.erro)
+        return
+      }
+      setEditando(null)
+      // Quem corrigiu conferiu: o item entra marcado.
+      setMarcados((m) => new Set(m).add(id))
+      router.refresh()
+    })
+  }
 
   const [ocupado, iniciarTransicao] = useTransition()
   const [tarefa, setTarefa] = useState<{ titulo: string; detalhe?: string } | null>(null)
@@ -119,16 +148,19 @@ export function ConferenciaCC({
     })
   }
 
-  const totalSelecionado = itens
-    .filter((i) => selecionados.includes(i.id))
-    .reduce((s, i) => s + (i.leitura?.valorLiquido ?? 0), 0)
+  const liquidoDe = (ids: string[]) =>
+    itens.filter((i) => ids.includes(i.id)).reduce((s, i) => s + (i.leitura?.valorLiquido ?? 0), 0)
+  const totalSelecionado = liquidoDe(selecionados)
 
   // A confirmação vem antes da transição (dentro dela, o diálogo só apareceria no fim).
-  const aplicar = async () => {
-    const n = selecionados.length
+  // Sem `ids`, aplica os marcados; com um id, só aquela linha.
+  const aplicar = async (ids: string[] = selecionados) => {
+    const n = ids.length
+    const um = n === 1 ? itens.find((i) => i.id === ids[0]) : null
+    const total = liquidoDe(ids)
     const ok = await confirmar({
-      titulo: `Aplicar ${n} contracheque(s) à remessa?`,
-      descricao: `Cria o contracheque de cada um com o PDF dele e o valor líquido lido (total: ${moeda(totalSelecionado)}).${
+      titulo: um ? `Aplicar o contracheque de ${um.funcionarioNome ?? "este funcionário"}?` : `Aplicar ${n} contracheque(s) à remessa?`,
+      descricao: `${um ? "Cria o contracheque com o PDF dele e o valor líquido" : "Cria o contracheque de cada um com o PDF dele e o valor líquido"} (${um ? "" : "total: "}${moeda(total)}).${
         geraOrdem ? " Cada um gera a ordem de pagamento com o líquido, como no registro manual." : ""
       } Nada é enviado ao funcionário: os contracheques ficam bloqueados até você liberar na remessa.`,
       confirmar: "Aplicar",
@@ -140,7 +172,8 @@ export function ConferenciaCC({
         detalhe: geraOrdem ? "Gravando os contracheques e gerando as ordens de pagamento." : "Gravando os contracheques.",
       },
       async () => {
-        const r = await aplicarItensCCAction(remessaId, importacaoId, selecionados)
+        const r = await aplicarItensCCAction(remessaId, importacaoId, ids)
+        if (!r.erro) setMarcados((m) => new Set([...m].filter((id) => !ids.includes(id))))
         setResultado(
           r.erro
             ? { erro: r.erro }
@@ -206,7 +239,7 @@ export function ConferenciaCC({
           {selecionados.length} de {aplicaveis.length} pronto(s) para aplicar marcado(s)
           {selecionados.length > 0 && ` · ${moeda(totalSelecionado)} líquido`}
         </span>
-        <Button size="sm" onClick={aplicar} disabled={ocupado || lendo || selecionados.length === 0}>
+        <Button size="sm" onClick={() => aplicar()} disabled={ocupado || lendo || selecionados.length === 0}>
           {ocupado && <Loader2 className="animate-spin" />}
           Aplicar à remessa ({selecionados.length})
         </Button>
@@ -216,7 +249,18 @@ export function ConferenciaCC({
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead className="w-8" />
+              <TableHead className="w-8">
+                <input
+                  type="checkbox"
+                  aria-label="Marcar todos os contracheques prontos para aplicar"
+                  checked={todosMarcados}
+                  ref={(el) => {
+                    if (el) el.indeterminate = algunsMarcados
+                  }}
+                  disabled={aplicaveis.length === 0 || ocupado}
+                  onChange={alternarTodos}
+                />
+              </TableHead>
               <TableHead>Pág.</TableHead>
               <TableHead>Funcionário</TableHead>
               <TableHead>Competência</TableHead>
@@ -283,7 +327,56 @@ export function ConferenciaCC({
                     <TableCell className="tabular-nums">{mesAno(l?.competencia) ?? (sendoLido ? <Skeleton className="h-3 w-14" /> : "—")}</TableCell>
                     <TableCell className="text-right tabular-nums">{moeda(l?.totalProventos) ?? vazio}</TableCell>
                     <TableCell className="text-right tabular-nums">{moeda(l?.totalDescontos) ?? vazio}</TableCell>
-                    <TableCell className="text-right font-medium tabular-nums">{moeda(l?.valorLiquido) ?? vazio}</TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">
+                      {editando?.id === i.id ? (
+                        <div className="flex flex-col items-end gap-1">
+                          <div className="flex items-center justify-end gap-1">
+                            <input
+                              aria-label="Valor líquido"
+                              inputMode="decimal"
+                              autoFocus
+                              className="border-input bg-background h-7 w-28 rounded-md border px-2 text-right text-xs tabular-nums shadow-xs outline-none"
+                              value={editando.valor}
+                              disabled={ocupado}
+                              onChange={(e) => setEditando({ id: i.id, valor: e.target.value })}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") salvarEdicao()
+                                if (e.key === "Escape") setEditando(null)
+                              }}
+                            />
+                            <Button variant="ghost" size="sm" className="h-7 px-1.5" aria-label="Salvar o valor" disabled={ocupado} onClick={salvarEdicao}>
+                              <Check />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="h-7 px-1.5" aria-label="Cancelar" disabled={ocupado} onClick={() => setEditando(null)}>
+                              <X />
+                            </Button>
+                          </div>
+                          {erroEdicao && <span className="text-destructive text-xs font-normal">{erroEdicao}</span>}
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-end gap-1">
+                          {moeda(l?.valorLiquido) ?? vazio}
+                          {podeEditar && !sendoLido && (i.situacao === "lido" || i.situacao === "erro") && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-muted-foreground h-6 px-1"
+                              aria-label="Corrigir o valor líquido"
+                              title="Corrigir o valor líquido"
+                              disabled={ocupado}
+                              onClick={() => abrirEdicao(i)}
+                            >
+                              <Pencil className="size-3" />
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                      {l?.valorLiquidoIa !== undefined && editando?.id !== i.id && (
+                        <span className="text-muted-foreground block text-xs font-normal">
+                          corrigido · IA leu {moeda(l.valorLiquidoIa) ?? "nada"}
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       {sendoLido ? (
                         <Badge variant="outline" className="border-info/40 text-info-fg gap-1">
@@ -300,6 +393,17 @@ export function ConferenciaCC({
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-1">
+                        {!i.bloqueio && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2"
+                            disabled={ocupado || lendo}
+                            onClick={() => aplicar([i.id])}
+                          >
+                            Aplicar
+                          </Button>
+                        )}
                         {i.urlPdf && (
                           <Button variant="ghost" size="sm" className="h-7 px-2" asChild>
                             <a href={i.urlPdf} target="_blank" rel="noreferrer">

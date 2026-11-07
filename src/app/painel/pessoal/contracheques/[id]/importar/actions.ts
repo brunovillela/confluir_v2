@@ -8,10 +8,12 @@ import { type EstadoForm } from "@/lib/contas"
 import {
   aplicarItensCC,
   associarFuncionarioCC,
+  corrigirLiquidoCC,
   criarImportacaoCC,
   descartarItemCC,
   lerPendentesCC,
 } from "@/lib/db/contracheque-importacao"
+import { lerValor } from "@/lib/reembolsos-lote"
 
 const exigirAcesso = () => requirePermissao("pessoal_gestao", ["pessoal_contracheque"])
 
@@ -75,5 +77,20 @@ export async function aplicarItensCCAction(
   revalidatePath(caminho(remessaId, importacaoId))
   revalidatePath("/painel/pessoal/contracheques", "layout")
   revalidatePath("/painel/financeiro/ordens")
+  return r
+}
+
+/** Corrige o líquido lido pela IA (texto pt-BR: "3.250,40"). */
+export async function corrigirLiquidoCCAction(
+  remessaId: string,
+  importacaoId: string,
+  itemId: string,
+  bruto: string
+): Promise<{ erro?: string }> {
+  await exigirAcesso()
+  const valor = lerValor(bruto)
+  if (valor === null) return { erro: "Valor inválido. Use o formato 3.250,40." }
+  const r = await corrigirLiquidoCC(itemId, valor)
+  revalidatePath(caminho(remessaId, importacaoId))
   return r
 }

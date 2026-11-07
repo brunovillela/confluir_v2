@@ -317,6 +317,41 @@ export async function descartarItemCC(itemId: string, voltar = false): Promise<{
   return error ? { erro: error.message } : {}
 }
 
+/**
+ * Corrige o líquido na conferência, antes de aplicar. O valor que a IA leu
+ * fica em valorLiquidoIa (a tela mostra "IA leu …"); voltar ao valor da IA
+ * apaga a marca. Item com erro na leitura passa a "lido" com o valor digitado.
+ */
+export async function corrigirLiquidoCC(itemId: string, valor: number): Promise<{ erro?: string }> {
+  if (!Number.isFinite(valor) || valor < 0) return { erro: "Informe um valor líquido válido." }
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data, error: e1 } = await admin
+    .from(ITENS)
+    .select("leitura, situacao, contracheque_id")
+    .eq("id", itemId)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  if (e1 || !data) return { erro: "Item não encontrado." }
+  if (data.contracheque_id || data.situacao === "aplicado") return { erro: "Este contracheque já foi aplicado: corrija o valor na remessa." }
+  if (data.situacao === "descartado") return { erro: "Restaure o item antes de corrigir o valor." }
+  if (data.situacao === "pendente") return { erro: "Aguarde a leitura da IA antes de corrigir o valor." }
+  const antes = (data.leitura ?? null) as LeituraContracheque | null
+  const base: LeituraContracheque = antes ?? { nome: null, cpf: null, competencia: null, totalProventos: null, totalDescontos: null, valorLiquido: null }
+  const lidoPelaIa = antes ? (antes.valorLiquidoIa !== undefined ? antes.valorLiquidoIa : antes.valorLiquido) : null
+  const centavos = Math.round(valor * 100) / 100
+  const leitura: LeituraContracheque = { ...base, valorLiquido: centavos }
+  if (lidoPelaIa !== null && lidoPelaIa === centavos) delete leitura.valorLiquidoIa
+  else leitura.valorLiquidoIa = lidoPelaIa
+  const { error } = await admin
+    .from(ITENS)
+    .update({ leitura, situacao: "lido", erro: null })
+    .eq("id", itemId)
+    .eq("emp_proprietaria_id", emp)
+    .is("contracheque_id", null)
+  return error ? { erro: error.message } : {}
+}
+
 // ── 4. Aplicar à remessa ─────────────────────────────────────────────────────
 
 /**

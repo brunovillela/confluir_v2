@@ -11,6 +11,8 @@ export type LeituraContracheque = {
   totalProventos: number | null
   totalDescontos: number | null
   valorLiquido: number | null
+  /** O líquido que a IA leu, guardado quando a pessoa corrige o valor na conferência. */
+  valorLiquidoIa?: number | null
 }
 
 const MESES = ["janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
