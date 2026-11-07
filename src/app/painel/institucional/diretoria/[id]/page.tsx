@@ -21,6 +21,7 @@ import {
 } from "@/lib/db/diretoria"
 import type { Integrante } from "@/lib/db/diretoria"
 import { formatarData } from "@/lib/formato"
+import { podeAcessar } from "@/lib/permissoes"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 
 import {
@@ -43,7 +44,9 @@ export default async function MandatoPage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  await requirePermissao("diretoria_mandatos", ["configuracoes"])
+  const sessao = await requirePermissao("diretoria_mandatos", ["configuracoes"])
+  // Quem não tem acesso às atas não vê nem os títulos (nem o cartão).
+  const podeVerAtas = podeAcessar(sessao.permissoes, "diretoria_reunioes", ["diretoria_atas_consulta"])
   const { id } = await params
 
   const mandato = await obterMandato(id)
@@ -52,7 +55,7 @@ export default async function MandatoPage({
   const idsUsuarios = mandato.integrantes.map((i) => i.usuarioId).filter((u): u is string => Boolean(u))
   const [{ liberacoes }, atas, assentos, departamentos, fotos] = await Promise.all([
     listarLiberacoes(id),
-    listarAtas({ mandatoId: id }),
+    podeVerAtas ? listarAtas({ mandatoId: id }) : Promise.resolve([]),
     assentosDoMandato(id),
     departamentosPorUsuario(idsUsuarios),
     fotosDosUsuarios(idsUsuarios),
@@ -130,6 +133,7 @@ export default async function MandatoPage({
           icone={UserCheck}
           indicador={`${liberacoesVigentes} ${liberacoesVigentes === 1 ? "vigente" : "vigentes"} · ${liberacoes.length} no total`}
         />
+        {podeVerAtas && (
         <CartaoArea
           titulo="Atas de reunião"
           descricao="Reuniões deste mandato, com a ata em PDF"
@@ -137,6 +141,7 @@ export default async function MandatoPage({
           icone={FileText}
           indicador={`${atas.length} ${atas.length === 1 ? "ata" : "atas"}`}
         />
+        )}
       </div>
 
       {/* Integrantes por grupo */}

@@ -13,7 +13,7 @@ import {
   subirDocumentoAta,
   type DadosAta,
 } from "@/lib/db/atas"
-import { registrarDeliberacoesLidas } from "@/lib/db/deliberacoes"
+import { deliberacoesDaAta, registrarDeliberacoesLidas } from "@/lib/db/deliberacoes"
 import {
   ehSigiloDeliberacao,
   nivelSigilo,
@@ -149,6 +149,11 @@ export async function atualizarAtaAction(
   if (!atual) return { erro: "Ata não encontrada." }
   const sigilo = lerSigiloDocumento(fd, sessao.permissoes, atual)
   if (sigilo.erro) return { erro: sigilo.erro, campo: "sigilo_documento" }
+  // PDF acima do nível de quem edita: não pode ser trocado por quem não o lê.
+  const arquivo = fd.get("documento")
+  if (sigilo.sigilo === undefined && arquivo instanceof File && arquivo.size > 0) {
+    return { erro: "O PDF desta ata está acima do seu acesso às deliberações — não pode ser trocado por você.", campo: "documento" }
+  }
   const { caminho, erro: erroArq } = await lerDocumento(fd)
   if (erroArq) return { erro: erroArq }
   const dados = lerDados(fd)
@@ -174,9 +179,17 @@ export async function excluirAtaAction(
   _prev: EstadoForm,
   fd: FormData
 ): Promise<EstadoForm> {
-  await requirePermissao("diretoria_reunioes")
+  const sessao = await requirePermissao("diretoria_reunioes")
   const id = texto(fd, "ata_id")
   const mandatoId = texto(fd, "mandato_id")
+  // Excluir a ata leva o PDF e todas as deliberações: só quem alcança tudo.
+  const sigilos = sigilosVisiveis(nivelSigilo(sessao.permissoes))
+  const atual = await sigiloDocumentoDaAta(id)
+  if (!atual) return { erro: "Ata não encontrada." }
+  const { ocultas } = await deliberacoesDaAta(id, sigilos)
+  if (!sigilos.includes(atual) || ocultas > 0) {
+    return { erro: "Esta ata tem conteúdo acima do seu acesso às deliberações — só quem alcança esse sigilo pode excluí-la." }
+  }
   const { erro } = await excluirAta(id)
   if (erro) return { erro }
   revalidar(undefined, mandatoId || undefined)

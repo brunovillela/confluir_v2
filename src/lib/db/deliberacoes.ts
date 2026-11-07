@@ -295,6 +295,10 @@ export async function atualizarDeliberacao(
     .eq("id", id)
   if (error) return { erro: `Falha ao salvar a deliberação: ${error.message}` }
   if (antes) {
+    // Sigilo subiu: os eventos anteriores (com o teor de antes) sobem junto —
+    // senão quem tem o nível antigo leria na trilha o que deixou de poder
+    // ver, inclusive depois da exclusão, quando os eventos perdem o vínculo.
+    await subirSigiloDosEventos(id, dados.sigilo)
     const mudancas = await diferencas(antes, dados)
     // Salvar sem mudar nada não vira evento.
     if (mudancas.length > 0) {
@@ -476,6 +480,24 @@ const ROTULO_CAMPO: Record<string, string> = {
   prazo: "Prazo",
   situacao: "Situação",
   sigilo: "Sigilo",
+}
+
+/**
+ * Leva ao sigilo `novo` os eventos da deliberação que estão abaixo dele.
+ * Só sobe: baixar o sigilo não expõe a trilha do tempo em que era maior.
+ */
+async function subirSigiloDosEventos(deliberacaoId: string, novo: SigiloDeliberacao): Promise<void> {
+  const ordem: SigiloDeliberacao[] = SIGILOS_DELIBERACAO.map((x) => x.chave)
+  const abaixo = ordem.slice(0, ordem.indexOf(novo))
+  if (abaixo.length === 0) return
+  const admin = await createAdminClient()
+  const { error } = await admin
+    .from("reuniao_deliberacao_eventos")
+    .update({ sigilo: novo })
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("deliberacao_id", deliberacaoId)
+    .in("sigilo", abaixo)
+  if (error) console.error("trilha da deliberação (sigilo):", error.message)
 }
 
 function maisRestrito(a: SigiloDeliberacao, b: SigiloDeliberacao): SigiloDeliberacao {

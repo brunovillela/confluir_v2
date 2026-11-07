@@ -111,13 +111,19 @@ export function AtaForm({
           <Sparkles className="text-primary size-4" />
           Ata em PDF{ata ? " (vazio mantém a atual)" : ""}
         </Label>
-        <Input
-          id="documento"
-          name="documento"
-          type="file"
-          accept="application/pdf"
-          onChange={(e) => lerComIA(e.target.files?.[0])}
-        />
+        {sigiloForaDoAlcance ? (
+          <p className="text-muted-foreground text-sm">
+            O PDF desta ata está acima do seu acesso às deliberações — fica como está.
+          </p>
+        ) : (
+          <Input
+            id="documento"
+            name="documento"
+            type="file"
+            accept="application/pdf"
+            onChange={(e) => lerComIA(e.target.files?.[0])}
+          />
+        )}
         <p className="text-muted-foreground text-xs">
           Ao escolher o arquivo, a IA lê a ata e preenche título, tipo, data, hora, local, pauta,
           resumo e presentes{ata ? " que estiverem vazios" : ""}, e separa as deliberações. Confira antes

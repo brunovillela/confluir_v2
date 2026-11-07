@@ -22,7 +22,9 @@ export default async function AtasDoMandatoPage({
 }: {
   params: Promise<{ id: string }>
 }) {
+  // Além do mandato, o acesso às atas (como na lista geral e na página da ata).
   const sessao = await requirePermissao("diretoria_mandatos", ["configuracoes"])
+  if (!podeAcessar(sessao.permissoes, "diretoria_reunioes", ["diretoria_atas_consulta"])) notFound()
   const podeCriarAta = podeAcessar(sessao.permissoes, "diretoria_reunioes")
   const { id } = await params
   const mandato = await obterMandato(id)

@@ -131,7 +131,10 @@ export default async function AtaPage({
                     Editar
                   </Link>
                 </Button>
-                <BotaoExcluirAta ataId={id} mandatoId={a.mandatoId} />
+                {/* Excluir leva o PDF e as deliberações: só quem alcança todo o sigilo da ata. */}
+                {sigilos.includes(a.sigiloDocumento) && ocultas === 0 && (
+                  <BotaoExcluirAta ataId={id} mandatoId={a.mandatoId} />
+                )}
               </div>
             )}
           </div>
