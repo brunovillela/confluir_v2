@@ -162,7 +162,7 @@ export function ConferenciaCC({
       titulo: um ? `Aplicar o contracheque de ${um.funcionarioNome ?? "este funcionário"}?` : `Aplicar ${n} contracheque(s) à remessa?`,
       descricao: `${um ? "Cria o contracheque com o PDF dele e o valor líquido" : "Cria o contracheque de cada um com o PDF dele e o valor líquido"} (${um ? "" : "total: "}${moeda(total)}).${
         geraOrdem ? " Cada um gera a ordem de pagamento com o líquido, como no registro manual." : ""
-      } Nada é enviado ao funcionário: os contracheques ficam bloqueados até você liberar na remessa.`,
+      } Nada é enviado ao funcionário: ${um ? "o contracheque fica bloqueado" : "os contracheques ficam bloqueados"} até você liberar na remessa.`,
       confirmar: "Aplicar",
     })
     if (!ok) return
