@@ -15,9 +15,11 @@ import { requirePermissao } from "@/lib/auth";
 import { listarContasCaixa } from "@/lib/db/caixa";
 import { resumoFinanceiro } from "@/lib/db/financeiro";
 import { contarEstornosPendentes } from "@/lib/db/ordens-estorno";
+import { modulosSemUso } from "@/lib/db/financeiro-filas";
 import { formatarMoeda } from "@/lib/formato";
 import { podeAcessar } from "@/lib/permissoes";
 
+import { FilasDoDia, FilasDoDiaCarregando } from "./filas-do-dia";
 import { LembreteFechamento } from "./lembrete-fechamento";
 import { SeloContasBancarias } from "./selo-contas-bancarias";
 
@@ -55,12 +57,13 @@ export default async function FinanceiroPage() {
     "financeiro_leitura",
   ]);
 
-  const [resumo, caixas, estornosPendentes] = await Promise.all([
+  const [resumo, caixas, estornosPendentes, semUso] = await Promise.all([
     resumoFinanceiro(),
     veCaixa
       ? listarContasCaixa()
       : Promise.resolve({ disponivel: false, contas: [] }),
     veEstornos ? contarEstornosPendentes() : Promise.resolve(0),
+    modulosSemUso().catch(() => ({ remessas: false, cartoes: false })),
   ]);
 
   const caixasAbertas = caixas.contas.filter(
@@ -118,6 +121,7 @@ export default async function FinanceiroPage() {
       descricao: "Plano de contas: códigos, classificadores e indicações",
       href: "/painel/financeiro/centros-custo",
       icone: CircleDollarSign,
+      recolhido: true,
     },
     veEstornos && {
       titulo: "Estornos de pagamento",
@@ -133,12 +137,14 @@ export default async function FinanceiroPage() {
       descricao: "Regras que o sistema confere antes de criar cada ordem",
       href: "/painel/financeiro/auditoria",
       icone: ShieldCheck,
+      recolhido: true,
     },
     veOrdens && {
       titulo: "Cartões",
       descricao: "Cartões da entidade usados para pagar compras",
       href: "/painel/financeiro/cartoes",
       icone: CreditCard,
+      recolhido: semUso.cartoes,
     },
     veTributos && {
       titulo: "Tributos",
@@ -151,6 +157,7 @@ export default async function FinanceiroPage() {
       descricao: "Arquivo CNAB 240 das ordens a pagar e o retorno do banco",
       href: "/painel/financeiro/remessas",
       icone: FileOutput,
+      recolhido: semUso.remessas,
     },
     veOrdens && {
       titulo: "Contas bancárias",
@@ -187,7 +194,11 @@ export default async function FinanceiroPage() {
     href: string;
     icone: typeof Receipt;
     selo?: ReactNode;
+    /** Configuração ou módulo sem uso: fica em "Mais ferramentas". */
+    recolhido?: boolean;
   }[];
+  const principais = atalhos.filter((a) => !a.recolhido);
+  const maisFerramentas = atalhos.filter((a) => a.recolhido);
 
   return (
     <>
@@ -198,6 +209,12 @@ export default async function FinanceiroPage() {
         </p>
       </div>
 
+      {veOrdens && (
+        <Suspense fallback={<FilasDoDiaCarregando />}>
+          <FilasDoDia veAvaliacoes={veAvaliacoes} />
+        </Suspense>
+      )}
+
       {podeAcessar(sessao.permissoes, "financeiro_pagamento") && (
         <Suspense fallback={null}>
           <LembreteFechamento />
@@ -205,7 +222,7 @@ export default async function FinanceiroPage() {
       )}
 
       <div className={GRADE_AREAS}>
-        {atalhos.map((a) => (
+        {principais.map((a) => (
           <CartaoArea
             key={a.href}
             titulo={a.titulo}
@@ -216,6 +233,19 @@ export default async function FinanceiroPage() {
           />
         ))}
       </div>
+
+      {maisFerramentas.length > 0 && (
+        <details className="group">
+          <summary className="text-muted-foreground hover:text-foreground cursor-pointer text-sm select-none">
+            Mais ferramentas ({maisFerramentas.length}) — configurações e módulos que a entidade ainda não usa
+          </summary>
+          <div className={`${GRADE_AREAS} mt-3`}>
+            {maisFerramentas.map((a) => (
+              <CartaoArea key={a.href} titulo={a.titulo} descricao={a.descricao} href={a.href} icone={a.icone} selo={a.selo} />
+            ))}
+          </div>
+        </details>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {indicadores.map((ind) => (
