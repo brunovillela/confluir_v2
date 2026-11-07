@@ -4,6 +4,7 @@ import { ArrowLeft, Lightbulb, Users } from "lucide-react"
 
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AbrirFormulario } from "@/components/abrir-formulario"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -97,12 +98,19 @@ export default async function GhePage({
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Novo GHE</CardTitle>
-            <CardDescription>
-              Crie o grupo e depois adicione os funcionários na página do GHE.
-            </CardDescription>
           </CardHeader>
           <CardContent>
-            <GheForm />
+            <AbrirFormulario
+              rotulo="Criar GHE"
+              icone="novo"
+              resumo={
+                <p className="text-muted-foreground text-sm">
+                  Crie o grupo e depois adicione os funcionários na página do GHE.
+                </p>
+              }
+            >
+              <GheForm />
+            </AbrirFormulario>
           </CardContent>
         </Card>
       </div>

@@ -35,10 +35,13 @@ export function ConvenioForm({
   categorias,
   conveniadores,
   convenio,
+  aoCancelarHref = "/painel/filiados/convenios",
 }: {
   categorias: CategoriaConvenio[]
   conveniadores: OpcaoConveniador[]
   convenio?: ConvenioEditavel
+  /** Para onde o Cancelar leva (na edição, de volta ao convênio). */
+  aoCancelarHref?: string
 }) {
   const [estado, formAction, pendente] = useActionState(salvarConvenioAction, {})
   const envio = useEnvioFormulario(formAction, estado)
@@ -164,7 +167,7 @@ export function ConvenioForm({
 
       <div className="flex items-center justify-end gap-2">
         <Button variant="ghost" asChild>
-          <Link href="/painel/filiados/convenios">Cancelar</Link>
+          <Link href={aoCancelarHref}>Cancelar</Link>
         </Button>
         <Button type="submit" disabled={pendente}>
           {pendente && <Loader2 className="animate-spin" />}

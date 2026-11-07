@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { AbrirFormulario } from "@/components/abrir-formulario"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { requirePermissao } from "@/lib/auth"
 import {
@@ -27,6 +28,7 @@ import {
 import { BENEFICIOS } from "@/lib/filiacao-direitos-constantes"
 import { contarCondicoesAtivas } from "@/lib/hospedagem-condicoes-constantes"
 import { lerRegraNaoComparecimento } from "@/lib/db/hospedagem-garantida"
+import { PENALIDADES_NAO_COMPARECIMENTO } from "@/lib/hospedagem-garantida-constantes"
 import { formatarCnpjCpf, formatarData } from "@/lib/formato"
 
 import {
@@ -131,8 +133,16 @@ export default async function DireitosPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
+          {/* Cada regra para ler; o formulário só com "Editar" (padrão do Confluir). */}
           {carencias.map((c) => (
-            <CarenciaForm key={c.beneficio} carencia={c} hojeIso={hojeIso} />
+            <RegraFechada
+              key={c.beneficio}
+              titulo={BENEFICIOS.find((b) => b.chave === c.beneficio)?.rotulo ?? c.beneficio}
+              situacao={c.ativo ? `Carência de ${c.dias} dia(s) desde a filiação mais recente` : "Sem carência"}
+              ligada={c.ativo}
+            >
+              <CarenciaForm carencia={c} hojeIso={hojeIso} />
+            </RegraFechada>
           ))}
         </CardContent>
       </Card>
@@ -221,7 +231,17 @@ export default async function DireitosPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <NaoComparecimentoForm regra={regraNaoComparecimento} />
+          <RegraFechada
+            titulo="Penalidade por não comparecimento"
+            situacao={
+              regraNaoComparecimento.ativa
+                ? `${PENALIDADES_NAO_COMPARECIMENTO.find((p) => p.chave === regraNaoComparecimento.penalidade)?.rotulo ?? regraNaoComparecimento.penalidade} a partir de ${regraNaoComparecimento.quantidade} falta(s) em ${regraNaoComparecimento.janelaMeses} mês(es)`
+                : "Desligada: faltar não gera penalidade"
+            }
+            ligada={regraNaoComparecimento.ativa}
+          >
+            <NaoComparecimentoForm regra={regraNaoComparecimento} />
+          </RegraFechada>
         </CardContent>
       </Card>
 
@@ -238,7 +258,18 @@ export default async function DireitosPage() {
         </CardHeader>
         <CardContent className="grid gap-4">
           {regras.map((r) => (
-            <RegraForm key={r.tipo} regra={r} />
+            <RegraFechada
+              key={r.tipo}
+              titulo={r.tipo}
+              situacao={
+                r.ativo
+                  ? `Inadimplente com ${r.quantidade} falta(s)${r.exigirConsecutivas ? " seguidas" : ""} nas últimas ${r.janelaRemessas} remessas`
+                  : "Regra desligada"
+              }
+              ligada={r.ativo}
+            >
+              <RegraForm regra={r} />
+            </RegraFechada>
           ))}
         </CardContent>
       </Card>
@@ -327,5 +358,34 @@ export default async function DireitosPage() {
         )}
       </Card>
     </>
+  )
+}
+
+/** Uma regra da tela para ler — título e situação —, com "Editar" que abre o formulário. */
+function RegraFechada({
+  titulo,
+  situacao,
+  ligada,
+  children,
+}: {
+  titulo: string
+  situacao: string
+  ligada: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <div className="rounded-lg border p-4">
+      <AbrirFormulario
+        rotulo="Editar"
+        resumo={
+          <div className="min-w-0">
+            <p className="font-medium">{titulo}</p>
+            <p className={`mt-0.5 text-sm ${ligada ? "" : "text-muted-foreground"}`}>{situacao}</p>
+          </div>
+        }
+      >
+        {children}
+      </AbrirFormulario>
+    </div>
   )
 }

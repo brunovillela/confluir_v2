@@ -22,10 +22,13 @@ const SELECT =
 export function TabelaVigenciaForm({
   tabela,
   origens = [],
+  aoCancelarHref = "/painel/pessoal/niveis/tabelas",
 }: {
   tabela?: { id: string; data_inicio: string | null; data_fim: string | null }
   /** Só ao criar: tabelas de onde copiar os degraus. */
   origens?: { id: string; rotulo: string }[]
+  /** Para onde o Cancelar leva (na edição, de volta à tabela). */
+  aoCancelarHref?: string
 }) {
   const [estado, formAction, pendente] = useActionState(salvarTabelaSalarial, {})
   const envio = useEnvioFormulario(formAction, estado)
@@ -91,7 +94,7 @@ export function TabelaVigenciaForm({
       </Card>
       <div className="flex items-center justify-end gap-2">
         <Button variant="ghost" asChild>
-          <Link href="/painel/pessoal/niveis/tabelas">Cancelar</Link>
+          <Link href={aoCancelarHref}>Cancelar</Link>
         </Button>
         <Button type="submit" disabled={pendente}>
           {pendente && <Loader2 className="animate-spin" />}

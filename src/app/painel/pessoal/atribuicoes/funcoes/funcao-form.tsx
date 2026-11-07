@@ -22,7 +22,14 @@ export type FuncaoFormDados = {
   ativo: boolean
 }
 
-export function FuncaoForm({ funcao }: { funcao?: FuncaoFormDados }) {
+export function FuncaoForm({
+  funcao,
+  aoCancelarHref,
+}: {
+  funcao?: FuncaoFormDados
+  /** Nova função: o Cancelar fecha o formulário (volta à lista sem ?nova=1). */
+  aoCancelarHref?: string
+}) {
   const [estado, action, pendente] = useActionState(
     funcao ? atualizarFuncao : criarFuncao,
     {}
@@ -75,10 +82,16 @@ export function FuncaoForm({ funcao }: { funcao?: FuncaoFormDados }) {
             </label>
           )}
           <div className="flex items-center justify-end gap-2">
-            {funcao && (
+            {funcao ? (
               <Button variant="ghost" asChild>
                 <Link href="/painel/pessoal/atribuicoes/funcoes">Voltar</Link>
               </Button>
+            ) : (
+              aoCancelarHref && (
+                <Button variant="ghost" asChild>
+                  <Link href={aoCancelarHref}>Cancelar</Link>
+                </Button>
+              )
             )}
             <Button type="submit" disabled={pendente}>
               {pendente && <Loader2 className="animate-spin" />}

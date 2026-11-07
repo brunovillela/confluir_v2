@@ -3,6 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ArrowLeft, Table2 } from "lucide-react"
 
+import { CartaoDados } from "@/components/cartao-dados"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -25,13 +26,13 @@ export default async function TabelaSalarialDetalhePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ salvo?: string; vigente?: string; sem?: string }>
+  searchParams: Promise<{ salvo?: string; vigente?: string; sem?: string; editar?: string }>
 }) {
   const sessao = await requirePermissao("pessoal_gestao", ["pessoal_niveis_salariais"])
   // Tornar vigente muda o salário dos funcionários: só a gestão completa.
   const temGestao = podeAcessar(sessao.permissoes, "pessoal_gestao")
   const { id } = await params
-  const { salvo, vigente, sem } = await searchParams
+  const { salvo, vigente, sem, editar } = await searchParams
   const tabela = await buscarTabelaSalarial(id)
   if (!tabela) notFound()
   const nome = rotuloTabelaSalarial(tabela)
@@ -90,7 +91,23 @@ export default async function TabelaSalarialDetalhePage({
         </Alert>
       )}
 
-      <TabelaVigenciaForm key={`${tabela.data_inicio}-${tabela.data_fim}`} tabela={tabela} />
+      {/* A vigência para ler; o formulário só com "Editar" (padrão do Confluir). */}
+      {editar === "1" ? (
+        <TabelaVigenciaForm
+          key={`${tabela.data_inicio}-${tabela.data_fim}`}
+          tabela={tabela}
+          aoCancelarHref={`/painel/pessoal/niveis/tabelas/${id}`}
+        />
+      ) : (
+        <CartaoDados
+          titulo="Registro e vigência"
+          editarHref={`/painel/pessoal/niveis/tabelas/${id}?editar=1`}
+          campos={[
+            { rotulo: "Início da vigência", valor: tabela.data_inicio ? formatarData(tabela.data_inicio) : null },
+            { rotulo: "Término da vigência", valor: tabela.data_fim ? formatarData(tabela.data_fim) : null },
+          ]}
+        />
+      )}
 
       {plano && (
         <Card>

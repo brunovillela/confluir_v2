@@ -200,7 +200,8 @@ export async function atualizarHotel(
   revalidatePath("/painel/hospedagem/hoteis")
   revalidatePath(`/painel/hospedagem/hoteis/${id}`)
   revalidatePath("/painel/hospedagem")
-  redirect("/painel/hospedagem/hoteis?salvo=1")
+  // A edição abre do hotel (?editar=1): volta para ele, já fechada.
+  redirect(`/painel/hospedagem/hoteis/${id}?salvo=1`)
 }
 
 export async function criarTarifa(

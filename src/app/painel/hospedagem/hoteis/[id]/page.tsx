@@ -3,7 +3,10 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ArrowLeft, ExternalLink, Eye } from "lucide-react"
 
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
+import { CartaoDados } from "@/components/cartao-dados"
+import { MODALIDADES_CONVENIO } from "@/lib/hospedagem-garantida-constantes"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -131,12 +134,15 @@ export const metadata: Metadata = { title: "Hotel parceiro — Confluir" }
 
 export default async function HotelPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ editar?: string; salvo?: string }>
 }) {
   await requirePermissao("filiacao_hospedagens_gestao")
 
   const { id } = await params
+  const { editar, salvo } = await searchParams
   const [hotel, tarifas, acessos, faturas, contratos] = await Promise.all([
     buscarHotel(id),
     listarTarifas(id),
@@ -146,6 +152,9 @@ export default async function HotelPage({
   ])
   if (!hotel) notFound()
 
+  const aqui = `/painel/hospedagem/hoteis/${hotel.id}`
+  const contrato = contratos.find((c) => c.id === hotel.contrato_id)
+  const garantida = hotel.modalidade === "garantida"
   const abertas = faturas.filter((f) => f.aberta)
   const fechadas = faturas.filter((f) => !f.aberta)
 
@@ -176,7 +185,66 @@ export default async function HotelPage({
         </p>
       </div>
 
-      <HotelForm hotel={hotel} contratos={contratos} />
+      {salvo === "1" && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>Hotel salvo.</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Os dados para ler; o formulário só com "Editar" (padrão do Confluir). */}
+      {editar === "1" ? (
+        <HotelForm hotel={hotel} contratos={contratos} aoCancelarHref={aqui} />
+      ) : (
+        <CartaoDados
+          titulo="Dados do hotel"
+          editarHref={`${aqui}?editar=1`}
+          campos={[
+            { rotulo: "Telefone da recepção", valor: hotel.telefone ?? null },
+            { rotulo: "Situação", valor: hotel.ativo !== false ? "Ativo (disponível para novos cupons)" : "Inativo" },
+            { rotulo: "Quartos dedicados", valor: hotel.quant_quartos_dedicados },
+            {
+              rotulo: "Hóspedes",
+              valor: [
+                hotel.max_hospedes_por_quarto != null ? `até ${hotel.max_hospedes_por_quarto} por quarto` : null,
+                hotel.max_hospedes_por_dia != null ? `até ${hotel.max_hospedes_por_dia} por dia` : null,
+              ]
+                .filter(Boolean)
+                .join(" · "),
+            },
+            {
+              rotulo: "Contrato do convênio",
+              valor: contrato
+                ? `${[contrato.codigo, contrato.objeto].filter(Boolean).join(" — ")}${contrato.vigenciaTermino ? ` · vigência até ${formatarData(contrato.vigenciaTermino)}` : ""}${contrato.vigente ? "" : " (vencido)"}`
+                : null,
+            },
+            {
+              rotulo: "Tipo de convênio",
+              valor: MODALIDADES_CONVENIO.find((m) => m.chave === (garantida ? "garantida" : "uso"))?.rotulo,
+            },
+            ...(garantida
+              ? [
+                  { rotulo: "Máximo de noites", valor: hotel.max_noites ?? null },
+                  { rotulo: "Check-in", valor: hotel.horario_checkin ?? null },
+                  {
+                    rotulo: "Cancelamento",
+                    valor: hotel.cancelamento_horas != null ? `até ${hotel.cancelamento_horas} h antes` : null,
+                  },
+                  {
+                    rotulo: "Confirmar vaga da espera",
+                    valor: hotel.espera_prazo_horas != null ? `em ${hotel.espera_prazo_horas} h` : null,
+                  },
+                ]
+              : []),
+            {
+              rotulo: "Faturamento",
+              valor: hotel.exige_relatorio_para_faturar
+                ? "Exige relatório/extrato assinado da reserva"
+                : "Não exige relatório assinado",
+              largo: true,
+            },
+          ]}
+        />
+      )}
       <Tarifas hotelId={hotel.id} tarifas={tarifas} />
 
       <Card>

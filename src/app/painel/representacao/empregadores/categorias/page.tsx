@@ -4,6 +4,7 @@ import { ArrowLeft, Settings } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
+import { AbrirFormulario } from "@/components/abrir-formulario"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
@@ -86,7 +87,9 @@ export default async function CategoriasFontePage() {
             <CardTitle className="text-base">Nova categoria</CardTitle>
           </CardHeader>
           <CardContent>
-            <NovaCategoriaForm />
+            <AbrirFormulario rotulo="Criar categoria" icone="novo">
+              <NovaCategoriaForm />
+            </AbrirFormulario>
           </CardContent>
         </Card>
       )}

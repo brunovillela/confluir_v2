@@ -3,6 +3,7 @@ import Link from "next/link"
 import { ArrowLeft, Users } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
+import { AbrirFormulario } from "@/components/abrir-formulario"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -50,8 +51,13 @@ export default async function DiretoriaPage() {
 
       <Card>
         <CardContent className="pt-6">
-          <p className="mb-3 text-sm font-medium">Novo mandato</p>
-          <MandatoForm />
+          <AbrirFormulario
+            rotulo="Novo mandato"
+            icone="novo"
+            resumo={<p className="text-muted-foreground text-sm">Cadastre o mandato e depois os integrantes na página dele.</p>}
+          >
+            <MandatoForm />
+          </AbrirFormulario>
         </CardContent>
       </Card>
 

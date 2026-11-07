@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import { ArrowLeft, ShieldAlert, Trash2 } from "lucide-react"
 
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
+import { AbrirFormulario } from "@/components/abrir-formulario"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -104,7 +105,24 @@ export default async function GheDetalhePage({
             <CardTitle className="text-base">Dados do GHE</CardTitle>
           </CardHeader>
           <CardContent>
-            <GheForm ghe={{ id: ghe.id, nome: ghe.nome, descricao: ghe.descricao }} />
+            {/* Os dados para ler; o formulário só com "Editar" (padrão do Confluir). */}
+            <AbrirFormulario
+              rotulo="Editar"
+              resumo={
+                <dl className="grid gap-3 text-sm">
+                  <div>
+                    <dt className="text-muted-foreground text-xs">Nome</dt>
+                    <dd>{ghe.nome}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground text-xs">Descrição</dt>
+                    <dd className="whitespace-pre-wrap">{ghe.descricao || "—"}</dd>
+                  </div>
+                </dl>
+              }
+            >
+              <GheForm ghe={{ id: ghe.id, nome: ghe.nome, descricao: ghe.descricao }} />
+            </AbrirFormulario>
           </CardContent>
         </Card>
 

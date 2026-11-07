@@ -57,9 +57,12 @@ function dataBr(iso: string | null): string {
 export function HotelForm({
   hotel,
   contratos,
+  aoCancelarHref = "/painel/hospedagem/hoteis",
 }: {
   hotel?: HotelFormDados
   contratos: OpcaoContrato[]
+  /** Para onde o Cancelar leva (na edição, de volta ao hotel). */
+  aoCancelarHref?: string
 }) {
   const [estado, formAction, pendente] = useActionState(
     hotel ? atualizarHotel : criarHotel,
@@ -367,7 +370,7 @@ export function HotelForm({
 
       <div className="flex items-center justify-end gap-2">
         <Button variant="ghost" asChild>
-          <Link href="/painel/hospedagem/hoteis">Cancelar</Link>
+          <Link href={aoCancelarHref}>Cancelar</Link>
         </Button>
         <Button type="submit" disabled={pendente}>
           {pendente && <Loader2 className="animate-spin" />}

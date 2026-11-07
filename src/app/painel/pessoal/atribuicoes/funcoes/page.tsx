@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, Users } from "lucide-react"
+import { ArrowLeft, Plus, Users } from "lucide-react"
 
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -32,10 +32,10 @@ export const metadata: Metadata = { title: "Funções — Confluir" }
 export default async function FuncoesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ salvo?: string; excluido?: string }>
+  searchParams: Promise<{ salvo?: string; excluido?: string; nova?: string }>
 }) {
   await requirePermissao("pessoal_gestao")
-  const { excluido } = await searchParams
+  const { excluido, nova } = await searchParams
   const funcoes = await listarFuncoes()
 
   return (
@@ -79,11 +79,20 @@ export default async function FuncoesPage({
         </CardContent>
       </Card>
 
-      <div className="grid items-start gap-4 lg:grid-cols-2">
+      <div className={`grid items-start gap-4 ${nova === "1" ? "lg:grid-cols-2" : ""}`}>
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between gap-2">
               <CardTitle className="text-base">Funções</CardTitle>
+              {/* O formulário só aparece com o botão (padrão do Confluir). */}
+              {nova !== "1" && (
+                <Button size="sm" asChild>
+                  <Link href="/painel/pessoal/atribuicoes/funcoes?nova=1">
+                    <Plus />
+                    Nova função
+                  </Link>
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent>
@@ -136,7 +145,7 @@ export default async function FuncoesPage({
           </CardContent>
         </Card>
 
-        <FuncaoForm />
+        {nova === "1" && <FuncaoForm aoCancelarHref="/painel/pessoal/atribuicoes/funcoes" />}
       </div>
     </>
   )

@@ -7,6 +7,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { CartaoDados } from "@/components/cartao-dados"
+import { formatarData } from "@/lib/formato"
 import { requirePermissao } from "@/lib/auth"
 import {
   listarCategoriasConvenio,
@@ -27,11 +29,11 @@ export default async function EditarConvenioPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ salvo?: string; erro?: string }>
+  searchParams: Promise<{ salvo?: string; erro?: string; editar?: string }>
 }) {
   await requirePermissao("filiacao_convenios", ["filiacao_gestao"])
   const { id } = await params
-  const { salvo, erro } = await searchParams
+  const { salvo, erro, editar } = await searchParams
   const [convenio, categorias, conveniadores] = await Promise.all([
     obterConvenio(id),
     listarCategoriasConvenio(),
@@ -41,6 +43,8 @@ export default async function EditarConvenioPage({
 
   const hoje = new Date().toISOString().slice(0, 10)
   const vigente = convenio.ativo && (!convenio.dataTermino || convenio.dataTermino >= hoje)
+  const aqui = `/painel/filiados/convenios/${convenio.id}`
+  const categoria = categorias.find((c) => c.id === convenio.categoriaId)?.categoria ?? null
 
   return (
     <>
@@ -81,7 +85,24 @@ export default async function EditarConvenioPage({
         </Alert>
       )}
 
-      <ConvenioForm categorias={categorias} conveniadores={conveniadores} convenio={convenio} />
+      {/* Os dados para ler; o formulário só com "Editar" (padrão do Confluir). */}
+      {editar === "1" ? (
+        <ConvenioForm categorias={categorias} conveniadores={conveniadores} convenio={convenio} aoCancelarHref={aqui} />
+      ) : (
+        <CartaoDados
+          titulo="Dados do convênio"
+          descricao="O conveniador é a empresa que dá o desconto; a categoria é como o filiado procura no portal."
+          editarHref={`${aqui}?editar=1`}
+          campos={[
+            { rotulo: "Conveniador", valor: convenio.conveniador },
+            { rotulo: "Categoria", valor: categoria },
+            { rotulo: "Término da vigência", valor: convenio.dataTermino ? formatarData(convenio.dataTermino) : "sem término" },
+            { rotulo: "Situação", valor: convenio.ativo ? "Ativo" : "Inativo" },
+            { rotulo: "Resumo", valor: convenio.infoSumarias, largo: true },
+            { rotulo: "Vantagens", valor: convenio.infoVantagens, largo: true },
+          ]}
+        />
+      )}
 
       <Card>
         <CardHeader>

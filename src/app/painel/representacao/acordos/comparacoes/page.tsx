@@ -4,6 +4,7 @@ import { ArrowLeft, GitCompareArrows } from "lucide-react"
 
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AbrirFormulario } from "@/components/abrir-formulario"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
@@ -93,7 +94,9 @@ export default async function ComparacoesPage({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <NovaComparacaoForm acordos={acordos} inicialA={sp.a} inicialB={sp.b} />
+          <AbrirFormulario rotulo="Comparar acordos" icone="novo" abertoInicial={Boolean(sp.a || sp.b)}>
+            <NovaComparacaoForm acordos={acordos} inicialA={sp.a} inicialB={sp.b} />
+          </AbrirFormulario>
         </CardContent>
       </Card>
 
