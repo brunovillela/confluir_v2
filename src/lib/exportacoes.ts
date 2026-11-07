@@ -37,6 +37,8 @@ export const RECURSOS_EXPORTACAO = {
   patrimonio: { rotulo: "Patrimônio", categorias: ["identificacao"] },
   oposicao: { rotulo: "Oposições à contribuição", categorias: ["identificacao", "cpf", "sindical", "trabalhista"] },
   oposicao_empregador: { rotulo: "Relação de oposições ao empregador", categorias: ["identificacao", "cpf", "trabalhista"] },
+  atas: { rotulo: "Atas de reunião", categorias: ["identificacao"] },
+  deliberacoes: { rotulo: "Deliberações das atas", categorias: ["identificacao"] },
   oposicao_dossie: { rotulo: "Dossiê da oposição", categorias: ["identificacao", "cpf", "sindical", "trabalhista"] },
 } as const satisfies Record<string, { rotulo: string; categorias: readonly CategoriaExportada[] }>
 

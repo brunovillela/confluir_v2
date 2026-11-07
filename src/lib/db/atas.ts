@@ -60,10 +60,83 @@ export type FiltrosAtas = {
  * assunto escondido).
  */
 export async function listarAtas(filtros: FiltrosAtas, sigilos: SigiloDeliberacao[]): Promise<AtaLinha[]> {
+  const data = await buscarAtas(filtros, sigilos, "id, tipo, titulo, data, mandato_id, sigilo_documento")
+  const nomes = await nomesDeMandatos()
+  return data.map((a) => ({
+    id: String(a.id),
+    tipo: tipoValido(String(a.tipo ?? "outra")),
+    titulo: sigilos.includes(sigiloDe(a.sigilo_documento)) ? texto(a.titulo) : TITULO_SOB_SIGILO,
+    data: texto(a.data),
+    mandatoId: texto(a.mandato_id),
+    mandatoNome: a.mandato_id ? (nomes.get(String(a.mandato_id)) ?? null) : null,
+  }))
+}
+
+/** Linha da planilha de atas: os textos acima do nível vêm como TEXTO_SOB_SIGILO. */
+export type AtaPlanilha = AtaLinha & {
+  orgao: string | null
+  hora: string | null
+  local: string | null
+  sigilo: SigiloDeliberacao
+  pauta: string | null
+  resumo: string | null
+  presentes: string | null
+  observacoes: string | null
+  temPdf: boolean
+}
+
+/** Marca no lugar de um texto acima do nível de quem exporta. */
+export const TEXTO_SOB_SIGILO = "(sob sigilo)"
+
+/**
+ * As atas do filtro com todos os campos, para a planilha — título, pauta,
+ * resumo, presentes e observações só dentro do nível (`sigilos`), como na
+ * página da ata. O PDF não vai: a planilha só diz se há.
+ */
+export async function listarAtasParaPlanilha(filtros: FiltrosAtas, sigilos: SigiloDeliberacao[]): Promise<AtaPlanilha[]> {
+  const data = await buscarAtas(
+    filtros,
+    sigilos,
+    "id, tipo, orgao, titulo, data, hora, local, mandato_id, sigilo_documento, pauta, resumo, presentes, observacoes, documento_url"
+  )
+  const nomes = await nomesDeMandatos()
+  return data.map((a) => {
+    const sigilo = sigiloDe(a.sigilo_documento)
+    const alcanca = sigilos.includes(sigilo)
+    const sob = (v: unknown) => {
+      const t = texto(v)
+      return t && !alcanca ? TEXTO_SOB_SIGILO : t
+    }
+    return {
+      id: String(a.id),
+      tipo: tipoValido(String(a.tipo ?? "outra")),
+      titulo: alcanca ? texto(a.titulo) : TITULO_SOB_SIGILO,
+      data: texto(a.data),
+      mandatoId: texto(a.mandato_id),
+      mandatoNome: a.mandato_id ? (nomes.get(String(a.mandato_id)) ?? null) : null,
+      orgao: texto(a.orgao),
+      hora: texto(a.hora),
+      local: texto(a.local),
+      sigilo,
+      pauta: sob(a.pauta),
+      resumo: sob(a.resumo),
+      presentes: sob(a.presentes),
+      observacoes: sob(a.observacoes),
+      temPdf: Boolean(texto(a.documento_url)),
+    }
+  })
+}
+
+/** A consulta das listas de atas, com filtros e a busca restrita ao nível. */
+async function buscarAtas(
+  filtros: FiltrosAtas,
+  sigilos: SigiloDeliberacao[],
+  campos: string
+): Promise<Record<string, unknown>[]> {
   const admin = await createAdminClient()
   let q = admin
     .from("reuniao_ata")
-    .select("id, tipo, titulo, data, mandato_id, sigilo_documento")
+    .select(campos)
     .eq("emp_proprietaria_id", await tenantAtual())
 
   if (filtros.tipo && filtros.tipo !== "todos") q = q.eq("tipo", filtros.tipo)
@@ -81,16 +154,7 @@ export async function listarAtas(filtros: FiltrosAtas, sigilos: SigiloDeliberaca
     .order("data", { ascending: false, nullsFirst: false })
     .limit(1000)
   if (error) throw new Error(`Falha ao listar atas: ${error.message}`)
-
-  const nomes = await nomesDeMandatos()
-  return (data ?? []).map((a) => ({
-    id: String(a.id),
-    tipo: tipoValido(String(a.tipo ?? "outra")),
-    titulo: sigilos.includes(sigiloDe(a.sigilo_documento)) ? texto(a.titulo) : TITULO_SOB_SIGILO,
-    data: texto(a.data),
-    mandatoId: texto(a.mandato_id),
-    mandatoNome: a.mandato_id ? (nomes.get(String(a.mandato_id)) ?? null) : null,
-  }))
+  return (data ?? []) as unknown as Record<string, unknown>[]
 }
 
 export type AtaDetalhe = {

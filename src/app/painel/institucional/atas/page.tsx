@@ -19,6 +19,7 @@ import { listarAtas, opcoesMandatos } from "@/lib/db/atas"
 import { nivelSigilo, sigilosVisiveis } from "@/lib/deliberacoes-constantes"
 import { formatarData } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
+import { ExportarXlsx } from "@/components/exportar-xlsx"
 import {
   ROTULO_TIPO_REUNIAO,
   TIPOS_REUNIAO,
@@ -69,14 +70,17 @@ export default async function AtasPage({
           <h1 className="text-2xl font-semibold tracking-tight">
             Atas de reunião
           </h1>
-          {podeEditar && (
-            <Button asChild>
-              <Link href="/painel/institucional/atas/novo">
-                <Plus />
-                Nova ata
-              </Link>
-            </Button>
-          )}
+          <div className="flex flex-wrap gap-2">
+            <ExportarXlsx href="/painel/institucional/atas/exportar" />
+            {podeEditar && (
+              <Button asChild>
+                <Link href="/painel/institucional/atas/novo">
+                  <Plus />
+                  Nova ata
+                </Link>
+              </Button>
+            )}
+          </div>
         </div>
         <p className="text-muted-foreground mt-1 text-xs">
           Reuniões da entidade (diretoria, conselho, assembleia), com PDF da ata.

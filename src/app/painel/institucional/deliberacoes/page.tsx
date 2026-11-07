@@ -8,13 +8,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
-import { ROTULO_TIPO_REUNIAO, TIPOS_REUNIAO, type TipoReuniao } from "@/lib/atas-constantes"
+import { ROTULO_TIPO_REUNIAO, TIPOS_REUNIAO } from "@/lib/atas-constantes"
 import { hojeSP } from "@/lib/db/comum"
-import { listarDeliberacoes, type FiltrosDeliberacoes } from "@/lib/db/deliberacoes"
+import { listarDeliberacoes } from "@/lib/db/deliberacoes"
 import {
   CHAVES_DELIBERACOES,
-  ehSigiloDeliberacao,
-  ehSituacaoDeliberacao,
   nivelSigilo,
   DIAS_AVISO_PRAZO,
   ROTULO_NIVEL_SIGILO,
@@ -26,11 +24,13 @@ import {
 import { formatarData } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
+import { ExportarXlsx } from "@/components/exportar-xlsx"
+
+import { lerFiltrosDeliberacoes } from "./filtros"
 import { SeloSigilo, SeloSituacao } from "./selos"
 
 export const metadata: Metadata = { title: "Deliberações — Confluir" }
 
-const DATA = /^\d{4}-\d{2}-\d{2}$/
 const SELECT = "border-input bg-background h-9 w-full rounded-md border px-2 text-sm [color-scheme:light] dark:[color-scheme:dark]"
 const POR_PAGINA = 100
 
@@ -65,17 +65,7 @@ export default async function DeliberacoesPage({
   const sp = await searchParams
   const hoje = hojeSP()
 
-  const filtros: FiltrosDeliberacoes = {
-    de: sp.de && DATA.test(sp.de) ? sp.de : undefined,
-    ate: sp.ate && DATA.test(sp.ate) ? sp.ate : undefined,
-    assunto: (sp.assunto ?? "").trim() || undefined,
-    situacao: ehSituacaoDeliberacao(sp.situacao) ? sp.situacao : undefined,
-    sigilo: ehSigiloDeliberacao(sp.sigilo) && sigilos.includes(sp.sigilo) ? sp.sigilo : undefined,
-    tipo: TIPOS_REUNIAO.some((t) => t.chave === sp.tipo) ? (sp.tipo as TipoReuniao) : undefined,
-    vencidasAntesDe: sp.prazo === "vencido" ? hoje : undefined,
-    vencemEntre: sp.prazo === "proximo" ? { de: hoje, ate: somarDias(hoje, DIAS_AVISO_PRAZO) } : undefined,
-    responsavelId: sp.responsavel === "eu" ? sessao.usuario.id : undefined,
-  }
+  const filtros = lerFiltrosDeliberacoes(sp, sigilos, sessao.usuario.id, hoje)
   const filtrado = Object.values(filtros).some(Boolean)
 
   const todas = await listarDeliberacoes(filtros, sigilos)
@@ -132,14 +122,17 @@ export default async function DeliberacoesPage({
             <strong>{ROTULO_NIVEL_SIGILO[nivel]}</strong>.
           </p>
         </div>
-        {verAtas && (
-          <Button variant="outline" asChild>
-            <Link href="/painel/institucional/atas">
-              <ScrollText />
-              Atas de reunião
-            </Link>
-          </Button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          <ExportarXlsx href="/painel/institucional/deliberacoes/exportar" />
+          {verAtas && (
+            <Button variant="outline" asChild>
+              <Link href="/painel/institucional/atas">
+                <ScrollText />
+                Atas de reunião
+              </Link>
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
