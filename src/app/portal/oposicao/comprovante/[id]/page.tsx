@@ -285,6 +285,7 @@ export default async function ComprovantePage({
                 ? " Sem conta prata ou ouro? A carta também pode ser assinada com certificado digital e-CPF (ICP-Brasil)."
                 : " Esta campanha aceita só a assinatura do gov.br."}
             </p>
+            <PassoAPassoAssinador />
           </li>
           <li>
             <p>
@@ -453,6 +454,61 @@ export default async function ComprovantePage({
         {faq}
       </main>
     </div>
+  )
+}
+
+/**
+ * O caminho dentro do Assinador gov.br (07/11/2026), com as dicas do celular
+ * — onde mais se perde a carta: o PDF que abre na tela em vez de baixar, o
+ * arquivo assinado que fica em Downloads, o print no lugar do arquivo. A API
+ * de assinatura do gov.br é só para órgãos públicos; a assinatura segue fora
+ * do sistema, e este guia encurta o vaivém.
+ */
+function PassoAPassoAssinador() {
+  return (
+    <details className="bg-muted/40 mt-2 rounded-md border px-3 print:hidden">
+      <summary className="text-primary focus-visible:ring-ring/50 flex min-h-11 cursor-pointer items-center rounded-md text-sm font-medium underline-offset-4 outline-none hover:underline focus-visible:ring-3">
+        Passo a passo no Assinador (com dicas para celular)
+      </summary>
+      <div className="grid gap-3 pb-3 text-sm">
+        <ol className="grid list-[lower-alpha] gap-1.5 pl-5">
+          <li>
+            Abra o{" "}
+            <a href={ASSINADOR_GOVBR} target="_blank" rel="noreferrer" className="text-primary underline underline-offset-4">
+              assinador.iti.br
+            </a>{" "}
+            e entre com a sua conta gov.br (CPF e senha).
+          </li>
+          <li>Escolha o arquivo da carta que você baixou no passo 1.</li>
+          <li>Toque no documento para posicionar a assinatura e siga para assinar.</li>
+          <li>Confirme com o código que o gov.br manda para o seu celular (pelo aplicativo gov.br ou por SMS).</li>
+          <li>
+            Baixe o documento assinado. É um arquivo novo, que costuma terminar em “_assinado.pdf”.
+          </li>
+          <li>Volte a esta página e envie esse arquivo no passo 3.</li>
+        </ol>
+        <div className="grid gap-1">
+          <p className="font-medium">No celular</p>
+          <ul className="text-muted-foreground grid list-disc gap-1 pl-5">
+            <li>
+              Se a carta abrir na tela em vez de baixar, use o botão de compartilhar e escolha “Salvar em Arquivos” (iPhone)
+              ou “Baixar” (Android).
+            </li>
+            <li>
+              Os arquivos baixados ficam em “Arquivos › Downloads” (iPhone) ou em “Downloads” (Android). É lá que você
+              escolhe o arquivo, no Assinador e aqui.
+            </li>
+            <li>Deixe esta página aberta em outra aba para voltar sem precisar entrar de novo.</li>
+          </ul>
+        </div>
+        <Alert variant="warning">
+          <AlertDescription>
+            Não envie foto, print da tela nem a carta impressa e escaneada: isso apaga a assinatura digital, e a entidade
+            pode não aceitar.
+          </AlertDescription>
+        </Alert>
+      </div>
+    </details>
   )
 }
 
