@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { AlertTriangle, CalendarClock, CalendarDays, CheckCircle2, ChevronDown, ReceiptText } from "lucide-react"
+import { AlertTriangle, CalendarClock, Copy, CalendarDays, CheckCircle2, ChevronDown, ReceiptText } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import type { DiaExtrato, ExtratoOrdens, OrdemLinha } from "@/lib/db/financeiro"
@@ -50,11 +50,20 @@ function Linha({ o, data, selecao }: { o: OrdemLinha; data: "vencimento" | "paga
           {o.favorecido && o.descricao ? ` · ${o.descricao}` : ""}
           {data === "pagamento" && o.vencimento ? ` · venceu ${formatarData(o.vencimento)}` : ""}
         </span>
+        {o.duplicidade && (
+          <span className="text-warning-fg block truncate text-xs">Possível duplicidade com {o.duplicidade}</span>
+        )}
       </span>
       <span className="text-muted-foreground hidden truncate text-xs sm:block">
         {[o.tipo, o.forma_pagamento].filter(Boolean).join(" · ") || "—"}
       </span>
-      <span className="hidden sm:block">
+      <span className="hidden items-center gap-1 sm:flex">
+        {o.duplicidade && (
+          <Badge variant="warning" title={`Mesmo favorecido e valor, vencimento próximo: ${o.duplicidade}`}>
+            <Copy className="size-3" />
+            Duplicada?
+          </Badge>
+        )}
         <SituacaoBadge situacao={o.situacao} />
       </span>
       <span className="text-right text-sm font-medium whitespace-nowrap tabular-nums">{formatarMoeda(valor)}</span>

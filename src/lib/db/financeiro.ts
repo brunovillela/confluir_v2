@@ -5,6 +5,7 @@ import { FORMA_PAGA_NO_ATO } from "@/lib/compras-constantes"
 import { hojeSP, lerEmLotes, lerEmLotesPorIds, texto } from "@/lib/db/comum"
 import { favorecidosDasOrdens } from "@/lib/db/ordens-favorecido"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { descreverParecidas, ordensParecidas, type OrdemParecida } from "@/lib/db/ordens-duplicidade"
 import { rotuloCentroCusto } from "@/lib/centros-custo-rotulo"
 
 export const ORDENS_POR_PAGINA = 50
@@ -90,6 +91,8 @@ export type OrdemLinha = {
   custeio_id: string | null
   /** Nome resolvido do favorecido (empresa, usuário, filiado ou avulso). */
   favorecido: string | null
+  /** Extrato: ordens não pagas que parecem a mesma cobrança desta ("2026.… (Paga)"). */
+  duplicidade?: string | null
 }
 
 export type FiltrosOrdens = {
@@ -350,6 +353,13 @@ export async function extratoOrdens(
   // O favorecido só das ordens que vão para a tela.
   const naTela = [...futurasNoHorizonte, ...deHoje, ...atrasadas, ...realizadas]
   const comNome = new Map((await resolverFavorecidos(naTela)).map((o) => [o.id, o]))
+  // Possível duplicidade só nas que ainda vão ser pagas (é aí que evita o erro).
+  const naoPagasNaTela = [...futurasNoHorizonte, ...atrasadas, ...abertas.filter((o) => ate(o) === hoje)]
+  const parecidas = await ordensParecidas(naoPagasNaTela).catch(() => new Map<string, OrdemParecida[]>())
+  for (const [id, lista] of parecidas) {
+    const o = comNome.get(id)
+    if (o) o.duplicidade = descreverParecidas(lista)
+  }
   const com = (ls: Omit<OrdemLinha, "favorecido">[]) => ls.map((o) => comNome.get(o.id)!)
   return {
     hoje,

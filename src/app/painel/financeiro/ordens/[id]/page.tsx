@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Tags,
   Undo2,
+  Copy,
 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -36,6 +37,7 @@ import { mesEstaFechado } from "@/lib/db/meses-fechados"
 import { nomeDoDepartamento, travaDaReclassificacao } from "@/lib/db/ordens-reclassificacao"
 import { estornosDaOrdem, janelaDeEstorno, obterPrazoEstorno } from "@/lib/db/ordens-estorno"
 import { extratoDaOrdem } from "@/lib/db/ordens-extrato"
+import { JANELA_DIAS, ordensParecidas, type OrdemParecida } from "@/lib/db/ordens-duplicidade"
 import type { StatusAuditoria } from "@/lib/db/ordens-auditoria"
 import { TIPO_ORDEM_FOLHA } from "@/lib/contracheques-constantes"
 import { podeAcessar } from "@/lib/permissoes"
@@ -211,7 +213,7 @@ export default async function OrdemPage({
   // Contrato/minuta/termo do custeio: aparecem no cartão da origem.
   const formalizacao = pr.documentos.filter((d) => d.formalizacao)
 
-  const [centros, departamentos, departamentoNome, travaReclassificacao, mesPagamentoFechado] = await Promise.all([
+  const [centros, departamentos, departamentoNome, travaReclassificacao, mesPagamentoFechado, parecidas] = await Promise.all([
     podeEditar ? listarCentrosCusto() : Promise.resolve([] as CentroCusto[]),
     podeEditar ? listarDepartamentos() : Promise.resolve([]),
     nomeDoDepartamento((ordem.departamento_id as string | null) ?? null),
@@ -219,6 +221,21 @@ export default async function OrdemPage({
       ? travaDaReclassificacao({ id, situacao, data_pagamento: (ordem.data_pagamento as string | null) ?? null })
       : Promise.resolve(null),
     situacao === "Paga" ? mesEstaFechado((ordem.data_pagamento as string | null) ?? null) : Promise.resolve(false),
+    // Possível duplicidade: só interessa enquanto a ordem ainda não foi paga.
+    aberta
+      ? ordensParecidas([
+          {
+            id,
+            valor_inicial_cobranca: (ordem.valor_inicial_cobranca as number | null) ?? null,
+            vencimento: (ordem.vencimento as string | null) ?? null,
+            beneficiario_fornecedor_id: (ordem.beneficiario_fornecedor_id as string | null) ?? null,
+            fornecedor_id: (ordem.fornecedor_id as string | null) ?? null,
+            beneficiario_usuario_id: (ordem.beneficiario_usuario_id as string | null) ?? null,
+          },
+        ])
+          .then((m) => m.get(id) ?? [])
+          .catch(() => [] as OrdemParecida[])
+      : Promise.resolve([] as OrdemParecida[]),
   ])
   const opcoesCentro = centros
     .filter((c) => c.usavel !== false)
@@ -273,6 +290,28 @@ export default async function OrdemPage({
           {texto(ordem.descricao)}
         </p>
       </div>
+      {parecidas.length > 0 && (
+        <Alert variant="warning">
+          <Copy />
+          <AlertDescription>
+            <p className="font-medium">Possível cobrança em duplicidade</p>
+            <p>
+              Mesmo favorecido e mesmo valor, com vencimento a até {JANELA_DIAS} dias:{" "}
+              {parecidas.map((p, i) => (
+                <span key={p.id}>
+                  {i > 0 && ", "}
+                  <Link href={`/painel/financeiro/ordens/${p.id}`} className="font-mono font-medium underline">
+                    {p.codigo ?? "ordem"}
+                  </Link>{" "}
+                  ({p.situacao ?? "—"}
+                  {p.vencimento ? `, vence ${formatarData(p.vencimento)}` : ""})
+                </span>
+              ))}
+              . Confira se não é a mesma cobrança antes de pagar.
+            </p>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">
@@ -557,6 +596,7 @@ export default async function OrdemPage({
                 centroReceitaId={ordem.centro_custo_receita_id as string | null}
                 temComprovante={!!ordem.arquivo_pagamento}
                 temPagamento={temPagamento}
+                parecidas={temPagamento ? [] : parecidas.map((p) => p.codigo ?? "ordem")}
                 centros={(await listarCentrosDeDebito((ordem.centro_custo_receita_id as string | null) ?? null)).map(
                   (c) => ({
                     id: c.id,

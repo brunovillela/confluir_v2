@@ -31,6 +31,7 @@ export function PagamentoForm({
   temPagamento,
   centros,
   podeEditar = true,
+  parecidas = [],
 }: {
   ordemId: string
   valorPago: number | null
@@ -40,6 +41,8 @@ export function PagamentoForm({
   temPagamento: boolean
   centros: CentroOpcao[]
   podeEditar?: boolean
+  /** Códigos das ordens que parecem a mesma cobrança (primeiro registro). */
+  parecidas?: string[]
 }) {
   const [estado, salvarAction, salvando] = useActionState(salvarPagamento, {})
   const envio = useEnvioFormulario(salvarAction, estado)
@@ -127,6 +130,14 @@ export function PagamentoForm({
             ))}
           </select>
         </div>
+        {parecidas.length > 0 && (
+          <label className="border-warning/50 bg-warning/10 flex items-start gap-2 rounded-md border p-3 text-sm sm:col-span-2">
+            <input type="checkbox" name="nao_duplicada" value="1" required className="mt-0.5 size-4" />
+            <span>
+              Conferi: esta ordem não é a mesma cobrança de {parecidas.join(", ")}.
+            </span>
+          </label>
+        )}
         <div className="flex items-center justify-end gap-2 sm:col-span-2">
           <Button variant="ghost" asChild>
             <Link href={`/painel/financeiro/ordens/${ordemId}`}>Cancelar</Link>

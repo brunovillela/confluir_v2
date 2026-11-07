@@ -28,6 +28,14 @@ import { reclassificarOrdem, type LinhaReclassificacao } from "@/lib/db/ordens-r
 import { registrarEstorno } from "@/lib/db/ordens-estorno"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { parseValorBR } from "@/lib/valores"
+import { hojeSP } from "@/lib/db/comum"
+import { formatarData as formatarDataBR } from "@/lib/formato"
+
+function somarDiasData(data: string, dias: number): string {
+  const d = new Date(`${data}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + dias)
+  return d.toISOString().slice(0, 10)
+}
 
 function revalidarOrdem(id: string) {
   revalidatePath(`/painel/financeiro/ordens/${id}`)
@@ -77,6 +85,7 @@ export async function salvarPagamento(
     centroReceitaId,
     usuarioId: sessao.usuario.id,
     arquivo: arquivo instanceof File && arquivo.size > 0 ? arquivo : null,
+    conferiuDuplicidade: texto(formData, "nao_duplicada") === "1",
   })
   if (r.erro) return { erro: r.erro }
   revalidarOrdem(id)
@@ -95,6 +104,7 @@ async function registrarPagamentoDaOrdem({
   centroReceitaId,
   usuarioId,
   arquivo,
+  conferiuDuplicidade = false,
 }: {
   id: string
   valor: number
@@ -102,11 +112,13 @@ async function registrarPagamentoDaOrdem({
   centroReceitaId: string
   usuarioId: string
   arquivo: File | null
+  /** Quem paga marcou que conferiu as ordens parecidas (só no formulário). */
+  conferiuDuplicidade?: boolean
 }): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
   const { data: ordem } = await admin
     .from("ordens_pagamento")
-    .select("id, codigo, descricao, situacao, arquivo_pagamento, data_pagamento, valor_pago, caixa_conta_id, centro_custo_receita_id")
+    .select("id, codigo, descricao, situacao, arquivo_pagamento, data_pagamento, valor_pago, caixa_conta_id, centro_custo_receita_id, valor_inicial_cobranca, vencimento, beneficiario_fornecedor_id, fornecedor_id, beneficiario_usuario_id")
     .eq("id", id)
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
@@ -120,6 +132,25 @@ async function registrarPagamentoDaOrdem({
         ordem.situacao === "Em autorização" || ordem.situacao === "Aguardando informações"
           ? "A ordem ainda não foi autorizada — só ordem \"A pagar\" pode ser paga."
           : `Ordem "${ordem.situacao}" não pode ser paga.`,
+    }
+  }
+
+  // Data digitada errada (ex.: 0206 no lugar de 2026) não entra.
+  const hoje = hojeSP()
+  if (dataPagamento < somarDiasData(hoje, -400) || dataPagamento > somarDiasData(hoje, 31)) {
+    return { erro: `Data do pagamento fora do esperado (${formatarDataBR(dataPagamento)}). Confira o ano.` }
+  }
+
+  // Possível duplicidade (mesmo favorecido e valor, vencimento próximo): no
+  // primeiro registro, só com a conferência marcada no formulário; o lote recusa.
+  let notaDuplicidade: string | null = null
+  if (!editando) {
+    const { ordensParecidas, descreverParecidas } = await import("@/lib/db/ordens-duplicidade")
+    const parecidas = (await ordensParecidas([ordem as never]).catch(() => new Map())).get(id) ?? []
+    if (parecidas.length) {
+      const lista = descreverParecidas(parecidas)
+      if (!conferiuDuplicidade) return { erro: `Possível duplicidade com ${lista}. Confira e pague pela própria ordem, marcando que conferiu.` }
+      notaDuplicidade = `Conferido que não é duplicidade de ${lista}.`
     }
   }
 
@@ -227,7 +258,7 @@ async function registrarPagamentoDaOrdem({
     id,
     "paga",
     usuarioId,
-    [editando ? "Dados do pagamento alterados." : null, avisoRpa].filter(Boolean).join(" ") || null,
+    [editando ? "Dados do pagamento alterados." : null, avisoRpa, notaDuplicidade].filter(Boolean).join(" ") || null,
     {
       valor_pago: valor,
       data_pagamento: dataPagamento,

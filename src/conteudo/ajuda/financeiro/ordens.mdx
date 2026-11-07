@@ -108,6 +108,27 @@ barra embaixo com o total e duas ações:
   for recusada aparece na mensagem com o motivo, e as outras são pagas. O
   comprovante, se houver, entra depois em cada ordem.
 
+### Possível duplicidade
+
+Antes de pagar, o sistema procura outra ordem não cancelada do **mesmo
+favorecido** (empresa ou pessoa do quadro), com o **mesmo valor** e vencimento
+a até **7 dias**. Quando acha:
+
+- no extrato, a ordem ainda não paga mostra **Duplicada?** e, abaixo do nome,
+  com quais ordens ela se parece;
+- na tela da ordem aparece o aviso **Possível cobrança em duplicidade**, com o
+  link de cada ordem parecida;
+- para registrar o pagamento é preciso marcar **"Conferi: esta ordem não é a
+  mesma cobrança de …"**. A conferência fica anotada no histórico da ordem;
+- o pagamento em lote **não paga** essas ordens: elas aparecem na mensagem com
+  o motivo e devem ser pagas pela própria ordem, depois da conferência.
+
+Compras que se repetem de verdade (por exemplo, a água entregue toda semana
+pelo mesmo valor) também caem no aviso: basta conferir e marcar.
+
+O pagamento também recusa **data fora do esperado** (mais de 400 dias para
+trás ou mais de 31 dias à frente), que costuma ser ano digitado errado.
+
 Ordens canceladas, estornadas e compras "Na fatura" (pagas pela fatura do
 cartão) ficam fora do extrato; escolha a situação no filtro para vê-las. Os
 filtros e a busca valem no extrato e na lista. O botão **Lista** volta à
@@ -418,6 +439,8 @@ para outra situação, com o **motivo** (opcional só de *A pagar* para
 | Processando | O pagamento está em curso. Só para ordem já autorizada. |
 | Aguardando informações | É devolvida a quem a lançou, que complementa e reenvia. Sai da fila de pagamento. |
 | Aguardando documento fiscal | Volta ao contrato de origem e espera a nota. Só para ordem de contrato. |
+
+<Print src="financeiro/ordem-trocar-situacao.png" alt="Ordem Em autorização com o formulário Trocar situação aberto: Nova situação em A pagar, o texto de que a ordem vai para a fila de pagamento sem passar pela alçada e o campo obrigatório Motivo." />
 
 Com estorno pendente, a situação não troca: a ordem só volta pela tela do estorno.
 Compra de uma fatura de cartão já fechada também não troca.
