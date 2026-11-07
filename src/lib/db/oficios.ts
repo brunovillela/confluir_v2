@@ -397,6 +397,8 @@ export type DadosOficio = {
   aos_cuidados: string | null
   assunto: string | null
   corpo: string | null
+  saudacao: string
+  fecho: string
   assinante_integrante_id: string | null
   /** Demais assinantes, só o integrante (o retrato de nome e cargo vem na emissão). */
   coassinantes: { integrante_id: string }[]
@@ -786,6 +788,62 @@ export type DadosImpressao = {
 export async function dadosImpressao(id: string): Promise<DadosImpressao | null> {
   const oficio = await obterOficio(id)
   if (!oficio) return null
+  return dadosImpressaoDe(oficio)
+}
+
+/**
+ * Prévia (rota /oficio/previa): o ofício como está no FORMULÁRIO, sem gravar.
+ * Parte do rascunho salvo (número reservado, lista de filiados) quando há um,
+ * e põe por cima os campos digitados, com nome e cargo dos assinantes de agora.
+ */
+export async function oficioDaPrevia(base: DetalheOficio | null, dados: DadosOficio): Promise<DetalheOficio> {
+  const admin = await createAdminClient()
+  const ids = [dados.assinante_integrante_id, ...dados.coassinantes.map((c) => c.integrante_id)].filter(
+    (v): v is string => Boolean(v)
+  )
+  const [nomes, { data: integrantes }] = await Promise.all([
+    dados.destinatario_empresa_id ? nomesDasEmpresas([dados.destinatario_empresa_id]) : Promise.resolve(new Map<string, string>()),
+    ids.length
+      ? admin.from("diretoria_integrantes").select("id, nome, cargo").in("id", ids)
+      : Promise.resolve({ data: [] as { id: string; nome: string | null; cargo: string | null }[] }),
+  ])
+  const porId = new Map((integrantes ?? []).map((i) => [String(i.id), i]))
+  const assinante = (id: string) => ({ integranteId: id, nome: texto(porId.get(id)?.nome), cargo: texto(porId.get(id)?.cargo) })
+  const [principal, ...demais] = ids.map(assinante)
+  return {
+    id: base?.id ?? "previa",
+    tipo: dados.tipo,
+    numero: base?.numero ?? null,
+    ano: base?.ano ?? null,
+    data: dados.data,
+    sedeId: dados.sede_id,
+    destinatarioEmpresaId: dados.destinatario_empresa_id,
+    destinatarioNome: dados.destinatario_empresa_id ? (nomes.get(dados.destinatario_empresa_id) ?? null) : null,
+    destinatarioTexto: dados.destinatario_texto,
+    aosCuidados: dados.aos_cuidados,
+    assunto: dados.assunto,
+    corpo: dados.corpo,
+    saudacao: dados.saudacao,
+    fecho: dados.fecho,
+    assinanteIntegranteId: principal?.integranteId ?? null,
+    assinanteNome: principal?.nome ?? null,
+    assinanteCargo: principal?.cargo ?? null,
+    coassinantes: demais,
+    situacao: "Rascunho",
+    filiados: base?.filiados ?? [],
+    departamentoId: dados.departamento_id,
+    departamentoNome: null,
+    redatorNome: null,
+    arquivoAssinadoUrl: null,
+    respostas: [],
+    canceladoEm: null,
+    canceladoPorNome: null,
+    cancelamentoMotivo: null,
+  }
+}
+
+/** Cabeçalho, sedes e logo da entidade em volta de um ofício já montado. */
+export async function dadosImpressaoDe(oficio: DetalheOficio): Promise<DadosImpressao> {
   const admin = await createAdminClient()
 
   const [{ data: emp }, { data: sedeCab }, { data: sedes }] = await Promise.all([

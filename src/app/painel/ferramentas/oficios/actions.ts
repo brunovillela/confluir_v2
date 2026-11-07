@@ -31,52 +31,9 @@ import {
   reenviarConvite,
   type CanalAssinatura,
 } from "@/lib/db/oficios-assinatura"
-import { MAX_ASSINANTES_OFICIO, TIPOS_OFICIO, eAutomatico, type TipoOficio } from "@/lib/oficios-constantes"
+import { TIPOS_OFICIO, eAutomatico } from "@/lib/oficios-constantes"
 
-function texto(formData: FormData, campo: string): string {
-  return String(formData.get(campo) ?? "").trim()
-}
-
-function dataISO(valor: string): string | null {
-  return /^\d{4}-\d{2}-\d{2}$/.test(valor) ? valor : null
-}
-
-function tipo(valor: string): TipoOficio {
-  return (TIPOS_OFICIO as readonly string[]).includes(valor)
-    ? (valor as TipoOficio)
-    : "manual"
-}
-
-function lerDados(formData: FormData): DadosOficio {
-  return {
-    tipo: tipo(texto(formData, "tipo")),
-    data: dataISO(texto(formData, "data")),
-    sede_id: texto(formData, "sede_id") || null,
-    destinatario_empresa_id: texto(formData, "destinatario_empresa_id") || null,
-    destinatario_texto: texto(formData, "destinatario_texto") || null,
-    aos_cuidados: texto(formData, "aos_cuidados") || null,
-    assunto: texto(formData, "assunto") || null,
-    corpo: texto(formData, "corpo") || null,
-    ...lerAssinantes(formData),
-    departamento_id: texto(formData, "departamento_id") || null,
-  }
-}
-
-/**
- * Principal + demais assinantes, sem repetição e sem vazios. Quem tira o
- * principal e deixa os outros: o primeiro dos outros vira o principal.
- */
-function lerAssinantes(formData: FormData): Pick<DadosOficio, "assinante_integrante_id" | "coassinantes"> {
-  const ids = [
-    texto(formData, "assinante_integrante_id"),
-    ...formData.getAll("coassinante_integrante_id").map((v) => String(v).trim()),
-  ].filter(Boolean)
-  const unicos = [...new Set(ids)].slice(0, MAX_ASSINANTES_OFICIO)
-  return {
-    assinante_integrante_id: unicos[0] ?? null,
-    coassinantes: unicos.slice(1).map((integrante_id) => ({ integrante_id })),
-  }
-}
+import { lerDados, texto, tipo } from "./ler-formulario"
 
 /** Tipo escolhido e destinatário coerente com ele → mensagem de erro, ou null. */
 function erroTipoEDestino(formData: FormData, dados: DadosOficio): string | null {

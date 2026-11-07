@@ -14,6 +14,7 @@ import {
   enviarParaAssinaturaAction,
   reenviarConviteAction,
 } from "../actions"
+import { useGuardaAlteracoes } from "./guarda-alteracoes"
 
 function Retorno({ estado }: { estado: EstadoForm }) {
   if (estado.erro) return <p className="text-destructive w-full text-sm">{estado.erro}</p>
@@ -108,9 +109,10 @@ export function EnviarParaAssinatura({
     {}
   )
   const varios = assinantes.length > 1
+  const guarda = useGuardaAlteracoes()
 
   return (
-    <form action={formAction} className="grid gap-3">
+    <form action={formAction} onSubmit={guarda.onSubmit} className="grid gap-3">
       <input type="hidden" name="oficio_id" value={oficioId} />
       <div className={varios ? "grid gap-2 md:grid-cols-2" : "grid"}>
         {assinantes.map((a) => (
@@ -133,6 +135,7 @@ export function EnviarParaAssinatura({
           {varios ? `Enviar aos ${assinantes.length} assinantes` : "Enviar para assinatura"}
         </Button>
       </div>
+      {guarda.aviso}
       <Retorno estado={estado} />
     </form>
   )

@@ -4,6 +4,7 @@ import {
   lerCorpo,
   linkSeguro,
   marcadoresDaLista,
+  separaDoProximo,
   type Alinhamento,
   type Trecho,
 } from "@/lib/oficio-formatacao"
@@ -83,6 +84,8 @@ export function OficioCorpo({ corpo, className }: { corpo: string | null | undef
               ...alinhar(b.alinhamento),
               paddingLeft: b.recuo ? `${b.recuo * RECUO_EM}em` : undefined,
               margin: 0,
+              // Respiro entre parágrafos com texto, igual ao PDF (lib/pdf/oficio.tsx).
+              marginBottom: separaDoProximo(blocos, i) ? "0.6em" : 0,
               minHeight: "1.5em",
               whiteSpace: "pre-wrap",
             }}

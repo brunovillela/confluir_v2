@@ -26,6 +26,7 @@ import {
   emitirOficioAction,
   removerFiliadoAction,
 } from "../actions"
+import { useGuardaAlteracoes } from "./guarda-alteracoes"
 
 const INPUT =
   "border-input bg-background text-foreground h-9 rounded-md border px-3 text-sm shadow-xs outline-none"
@@ -41,8 +42,9 @@ export function EmitirOficio({
     emitirOficioAction,
     {}
   )
+  const guarda = useGuardaAlteracoes()
   return (
-    <form action={formAction} className="flex flex-wrap items-end gap-2">
+    <form action={formAction} onSubmit={guarda.onSubmit} className="flex flex-wrap items-end gap-2">
       <input type="hidden" name="oficio_id" value={oficioId} />
       {/* Número não se edita: é o último do ano + 1, atribuído na emissão. */}
       <div className="grid gap-1 text-xs">
@@ -56,6 +58,7 @@ export function EmitirOficio({
         {pendente ? <Loader2 className="animate-spin" /> : <Send />}
         Emitir
       </Button>
+      {guarda.aviso}
       {estado.erro && (
         <p className="text-destructive w-full text-sm">{estado.erro}</p>
       )}

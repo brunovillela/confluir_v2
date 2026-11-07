@@ -262,6 +262,8 @@ export default async function OficioPage({
                 aosCuidados: oficio.aosCuidados,
                 assunto: oficio.assunto,
                 corpo: oficio.corpo,
+                saudacao: oficio.saudacao,
+                fecho: oficio.fecho,
                 assinanteIntegranteId: oficio.assinanteIntegranteId,
                 coassinantesIds: oficio.coassinantes.map((c) => c.integranteId as string),
                 departamentoId: oficio.departamentoId,
@@ -679,7 +681,7 @@ function Campo({ rotulo, valor }: { rotulo: string; valor: string | null }) {
   return (
     <div>
       <p className="text-muted-foreground text-xs">{rotulo}</p>
-      <p className="mt-0.5">{valor ?? "—"}</p>
+      <p className="mt-0.5 whitespace-pre-line">{valor ?? "—"}</p>
     </div>
   )
 }

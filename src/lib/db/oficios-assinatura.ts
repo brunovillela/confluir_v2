@@ -1180,7 +1180,7 @@ export async function renderizarPdfOficio(
   dados: DadosImpressao,
   assinaturas: Assinatura[],
   /** O PDF guardado no bucket na assinatura nunca leva a marca de cancelado. */
-  opcoes: { marcarCancelamento?: boolean } = {}
+  opcoes: { marcarCancelamento?: boolean; previa?: boolean } = {}
 ): Promise<Buffer> {
   const validas = rodadaEncerrada(assinaturas) ? [] : assinaturas
   const [logo, assinaturasPdf] = await Promise.all([
@@ -1192,6 +1192,7 @@ export async function renderizarPdfOficio(
     logoDataUri: logo,
     assinaturas: assinaturasPdf,
     cancelamento: opcoes.marcarCancelamento === false ? null : cancelamentoParaPdf(dados.oficio),
+    previa: opcoes.previa === true,
   }) as Parameters<typeof renderToBuffer>[0]
   return renderToBuffer(elemento)
 }

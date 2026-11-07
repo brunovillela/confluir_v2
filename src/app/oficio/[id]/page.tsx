@@ -7,6 +7,7 @@ import { podeVerOficio } from "@/lib/db/oficios-acesso"
 import { formatarMomento } from "@/lib/db/oficios-assinatura"
 import { formatarCnpjCpf } from "@/lib/formato"
 import { OficioCorpo } from "@/components/oficio-corpo"
+import { FECHO_PADRAO, SAUDACAO_PADRAO } from "@/lib/oficios-constantes"
 
 import { BotaoImprimir } from "./botao-imprimir"
 
@@ -133,11 +134,11 @@ export default async function ImpressaoOficioPage({
         </p>
         <p className="oficio-meta">Para: {destinatario}</p>
         {oficio.aosCuidados && (
-          <p className="oficio-meta">Aos cuidados: {oficio.aosCuidados}</p>
+          <p className="oficio-meta" style={{ whiteSpace: "pre-line" }}>Aos cuidados: {oficio.aosCuidados}</p>
         )}
         <p className="oficio-meta">Assunto: {oficio.assunto ?? "—"}</p>
 
-        <p style={{ marginTop: "24px" }}>{oficio.saudacao ?? "Prezados,"}</p>
+        <p style={{ marginTop: "24px" }}>{oficio.saudacao ?? SAUDACAO_PADRAO}</p>
 
         {oficio.corpo && (
           <OficioCorpo corpo={oficio.corpo} className="oficio-corpo" />
@@ -154,7 +155,7 @@ export default async function ImpressaoOficioPage({
           </ul>
         )}
 
-        <p>{oficio.fecho ?? "Cordialmente,"}</p>
+        <p>{oficio.fecho ?? FECHO_PADRAO}</p>
 
         <div className={`oficio-assinaturas${assinantesDoOficio(oficio).length > 1 ? " varios" : ""}`}>
           {(assinantesDoOficio(oficio).length ? assinantesDoOficio(oficio) : [{ nome: null, cargo: null }]).map((a, i) => (

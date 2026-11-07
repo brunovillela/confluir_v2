@@ -291,6 +291,38 @@ export function normalizarCorpo(bb: string | null | undefined): string {
   return escreverCorpo(lerCorpo(bb))
 }
 
+// ── Espaço entre parágrafos e saudação ──────────────────────────────────────
+
+/**
+ * O parágrafo `i` ganha um respiro antes do bloco seguinte? Sim quando os dois
+ * têm texto. Não quando o seguinte é uma linha em branco: quem já separa os
+ * parágrafos com linha vazia (boa parte do legado) não ganha espaço dobrado.
+ */
+export function separaDoProximo(blocos: Bloco[], i: number): boolean {
+  const b = blocos[i]
+  const prox = blocos[i + 1]
+  return Boolean(b && prox && b.tipo === "p" && !vazio(b) && !vazio(prox))
+}
+
+const VOCATIVO =
+  /^(prezad[oa]s?|senhor(a|es|as)?|sr\.?|sra\.?|srs\.?|ilustr[íi]ssim[oa]s?|ilm[oa]s?\.?|excelent[íi]ssim[oa]s?|exm[oa]s?\.?|car[oa]s?|estimad[oa]s?|respeit[áa]ve(l|is)|magn[íi]fic[oa])\b/i
+
+/**
+ * O corpo começa com uma saudação ("Prezado Senhor Diretor-Geral,")? O ofício
+ * já tem a saudação num campo próprio, então ela sairia repetida. Devolve a
+ * saudação e o corpo sem ela, para o formulário oferecer a troca.
+ */
+export function saudacaoNoCorpo(bb: string | null | undefined): { saudacao: string; resto: string } | null {
+  const blocos = lerCorpo(bb)
+  const primeiro = blocos[0]
+  if (!primeiro || primeiro.tipo !== "p") return null
+  const texto = primeiro.trechos.map((t) => t.texto).join("").trim()
+  if (texto.length > 90 || !/[,:]$/.test(texto) || !VOCATIVO.test(texto)) return null
+  const resto = blocos.slice(1)
+  while (resto[0] && vazio(resto[0])) resto.shift()
+  return { saudacao: texto, resto: escreverCorpo(resto) }
+}
+
 // ── Texto simples ────────────────────────────────────────────────────────────
 
 /** Para buscas, e-mails e prévias: listas com "•" / "1.", sem marcação. */

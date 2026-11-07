@@ -1,18 +1,25 @@
 "use client"
 
-import { useActionState, useRef, useState } from "react"
-import { Loader2, Plus, Save, Sparkles, X } from "lucide-react"
+import { useActionState, useEffect, useRef, useState } from "react"
+import { Eye, Loader2, Plus, Save, Sparkles, X } from "lucide-react"
 
 import { EditorOficio, type EditorOficioRef } from "@/components/editor-oficio"
 import { EmpresaCombobox, type EmpresaOpcao } from "@/components/empresa-combobox"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { type EstadoForm } from "@/lib/contas"
-import { corpoEmTexto } from "@/lib/oficio-formatacao"
+import { registrarFormularioOficio } from "@/lib/oficio-alteracoes"
+import { corpoEmTexto, saudacaoNoCorpo } from "@/lib/oficio-formatacao"
 import {
   EXPLICACAO_TIPO_OFICIO,
+  FECHO_PADRAO,
   MAX_ASSINANTES_OFICIO,
+  MAX_LINHAS_AOS_CUIDADOS,
+  SAUDACAO_PADRAO,
+  SUGESTOES_FECHO,
+  SUGESTOES_SAUDACAO,
   padraoOficio,
   ROTULOS_TIPO_OFICIO,
   TIPOS_OFICIO,
@@ -36,6 +43,8 @@ export type OficioFormDados = {
   aosCuidados?: string | null
   assunto?: string | null
   corpo?: string | null
+  saudacao?: string | null
+  fecho?: string | null
   assinanteIntegranteId?: string | null
   /** Demais assinantes, na ordem do documento. */
   coassinantesIds?: string[]
@@ -43,6 +52,15 @@ export type OficioFormDados = {
 }
 
 type OpcaoAssinante = { id: string; nome: string; cargo: string | null }
+
+/** Campos do formulário como texto, para saber se algo mudou desde o último salvamento. */
+function retrato(form: HTMLFormElement | null): string {
+  if (!form) return ""
+  return Array.from(new FormData(form))
+    .filter(([, v]) => typeof v === "string")
+    .map(([k, v]) => `${k}=${v as string}`)
+    .join("\u0000")
+}
 
 /**
  * Assinantes da diretoria: o primeiro é o principal e os demais assinam junto,
@@ -167,9 +185,90 @@ export function OficioForm({
 
   const corpoRef = useRef<EditorOficioRef>(null)
   const formRef = useRef<HTMLFormElement>(null)
+  // Retrato do que está salvo e do que foi mandado salvar (vira o salvo no sucesso).
+  const salvo = useRef<string | null>(null)
+  const enviando = useRef<string | null>(null)
   const envio = useEnvioFormulario(formAction, estado, {
     ref: formRef,
+    antes: () => {
+      enviando.current = retrato(formRef.current)
+    },
   })
+  const [saudacao, setSaudacao] = useState(dados?.saudacao ?? SAUDACAO_PADRAO)
+  // Saudação escrita no começo do corpo: sairia repetida (ofício 331/2026).
+  const [saudacaoRepetida, setSaudacaoRepetida] = useState<{ saudacao: string; resto: string } | null>(
+    () => saudacaoNoCorpo(dados?.corpo)
+  )
+
+  // Alterações não salvas: o envio para assinatura e a emissão usam a versão salva.
+  useEffect(() => {
+    if (novo) return
+    // Depois da montagem: o editor normaliza o corpo ao abrir.
+    const t = setTimeout(() => {
+      salvo.current = retrato(formRef.current)
+    }, 0)
+    const alterado = () => salvo.current != null && retrato(formRef.current) !== salvo.current
+    const desregistrar = registrarFormularioOficio({
+      alterado,
+      salvar: () => formRef.current?.requestSubmit(),
+    })
+    const aoSair = (e: BeforeUnloadEvent) => {
+      if (!alterado()) return
+      e.preventDefault()
+      e.returnValue = ""
+    }
+    window.addEventListener("beforeunload", aoSair)
+    return () => {
+      clearTimeout(t)
+      desregistrar()
+      window.removeEventListener("beforeunload", aoSair)
+    }
+  }, [novo])
+
+  useEffect(() => {
+    if (estado.ok && enviando.current != null) {
+      salvo.current = enviando.current
+      enviando.current = null
+    }
+  }, [estado])
+
+  function conferirCorpo() {
+    setSaudacaoRepetida(saudacaoNoCorpo(corpoRef.current?.valor()))
+  }
+
+  function usarComoSaudacao() {
+    if (!saudacaoRepetida) return
+    setSaudacao(saudacaoRepetida.saudacao)
+    corpoRef.current?.definir(saudacaoRepetida.resto)
+    setSaudacaoRepetida(null)
+  }
+
+  /**
+   * PDF do que está na tela, sem salvar (tarja "PRÉVIA"), numa aba nova. Vai
+   * por um formulário comum (POST com target _blank), não por fetch + blob: a
+   * aba aberta por blob fica em branco em parte dos navegadores e no celular.
+   */
+  function verPrevia() {
+    const form = formRef.current
+    if (!form) return
+    const envio = document.createElement("form")
+    envio.method = "post"
+    envio.action = "/oficio/previa"
+    envio.target = "_blank"
+    envio.enctype = "multipart/form-data"
+    envio.hidden = true
+    for (const [nome, valor] of new FormData(form)) {
+      if (typeof valor !== "string") continue
+      // textarea guarda as quebras de linha (corpo, A/C) sem mexer.
+      const campo = document.createElement("textarea")
+      campo.name = nome
+      campo.value = valor
+      envio.appendChild(campo)
+    }
+    document.body.appendChild(envio)
+    envio.submit()
+    envio.remove()
+  }
   const [iaPendente, setIaPendente] = useState(false)
   const [iaErro, setIaErro] = useState<string | null>(null)
 
@@ -196,7 +295,10 @@ export function OficioForm({
       setIaErro(erro)
       return
     }
-    if (texto) corpoRef.current?.definir(texto)
+    if (texto) {
+      corpoRef.current?.definir(texto)
+      conferirCorpo()
+    }
   }
 
   return (
@@ -353,14 +455,17 @@ export function OficioForm({
 
             <div className="grid gap-1.5">
               <Label htmlFor="aos_cuidados">Aos cuidados (A/C) — opcional</Label>
-              <Input
+              <Textarea
                 id="aos_cuidados"
                 name="aos_cuidados"
+                rows={2}
                 defaultValue={dados?.aosCuidados ?? ""}
-                placeholder="Ex.: Sr. João da Silva — Departamento de Pessoal"
+                placeholder={"Ex.: Sr. João da Silva\nGerente do Departamento de Pessoal"}
+                className="min-h-16"
               />
               <span className="text-muted-foreground text-xs">
-                Só aparece no ofício se preenchido.
+                Só aparece no ofício se preenchido. Use uma linha para o nome e outra para o cargo
+                (até {MAX_LINHAS_AOS_CUIDADOS} linhas).
               </span>
             </div>
 
@@ -417,20 +522,70 @@ export function OficioForm({
                 {iaPendente ? "Gerando…" : "Melhorar com IA"}
               </Button>
             </div>
-            <EditorOficio
-              key={`corpo-${novo ? tipo : "e"}`}
-              id="corpo"
-              name="corpo"
-              rotuloId="rotulo-corpo"
-              ref={corpoRef}
-              valorInicial={corpoDefault}
-            />
+            <div className="grid gap-1.5">
+              <Label htmlFor="saudacao">Saudação</Label>
+              <Input
+                id="saudacao"
+                name="saudacao"
+                list="sugestoes-saudacao"
+                value={saudacao}
+                onChange={(e) => setSaudacao(e.target.value)}
+                placeholder={SAUDACAO_PADRAO}
+                maxLength={120}
+              />
+              <datalist id="sugestoes-saudacao">
+                {SUGESTOES_SAUDACAO.map((s) => (
+                  <option key={s} value={s} />
+                ))}
+              </datalist>
+            </div>
+            {/* O input do editor (contentEditable) sobe até aqui. */}
+            <div onInput={conferirCorpo}>
+              <EditorOficio
+                key={`corpo-${novo ? tipo : "e"}`}
+                id="corpo"
+                name="corpo"
+                rotuloId="rotulo-corpo"
+                ref={corpoRef}
+                valorInicial={corpoDefault}
+              />
+            </div>
+            {saudacaoRepetida && (
+              <div className="border-warning/40 bg-warning/10 grid gap-2 rounded-md border px-3 py-2 text-sm">
+                <p>
+                  O texto começa com uma saudação (“{saudacaoRepetida.saudacao}”), e o ofício já tem a
+                  saudação “{saudacao || SAUDACAO_PADRAO}” logo acima dele. Do jeito que está, sai
+                  repetida.
+                </p>
+                <div>
+                  <Button type="button" variant="outline" size="sm" onClick={usarComoSaudacao}>
+                    Usar “{saudacaoRepetida.saudacao}” como saudação
+                  </Button>
+                </div>
+              </div>
+            )}
             {iaErro && <p className="text-destructive text-xs">{iaErro}</p>}
             {eAutomatico(tipo) && (
               <span className="text-muted-foreground text-xs">
                 A lista de nomes entra logo abaixo do corpo no documento.
               </span>
             )}
+            <div className="grid gap-1.5 sm:max-w-xs">
+              <Label htmlFor="fecho">Fecho</Label>
+              <Input
+                id="fecho"
+                name="fecho"
+                list="sugestoes-fecho"
+                defaultValue={dados?.fecho ?? FECHO_PADRAO}
+                placeholder={FECHO_PADRAO}
+                maxLength={120}
+              />
+              <datalist id="sugestoes-fecho">
+                {SUGESTOES_FECHO.map((s) => (
+                  <option key={s} value={s} />
+                ))}
+              </datalist>
+            </div>
           </div>
         </>
       )}
@@ -438,12 +593,23 @@ export function OficioForm({
       <div className="grid gap-2 lg:col-span-2">
         {estado.erro && <p className="text-destructive text-sm">{estado.erro}</p>}
         {estado.ok && <p className="text-success-fg text-sm">{estado.ok}</p>}
-        <div>
+        <div className="flex flex-wrap items-center gap-2">
           <Button type="submit" disabled={pendente || !tipo}>
             {pendente ? <Loader2 className="animate-spin" /> : <Save />}
             {novo ? "Criar ofício" : "Salvar alterações"}
           </Button>
+          {tipo && (
+            <Button type="button" variant="outline" onClick={verPrevia}>
+              <Eye />
+              Ver como fica (PDF)
+            </Button>
+          )}
         </div>
+        {tipo && (
+          <span className="text-muted-foreground text-xs">
+            A prévia mostra o que está na tela, mesmo sem salvar.
+          </span>
+        )}
       </div>
     </form>
   )

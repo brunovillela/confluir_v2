@@ -10,7 +10,7 @@ import {
 
 import { assinantesDoOficio, type DadosImpressao } from "@/lib/db/oficios"
 import { formatarCnpjCpf } from "@/lib/formato"
-import { lerCorpo, linkSeguro, marcadoresDaLista, type Trecho } from "@/lib/oficio-formatacao"
+import { lerCorpo, linkSeguro, marcadoresDaLista, separaDoProximo, type Trecho } from "@/lib/oficio-formatacao"
 
 /**
  * PDF real do ofício (@react-pdf/renderer), espelhando a folha A4 de
@@ -65,6 +65,13 @@ function dataPorExtenso(iso: string | null): string {
 // 1 cm ≈ 28.35 pt
 const CM = 28.35
 
+// Entrelinha do corpo. No @react-pdf 4.5 o lineHeight NÃO é "x vezes o corpo
+// da letra": 1.3 dava 23 pt entre linhas numa letra de 11 pt (espaço duplo).
+// Medido: 0.9 → ~16 pt, cerca de 1,5 vez a letra, igual à tela (line-height 1.5).
+const ENTRELINHA = 0.9
+// Respiro entre dois parágrafos com texto (ver separaDoProximo).
+const ENTRE_PARAGRAFOS = 7
+
 const s = StyleSheet.create({
   page: {
     paddingTop: CM,
@@ -80,19 +87,21 @@ const s = StyleSheet.create({
   logo: { width: 200, objectFit: "contain" },
   data: { textAlign: "right", marginBottom: 10 },
   meta: { lineHeight: 1, marginBottom: 2 },
+  metaLinha: { flexDirection: "row" },
   metaLabel: { fontFamily: "Helvetica-Bold" },
+  metaValor: { flex: 1 },
   saudacao: { marginTop: 24 },
   // Espaço em volta de blocos que se dividem entre páginas = PADDING, nunca
   // margem: no @react-pdf, um View com margem que não cabe no resto da página
   // não se divide — vai inteiro para a seguinte e deixa a anterior em branco
   // (ofício 331/2026: a página 1 terminava em "Prezados,").
   corpo: { paddingVertical: 18 },
-  paragrafo: { lineHeight: 1.3 },
-  titulo: { lineHeight: 1.3, fontFamily: "Helvetica-Bold", fontSize: 12, marginTop: 4, marginBottom: 2 },
+  paragrafo: { lineHeight: ENTRELINHA },
+  titulo: { lineHeight: ENTRELINHA, fontFamily: "Helvetica-Bold", fontSize: 12, marginTop: 4, marginBottom: 2 },
   listaCorpo: { paddingVertical: 3 },
   itemCorpo: { flexDirection: "row", alignItems: "flex-start" },
-  marcador: { width: 18, textAlign: "right", marginRight: 5, lineHeight: 1.3 },
-  itemTexto: { flex: 1, lineHeight: 1.3 },
+  marcador: { width: 18, textAlign: "right", marginRight: 5, lineHeight: ENTRELINHA },
+  itemTexto: { flex: 1, lineHeight: ENTRELINHA },
   lista: { paddingVertical: 12, paddingLeft: 4 },
   item: { marginBottom: 2 },
   assinaturas: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center" },
@@ -252,6 +261,7 @@ function CorpoPDF({ corpo }: { corpo: string | null }) {
               s.paragrafo,
               b.alinhamento ? { textAlign: b.alinhamento } : {},
               b.recuo ? { marginLeft: b.recuo * RECUO_PT } : {},
+              separaDoProximo(blocos, i) ? { marginBottom: ENTRE_PARAGRAFOS } : {},
             ]}
           >
             {b.trechos.length ? <TrechosPDF trechos={b.trechos} /> : " "}
@@ -262,11 +272,25 @@ function CorpoPDF({ corpo }: { corpo: string | null }) {
   )
 }
 
+/**
+ * "Rótulo: valor". Valor com quebra de linha (o "Aos cuidados" em nome, cargo
+ * e setor) continua alinhado depois dos dois-pontos, não embaixo do rótulo.
+ */
 function Meta({ label, valor }: { label: string; valor: string }) {
+  if (!valor.includes("\n")) {
+    return (
+      <Text style={s.meta}>
+        <Text style={s.metaLabel}>{label}</Text>: {valor}
+      </Text>
+    )
+  }
   return (
-    <Text style={s.meta}>
-      <Text style={s.metaLabel}>{label}</Text>: {valor}
-    </Text>
+    <View style={s.metaLinha}>
+      <Text style={s.meta}>
+        <Text style={s.metaLabel}>{label}</Text>:{" "}
+      </Text>
+      <Text style={[s.meta, s.metaValor]}>{valor}</Text>
+    </View>
   )
 }
 
@@ -284,6 +308,15 @@ function TarjaCancelado() {
   return (
     <Text style={s.tarja} fixed>
       CANCELADO
+    </Text>
+  )
+}
+
+/** Prévia do que está no formulário (ainda não salvo): não vale como documento. */
+function TarjaPrevia() {
+  return (
+    <Text style={[s.tarja, { color: "#6b7280", opacity: 0.14 }]} fixed>
+      PRÉVIA
     </Text>
   )
 }
@@ -318,12 +351,15 @@ export function OficioPDF({
   logoDataUri,
   assinaturas = [],
   cancelamento = null,
+  previa = false,
 }: {
   dados: DadosImpressao
   logoDataUri: string | null
   /** Um por assinante do envio vigente (vazio sem assinatura eletrônica). */
   assinaturas?: AssinaturaPDF[]
   cancelamento?: CancelamentoPDF | null
+  /** Prévia do formulário: tarja "PRÉVIA" e sem assinatura. */
+  previa?: boolean
 }) {
   // O documento só está assinado quando todos assinaram: aí entram o QR e o certificado.
   const assinado = assinaturas.length > 0 && assinaturas.every((a) => a.situacao === "assinado")
@@ -466,6 +502,7 @@ export function OficioPDF({
           }
         />
         {cancelamento ? <TarjaCancelado /> : null}
+        {previa ? <TarjaPrevia /> : null}
       </Page>
 
       {assinado && assinatura ? (

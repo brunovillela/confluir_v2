@@ -63,3 +63,34 @@ export function padraoOficio(
 
 /** Assinantes de um ofício, contando o principal (vários assinam ao mesmo tempo). */
 export const MAX_ASSINANTES_OFICIO = 6
+
+/** Saudação e fecho quando o campo fica em branco (o padrão de sempre). */
+export const SAUDACAO_PADRAO = "Prezados,"
+export const FECHO_PADRAO = "Cordialmente,"
+
+/** Sugestões dos campos (a pessoa pode escrever outra). */
+export const SUGESTOES_SAUDACAO = [
+  "Prezados,",
+  "Prezado Senhor,",
+  "Prezada Senhora,",
+  "Senhor Diretor,",
+  "Senhora Diretora,",
+  "Senhor Superintendente,",
+  "Excelentíssimo Senhor,",
+  "Excelentíssima Senhora,",
+]
+export const SUGESTOES_FECHO = ["Cordialmente,", "Atenciosamente,", "Respeitosamente,", "Saudações sindicais,"]
+
+/** "Aos cuidados" em até 3 linhas (nome, cargo, setor), sem linhas vazias. */
+export const MAX_LINHAS_AOS_CUIDADOS = 3
+export function normalizarAosCuidados(v: string | null | undefined): string | null {
+  const linhas = String(v ?? "")
+    .split(/\r?\n/)
+    .map((l) => l.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+  if (!linhas.length) return null
+  // Passou do limite: o excedente vai para a última linha, nada se perde.
+  const cabe = linhas.slice(0, MAX_LINHAS_AOS_CUIDADOS - 1)
+  const resto = linhas.slice(MAX_LINHAS_AOS_CUIDADOS - 1).join(" ")
+  return [...cabe, ...(resto ? [resto] : [])].join("\n")
+}
