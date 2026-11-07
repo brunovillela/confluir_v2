@@ -104,6 +104,7 @@ export default async function AtaPage({
           <Badge variant="secondary">{ROTULO_TIPO_REUNIAO[a.tipo]}</Badge>
         </div>
         <p className="text-muted-foreground mt-1 text-xs">
+          {a.numero && <>Ata nº {a.numero} · </>}
           {a.data ? formatarData(a.data) : "sem data"}
           {a.mandatoNome && <> · {a.mandatoNome}</>}
           {a.orgao && <> · {a.orgao}</>}

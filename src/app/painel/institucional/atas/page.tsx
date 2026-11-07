@@ -155,6 +155,7 @@ export default async function AtasPage({
                       >
                         {a.titulo ?? "(sem título)"}
                       </Link>
+                      {a.numero && <span className="text-muted-foreground text-xs">Ata nº {a.numero}</span>}
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary">

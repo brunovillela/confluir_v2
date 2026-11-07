@@ -12,6 +12,7 @@ import { dataXlsx, planilhaXlsxAbas, respostaXlsx, type AbaXlsx, type ColunaXlsx
 import { COLUNAS_DELIBERACOES } from "../../deliberacoes/colunas"
 
 const COLUNAS_ATAS: ColunaXlsx<AtaPlanilha>[] = [
+  { titulo: "Nº", valor: (a) => a.numero, largura: 10 },
   { titulo: "Data", valor: (a) => dataXlsx(a.data), largura: 12 },
   { titulo: "Hora", valor: (a) => a.hora, largura: 10 },
   { titulo: "Título", valor: (a) => a.titulo, largura: 40 },

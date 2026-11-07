@@ -1,5 +1,5 @@
 import "server-only"
-import { texto } from "@/lib/db/comum"
+import { lerEmLotes, texto } from "@/lib/db/comum"
 import { randomUUID } from "node:crypto"
 
 import { tenantAtual } from "@/lib/tenant"
@@ -9,7 +9,7 @@ import {
   urlDocumentoDiretoria,
 } from "@/lib/db/diretoria"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { TIPOS_REUNIAO, TITULO_SOB_SIGILO, type TipoReuniao } from "@/lib/atas-constantes"
+import { numerarAtas, TIPOS_REUNIAO, TITULO_SOB_SIGILO, type TipoReuniao } from "@/lib/atas-constantes"
 import { ehSigiloDeliberacao, type SigiloDeliberacao } from "@/lib/deliberacoes-constantes"
 
 /**
@@ -29,6 +29,34 @@ function sigiloDe(v: unknown): SigiloDeliberacao {
   return ehSigiloDeliberacao(v) ? v : "restrito"
 }
 
+/**
+ * Número anual de cada ata da entidade (id → "03/2026"), calculado sobre
+ * todas as atas para que uma antiga lançada depois renumere as seguintes
+ * (atas-constantes → numerarAtas). Poucas por ano: lê tudo de uma vez.
+ */
+export async function numerosDasAtas(): Promise<Map<string, string>> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const linhas = await lerEmLotes<Record<string, unknown>>((de, ate) =>
+    admin
+      .from("reuniao_ata")
+      .select("id, tipo, orgao, data, hora, created_at")
+      .eq("emp_proprietaria_id", emp)
+      .order("id")
+      .range(de, ate)
+  )
+  return numerarAtas(
+    linhas.map((a) => ({
+      id: String(a.id),
+      tipo: tipoValido(String(a.tipo ?? "outra")),
+      orgao: texto(a.orgao),
+      data: texto(a.data),
+      hora: texto(a.hora),
+      criadaEm: texto(a.created_at),
+    }))
+  )
+}
+
 async function nomesDeMandatos(): Promise<Map<string, string | null>> {
   const mapa = new Map<string, string | null>()
   const mandatos = await listarMandatos()
@@ -40,6 +68,8 @@ async function nomesDeMandatos(): Promise<Map<string, string | null>> {
 
 export type AtaLinha = {
   id: string
+  /** Número anual na série do tipo de reunião ("03/2026"); null sem data. */
+  numero: string | null
   tipo: TipoReuniao
   /** TITULO_SOB_SIGILO quando o sigilo da ata está acima do nível de quem lista. */
   titulo: string | null
@@ -61,9 +91,10 @@ export type FiltrosAtas = {
  */
 export async function listarAtas(filtros: FiltrosAtas, sigilos: SigiloDeliberacao[]): Promise<AtaLinha[]> {
   const data = await buscarAtas(filtros, sigilos, "id, tipo, titulo, data, mandato_id, sigilo_documento")
-  const nomes = await nomesDeMandatos()
+  const [nomes, numeros] = await Promise.all([nomesDeMandatos(), numerosDasAtas()])
   return data.map((a) => ({
     id: String(a.id),
+    numero: numeros.get(String(a.id)) ?? null,
     tipo: tipoValido(String(a.tipo ?? "outra")),
     titulo: sigilos.includes(sigiloDe(a.sigilo_documento)) ? texto(a.titulo) : TITULO_SOB_SIGILO,
     data: texto(a.data),
@@ -99,7 +130,7 @@ export async function listarAtasParaPlanilha(filtros: FiltrosAtas, sigilos: Sigi
     sigilos,
     "id, tipo, orgao, titulo, data, hora, local, mandato_id, sigilo_documento, pauta, resumo, presentes, observacoes, documento_url"
   )
-  const nomes = await nomesDeMandatos()
+  const [nomes, numeros] = await Promise.all([nomesDeMandatos(), numerosDasAtas()])
   return data.map((a) => {
     const sigilo = sigiloDe(a.sigilo_documento)
     const alcanca = sigilos.includes(sigilo)
@@ -109,6 +140,7 @@ export async function listarAtasParaPlanilha(filtros: FiltrosAtas, sigilos: Sigi
     }
     return {
       id: String(a.id),
+      numero: numeros.get(String(a.id)) ?? null,
       tipo: tipoValido(String(a.tipo ?? "outra")),
       titulo: alcanca ? texto(a.titulo) : TITULO_SOB_SIGILO,
       data: texto(a.data),
@@ -159,6 +191,8 @@ async function buscarAtas(
 
 export type AtaDetalhe = {
   id: string
+  /** Número anual na série do tipo de reunião ("03/2026"); null sem data. */
+  numero: string | null
   mandatoId: string | null
   mandatoNome: string | null
   tipo: TipoReuniao
@@ -215,8 +249,11 @@ export async function obterAta(id: string, sigilos: SigiloDeliberacao[]): Promis
   const titulo = texto(a.titulo)
   const presentes = texto(a.presentes)
 
+  const numero = (await numerosDasAtas()).get(String(a.id)) ?? null
+
   return {
     id: String(a.id),
+    numero,
     mandatoId: texto(a.mandato_id),
     mandatoNome,
     tipo: tipoValido(String(a.tipo ?? "outra")),

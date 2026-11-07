@@ -67,6 +67,7 @@ export default async function AtasDoMandatoPage({
                     {a.titulo ?? "(sem título)"}
                   </Link>
                   <p className="text-muted-foreground text-xs">
+                    {a.numero && <>Ata nº {a.numero} · </>}
                     {a.data ? formatarData(a.data) : "sem data"} · {ROTULO_TIPO_REUNIAO[a.tipo]}
                   </p>
                 </li>

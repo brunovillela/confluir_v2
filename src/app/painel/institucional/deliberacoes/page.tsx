@@ -300,6 +300,7 @@ export default async function DeliberacoesPage({
                           )}
                           <span className="text-muted-foreground block text-xs">
                             {d.ata.tipo === "outra" && d.ata.orgao ? d.ata.orgao : ROTULO_TIPO_REUNIAO[d.ata.tipo]}
+                            {d.ata.numero && <> · nº {d.ata.numero}</>}
                           </span>
                         </TableCell>
                         <TableCell className="align-top text-sm">

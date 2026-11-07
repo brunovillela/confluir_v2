@@ -3,6 +3,7 @@ import "server-only"
 import { lerEmLotes, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { PERMISSOES_USUARIO_FK, type Permissoes } from "@/lib/permissoes"
 import { resolverPermissoes } from "@/lib/permissoes-resolver"
+import { numerosDasAtas } from "@/lib/db/atas"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import { TIPOS_REUNIAO, TITULO_SOB_SIGILO, type TipoReuniao } from "@/lib/atas-constantes"
@@ -44,7 +45,7 @@ export type Deliberacao = {
 }
 
 export type DeliberacaoComAta = Deliberacao & {
-  ata: { titulo: string | null; data: string | null; tipo: TipoReuniao; orgao: string | null }
+  ata: { numero: string | null; titulo: string | null; data: string | null; tipo: TipoReuniao; orgao: string | null }
 }
 
 const CAMPOS = "id, ata_id, ordem, assunto, texto, votacao, responsavel, responsavel_id, prazo, situacao, sigilo"
@@ -182,11 +183,13 @@ export async function listarDeliberacoes(
     throw new Error(`Falha ao listar deliberações: ${e.message}`)
   })
 
+  const numeros = linhas.length > 0 ? await numerosDasAtas() : new Map<string, string>()
   const resultado = linhas.map((r) => {
     const a = (Array.isArray(r.ata) ? r.ata[0] : r.ata) as Record<string, unknown> | null
     return {
       ...paraDeliberacao(r),
       ata: {
+        numero: numeros.get(String(r.ata_id)) ?? null,
         // O título segue o sigilo da ata, que pode ser maior que o da deliberação.
         titulo: sigilos.includes(ehSigiloDeliberacao(a?.sigilo_documento) ? a.sigilo_documento : "restrito")
           ? texto(a?.titulo)
