@@ -39,6 +39,7 @@ import {
   type EstadoLote,
 } from "./actions"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
+import { CampoMotivo } from "./oposicao-forms"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -138,12 +139,7 @@ export function ListaOpositores({
             todas as não avaliadas deste filtro
           </label>
         </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="lote-motivo" className="text-xs">
-            Motivo (obrigatório para reprovar; o mesmo para todas)
-          </Label>
-          <Textarea id="lote-motivo" name="motivo" rows={2} />
-        </div>
+        <CampoMotivo id="lote-motivo" rotulo="Motivo (obrigatório para reprovar; o mesmo para todas)" comDevolver={false} />
         <div className="flex flex-wrap gap-2">
           <Button
             type="submit"

@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, ArrowRight, Gavel, Plus, Scale } from "lucide-react"
+import { ArrowLeft, ArrowRight, Gavel, LifeBuoy, Plus, Scale } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -47,6 +47,12 @@ export default async function OposicaoPage() {
             Oposição à contribuição assistencial
           </h1>
           <div className="flex flex-wrap gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/painel/representacao/oposicao/atendimento">
+                <LifeBuoy />
+                Atendimento
+              </Link>
+            </Button>
             <Button variant="outline" asChild>
               <Link href="/painel/representacao/oposicao/decisoes">
                 <Scale />

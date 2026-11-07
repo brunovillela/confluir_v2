@@ -89,6 +89,69 @@ export function estadoPrazo(
  */
 export const DECLARACAO_PADRAO = "Confirmo a minha oposição à contribuição."
 
+/**
+ * Motivos prontos da avaliação (onda 2 das melhorias, 31/10/2026): o texto
+ * vai ao trabalhador como está (e pode ser editado antes de salvar).
+ * "devolver" = dá para corrigir mandando outra carta ("Pedir nova carta");
+ * "reprovar" = a oposição não vale.
+ */
+export const MOTIVOS_AVALIACAO = [
+  {
+    chave: "sem_assinatura",
+    tipo: "devolver",
+    rotulo: "Carta sem assinatura digital válida",
+    texto:
+      "A carta enviada não tem uma assinatura digital válida — foto, digitalização ou PDF salvo de novo em outro programa perdem a assinatura. Assine o PDF original da carta no Assinador do gov.br e envie o arquivo que ele devolver, sem abrir e salvar em outro programa.",
+  },
+  {
+    chave: "outra_pessoa",
+    tipo: "devolver",
+    rotulo: "Assinada por outra pessoa (CPF não confere)",
+    texto:
+      "A carta foi assinada com a conta gov.br ou o certificado de outra pessoa. A assinatura precisa ser feita com a sua própria conta, no seu CPF. Assine de novo e envie.",
+  },
+  {
+    chave: "arquivo_errado",
+    tipo: "devolver",
+    rotulo: "O arquivo não é a carta da campanha",
+    texto:
+      "O arquivo enviado não é a carta de oposição desta campanha. Baixe a carta pelo comprovante, assine no Assinador do gov.br e envie esse PDF.",
+  },
+  {
+    chave: "ecpf_nao_aceito",
+    tipo: "devolver",
+    rotulo: "e-CPF não aceito nesta campanha",
+    texto: "Esta campanha aceita só a assinatura do gov.br. Assine a carta pelo Assinador do gov.br e envie de novo.",
+  },
+  {
+    chave: "fora_prazo",
+    tipo: "reprovar",
+    rotulo: "Fora do prazo",
+    texto: "A oposição (ou a carta assinada) chegou depois do prazo da campanha.",
+  },
+  {
+    chave: "empresa_fora",
+    tipo: "reprovar",
+    rotulo: "Empresa fora da campanha",
+    texto: "A empresa informada não está entre as abrangidas por esta campanha de contribuição assistencial.",
+  },
+  {
+    chave: "duplicada",
+    tipo: "reprovar",
+    rotulo: "Oposição em duplicidade",
+    texto: "Já existe outra oposição sua registrada nesta campanha; vale a primeira.",
+  },
+  {
+    chave: "identidade",
+    tipo: "reprovar",
+    rotulo: "Identidade não confirmada",
+    texto:
+      "Não foi possível confirmar que a oposição foi registrada pelo próprio trabalhador. Procure a entidade, informando o protocolo.",
+  },
+] as const
+
+export type MotivoAvaliacao = (typeof MOTIVOS_AVALIACAO)[number]
+
 /** Meio do envio da relação de oposições ao empregador (onda 2). */
 export const MEIOS_ENVIO = [
   { chave: "email", rotulo: "E-mail" },

@@ -1547,6 +1547,9 @@ export async function subirDocumentoAssinado(
     assinatura_validacao: validacao,
     // Quando a PRIMEIRA carta chegou: a avaliação compara com o prazo (onda 0).
     ...(troca ? {} : { documento_enviado_em: new Date().toISOString() }),
+    // Carta nova depois de "Pedir nova carta": o pedido foi atendido (o
+    // motivo fica na trilha, no evento carta_devolvida).
+    ...(situacao === "aguardando_documento" ? { reprovacao_motivo: null } : {}),
   })
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
     // Sem a coluna (supabase/assinatura-validacao.sql): grava sem o resultado.
@@ -2126,6 +2129,111 @@ export async function avaliarOpositor(
       },
     })
   }
+  return {}
+}
+
+/**
+ * "Pedir nova carta" (onda 2 das melhorias, 31/10/2026): a carta enviada tem
+ * um problema que o trabalhador corrige (assinatura inválida, de outra
+ * pessoa, arquivo errado). Em vez de reprovar — reprovada não recebe carta —,
+ * a oposição volta a "aguardando documento" com o motivo (guardado em
+ * reprovacao_motivo, que o comprovante mostra enquanto a carta não chega) e o
+ * trabalhador é avisado. O arquivo anterior fica na trilha. Recusa quando a
+ * carta nova não seria recebida (prazo terminado com "carta fora do prazo =
+ * recusar").
+ */
+export async function devolverCarta(
+  id: string,
+  motivo: string | null,
+  avaliadorId: string
+): Promise<{ erro?: string; exigeConfirmacao?: boolean }> {
+  const m = motivo?.trim()
+  if (!m) return { erro: "Informe o que o trabalhador precisa corrigir na carta." }
+  const empId = await tenantAtual()
+  const admin = await createAdminClient()
+  const { data: antes } = await admin
+    .from("oposicao_opositor")
+    .select("situacao, cpf, email, nome_completo, filiacao_id, protocolo, campanha_id, documento_assinado_url, carta, prazo_fim_ato")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", empId)
+    .maybeSingle()
+  const situacaoAntes = texto(antes?.situacao)
+  if (!antes || !situacaoAntes || !["nao_avaliada", "reprovada"].includes(situacaoAntes)) {
+    return { erro: "Só dá para pedir nova carta de oposição em análise ou reprovada." }
+  }
+  const arquivo = texto(antes.documento_assinado_url) ?? texto(antes.carta)
+  if (!arquivo) return { erro: "Esta oposição não tem carta enviada." }
+  const { efetivas } = await regrasDaCampanha(texto(antes.campanha_id))
+  let prazo = texto(antes.prazo_fim_ato)?.slice(0, 10) ?? null
+  if (!prazo && antes.campanha_id) {
+    const { data: camp } = await admin
+      .from("oposicao_campanha")
+      .select("prazo_fim")
+      .eq("id", antes.campanha_id)
+      .eq("emp_proprietaria_id", empId)
+      .maybeSingle()
+    prazo = texto(camp?.prazo_fim)?.slice(0, 10) ?? null
+  }
+  if (efetivas.carta_fora_prazo === "recusar" && prazo && hojeSP() > prazo) {
+    return {
+      erro: `O prazo da carta terminou em ${formatarData(prazo)} e a campanha não recebe carta depois dele: a carta nova não chegaria. Reprove com o motivo.`,
+    }
+  }
+  const { data, error } = await admin
+    .from("oposicao_opositor")
+    .update({
+      situacao: "aguardando_documento",
+      avaliacao: null,
+      avaliacao_data: null,
+      avaliacao_avaliador_id: null,
+      reprovacao_motivo: m,
+      documento_assinado_url: null,
+      documento_enviado_em: null,
+      assinatura_validacao: null,
+      aviso_avaliacao_pendente_em: null,
+    })
+    .eq("id", id)
+    .eq("emp_proprietaria_id", empId)
+    .eq("situacao", situacaoAntes)
+    .select("id")
+  if (error) return { erro: `Falha ao pedir nova carta: ${error.message}` }
+  if ((data ?? []).length === 0) {
+    return { erro: "Outra pessoa acabou de avaliar esta oposição. Recarregue a página e confira a decisão." }
+  }
+  await registrarEvento(id, "carta_devolvida", `${m} (arquivo anterior: ${arquivo})`, null, null, {
+    usuarioId: avaliadorId,
+    campanhaId: texto(antes.campanha_id),
+  })
+  const pessoa: PessoaDoAviso = {
+    cpf: texto(antes.cpf),
+    nome: texto(antes.nome_completo),
+    email: texto(antes.email)?.trim() ?? null,
+    filiado: Boolean(antes.filiacao_id),
+  }
+  const protocolo = antes.protocolo == null ? "—" : String(antes.protocolo)
+  depoisDaResposta(async () => {
+    const origem = await origemAtual().catch(() => "")
+    const link = `/portal/oposicao/comprovante/${id}`
+    const quando =
+      prazo && !(efetivas.carta_fora_prazo === "aceitar" && hojeSP() > prazo) ? ` até ${formatarData(prazo)}` : ""
+    const html =
+      tituloEmail("Envie uma nova carta assinada") +
+      paragrafo(
+        `${saudacaoEmail(pessoa.nome)} a entidade conferiu a carta da sua oposição à contribuição assistencial (protocolo ${escaparHtml(protocolo)}) e precisa que você envie uma nova${escaparHtml(quando)}.`
+      ) +
+      caixaAviso(`<strong>O que corrigir:</strong> ${escaparHtml(m)}`) +
+      paragrafo("A oposição continua registrada; ela é avaliada depois que a carta nova chegar.") +
+      (origem ? botaoEmail(`${origem}${link}`, "Enviar a nova carta") : "")
+    const r = await entregarAvisoOposicao({
+      pessoa,
+      assunto: `Envie uma nova carta — protocolo ${protocolo}`,
+      texto: `A entidade pediu uma nova carta para a sua oposição (protocolo ${protocolo}). O que corrigir: ${m}`,
+      link,
+      html,
+      umaVez: false,
+    })
+    await registrarEvento(id, "aviso_carta_devolvida", descreverEntrega(r), null, null)
+  })
   return {}
 }
 

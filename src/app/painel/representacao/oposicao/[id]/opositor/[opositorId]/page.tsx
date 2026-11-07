@@ -253,7 +253,9 @@ export default async function OpositorPage({
           ) : o.situacao === "aguardando_documento" ? (
             <Alert variant="warning">
               <AlertDescription>
-                Aguardando o envio do documento assinado pelo trabalhador.
+                {o.reprovacao_motivo
+                  ? <>Nova carta pedida ao trabalhador. Motivo: {o.reprovacao_motivo}</>
+                  : "Aguardando o envio do documento assinado pelo trabalhador."}
               </AlertDescription>
             </Alert>
           ) : null}
@@ -265,6 +267,7 @@ export default async function OpositorPage({
                 campanhaId={id}
                 problemaAssinatura={o.problemaAssinatura}
                 seguirPorPadrao={o.situacao === "nao_avaliada"}
+                temCarta={Boolean(o.documentoAssinadoUrl || o.documentoLink)}
               />
             </div>
           )}

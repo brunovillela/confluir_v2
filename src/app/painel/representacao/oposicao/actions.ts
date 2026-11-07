@@ -17,6 +17,7 @@ import {
   atualizarCampanha,
   avaliarOpositor,
   criarCampanha,
+  devolverCarta,
   excluirPergunta,
   reverificarAssinaturaOposicao,
   subirDocumentoModelo,
@@ -231,15 +232,19 @@ export async function avaliarOpositorAction(
   const { sessao } = permissao
   const id = texto(fd, "opositor_id")
   if (!id) return { erro: "Oposição inválida." }
-  const aprovar = texto(fd, "decisao") === "aprovar"
-  const { erro, exigeConfirmacao } = await avaliarOpositor(
-    id,
-    aprovar,
-    texto(fd, "motivo") || null,
-    sessao.usuario.id,
-    { confirmarAssinatura: texto(fd, "confirmar_assinatura") === "on" }
-  )
+  const decisao = texto(fd, "decisao")
+  // "Pedir nova carta" (onda 2 das melhorias): volta a aguardar a carta.
+  const { erro, exigeConfirmacao } =
+    decisao === "devolver"
+      ? await devolverCarta(id, texto(fd, "motivo") || null, sessao.usuario.id)
+      : await avaliarOpositor(id, decisao === "aprovar", texto(fd, "motivo") || null, sessao.usuario.id, {
+          confirmarAssinatura: texto(fd, "confirmar_assinatura") === "on",
+        })
   if (erro) return { erro, exigeConfirmacao }
+  if (decisao === "devolver") {
+    revalidar(texto(fd, "campanha_id"))
+    redirect(`/painel/representacao/oposicao/${texto(fd, "campanha_id")}/opositor/${id}?devolvida=1`)
+  }
   const campanhaId = texto(fd, "campanha_id")
   revalidar(campanhaId)
   // "Salvar e ir para a próxima" (onda 2): a próxima não avaliada da campanha.

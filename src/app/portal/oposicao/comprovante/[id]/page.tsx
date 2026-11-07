@@ -210,6 +210,12 @@ export default async function ComprovantePage({
           ) : null}
           .
         </p>
+        {c.reprovacao_motivo && (
+          <Alert variant="warning">
+            <AlertTitle>A entidade pediu uma nova carta</AlertTitle>
+            <AlertDescription>{c.reprovacao_motivo}</AlertDescription>
+          </Alert>
+        )}
         {prazo === "depois" && (
           <Alert variant="warning">
             <AlertDescription>

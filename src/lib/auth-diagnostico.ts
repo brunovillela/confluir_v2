@@ -213,3 +213,26 @@ export async function diagnosticarCodigoRecusado(p: {
   )
   return mensagem
 }
+
+/**
+ * Atendimento da oposição (src/lib/db/oposicao-diagnostico.ts): desde quando
+ * há código pendente (pedido e não usado) para o e-mail. Null = nenhum, ou o
+ * diagnóstico indisponível.
+ */
+export async function codigoPendenteDoEmail(email: string): Promise<string | null> {
+  const r = await consultarToken("-", email)
+  return r?.ultimo_token_email_em ?? null
+}
+
+/** Atendimento da oposição: o e-mail e o último acesso da conta de um CPF. */
+export async function contaDeAcesso(
+  authUserId: string
+): Promise<{ email: string | null; ultimoAcesso: string | null } | null> {
+  try {
+    const { data } = await createServiceClient().auth.admin.getUserById(authUserId)
+    if (!data?.user) return null
+    return { email: data.user.email ?? null, ultimoAcesso: data.user.last_sign_in_at ?? null }
+  } catch {
+    return null
+  }
+}

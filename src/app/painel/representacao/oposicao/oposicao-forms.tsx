@@ -12,6 +12,7 @@ import type { CampanhaDetalhe, OpcaoFonte } from "@/lib/db/oposicao"
 import {
   DECISOES_JURIDICAS,
   MODOS_FORMALIZACAO,
+  MOTIVOS_AVALIACAO,
   rotuloOpcao,
   SITUACOES_CAMPANHA,
   type RegrasOposicao,
@@ -313,6 +314,7 @@ export function AvaliarForm({
   campanhaId,
   problemaAssinatura = null,
   seguirPorPadrao = false,
+  temCarta = false,
 }: {
   opositorId: string
   campanhaId: string
@@ -320,6 +322,8 @@ export function AvaliarForm({
   problemaAssinatura?: string | null
   /** Marcar "ir para a próxima" (avaliando a fila de não avaliadas). */
   seguirPorPadrao?: boolean
+  /** Há carta enviada: libera "Pedir nova carta". */
+  temCarta?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(
     avaliarOpositorAction,
@@ -336,10 +340,7 @@ export function AvaliarForm({
           <AlertDescription>{estado.erro}</AlertDescription>
         </Alert>
       )}
-      <div className="grid gap-1.5">
-        <Label htmlFor="motivo">Motivo (obrigatório para reprovar)</Label>
-        <Textarea id="motivo" name="motivo" rows={2} />
-      </div>
+      <CampoMotivo id="motivo" rotulo={temCarta ? "Motivo (obrigatório para reprovar ou pedir nova carta)" : "Motivo (obrigatório para reprovar)"} comDevolver={temCarta} />
       {pedirConferencia && (
         <label className="flex items-start gap-2 text-sm">
           <input type="checkbox" name="confirmar_assinatura" className="mt-0.5 size-4" />
@@ -373,8 +374,66 @@ export function AvaliarForm({
         >
           Reprovar (improcedente)
         </Button>
+        {temCarta && (
+          <Button type="submit" name="decisao" value="devolver" variant="outline" disabled={pendente}>
+            Pedir nova carta
+          </Button>
+        )}
       </div>
+      {temCarta && (
+        <p className="text-muted-foreground text-xs">
+          “Pedir nova carta” é para o que o trabalhador corrige (assinatura inválida, de outra pessoa, arquivo errado):
+          a oposição volta a aguardar a carta e ele recebe o motivo por e-mail. Reprovada, ela não recebe carta nova.
+        </p>
+      )}
     </form>
+  )
+}
+
+/**
+ * O motivo com as opções prontas (onda 2 das melhorias): escolher uma
+ * preenche o texto, que segue editável — é ele que vai ao trabalhador.
+ */
+export function CampoMotivo({
+  id,
+  rotulo,
+  comDevolver,
+}: {
+  id: string
+  rotulo: string
+  /** Mostrar os motivos de "Pedir nova carta". */
+  comDevolver: boolean
+}) {
+  const [texto, setTexto] = useState("")
+  const grupos = [
+    ...(comDevolver ? [{ titulo: "Pedir nova carta", tipo: "devolver" as const }] : []),
+    { titulo: "Reprovar", tipo: "reprovar" as const },
+  ]
+  return (
+    <div className="grid gap-1.5">
+      <Label htmlFor={id}>{rotulo}</Label>
+      <select
+        aria-label="Motivo pronto"
+        className={SELECT}
+        value=""
+        onChange={(e) => {
+          const m = MOTIVOS_AVALIACAO.find((x) => x.chave === e.target.value)
+          if (m) setTexto(m.texto)
+        }}
+      >
+        <option value="">Escolher um motivo pronto…</option>
+        {grupos.map((g) => (
+          <optgroup key={g.tipo} label={g.titulo}>
+            {MOTIVOS_AVALIACAO.filter((m) => m.tipo === g.tipo).map((m) => (
+              <option key={m.chave} value={m.chave}>
+                {m.rotulo}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+      <Textarea id={id} name="motivo" rows={3} value={texto} onChange={(e) => setTexto(e.target.value)} />
+    </div>
   )
 }
 

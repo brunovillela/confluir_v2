@@ -59,4 +59,5 @@ mais aliviam antes de abrir a campanha às que dependem de terceiros.
 ## Andamento
 
 - Onda 1 — FEITA em 31/10/2026: ajuda reescrita (portal, fluxo público, painel, resumo no manifesto; print antigo do fluxo público retirado), cartão "Pronta para abrir?" (`lib/oposicao-prontidao.ts`) e "Ver como o trabalhador" (`/painel/representacao/oposicao/[id]/previa`). Sem migração.
-- Onda 2 — a fazer.
+- Onda 2 — FEITA em 07/11/2026, sem migração: **Atendimento** (`/painel/representacao/oposicao/atendimento`, `lib/db/oposicao-diagnostico.ts`) — por CPF ou e-mail: e-mails do cadastro, código pendente (não usado), pedido pela oposição ainda não conferido, conta e último acesso, eventos da Brevo dos últimos 30 dias e orientação pronta; cada consulta vai à trilha (`diagnostico_acesso_consultado`). **Motivos prontos** (`MOTIVOS_AVALIACAO`) na avaliação individual e em lote, e **Pedir nova carta** (`devolverCarta`): a oposição em análise ou reprovada volta a aguardar a carta, com o motivo em `reprovacao_motivo` (o comprovante mostra; a carta nova o apaga), aviso por e-mail e o arquivo anterior na trilha; recusa quando o prazo da carta passou e a campanha recusa carta fora do prazo.
+- Onda 3 — a fazer.
