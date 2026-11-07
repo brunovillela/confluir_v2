@@ -18,6 +18,7 @@ import { contarEstornosPendentes } from "@/lib/db/ordens-estorno";
 import { formatarMoeda } from "@/lib/formato";
 import { podeAcessar } from "@/lib/permissoes";
 
+import { LembreteFechamento } from "./lembrete-fechamento";
 import { SeloContasBancarias } from "./selo-contas-bancarias";
 
 export const metadata: Metadata = { title: "Financeiro — Confluir" };
@@ -196,6 +197,12 @@ export default async function FinanceiroPage() {
           Visão geral das ordens de pagamento e do caixa.
         </p>
       </div>
+
+      {podeAcessar(sessao.permissoes, "financeiro_pagamento") && (
+        <Suspense fallback={null}>
+          <LembreteFechamento />
+        </Suspense>
+      )}
 
       <div className={GRADE_AREAS}>
         {atalhos.map((a) => (

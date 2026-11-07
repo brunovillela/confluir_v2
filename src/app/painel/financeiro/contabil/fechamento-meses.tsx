@@ -1,10 +1,12 @@
 "use client"
 
 import { useActionState, useState } from "react"
+import Link from "next/link"
 import { Loader2, Lock, LockOpen } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { formatarDataHora } from "@/lib/formato"
@@ -23,6 +25,8 @@ export type LinhaMes = {
     rpaRelatorio?: { em: string; para: string | null } | null
     rpaForaDoEnvio?: boolean
   } | null
+  /** Mês aberto: o que falta acertar antes de fechar (só os mais recentes). */
+  pendencias?: { codigo: string; rotulo: string; quantidade: number; href: string }[]
 }
 
 const NOME_MES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
@@ -70,6 +74,21 @@ export function FechamentoMeses({
               ) : (
                 <span className="text-muted-foreground">Aberto — as ordens pagas podem ser reclassificadas</span>
               )}
+              {!m.fechamento && m.pendencias && (
+                m.pendencias.length === 0 ? (
+                  <span className="text-success-fg mt-1 block">Nada pendente — pode fechar.</span>
+                ) : (
+                  <ul className="mt-1 grid gap-0.5">
+                    {m.pendencias.map((p) => (
+                      <li key={p.codigo}>
+                        <Link href={p.href} className="text-warning-fg hover:underline">
+                          {p.quantidade} · {p.rotulo}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )
+              )}
               {m.fechamento && (
                 <span className="text-muted-foreground mt-1 block">
                   {m.fechamento.rpaRelatorio
@@ -83,7 +102,7 @@ export function FechamentoMeses({
               )}
             </TableCell>
             {podeFechar && (
-              <TableCell>{m.fechamento ? <Reabrir id={m.fechamento.id} /> : <Fechar mes={m.mes} />}</TableCell>
+              <TableCell>{m.fechamento ? <Reabrir id={m.fechamento.id} /> : <Fechar mes={m.mes} pendencias={m.pendencias} />}</TableCell>
             )}
           </TableRow>
         ))}
@@ -92,9 +111,22 @@ export function FechamentoMeses({
   )
 }
 
-function Fechar({ mes }: { mes: string }) {
+function Fechar({ mes, pendencias = [] }: { mes: string; pendencias?: LinhaMes["pendencias"] }) {
   const [estado, acao, pendente] = useActionState(fecharMesAction, {})
-  const envio1 = useEnvioFormulario(acao, estado)
+  const total = (pendencias ?? []).reduce((s, p) => s + p.quantidade, 0)
+  // Com pendência, confirma antes: fechado, nada mais entra nem muda no mês.
+  const envio1 = useEnvioFormulario(acao, estado, {
+    antes: (e) => {
+      if (total > 0) {
+        confirmarEnvio(e, {
+          titulo: `Fechar ${rotulo(mes)} com ${total} pendência${total > 1 ? "s" : ""}?`,
+          descricao: `${(pendencias ?? []).map((p) => `${p.quantidade} ${p.rotulo.toLowerCase()}`).join("; ")}. Depois de fechado, nenhum pagamento entra, sai ou muda no mês — para acertar, será preciso reabrir.`,
+          confirmar: "Fechar mesmo assim",
+          destrutivo: true,
+        })
+      }
+    },
+  })
   return (
     <form action={acao} {...envio1} className="flex flex-wrap items-center justify-end gap-2">
       <input type="hidden" name="mes" value={mes} />

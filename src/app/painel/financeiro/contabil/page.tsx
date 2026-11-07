@@ -14,6 +14,7 @@ import { hojeSP } from "@/lib/db/comum"
 import { lancamentosContabeis } from "@/lib/db/contabil"
 import { rpasPagosNoPeriodo, totalizarRpas } from "@/lib/db/contabil-rpa"
 import { listarMesesFechados } from "@/lib/db/meses-fechados"
+import { pendenciasDoMes } from "@/lib/db/fechamento-pendencias"
 import { emailContabilidade } from "@/lib/db/rpa-contabilidade"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
@@ -43,6 +44,12 @@ export default async function ContabilPage({ searchParams }: { searchParams: Pro
   const meses: LinhaMes[] = [...new Set([...ultimos, ...fechados.map((f) => f.mes)])]
     .sort((a, b) => b.localeCompare(a))
     .map((mes) => ({ mes, fechamento: fechados.find((f) => f.mes === mes) ?? null }))
+  // Pendências dos 3 meses abertos mais recentes (o que falta acertar antes de fechar).
+  const abertos = meses.filter((m) => !m.fechamento).slice(0, 3)
+  const pendencias = await Promise.all(abertos.map((m) => pendenciasDoMes(m.mes).catch(() => null)))
+  abertos.forEach((m, i) => {
+    m.pendencias = pendencias[i]?.pendencias ?? undefined
+  })
   const porCentro = new Map<string, number>()
   for (const d of l.despesas) porCentro.set(d.centroCusto ?? "Sem centro de custo", (porCentro.get(d.centroCusto ?? "Sem centro de custo") ?? 0) + d.valorPago)
   const centros = [...porCentro.entries()].sort((a, b) => b[1] - a[1])
@@ -215,7 +222,7 @@ export default async function ContabilPage({ searchParams }: { searchParams: Pro
         </CardContent>
       </Card>
 
-      <Card>
+      <Card id="fechamento" className="scroll-mt-20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Lock className="size-4" />
