@@ -22,6 +22,7 @@ import { rotuloPublico, rotuloVisita } from "@/lib/espacos-constantes"
 import { origemAtual } from "@/lib/tenant-url"
 
 import { listarRegras } from "@/lib/db/espacos-solicitacao"
+import { comPessoasAtuais } from "@/lib/db/opcoes-pessoas"
 
 import { EspacoForm } from "../espaco-form"
 import { Bloqueios, Janelas } from "./agenda"
@@ -45,7 +46,7 @@ export default async function EspacoPage({
   const espaco = await obterEspaco(id)
   if (!espaco) notFound()
 
-  const [janelas, bloqueios, ambientes, sedes, responsaveis, compartilhados, regras, origem] =
+  const [janelas, bloqueios, ambientes, sedes, possiveis, compartilhados, regras, origem] =
     await Promise.all([
       listarJanelas(id),
       listarBloqueios(id),
@@ -56,6 +57,9 @@ export default async function EspacoPage({
       listarRegras(id),
       origemAtual(),
     ])
+
+  // Responsável que saiu da lista continua selecionado (lib/db/opcoes-pessoas).
+  const responsaveis = await comPessoasAtuais(possiveis, [espaco.responsavelVisitaId], (p) => ({ ...p, vinculo: "responsável atual" }))
 
   const meusAmbientes = ambientes.filter((a) => espaco.recintoIds.includes(a.id))
   const editando = editar === "1" && podeGerir

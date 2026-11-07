@@ -54,3 +54,15 @@ export async function comPessoasAtuais<T extends OpcaoPessoa>(
   }
   return [...opcoes, ...extras]
 }
+
+/** O mesmo para as listas de funcionários do Pessoal ({ usuarioId, nome }). */
+export async function comFuncionariosAtuais<T extends { usuarioId: string; nome: string }>(
+  funcionarios: T[],
+  atuais: (string | null | undefined)[]
+): Promise<{ usuarioId: string; nome: string }[]> {
+  const opcoes = await comPessoasAtuais(
+    funcionarios.map((f) => ({ id: f.usuarioId, nome: f.nome })),
+    atuais
+  )
+  return opcoes.map((o) => ({ usuarioId: o.id, nome: o.nome }))
+}

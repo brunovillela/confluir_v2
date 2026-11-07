@@ -19,6 +19,7 @@ import {
 } from "@/lib/db/espacos-esteira"
 import { termoDaCessao } from "@/lib/db/espacos-termo"
 import { assinaturasDaCessao } from "@/lib/db/cessao-assinatura"
+import { comPessoasAtuais } from "@/lib/db/opcoes-pessoas"
 import { GATILHOS_CONDICAO, totalExigencias } from "@/lib/espacos-constantes"
 import { formatarDataHora } from "@/lib/formato"
 
@@ -47,13 +48,18 @@ export default async function PedidoPage({
   const { id } = await params
   const { registrado } = await searchParams
 
-  const [pedido, responsaveis, termo, assinaturas] = await Promise.all([
+  const [pedido, possiveis, termo, assinaturas] = await Promise.all([
     obterSolicitacao(id),
     listarResponsaveisPossiveis(),
     termoDaCessao(id),
     assinaturasDaCessao(id),
   ])
   if (!pedido) notFound()
+  // Responsável da visita que saiu da lista continua selecionado (lib/db/opcoes-pessoas).
+  const responsaveis = await comPessoasAtuais(possiveis, [pedido.visita?.responsavelId], (p) => ({
+    ...p,
+    vinculo: "responsável atual",
+  }))
 
   const pendencias = pendenciasParaConfirmar(pedido)
   const encerrado =

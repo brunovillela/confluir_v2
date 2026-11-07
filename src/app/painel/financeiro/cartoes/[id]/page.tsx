@@ -13,6 +13,7 @@ import { rotuloTipoCartao, rotuloUsoCartao } from "@/lib/compras-constantes"
 import { pessoasAutorizaveis } from "@/lib/db/caixa"
 import { listarFaturasDoCartao } from "@/lib/db/cartao-faturas"
 import { listarCartoes, nomeCartao } from "@/lib/db/compras-pagamento"
+import { comPessoasAtuais } from "@/lib/db/opcoes-pessoas"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
@@ -28,10 +29,12 @@ export default async function CartaoPage({ params }: { params: Promise<{ id: str
   const { cartoes } = await listarCartoes()
   const cartao = cartoes.find((c) => c.id === id)
   if (!cartao) notFound()
-  const [{ disponivel, faturas }, pessoas] = await Promise.all([
+  const [{ disponivel, faturas }, possiveis] = await Promise.all([
     listarFaturasDoCartao(id),
     podeEditar ? pessoasAutorizaveis() : Promise.resolve([]),
   ])
+  // Titular que saiu da lista continua selecionado (lib/db/opcoes-pessoas).
+  const pessoas = podeEditar ? await comPessoasAtuais(possiveis, [cartao.titularId]) : []
 
   return (
     <>

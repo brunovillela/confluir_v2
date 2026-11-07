@@ -18,6 +18,7 @@ import {
   listarAtestados,
   listarAusencias,
 } from "@/lib/db/pessoal-saude"
+import { comFuncionariosAtuais } from "@/lib/db/opcoes-pessoas"
 import { formatarData } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 
@@ -61,7 +62,7 @@ export async function RegistrosSaude({ brutos }: { brutos: ParamsLista & Record<
   const { editar } = brutos
   const busca = (brutos.busca ?? "").trim()
 
-  const [atestados, ausencias, funcionarios] = await Promise.all([
+  const [atestados, ausencias, ativos] = await Promise.all([
     listarAtestados(),
     listarAusencias(),
     funcionariosParaSelecao(),
@@ -108,6 +109,12 @@ export async function RegistrosSaude({ brutos }: { brutos: ParamsLista & Record<
     aba === "ausencias" && editar
       ? (ausencias.find((a) => a.id === editar && !a.atestado_id) ?? null)
       : null
+  // Funcionário do registro em edição continua selecionado mesmo desligado
+  // (sem isso o seletor caía no primeiro ativo e o registro trocava de pessoa).
+  const funcionarios = await comFuncionariosAtuais(ativos, [
+    atestadoEmEdicao?.funcionario_id,
+    ausenciaEmEdicao?.funcionario_id,
+  ])
 
   return (
     <>

@@ -15,6 +15,7 @@ import {
 import { Paginacao } from "@/components/paginacao"
 import { funcionariosParaSelecao, urlArquivoPessoal } from "@/lib/db/pessoal"
 import { listarAsos, TIPOS_ASO } from "@/lib/db/pessoal-saude"
+import { comFuncionariosAtuais } from "@/lib/db/opcoes-pessoas"
 import { formatarData } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 
@@ -43,7 +44,7 @@ export type ParamsLista = {
 /** Aba "Registros" (a lista de antes do padrão de 3 níveis). */
 export async function ListaRegistrosAso({ brutos }: { brutos: ParamsLista & Record<string, string | undefined> }) {
   const { editar } = brutos
-  const [asos, funcionarios] = await Promise.all([
+  const [asos, ativos] = await Promise.all([
     listarAsos(),
     funcionariosParaSelecao(),
   ])
@@ -90,6 +91,9 @@ export async function ListaRegistrosAso({ brutos }: { brutos: ParamsLista & Reco
   }
 
   const emEdicao = editar ? (asos.find((a) => a.id === editar) ?? null) : null
+  // Funcionário do ASO em edição continua selecionado mesmo desligado
+  // (sem isso o seletor caía no primeiro ativo e o ASO trocava de pessoa).
+  const funcionarios = await comFuncionariosAtuais(ativos, [emEdicao?.funcionario_id])
 
   return (
     <>
