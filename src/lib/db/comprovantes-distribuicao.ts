@@ -295,6 +295,27 @@ export async function ordensSemComprovante(): Promise<OrdemCandidata[]> {
   return montarCandidatas(linhas)
 }
 
+/**
+ * Ordens ainda a pagar (A pagar/Processando) com vencimento perto do período
+ * dado — candidatas para os débitos do extrato bancário (conciliacao-pagar.ts).
+ */
+export async function ordensAPagar(de: string, ate: string): Promise<OrdemCandidata[]> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const linhas = await lerEmLotes<LinhaCandidata>((a, b) =>
+    admin
+      .from("ordens_pagamento")
+      .select(SELECT_CANDIDATA)
+      .eq("emp_proprietaria_id", emp)
+      .not("excluido", "is", true)
+      .in("situacao", SITUACOES_PAGAVEIS)
+      .or(`vencimento.is.null,and(vencimento.gte.${de},vencimento.lte.${ate})`)
+      .order("id")
+      .range(a, b)
+  )
+  return montarCandidatas(linhas)
+}
+
 /** Uma ordem pelo código (busca manual na conferência), se ainda pode receber comprovante. */
 export async function candidataPorCodigo(codigo: string): Promise<OrdemCandidata | { erro: string }> {
   const admin = await createAdminClient()

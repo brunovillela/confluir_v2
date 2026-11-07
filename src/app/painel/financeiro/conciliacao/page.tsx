@@ -10,11 +10,14 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { listarExtratos, listarLancamentos, opcoesParaComprovacao, resumoConciliacao } from "@/lib/db/conciliacao"
+import { pagamentosDoExtrato } from "@/lib/db/conciliacao-pagar"
+import { listarCentrosDeDebito } from "@/lib/db/financeiro"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
 import { AcoesLancamento, DesfazerBotao, ExcluirExtratoBotao } from "./acoes-lancamento"
 import { ImportarExtratoForm } from "./importar-form"
+import { PagarDoExtrato } from "./pagar-do-extrato"
 
 export const metadata: Metadata = { title: "Conciliação bancária — Confluir" }
 
@@ -34,6 +37,18 @@ export default async function ConciliacaoPage({ searchParams }: { searchParams: 
   const [lancamentos, extratos, opcoes] = resumo.disponivel
     ? await Promise.all([listarLancamentos({ situacao, extratoId: sp.extrato }), listarExtratos(), situacao === "pendente" ? opcoesParaComprovacao() : Promise.resolve({ remessas: [], fontes: [] })])
     : [[], [], { remessas: [], fontes: [] }]
+  // Débitos que pagam ordens ainda a pagar (o Financeiro paga no banco e registra depois).
+  const [aPagar, debitos] =
+    resumo.disponivel && podeEscrever && situacao === "pendente"
+      ? await Promise.all([
+          pagamentosDoExtrato(sp.extrato).catch(() => null),
+          listarCentrosDeDebito().then((cs) =>
+            cs.map((c) => ({ id: c.id, nome: [c.acesso, c.nome_da_conta ?? "(sem nome)"].filter(Boolean).join(" — ") }))
+          ),
+        ])
+      : [null, []]
+  const idsAPagar = new Set(aPagar?.itens.map((i) => i.lancamento.id) ?? [])
+  const lancamentosRestantes = lancamentos.filter((l) => !idsAPagar.has(l.id))
 
   return (
     <>
@@ -95,15 +110,30 @@ export default async function ConciliacaoPage({ searchParams }: { searchParams: 
             )}
           </div>
 
+          {aPagar && aPagar.itens.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Pagamentos a registrar ({aPagar.itens.length})</CardTitle>
+                <CardDescription className="text-xs">
+                  Saídas do extrato que não têm ordem paga, mas parecem pagar uma ordem ainda a pagar. Confira a sugestão e
+                  confirme: a ordem fica Paga com a data e o valor do extrato e o lançamento já sai conciliado.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <PagarDoExtrato itens={aPagar.itens} ordens={aPagar.ordens} debitos={debitos} centroSugerido={aPagar.centroSugerido} />
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardContent>
-              {lancamentos.length === 0 ? (
+              {lancamentosRestantes.length === 0 ? (
                 <p className="text-muted-foreground py-6 text-sm">
                   {situacao === "pendente" ? "Nada pendente. Importe o próximo extrato quando ele sair." : "Nenhum lançamento aqui."}
                 </p>
               ) : (
                 <ul className="divide-y">
-                  {lancamentos.map((l) => (
+                  {lancamentosRestantes.map((l) => (
                     <li key={l.id} className="grid gap-2 py-3 lg:grid-cols-[9rem_1fr_minmax(0,1.4fr)] lg:items-start">
                       <div>
                         <p className={`text-base font-semibold tabular-nums ${l.valor < 0 ? "" : "text-success-fg"}`}>{formatarMoeda(l.valor)}</p>

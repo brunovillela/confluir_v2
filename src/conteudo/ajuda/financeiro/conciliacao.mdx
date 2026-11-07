@@ -43,6 +43,28 @@ isso que a tela mostra.
   observação.
 </Aviso>
 
+## Pagar pelo extrato
+
+Quem paga no internet banking e só depois registra no sistema pode deixar o
+extrato fazer o registro. Depois de importar, o bloco **Pagamentos a
+registrar** reúne as saídas do extrato que **não** têm ordem paga, mas parecem
+pagar uma ordem ainda **A pagar** ou **Processando**:
+
+- cada saída vem com a ordem sugerida, a **confiança** (alta, média, baixa) e os
+  motivos: mesmo valor, nome do favorecido no histórico do banco, CPF/CNPJ,
+  pagamento perto do vencimento;
+- a sugestão segura já vem escolhida; quando duas ordens empatam (por exemplo,
+  duas ordens iguais da mesma pessoa), você escolhe na lista;
+- a **conta de onde o dinheiro saiu** vem da conta bancária cadastrada com o
+  número da conta do extrato (em **Contas bancárias**); dá para trocar;
+- **Pagar e conciliar** faz todas as marcadas; **Pagar este** faz só uma.
+
+A ordem fica **Paga** com a data e o valor do extrato, pelas mesmas travas do
+pagamento da ordem (mês fechado, caixa, possível duplicidade — a ordem com
+aviso de duplicidade é recusada aqui e deve ser paga pela própria ordem), e o
+lançamento já sai **conciliado** com ela. O comprovante pode ser anexado depois
+pela ordem ou pela **Distribuição de comprovantes**.
+
 ## Indicadores
 
 **Pendentes** (quantos e quanto em débitos e créditos), **Conciliados**,

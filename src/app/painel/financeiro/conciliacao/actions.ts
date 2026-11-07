@@ -101,3 +101,31 @@ export async function excluirExtratoAction(_prev: EstadoForm, fd: FormData): Pro
   revalidar()
   return { ok: "Extrato excluído." }
 }
+
+/**
+ * Pagar pelo extrato: cada débito marcado paga a ordem escolhida (data e valor
+ * do extrato) e fica conciliado com ela. Um a um; cada um pode recusar sozinho.
+ */
+export async function pagarPeloExtratoAction(
+  itens: { lancamentoId: string; ordemId: string }[],
+  centroReceitaId: string
+): Promise<{ lancamentoId: string; ok: boolean; erro?: string }[]> {
+  const sessao = await sessaoEscrita()
+  const { pagarPeloLancamento } = await import("@/lib/db/conciliacao-pagar")
+  if (!centroReceitaId) return itens.map((i) => ({ lancamentoId: i.lancamentoId, ok: false, erro: "escolha a conta de débito." }))
+  const saida: { lancamentoId: string; ok: boolean; erro?: string }[] = []
+  const usadas = new Set<string>()
+  for (const i of itens.slice(0, 200)) {
+    if (usadas.has(i.ordemId)) {
+      saida.push({ lancamentoId: i.lancamentoId, ok: false, erro: "a mesma ordem foi escolhida para outro lançamento." })
+      continue
+    }
+    usadas.add(i.ordemId)
+    const r = await pagarPeloLancamento(i.lancamentoId, i.ordemId, { centroReceitaId, usuarioId: sessao.usuario.id as string })
+    saida.push({ lancamentoId: i.lancamentoId, ok: !r.erro, erro: r.erro })
+    if (!r.erro) revalidatePath(`/painel/financeiro/ordens/${i.ordemId}`)
+  }
+  revalidar()
+  revalidatePath("/painel/financeiro/ordens")
+  return saida
+}

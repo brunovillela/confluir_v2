@@ -85,7 +85,7 @@ export type ResumoConciliacao = {
   ordensSemExtrato: number
 }
 
-function montarLancamento(l: Record<string, unknown>): Lancamento {
+export function montarLancamento(l: Record<string, unknown>): Lancamento {
   return {
     id: String(l.id),
     extratoId: String(l.extrato_id),
@@ -239,7 +239,7 @@ export async function importarExtrato(p: {
 
 // ── Candidatas ───────────────────────────────────────────────────────────────
 
-async function ordensCandidatas(lancs: Lancamento[]): Promise<Map<string, CandidataOrdem[]>> {
+export async function ordensCandidatas(lancs: Lancamento[]): Promise<Map<string, CandidataOrdem[]>> {
   const saida = new Map<string, CandidataOrdem[]>()
   const debitos = lancs.filter((l) => l.valor < 0)
   if (debitos.length === 0) return saida
