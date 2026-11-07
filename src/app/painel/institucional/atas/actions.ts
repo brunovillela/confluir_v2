@@ -157,11 +157,13 @@ export async function atualizarAtaAction(
   const { caminho, erro: erroArq } = await lerDocumento(fd)
   if (erroArq) return { erro: erroArq }
   const dados = lerDados(fd)
-  // sigilo.sigilo undefined = ata acima do nível de quem edita: pauta, resumo
-  // e observações não vieram no formulário e não podem ser apagados.
+  // sigilo.sigilo undefined = ata acima do nível de quem edita: título, pauta,
+  // resumo, presentes e observações não vieram no formulário e não podem ser apagados.
   const fora = sigilo.sigilo === undefined
   const { erro } = await atualizarAta(id, {
     ...dados,
+    titulo: fora ? undefined : dados.titulo,
+    presentes: fora ? undefined : dados.presentes,
     pauta: fora ? undefined : dados.pauta,
     resumo: fora ? undefined : dados.resumo,
     observacoes: fora ? undefined : dados.observacoes,

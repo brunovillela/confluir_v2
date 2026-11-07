@@ -19,7 +19,7 @@ import {
 } from "@/lib/deliberacoes-constantes"
 import { formatarData } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
-import { ROTULO_TIPO_REUNIAO } from "@/lib/atas-constantes"
+import { ROTULO_TIPO_REUNIAO, TITULO_SOB_SIGILO } from "@/lib/atas-constantes"
 
 import { SeloSigilo, SeloSituacao } from "../../deliberacoes/selos"
 import { TrilhaDeliberacao } from "../../deliberacoes/trilha"
@@ -99,7 +99,7 @@ export default async function AtaPage({
         </Button>
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight text-balance">
-            {a.titulo ?? "(sem título)"}
+            {a.titulo ?? (a.ocultos.titulo ? TITULO_SOB_SIGILO : "(sem título)")}
           </h1>
           <Badge variant="secondary">{ROTULO_TIPO_REUNIAO[a.tipo]}</Badge>
         </div>
@@ -160,6 +160,7 @@ export default async function AtaPage({
                 [
                   ["Pauta", a.pauta, a.ocultos.pauta],
                   ["Resumo da reunião", a.resumo, a.ocultos.resumo],
+                  ["Presentes", a.presentes, a.ocultos.presentes],
                 ] as const
               ).map(([rotulo, valor, oculto]) =>
                 oculto ? (
@@ -174,7 +175,6 @@ export default async function AtaPage({
                   <Campo key={rotulo} rotulo={rotulo} valor={valor} />
                 )
               )}
-              <Campo rotulo="Presentes" valor={a.presentes} />
               {a.ocultos.observacoes ? (
                 <div>
                   <dt className="text-muted-foreground text-xs">Observações</dt>

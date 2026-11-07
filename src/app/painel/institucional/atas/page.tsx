@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
 import { listarAtas, opcoesMandatos } from "@/lib/db/atas"
+import { nivelSigilo, sigilosVisiveis } from "@/lib/deliberacoes-constantes"
 import { formatarData } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 import {
@@ -51,7 +52,7 @@ export default async function AtasPage({
   const busca = (brutos.busca ?? "").trim()
 
   const [atas, mandatos] = await Promise.all([
-    listarAtas({ tipo, mandatoId: mandatoId || undefined, busca }),
+    listarAtas({ tipo, mandatoId: mandatoId || undefined, busca }, sigilosVisiveis(nivelSigilo(sessao.permissoes))),
     opcoesMandatos(),
   ])
 

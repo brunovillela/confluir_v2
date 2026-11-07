@@ -20,6 +20,7 @@ import {
   obterMandato,
 } from "@/lib/db/diretoria"
 import type { Integrante } from "@/lib/db/diretoria"
+import { nivelSigilo, sigilosVisiveis } from "@/lib/deliberacoes-constantes"
 import { formatarData } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
@@ -55,7 +56,7 @@ export default async function MandatoPage({
   const idsUsuarios = mandato.integrantes.map((i) => i.usuarioId).filter((u): u is string => Boolean(u))
   const [{ liberacoes }, atas, assentos, departamentos, fotos] = await Promise.all([
     listarLiberacoes(id),
-    podeVerAtas ? listarAtas({ mandatoId: id }) : Promise.resolve([]),
+    podeVerAtas ? listarAtas({ mandatoId: id }, sigilosVisiveis(nivelSigilo(sessao.permissoes))) : Promise.resolve([]),
     assentosDoMandato(id),
     departamentosPorUsuario(idsUsuarios),
     fotosDosUsuarios(idsUsuarios),

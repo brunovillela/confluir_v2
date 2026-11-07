@@ -9,6 +9,7 @@ import { requirePermissao } from "@/lib/auth"
 import { ROTULO_TIPO_REUNIAO } from "@/lib/atas-constantes"
 import { listarAtas } from "@/lib/db/atas"
 import { obterMandato } from "@/lib/db/diretoria"
+import { nivelSigilo, sigilosVisiveis } from "@/lib/deliberacoes-constantes"
 import { formatarData } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
@@ -29,7 +30,7 @@ export default async function AtasDoMandatoPage({
   const { id } = await params
   const mandato = await obterMandato(id)
   if (!mandato) notFound()
-  const atas = await listarAtas({ mandatoId: id })
+  const atas = await listarAtas({ mandatoId: id }, sigilosVisiveis(nivelSigilo(sessao.permissoes)))
 
   return (
     <>

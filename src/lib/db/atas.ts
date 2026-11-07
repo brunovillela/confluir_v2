@@ -9,7 +9,7 @@ import {
   urlDocumentoDiretoria,
 } from "@/lib/db/diretoria"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { TIPOS_REUNIAO, type TipoReuniao } from "@/lib/atas-constantes"
+import { TIPOS_REUNIAO, TITULO_SOB_SIGILO, type TipoReuniao } from "@/lib/atas-constantes"
 import { ehSigiloDeliberacao, type SigiloDeliberacao } from "@/lib/deliberacoes-constantes"
 
 /**
@@ -24,6 +24,11 @@ function tipoValido(t: string): TipoReuniao {
   return TIPOS_REUNIAO.some((x) => x.chave === t) ? (t as TipoReuniao) : "outra"
 }
 
+/** Sigilo gravado na ata; inválido ou ausente = restrito. */
+function sigiloDe(v: unknown): SigiloDeliberacao {
+  return ehSigiloDeliberacao(v) ? v : "restrito"
+}
+
 async function nomesDeMandatos(): Promise<Map<string, string | null>> {
   const mapa = new Map<string, string | null>()
   const mandatos = await listarMandatos()
@@ -36,6 +41,7 @@ async function nomesDeMandatos(): Promise<Map<string, string | null>> {
 export type AtaLinha = {
   id: string
   tipo: TipoReuniao
+  /** TITULO_SOB_SIGILO quando o sigilo da ata está acima do nível de quem lista. */
   titulo: string | null
   data: string | null
   mandatoId: string | null
@@ -48,11 +54,16 @@ export type FiltrosAtas = {
   busca?: string
 }
 
-export async function listarAtas(filtros: FiltrosAtas = {}): Promise<AtaLinha[]> {
+/**
+ * `sigilos`: os graus que o nível de quem lista alcança. O título de uma ata
+ * acima dele não aparece nem serve à busca (a busca acharia a ata pelo
+ * assunto escondido).
+ */
+export async function listarAtas(filtros: FiltrosAtas, sigilos: SigiloDeliberacao[]): Promise<AtaLinha[]> {
   const admin = await createAdminClient()
   let q = admin
     .from("reuniao_ata")
-    .select("id, tipo, titulo, data, mandato_id")
+    .select("id, tipo, titulo, data, mandato_id, sigilo_documento")
     .eq("emp_proprietaria_id", await tenantAtual())
 
   if (filtros.tipo && filtros.tipo !== "todos") q = q.eq("tipo", filtros.tipo)
@@ -60,7 +71,10 @@ export async function listarAtas(filtros: FiltrosAtas = {}): Promise<AtaLinha[]>
   const termo = (filtros.busca ?? "").trim()
   if (termo) {
     const e = escaparLike(termo)
-    q = q.or(`titulo.ilike.%${e}%,orgao.ilike.%${e}%`)
+    q =
+      sigilos.length > 0
+        ? q.or(`and(sigilo_documento.in.(${sigilos.join(",")}),titulo.ilike.%${e}%),orgao.ilike.%${e}%`)
+        : q.ilike("orgao", `%${e}%`)
   }
 
   const { data, error } = await q
@@ -72,7 +86,7 @@ export async function listarAtas(filtros: FiltrosAtas = {}): Promise<AtaLinha[]>
   return (data ?? []).map((a) => ({
     id: String(a.id),
     tipo: tipoValido(String(a.tipo ?? "outra")),
-    titulo: texto(a.titulo),
+    titulo: sigilos.includes(sigiloDe(a.sigilo_documento)) ? texto(a.titulo) : TITULO_SOB_SIGILO,
     data: texto(a.data),
     mandatoId: texto(a.mandato_id),
     mandatoNome: a.mandato_id ? (nomes.get(String(a.mandato_id)) ?? null) : null,
@@ -90,15 +104,15 @@ export type AtaDetalhe = {
   hora: string | null
   local: string | null
   /**
-   * Pauta, resumo (breve; as decisões são itens, db/deliberacoes) e
-   * observações seguem o sigilo do PDF: null quando acima do nível do
-   * usuário — `ocultos` diz quais existem e foram escondidos.
+   * Título, pauta, resumo (breve; as decisões são itens, db/deliberacoes),
+   * presentes e observações seguem o sigilo do PDF: null quando acima do
+   * nível do usuário — `ocultos` diz quais existem e foram escondidos.
    */
   pauta: string | null
   resumo: string | null
   presentes: string | null
   observacoes: string | null
-  ocultos: { pauta: boolean; resumo: boolean; observacoes: boolean }
+  ocultos: { titulo: boolean; pauta: boolean; resumo: boolean; presentes: boolean; observacoes: boolean }
   /** Link assinado do PDF — só quando o nível de sigilo do usuário alcança `sigiloDocumento`. */
   documentoUrl: string | null
   /** Há PDF, mesmo que o usuário não possa abri-lo. */
@@ -126,14 +140,16 @@ export async function obterAta(id: string, sigilos: SigiloDeliberacao[]): Promis
     const nomes = await nomesDeMandatos()
     mandatoNome = nomes.get(String(a.mandato_id)) ?? null
   }
-  const sigiloDocumento: SigiloDeliberacao = ehSigiloDeliberacao(a.sigilo_documento) ? a.sigilo_documento : "restrito"
+  const sigiloDocumento = sigiloDe(a.sigilo_documento)
   const caminho = texto(a.documento_url)
-  // PDF, pauta, resumo e observações: só dentro do nível de sigilo do usuário.
+  // Título, PDF, pauta, resumo, presentes e observações: só dentro do nível de sigilo do usuário.
   const alcanca = sigilos.includes(sigiloDocumento)
   const documentoUrl = caminho && alcanca ? await urlDocumentoDiretoria(caminho) : null
   const pauta = texto(a.pauta)
   const resumo = texto(a.resumo)
   const observacoes = texto(a.observacoes)
+  const titulo = texto(a.titulo)
+  const presentes = texto(a.presentes)
 
   return {
     id: String(a.id),
@@ -141,15 +157,17 @@ export async function obterAta(id: string, sigilos: SigiloDeliberacao[]): Promis
     mandatoNome,
     tipo: tipoValido(String(a.tipo ?? "outra")),
     orgao: texto(a.orgao),
-    titulo: texto(a.titulo),
+    titulo: alcanca ? titulo : null,
     data: texto(a.data),
     hora: texto(a.hora),
     local: texto(a.local),
     pauta: alcanca ? pauta : null,
     resumo: alcanca ? resumo : null,
-    presentes: texto(a.presentes),
+    presentes: alcanca ? presentes : null,
     observacoes: alcanca ? observacoes : null,
     ocultos: {
+      titulo: Boolean(titulo) && !alcanca,
+      presentes: Boolean(presentes) && !alcanca,
       pauta: Boolean(pauta) && !alcanca,
       resumo: Boolean(resumo) && !alcanca,
       observacoes: Boolean(observacoes) && !alcanca,
@@ -179,14 +197,14 @@ export type DadosAta = {
   mandato_id: string | null
   tipo: TipoReuniao
   orgao: string | null
-  titulo: string | null
+  /** Título, pauta, resumo, presentes e observações: undefined = não mexer (acima do nível de quem edita). */
+  titulo?: string | null
   data: string | null
   hora: string | null
   local: string | null
-  /** Pauta, resumo e observações: undefined = não mexer (acima do nível de quem edita). */
   pauta?: string | null
   resumo?: string | null
-  presentes: string | null
+  presentes?: string | null
   observacoes?: string | null
   /** Caminho já gravável (upload na action); undefined = não mexer. */
   documento_url?: string | null
@@ -199,13 +217,13 @@ function payload(d: DadosAta): Record<string, unknown> {
     mandato_id: d.mandato_id,
     tipo: tipoValido(d.tipo),
     orgao: d.orgao,
-    titulo: d.titulo,
     data: d.data,
     hora: d.hora,
     local: d.local,
-    presentes: d.presentes,
     updated_at: new Date().toISOString(),
   }
+  if (d.titulo !== undefined) p.titulo = d.titulo
+  if (d.presentes !== undefined) p.presentes = d.presentes
   if (d.pauta !== undefined) p.pauta = d.pauta
   if (d.resumo !== undefined) p.resumo = d.resumo
   if (d.observacoes !== undefined) p.observacoes = d.observacoes
@@ -278,5 +296,5 @@ export async function sigiloDocumentoDaAta(id: string): Promise<SigiloDeliberaca
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
   if (!data) return null
-  return ehSigiloDeliberacao(data.sigilo_documento) ? data.sigilo_documento : "restrito"
+  return sigiloDe(data.sigilo_documento)
 }

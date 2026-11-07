@@ -5,7 +5,7 @@ import { PERMISSOES_USUARIO_FK, type Permissoes } from "@/lib/permissoes"
 import { resolverPermissoes } from "@/lib/permissoes-resolver"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
-import { TIPOS_REUNIAO, type TipoReuniao } from "@/lib/atas-constantes"
+import { TIPOS_REUNIAO, TITULO_SOB_SIGILO, type TipoReuniao } from "@/lib/atas-constantes"
 import {
   ehSigiloDeliberacao,
   ehSituacaoDeliberacao,
@@ -154,7 +154,7 @@ export async function listarDeliberacoes(
   const linhas = await lerEmLotes<Record<string, unknown>>((de, ate) => {
     let q = admin
       .from("reuniao_deliberacao")
-      .select(`${CAMPOS}, ata:ata_id!inner(titulo, data, tipo, orgao)`)
+      .select(`${CAMPOS}, ata:ata_id!inner(titulo, data, tipo, orgao, sigilo_documento)`)
       .eq("emp_proprietaria_id", emp)
       .in("sigilo", sigilos)
     if (filtros.situacao) q = q.eq("situacao", filtros.situacao)
@@ -187,7 +187,10 @@ export async function listarDeliberacoes(
     return {
       ...paraDeliberacao(r),
       ata: {
-        titulo: texto(a?.titulo),
+        // O título segue o sigilo da ata, que pode ser maior que o da deliberação.
+        titulo: sigilos.includes(ehSigiloDeliberacao(a?.sigilo_documento) ? a.sigilo_documento : "restrito")
+          ? texto(a?.titulo)
+          : TITULO_SOB_SIGILO,
         data: texto(a?.data),
         tipo: tipoValido(a?.tipo),
         orgao: texto(a?.orgao),

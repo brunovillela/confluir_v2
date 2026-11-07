@@ -153,8 +153,8 @@ export function AtaForm({
             </select>
           )}
           <p className="text-muted-foreground text-xs">
-            O PDF, a pauta, o resumo e as observações só aparecem para quem tem acesso às deliberações até este
-            grau.
+            O título, o PDF, a pauta, o resumo, os presentes e as observações só aparecem para quem tem acesso às
+            deliberações até este grau.
           </p>
         </div>
         {leitura?.ok && <p className="text-success-fg text-sm">{leitura.ok}</p>}
@@ -228,12 +228,16 @@ export function AtaForm({
 
       <div className="grid gap-1.5">
         <Label htmlFor="titulo">Título</Label>
-        <Input
-          id="titulo"
-          name="titulo"
-          defaultValue={ata?.titulo ?? ""}
-          placeholder="Ex.: Reunião ordinária — julho/2025"
-        />
+        {sigiloForaDoAlcance ? (
+          <p className="text-muted-foreground text-sm">Acima do seu acesso — fica como está.</p>
+        ) : (
+          <Input
+            id="titulo"
+            name="titulo"
+            defaultValue={ata?.titulo ?? ""}
+            placeholder="Ex.: Reunião ordinária — julho/2025"
+          />
+        )}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -281,13 +285,17 @@ export function AtaForm({
 
       <div className="grid gap-1.5">
         <Label htmlFor="presentes">Presentes</Label>
-        <Textarea
-          id="presentes"
-          name="presentes"
-          rows={3}
-          placeholder="Um nome por linha."
-          defaultValue={ata?.presentes ?? ""}
-        />
+        {sigiloForaDoAlcance ? (
+          <p className="text-muted-foreground text-sm">Acima do seu acesso — fica como está.</p>
+        ) : (
+          <Textarea
+            id="presentes"
+            name="presentes"
+            rows={3}
+            placeholder="Um nome por linha."
+            defaultValue={ata?.presentes ?? ""}
+          />
+        )}
       </div>
 
       <div className="grid gap-1.5">
