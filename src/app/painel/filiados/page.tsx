@@ -37,7 +37,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
-import { contarSolicitacoesPendentes, enderecoDaFichaPublica } from "@/lib/db/filiacao-publica"
+import { contarFichasParadas, contarSolicitacoesPendentes, enderecoDaFichaPublica } from "@/lib/db/filiacao-publica"
 import { resumoFiliados } from "@/lib/db/filiados"
 import { resumoDoPortal } from "@/lib/db/portal-partes"
 import { podeAcessar } from "@/lib/permissoes"
@@ -371,13 +371,14 @@ export default async function FiliadosPage({
   const periodo =
     periodoBruto === "semana" || periodoBruto === "ano" ? periodoBruto : "mes"
 
-  const [resumo, pendentesFicha, portal, enderecoFicha] = await Promise.all([
+  const [resumo, pendentesFicha, portal, enderecoFicha, paradasFicha] = await Promise.all([
     resumoFiliados(periodo),
     podeRegistrar ? contarSolicitacoesPendentes() : Promise.resolve(0),
     // Indicador da Área do associado: erro aqui só tira o indicador.
     podeRegistrar ? resumoDoPortal().catch(() => null) : Promise.resolve(null),
     // O link é público: qualquer um daqui pode divulgá-lo.
     enderecoDaFichaPublica().catch(() => null),
+    podeRegistrar ? contarFichasParadas().catch(() => 0) : Promise.resolve(0),
   ])
 
   const condicao = (nome: string) =>
@@ -555,9 +556,12 @@ export default async function FiliadosPage({
             href="/painel/filiados/solicitacoes"
             icone={ClipboardCheck}
             indicador={
-              pendentesFicha > 0
-                ? `${pendentesFicha.toLocaleString("pt-BR")} aguardando avaliação`
-                : "Nenhuma pendente"
+              [
+                pendentesFicha > 0 ? `${pendentesFicha.toLocaleString("pt-BR")} aguardando avaliação` : "Nenhuma para avaliar",
+                paradasFicha > 0 ? `${paradasFicha} parada${paradasFicha === 1 ? "" : "s"} no meio` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")
             }
           />
         )}

@@ -1,316 +1,247 @@
 "use client"
 
-import { useActionState, useState } from "react"
-import { Loader2, Send } from "lucide-react"
+import Link from "next/link"
+import { useActionState, useRef, useState } from "react"
+import { ArrowLeft, ArrowRight, Loader2, Mail, MailQuestion, RotateCw } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { consultarCep, digitosDoCep } from "@/lib/cep"
+import { renovarTurnstile, Turnstile } from "@/components/auth/turnstile"
 import { limparCpf, mascararCpfParcial, validarCpf } from "@/lib/cpf"
+import { dataValida } from "@/lib/ficha-filiacao"
 
-import { solicitarFiliacaoAction } from "./actions"
-import { ErroNoCampo } from "@/components/ui/erro-no-campo"
-import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
+import {
+  comecarComEmailAction,
+  comecarPeloCpfAction,
+  reenviarLinkAction,
+  type EstadoInicio,
+} from "./actions"
 
-const SELECT =
-  "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
+const CAMPO = "h-12 text-base"
 
-function Secao({ titulo }: { titulo: string }) {
-  return (
-    <h2 className="text-primary text-xs font-semibold tracking-wide uppercase">
-      {titulo}
-    </h2>
-  )
+/** "04111986" → "04/11/1986", digitando. */
+function mascararData(v: string): string {
+  const d = v.replace(/\D/g, "").slice(0, 8)
+  return [d.slice(0, 2), d.slice(2, 4), d.slice(4)].filter(Boolean).join("/")
+}
+/** "04/11/1986" → "1986-11-04" (ou vazio). */
+function dataIso(v: string): string {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(v)
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : ""
 }
 
-export function FiliarForm({
-  fontes,
-  termoLgpd,
-  termoDesconto,
-}: {
-  fontes: { id: string; nome: string }[]
-  termoLgpd: string | null
-  termoDesconto: string | null
-}) {
-  const [estado, formAction, pendente] = useActionState(
-    solicitarFiliacaoAction,
-    {}
-  )
-  const envio = useEnvioFormulario(formAction, estado)
+type Tela = "cpf" | "email"
 
+/**
+ * O começo da ficha, uma pergunta por vez: CPF e nascimento; depois, conforme o
+ * caso, "abra o seu e-mail" (com reenvio e a boia "não tenho mais acesso"),
+ * "informe um e-mail" ou "você já é filiado".
+ */
+export function FiliarForm({ ajuda }: { ajuda: React.ReactNode }) {
   const [cpf, setCpf] = useState("")
-  const cpfDigitos = limparCpf(cpf).length
-  const cpfInvalido = cpfDigitos === 11 && !validarCpf(cpf)
-  const cpfBloqueia = cpfDigitos > 0 && !validarCpf(cpf)
+  const [nascimento, setNascimento] = useState("")
+  const [tela, setTela] = useState<Tela>("cpf")
+  const [semAcesso, setSemAcesso] = useState(false)
 
-  // Aceites legais obrigatórios para avançar.
-  const [aceiteDesconto, setAceiteDesconto] = useState(false)
-  const [aceiteLgpd, setAceiteLgpd] = useState(false)
+  const formCpf = useRef<HTMLFormElement>(null)
+  const formEmail = useRef<HTMLFormElement>(null)
+  const [estadoCpf, enviarCpf, pendenteCpf] = useActionState(async (prev: EstadoInicio, fd: FormData) => {
+    const r = await comecarPeloCpfAction(prev, fd)
+    renovarTurnstile(formCpf.current)
+    if (r.resultado?.tipo === "pedir_email") setTela("email")
+    return r
+  }, {})
+  const [estadoEmail, enviarEmail, pendenteEmail] = useActionState(async (prev: EstadoInicio, fd: FormData) => {
+    const r = await comecarComEmailAction(prev, fd)
+    renovarTurnstile(formEmail.current)
+    return r
+  }, {})
+  const [estadoReenvio, reenviar, pendenteReenvio] = useActionState(reenviarLinkAction, {})
 
-  // Endereço controlado para o preenchimento automático pelo CEP (Correios).
-  const [cep, setCep] = useState("")
-  const [logradouro, setLogradouro] = useState("")
-  const [bairro, setBairro] = useState("")
-  const [cidade, setCidade] = useState("")
-  const [uf, setUf] = useState("")
-  const [buscandoCep, setBuscandoCep] = useState(false)
-  const [erroCep, setErroCep] = useState<string | null>(null)
+  const resultado =
+    tela === "email" ? (estadoEmail.resultado ?? null) : estadoCpf.resultado?.tipo === "pedir_email" ? null : (estadoCpf.resultado ?? null)
+  const cpfCompleto = limparCpf(cpf).length === 11
+  const cpfErrado = cpfCompleto && !validarCpf(cpf)
+  const nascimentoIso = dataIso(nascimento)
+  const nascimentoErrado = nascimento.length === 10 && !dataValida(nascimentoIso)
 
-  async function buscarCep() {
-    if (digitosDoCep(cep).length !== 8) return
-    setBuscandoCep(true)
-    setErroCep(null)
-    // A consulta mora em lib/cep.ts (compartilhada com o Meu cadastro do portal).
-    const r = await consultarCep(cep)
-    setBuscandoCep(false)
-    if (!r) return
-    if (!r.ok) {
-      setErroCep(
-        r.motivo === "nao_encontrado"
-          ? "CEP não encontrado — preencha o endereço manualmente."
-          : "Não foi possível consultar o CEP — preencha manualmente."
-      )
-      return
-    }
-    setLogradouro(r.endereco.logradouro)
-    setBairro(r.endereco.bairro)
-    setCidade(r.endereco.cidade)
-    setUf(r.endereco.uf)
+  const recomecar = () => {
+    setTela("cpf")
+    setSemAcesso(false)
+    window.location.reload()
   }
 
+  // ── Link enviado ──────────────────────────────────────────────────────────
+  if (resultado?.tipo === "link_enviado") {
+    return (
+      <Card>
+        <CardContent className="grid gap-5 pt-6 text-center">
+          <Mail className="text-primary mx-auto size-12" aria-hidden />
+          <div className="grid gap-2">
+            <h2 className="text-xl font-semibold">Abra o seu e-mail</h2>
+            <p className="text-base">
+              {resultado.emAndamento ? "Você já tinha começado a ficha. " : ""}
+              Enviamos um link para <strong className="whitespace-nowrap">{resultado.emailMascarado}</strong>.
+            </p>
+            <p className="text-muted-foreground text-sm">
+              Toque no botão <strong>Continuar minha filiação</strong> que está no e-mail. A ficha abre numa nova
+              página, e você continua de lá. Se não achar, olhe também a caixa de spam ou lixo eletrônico.
+            </p>
+          </div>
+          <form action={reenviar} className="grid gap-2">
+            <input type="hidden" name="ficha" value={resultado.fichaId} />
+            {estadoReenvio.ok && <p className="text-success-fg text-sm">{estadoReenvio.ok}</p>}
+            {estadoReenvio.erro && <p className="text-destructive text-sm">{estadoReenvio.erro}</p>}
+            <Button type="submit" variant="outline" size="lg" disabled={pendenteReenvio}>
+              {pendenteReenvio ? <Loader2 className="animate-spin" /> : <RotateCw />}
+              Não chegou? Enviar de novo
+            </Button>
+          </form>
+          {tela === "cpf" && (
+            <Button type="button" variant="ghost" size="lg" onClick={() => { setSemAcesso(true); setTela("email") }}>
+              <MailQuestion />
+              Não tenho mais acesso a este e-mail
+            </Button>
+          )}
+          <button type="button" onClick={recomecar} className="text-muted-foreground text-sm underline underline-offset-4">
+            Digitei o CPF errado — começar de novo
+          </button>
+          {ajuda}
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // ── Já é filiado ──────────────────────────────────────────────────────────
+  if (resultado?.tipo === "ja_filiado") {
+    return (
+      <Card>
+        <CardContent className="grid gap-4 pt-6 text-center">
+          <h2 className="text-xl font-semibold">Você já é filiado(a){resultado.nome ? `, ${resultado.nome.split(" ")[0]}` : ""}!</h2>
+          <p className="text-base">
+            Não precisa preencher a ficha de novo. Seus dados e sua carteirinha ficam na Área do associado.
+          </p>
+          <Button asChild size="lg">
+            <Link href="/portal">Ir para a Área do associado</Link>
+          </Button>
+          {ajuda}
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // ── Informar um e-mail ────────────────────────────────────────────────────
+  if (tela === "email") {
+    const semEmail = estadoCpf.resultado?.tipo === "pedir_email" && estadoCpf.resultado.semEmailNoCadastro
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <form ref={formEmail} action={enviarEmail} className="grid gap-5">
+            <input type="hidden" name="cpf" value={cpf} />
+            <input type="hidden" name="nascimento" value={nascimentoIso} />
+            <div className="grid gap-1.5">
+              <h2 className="text-xl font-semibold">
+                {semAcesso ? "Vamos usar outro e-mail" : "Qual é o seu e-mail?"}
+              </h2>
+              <p className="text-muted-foreground text-sm">
+                {semAcesso
+                  ? "Informe um e-mail que você abre hoje. Por segurança, a ficha começa em branco e você preenche seus dados de novo; o sindicato confere a sua identidade pela assinatura gov.br."
+                  : semEmail
+                    ? "Não há e-mail no seu cadastro. Informe um e-mail que você abre hoje: o link para continuar vai para ele."
+                    : "Vamos mandar para ele o link para você continuar a ficha. Use um e-mail que você abre hoje."}
+              </p>
+            </div>
+            {estadoEmail.erro && (
+              <Alert variant="destructive">
+                <AlertDescription>{estadoEmail.erro}</AlertDescription>
+              </Alert>
+            )}
+            <div className="grid gap-1.5">
+              <Label htmlFor="email" className="text-base">E-mail</Label>
+              <Input id="email" name="email" type="email" inputMode="email" autoComplete="email" required className={CAMPO} aria-invalid={estadoEmail.campo === "email"} />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="email_confirmacao" className="text-base">Digite o e-mail de novo</Label>
+              <Input
+                id="email_confirmacao"
+                name="email_confirmacao"
+                type="email"
+                inputMode="email"
+                autoComplete="off"
+                required
+                className={CAMPO}
+                aria-invalid={estadoEmail.campo === "email_confirmacao"}
+                onPaste={(e) => e.preventDefault()}
+              />
+              <p className="text-muted-foreground text-xs">É só para não haver erro de digitação.</p>
+            </div>
+            <Turnstile acao="filiar_email" />
+            <Button type="submit" size="lg" disabled={pendenteEmail}>
+              {pendenteEmail ? <Loader2 className="animate-spin" /> : <ArrowRight />}
+              Enviar o link para este e-mail
+            </Button>
+            <button type="button" onClick={recomecar} className="text-muted-foreground inline-flex items-center justify-center gap-1 text-sm underline underline-offset-4">
+              <ArrowLeft className="size-3.5" aria-hidden />
+              Voltar ao começo
+            </button>
+            {ajuda}
+          </form>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // ── CPF e nascimento ──────────────────────────────────────────────────────
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Seus dados</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form action={formAction} {...envio} className="grid gap-5">
-          <ErroNoCampo estado={estado} />
-          {estado.erro && (
+      <CardContent className="pt-6">
+        <form ref={formCpf} action={enviarCpf} className="grid gap-5">
+          <input type="hidden" name="nascimento" value={nascimentoIso} />
+          {estadoCpf.erro && (
             <Alert variant="destructive">
-              <AlertDescription>{estado.erro}</AlertDescription>
+              <AlertDescription>{estadoCpf.erro}</AlertDescription>
             </Alert>
           )}
-
-          <Secao titulo="Dados pessoais" />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-1.5 sm:col-span-2">
-              <Label htmlFor="nome_completo">Nome completo *</Label>
-              <Input id="nome_completo" name="nome_completo" required />
-            </div>
-            <div className="grid gap-1.5 sm:col-span-2">
-              <Label htmlFor="nome_social">Nome social (opcional)</Label>
-              <Input id="nome_social" name="nome_social" />
-              <p className="text-muted-foreground text-xs">
-                Como você prefere ser chamado(a), se for diferente do nome de
-                registro.
-              </p>
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="cpf">CPF *</Label>
-              <Input
-                id="cpf"
-                name="cpf"
-                inputMode="numeric"
-                placeholder="000.000.000-00"
-                required
-                value={cpf}
-                onChange={(e) => setCpf(mascararCpfParcial(e.target.value))}
-                aria-invalid={cpfInvalido}
-                className={cpfInvalido ? "border-destructive" : undefined}
-              />
-              {cpfInvalido && (
-                <p className="text-destructive text-xs">
-                  CPF inválido — confira os dígitos.
-                </p>
-              )}
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="nascimento">Data de nascimento</Label>
-              <Input id="nascimento" name="nascimento" type="date" />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="sexo">Sexo</Label>
-              <select id="sexo" name="sexo" defaultValue="" className={SELECT}>
-                <option value="">Prefiro não informar</option>
-                <option value="Masculino">Masculino</option>
-                <option value="Feminino">Feminino</option>
-                <option value="Outro">Outro</option>
-              </select>
-            </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="cpf" className="text-base">Seu CPF</Label>
+            <Input
+              id="cpf"
+              name="cpf"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="000.000.000-00"
+              required
+              value={cpf}
+              onChange={(e) => setCpf(mascararCpfParcial(e.target.value))}
+              aria-invalid={cpfErrado || estadoCpf.campo === "cpf"}
+              className={CAMPO}
+            />
+            {cpfErrado && <p className="text-destructive text-sm">Este CPF não existe. Confira os números.</p>}
           </div>
-
-          <Secao titulo="Contato" />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-1.5 sm:col-span-2">
-              <Label htmlFor="email">E-mail *</Label>
-              <Input id="email" name="email" type="email" required />
-              <p className="text-muted-foreground text-xs">
-                Enviaremos um código de confirmação para este e-mail.
-              </p>
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="telefone_1">Telefone principal</Label>
-              <Input id="telefone_1" name="telefone_1" inputMode="tel" />
-              <label className="text-muted-foreground flex items-center gap-2 text-xs">
-                <input type="checkbox" name="telefone_1_whatsapp" className="size-4" />
-                É WhatsApp
-              </label>
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="telefone_2">Telefone alternativo</Label>
-              <Input id="telefone_2" name="telefone_2" inputMode="tel" />
-            </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="nascimento_tela" className="text-base">Data de nascimento</Label>
+            <Input
+              id="nascimento_tela"
+              inputMode="numeric"
+              autoComplete="bday"
+              placeholder="dd/mm/aaaa"
+              required
+              value={nascimento}
+              onChange={(e) => setNascimento(mascararData(e.target.value))}
+              aria-invalid={nascimentoErrado || estadoCpf.campo === "nascimento"}
+              className={CAMPO}
+            />
+            {nascimentoErrado && <p className="text-destructive text-sm">Confira a data: dia/mês/ano, como 04/11/1986.</p>}
           </div>
-
-          <Secao titulo="Endereço" />
-          <div className="grid gap-4 sm:grid-cols-6">
-            <div className="grid gap-1.5 sm:col-span-2">
-              <Label htmlFor="endereco_cep">CEP</Label>
-              <div className="relative">
-                <Input
-                  id="endereco_cep"
-                  name="endereco_cep"
-                  inputMode="numeric"
-                  placeholder="00000-000"
-                  value={cep}
-                  onChange={(e) => setCep(e.target.value)}
-                  onBlur={buscarCep}
-                />
-                {buscandoCep && (
-                  <Loader2 className="text-muted-foreground absolute top-2.5 right-2 size-4 animate-spin" />
-                )}
-              </div>
-              {erroCep && <p className="text-muted-foreground text-xs">{erroCep}</p>}
-            </div>
-            <div className="grid gap-1.5 sm:col-span-3">
-              <Label htmlFor="endereco_logradouro">Logradouro</Label>
-              <Input
-                id="endereco_logradouro"
-                name="endereco_logradouro"
-                value={logradouro}
-                onChange={(e) => setLogradouro(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-1.5 sm:col-span-1">
-              <Label htmlFor="endereco_numero">Número</Label>
-              <Input id="endereco_numero" name="endereco_numero" />
-            </div>
-            <div className="grid gap-1.5 sm:col-span-2">
-              <Label htmlFor="endereco_complemento">Complemento</Label>
-              <Input id="endereco_complemento" name="endereco_complemento" />
-            </div>
-            <div className="grid gap-1.5 sm:col-span-2">
-              <Label htmlFor="endereco_bairro">Bairro</Label>
-              <Input
-                id="endereco_bairro"
-                name="endereco_bairro"
-                value={bairro}
-                onChange={(e) => setBairro(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-1.5 sm:col-span-1">
-              <Label htmlFor="endereco_cidade">Cidade</Label>
-              <Input
-                id="endereco_cidade"
-                name="endereco_cidade"
-                value={cidade}
-                onChange={(e) => setCidade(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-1.5 sm:col-span-1">
-              <Label htmlFor="endereco_estado">UF</Label>
-              <Input
-                id="endereco_estado"
-                name="endereco_estado"
-                maxLength={2}
-                value={uf}
-                onChange={(e) => setUf(e.target.value.toUpperCase())}
-              />
-            </div>
-          </div>
-
-          <Secao titulo="Vínculo empregatício" />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-1.5 sm:col-span-2">
-              <Label htmlFor="empregador_id">Empregador (fonte pagadora)</Label>
-              <select id="empregador_id" name="empregador_id" defaultValue="" className={SELECT}>
-                <option value="">Selecione o seu empregador</option>
-                {fontes.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.nome}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="matricula">Matrícula</Label>
-              <Input id="matricula" name="matricula" />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="cargo">Cargo</Label>
-              <Input id="cargo" name="cargo" />
-            </div>
-            <div className="grid gap-1.5 sm:col-span-2">
-              <Label htmlFor="lotacao">Lotação</Label>
-              <Input id="lotacao" name="lotacao" />
-            </div>
-          </div>
-
-          <Secao titulo="Autorizações" />
-          <div className="grid gap-3">
-            <label className="flex items-start gap-2 text-sm">
-              <input
-                type="checkbox"
-                name="aceite_desconto"
-                className="mt-0.5 size-4"
-                required
-                checked={aceiteDesconto}
-                onChange={(e) => setAceiteDesconto(e.target.checked)}
-              />
-              <span>
-                {termoDesconto ??
-                  "Autorizo o desconto da mensalidade sindical em folha de pagamento."}
-              </span>
-            </label>
-            <label className="flex items-start gap-2 text-sm">
-              <input
-                type="checkbox"
-                name="aceite_lgpd"
-                className="mt-0.5 size-4"
-                required
-                checked={aceiteLgpd}
-                onChange={(e) => setAceiteLgpd(e.target.checked)}
-              />
-              <span>
-                {termoLgpd ??
-                  "Autorizo o tratamento dos meus dados pessoais para os fins da filiação, conforme a Lei Geral de Proteção de Dados (LGPD)."}
-              </span>
-            </label>
-          </div>
-
-          <div className="flex flex-col items-end gap-1">
-            {(!aceiteDesconto || !aceiteLgpd) && (
-              <p className="text-muted-foreground text-xs">
-                Marque as duas autorizações para continuar.
-              </p>
-            )}
-            <Button
-              type="submit"
-              disabled={pendente || cpfBloqueia || !aceiteDesconto || !aceiteLgpd}
-            >
-              {pendente ? <Loader2 className="animate-spin" /> : <Send />}
-              Enviar e receber o código
-            </Button>
-          </div>
+          <Turnstile acao="filiar_cpf" />
+          <Button type="submit" size="lg" disabled={pendenteCpf || !cpfCompleto || cpfErrado || !nascimentoIso || nascimentoErrado}>
+            {pendenteCpf ? <Loader2 className="animate-spin" /> : <ArrowRight />}
+            Continuar
+          </Button>
+          {ajuda}
         </form>
       </CardContent>
     </Card>

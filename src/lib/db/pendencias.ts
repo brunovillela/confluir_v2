@@ -2,6 +2,7 @@ import "server-only"
 
 import { cache } from "react"
 import type { SupabaseClient } from "@supabase/supabase-js"
+import { DIAS_PARADA as DIAS_FICHA_PARADA } from "@/lib/ficha-filiacao"
 
 import type { SessaoPainel } from "@/lib/auth"
 import { alcadaDoUsuario } from "@/lib/db/compras"
@@ -231,6 +232,19 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
       href: "/painel/filiados/solicitacoes",
       tabela: "filiacao_solicitacoes",
       montar: (q) => head(q).eq("situacao", "nao_avaliada"),
+    })
+    // Quem começou a ficha e parou (sem concluir ou sem o PDF assinado): um
+    // contato da secretaria costuma destravar. Registrar o contato renova a data.
+    fontes.push({
+      chave: "filiacao_fichas_paradas",
+      titulo: "Fichas de filiação paradas",
+      descricao: `Começaram a ficha e não enviaram a ficha assinada há ${DIAS_FICHA_PARADA} dias ou mais`,
+      href: "/painel/filiados/solicitacoes#paradas",
+      tabela: "filiacao_solicitacoes",
+      montar: (q) =>
+        head(q)
+          .in("situacao", ["em_preenchimento", "aguardando_assinatura"])
+          .lt("updated_at", new Date(Date.now() - DIAS_FICHA_PARADA * 86_400_000).toISOString()),
     })
   }
 

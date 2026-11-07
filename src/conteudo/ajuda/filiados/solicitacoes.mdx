@@ -1,8 +1,10 @@
 Uma nova filiação pode nascer de duas formas: cadastrada **internamente** (pela
 equipe) ou recebida pela **ficha pública** — o fluxo em que o próprio
 trabalhador se filia pelo site, sem login. Esta área é a fila dessas fichas
-públicas, à espera de conferência. Na tela de Filiados, ela é o cartão **Fichas de
-filiação**, que mostra quantas aguardam avaliação.
+públicas, à espera de conferência, e de quem começou a ficha e parou no meio. Na
+tela de Filiados, ela é o cartão **Fichas de filiação**, que mostra quantas
+aguardam avaliação e quantas estão paradas. O link da ficha online também fica no
+alto da tela de Filiados, ao lado de **Nova filiação**.
 
 <RequerPermissao>Gestão da filiação</RequerPermissao>
 
@@ -20,24 +22,50 @@ sistema por outro.
 ## Como a ficha pública funciona
 
 <PassoAPasso>
-  <Passo titulo="O trabalhador acessa /filiar">
-    Sem login, informa o e-mail e recebe um **código de verificação** — isso
-    garante que o e-mail é dele.
+  <Passo titulo="O trabalhador informa CPF e nascimento">
+    Em `/filiar`, sem login. Quem já tem cadastro recebe um link no **e-mail do
+    cadastro**; quem não tem, ou não tem mais acesso a ele, informa um e-mail.
   </Passo>
-  <Passo titulo="Preenche a ficha">
-    Num **link único e temporário**, preenche os dados (com validação de CPF e
-    preenchimento de endereço pelo CEP) e marca os **termos legais**
-    obrigatórios (LGPD e autorização de desconto).
+  <Passo titulo="Preenche a ficha pelo link do e-mail">
+    Em passos curtos, que ficam salvos. Quem veio pelo e-mail do cadastro encontra
+    os dados preenchidos e responde se continua na mesma empresa.
   </Passo>
   <Passo titulo="Assina no gov.br">
-    O sistema gera o **PDF** da ficha; o trabalhador assina pelo gov.br e reenvia
-    o arquivo assinado.
+    Baixa o PDF da ficha, assina no gov.br e envia o arquivo assinado.
   </Passo>
   <Passo titulo="Entra na fila">
-    A ficha aparece aqui, aguardando a conferência da equipe, na situação **Em
-    avaliação**.
+    A ficha aparece aqui, na situação **Em avaliação**.
   </Passo>
 </PassoAPasso>
+
+O passo a passo do lado do trabalhador está em [Fluxo público de
+filiação](/painel/ajuda/fluxos-publicos/filiacao).
+
+## Pararam no meio
+
+O quadro **Pararam no meio**, no alto da tela, lista quem começou a ficha e não
+enviou a ficha assinada, com o ponto onde parou e há quantos dias:
+
+- **Não abriu o link do e-mail**;
+- **Parou em** um dos passos da ficha;
+- **Falta assinar no gov.br**.
+
+Um contato costuma resolver, principalmente com quem tem dificuldade com a
+assinatura. Em cada linha:
+
+- **WhatsApp** abre a conversa com uma mensagem pronta (aparece quando há
+  celular);
+- **Reenviar link** manda de novo o link da ficha para o e-mail dela, que volta a
+  valer por 7 dias;
+- **Registrar contato** guarda o que foi conversado (aparece na linha e na trilha
+  da ficha) e tira a ficha dos avisos por 3 dias;
+- **Desistiu** encerra a ficha.
+
+Fichas paradas há **3 dias ou mais** também aparecem nas **pendências** do painel
+de quem tem a gestão da filiação, até alguém registrar o contato. As mesmas ações
+ficam na página de cada ficha.
+
+<Print src="filiados/fichas-paradas.png" alt="Quadro Pararam no meio: duas pessoas, uma com Falta assinar no gov.br há 95 dias e outra com Parou em Contato e endereço e o último contato registrado; em cada linha, os botões WhatsApp, Reenviar link, Registrar contato e Desistiu." legenda="Quem parou no meio, com o ponto onde parou e as ações de contato." />
 
 ## A lista
 
@@ -46,7 +74,8 @@ situação. Busque por nome, CPF ou matrícula, e filtre pela situação:
 
 | Situação | O que significa |
 | --- | --- |
-| **Aguardando e-mail** | O trabalhador ainda não confirmou o código. |
+| **Link enviado, não aberto** | O link foi para o e-mail e ainda não foi aberto. Só aparece neste filtro. |
+| **Preenchendo a ficha** | Abriu o link e está nos passos da ficha. |
 | **Aguardando assinatura** | Falta enviar a ficha assinada. Ainda não dá para avaliar. |
 | **Em avaliação** | Pronta para a sua decisão. |
 | **Aprovada** / **Reprovada** | Já avaliada, com quem decidiu e quando. |
@@ -62,22 +91,40 @@ Ao abrir uma solicitação, você confere:
 - o **selo da assinatura** e o botão **Abrir ficha assinada**;
 - a **Trilha de auditoria**, com os registros do processo, a data e o IP.
 
-Decida com **Aprovar e criar filiação** ou **Reprovar**. O **Motivo** é obrigatório
-para reprovar e vai no e-mail ao trabalhador.
+Decida com **Aprovar** ou **Reprovar**. O **Motivo** é obrigatório para reprovar e
+vai no e-mail ao trabalhador.
+
+### Refiliação: o CPF já tem cadastro
+
+Quando o CPF da ficha já tem cadastro, a página mostra o aviso **Refiliação**, com
+o link para o cadastro, e o botão vira **Aprovar e atualizar o cadastro**. Aprovar:
+
+- passa para o cadastro os dados conferidos na ficha e registra no prontuário o
+  que mudou (de quê para quê);
+- troca o e-mail pessoal pelo da ficha e guarda o antigo em Outros contatos;
+- volta a condição para **Ativo**, com os termos aceitos na ficha;
+- abre um **vínculo novo** na empresa informada, ou mantém o vínculo que já estiver
+  aberto na mesma empresa.
+
+<Aviso tipo="atencao" titulo="E-mail que não é o do cadastro">
+  Se a pessoa usou <strong>Não tenho mais acesso a este e-mail</strong>, o aviso de
+  Refiliação diz que ela não usou o e-mail do cadastro. Confira a identidade pelo
+  <strong>selo da assinatura</strong>: o CPF do certificado precisa ser o da ficha.
+</Aviso>
 
 <Aviso tipo="atencao" titulo="Aprovar é o que cria a filiação">
-  Antes da aprovação, a pessoa é apenas uma **solicitante** — não está no quadro.
-  É a aprovação que cria o registro de filiado de verdade: o cadastro nasce com a
-  condição <strong>Ativo</strong>, a próxima matrícula sindical livre, os termos
-  aceitos na ficha e, se o empregador foi informado, um vínculo com ele. Se algo
-  estiver errado, reprove em vez de aprovar.
+  Antes da aprovação, a pessoa é apenas uma **solicitante**: não está no quadro.
+  Sem cadastro anterior, é a aprovação que cria o registro de filiado: o cadastro
+  nasce com a condição <strong>Ativo</strong>, a próxima matrícula sindical livre,
+  os termos aceitos na ficha e um vínculo com a empresa informada. Se algo estiver
+  errado, reprove em vez de aprovar.
 </Aviso>
 
 <Aviso tipo="perigo" titulo="Reprovar depois não apaga o cadastro">
   Uma ficha já avaliada pode ser avaliada de novo, porque os botões continuam na
   tela. Mas reprovar uma ficha aprovada só muda a situação da ficha: o cadastro
-  criado continua lá, Ativo. Ajuste-o pelo link <strong>Ver a filiação
-  criada</strong>.
+  criado continua lá, Ativo. Ajuste-o pelo link <strong>Ver o
+  cadastro</strong>.
 </Aviso>
 
 <Print src="filiados/solicitacao-avaliacao.png" alt="Tela de avaliação de uma ficha de filiação: os dados preenchidos, os requisitos conferidos, a ficha assinada e os botões Aprovar e criar filiação e Reprovar." legenda="Avaliação da ficha: os dados, o PDF assinado e a decisão." />
@@ -112,18 +159,22 @@ Verificador de Conformidade do ITI com o mesmo PDF.
 
 ## Erros comuns
 
-- **"O trabalhador diz que o link não abre."** O link da ficha é **único e
-  temporário** — se expirou, ele recomeça em **/filiar** com o mesmo e-mail.
+- **"O trabalhador diz que o link não abre."** O link vale 7 dias enquanto a
+  ficha não é concluída. Use **Reenviar link** no quadro Pararam no meio, ou
+  oriente-o a recomeçar em **/filiar** pelo CPF: o que ele já preencheu continua
+  salvo.
 - **"A ficha chegou sem o PDF assinado."** A assinatura pelo gov.br é uma etapa
-  do trabalhador. Enquanto a situação é **Aguardando assinatura**, a tela avisa e
-  não oferece os botões de decisão: oriente-o a concluir a assinatura e reenviar.
+  do trabalhador. Enquanto a situação é **Aguardando assinatura**, a ficha fica em
+  Pararam no meio, sem os botões de decisão: fale com ele pelo WhatsApp ou
+  reenvie o link.
 - **"Aprovei e o filiado já aparece Ativo, mas a fonte nem foi avisada."** A ficha
   aprovada nasce Ativa, sem passar pelas etapas de informar a fonte. Se quiser
   acompanhar o início dos descontos, troque a condição em Editar cadastro. Ver
   [Acompanhamento](/painel/ajuda/filiados/acompanhamento).
-- **"Recebi duas fichas da mesma pessoa."** O sistema recusa ficha nova de CPF que
-  já tem filiação ou ficha em andamento. Se a primeira foi reprovada, a pessoa pode
-  enviar outra. Avalie a nova normalmente.
+- **"Recebi duas fichas da mesma pessoa."** Quando alguém usa **Não tenho mais
+  acesso a este e-mail**, a ficha que ainda não tinha sido concluída vira
+  **Desistência** e a nova segue. Duas fichas concluídas do mesmo CPF não
+  convivem: a tela pública não deixa começar outra.
 - **"Informe o motivo da reprovação."** Escreva o motivo antes de clicar em
   **Reprovar**.
 
@@ -142,7 +193,7 @@ Verificador de Conformidade do ITI com o mesmo PDF.
     {
       titulo: "Perfil do filiado",
       href: "/painel/ajuda/filiados/perfil",
-      descricao: "O cadastro criado pela aprovação",
+      descricao: "O cadastro criado ou atualizado pela aprovação",
     },
   ]}
 />

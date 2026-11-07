@@ -24,6 +24,8 @@ import { mascaraCpf } from "@/lib/mascaras"
 import { SeloAssinatura } from "@/components/selo-assinatura"
 
 import { AvaliarFichaForm } from "../solicitacoes-forms"
+import { AcoesFichaParada } from "../paradas"
+import { ondeParou } from "@/lib/ficha-filiacao"
 import { ReverificarAssinaturaBotao } from "./reverificar"
 
 export const metadata: Metadata = { title: "Avaliar ficha — Confluir" }
@@ -78,6 +80,53 @@ export default async function SolicitacaoDetalhePage({
         </p>
       </div>
 
+      {s.cadastroExistente && (
+        <Alert variant={s.caminho === "outro_email" ? "warning" : undefined}>
+          <AlertDescription>
+            <strong>Refiliação:</strong> este CPF já tem cadastro (
+            <Link href={`/painel/filiados/${s.cadastroExistente.id}`} className="font-medium underline underline-offset-4">
+              {s.cadastroExistente.nome ?? "abrir"}
+            </Link>
+            {s.cadastroExistente.condicao && <>, {s.cadastroExistente.condicao}</>}). Aprovar atualiza esse cadastro com
+            os dados da ficha, registra no prontuário o que mudou e abre o vínculo
+            {s.mesmaFonte ? " novo na mesma empresa" : " novo"} — não cria outro cadastro.
+            {s.caminho === "outro_email" && (
+              <>
+                {" "}
+                A pessoa <strong>não usou o e-mail do cadastro</strong>
+                {s.cadastroExistente.email ? <> ({s.cadastroExistente.email})</> : null}: confira a identidade pela
+                assinatura gov.br, que precisa ser do mesmo CPF.
+              </>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {["aguardando_verificacao", "em_preenchimento", "aguardando_assinatura"].includes(s.situacao) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Parou no meio: {ondeParou(s.situacao, s.passo).toLowerCase()}</CardTitle>
+            <CardDescription>Fale com a pessoa ou reenvie o link do e-mail.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AcoesFichaParada
+              compacto
+              parada={{
+                id: s.id,
+                nome: s.nome,
+                email: s.email,
+                telefone: s.telefone_1,
+                telefoneWhatsapp: s.telefone_1_whatsapp,
+                situacao: s.situacao,
+                passo: s.passo,
+                desde: s.updated_at ?? s.created_at,
+                ultimoContato: null,
+              }}
+            />
+          </CardContent>
+        </Card>
+      )}
+
       {avaliado === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Avaliação registrada.</AlertDescription>
@@ -130,7 +179,7 @@ export default async function SolicitacaoDetalhePage({
         <CardHeader>
           <CardTitle className="text-base">Avaliação da filiação</CardTitle>
           <CardDescription>
-            Confira os requisitos e decida. Aprovar cria a filiação e o vínculo.
+            Confira os requisitos e decida. Aprovar {s.cadastroExistente ? "atualiza o cadastro existente" : "cria a filiação"} e o vínculo.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
@@ -195,7 +244,7 @@ export default async function SolicitacaoDetalhePage({
                       href={`/painel/filiados/${s.filiacaoId}`}
                       className="font-medium underline underline-offset-4"
                     >
-                      Ver a filiação criada
+                      Ver o cadastro
                     </Link>
                     .
                   </>
@@ -206,7 +255,7 @@ export default async function SolicitacaoDetalhePage({
 
           {avaliavel && (
             <div className="border-t pt-4">
-              <AvaliarFichaForm id={s.id} />
+              <AvaliarFichaForm id={s.id} refiliacao={Boolean(s.cadastroExistente)} />
             </div>
           )}
         </CardContent>

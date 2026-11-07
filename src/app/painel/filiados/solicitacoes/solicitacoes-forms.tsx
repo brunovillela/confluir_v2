@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { avaliarSolicitacaoAction } from "./actions"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
-export function AvaliarFichaForm({ id }: { id: string }) {
+export function AvaliarFichaForm({ id, refiliacao = false }: { id: string; refiliacao?: boolean }) {
   const [estado, formAction, pendente] = useActionState(
     avaliarSolicitacaoAction,
     {}
@@ -32,7 +32,7 @@ export function AvaliarFichaForm({ id }: { id: string }) {
       <div className="flex flex-wrap gap-2">
         <Button type="submit" name="decisao" value="aprovar" disabled={pendente}>
           {pendente && <Loader2 className="animate-spin" />}
-          Aprovar e criar filiação
+          {refiliacao ? "Aprovar e atualizar o cadastro" : "Aprovar e criar filiação"}
         </Button>
         <Button
           type="submit"

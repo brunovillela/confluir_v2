@@ -162,6 +162,7 @@ erDiagram
     uuid emp_proprietaria_id FK
     uuid tl_lgpd_id FK
     uuid tl_desconto_id FK
+    uuid cadastro_existente_id FK
   }
   filiacao_suspensoes {
     uuid id PK
@@ -360,6 +361,7 @@ erDiagram
   filiacao_solicitacoes }o--o| empresa : "empregador_id"
   filiacao_solicitacoes }o--o| filiacao_tl_desconto : "tl_desconto_id"
   filiacao_solicitacoes }o--o| filiacao_tl_lgpd : "tl_lgpd_id"
+  filiacao_solicitacoes }o--o| filiacoes : "cadastro_existente_id"
   filiacao_solicitacoes }o--o| filiacoes : "filiacao_id"
   filiacao_solicitacoes }o--o| usuarios : "avaliacao_avaliador_id"
   filiacao_suspensoes }o--o| usuarios : "concedida_por"

@@ -1,13 +1,10 @@
 import type { Metadata } from "next"
 
 import { Marca } from "@/components/marca"
-import {
-  obterTermosVigentes,
-  opcoesFontesPublicas,
-} from "@/lib/db/filiacao-publica"
 import { obterOrganizacao } from "@/lib/db/organizacao"
 
 import { FiliarForm } from "./filiar-form"
+import { AjudaFicha } from "./ajuda"
 import { AvisoPrivacidade } from "@/components/aviso-privacidade"
 
 export const metadata: Metadata = {
@@ -16,36 +13,21 @@ export const metadata: Metadata = {
 }
 
 export default async function FiliarPage() {
-  const [fontes, org, termos] = await Promise.all([
-    opcoesFontesPublicas(),
-    obterOrganizacao(),
-    obterTermosVigentes(),
-  ])
-  const nome = org?.nomeFantasia ?? org?.nomeRazao ?? "ao sindicato"
+  const org = await obterOrganizacao()
+  const nome = org?.nomeFantasia ?? org?.nomeRazao ?? null
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-10">
-      <div className="mb-8 flex flex-col items-center text-center">
+    <main className="mx-auto w-full max-w-md px-4 py-10">
+      <div className="mb-6 flex flex-col items-center text-center">
         <Marca variante="completa" />
-        <h1 className="mt-6 text-2xl font-semibold tracking-tight">
-          Ficha de filiação
-        </h1>
-        <p className="text-muted-foreground mt-1 max-w-xl text-sm">
-          Preencha seus dados para se filiar {nome === "ao sindicato" ? nome : `ao ${nome}`}.
-          Depois de confirmar seu e-mail, você recebe um link para baixar a
-          ficha, assiná-la no gov.br e enviá-la para avaliação.
+        <h1 className="mt-6 text-2xl font-semibold tracking-tight">Filie-se{nome ? ` ao ${nome}` : ""}</h1>
+        <p className="text-muted-foreground mt-2 text-base">
+          Comece pelo seu CPF. Se você já foi filiado(a), seus dados vêm preenchidos.
         </p>
       </div>
 
-      <FiliarForm
-        fontes={fontes}
-        termoLgpd={termos.lgpd?.texto ?? null}
-        termoDesconto={termos.desconto?.texto ?? null}
-      />
+      <FiliarForm ajuda={<AjudaFicha emailContato={org?.emailContato ?? null} site={org?.siteUrl ?? null} />} />
 
-      <p className="text-muted-foreground mt-6 text-center text-xs">
-        Já iniciou uma filiação? Use o link enviado ao seu e-mail para continuar.
-      </p>
       <AvisoPrivacidade />
     </main>
   )

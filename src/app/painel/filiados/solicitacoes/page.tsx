@@ -23,6 +23,7 @@ import { Paginacao } from "@/components/paginacao"
 import { requirePermissao } from "@/lib/auth"
 import {
   enderecoDaFichaPublica,
+  fichasParadas,
   listarSolicitacoes,
   ROTULO_SITUACAO_SOLICITACAO,
   SITUACOES_FILA_FILTRO,
@@ -32,6 +33,8 @@ import { formatarData } from "@/lib/formato"
 import { mascaraCpf } from "@/lib/mascaras"
 
 import { EnderecoFicha } from "./endereco-ficha"
+import { FichasParadas } from "./paradas"
+import { DIAS_PARADA, diasDesde } from "@/lib/ficha-filiacao"
 
 export const metadata: Metadata = {
   title: "Fichas de filiação — Confluir",
@@ -39,6 +42,7 @@ export const metadata: Metadata = {
 
 const VARIANTE: Record<SituacaoSolicitacao, "secondary" | "outline"> = {
   aguardando_verificacao: "outline",
+  em_preenchimento: "outline",
   aguardando_assinatura: "outline",
   nao_avaliada: "secondary",
   aprovada: "secondary",
@@ -62,10 +66,12 @@ export default async function SolicitacoesFiliacaoPage({
   const busca = (brutos.busca ?? "").trim()
   const pagina = Math.max(1, Number(brutos.pagina) || 1)
 
-  const [lista, endereco] = await Promise.all([
+  const [lista, endereco, paradas] = await Promise.all([
     listarSolicitacoes({ situacao, busca, pagina }),
     enderecoDaFichaPublica(),
+    fichasParadas(),
   ])
+  const atrasadas = paradas.filter((p) => diasDesde(p.desde) >= DIAS_PARADA).length
   const aqui = "/painel/filiados/solicitacoes"
 
   return (
@@ -82,9 +88,30 @@ export default async function SolicitacoesFiliacaoPage({
         </h1>
         <p className="text-muted-foreground mt-1 text-xs">
           Solicitações vindas da ficha pública. {lista.pendentes} aguardando
-          avaliação.
+          avaliação{paradas.length > 0 && <>, {paradas.length} pararam no meio</>}.
         </p>
       </div>
+
+      {paradas.length > 0 && (
+        <Card id="paradas" className="scroll-mt-20">
+          <CardHeader>
+            <CardTitle className="text-base">
+              Pararam no meio
+              <span className="text-muted-foreground ml-2 text-sm font-normal">
+                {paradas.length}
+                {atrasadas > 0 && ` · ${atrasadas} há ${DIAS_PARADA} dias ou mais`}
+              </span>
+            </CardTitle>
+            <CardDescription>
+              Quem começou a ficha e não enviou a ficha assinada. Um contato costuma resolver: chame no WhatsApp, reenvie
+              o link ou registre o que foi conversado. Registrar o contato tira a ficha dos avisos por {DIAS_PARADA} dias.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FichasParadas paradas={paradas} />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

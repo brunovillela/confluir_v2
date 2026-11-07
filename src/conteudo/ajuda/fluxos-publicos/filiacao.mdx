@@ -1,78 +1,123 @@
-A **filiação pública** deixa o próprio trabalhador iniciar a filiação, sem login,
-pela página `/filiar`. A equipe só entra no fim, para avaliar.
+A **filiação pública** deixa o próprio trabalhador se filiar, sem login, pela
+página `/filiar`. Ela começa pelo CPF: quem já foi filiado recebe os dados
+preenchidos e só confere; quem nunca foi preenche do zero. A equipe entra no fim,
+para avaliar.
+
+<Print src="fluxos-publicos/filiar-cpf.png" alt="Página Filie-se: os campos Seu CPF e Data de nascimento, em letras grandes, e o botão Continuar." legenda="O começo: só CPF e data de nascimento." />
 
 ## O fluxo, do início ao fim
 
 <PassoAPasso>
-  <Passo titulo="Preencher a ficha">
-    Em `/filiar`, o trabalhador informa dados pessoais, contato, endereço e o
-    vínculo empregatício, e marca as duas autorizações (LGPD e desconto). Só nome
-    completo, CPF e e-mail são obrigatórios, além dos dois aceites. O CEP preenche o
-    endereço. Sem os aceites, ou com CPF inválido, **Enviar e receber o código**
-    fica bloqueado.
+  <Passo titulo="CPF e data de nascimento">
+    Em `/filiar`, o trabalhador informa o CPF e a data de nascimento e toca em
+    **Continuar**.
   </Passo>
-  <Passo titulo="Confirmar o e-mail">
-    Ele recebe um **código de 6 dígitos** por e-mail (válido por 15 minutos) e o
-    digita em **Confirmar e-mail**. **Não recebeu? Reenviar código** manda outro.
-    Depois de 5 tentativas erradas, é preciso pedir um novo.
+  <Passo titulo="O link vai para o e-mail">
+    - **Já tem cadastro, com e-mail:** a tela mostra o e-mail do cadastro com
+      parte escondida (como `jo***a@gm***.com`) e manda para ele um link.
+    - **Não tem cadastro**, ou o cadastro não tem e-mail: a tela pede um e-mail,
+      digitado duas vezes para evitar erro, e manda o link para ele.
+    - **Já é filiado Ativo:** a tela avisa e leva à Área do associado; não há ficha
+      a fazer.
+
+    Na tela **Abra o seu e-mail** há **Não chegou? Enviar de novo** e **Digitei o
+    CPF errado — começar de novo**.
   </Passo>
-  <Passo titulo="Assinar a ficha">
-    Confirmado o e-mail, ele recebe o **link único** da ficha por e-mail e já cai
-    nela. Em **Assine e envie a ficha**: **Baixar ficha (PDF)**, assinar no
-    **Assinador gov.br** e, em **Ficha assinada (PDF)**, **Enviar ficha assinada**
-    (PDF de até 10 MB).
+  <Passo titulo="Preencher a ficha, em passos">
+    O botão **Continuar minha filiação** do e-mail abre a ficha numa página nova,
+    e a pessoa segue dali. São quatro passos curtos, com **Passo X de 5** no alto:
+    **Seus dados**, **Contato e endereço**, **Seu trabalho** e **Autorizações**.
+    Cada **Continuar** salva o que foi preenchido. Se a pessoa parar, o mesmo link
+    a leva de volta ao ponto onde ela estava.
+  </Passo>
+  <Passo titulo="Assinar no gov.br">
+    No **Passo 5 de 5**, ela baixa a ficha em PDF, assina no **Assinador gov.br** e
+    envia o arquivo assinado (PDF de até 10 MB).
   </Passo>
   <Passo titulo="Avaliação">
-    A solicitação entra em **Filiados → Solicitações**, onde a equipe aprova ou
-    recusa — e, aprovando, a filiação é criada.
+    A ficha entra em **Filiados → Fichas de filiação**, onde a equipe aprova ou
+    recusa.
   </Passo>
 </PassoAPasso>
 
-<Aviso tipo="nota" titulo="O link da ficha é a chave">
-  Cada ficha tem um endereço único e secreto. É por ele que o trabalhador volta
-  para acompanhar e concluir a assinatura. Um link inválido mostra "Ficha não
-  encontrada".
+<Print src="fluxos-publicos/ficha-passos.png" alt="Ficha de filiação no passo 2 de 5, Contato e endereço: a barra de progresso, o celular com DDD, a caixa Este número tem WhatsApp e os campos de endereço, com o CEP que preenche o resto." legenda="A ficha em passos curtos, com o progresso no alto." />
+
+## Quem já foi filiado
+
+Quem saiu e quer voltar não preenche tudo de novo. Com o CPF e a data de
+nascimento do cadastro, o link vai para o e-mail do cadastro e a ficha abre com
+nome, contato e endereço preenchidos: basta conferir, corrigir e completar o que
+faltar. No passo **Seu trabalho**, a pergunta é **Você continua trabalhando na
+(empresa do último vínculo)?**:
+
+- **Sim, continuo lá:** a matrícula vem preenchida; a aprovação abre um vínculo
+  novo na mesma empresa;
+- **Não, hoje estou em outra empresa:** a pessoa escolhe a empresa e informa a
+  matrícula; a aprovação abre um vínculo novo nela.
+
+Na aprovação, o mesmo cadastro é atualizado. Não nasce outro.
+
+## Não tenho mais acesso ao e-mail do cadastro
+
+Na tela **Abra o seu e-mail**, o botão **Não tenho mais acesso a este e-mail**
+deixa a pessoa informar um e-mail que ela abre hoje, como no caso de um e-mail
+corporativo antigo. Por segurança, essa ficha **começa em branco**: quem só sabe CPF e
+nascimento de alguém não pode ver o endereço e o telefone dessa pessoa. A
+identidade é conferida na avaliação, pela assinatura gov.br, que precisa ser do
+mesmo CPF.
+
+<Aviso tipo="nota" titulo="Data de nascimento errada">
+  Se a data de nascimento não for a do cadastro, a tela pede um e-mail, como para
+  quem não tem cadastro, e a ficha começa em branco. Ela não diz se o CPF existe
+  na base: o CPF sozinho não revela quem é filiado. Depois de várias tentativas
+  erradas com o mesmo CPF, a tela pede para esperar alguns minutos.
 </Aviso>
+
+## O link da ficha
+
+- Vale **7 dias** enquanto a ficha não é concluída. Vencido, a tela mostra **Este
+  link venceu** e o botão **Começar de novo**: pelo CPF, chega um link novo, e o
+  que já foi preenchido continua salvo.
+- Depois de concluída, a ficha continua acessível pelo mesmo link, para
+  acompanhar a situação e baixar o PDF.
+
+Em todas as telas aparece **Precisa de ajuda?**, com o e-mail e o site da
+entidade, se estiverem configurados em Organização.
 
 ## O que a ficha mostra
 
-No alto da ficha ficam o protocolo e a situação:
+No alto da ficha concluída ficam o protocolo e a situação:
 
-- **Aguardando confirmação de e-mail** — com o atalho **Inserir o código**;
-- **Aguardando assinatura** — falta enviar o PDF assinado;
-- **Em avaliação** — a equipe está analisando;
+- **Aguardando assinatura**: falta enviar o PDF assinado;
+- **Em avaliação**: a equipe está analisando;
 - **Filiação aprovada**;
-- **Não aprovada** — com o motivo da equipe;
+- **Não aprovada**, com o motivo da equipe;
 - **Desistência**.
 
-Depois da assinatura, a ficha em PDF continua disponível para baixar.
-
-<Print src="fluxos-publicos/ficha.png" alt="Ficha de filiação no estado aguardando assinatura, com os passos e o botão de baixar o PDF e assinar no gov.br." legenda="A ficha aguardando assinatura: baixar o PDF, assinar no gov.br e enviar." />
+<Print src="fluxos-publicos/ficha.png" alt="Ficha de filiação no passo 5 de 5, aguardando assinatura: os três passos para baixar, assinar no gov.br e enviar, e o campo do arquivo assinado." legenda="O último passo: baixar o PDF, assinar no gov.br e enviar." />
 
 ## Erros comuns
 
-- **"O código de 6 dígitos não chega."** Confira o **e-mail digitado** e o
-  **spam**; ele vale **15 minutos** — passado o prazo, peça um novo.
-- **"Aparece 'Ficha não encontrada'."** O endereço foi copiado errado; abra de novo
-  pelo link do e-mail.
-- **"Já existe uma filiação com este CPF."** A pessoa já tem cadastro na entidade,
-  mesmo que antigo: ela não refaz a ficha. Veja o cadastro em Filiados.
-- **"Já existe uma ficha de filiação em andamento com este CPF."** Ela já começou:
-  deve seguir pelo link do e-mail. Se não tem mais o e-mail, veja em **Filiados →
-  Solicitações**.
-- **"O envio da ficha está bloqueado."** Faltam os **dois aceites** (LGPD e
-  desconto), o CPF está inválido, ou o **PDF assinado** no gov.br ainda não foi
-  anexado.
+- **"O e-mail não chega."** Olhe a caixa de **spam** e toque em **Não chegou?
+  Enviar de novo**. Se o e-mail mostrado não é mais usado, use **Não tenho mais
+  acesso a este e-mail**.
+- **"Os dois e-mails não são iguais."** O e-mail é digitado duas vezes, e as duas
+  precisam ser iguais (não dá para colar no segundo campo).
+- **"Este link venceu."** Toque em **Começar de novo** e informe o CPF: chega um
+  link novo, e o que já foi preenchido continua salvo.
+- **"Já existe uma ficha deste CPF concluída e esperando assinatura ou avaliação."**
+  Não dá para trocar o e-mail de uma ficha já concluída pela tela: fale com o
+  sindicato.
 - **"O arquivo não sobe."** A ficha assinada precisa ser PDF, de até 10 MB.
 - **"Assinei mas a equipe não vê."** Confirme que **enviou o arquivo assinado**
-  de volta — só então a solicitação chega em Filiados → Solicitações.
+  de volta: só então a ficha chega para avaliação.
 
 <VejaTambem
   links={[
     {
-      titulo: "Solicitações de filiação",
+      titulo: "Fichas de filiação",
       href: "/painel/ajuda/filiados/solicitacoes",
-      descricao: "A avaliação da equipe, no painel",
+      descricao: "A avaliação da equipe e o contato com quem parou no meio",
     },
   ]}
 />

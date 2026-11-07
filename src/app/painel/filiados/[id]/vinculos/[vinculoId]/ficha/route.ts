@@ -132,6 +132,11 @@ export async function GET(
     tlLgpdId: null,
     tlDescontoId: null,
     created_at: texto(vinculo.data_filiacao),
+    updated_at: null,
+    caminho: null,
+    cadastroExistenteId: null,
+    mesmaFonte: null,
+    passo: 0,
   }
 
   const elemento = createElement(FichaFiliacaoPDF, {

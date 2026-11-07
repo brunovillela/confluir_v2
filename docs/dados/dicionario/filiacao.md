@@ -809,8 +809,13 @@ Solicitações de filiação feitas pela ficha pública (/filiar) sem login: dad
 | `tl_lgpd_id` | uuid | sim |  | → filiacao_tl_lgpd |  |  |
 | `tl_desconto_id` | uuid | sim |  | → filiacao_tl_desconto |  |  |
 | `assinatura_validacao` | jsonb | sim |  |  | identificação | Resultado da validação PAdES do PDF assinado (lib/assinatura-pdf.ts). |
+| `caminho` | text | sim |  |  | nenhum | Como a ficha começou: cadastro (link no e-mail do cadastro), outro_email (CPF com cadastro, e-mail informado) ou novo. |
+| `cadastro_existente_id` | uuid | sim |  | → filiacoes (set null) | identificação | Cadastro de filiado com o mesmo CPF, atualizado na aprovação. |
+| `mesma_fonte` | boolean | sim |  |  | trabalhista | A pessoa continua na fonte pagadora do último vínculo. |
+| `passo` | smallint | não | `0` |  | nenhum | Até que passo a ficha foi preenchida (o link retoma dali). |
+| `link_expira_em` | timestamp with time zone | sim |  |  | nenhum | Validade do link do e-mail enquanto a ficha não é concluída. |
 
-Checks: `filiacao_solicitacoes_situacao_check` `CHECK ((situacao = ANY (ARRAY['aguardando_verificacao'::text, 'aguardando_assinatura'::text, 'nao_avaliada'::text, 'aprovada'::text, 'reprovada'::text, 'desistente'::text])))`
+Checks: `filiacao_solicitacoes_caminho_check` `CHECK (((caminho IS NULL) OR (caminho = ANY (ARRAY['cadastro'::text, 'outro_email'::text, 'novo'::text]))))`; `filiacao_solicitacoes_situacao_check` `CHECK ((situacao = ANY (ARRAY['aguardando_verificacao'::text, 'em_preenchimento'::text, 'aguardando_assinatura'::text, 'nao_avaliada'::text, 'aprovada'::text, 'reprovada'::text, 'desistente'::text])))`
 
 Índices: `filiacao_solicitacoes_pkey`, `idx_filiacao_solicitacoes_cpf`, `idx_filiacao_solicitacoes_emp`, `idx_filiacao_solicitacoes_nome_norm_trgm`, `idx_filiacao_solicitacoes_situacao`, `idx_filiacao_solicitacoes_token`
 

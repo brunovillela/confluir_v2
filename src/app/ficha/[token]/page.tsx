@@ -1,4 +1,6 @@
 import type { Metadata } from "next"
+import Link from "next/link"
+import { headers } from "next/headers"
 import { Download, ExternalLink, FileSignature } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -13,10 +15,17 @@ import {
 } from "@/components/ui/card"
 import { Marca } from "@/components/marca"
 import { formatarCpf } from "@/lib/cpf"
+import { abrirPeloLink, fichaParaPreencher } from "@/lib/db/filiacao-ficha-online"
 import {
   obterSolicitacaoPorToken,
+  obterTermosVigentes,
+  opcoesFontesPublicas,
   type SituacaoSolicitacao,
 } from "@/lib/db/filiacao-publica"
+import { obterOrganizacao } from "@/lib/db/organizacao"
+
+import { AjudaFicha } from "../../filiar/ajuda"
+import { EtapasFicha, PreencherFicha } from "./preencher-ficha"
 import { formatarData } from "@/lib/formato"
 
 import { UploadAssinadaForm as UploadAssinadaFormClient } from "./ficha-forms"
@@ -32,6 +41,7 @@ const STATUS: Record<
   { rotulo: string; classe?: string }
 > = {
   aguardando_verificacao: { rotulo: "Aguardando confirmação de e-mail" },
+  em_preenchimento: { rotulo: "Preenchendo a ficha" },
   aguardando_assinatura: {
     rotulo: "Aguardando assinatura",
     classe: "border-warning/40 text-warning-fg",
@@ -53,11 +63,59 @@ export default async function FichaPublicaPage({
   searchParams,
 }: {
   params: Promise<{ token: string }>
-  searchParams: Promise<{ boasvindas?: string; enviado?: string }>
+  searchParams: Promise<{ preenchida?: string; enviado?: string }>
 }) {
   const { token } = await params
-  const { boasvindas, enviado } = await searchParams
-  const s = await obterSolicitacaoPorToken(token)
+  const { preenchida, enviado } = await searchParams
+  const valido = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token)
+
+  // Abrir o link do e-mail confirma o e-mail e libera a ficha.
+  const h = await headers()
+  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || null
+  const aberta = valido ? await abrirPeloLink(token, ip, h.get("user-agent")) : null
+  const org = await obterOrganizacao()
+  const ajuda = <AjudaFicha emailContato={org?.emailContato ?? null} site={org?.siteUrl ?? null} />
+
+  if (aberta?.expirado) {
+    return (
+      <main className="mx-auto w-full max-w-md px-4 py-12 text-center">
+        <Marca variante="completa" />
+        <h1 className="mt-8 text-xl font-semibold">Este link venceu</h1>
+        <p className="text-muted-foreground mt-2 text-base">
+          O link vale por alguns dias. Comece de novo pelo seu CPF: mandamos um link novo para o mesmo e-mail, e o que
+          você já preencheu continua salvo.
+        </p>
+        <Button asChild size="lg" className="mt-6">
+          <Link href="/filiar">Começar de novo</Link>
+        </Button>
+        <div className="mt-6">{ajuda}</div>
+      </main>
+    )
+  }
+
+  if (aberta?.situacao === "em_preenchimento") {
+    const [ficha, fontes, termos] = await Promise.all([fichaParaPreencher(token), opcoesFontesPublicas(), obterTermosVigentes()])
+    if (ficha) {
+      return (
+        <main className="mx-auto w-full max-w-md px-4 py-8">
+          <div className="mb-6 flex flex-col items-center text-center">
+            <Marca variante="completa" />
+            <h1 className="mt-4 text-2xl font-semibold tracking-tight">Ficha de filiação</h1>
+          </div>
+          <PreencherFicha
+            inicial={ficha}
+            fontes={fontes}
+            termoDesconto={termos.desconto?.texto ?? null}
+            termoLgpd={termos.lgpd?.texto ?? null}
+            ajuda={ajuda}
+          />
+          <AvisoPrivacidade />
+        </main>
+      )
+    }
+  }
+
+  const s = valido ? await obterSolicitacaoPorToken(token) : null
 
   if (!s) {
     return (
@@ -100,10 +158,12 @@ export default async function FichaPublicaPage({
         </div>
       </div>
 
-      {boasvindas === "1" && (
+      {s.situacao === "aguardando_assinatura" && <EtapasFicha atual={5} />}
+      {preenchida === "1" && s.situacao === "aguardando_assinatura" && (
         <Alert className="border-success/40 text-success-fg mb-4">
           <AlertDescription>
-            E-mail confirmado! Guarde este link — é o seu acesso à ficha.
+            Ficha preenchida! Falta só assinar no gov.br e enviar o arquivo aqui. Se precisar parar, use o link do
+            e-mail para voltar.
           </AlertDescription>
         </Alert>
       )}
@@ -115,20 +175,6 @@ export default async function FichaPublicaPage({
         </Alert>
       )}
 
-      {s.situacao === "aguardando_verificacao" && (
-        <Alert className="mb-4">
-          <AlertDescription>
-            Confirme seu e-mail para continuar.{" "}
-            <a
-              href={`/filiar/verificar?s=${s.token}`}
-              className="text-foreground font-medium underline underline-offset-4"
-            >
-              Inserir o código
-            </a>
-            .
-          </AlertDescription>
-        </Alert>
-      )}
 
       {s.situacao === "reprovada" && s.reprovacao_motivo && (
         <Alert variant="destructive" className="mb-4">
@@ -151,12 +197,12 @@ export default async function FichaPublicaPage({
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
-            <ol className="text-muted-foreground grid gap-2 text-sm">
+            <ol className="grid gap-2 text-base">
               <li>
-                1. Baixe a sua ficha em PDF no botão abaixo.
+                1. Baixe a sua ficha em PDF no botão abaixo e guarde o arquivo.
               </li>
               <li>
-                2. Assine o arquivo no{" "}
+                2. Abra o{" "}
                 <a
                   href="https://assinador.iti.br"
                   target="_blank"
@@ -165,9 +211,9 @@ export default async function FichaPublicaPage({
                 >
                   Assinador gov.br <ExternalLink className="size-3" />
                 </a>{" "}
-                (login com sua conta gov.br).
+                , entre com a sua conta gov.br, escolha o arquivo e assine.
               </li>
-              <li>3. Envie o PDF assinado no campo abaixo.</li>
+              <li>3. Baixe o arquivo assinado e envie aqui embaixo.</li>
             </ol>
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" asChild>
@@ -220,6 +266,7 @@ export default async function FichaPublicaPage({
           </dl>
         </CardContent>
       </Card>
+      <div className="mt-4">{ajuda}</div>
       <AvisoPrivacidade />
     </main>
   )
