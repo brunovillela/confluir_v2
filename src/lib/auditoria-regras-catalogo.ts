@@ -159,6 +159,16 @@ export const REGRAS_AUDITORIA: RegraCatalogo[] = [
     parametros: [{ chave: "tolerancia", rotulo: "Tolerância (dias)", tipo: "dias", padrao: 0 }],
   },
   {
+    codigo: "vencimento_distante",
+    titulo: "Vencimento distante demais",
+    pergunta: "Aceita criar ordem com vencimento muito à frente?",
+    explicacao:
+      "Vencimento meses à frente costuma ser o ano digitado errado (2027 no lugar de 2026). Parcelas de contrato, custeio e locação nascem à frente de propósito e ficam de fora por padrão.",
+    origens: TODAS,
+    padrao: { "*": "alertar", contrato: "aceitar", custeio: "aceitar", locacao: "aceitar" },
+    parametros: [{ chave: "dias", rotulo: "A partir de quantos dias à frente", tipo: "dias", padrao: 120 }],
+  },
+  {
     codigo: "descricao_ia",
     titulo: "Qualidade da descrição (IA)",
     pergunta: "A descrição traz o mínimo para quem autoriza e para a auditoria?",

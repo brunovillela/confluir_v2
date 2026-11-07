@@ -377,6 +377,13 @@ async function verificarLinha(
         r(cods.length ? "falha" : "ok", cods.length ? `Mesmo favorecido e valor em ±${dias} dias: ${cods.join(", ")}.` : "Nenhuma ordem parecida.")
         break
       }
+      case "vencimento_distante": {
+        const limite = n(p.dias) ?? 120
+        if (!venc) r("na", "A ordem não tem vencimento.")
+        else if (venc > somarDias(hoje, limite)) r("falha", `Vencimento ${formatarData(venc)} — mais de ${limite} dias à frente. Confira o ano.`)
+        else r("ok", `Vence em ${formatarData(venc)}.`)
+        break
+      }
       case "vencimento_passado": {
         const tol = n(p.tolerancia) ?? 0
         if (!venc) r("na", "A ordem não tem vencimento.")

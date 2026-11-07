@@ -603,6 +603,15 @@ export async function corrigirOrdem(
     return { erro: "Ordem paga ou encerrada não pode ser corrigida." }
   }
   if (nova.valor !== null && !(nova.valor > 0)) return { erro: "Valor inválido." }
+  // Ano digitado errado (2024 ou 2062 no lugar de 2026): não entra. A ordem
+  // antiga com vencimento de anos atrás continua podendo ser corrigida para perto de hoje.
+  if (nova.vencimento && nova.vencimento !== o.vencimento) {
+    const ano = Number(String(nova.vencimento).slice(0, 4))
+    const anoHoje = Number(hojeSP().slice(0, 4))
+    if (!(ano >= anoHoje - 1 && ano <= anoHoje + 5)) {
+      return { erro: `Vencimento ${String(nova.vencimento).split("-").reverse().join("/")} fora do esperado — confira o ano.` }
+    }
+  }
 
   const antes: Record<string, unknown> = {}
   const depois: Record<string, unknown> = {}
