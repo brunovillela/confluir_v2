@@ -356,7 +356,15 @@ export async function emailSugeridoDoIntegrante(integranteId: string | null): Pr
   }
   const cpf = cpfConfiavel(i.cpf as string | null)
   if (cpf) {
-    const { data: u } = await admin.from("usuarios").select("email").eq("cpf", cpf).eq("emp_proprietaria_id", emp).limit(1).maybeSingle()
+    const { data: u } = await admin
+      .from("usuarios")
+      .select("email")
+      .eq("cpf", cpf)
+      .eq("emp_proprietaria_id", emp)
+      .not("deletado", "is", true)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle()
     if (texto(u?.email)) return texto(u?.email)
   }
   if (texto(i.filiacao_id)) {
@@ -408,7 +416,13 @@ export async function telegramDoIntegrante(
   const { data: u } = texto(i.usuario_id)
     ? await busca.eq("id", i.usuario_id).maybeSingle()
     : cpf
-      ? await busca.eq("cpf", cpf).eq("emp_proprietaria_id", emp).limit(1).maybeSingle()
+      ? await busca
+          .eq("cpf", cpf)
+          .eq("emp_proprietaria_id", emp)
+          .not("deletado", "is", true)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle()
       : { data: null }
   const chatId = texto(u?.telegram_chat_id)
   const telefone = texto(u?.telegram_telefone)

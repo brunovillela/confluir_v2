@@ -217,7 +217,14 @@ async function cnhDoIntegrante(i: Integrante): Promise<CnhDoIntegrante | null> {
   if (!usuarioId) {
     const cpf = cpfConfiavel(i.cpf)
     if (cpf) {
-      const { data } = await admin.from("usuarios").select("id").eq("emp_proprietaria_id", emp).in("cpf", grafiasDoCpf(cpf)).limit(1)
+      const { data } = await admin
+        .from("usuarios")
+        .select("id")
+        .eq("emp_proprietaria_id", emp)
+        .in("cpf", grafiasDoCpf(cpf))
+        .not("deletado", "is", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
       usuarioId = texto(data?.[0]?.id)
     }
   }

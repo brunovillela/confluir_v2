@@ -344,6 +344,8 @@ export async function criarReembolso(dados: DadosReembolso, atorId: string): Pro
       .select("id")
       .eq("emp_proprietaria_id", emp)
       .eq("cpf", cpf)
+      .not("deletado", "is", true)
+      .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle()
     usuarioId = u ? String(u.id) : null

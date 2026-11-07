@@ -1202,6 +1202,9 @@ async function gerarOrdensCusteio(
       .select("id")
       .eq("cpf", cpf)
       .eq("emp_proprietaria_id", empId)
+      // Cadastro excluído (sobra de mesclagem) não recebe ordem.
+      .not("deletado", "is", true)
+      .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle()
     usuarioId = u ? String(u.id) : null
@@ -1608,6 +1611,9 @@ async function favorecidoDoCusteio(c: Record<string, unknown>, empId: string) {
       .select("id")
       .eq("cpf", cpf)
       .eq("emp_proprietaria_id", empId)
+      // Cadastro excluído (sobra de mesclagem) não recebe ordem.
+      .not("deletado", "is", true)
+      .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle()
     usuarioId = u ? String(u.id) : null

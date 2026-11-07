@@ -73,7 +73,14 @@ async function vinculosDoSindicato(): Promise<VinculoBruto[]> {
     )
     .eq("empregador_id", await tenantAtual())
   if (error) throw new Error(`Falha ao listar funcionários: ${error.message}`)
-  return data ?? []
+  // Cadastro excluído não é funcionário, mesmo com o vínculo sem desligamento
+  // (excluído pelo cadastro, o vínculo ficou como estava).
+  const ids = [...new Set((data ?? []).map((v) => v.trabalhador_id).filter(Boolean))] as string[]
+  const { data: excluidos } = ids.length
+    ? await admin.from("usuarios").select("id").in("id", ids).eq("deletado", true)
+    : { data: [] }
+  const fora = new Set((excluidos ?? []).map((u) => String(u.id)))
+  return (data ?? []).filter((v) => !v.trabalhador_id || !fora.has(String(v.trabalhador_id)))
 }
 
 /**

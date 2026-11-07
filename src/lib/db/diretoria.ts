@@ -264,10 +264,16 @@ async function cruzarPessoas(
   const unicos = [...new Set(cpfs.map((c) => cpfConfiavel(c)).filter((c): c is string => Boolean(c)))]
   if (unicos.length === 0) return mapa
   const admin = await createAdminClient()
+  const emp = await tenantAtual()
 
   const [{ data: fis }, { data: us }] = await Promise.all([
-    admin.from("filiacoes").select("cpf").in("cpf", unicos),
-    admin.from("usuarios").select("id, cpf, auth_user_id").in("cpf", unicos),
+    admin.from("filiacoes").select("cpf").eq("emp_proprietaria_id", emp).in("cpf", unicos),
+    admin
+      .from("usuarios")
+      .select("id, cpf, auth_user_id")
+      .eq("emp_proprietaria_id", emp)
+      .not("deletado", "is", true)
+      .in("cpf", unicos),
   ])
 
   const usuariosComAuth = (us ?? []).filter((u) => u.auth_user_id)
@@ -455,6 +461,9 @@ export async function adicionarIntegrante(
         .from("usuarios")
         .select("id")
         .eq("cpf", cpf)
+        .eq("emp_proprietaria_id", await tenantAtual())
+        .not("deletado", "is", true)
+        .order("created_at", { ascending: true })
         .limit(1)
         .maybeSingle()
       usuario_id = texto(usr?.id)
@@ -527,6 +536,9 @@ export async function atualizarIntegrante(
         .from("usuarios")
         .select("id")
         .eq("cpf", cpf)
+        .eq("emp_proprietaria_id", await tenantAtual())
+        .not("deletado", "is", true)
+        .order("created_at", { ascending: true })
         .limit(1)
         .maybeSingle()
       patch.usuario_id = texto(usr?.id)
