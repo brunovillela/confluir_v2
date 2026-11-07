@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { AlertTriangle, ArrowLeft, Building2, CheckCircle2, Eye, Pencil, XCircle } from "lucide-react"
+import { AlertTriangle, ArrowLeft, Building2, CheckCircle2, Eye, Filter, Megaphone, Pencil, XCircle } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -146,6 +146,18 @@ export default async function CampanhaOposicaoPage({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-base">Dados da campanha</CardTitle>
             <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`${aqui}/funil`}>
+                  <Filter />
+                  Funil
+                </Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`${aqui}/divulgacao`}>
+                  <Megaphone />
+                  Divulgação
+                </Link>
+              </Button>
               <Button variant="outline" size="sm" asChild>
                 <Link href={`${aqui}/previa`}>
                   <Eye />

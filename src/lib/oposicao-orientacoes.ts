@@ -251,3 +251,57 @@ export function normalizarPerguntasFrequentes(bruto: unknown): PerguntaFrequente
   }
   return lista.slice(0, MAX_PERGUNTAS_FREQUENTES)
 }
+
+/**
+ * Kit de divulgação (onda 3 das melhorias, 07/11/2026): o texto curto para
+ * WhatsApp (com *negrito* do WhatsApp) e o texto do boletim, montados com o
+ * prazo, o link e o que a campanha pede de cada perfil.
+ */
+export function textosDivulgacao(p: {
+  entidade: string
+  campanhaNome: string | null
+  detalheDesconto: string | null
+  campanha: Pick<CampanhaParaOrientacao, "prazo_inicio" | "prazo_fim" | "modo_formalizacao" | "regras">
+  link: string
+}): { whatsapp: string; boletim: string } {
+  const { campanha: c } = p
+  const cartaFiliado = exigeDocumentoComRegras(c.modo_formalizacao, true, c.regras)
+  const cartaNaoFiliado = exigeDocumentoComRegras(c.modo_formalizacao, false, c.regras)
+  const assinatura =
+    c.regras.assinaturas_aceitas === "govbr" ? "no gov.br (conta prata ou ouro)" : "no gov.br (conta prata ou ouro) ou com e-CPF"
+  const carta =
+    cartaFiliado && cartaNaoFiliado
+      ? `Depois de registrar, é preciso baixar a carta, assinar ${assinatura} e enviar pelo próprio sistema, também até ${data(c.prazo_fim)}.`
+      : cartaNaoFiliado
+        ? `Quem não é filiado precisa, depois de registrar, baixar a carta, assinar ${assinatura} e enviar pelo próprio sistema, até ${data(c.prazo_fim)}.`
+        : null
+  const nome = p.campanhaNome ?? "contribuição assistencial"
+  const whatsapp = [
+    `*Oposição à contribuição assistencial — ${nome}*`,
+    p.detalheDesconto ? p.detalheDesconto : null,
+    "",
+    `Quem não quiser o desconto pode se opor de *${data(c.prazo_inicio)} a ${data(c.prazo_fim)}*, pelo link:`,
+    p.link,
+    "",
+    "Escolha *Sou filiado* ou *Não sou filiado* e entre com o código que chega no seu e-mail (prefira o pessoal; olhe também o Spam e as Promoções).",
+    carta,
+    "",
+    "A oposição é pessoal: cada um registra a sua.",
+    p.entidade,
+  ]
+    .filter((l) => l !== null)
+    .join("\n")
+  const boletim = [
+    `Oposição à contribuição assistencial: ${nome}`,
+    "",
+    `${p.detalheDesconto ? `${p.detalheDesconto} ` : ""}O trabalhador que não quiser o desconto pode registrar a oposição de ${data(c.prazo_inicio)} a ${data(c.prazo_fim)}, até as 23h59 do último dia, em ${p.link}.`,
+    "",
+    "Como fazer: na página, escolha \"Sou filiado\" (o código vai para os e-mails do seu cadastro no sindicato) ou \"Não sou filiado\" (informe nome, CPF e um e-mail seu). Digite o código que chegar no e-mail, abra a campanha, leia as instruções e siga os passos até o comprovante, que chega também por e-mail." +
+      (carta ? ` ${carta}` : ""),
+    "",
+    "O código não chegou? Procure no Spam, no Lixo eletrônico e, no Gmail, em Promoções e Atualizações. E-mails de empresa costumam barrar as mensagens: prefira um e-mail pessoal. As perguntas frequentes estão na própria página.",
+    "",
+    `A oposição é pessoal: ninguém registra por outra pessoa. As oposições aceitas vão em lista do sindicato para a empresa, que deixa de fazer o desconto. Dúvidas: ${p.entidade}.`,
+  ].join("\n")
+  return { whatsapp, boletim }
+}

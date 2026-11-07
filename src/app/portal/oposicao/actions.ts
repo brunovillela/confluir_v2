@@ -20,6 +20,7 @@ import {
   dadosConferidos,
   gravarCiencia,
   gravarDadosConferidos,
+  marcaDaPessoa,
   orientacoesDaCampanha,
 } from "@/lib/db/oposicao-ciencia"
 import { nomeEntidade } from "@/lib/db/organizacao"
@@ -29,6 +30,7 @@ import {
   minhaOposicao,
   obterCampanhaPublica,
   registrarDesistencia,
+  registrarEvento,
   registrarOposicao,
   subirDocumentoAssinado,
   opcoesFontes,
@@ -349,6 +351,9 @@ export async function registrarCiencia(_prev: EstadoForm, fd: FormData): Promise
     return { erro: "As instruções da campanha foram atualizadas. Recarregue a página e leia a versão nova." }
   }
   await gravarCiencia(campanhaId, sessao.cpf, orientacoes.hash)
+  // Funil da campanha (onda 3): quem leu, pela marca anônima — sem CPF na trilha.
+  const r1 = await rastro()
+  await registrarEvento(null, "ciencia_registrada", `pessoa:${marcaDaPessoa(campanhaId, sessao.cpf)} perfil:${sessao.perfil}`, r1.ip, r1.ua, { campanhaId })
   redirect(`/portal/oposicao/${campanhaId}`)
 }
 
@@ -362,6 +367,8 @@ export async function confirmarDados(_prev: EstadoForm, fd: FormData): Promise<E
   const erro = await erroDosDados(sessao.cpf)
   if (erro) return { erro }
   await gravarDadosConferidos(campanhaId, sessao.cpf)
+  const r2 = await rastro()
+  await registrarEvento(null, "dados_conferidos", `pessoa:${marcaDaPessoa(campanhaId, sessao.cpf)} perfil:filiado`, r2.ip, r2.ua, { campanhaId })
   redirect(`/portal/oposicao/${campanhaId}`)
 }
 

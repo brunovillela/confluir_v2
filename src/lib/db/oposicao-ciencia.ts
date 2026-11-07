@@ -72,7 +72,8 @@ export function orientacoesDaCampanha(c: CampanhaPublica, filiado: boolean, enti
 
 const VALIDADE_S = 2 * 24 * 60 * 60
 
-function marcaDaPessoa(campanhaId: string, cpf: string): string {
+/** Marca anônima da pessoa na campanha (cookie e trilha do funil): não leva o CPF. */
+export function marcaDaPessoa(campanhaId: string, cpf: string): string {
   return sha256(`${campanhaId}|${cpf.replace(/\D/g, "")}`).slice(0, 24)
 }
 

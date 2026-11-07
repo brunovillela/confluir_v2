@@ -2586,8 +2586,25 @@ export async function avisosAvaliacaoPendentes(amb: {
   return resultado
 }
 
-/** Quantos dias antes do fim do prazo sai o lembrete da carta. */
-const DIAS_ANTES_DO_PRAZO_CARTA = 3
+/**
+ * Os marcos do lembrete da carta (onda 3 das melhorias, 07/11/2026): na última
+ * semana, na véspera e no último dia. Cada marco sai uma vez por oposição, e
+ * o evento na trilha é o que impede a repetição ("lembrete_carta", o de antes
+ * desta mudança, conta como o da semana).
+ */
+const DIAS_ANTES_DO_PRAZO_CARTA = 7
+type MarcoLembrete = "semana" | "vespera" | "ultimo_dia"
+const EVENTO_DO_MARCO: Record<MarcoLembrete, string> = {
+  semana: "lembrete_carta",
+  vespera: "lembrete_carta_vespera",
+  ultimo_dia: "lembrete_carta_ultimo_dia",
+}
+function marcoDoLembrete(diasRestantes: number): MarcoLembrete | null {
+  if (diasRestantes === 0) return "ultimo_dia"
+  if (diasRestantes === 1) return "vespera"
+  if (diasRestantes > 1 && diasRestantes <= DIAS_ANTES_DO_PRAZO_CARTA) return "semana"
+  return null
+}
 
 export type ResultadoLembretesCarta = {
   /** Oposições aguardando a carta em campanhas perto do fim do prazo. */
@@ -2605,10 +2622,11 @@ export type ResultadoLembretesCarta = {
  * de requisição: passe o service client, o tenant da volta do laço e o
  * contexto do e-mail (`contextoDoTenant`), como nos outros lembretes. Quem
  * está em 'aguardando_documento' numa campanha aberta cujo prazo termina nos
- * próximos dias recebe UM lembrete: o envio fica na trilha de auditoria
- * (`lembrete_carta`), que é também o que impede a repetição — o trabalhador
- * não filiado não tem sino onde o `umaVez` pudesse conferir. Quem registrou
- * há menos de um dia fica de fora: o comprovante com o prazo acabou de sair.
+ * próximos 7 dias recebe um lembrete por marco (semana, véspera, último dia):
+ * cada envio fica na trilha de auditoria (EVENTO_DO_MARCO), que é também o
+ * que impede a repetição — o trabalhador não filiado não tem sino onde o
+ * `umaVez` pudesse conferir. Quem registrou há menos de um dia fica de fora
+ * (o comprovante com o prazo acabou de sair), menos no último dia.
  */
 export async function lembretesCartaOposicao(amb: {
   client: SupabaseClient
@@ -2651,26 +2669,38 @@ export async function lembretesCartaOposicao(amb: {
   }
   if (pendentes.length === 0) return vazio
 
-  // Uma vez por oposição: quem já tem `lembrete_carta` na trilha fica de fora.
-  // Se a trilha não puder ser lida, não arrisca repetir — tenta no dia seguinte.
+  // Um lembrete por marco e por oposição: o evento do marco na trilha deixa
+  // de fora. Se a trilha não puder ser lida, não arrisca repetir — tenta no
+  // dia seguinte.
   const jaLembrados = new Set<string>()
   const ids = pendentes.map((p) => String(p.id))
   for (let i = 0; i < ids.length; i += 200) {
     const { data, error: erroTrilha } = await client
       .from("oposicao_eventos")
-      .select("opositor_id")
+      .select("opositor_id, evento")
       .eq("emp_proprietaria_id", tenantId)
-      .eq("evento", "lembrete_carta")
+      .in("evento", Object.values(EVENTO_DO_MARCO))
       .in("opositor_id", ids.slice(i, i + 200))
     if (erroTrilha) return { ...vazio, pendentes: pendentes.length, erro: erroTrilha.message }
-    for (const e of data ?? []) jaLembrados.add(String(e.opositor_id))
+    for (const e of data ?? []) jaLembrados.add(`${e.opositor_id}|${e.evento}`)
   }
 
   const resultado: ResultadoLembretesCarta = { ...vazio, pendentes: pendentes.length }
   const recem = Date.now() - 24 * 60 * 60 * 1000
+  const marcoDe = (p: Record<string, unknown>): MarcoLembrete | null => {
+    const campanha = porCampanha.get(String(p.campanha_id))
+    if (!campanha) return null
+    const dias = Math.round((Date.parse(campanha.prazoFim) - Date.parse(hoje)) / 86_400_000)
+    return marcoDoLembrete(dias)
+  }
   const fila = pendentes.filter((p) => {
+    const marco = marcoDe(p)
     const registro = texto(p.confirmado_em) ? Date.parse(String(p.confirmado_em)) : Number.NaN
-    const pular = jaLembrados.has(String(p.id)) || (Number.isFinite(registro) && registro > recem)
+    const pular =
+      !marco ||
+      jaLembrados.has(`${p.id}|${EVENTO_DO_MARCO[marco]}`) ||
+      // Quem acabou de registrar recebeu o comprovante com o prazo — menos no último dia.
+      (marco !== "ultimo_dia" && Number.isFinite(registro) && registro > recem)
     if (pular) resultado.pulados++
     return !pular
   })
@@ -2681,7 +2711,9 @@ export async function lembretesCartaOposicao(amb: {
       fila.slice(i, i + 5).map(async (p) => {
         const id = String(p.id)
         const campanha = porCampanha.get(String(p.campanha_id))
+        const marco = marcoDe(p) ?? "semana"
         const prazo = campanha ? formatarData(campanha.prazoFim) : "—"
+        const quando = marco === "ultimo_dia" ? "hoje" : marco === "vespera" ? "amanhã" : `em ${prazo}`
         const protocolo = p.protocolo == null ? "—" : String(p.protocolo)
         const link = `/portal/oposicao/comprovante/${id}`
         const pessoa: PessoaDoAviso = {
@@ -2691,19 +2723,26 @@ export async function lembretesCartaOposicao(amb: {
           filiado: Boolean(p.filiacao_id),
         }
         const html =
-          tituloEmail("Falta enviar a carta da sua oposição") +
+          tituloEmail(marco === "ultimo_dia" ? "Último dia para enviar a carta" : "Falta enviar a carta da sua oposição") +
           paragrafo(
             `${saudacaoEmail(pessoa.nome)} A sua oposição à contribuição assistencial (protocolo ${escaparHtml(protocolo)}, campanha ${escaparHtml(campanha?.nome ?? "—")}) ainda espera a carta assinada.`
           ) +
-          caixaAviso(`<strong>O prazo termina em ${escaparHtml(prazo)}.</strong> Sem a carta, a oposição não é avaliada.`) +
+          caixaAviso(
+            `<strong>O prazo termina ${escaparHtml(quando)}${marco === "semana" ? "" : ` (${escaparHtml(prazo)})`}.</strong> Sem a carta, a oposição não é avaliada.`
+          ) +
           PASSOS_CARTA +
           botaoEmail(`${contexto.origem}${link}`, "Abrir o comprovante e enviar a carta")
         try {
           const r = await entregarAvisoOposicao(
             {
               pessoa,
-              assunto: `Falta enviar a carta da sua oposição — prazo até ${prazo}`,
-              texto: `Falta enviar a carta assinada da sua oposição (protocolo ${protocolo}). O prazo termina em ${prazo}; sem a carta, a oposição não é avaliada.`,
+              assunto:
+                marco === "ultimo_dia"
+                  ? `Hoje é o último dia para enviar a carta da sua oposição`
+                  : marco === "vespera"
+                    ? `Amanhã termina o prazo da carta da sua oposição`
+                    : `Falta enviar a carta da sua oposição — prazo até ${prazo}`,
+              texto: `Falta enviar a carta assinada da sua oposição (protocolo ${protocolo}). O prazo termina ${quando}${marco === "semana" ? "" : ` (${prazo})`}; sem a carta, a oposição não é avaliada.`,
               link,
               html,
             },
@@ -2714,7 +2753,7 @@ export async function lembretesCartaOposicao(amb: {
           if (r === "email") resultado.porEmail++
           await client.from("oposicao_eventos").insert({
             opositor_id: id,
-            evento: "lembrete_carta",
+            evento: EVENTO_DO_MARCO[marco],
             detalhe: descreverEntrega(r),
             emp_proprietaria_id: tenantId,
           })
