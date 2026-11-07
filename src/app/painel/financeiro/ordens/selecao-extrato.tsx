@@ -2,7 +2,7 @@
 
 import { createContext, useActionState, useContext, useMemo, useState } from "react"
 import Link from "next/link"
-import { Banknote, FileOutput, Loader2, X } from "lucide-react"
+import { Banknote, FileOutput, Hourglass, Loader2, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,7 +10,7 @@ import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 import type { EstadoForm } from "@/lib/contas"
 import { formatarMoeda } from "@/lib/formato"
 
-import { pagarOrdensEmLoteAction } from "./[id]/actions"
+import { marcarProcessandoEmLoteAction, pagarOrdensEmLoteAction } from "./[id]/actions"
 
 type Selecao = {
   marcadas: Map<string, number>
@@ -101,14 +101,21 @@ export function BarraSelecao({ debitos, hoje }: { debitos: { id: string; nome: s
     return r
   }, {})
   const envio = useEnvioFormulario(acao, estado)
+  const [estadoProc, acaoProc, marcando] = useActionState<EstadoForm, FormData>(async (prev, fd) => {
+    const r = await marcarProcessandoEmLoteAction(prev, fd)
+    if (r.ok) s?.limpar()
+    return r
+  }, {})
+  const envioProc = useEnvioFormulario(acaoProc, estadoProc)
+  const mensagem = (estadoProc.erro ?? estadoProc.ok) ? estadoProc : estado
 
   if (!s) return null
   const ids = [...s.marcadas.keys()]
   const total = Math.round([...s.marcadas.values()].reduce((a, v) => a + v, 0) * 100) / 100
   if (ids.length === 0) {
-    return estado.ok || estado.erro ? (
+    return mensagem.ok || mensagem.erro ? (
       <div className="bg-card sticky bottom-3 z-20 flex items-center gap-2 rounded-xl border p-3 text-sm shadow-lg">
-        <span className={estado.erro ? "text-destructive" : "text-success-fg"}>{estado.erro ?? estado.ok}</span>
+        <span className={mensagem.erro ? "text-destructive" : "text-success-fg"}>{mensagem.erro ?? mensagem.ok}</span>
       </div>
     ) : null
   }
@@ -125,6 +132,13 @@ export function BarraSelecao({ debitos, hoje }: { debitos: { id: string; nome: s
             Gerar remessa
           </Link>
         </Button>
+        <form action={acaoProc} {...envioProc}>
+          <input type="hidden" name="ordens" value={ids.join(",")} />
+          <Button type="submit" variant="outline" size="sm" disabled={marcando} title="As marcadas que estão A pagar passam a Processando (pagamento feito no banco, ainda sem registro)">
+            {marcando ? <Loader2 className="animate-spin" /> : <Hourglass />}
+            Marcar como Processando
+          </Button>
+        </form>
         <Button size="sm" onClick={() => setPagando((p) => !p)} variant={pagando ? "secondary" : "default"}>
           <Banknote />
           Registrar pagamento
@@ -167,7 +181,7 @@ export function BarraSelecao({ debitos, hoje }: { debitos: { id: string; nome: s
           </p>
         </form>
       )}
-      {estado.erro && <p className="text-destructive text-sm">{estado.erro}</p>}
+      {mensagem.erro && <p className="text-destructive text-sm">{mensagem.erro}</p>}
     </div>
   )
 }

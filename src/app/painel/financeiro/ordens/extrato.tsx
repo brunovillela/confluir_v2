@@ -27,6 +27,21 @@ function rotuloDia(data: string, hoje: string): string {
   return `${semana}, ${formatarData(data)}`
 }
 
+/** "Processando há 6 dias": a partir de 5, em alerta (enviada ao banco e não registrada?). */
+function ProcessandoHa({ desde }: { desde: string }) {
+  const dias = Math.max(0, Math.round((Date.parse(`${hojeSPCliente()}T12:00:00Z`) - Date.parse(`${desde}T12:00:00Z`)) / 86_400_000))
+  return (
+    <span className={cn("block truncate text-xs", dias >= 5 ? "text-warning-fg" : "text-muted-foreground")}>
+      Processando {dias === 0 ? "desde hoje" : `há ${dias} dia${dias > 1 ? "s" : ""}`}
+      {dias >= 5 ? " — o pagamento já saiu? Registre ou volte para A pagar" : ""}
+    </span>
+  )
+}
+
+function hojeSPCliente(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" })
+}
+
 function Linha({ o, data, selecao }: { o: OrdemLinha; data: "vencimento" | "pagamento"; selecao: boolean }) {
   const valor = o.valor_pago ?? o.valor_inicial_cobranca
   return (
@@ -53,6 +68,7 @@ function Linha({ o, data, selecao }: { o: OrdemLinha; data: "vencimento" | "paga
         {o.duplicidade && (
           <span className="text-warning-fg block truncate text-xs">Possível duplicidade com {o.duplicidade}</span>
         )}
+        {o.processandoDesde && <ProcessandoHa desde={o.processandoDesde} />}
       </span>
       <span className="text-muted-foreground hidden truncate text-xs sm:block">
         {[o.tipo, o.forma_pagamento].filter(Boolean).join(" · ") || "—"}

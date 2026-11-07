@@ -1,7 +1,7 @@
 "use client"
 
 import { useActionState, useState } from "react"
-import { ArrowRightLeft, Loader2 } from "lucide-react"
+import { ArrowRightLeft, Hourglass, Loader2 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -38,6 +38,7 @@ export function SituacaoForm({
   const [aberto, setAberto] = useState(false)
   const [estado, acao, pendente] = useActionState(alterarSituacaoAction, {})
   const { ref: refSituacao, onSubmit: enviarSituacao } = useEnvioFormulario(acao, estado)
+  const { ref: refRapido, onSubmit: enviarRapido } = useEnvioFormulario(acao, estado)
   const [estRemover, acaoRemover, pendRemover] = useActionState(removerPagamento, {})
   const { ref: refRemover, onSubmit: enviarRemover } = useEnvioFormulario(acaoRemover, estRemover)
   const opcoes = DESTINOS_SITUACAO.filter(
@@ -110,11 +111,30 @@ export function SituacaoForm({
           <br />
           <span className="font-medium">{situacao}</span>
         </p>
-        <Button variant="outline" size="sm" onClick={() => setAberto(!aberto)}>
-          <ArrowRightLeft />
-          {rotuloBotao}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {situacao === "A pagar" && (
+            // Rotina do Financeiro (o pagamento foi feito no banco): um clique, sem motivo.
+            <form action={acao} ref={refRapido} onSubmit={enviarRapido}>
+              <input type="hidden" name="id" value={ordemId} />
+              <input type="hidden" name="situacao" value="Processando" />
+              <input type="hidden" name="motivo" value="" />
+              <Button type="submit" size="sm" disabled={pendente}>
+                {pendente ? <Loader2 className="animate-spin" /> : <Hourglass />}
+                Marcar como Processando
+              </Button>
+            </form>
+          )}
+          <Button variant="outline" size="sm" onClick={() => setAberto(!aberto)}>
+            <ArrowRightLeft />
+            {rotuloBotao}
+          </Button>
+        </div>
       </div>
+      {!aberto && estado.erro && (
+        <Alert variant="destructive">
+          <AlertDescription>{estado.erro}</AlertDescription>
+        </Alert>
+      )}
 
       {aberto && (
         <form

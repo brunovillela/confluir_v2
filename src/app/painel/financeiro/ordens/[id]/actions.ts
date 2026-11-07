@@ -451,3 +451,47 @@ export async function pagarOrdensEmLoteAction(
   if (recusas.length === 0) return { ok: resumo }
   return { erro: `${pagas ? `${resumo} ` : ""}Não pagas (${recusas.length}): ${recusas.slice(0, 5).join(" · ")}${recusas.length > 5 ? " …" : ""}` }
 }
+
+/**
+ * PROCESSANDO EM LOTE (07/11/2026): o Financeiro paga no banco e marca as
+ * ordens como "Processando" — rotina de ~50 por semana, uma a uma. As
+ * marcadas no extrato vão de uma vez, sem motivo (opcional nesta troca); a
+ * que não está "A pagar" fica de fora e aparece na mensagem.
+ */
+export async function marcarProcessandoEmLoteAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao("financeiro_pagamento")
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  const ids = [...new Set(texto(formData, "ordens").split(",").filter((v) => UUID.test(v)))].slice(0, 200)
+  if (ids.length === 0) return { erro: "Marque ao menos uma ordem." }
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("ordens_pagamento")
+    .select("id, codigo, situacao")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .in("id", ids)
+  let marcadas = 0
+  let jaEstavam = 0
+  const recusas: string[] = []
+  for (const o of (data ?? []) as { id: string; codigo: string | null; situacao: string | null }[]) {
+    if (o.situacao === "Processando") {
+      jaEstavam += 1
+      continue
+    }
+    const r = o.situacao === "A pagar"
+      ? await alterarSituacaoOrdem(o.id, sessao.usuario.id, "Processando", "")
+      : { erro: `está "${o.situacao}"` }
+    if (r.erro) recusas.push(`${o.codigo ?? "ordem"}: ${r.erro}`)
+    else {
+      marcadas += 1
+      revalidatePath(`/painel/financeiro/ordens/${o.id}`)
+    }
+  }
+  revalidatePath("/painel/financeiro/ordens")
+  revalidatePath("/painel/financeiro")
+  const resumo = `${marcadas} ${marcadas === 1 ? "ordem marcada" : "ordens marcadas"} como Processando.${jaEstavam ? ` ${jaEstavam} já estava${jaEstavam > 1 ? "m" : ""}.` : ""}`
+  if (recusas.length === 0) return { ok: resumo }
+  return { erro: `${resumo} Não marcadas (${recusas.length}): ${recusas.slice(0, 5).join(" · ")}${recusas.length > 5 ? " …" : ""}` }
+}

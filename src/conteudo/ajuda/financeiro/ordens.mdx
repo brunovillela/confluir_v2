@@ -99,6 +99,10 @@ As ordens **A pagar** (e Processando) têm uma caixa para marcar; a caixa do
 cabeçalho do dia marca todas daquele dia. Com ordens marcadas, aparece uma
 barra embaixo com o total e duas ações:
 
+- **Marcar como Processando** — as marcadas que estão *A pagar* passam a
+  *Processando* de uma vez, sem motivo (para quando o pagamento já foi feito no
+  banco e ainda falta registrar). As que já estavam Processando são contadas à
+  parte; as de outra situação aparecem na mensagem.
 - **Gerar remessa** — abre a nova remessa começando só com as marcadas (as que
   ainda não estão prontas para a remessa aparecem com o que falta). A remessa só
   lista ordens *A pagar*: as *Processando* não entram nela.
@@ -462,6 +466,13 @@ disso, envie de novo.
 ## Trocar a situação
 
 <RequerPermissao>Ordens de pagamento</RequerPermissao>
+
+Numa ordem *A pagar*, o botão **Marcar como Processando** faz a troca mais comum
+num clique, sem motivo e sem confirmação (para voltar, troque para *A pagar*).
+
+No extrato, a ordem *Processando* mostra **há quantos dias** está assim; a partir
+de 5 dias o aviso fica em destaque — é a hora de registrar o pagamento (ou o
+extrato do banco, na Conciliação) ou de voltar a ordem para *A pagar*.
 
 Em **Detalhes do pagamento**, **Trocar situação** leva uma ordem ainda não paga
 para outra situação, com o **motivo** (opcional só de *A pagar* para

@@ -93,6 +93,8 @@ export type OrdemLinha = {
   favorecido: string | null
   /** Extrato: ordens não pagas que parecem a mesma cobrança desta ("2026.… (Paga)"). */
   duplicidade?: string | null
+  /** Extrato: desde quando (AAAA-MM-DD) a ordem está "Processando". */
+  processandoDesde?: string | null
 }
 
 export type FiltrosOrdens = {
@@ -359,6 +361,21 @@ export async function extratoOrdens(
   for (const [id, lista] of parecidas) {
     const o = comNome.get(id)
     if (o) o.duplicidade = descreverParecidas(lista)
+  }
+  // Processando há quanto tempo: a última troca para "Processando" na trilha.
+  const processando = naoPagasNaTela.filter((o) => o.situacao === "Processando").map((o) => o.id)
+  for (let i = 0; i < processando.length; i += 200) {
+    const { data: evs } = await admin
+      .from("ordens_pagamento_eventos")
+      .select("ordem_id, created_at")
+      .in("ordem_id", processando.slice(i, i + 200))
+      .eq("tipo", "situacao_alterada")
+      .eq("dados->>para", "Processando")
+      .order("created_at", { ascending: false })
+    for (const e of evs ?? []) {
+      const o = comNome.get(String(e.ordem_id))
+      if (o && !o.processandoDesde) o.processandoDesde = String(e.created_at).slice(0, 10)
+    }
   }
   const com = (ls: Omit<OrdemLinha, "favorecido">[]) => ls.map((o) => comNome.get(o.id)!)
   return {
