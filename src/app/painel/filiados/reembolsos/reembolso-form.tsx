@@ -24,6 +24,7 @@ import type { ReembolsoLinha } from "@/lib/db/filiacao-reembolsos-edicao"
 
 import { atualizarReembolsoAction, criarReembolsoAction } from "./actions"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
+import { useTipoSugerido } from "./tipo-sugerido"
 
 export type OpcaoProjeto = { id: string; titulo: string }
 
@@ -54,6 +55,7 @@ export function ReembolsoForm({
     {}
   )
   const envio = useEnvioFormulario(formAction, estado)
+  const { tipoRef, sugerido: tipoSugerido, aoDigitarJustificativa, aoEscolherTipo } = useTipoSugerido()
   const paga = reembolso?.ordem?.situacao === "Paga"
   const hoje = new Date().toISOString().slice(0, 10)
 
@@ -131,7 +133,14 @@ export function ReembolsoForm({
 
           <div className="grid gap-1.5 sm:col-span-2">
             <Label htmlFor="tipo">Tipo *</Label>
-            <SelectNativo id="tipo" name="tipo" required defaultValue={reembolso?.tipo ?? ""}>
+            <SelectNativo
+              id="tipo"
+              name="tipo"
+              required
+              defaultValue={reembolso?.tipo ?? ""}
+              ref={tipoRef}
+              onChange={aoEscolherTipo}
+            >
               <option value="" disabled>
                 Escolha o tipo
               </option>
@@ -141,6 +150,9 @@ export function ReembolsoForm({
                 </option>
               ))}
             </SelectNativo>
+            {tipoSugerido && (
+              <p className="text-muted-foreground text-xs">Sugerido pela justificativa — confira.</p>
+            )}
           </div>
 
           <div className="grid gap-1.5 sm:col-span-2">
@@ -152,6 +164,7 @@ export function ReembolsoForm({
               defaultValue={reembolso?.justificativa ?? ""}
               placeholder="Ex.: 25% do desconto salarial da greve de março"
               required
+              onChange={(e) => aoDigitarJustificativa(e.target.value)}
             />
           </div>
 

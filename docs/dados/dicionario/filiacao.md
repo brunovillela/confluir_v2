@@ -681,9 +681,9 @@ Reembolsos pagos ao filiado — desconto salarial de greve, cobrança indevida, 
 | `criado_por` | uuid | sim |  | → usuarios |  |  |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `updated_at` | timestamp with time zone | sim |  |  |  |  |
-| `tipo` | text | não | `'outro'::text` |  | **sensível: sindical** | Natureza do reembolso: desconto_greve, despesa_atividade, cobranca_indevida ou outro; o histórico foi classificado pelo texto da justificativa. |
+| `tipo` | text | não | `'outro'::text` |  | **sensível: sindical** | Natureza do reembolso: desconto_greve, despesa_atividade, cobranca_indevida, equipamento (equipamento ou material para a entidade), assistencia_social (assistência pelo serviço social) ou outro; o histórico foi classificado pelo texto da justificativa. |
 
-Checks: `filiacao_reembolsos_tipo_check` `CHECK ((tipo = ANY (ARRAY['desconto_greve'::text, 'despesa_atividade'::text, 'cobranca_indevida'::text, 'outro'::text])))`
+Checks: `filiacao_reembolsos_tipo_check` `CHECK ((tipo = ANY (ARRAY['desconto_greve'::text, 'despesa_atividade'::text, 'cobranca_indevida'::text, 'equipamento'::text, 'assistencia_social'::text, 'outro'::text])))`
 
 Índices: `filiacao_reembolsos_pkey`, `ix_filiacao_reembolsos_filiado`, `ix_filiacao_reembolsos_tipo`, `ux_filiacao_reembolsos_bubble`
 

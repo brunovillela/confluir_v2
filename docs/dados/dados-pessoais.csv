@@ -348,7 +348,7 @@ modulo,tabela,coluna,categoria,titulares,descricao
 "filiacao","filiacao_reembolsos","","financeiro;sensivel_sindical","filiados","Reembolsos pagos ao filiado — desconto salarial de greve, cobrança indevida, despesa em atividade sindical —, com tipo, justificativa, projeto e ordem de pagamento. Migrado do Bubble (histórico do ACT)."
 "filiacao","filiacao_reembolsos","justificativa","sensivel_sindical","filiados","Motivo do reembolso; revela participação em atividade sindical."
 "filiacao","filiacao_reembolsos","valor","financeiro","filiados",""
-"filiacao","filiacao_reembolsos","tipo","sensivel_sindical","filiados","Natureza do reembolso: desconto_greve, despesa_atividade, cobranca_indevida ou outro; o histórico foi classificado pelo texto da justificativa."
+"filiacao","filiacao_reembolsos","tipo","sensivel_sindical","filiados","Natureza do reembolso: desconto_greve, despesa_atividade, cobranca_indevida, equipamento (equipamento ou material para a entidade), assistencia_social (assistência pelo serviço social) ou outro; o histórico foi classificado pelo texto da justificativa."
 "filiacao","filiacao_registro","","identificacao;sensivel_sindical","filiados","Registro de filiação com CPF, nome, sexo, matrícula e condição sindical. Sem uso encontrado no código (possível legado do Bubble, substituído por filiacoes)."
 "filiacao","filiacao_registro","cpf","identificacao","filiados",""
 "filiacao","filiacao_registro","nome","identificacao","filiados",""

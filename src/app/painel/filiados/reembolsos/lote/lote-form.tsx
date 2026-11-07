@@ -16,6 +16,7 @@ import { SelectNativo } from "@/components/ui/select-nativo"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
+import { useTipoSugerido } from "../tipo-sugerido"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { rotuloTipoReembolso, TIPOS_REEMBOLSO } from "@/lib/reembolsos-tipos"
 
@@ -37,6 +38,7 @@ export function LoteForm({ hoje, projetos }: { hoje: string; projetos: { id: str
 
   // Lançamento: resultado por linha da lista; `feito` = partes concluídas.
   const [resultados, setResultados] = useState<Record<number, Resultado>>({})
+  const { tipoRef, sugerido: tipoSugerido, aoDigitarJustificativa, aoEscolherTipo } = useTipoSugerido()
   const [lancando, setLancando] = useState(false)
   const [progresso, setProgresso] = useState(0)
   const [conferenciaAtual, setConferenciaAtual] = useState(estado)
@@ -114,7 +116,7 @@ export function LoteForm({ hoje, projetos }: { hoje: string; projetos: { id: str
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-1.5">
               <Label htmlFor="tipo">Tipo *</Label>
-              <SelectNativo id="tipo" name="tipo" required defaultValue="">
+              <SelectNativo id="tipo" name="tipo" required defaultValue="" ref={tipoRef} onChange={aoEscolherTipo}>
                 <option value="" disabled>
                   Escolha o tipo
                 </option>
@@ -124,6 +126,9 @@ export function LoteForm({ hoje, projetos }: { hoje: string; projetos: { id: str
                   </option>
                 ))}
               </SelectNativo>
+              {tipoSugerido && (
+                <p className="text-muted-foreground text-xs">Sugerido pela justificativa — confira.</p>
+              )}
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="data">Data de referência *</Label>
@@ -137,6 +142,7 @@ export function LoteForm({ hoje, projetos }: { hoje: string; projetos: { id: str
                 rows={2}
                 required
                 placeholder="Ex.: 25% do desconto salarial da greve de março"
+                onChange={(e) => aoDigitarJustificativa(e.target.value)}
               />
             </div>
             <div className="grid gap-1.5 sm:col-span-2">
