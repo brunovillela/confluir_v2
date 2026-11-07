@@ -1,4 +1,8 @@
 modulo,tabela,coluna,categoria,titulares,descricao
+"plataforma","acesso_agentes","","credencial","","Agente do controle de acesso instalado no computador da recepção de uma sede (lib/acesso-agente.ts): pareamento por código, token, último contato e diagnóstico da conexão com o sistema de catracas."
+"plataforma","acesso_agentes","codigo_hash","credencial","","Hash do código de pareamento de 6 dígitos; vale até codigo_expira_em e é apagado ao parear."
+"plataforma","acesso_agentes","token_hash","credencial","","Hash do token do agente; o segredo em claro fica só no computador da sede."
+"plataforma","acesso_agentes","token_prefixo","credencial","","Início visível do token, para identificá-lo."
 "representacao","agenda","","identificacao;sensivel_sindical","filiados, diretores","Compromisso da agenda institucional (reunião, assembleia, evento, compromisso avulso), gravado pela tela Ferramentas > Agendas ou gerado por assembleias/eventos. Origem Bubble para os antigos (bubble_id)."
 "representacao","agenda","atividade","identificacao","filiados, diretores","Título do compromisso; pode citar nomes de pessoas."
 "representacao","agenda","informacoes_gerais","identificacao","filiados, diretores","Texto livre do compromisso; pode conter nomes e contatos."

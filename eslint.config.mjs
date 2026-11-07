@@ -25,6 +25,8 @@ const PODEM_USAR_SERVICE_ROLE = [
   // e a tabela não tem política (o token carrega a entidade).
   "src/lib/db/votacao-telegram.ts",
   "src/lib/api-publica.ts",
+  // Rotas do agente do controle de acesso: quem chama não tem sessão (token ca_…).
+  "src/lib/acesso-agente.ts",
   "src/lib/db/webhooks.ts",
   "src/app/api/**",
   "src/app/admin/**",

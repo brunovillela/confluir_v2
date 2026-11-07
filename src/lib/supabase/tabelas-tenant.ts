@@ -62,6 +62,8 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "filiacao_cobranca_config",
   "filiacao_cobrancas",
   "api_chaves",
+  "acesso_agentes",
+  "acesso_agente_comandos",
   "webhooks",
   "webhooks_entregas",
   "ordens_pagamento_eventos",

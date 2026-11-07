@@ -235,7 +235,7 @@ export const PROCESSOS = [
   {
     id: "P16",
     nome: "Contas de acesso, segurança, auditoria e gestão interna",
-    tabelas: /^(api_|auditoria$|auth_|login_|lgpd_|plataforma_|usuarios|webhooks|emails_institucionais$|assinaturas$|demandas)/,
+    tabelas: /^(api_|acesso_agentes$|auditoria$|auth_|login_|lgpd_|plataforma_|usuarios|webhooks|emails_institucionais$|assinaturas$|demandas)/,
     finalidade: "Autenticar usuários, controlar perfis e permissões, registrar a trilha de auditoria e as tentativas de acesso, registrar as saídas de dados (livro de exportações `lgpd_exportacoes` e log da API `api_requisicoes`), atender pedidos de titulares, aplicar os prazos de retenção (motor de retenção: regras `lgpd_regras_retencao`, livro `lgpd_retencao_execucoes` e bloqueios por litígio `lgpd_bloqueios_litigio`), integrar sistemas (API/webhooks) e organizar demandas internas.",
     titulares: "Usuários do sistema (funcionários, diretores, filiados no portal), administradores da plataforma",
     baseLegal: ["Art. 7º, IX e art. 46: legítimo interesse e dever de segurança.", "Art. 7º, II: guarda de registros de acesso (Marco Civil, art. 15)."],

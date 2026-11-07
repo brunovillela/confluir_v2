@@ -30,7 +30,7 @@
 | P13 | [Hospedagem conveniada e cessão de espaços](#p13) | 12 | identificação, **sensível: filiação/posição sindical**, financeiro, credencial (segredo de acesso, nunca exportar) | sim |
 | P14 | [Frota: veículos e condutores](#p14) | 15 | identificação, financeiro | sim |
 | P15 | [Comunicação, eventos e avisos](#p15) | 9 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
-| P16 | [Contas de acesso, segurança, auditoria e gestão interna](#p16) | 23 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
+| P16 | [Contas de acesso, segurança, auditoria e gestão interna](#p16) | 24 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 
 <a id="p01"></a>
 ## P01. Filiação e cadastro do associado
@@ -770,10 +770,11 @@
 
 **Observações.** Pendência: a `auditoria` copia em claro códigos e tokens com nomes fora da lista de ocultos.
 
-<details><summary>Tabelas (23) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (24) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
+| [acesso_agentes](../dados/dicionario/plataforma.md#acesso_agentes) | credencial | `codigo_hash` (credencial), `token_hash` (credencial), `token_prefixo` (credencial) |
 | [api_chaves](../dados/dicionario/plataforma.md#api_chaves) | credencial | `prefixo` (credencial), `hash` (credencial) |
 | [api_requisicoes](../dados/dicionario/plataforma.md#api_requisicoes) | identificacao | `parametros` (identificacao), `origem_ip` (identificacao) |
 | [assinaturas](../dados/dicionario/ferramentas.md#assinaturas) | identificacao | _pela existência do registro_ |
@@ -829,4 +830,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 223 de 223 tabelas com dado pessoal atribuídas a 16 processos.
+Cobertura: 224 de 224 tabelas com dado pessoal atribuídas a 16 processos.

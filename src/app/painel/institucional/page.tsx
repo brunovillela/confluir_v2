@@ -8,6 +8,7 @@ import {
   LockKeyhole,
   Mail,
   Plane,
+  ScanFace,
   ScrollText,
   Plug,
   ShieldCheck,
@@ -38,6 +39,13 @@ const AREAS: Area[] = [
     descricao: "Chaves de leitura e avisos a outros sistemas",
     href: "/painel/institucional/api",
     icone: Plug,
+    chave: "configuracoes",
+  },
+  {
+    titulo: "Controle de acesso",
+    descricao: "Agente da recepção que liga o Confluir às catracas",
+    href: "/painel/institucional/controle-acesso",
+    icone: ScanFace,
     chave: "configuracoes",
   },
   {

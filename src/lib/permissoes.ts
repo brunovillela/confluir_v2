@@ -974,6 +974,14 @@ export const MODULOS: Modulo[] = [
     oculto: true,
   },
   {
+    titulo: "Controle de acesso",
+    href: "/painel/institucional/controle-acesso",
+    icone: "ScanFace",
+    descricao: "Agente da recepção que liga o Confluir às catracas da sede",
+    chave: "configuracoes",
+    oculto: true,
+  },
+  {
     titulo: "Auditoria",
     href: "/painel/institucional/auditoria",
     icone: "ScrollText",

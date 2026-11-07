@@ -2,10 +2,12 @@
 
 # Plataforma, acesso e auditoria
 
-31 tabelas. Diagrama: [er/plataforma.md](../er/plataforma.md).
+33 tabelas. Diagrama: [er/plataforma.md](../er/plataforma.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
+| [acesso_agente_comandos](#acesso_agente_comandos) | — | Fila de comandos para o agente da sede: o painel pede, o agente busca no contato seguinte e devolve o resultado. Nesta etapa só "verificar". |
+| [acesso_agentes](#acesso_agentes) | **credencial (nunca exportar)** | Agente do controle de acesso instalado no computador da recepção de uma sede (lib/acesso-agente.ts): pareamento por código, token, último co… |
 | [analitica_atualizacoes](#analitica_atualizacoes) | — | Controle técnico da última atualização de cada visão materializada analítica (fato_filiacao_mensal, fato_frota_mensal etc.) e quanto tempo l… |
 | [api_chaves](#api_chaves) | **credencial (nunca exportar)** | Chave de acesso à API pública do tenant (lib/api-publica.ts): guarda só o prefixo e o hash, escopos permitidos, uso e revogação. |
 | [api_requisicoes](#api_requisicoes) | identificação | Log de cada requisição à API pública /api/v1 (achado M6 da RIPD da base multi-entidade): chave, rota, parâmetros, status HTTP e quantidade d… |
@@ -37,6 +39,66 @@
 | [usuarios_unificacoes](#usuarios_unificacoes) | identificação, **sensível: sindical** | Registro de cada unificação de duas contas de usuário da mesma pessoa pela função unificar_usuarios: estado anterior das duas contas, o que … |
 | [webhooks](#webhooks) | **credencial (nunca exportar)** | Webhooks cadastrados pela entidade para receber eventos (ordem autorizada ou paga, filiação aprovada, cobrança paga, retorno bancário), assi… |
 | [webhooks_entregas](#webhooks_entregas) | **sensível: sindical**, financeiro, identificação | Fila e histórico de entregas de cada evento a cada webhook, com corpo enviado, tentativas e último status HTTP. |
+
+## acesso_agente_comandos
+
+Fila de comandos para o agente da sede: o painel pede, o agente busca no contato seguinte e devolve o resultado. Nesta etapa só "verificar".
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  |  |  |  |
+| `agente_id` | uuid | não |  | → acesso_agentes (**cascade**) |  |  |
+| `tipo` | text | não |  |  |  | Comando: verificar (roda a lista de verificação da conexão). |
+| `situacao` | text | não | `'pendente'::text` |  |  | pendente → entregue (o agente buscou) → concluido ou falhou. |
+| `resultado` | jsonb | sim |  |  |  | Resposta do agente ao comando. |
+| `solicitado_por` | uuid | sim |  |  |  | Usuário que pediu o comando. |
+| `entregue_em` | timestamp with time zone | sim |  |  |  |  |
+| `concluido_em` | timestamp with time zone | sim |  |  |  |  |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Checks: `acesso_agente_comandos_situacao_check` `CHECK ((situacao = ANY (ARRAY['pendente'::text, 'entregue'::text, 'concluido'::text, 'falhou'::text])))`; `acesso_agente_comandos_tipo_check` `CHECK ((tipo = 'verificar'::text))`
+
+Índices: `acesso_agente_comandos_fila_idx`, `acesso_agente_comandos_pkey`
+
+## acesso_agentes
+
+Agente do controle de acesso instalado no computador da recepção de uma sede (lib/acesso-agente.ts): pareamento por código, token, último contato e diagnóstico da conexão com o sistema de catracas.
+
+- **LGPD:** **credencial (nunca exportar)**
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  |  |  |  |
+| `sede_id` | uuid | sim |  | → empresa_sede (set null) |  | Sede (empresa_sede) atendida pelo agente. |
+| `nome` | text | não |  |  |  | Nome do agente na tela, ex.: "Recepção — Macaé". |
+| `conector` | text | não | `'simulado'::text` |  |  | Sistema de catracas com que o agente conversa: simulado (testes, sem catraca) ou controlid_local (servidor Control iD da sede). |
+| `codigo_hash` | text | sim |  |  | **credencial (nunca exportar)** | Hash do código de pareamento de 6 dígitos; vale até codigo_expira_em e é apagado ao parear. |
+| `codigo_expira_em` | timestamp with time zone | sim |  |  |  | Validade do código de pareamento (15 minutos). |
+| `token_hash` | text | sim |  |  | **credencial (nunca exportar)** | Hash do token do agente; o segredo em claro fica só no computador da sede. |
+| `token_prefixo` | text | sim |  |  | **credencial (nunca exportar)** | Início visível do token, para identificá-lo. |
+| `pareado_em` | timestamp with time zone | sim |  |  |  | Quando o agente foi pareado com o código. |
+| `ultimo_contato_em` | timestamp with time zone | sim |  |  |  | Último contato do agente (a cada poucos segundos quando ligado). |
+| `versao` | text | sim |  |  |  | Versão do agente informada no contato. |
+| `maquina` | text | sim |  |  |  | Nome do computador e sistema operacional informados pelo agente. |
+| `diagnostico` | jsonb | sim |  |  |  | Última lista de verificação devolvida pelo agente: [{id, ok, detalhe}] (servidor, login, permissão, teste). |
+| `diagnostico_em` | timestamp with time zone | sim |  |  |  | Quando o diagnóstico foi feito. |
+| `criado_por` | uuid | sim |  |  |  | Usuário que cadastrou o agente. |
+| `revogado_em` | timestamp with time zone | sim |  |  |  | Quando o agente foi desligado; o token deixa de valer. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Únicas: `UNIQUE (token_hash)`
+
+Checks: `acesso_agentes_conector_check` `CHECK ((conector = ANY (ARRAY['simulado'::text, 'controlid_local'::text])))`
+
+Índices: `acesso_agentes_codigo_idx`, `acesso_agentes_emp_idx`, `acesso_agentes_pkey`, `acesso_agentes_token_hash_key`
 
 ## analitica_atualizacoes
 

@@ -6,6 +6,14 @@ Só chaves (PK e FK). Tabelas de outros módulos aparecem sem atributos. Colunas
 
 ```mermaid
 erDiagram
+  acesso_agente_comandos {
+    uuid id PK
+    uuid agente_id FK
+  }
+  acesso_agentes {
+    uuid id PK
+    uuid sede_id FK
+  }
   analitica_atualizacoes {
     text fato PK
   }
@@ -155,6 +163,8 @@ erDiagram
     uuid id PK
     uuid webhook_id FK
   }
+  acesso_agente_comandos }o--|| acesso_agentes : "agente_id"
+  acesso_agentes }o--o| empresa_sede : "sede_id"
   api_requisicoes }o--o| api_chaves : "chave_id"
   auditoria_regras }o--o| usuarios : "atualizado_por"
   empresa }o--o| empresa : "mesclado_em_id"
