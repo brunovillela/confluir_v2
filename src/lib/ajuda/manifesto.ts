@@ -315,7 +315,7 @@ export const AREAS_AJUDA: AreaAjuda[] = [
       {
         slug: "oposicao",
         titulo: "Oposição à contribuição assistencial",
-        resumo: "Cadastro público, assinatura gov.br e avaliação",
+        resumo: "Decisões jurídicas, campanha pronta para abrir, avaliação e relação às empresas",
       },
       {
         slug: "acordos",

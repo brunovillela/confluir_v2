@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Building2, Pencil } from "lucide-react"
+import { AlertTriangle, ArrowLeft, Building2, CheckCircle2, Eye, Pencil, XCircle } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/card"
 import { ExportarXlsx } from "@/components/exportar-xlsx"
 import { Paginacao } from "@/components/paginacao"
-import { podeNaOposicao, regrasDaCampanha, requireOposicao } from "@/lib/db/oposicao-regras"
+import { hojeSP } from "@/lib/db/comum"
+import { podeNaOposicao, regrasDaCampanha, regrasDaEntidade, requireOposicao } from "@/lib/db/oposicao-regras"
 import {
   fonteIdsDaCampanha,
   listarOpositores,
@@ -33,6 +34,7 @@ import {
   SITUACOES_OPOSITOR,
   type SituacaoOpositor,
 } from "@/lib/oposicao-constantes"
+import { prontidaoDaCampanha, type ItemProntidao } from "@/lib/oposicao-prontidao"
 
 import { EncerrarSemCarta, ListaOpositores } from "../gestao-forms"
 
@@ -74,11 +76,17 @@ export default async function CampanhaOposicaoPage({
 
   const editando = brutos.editar === "1" && podeConfigurar
   // As fontes servem ao formulário de edição e ao filtro da lista.
-  const [fontes, fonteIds, encerramento] = await Promise.all([
+  const [fontes, fonteIds, encerramento, entidade] = await Promise.all([
     opcoesFontes(),
     fonteIdsDaCampanha(id),
     previsaoEncerramentoSemCarta(id),
+    regrasDaEntidade(),
   ])
+  // Pronta para abrir? (rascunho e aberta; encerrada não tem o que conferir.)
+  const prontidao =
+    campanha.situacao === "encerrada"
+      ? []
+      : prontidaoDaCampanha(campanha, regrasCampanha.efetivas, entidade.avisoPrivacidade, hojeSP())
   const fontesDaCampanha = fontes.filter((f) => fonteIds.includes(f.id))
   const fonte = brutos.fonte === "sem" || fonteIds.includes(brutos.fonte ?? "") ? (brutos.fonte as string) : ""
 
@@ -137,14 +145,22 @@ export default async function CampanhaOposicaoPage({
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-base">Dados da campanha</CardTitle>
-            {!editando && podeConfigurar && (
+            <div className="flex flex-wrap gap-2">
               <Button variant="outline" size="sm" asChild>
-                <Link href={`${aqui}?editar=1`}>
-                  <Pencil />
-                  Editar
+                <Link href={`${aqui}/previa`}>
+                  <Eye />
+                  Ver como o trabalhador
                 </Link>
               </Button>
-            )}
+              {!editando && podeConfigurar && (
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`${aqui}?editar=1`}>
+                    <Pencil />
+                    Editar
+                  </Link>
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -178,6 +194,8 @@ export default async function CampanhaOposicaoPage({
           )}
         </CardContent>
       </Card>
+
+      {prontidao.length > 0 && <Prontidao itens={prontidao} aberta={campanha.situacao === "aberta"} />}
 
       <Card className={faltamDecisoes.length ? "border-warning/50" : undefined}>
         <CardHeader>
@@ -380,5 +398,49 @@ function Campo({ rotulo, valor }: { rotulo: string; valor: string | null }) {
       <dt className="text-muted-foreground text-xs">{rotulo}</dt>
       <dd className="mt-0.5 text-sm">{valor ?? "—"}</dd>
     </div>
+  )
+}
+
+const ICONE_PRONTIDAO = { ok: CheckCircle2, atencao: AlertTriangle, impede: XCircle } as const
+const COR_PRONTIDAO = { ok: "text-success-fg", atencao: "text-warning-fg", impede: "text-destructive" } as const
+const NOME_NIVEL = { ok: "ok", atencao: "atenção", impede: "impede" } as const
+
+/**
+ * "Pronta para abrir?" (onda 1 das melhorias, 31/10/2026): o que o sistema
+ * recusa (impede) e o que costuma virar reclamação (atenção), com o porquê.
+ */
+function Prontidao({ itens, aberta }: { itens: ItemProntidao[]; aberta: boolean }) {
+  const impede = itens.filter((i) => i.nivel === "impede").length
+  const atencao = itens.filter((i) => i.nivel === "atencao").length
+  return (
+    <Card className={impede ? "border-destructive/50" : atencao ? "border-warning/50" : undefined}>
+      <CardHeader>
+        <CardTitle className="text-base">{aberta ? "Conferência da campanha aberta" : "Pronta para abrir?"}</CardTitle>
+        <CardDescription>
+          {impede
+            ? `${impede} item(ns) impedem a campanha de receber oposições.`
+            : atencao
+              ? `Nada impede, mas ${atencao} item(ns) costumam virar dúvida ou reclamação.`
+              : "Tudo conferido."}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ul className="grid gap-2.5">
+          {itens.map((i) => {
+            const Icone = ICONE_PRONTIDAO[i.nivel]
+            return (
+              <li key={i.chave} className="flex items-start gap-2 text-sm">
+                <Icone aria-hidden className={`mt-0.5 size-4 shrink-0 ${COR_PRONTIDAO[i.nivel]}`} />
+                <span>
+                  <span className="font-medium">{i.rotulo}</span>
+                  <span className="sr-only"> ({NOME_NIVEL[i.nivel]})</span>
+                  <span className="text-muted-foreground block text-xs">{i.detalhe}</span>
+                </span>
+              </li>
+            )
+          })}
+        </ul>
+      </CardContent>
+    </Card>
   )
 }

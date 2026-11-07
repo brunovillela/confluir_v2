@@ -1,43 +1,76 @@
 A **oposição** é o fluxo pelo qual o trabalhador manifesta oposição à
-contribuição assistencial. Tem uma parte **pública** (o próprio trabalhador se
-cadastra) e uma parte **interna** (a avaliação pela equipe).
+contribuição assistencial. Tem uma parte **pública** (o próprio trabalhador
+registra, com código no e-mail) e uma parte **interna** (a configuração da
+campanha e a avaliação pela equipe).
 
 <RequerPermissao>Oposição à contribuição assistencial</RequerPermissao>
 
-## O fluxo
+## Antes de abrir uma campanha
 
 <PassoAPasso>
-  <Passo titulo="Cadastro público">
-    O trabalhador — **filiado ou não** — acessa a área pública, se identifica e
-    registra a oposição, respondendo ao que a campanha pede.
+  <Passo titulo="Decisões jurídicas">
+    Em **Oposição → Decisões jurídicas**, o padrão da entidade: carta depois do
+    prazo, vídeo com tempo mínimo, assinaturas aceitas (só gov.br ou também
+    e-CPF), prova do não filiado e permissões. Cada campanha pode decidir
+    diferente. Sem todas decididas, a campanha não abre.
   </Passo>
-  <Passo titulo="Assinatura gov.br">
-    Quando exigido, a manifestação é **assinada digitalmente** pelo gov.br, o que
-    dá validade jurídica ao ato.
+  <Passo titulo="Aviso de privacidade">
+    Na mesma página, o aviso que o trabalhador lê antes de se opor. Começa no
+    texto padrão do sistema — revise com o jurídico.
   </Passo>
-  <Passo titulo="Avaliação">
-    A oposição entra numa **fila interna** para conferência e decisão (deferida
-    ou não).
+  <Passo titulo="A campanha">
+    Prazo, fontes pagadoras, modo de formalização, declaração, vídeos,
+    questionário e as **perguntas frequentes da campanha** (o que é próprio
+    dela: valor e meses do desconto, empresas, quando a lista vai ao RH).
+  </Passo>
+  <Passo titulo="Pronta para abrir?">
+    O cartão da campanha mostra o que impede abrir e o que costuma virar
+    reclamação. Em **Ver como o trabalhador**, o texto exato que o filiado e o
+    não filiado vão ler e aceitar — também com a campanha em rascunho.
   </Passo>
 </PassoAPasso>
 
-## Campanhas
+<Aviso tipo="atencao" titulo="Oposição registrada não se apaga">
+  A trilha da oposição é só de acréscimo. Para testar o fluxo inteiro (código,
+  dados, carta, comprovante), use a demo com as mesmas decisões — não a
+  campanha real.
+</Aviso>
 
-Cada período de oposição é uma **campanha**, com suas perguntas e seus
-opositores. Os dados migrados do sistema anterior ficam **vinculados à campanha**
-correspondente.
+## Durante a campanha
+
+<PassoAPasso>
+  <Passo titulo="Avaliação">
+    Na lista da campanha, abra a oposição para ver o checklist, a carta e a
+    conferência da assinatura, e aprove ou reprove com o motivo. Dá para
+    avaliar em lote (as marcadas ou todas do filtro) e seguir para a próxima.
+  </Passo>
+  <Passo titulo="Carta não enviada">
+    Depois do prazo, o cartão **Carta não enviada no prazo** encerra de uma vez as que não
+    mandaram a carta.
+  </Passo>
+  <Passo titulo="Empresas">
+    Em **Relação por empregador**, a lista das oposições por empresa (PDF ou planilha)
+    e o registro de cada envio ao RH, com o que mudou desde o último.
+  </Passo>
+  <Passo titulo="Exportar e dossiê">
+    A exportação em planilha segue os filtros da lista; o dossiê de cada
+    oposição reúne o registro, a trilha e a carta.
+  </Passo>
+</PassoAPasso>
 
 <Print src="representacao/oposicao-fila.png" alt="Fila interna de avaliação de oposições de uma campanha, com a situação de cada manifestação." legenda="Avaliação das manifestações de oposição." />
 
 ## Erros comuns
 
-- **"O trabalhador diz que registrou e não aparece."** Confira a **campanha**
-  correta e se a assinatura gov.br (quando exigida) foi concluída — sem ela, a
-  manifestação pode ficar incompleta.
-- **"Preciso avaliar mas não vejo a fila."** A avaliação exige a permissão
-  **Oposição à contribuição assistencial**.
-- **"A oposição vale para filiado também?"** Sim — o fluxo é aberto a filiado e
-  não-filiado; a identificação é feita no cadastro público.
+- **"A campanha não abre."** Falta alguma decisão jurídica (na campanha ou no
+  padrão da entidade) — o cartão "Pronta para abrir?" diz qual.
+- **"O trabalhador diz que registrou e não aparece."** Confira a campanha e a
+  situação: "Aguardando documento" é quem ainda não mandou a carta.
+- **"O código não chegou."** Spam e Promoções primeiro; e-mail de empresa
+  costuma barrar. O filiado sem acesso ao e-mail do cadastro precisa que a
+  secretaria o atualize.
+- **"Preciso avaliar mas não vejo a fila."** Com as permissões separadas,
+  avaliar exige **Oposição — avaliar**; configurar, **Oposição — configurar**.
 
 <VejaTambem
   links={[
