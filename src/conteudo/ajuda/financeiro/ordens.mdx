@@ -424,6 +424,41 @@ bancárias de remessa e ao caixa. Contas de despesa e de receita não aparecem.
   devolve: só o cancelamento da ordem desfaz esse débito.
 </Aviso>
 
+## Distribuir comprovantes
+
+<RequerPermissao>Ordens de pagamento</RequerPermissao>
+
+Para quem baixa os comprovantes do banco de uma vez. Em **Ordens de pagamento**,
+o botão **Distribuir comprovantes** abre a tela:
+
+1. **Envie** um ou vários arquivos (arraste ou clique): PDF, JPG ou PNG, até 4 MB
+   cada. Um PDF pode trazer vários comprovantes, um por página.
+2. O sistema **lê** cada comprovante (valor, data, quem recebeu, CPF/CNPJ, chave
+   Pix, código de barras) e procura, entre as ordens **sem comprovante** (*Paga*
+   no último ano, *A pagar* ou *Processando*; Dinheiro fica de fora), a que casa
+   com ele.
+3. Cada comprovante aparece com a ordem sugerida, a **confiança** (alta, média,
+   baixa) e os motivos (mesmo valor, mesma chave Pix, mesmo CPF/CNPJ…). Já vem
+   marcado quando a sugestão é segura e nenhuma outra chega perto; empate fica
+   para você escolher na lista. A lupa busca outra ordem pelo código.
+4. **Confirme**: **Confirmar marcados** faz todos de uma vez; **Confirmar este**
+   faz só aquele.
+
+O que acontece ao confirmar:
+
+- **Ordem já paga** só ganha o comprovante (as páginas daquele comprovante,
+  separadas do arquivo).
+- **Ordem a pagar** fica **Paga**, com a data e o valor do comprovante (dá para
+  corrigir os dois antes de confirmar) e a **conta de onde o dinheiro saiu**,
+  escolhida no alto da tela. Valem as mesmas travas do pagamento da ordem: mês
+  fechado, saldo do caixa, data fora do esperado e possível duplicidade (a
+  ordem com aviso de duplicidade é recusada aqui; pague-a pela própria ordem).
+- O histórico da ordem registra de qual arquivo e página veio o comprovante. Se
+  o fornecedor recebe comprovantes automaticamente, ele é enviado.
+
+O arquivo enviado fica guardado por até 3 dias à espera da confirmação; depois
+disso, envie de novo.
+
 ## Trocar a situação
 
 <RequerPermissao>Ordens de pagamento</RequerPermissao>

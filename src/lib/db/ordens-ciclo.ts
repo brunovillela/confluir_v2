@@ -113,6 +113,7 @@ export type TipoEvento =
   | "caixa_transferida"
   | "reclassificada"
   | "comprovante_enviado"
+  | "comprovante_anexado"
 
 export const ROTULO_EVENTO: Record<TipoEvento, string> = {
   criada: "Criada",
@@ -139,6 +140,7 @@ export const ROTULO_EVENTO: Record<TipoEvento, string> = {
   caixa_transferida: "Despesa transferida para outra conta de caixa",
   reclassificada: "Centro de custo reclassificado pelo Financeiro",
   comprovante_enviado: "Comprovante de pagamento enviado ao fornecedor",
+  comprovante_anexado: "Comprovante de pagamento anexado (distribuição de comprovantes)",
 }
 
 /**

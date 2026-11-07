@@ -4,6 +4,7 @@ import {
   ArrowDown,
   ArrowUp,
   ChevronDown,
+  FileStack,
   ReceiptText,
   Search,
   SlidersHorizontal,
@@ -320,6 +321,14 @@ export default async function OrdensPage({
               </Link>
             ))}
           </div>
+          {podePagar && (
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/painel/financeiro/ordens/comprovantes">
+                <FileStack />
+                Distribuir comprovantes
+              </Link>
+            </Button>
+          )}
           <ExportarXlsx href="/painel/financeiro/ordens/exportar" />
         </div>
       </div>
