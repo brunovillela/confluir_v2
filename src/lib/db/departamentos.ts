@@ -1,5 +1,5 @@
 import "server-only"
-import { cpfConfiavel } from "@/lib/cpf"
+import { cpfConfiavel, grafiasDoCpf } from "@/lib/cpf"
 
 import { esquemaAusente, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { listarMandatos } from "@/lib/db/diretoria"
@@ -14,8 +14,8 @@ import { tenantAtual } from "@/lib/tenant"
  * slug) e `empresa_departamentos_integrantes` (departamento_id × usuario_id —
  * veio VAZIA do Bubble; o vínculo das pessoas nasce aqui). Quem entra num
  * departamento é uma PESSOA com conta em `usuarios`: funcionários (vínculo
- * trabalhista com o sindicato) e diretores do mandato vigente (cruzados por
- * CPF). Diretor sem conta de usuário não pode ser vinculado — aparece na
+ * trabalhista com o sindicato) e diretores do mandato vigente (pela conta
+ * ligada ao integrante; sem ela, pelo CPF). Diretor sem conta de usuário não pode ser vinculado — aparece na
  * lista como indisponível.
  *
  * Quem lê os departamentos: Compras (departamento da solicitação e alçada
@@ -145,25 +145,40 @@ export async function pessoasParaDepartamento(): Promise<PessoaDepartamento[]> {
   if (vigente) {
     const { data: integrantes } = await admin
       .from("diretoria_integrantes")
-      .select("nome, cargo, cpf")
+      .select("nome, cargo, cpf, usuario_id, situacao")
       .eq("mandato_id", vigente.id)
-    const linhas = (integrantes ?? []) as Record<string, unknown>[]
-    const cpfs = [...new Set(linhas.map((i) => cpfConfiavel(texto(i.cpf))).filter(Boolean))] as string[]
+    const linhas = ((integrantes ?? []) as Record<string, unknown>[]).filter(
+      (i) => i.situacao !== "excluido"
+    )
+    // Sem conta ligada, casa pelo CPF — nas duas grafias, só cadastros vivos da
+    // entidade. Um CPF pode ter cadastros excluídos de mesclagens: pegar o
+    // primeiro que viesse ligava o diretor ao cadastro morto.
+    const cpfs = [
+      ...new Set(
+        linhas
+          .filter((i) => !texto(i.usuario_id))
+          .map((i) => cpfConfiavel(texto(i.cpf)))
+          .filter((c): c is string => !!c)
+      ),
+    ]
     const usuarioPorCpf = new Map<string, string>()
     if (cpfs.length > 0) {
       const { data: us } = await admin
         .from("usuarios")
         .select("id, cpf")
-        .in("cpf", cpfs)
+        .eq("emp_proprietaria_id", await tenantAtual())
+        .in("cpf", cpfs.flatMap(grafiasDoCpf))
+        .not("deletado", "is", true)
+        .order("created_at", { ascending: true })
       for (const u of us ?? []) {
-        if (u.cpf && !usuarioPorCpf.has(String(u.cpf))) {
-          usuarioPorCpf.set(String(u.cpf), String(u.id))
-        }
+        const cpf = cpfConfiavel(texto(u.cpf))
+        if (cpf && !usuarioPorCpf.has(cpf)) usuarioPorCpf.set(cpf, String(u.id))
       }
     }
     for (const i of linhas) {
-      const cpf = texto(i.cpf)
-      const usuarioId = cpf ? (usuarioPorCpf.get(cpf) ?? null) : null
+      const cpf = cpfConfiavel(texto(i.cpf))
+      const usuarioId =
+        texto(i.usuario_id) ?? (cpf ? (usuarioPorCpf.get(cpf) ?? null) : null)
       const chave = usuarioId ?? `diretor:${texto(i.nome) ?? cpf ?? Math.random()}`
       if (usuarioId && pessoas.has(usuarioId)) {
         // Funcionário que também é diretor: mantém como funcionário, soma o cargo.
