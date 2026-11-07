@@ -23,6 +23,7 @@ import {
   listarTiposAtendimento,
   usuariosParaProfissional,
 } from "@/lib/db/atendimentos"
+import { comPessoasAtuais } from "@/lib/db/opcoes-pessoas"
 
 import {
   ExcluirTipoForm,
@@ -47,7 +48,7 @@ export default async function ProfissionaisPage({
   await requirePermissao("saude_gestao")
 
   const { editar, editarTipo, salvo, excluido } = await searchParams
-  const [{ tipos, disponivel }, { linhas: profissionais }, usuarios] =
+  const [{ tipos, disponivel }, { linhas: profissionais }, ativos] =
     await Promise.all([
       listarTiposAtendimento(true),
       listarProfissionais(),
@@ -56,6 +57,8 @@ export default async function ProfissionaisPage({
 
   const fotos = await fotosDosUsuarios(profissionais.map((p) => p.usuario_id))
   const emEdicao = editar ? await buscarProfissional(editar) : undefined
+  // A pessoa do profissional em edição continua selecionada (lib/db/opcoes-pessoas).
+  const usuarios = await comPessoasAtuais(ativos, [emEdicao?.usuario_id])
   const tipoEmEdicao = tipos.find((t) => t.id === editarTipo)
 
   return (

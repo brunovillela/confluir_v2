@@ -31,6 +31,7 @@ import {
   veiculosParaVincular,
 } from "@/lib/db/veiculos"
 import { hojeSP } from "@/lib/db/comum"
+import { comPessoasAtuais } from "@/lib/db/opcoes-pessoas"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { periodoDaDescricao, resumoLocacao, rotuloCategoria } from "@/lib/locacao-periodo"
 
@@ -93,6 +94,8 @@ export default async function ContratoPage({
     listarCentrosCusto(),
     listarCondutores(),
   ])
+  // Responsável que saiu da lista continua selecionado (lib/db/opcoes-pessoas).
+  const responsaveis = await comPessoasAtuais(usuarios, [contrato.responsavel_id])
   const condutores = condutoresRes.condutores
     .filter((c) => c.apto)
     .map((c) => ({ id: c.usuario_id, rotulo: c.usuarioNome ?? "(sem nome)" }))
@@ -212,7 +215,7 @@ export default async function ContratoPage({
                   razao: f.nome_razao ?? null,
                   bloqueado: f.bloqueado,
                 })),
-                usuarios: usuarios.map((u) => ({ id: u.id, rotulo: u.nome })),
+                usuarios: responsaveis.map((u) => ({ id: u.id, rotulo: u.nome })),
                 departamentos: departamentos.map((d) => ({
                   id: d.id,
                   rotulo: d.nome,

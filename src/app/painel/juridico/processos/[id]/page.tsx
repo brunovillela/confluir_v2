@@ -20,6 +20,7 @@ import {
   urlComprovanteReembolso,
 } from "@/lib/db/juridico"
 import { listarUsuariosAtivos } from "@/lib/db/veiculos"
+import { comPessoasAtuais } from "@/lib/db/opcoes-pessoas"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
@@ -49,13 +50,15 @@ export default async function ProcessoPage({
   const { id } = await params
   const { salvo } = await searchParams
 
-  const [pr, responsaveis, fornecedores, reembolsos] = await Promise.all([
+  const [pr, ativos, fornecedores, reembolsos] = await Promise.all([
     obterProcesso(id),
     listarUsuariosAtivos(),
     listarFornecedores(),
     listarReembolsosDoProcesso(id),
   ])
   if (!pr) notFound()
+  // Responsável que saiu da lista continua selecionado (lib/db/opcoes-pessoas).
+  const responsaveis = await comPessoasAtuais(ativos, [pr.responsavel_id])
 
   const escritorios = fornecedores.map((f) => ({
     id: f.id,

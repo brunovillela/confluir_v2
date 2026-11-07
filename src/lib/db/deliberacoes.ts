@@ -407,13 +407,21 @@ export type ResponsavelPossivel = { id: string; nome: string; nivel: Exclude<Niv
 export async function responsaveisPossiveis(): Promise<ResponsavelPossivel[]> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  const [{ data: usuarios }, { data: perms }] = await Promise.all([
-    admin.from("usuarios").select("id, inativo, deletado").eq("emp_proprietaria_id", emp),
-    admin.from("permissoes").select("*"),
-  ])
-  const ativos = new Set(
-    (usuarios ?? []).filter((u) => u.inativo !== true && u.deletado !== true).map((u) => String(u.id))
-  )
+  // Parte de quem tem permissões na entidade: ler `usuarios` inteiro (12 mil
+  // filiados) esbarrava no teto de 1.000 linhas do PostgREST.
+  const { data: perms } = await admin.from("permissoes").select("*").eq("emp_proprietaria_id", emp)
+  const ids = [...new Set((perms ?? []).map((p) => String(p[PERMISSOES_USUARIO_FK] ?? "")).filter(Boolean))]
+  const ativos = new Set<string>()
+  for (let de = 0; de < ids.length; de += 200) {
+    const { data: usuarios } = await admin
+      .from("usuarios")
+      .select("id")
+      .eq("emp_proprietaria_id", emp)
+      .not("inativo", "is", true)
+      .not("deletado", "is", true)
+      .in("id", ids.slice(de, de + 200))
+    for (const u of usuarios ?? []) ativos.add(String(u.id))
+  }
   const linhas = (perms ?? []).filter((p) => ativos.has(String(p[PERMISSOES_USUARIO_FK])))
   const niveis = await Promise.all(
     linhas.map(async (p) => {

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { listarPessoasAtribuiveis, obterAnomalia } from "@/lib/db/nucleo"
+import { comPessoasAtuais } from "@/lib/db/opcoes-pessoas"
 
 import { atualizarAnomaliaAction } from "../../actions"
 import { AnomaliaForm } from "../../anomalia-form"
@@ -21,11 +22,13 @@ export default async function EditarAnomaliaPage({
   await requirePermissao("ferramentas_anomalias")
   const { id } = await params
 
-  const [anomalia, pessoas] = await Promise.all([
+  const [anomalia, ativos] = await Promise.all([
     obterAnomalia(id),
     listarPessoasAtribuiveis(),
   ])
   if (!anomalia) notFound()
+  // Responsável que saiu da lista continua selecionado (lib/db/opcoes-pessoas).
+  const pessoas = await comPessoasAtuais(ativos, [anomalia.responsavelId])
 
   return (
     <>

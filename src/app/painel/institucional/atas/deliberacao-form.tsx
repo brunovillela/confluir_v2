@@ -38,7 +38,8 @@ export function DeliberacaoForm({
   /** Graus que o nível do usuário alcança — só esses são oferecidos. */
   sigilos: SigiloDeliberacao[]
   /** Usuários com nível de sigilo (o servidor confere se alcança a deliberação). */
-  responsaveis: ResponsavelPossivel[]
+  /** Sem nível: quem já é responsável e saiu da lista (lib/db/opcoes-pessoas). */
+  responsaveis: (Omit<ResponsavelPossivel, "nivel"> & { nivel?: ResponsavelPossivel["nivel"] })[]
 }) {
   const [estado, formAction, pendente] = useActionState(salvarDeliberacaoAction, {})
   const envio = useEnvioFormulario(formAction, estado)
@@ -107,7 +108,8 @@ export function DeliberacaoForm({
             <option value="">— ninguém —</option>
             {responsaveis.map((r) => (
               <option key={r.id} value={r.id}>
-                {r.nome} (acesso: {ROTULO_SIGILO_DELIBERACAO[r.nivel].toLowerCase()})
+                {r.nome}
+                {r.nivel ? ` (acesso: ${ROTULO_SIGILO_DELIBERACAO[r.nivel].toLowerCase()})` : ""}
               </option>
             ))}
           </select>

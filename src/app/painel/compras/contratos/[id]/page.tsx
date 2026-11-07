@@ -52,6 +52,7 @@ import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { podeAcessar } from "@/lib/permissoes"
 
 import { nomesDosUsuarios } from "@/lib/db/comum"
+import { comPessoasAtuais } from "@/lib/db/opcoes-pessoas"
 
 import { BotaoExcluirContrato, ContratoForm } from "../contrato-forms"
 import { AutorizarContrato } from "./autorizar-contrato"
@@ -130,7 +131,11 @@ export default async function ContratoPage({
   const editando = brutos.editar === "1" && podeEditar
   const aqui = `/painel/compras/contratos/${c.id}`
 
-  const opcoes = editando ? await carregarOpcoesContrato() : null
+  const opcoesBase = editando ? await carregarOpcoesContrato() : null
+  // Responsável que saiu da lista continua selecionado (lib/db/opcoes-pessoas).
+  const opcoes = opcoesBase
+    ? { ...opcoesBase, usuarios: await comPessoasAtuais(opcoesBase.usuarios, [c.responsavel_id]) }
+    : null
   // Minutas ficam com quem edita contratos (podem citar dados de categoria sigilosa).
   const minutas = podeEditar ? (await listarMinutas({ contratoId: c.id })).minutas : []
   // O RPA é a forma de pagamento do contrato com autônomo (fornecedor pessoa física).

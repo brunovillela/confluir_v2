@@ -4220,12 +4220,14 @@ export async function subirArquivoVeiculos(
 
 export type OpcaoUsuario = { id: string; nome: string }
 
-/** Usuários ativos para os combos (condutor, responsável). */
+/** Usuários ativos da entidade para os combos (condutor, responsável). */
 export async function listarUsuariosAtivos(): Promise<OpcaoUsuario[]> {
   const admin = await createAdminClient()
+  const emp = await tenantAtual()
   const { data, error } = await admin
     .from("permissoes")
     .select("usuario_id")
+    .eq("emp_proprietaria_id", emp)
   if (error) throw new Error(`Falha ao listar usuários: ${error.message}`)
   const ids = [
     ...new Set(
@@ -4238,6 +4240,7 @@ export async function listarUsuariosAtivos(): Promise<OpcaoUsuario[]> {
   const { data: usuarios } = await admin
     .from("usuarios")
     .select("id, nome_completo, nome_guerra, inativo, deletado")
+    .eq("emp_proprietaria_id", emp)
     .in("id", ids)
   return ((usuarios ?? []) as Record<string, unknown>[])
     .filter((u) => u.inativo !== true && u.deletado !== true)

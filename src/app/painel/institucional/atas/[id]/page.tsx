@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { obterAta, opcoesMandatos } from "@/lib/db/atas"
 import { assuntosUsados, deliberacoesDaAta, eventosDaAta, responsaveisPossiveis } from "@/lib/db/deliberacoes"
+import { comPessoasAtuais } from "@/lib/db/opcoes-pessoas"
 import {
   nivelSigilo,
   ROTULO_NIVEL_SIGILO,
@@ -64,12 +65,19 @@ export default async function AtaPage({
   const editandoDeliberacao = podeLancar ? (sp.deliberacao ?? null) : null
   const novaDeliberacao = podeLancar && sp.nova_deliberacao === "1"
   const comForm = Boolean(editandoDeliberacao) || novaDeliberacao
-  const [{ visiveis: deliberacoes, ocultas }, assuntos, responsaveis, eventos] = await Promise.all([
+  const [{ visiveis: deliberacoes, ocultas }, assuntos, possiveis, eventos] = await Promise.all([
     deliberacoesDaAta(id, sigilos),
     comForm ? assuntosUsados(sigilos) : Promise.resolve([]),
     comForm ? responsaveisPossiveis() : Promise.resolve([]),
     eventosDaAta(id, sigilos),
   ])
+  // Responsável que saiu da lista continua selecionado (lib/db/opcoes-pessoas).
+  const responsaveis = comForm
+    ? await comPessoasAtuais<(typeof possiveis)[number] | { id: string; nome: string; nivel?: undefined }>(
+        possiveis,
+        deliberacoes.map((d) => d.responsavelId)
+      )
+    : []
   // Trilha das excluídas: os eventos ficam sem o vínculo com a deliberação.
   const eventosExcluidas = eventos.filter((e) => !e.deliberacaoId)
 

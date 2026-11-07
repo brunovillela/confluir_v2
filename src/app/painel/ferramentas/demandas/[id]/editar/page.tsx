@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { listarPessoasAtribuiveis, obterDemanda } from "@/lib/db/nucleo"
+import { comPessoasAtuais } from "@/lib/db/opcoes-pessoas"
 
 import { atualizarDemandaAction } from "../../actions"
 import { DemandaForm } from "../../demanda-form"
@@ -21,11 +22,13 @@ export default async function EditarDemandaPage({
   await requirePermissao("ferramentas_demandas")
   const { id } = await params
 
-  const [demanda, pessoas] = await Promise.all([
+  const [demanda, ativos] = await Promise.all([
     obterDemanda(id),
     listarPessoasAtribuiveis(),
   ])
   if (!demanda) notFound()
+  // Responsável que saiu da lista continua selecionado (lib/db/opcoes-pessoas).
+  const pessoas = await comPessoasAtuais(ativos, [demanda.responsavelId])
 
   return (
     <>

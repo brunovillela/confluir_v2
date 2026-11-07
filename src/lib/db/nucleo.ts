@@ -48,14 +48,30 @@ export async function listarPessoasAtribuiveis(
   incluir: string[] = []
 ): Promise<OpcaoPessoa[]> {
   const admin = await createAdminClient()
+  const emp = await tenantAtual()
   const [{ data: perms }, { data: deptos }] = await Promise.all([
-    admin.from("permissoes").select("usuario_id"),
-    admin.from("empresa_departamentos").select("coordenador_id"),
+    admin.from("permissoes").select("usuario_id").eq("emp_proprietaria_id", emp),
+    admin.from("empresa_departamentos").select("coordenador_id").eq("emp_proprietaria_id", emp),
   ])
-  const ids = new Set<string>(incluir.filter(Boolean))
-  for (const p of perms ?? []) if (p.usuario_id) ids.add(p.usuario_id as string)
+  const candidatos = new Set<string>()
+  for (const p of perms ?? []) if (p.usuario_id) candidatos.add(p.usuario_id as string)
   for (const d of deptos ?? [])
-    if (d.coordenador_id) ids.add(d.coordenador_id as string)
+    if (d.coordenador_id) candidatos.add(d.coordenador_id as string)
+
+  // Só cadastros vivos da entidade; quem já está atribuído (incluir) fica
+  // sempre, para salvar não apagar o responsável atual.
+  const ids = new Set<string>(incluir.filter(Boolean))
+  const lista = [...candidatos]
+  for (let de = 0; de < lista.length; de += 200) {
+    const { data: vivos } = await admin
+      .from("usuarios")
+      .select("id")
+      .eq("emp_proprietaria_id", emp)
+      .not("deletado", "is", true)
+      .not("inativo", "is", true)
+      .in("id", lista.slice(de, de + 200))
+    for (const u of vivos ?? []) ids.add(String(u.id))
+  }
 
   const nomes = await nomesDosUsuarios([...ids])
   return [...nomes.entries()]
