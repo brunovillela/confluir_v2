@@ -45,6 +45,7 @@
 
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import { colunasDoResolvedor, seguirUnificacao } from "./unificacoes.mjs"
 
 const args = process.argv.slice(2)
 const APLICAR = args.includes("--apply")
@@ -131,15 +132,17 @@ async function lerTudo(tabela, colunas, semTenant) {
 const resolvedores = new Map()
 async function ref(tipoBubble, tabela, semTenant) {
   if (resolvedores.has(tabela)) return resolvedores.get(tabela)
-  const [b, a] = await Promise.all([bubble(tipoBubble), lerTudo(tabela, "id, bubble_id", semTenant)])
+  const [b, a] = await Promise.all([bubble(tipoBubble), lerTudo(tabela, colunasDoResolvedor(tabela), semTenant)])
   const idsAqui = new Set(a.map((l) => l.id))
+  // Usuário unificado: segue até o cadastro que ficou (scripts/unificacoes.mjs).
+  const ficou = seguirUnificacao(a)
   const porBubble = new Map(a.filter((l) => l.bubble_id).map((l) => [l.bubble_id, l.id]))
   const supaDe = new Map(b.map((r) => [r._id, r.Supabase_id]))
   const f = (idBubble) => {
     if (!idBubble) return null
     const s = supaDe.get(idBubble)
-    if (s && idsAqui.has(s)) return s
-    return porBubble.get(idBubble) ?? null
+    if (s && idsAqui.has(s)) return ficou(s)
+    return ficou(porBubble.get(idBubble) ?? null)
   }
   f.aprender = (idBubble, id) => porBubble.set(idBubble, id)
   resolvedores.set(tabela, f)

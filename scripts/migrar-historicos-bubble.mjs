@@ -38,6 +38,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { randomUUID } from "node:crypto"
 import zlib from "node:zlib"
 import { join } from "node:path"
+import { colunasDoResolvedor, seguirUnificacao } from "./unificacoes.mjs"
 
 const args = process.argv.slice(2)
 const APLICAR = args.includes("--apply")
@@ -121,8 +122,10 @@ function colunasDe(tabela) {
 const resolvedores = new Map()
 async function resolvedor(tabela, tipoBubble) {
   if (resolvedores.has(tabela)) return resolvedores.get(tabela)
-  const linhas = await lerTudo(tabela, "id, bubble_id", false).catch(() => [])
+  const linhas = await lerTudo(tabela, colunasDoResolvedor(tabela), false).catch(() => [])
   const ids = new Set(linhas.map((l) => l.id))
+  // Usuário unificado: segue até o cadastro que ficou (scripts/unificacoes.mjs).
+  const ficou = seguirUnificacao(linhas)
   const porBubble = new Map(linhas.filter((l) => l.bubble_id).map((l) => [l.bubble_id, l.id]))
   const supa = new Map()
   const arquivo = tipoBubble ? join(CACHE, normalizar(tipoBubble) + ".json") : null
@@ -132,8 +135,8 @@ async function resolvedor(tabela, tipoBubble) {
   const f = (idBubble) => {
     if (!idBubble) return null
     const s = supa.get(idBubble)
-    if (s && ids.has(s)) return s
-    return porBubble.get(idBubble) ?? null
+    if (s && ids.has(s)) return ficou(s)
+    return ficou(porBubble.get(idBubble) ?? null)
   }
   f.aprender = (idBubble, id) => { porBubble.set(idBubble, id); ids.add(id) }
   resolvedores.set(tabela, f)

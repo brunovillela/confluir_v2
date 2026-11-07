@@ -29,6 +29,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import { colunasDoResolvedor, seguirUnificacao } from "./unificacoes.mjs"
 
 const args = process.argv.slice(2)
 const APLICAR = args.includes("--apply")
@@ -95,11 +96,13 @@ function resolvedor(registrosBubble, linhasAqui) {
   const idsAqui = new Set(linhasAqui.map((l) => l.id))
   const porBubble = new Map(linhasAqui.filter((l) => l.bubble_id).map((l) => [l.bubble_id, l.id]))
   const supaDe = new Map(registrosBubble.map((r) => [r._id, r.Supabase_id]))
+  // Usuário unificado: segue até o cadastro que ficou (scripts/unificacoes.mjs).
+  const ficou = seguirUnificacao(linhasAqui)
   return (idBubble) => {
     if (!idBubble) return null
     const s = supaDe.get(idBubble)
-    if (s && idsAqui.has(s)) return s
-    return porBubble.get(idBubble) ?? null
+    if (s && idsAqui.has(s)) return ficou(s)
+    return ficou(porBubble.get(idBubble) ?? null)
   }
 }
 
@@ -125,7 +128,7 @@ const [emailsB, telefonesB, enderecosB, cadastrosB, usersB, empresasB] = await P
 ])
 const [filiacoes, usuarios, empresas, emailsA, telefonesA, enderecosA] = await Promise.all([
   lerTudo("filiacoes", "id, bubble_id, email_pessoal, email_corporativo, telefone_1, telefone_2", (q) => q.eq("emp_proprietaria_id", TENANT)),
-  lerTudo("usuarios", "id, bubble_id", (q) => q.eq("emp_proprietaria_id", TENANT)),
+  lerTudo("usuarios", colunasDoResolvedor("usuarios"), (q) => q.eq("emp_proprietaria_id", TENANT)),
   lerTudo("empresa", "id, bubble_id"),
   lerTudo("emails", "id, bubble_id, email, filiado_id, usuario_id"),
   lerTudo("telefones", "id, bubble_id, numero, filiado_id, usuario_id"),
