@@ -33,6 +33,13 @@ export function hojeLocalISO(): string {
   ].join("-")
 }
 
+/**
+ * Formas que geram comprovante bancário a anexar (08/11/2026): Pix, Pix QR Code
+ * e TED. Dinheiro (caixa), Cartão (fatura) e Boleto não entram nas pendências
+ * de comprovante.
+ */
+export const FORMAS_COM_COMPROVANTE = ["Pix", "Pix (QR Code)", "Depósito bancário (TED)"]
+
 /** Formas aceitas nas compras (propostas e ordens de pagamento). */
 export const FORMAS_PAGAMENTO_COMPRAS = [
   "Pix",

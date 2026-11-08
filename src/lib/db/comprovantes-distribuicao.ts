@@ -10,6 +10,7 @@ import {
   type OrdemCandidata,
   type Sugestao,
 } from "@/lib/comprovantes-casamento"
+import { FORMAS_COM_COMPROVANTE } from "@/lib/compras-constantes"
 import { hojeSP, lerEmLotes, lerEmLotesPorIds } from "@/lib/db/comum"
 import { registrarEvento, SITUACOES_PAGAVEIS } from "@/lib/db/ordens-ciclo"
 import { favorecidosDasOrdens } from "@/lib/db/ordens-favorecido"
@@ -288,7 +289,7 @@ export async function ordensSemComprovante(): Promise<OrdemCandidata[]> {
       .is("arquivo_pagamento", null)
       .in("situacao", SITUACOES_ALVO)
       .or(`situacao.neq.Paga,data_pagamento.gte.${desde}`)
-      .or("forma_pagamento.is.null,forma_pagamento.neq.Dinheiro")
+      .or("forma_pagamento.is.null,forma_pagamento.not.in.(Dinheiro,Cartão)")
       .order("id")
       .range(de, ate)
   )
@@ -443,8 +444,8 @@ export type PagaSemComprovante = {
 }
 
 /**
- * Ordens pagas por banco (Pix, TED, boleto…) ainda sem comprovante — a lista
- * da tela de distribuição. `mes` ("AAAA-MM") filtra pela data do pagamento;
+ * Ordens pagas por Pix, Pix QR Code ou TED ainda sem comprovante — a lista da
+ * tela de distribuição (FORMAS_COM_COMPROVANTE). `mes` ("AAAA-MM") filtra pela data do pagamento;
  * sem ele, o último ano. Dinheiro fica de fora (pago no caixa).
  */
 export async function pagasSemComprovante(mes: string | null): Promise<PagaSemComprovante[]> {
@@ -467,8 +468,7 @@ export async function pagasSemComprovante(mes: string | null): Promise<PagaSemCo
       .not("excluido", "is", true)
       .eq("situacao", "Paga")
       .is("arquivo_pagamento", null)
-      .not("forma_pagamento", "is", null)
-      .neq("forma_pagamento", "Dinheiro")
+      .in("forma_pagamento", FORMAS_COM_COMPROVANTE)
       .gte("data_pagamento", de)
     if (ate) q = q.lte("data_pagamento", ate)
     return q.order("id").range(a, b)

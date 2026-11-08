@@ -1,5 +1,6 @@
 import "server-only"
 
+import { FORMAS_COM_COMPROVANTE } from "@/lib/compras-constantes"
 import { hojeSP } from "@/lib/db/comum"
 import { ordensParecidas } from "@/lib/db/ordens-duplicidade"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -44,8 +45,7 @@ export async function filasDoFinanceiro({ veAvaliacoes }: { veAvaliacoes: boolea
       .eq("situacao", "Paga")
       .gte("data_pagamento", somarDias(hoje, -30))
       .is("arquivo_pagamento", null)
-      .not("forma_pagamento", "is", null)
-      .neq("forma_pagamento", "Dinheiro"),
+      .in("forma_pagamento", FORMAS_COM_COMPROVANTE),
     admin.from("banco_lancamentos").select("id", { count: "exact", head: true }).eq("emp_proprietaria_id", emp).eq("situacao", "pendente"),
     admin.from("ordens_pagamento_estornos").select("id", { count: "exact", head: true }).eq("emp_proprietaria_id", emp).is("resolvido_em", null),
     admin.from("ordens_pagamento").select("id").eq("emp_proprietaria_id", emp).not("excluido", "is", true).eq("situacao", "Processando").limit(1000),

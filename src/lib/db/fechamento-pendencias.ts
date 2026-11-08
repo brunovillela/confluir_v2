@@ -1,5 +1,6 @@
 import "server-only"
 
+import { FORMAS_COM_COMPROVANTE } from "@/lib/compras-constantes"
 import { hojeSP, lerEmLotes } from "@/lib/db/comum"
 import { listarMesesFechados } from "@/lib/db/meses-fechados"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -49,7 +50,7 @@ export async function pendenciasDoMes(mes: string): Promise<ResumoFechamento> {
 
   const [semComprovante, semDebito, processando, aPagarVencidas, semCentro, extrato] = await Promise.all([
     // Pagamento por banco sem o comprovante (Dinheiro é pago no caixa).
-    pagasNoMes().is("arquivo_pagamento", null).not("forma_pagamento", "is", null).neq("forma_pagamento", "Dinheiro"),
+    pagasNoMes().is("arquivo_pagamento", null).in("forma_pagamento", FORMAS_COM_COMPROVANTE),
     pagasNoMes().is("centro_custo_receita_id", null),
     // Processando com vencimento no mês ou antes: o pagamento saiu e não foi registrado?
     ordens().eq("situacao", "Processando").lte("vencimento", ate),
@@ -98,7 +99,7 @@ export async function pendenciasDoMes(mes: string): Promise<ResumoFechamento> {
     },
     {
       codigo: "sem_comprovante",
-      rotulo: "Pagas por banco sem comprovante",
+      rotulo: "Pagas por Pix ou TED sem comprovante",
       explicacao: "Anexe pela ordem ou de uma vez pela Distribuição de comprovantes.",
       quantidade: n(semComprovante),
       href: `/painel/financeiro/ordens/comprovantes?mes=${mes}`,

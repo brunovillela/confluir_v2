@@ -56,11 +56,11 @@ export default async function DistribuirComprovantesPage({ searchParams }: { sea
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
-            Pagas por banco sem comprovante ({listaFinal.length}
+            Pagas por Pix ou TED sem comprovante ({listaFinal.length}
             {mes ? ` em ${rotuloMes(mes)}` : " no último ano"})
           </CardTitle>
           <CardDescription className="text-xs">
-            Pix, TED, boleto e afins já pagos sem o comprovante anexado. Dinheiro fica de fora (pago no caixa).
+            Pix, Pix QR Code e TED já pagos sem o comprovante anexado. Dinheiro, cartão e boleto não entram.
           </CardDescription>
           {meses.length > 0 && (
             <div className="flex flex-wrap gap-1.5 pt-1">
