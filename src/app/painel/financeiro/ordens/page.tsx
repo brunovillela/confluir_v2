@@ -63,6 +63,8 @@ type ParamsBusca = {
   departamento?: string
   projeto?: string
   formaPagamento?: string
+  pendencia?: string
+  pagoNoMes?: string
   pagina?: string
   porPagina?: string
   ordem?: string
@@ -126,6 +128,8 @@ function normalizarFiltros(params: ParamsBusca): FiltrosPagina {
     departamento: params.departamento ?? "",
     projeto: params.projeto ?? "",
     formaPagamento: params.formaPagamento ?? "",
+    pendencia: params.pendencia === "sem_centro" || params.pendencia === "sem_debito" ? params.pendencia : "",
+    pagoNoMes: /^\d{4}-(0[1-9]|1[0-2])$/.test(params.pagoNoMes ?? "") ? params.pagoNoMes! : "",
     pagina: Math.max(1, Number(params.pagina) || 1),
     porPagina: (OPCOES_POR_PAGINA as readonly number[]).includes(
       Number(params.porPagina)
@@ -155,6 +159,8 @@ function montarUrl(
   if (merged.projeto) q.set("projeto", String(merged.projeto))
   if (merged.formaPagamento)
     q.set("formaPagamento", String(merged.formaPagamento))
+  if (merged.pendencia) q.set("pendencia", String(merged.pendencia))
+  if (merged.pagoNoMes) q.set("pagoNoMes", String(merged.pagoNoMes))
   if (Number(merged.pagina) > 1) q.set("pagina", String(merged.pagina))
   if (Number(merged.porPagina) !== ORDENS_POR_PAGINA)
     q.set("porPagina", String(merged.porPagina))
@@ -278,6 +284,14 @@ export default async function OrdensPage({
       rotulo: `Forma: ${filtros.formaPagamento}`,
       href: montarUrl(filtros, { formaPagamento: "", pagina: 1 }),
     },
+    filtros.pendencia && {
+      rotulo: filtros.pendencia === "sem_centro" ? "Pagas sem centro de custo" : "Pagas sem conta de débito",
+      href: montarUrl(filtros, { pendencia: "", pagina: 1 }),
+    },
+    filtros.pagoNoMes && {
+      rotulo: `Pagas em ${filtros.pagoNoMes.slice(5, 7)}/${filtros.pagoNoMes.slice(0, 4)}`,
+      href: montarUrl(filtros, { pagoNoMes: "", pagina: 1 }),
+    },
   ].filter(Boolean) as { rotulo: string; href: string }[]
 
   // Favorecido: empresas, pessoas do quadro e filiados (reembolso/custeio).
@@ -337,6 +351,8 @@ export default async function OrdensPage({
         <form method="GET" className="flex min-w-0 items-center gap-2">
           {/* Preserva os filtros ativos ao buscar. */}
           {filtros.visao === "lista" && <input type="hidden" name="visao" value="lista" />}
+          {filtros.pendencia && <input type="hidden" name="pendencia" value={filtros.pendencia} />}
+          {filtros.pagoNoMes && <input type="hidden" name="pagoNoMes" value={filtros.pagoNoMes} />}
           {filtros.situacao !== "todas" && (
             <input type="hidden" name="situacao" value={filtros.situacao} />
           )}
@@ -395,6 +411,8 @@ export default async function OrdensPage({
               <input type="hidden" name="busca" value={filtros.busca} />
             )}
             {filtros.visao === "lista" && <input type="hidden" name="visao" value="lista" />}
+          {filtros.pendencia && <input type="hidden" name="pendencia" value={filtros.pendencia} />}
+          {filtros.pagoNoMes && <input type="hidden" name="pagoNoMes" value={filtros.pagoNoMes} />}
             {filtros.porPagina !== ORDENS_POR_PAGINA && (
               <input type="hidden" name="porPagina" value={filtros.porPagina} />
             )}

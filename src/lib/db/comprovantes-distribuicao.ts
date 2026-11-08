@@ -431,3 +431,106 @@ export async function vincularComprovante(
   })
   return { pagou: true }
 }
+
+export type PagaSemComprovante = {
+  id: string
+  codigo: string | null
+  descricao: string | null
+  favorecido: string | null
+  forma: string | null
+  valor: number | null
+  dataPagamento: string | null
+}
+
+/**
+ * Ordens pagas por banco (Pix, TED, boleto…) ainda sem comprovante — a lista
+ * da tela de distribuição. `mes` ("AAAA-MM") filtra pela data do pagamento;
+ * sem ele, o último ano. Dinheiro fica de fora (pago no caixa).
+ */
+export async function pagasSemComprovante(mes: string | null): Promise<PagaSemComprovante[]> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  let de: string
+  let ate: string | null = null
+  if (mes && /^\d{4}-(0[1-9]|1[0-2])$/.test(mes)) {
+    const [a, m] = mes.split("-").map(Number)
+    de = `${mes}-01`
+    ate = new Date(Date.UTC(a, m, 0)).toISOString().slice(0, 10)
+  } else {
+    de = new Date(Date.parse(`${hojeSP()}T12:00:00Z`) - 365 * 86_400_000).toISOString().slice(0, 10)
+  }
+  const linhas = await lerEmLotes<LinhaCandidata>((a, b) => {
+    let q = admin
+      .from("ordens_pagamento")
+      .select(SELECT_CANDIDATA)
+      .eq("emp_proprietaria_id", emp)
+      .not("excluido", "is", true)
+      .eq("situacao", "Paga")
+      .is("arquivo_pagamento", null)
+      .not("forma_pagamento", "is", null)
+      .neq("forma_pagamento", "Dinheiro")
+      .gte("data_pagamento", de)
+    if (ate) q = q.lte("data_pagamento", ate)
+    return q.order("id").range(a, b)
+  })
+  const favorecidos = await favorecidosDasOrdens(linhas)
+  return linhas
+    .map((l) => ({
+      id: l.id,
+      codigo: l.codigo,
+      descricao: l.descricao,
+      favorecido: favorecidos.get(l.id)?.nome ?? l.beneficiario_nome_avulso,
+      forma: l.forma_pagamento,
+      valor: l.valor_pago === null ? (l.valor_inicial_cobranca === null ? null : Number(l.valor_inicial_cobranca)) : Number(l.valor_pago),
+      dataPagamento: l.data_pagamento,
+    }))
+    .sort((a, b) => (b.dataPagamento ?? "").localeCompare(a.dataPagamento ?? ""))
+}
+
+/** Anexa o PDF escolhido direto à ordem paga (sem leitura pela IA). */
+export async function anexarComprovanteDireto(
+  ordemId: string,
+  arquivo: File,
+  usuarioId: string
+): Promise<{ erro?: string }> {
+  if (arquivo.type !== "application/pdf" && !["image/jpeg", "image/png"].includes(arquivo.type)) {
+    return { erro: "Envie PDF, JPG ou PNG." }
+  }
+  if (arquivo.size > TAMANHO_MAXIMO) return { erro: "O arquivo deve ter no máximo 4 MB." }
+  const admin = await createAdminClient()
+  const { data: ordem } = await admin
+    .from("ordens_pagamento")
+    .select("id, situacao, arquivo_pagamento")
+    .eq("id", ordemId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (!ordem) return { erro: "Ordem não encontrada." }
+  if (ordem.situacao !== "Paga") return { erro: "Só ordem paga recebe o comprovante por aqui." }
+  if (ordem.arquivo_pagamento) return { erro: "A ordem já tem comprovante." }
+  const original = new Uint8Array(await arquivo.arrayBuffer())
+  let pdf: Uint8Array
+  try {
+    pdf = arquivo.type === "application/pdf" ? original : await imagemParaPdf(original, arquivo.type)
+  } catch {
+    return { erro: "Não foi possível abrir o arquivo." }
+  }
+  const caminho = `ordens/${ordemId}/${Date.now()}.pdf`
+  const { error: erroUp } = await admin.storage.from(BUCKET).upload(caminho, pdf, { contentType: "application/pdf" })
+  if (erroUp) return { erro: `Falha ao subir o comprovante: ${erroUp.message}` }
+  const { data: atualizada, error } = await admin
+    .from("ordens_pagamento")
+    .update({ arquivo_pagamento: caminho })
+    .eq("id", ordemId)
+    .is("arquivo_pagamento", null)
+    .select("id")
+  if (error || !atualizada?.length) {
+    await admin.storage.from(BUCKET).remove([caminho])
+    return { erro: error ? error.message : "A ordem já tem comprovante." }
+  }
+  await registrarEvento(ordemId, "comprovante_anexado", usuarioId, `Comprovante anexado pela lista da distribuição (${arquivo.name}).`, {
+    arquivo: arquivo.name,
+  })
+  const { enviarComprovanteAutomatico } = await import("@/lib/db/comprovante-fornecedor")
+  await enviarComprovanteAutomatico(ordemId, usuarioId)
+  return {}
+}

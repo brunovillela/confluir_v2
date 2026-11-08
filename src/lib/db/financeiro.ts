@@ -115,6 +115,13 @@ export type FiltrosOrdens = {
   projeto?: string
   /** forma_pagamento exata. */
   formaPagamento?: string
+  /**
+   * Pendência do fechamento (07/11/2026): "sem_centro" (sem centro de custo da
+   * despesa) ou "sem_debito" (sem a conta de onde o dinheiro saiu); "" não filtra.
+   */
+  pendencia?: "" | "sem_centro" | "sem_debito"
+  /** "AAAA-MM": só as pagas (pela data do pagamento) neste mês; "" não filtra. */
+  pagoNoMes?: string
   pagina?: number
   porPagina?: number
   ordem?: "vencimento" | "pagamento" | "valor"
@@ -143,6 +150,9 @@ type BuilderFiltros = {
   in(coluna: string, valores: string[]): BuilderFiltros
   or(filtros: string): BuilderFiltros
   ilike(coluna: string, padrao: string): BuilderFiltros
+  is(coluna: string, valor: null | boolean): BuilderFiltros
+  gte(coluna: string, valor: unknown): BuilderFiltros
+  lte(coluna: string, valor: unknown): BuilderFiltros
 }
 
 function escaparLike(termo: string): string {
@@ -178,6 +188,8 @@ function aplicarFiltrosOrdens<T>(
     departamento = "",
     projeto = "",
     formaPagamento = "",
+    pendencia = "",
+    pagoNoMes = "",
   }: FiltrosOrdens,
   empId: string,
   /** Filtro por filiado: as ordens dele já resolvidas (reembolsos e custeios). */
@@ -197,6 +209,12 @@ function aplicarFiltrosOrdens<T>(
   if (departamento) q = q.eq("departamento_id", departamento)
   if (projeto) q = q.eq("projeto_id", projeto)
   if (formaPagamento) q = q.eq("forma_pagamento", formaPagamento)
+  if (pendencia === "sem_centro") q = q.eq("situacao", "Paga").is("centro_custo_despesa_id", null)
+  if (pendencia === "sem_debito") q = q.eq("situacao", "Paga").is("centro_custo_receita_id", null)
+  if (/^\d{4}-(0[1-9]|1[0-2])$/.test(pagoNoMes)) {
+    const [a, m] = pagoNoMes.split("-").map(Number)
+    q = q.gte("data_pagamento", `${pagoNoMes}-01`).lte("data_pagamento", new Date(Date.UTC(a, m, 0)).toISOString().slice(0, 10))
+  }
 
   const termo = busca.trim()
   if (termo) {

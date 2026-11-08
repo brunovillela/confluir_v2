@@ -92,6 +92,22 @@ export async function vincularComprovantesAction(
     if (!r.erro) revalidatePath(`/painel/financeiro/ordens/${v.ordemId}`)
   }
   revalidatePath("/painel/financeiro/ordens")
+  revalidatePath("/painel/financeiro/ordens/comprovantes")
   revalidatePath("/painel/financeiro")
   return resultados
+}
+
+/** Anexa o comprovante escolhido direto a uma ordem da lista (sem IA). */
+export async function anexarComprovanteDiretoAction(formData: FormData): Promise<{ erro?: string; ok?: boolean }> {
+  const sessao = await requirePermissao("financeiro_pagamento")
+  const ordemId = String(formData.get("ordem_id") ?? "")
+  const arquivo = formData.get("arquivo")
+  if (!ordemId || !(arquivo instanceof File) || arquivo.size === 0) return { erro: "Escolha o arquivo." }
+  const { anexarComprovanteDireto } = await import("@/lib/db/comprovantes-distribuicao")
+  const r = await anexarComprovanteDireto(ordemId, arquivo, sessao.usuario.id)
+  if (r.erro) return { erro: r.erro }
+  revalidatePath(`/painel/financeiro/ordens/${ordemId}`)
+  revalidatePath("/painel/financeiro/ordens/comprovantes")
+  revalidatePath("/painel/financeiro")
+  return { ok: true }
 }
