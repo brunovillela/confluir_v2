@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, FilePen, FileText, Plus, ScrollText, Tags } from "lucide-react"
+import { ArrowLeft, FilePen, FileText, HeartPulse, Plus, ScrollText, Tags } from "lucide-react"
 
 import {
   TiposContratoBadges,
@@ -37,6 +37,8 @@ import { formatarData, formatarMoeda } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { podeAcessar } from "@/lib/permissoes"
 import { ExportarXlsx } from "@/components/exportar-xlsx"
+import { faixaDaSaude, percentualSaude } from "@/components/medidor-saude-cadastros"
+import { saudeContratos } from "@/lib/db/contratos-saude"
 
 export const metadata: Metadata = { title: "Contratos — Confluir" }
 
@@ -83,7 +85,7 @@ export default async function ContratosPage({
     ? (brutos.categoria as string)
     : ""
 
-  const [resumo, contratos, minutas] = await Promise.all([
+  const [resumo, contratos, minutas, saude] = await Promise.all([
     resumoContratos(podeEditar, false),
     listarContratos({
       busca,
@@ -94,7 +96,10 @@ export default async function ContratosPage({
       apoioInstitucional: false,
     }),
     podeEditar ? listarMinutas() : Promise.resolve({ disponivel: false, minutas: [] }),
+    saudeContratos({ verSigilosos: podeEditar }),
   ])
+  const percentualSaudeContratos = percentualSaude(saude.emUso - saude.comPendencia, saude.emUso)
+  const faixaSaude = faixaDaSaude(percentualSaudeContratos)
   const minutasDisponiveis = minutas.disponivel
   const totalMinutas = minutas.minutas.length
 
@@ -197,7 +202,30 @@ export default async function ContratosPage({
         </Alert>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {saude.disponivel && (
+          <Link href="/painel/compras/contratos/saude" className="group">
+            <Card className="group-hover:border-primary/40 h-full transition-colors">
+              <CardContent>
+                <p className="text-muted-foreground flex items-center gap-1 text-xs">
+                  <HeartPulse className="size-3.5" />
+                  Saúde dos contratos
+                </p>
+                <p className="mt-1 flex flex-wrap items-center gap-2">
+                  <span className="text-2xl font-semibold tabular-nums">
+                    {percentualSaudeContratos.toLocaleString("pt-BR")}%
+                  </span>
+                  <Badge variant="outline" className={faixaSaude.classeBadge}>
+                    {faixaSaude.rotulo}
+                  </Badge>
+                </p>
+                <p className="text-muted-foreground mt-1 text-xs tabular-nums">
+                  {saude.comPendencia.toLocaleString("pt-BR")} com pendência
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
         <CardResumo
           rotulo="Vigentes"
           valor={resumo.vigentes}
