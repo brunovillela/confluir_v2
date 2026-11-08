@@ -14,6 +14,24 @@ const pct = (v: number | null) =>
  * formam as guias em Financeiro › Tributos.
  */
 export function CustoDoRpa({ custo: c }: { custo: CustoRpa }) {
+  if (c.cancelado) {
+    return (
+      <div className="grid gap-1 text-sm">
+        <p className="flex flex-wrap items-center gap-2 font-medium">
+          <Calculator className="text-muted-foreground size-4" />
+          Impostos desconsiderados
+          <Link href={`/painel/compras/rpa/${c.rpaId}`} className="text-primary text-xs font-normal hover:underline">
+            RPA nº {c.numero ?? "—"}
+          </Link>
+        </p>
+        <p className="text-muted-foreground text-xs">
+          A ordem deste RPA está {c.ordemSituacao === "Estornado" ? "estornada" : "cancelada"}: o INSS, o IRRF e o ISS
+          retidos e o INSS patronal dele não entram nas guias de Financeiro › Tributos, na planilha da contabilidade
+          nem no IRRF do mês dos próximos RPAs do prestador.
+        </p>
+      </div>
+    );
+  }
   const pago = c.ordemSituacao === "Paga" && c.dataPagamento;
   const competencia = pago
     ? `${c.dataPagamento!.slice(5, 7)}/${c.dataPagamento!.slice(0, 4)}`

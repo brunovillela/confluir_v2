@@ -3,6 +3,8 @@ import "server-only"
 import { esquemaAusente, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import {
   normalizarConfigRpa,
+  rpaCancelado,
+  SITUACOES_RPA_CANCELADO,
   type ConfigRpa,
   type MemoriaMes,
   type RpaAnteriorDoMes,
@@ -614,21 +616,25 @@ export async function proximoNumeroRpa(): Promise<number> {
 /** RPAs que pagam estes fornecimentos (fornecimento → RPA). Antes do SQL, vazio. */
 export async function rpasDosFornecimentos(
   fornecimentoIds: string[]
-): Promise<Map<string, { id: string; numero: number | null; assinado: boolean }>> {
-  const mapa = new Map<string, { id: string; numero: number | null; assinado: boolean }>()
+): Promise<Map<string, { id: string; numero: number | null; assinado: boolean; cancelado: boolean }>> {
+  const mapa = new Map<string, { id: string; numero: number | null; assinado: boolean; cancelado: boolean }>()
   if (!fornecimentoIds.length) return mapa
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("compras_rpa")
-    .select("id, numero, fornecimento_id, arquivo_assinado")
+    .select("id, numero, fornecimento_id, arquivo_assinado, ordem:ordem_pagamento_id (situacao)")
     .eq("emp_proprietaria_id", await tenantAtual())
     .in("fornecimento_id", fornecimentoIds)
   if (error) return mapa
-  for (const r of data ?? []) {
+  for (const r of (data ?? []) as Record<string, unknown>[]) {
+    const cancelado = rpaCancelado((r.ordem as { situacao?: string | null } | null)?.situacao)
+    // Mais de um RPA no fornecimento: vale o que não foi cancelado.
+    if (cancelado && mapa.get(String(r.fornecimento_id))?.cancelado === false) continue
     mapa.set(String(r.fornecimento_id), {
       id: String(r.id),
       numero: (r.numero as number | null) ?? null,
       assinado: Boolean(r.arquivo_assinado),
+      cancelado,
     })
   }
   return mapa
@@ -697,7 +703,7 @@ export async function limiteMensalDoPrestador(fornecedorId: string): Promise<str
 // do prestador: paga no mês (data_pagamento) ou, se ainda não paga, prevista
 // para ele ("Pagar em", o vencimento). Cancelada/estornada não conta.
 
-const ORDEM_FORA_DA_CONTA = ["Cancelada", "Estornado"]
+const ORDEM_FORA_DA_CONTA: readonly string[] = SITUACOES_RPA_CANCELADO
 
 async function rpasNoMesDePagamento(
   fornecedorId: string,

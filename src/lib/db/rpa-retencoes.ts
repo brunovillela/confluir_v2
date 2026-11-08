@@ -3,6 +3,7 @@ import "server-only"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 import { texto } from "@/lib/db/comum"
+import { rpaCancelado } from "@/lib/rpa-calculo"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -387,6 +388,8 @@ export type CustoRpa = {
   custoTotal: number
   ordemSituacao: string | null
   dataPagamento: string | null
+  /** Ordem cancelada ou estornada: os impostos deste RPA são desconsiderados. */
+  cancelado: boolean
 }
 
 /**
@@ -424,6 +427,9 @@ export async function custosDosRpas(fornecimentoIds: string[]): Promise<Map<stri
     const patronal = reg ? Number(reg.valor ?? 0) : arred((bruto * aliquota) / 100)
     const f = r.fornecedor as { nome_fantasia?: string | null; nome_razao?: string | null } | null
     const o = r.ordem as { situacao?: string | null; data_pagamento?: string | null } | null
+    const cancelado = rpaCancelado(o?.situacao)
+    // Mais de um RPA no fornecimento: vale o que não foi cancelado.
+    if (cancelado && mapa.get(String(r.fornecimento_id))?.cancelado === false) continue
     mapa.set(String(r.fornecimento_id), {
       rpaId: String(r.id),
       numero: r.numero == null ? null : Number(r.numero),
@@ -441,6 +447,7 @@ export async function custosDosRpas(fornecimentoIds: string[]): Promise<Map<stri
       custoTotal: arred(bruto + patronal),
       ordemSituacao: texto(o?.situacao),
       dataPagamento: texto(o?.data_pagamento),
+      cancelado,
     })
   }
   return mapa

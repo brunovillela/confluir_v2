@@ -317,7 +317,7 @@ export default async function ProcessoCompraPage({
   const servico = processo.e_produto === false && !montarLegado
   const rpaPorFornecimento = servico
     ? await rpasDosFornecimentos(fornecimentosComUrl.map((f) => f.id))
-    : new Map<string, { id: string; numero: number | null; assinado: boolean }>()
+    : new Map<string, { id: string; numero: number | null; assinado: boolean; cancelado: boolean }>()
   // RPA emitido e ainda sem o recibo assinado: a compra recebe o anexo aqui.
   const rpasALinkar = [...rpaPorFornecimento.values()].filter((r) => !r.assinado).map((r) => r.id)
   // Composição do custo de cada RPA (líquido + retenções + INSS patronal).
@@ -896,19 +896,26 @@ export default async function ProcessoCompraPage({
                               RPA nº {rpa.numero ?? "—"}
                             </Link>
                           </span>
-                          {rpa.assinado ? (
+                          {rpa.cancelado ? (
+                            <Badge variant="secondary">Cancelado</Badge>
+                          ) : rpa.assinado ? (
                             <Badge variant="success">Assinado</Badge>
                           ) : (
                             <Badge variant="warning">Aguardando assinatura</Badge>
                           )}
                         </div>
-                        {custo && (
+                        {custo?.cancelado ? (
+                          <p className="text-muted-foreground text-xs">
+                            Ordem {custo.ordemSituacao === "Estornado" ? "estornada" : "cancelada"}: os impostos deste
+                            RPA são desconsiderados.
+                          </p>
+                        ) : custo && (
                           <p className="text-muted-foreground text-xs tabular-nums">
                             Líquido ao prestador {formatarMoeda(custo.liquido)} · bruto {formatarMoeda(custo.bruto)} ·
                             custo total {formatarMoeda(custo.custoTotal)}
                           </p>
                         )}
-                        {!rpa.assinado && podeAjustar && !processo.cancelado && (
+                        {!rpa.assinado && !rpa.cancelado && podeAjustar && !processo.cancelado && (
                           <div className="grid gap-2">
                             <p className="text-muted-foreground text-xs">
                               Falta o recibo assinado pelo prestador. Anexe o assinado no papel ou pelo gov.br, ou

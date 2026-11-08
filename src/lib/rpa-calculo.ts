@@ -23,6 +23,17 @@
 
 import type { FormaPagamentoCompras } from "@/lib/compras-constantes"
 
+/**
+ * Situações da ordem que tornam o RPA CANCELADO: as retenções e a cota
+ * patronal dele são desconsideradas — saem das guias de Tributos, da planilha
+ * da contabilidade e do IRRF do mês dos RPAs seguintes.
+ */
+export const SITUACOES_RPA_CANCELADO = ["Cancelada", "Estornado"] as const
+
+export function rpaCancelado(situacaoDaOrdem: string | null | undefined): boolean {
+  return (SITUACOES_RPA_CANCELADO as readonly string[]).includes(String(situacaoDaOrdem ?? ""))
+}
+
 /** Tipo da ordem de pagamento que o RPA gera (valor líquido; com ou sem contrato). */
 export const TIPO_ORDEM_RPA = "RPA"
 

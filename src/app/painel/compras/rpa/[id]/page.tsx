@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import { ArrowLeft, Download, FileCheck2, List, Mail, PenLine, Trash2 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { rpaCancelado } from "@/lib/rpa-calculo"
 import { Button } from "@/components/ui/button"
 import { VoltarLista } from "@/components/voltar-lista"
 import {
@@ -219,6 +220,15 @@ export default async function RpaDetalhePage({
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Valores</CardTitle>
+            {rpaCancelado(rpa.ordemSituacao) && (
+              <Alert variant="warning" className="mt-2">
+                <AlertDescription>
+                  A ordem deste RPA está {rpa.ordemSituacao === "Estornado" ? "estornada" : "cancelada"}: as retenções
+                  e o INSS patronal abaixo são desconsiderados. Não entram nas guias de Financeiro › Tributos, na
+                  planilha da contabilidade nem no IRRF do mês dos próximos RPAs do prestador.
+                </AlertDescription>
+              </Alert>
+            )}
             <CardDescription>
               Base informada:{" "}
               {rpa.base === "liquido"

@@ -29,6 +29,7 @@ import { LembrarLista } from "@/components/voltar-lista"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { podeAcessar } from "@/lib/permissoes"
+import { rpaCancelado } from "@/lib/rpa-calculo"
 import { semAcento } from "@/lib/texto"
 
 import { ConfigRpaForm, ExcluirRpa } from "./rpa-forms"
@@ -234,6 +235,8 @@ export default async function RpaPage({
             {linhas.map((r) => {
               const retencoes =
                 (r.inss ?? 0) + (r.irrf ?? 0) + (r.iss ?? 0)
+              // Ordem cancelada: as retenções não contam (Tributos, contabilidade, IRRF do mês).
+              const cancelado = rpaCancelado(r.ordemSituacao)
               return (
                 <TableRow key={r.id}>
                   <TableCell className="font-medium tabular-nums">
@@ -273,7 +276,10 @@ export default async function RpaPage({
                   <TableCell className="text-right tabular-nums">
                     {formatarMoeda(r.valor_bruto)}
                   </TableCell>
-                  <TableCell className="text-muted-foreground hidden text-right tabular-nums md:table-cell">
+                  <TableCell
+                    className={`text-muted-foreground hidden text-right tabular-nums md:table-cell ${cancelado ? "line-through" : ""}`}
+                    title={cancelado ? "Desconsideradas: a ordem do RPA foi cancelada" : undefined}
+                  >
                     {formatarMoeda(retencoes)}
                   </TableCell>
                   <TableCell className="text-right font-medium tabular-nums">
@@ -283,7 +289,11 @@ export default async function RpaPage({
                     {r.criadoPorNome ?? "—"}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
-                    {r.arquivoAssinado ? (
+                    {cancelado ? (
+                      <Badge variant="secondary" title="A ordem foi cancelada: os impostos deste RPA são desconsiderados">
+                        Cancelado
+                      </Badge>
+                    ) : r.arquivoAssinado ? (
                       <span className="inline-flex items-center gap-2">
                         <Badge variant="success">Assinado</Badge>
                         <a
