@@ -42,6 +42,7 @@ import { cn } from "@/lib/utils"
 
 import { AbaAcordos, AbaOposicoes, AbaReunioes, AbaVotacoes } from "./abas"
 import { AbaArrecadacao } from "./aba-arrecadacao"
+import { DescontoEmFolha } from "./desconto-folha"
 import { AdicionarDocumento, BotaoExcluirDocumento } from "./empregador-docs-forms"
 import { ABAS_EMPREGADOR, lerAbaEmpregador, type AbaEmpregador, type Params } from "./filtros"
 
@@ -290,7 +291,12 @@ export default async function FontePage({
         {aba === "oposicoes" && <AbaOposicoes ctx={{ empresaId: id, aba, params: sp }} />}
         {aba === "reunioes" && <AbaReunioes ctx={{ empresaId: id, aba, params: sp }} tipo="empregador" podeEditar={podeEditar} />}
         {aba === "setoriais" && <AbaReunioes ctx={{ empresaId: id, aba, params: sp }} tipo="setorial" podeEditar={podeEditar} />}
-        {aba === "arrecadacao" && <AbaArrecadacao empresaId={id} nome={nome} />}
+        {aba === "arrecadacao" && (
+          <div className="grid gap-4">
+            <DescontoEmFolha empresaId={id} nome={nome} />
+            <AbaArrecadacao empresaId={id} nome={nome} />
+          </div>
+        )}
 
         {aba === "visao" && (
           <>

@@ -47,8 +47,8 @@ export const PROCESSOS = [
   {
     id: "P02",
     nome: "Contribuições, receitas e cobranças",
-    tabelas: /^filiacao_(recebe|cobrancas|reembolsos)/,
-    finalidade: "Conciliar as relações de desconto enviadas pelas fontes pagadoras, cobrar contribuições (Pix/boleto), controlar inadimplência e reembolsos ao filiado.",
+    tabelas: /^filiacao_(recebe|cobrancas|reembolsos|repasse|desconto)/,
+    finalidade: "Conciliar as relações de desconto enviadas pelas fontes pagadoras, cobrar contribuições (Pix/boleto), controlar inadimplência e reembolsos ao filiado, cobrar das fontes pagadoras o envio das relações e comunicar a elas as inclusões e exclusões de desconto.",
     titulares: "Filiados e trabalhadores da base listados nas relações das fontes pagadoras",
     baseLegal: [
       "Art. 7º, V e art. 11, II, a: relação associativa e desconto em folha autorizado (CLT arts. 545 e 582).",

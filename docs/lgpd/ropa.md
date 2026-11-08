@@ -16,7 +16,7 @@
 | # | Processo | Tabelas | Categorias de dados | Transferência internacional |
 |---|---|---|---|---|
 | P01 | [Filiação e cadastro do associado](#p01) | 18 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
-| P02 | [Contribuições, receitas e cobranças](#p02) | 3 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista | sim |
+| P02 | [Contribuições, receitas e cobranças](#p02) | 6 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista | sim |
 | P03 | [Atendimento ao filiado no portal](#p03) | 6 | identificação, **sensível: filiação/posição sindical**, credencial (segredo de acesso, nunca exportar) | sim |
 | P04 | [Oposição à contribuição assistencial](#p04) | 5 | identificação, **sensível: filiação/posição sindical**, trabalhista | sim |
 | P05 | [Assembleias e votações](#p05) | 15 | identificação, **sensível: filiação/posição sindical**, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
@@ -87,7 +87,7 @@
 <a id="p02"></a>
 ## P02. Contribuições, receitas e cobranças
 
-**Finalidade.** Conciliar as relações de desconto enviadas pelas fontes pagadoras, cobrar contribuições (Pix/boleto), controlar inadimplência e reembolsos ao filiado.
+**Finalidade.** Conciliar as relações de desconto enviadas pelas fontes pagadoras, cobrar contribuições (Pix/boleto), controlar inadimplência e reembolsos ao filiado, cobrar das fontes pagadoras o envio das relações e comunicar a elas as inclusões e exclusões de desconto.
 
 **Titulares.** Filiados e trabalhadores da base listados nas relações das fontes pagadoras.
 
@@ -110,17 +110,20 @@
 
 **Observações.** A `filiacao_recebe` tem ~795 mil linhas com CPF, nome e valor: maior volume de dado sindical do sistema.
 
-<details><summary>Tabelas (3) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (6) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
 | [filiacao_cobrancas](../dados/dicionario/filiacao.md#filiacao_cobrancas) | identificacao, sens. sindical, financeiro | `cpf` (identificacao), `valor` (financeiro), `situacao` (financeiro), `pago_em` (financeiro), `valor_pago` (financeiro) |
+| [filiacao_desconto_comunicacao_itens](../dados/dicionario/filiacao.md#filiacao_desconto_comunicacao_itens) | identificacao | `nome` (identificacao), `cpf` (identificacao), `matricula` (trabalhista), `data` (trabalhista) |
+| [filiacao_desconto_comunicacoes](../dados/dicionario/filiacao.md#filiacao_desconto_comunicacoes) | identificacao | `destinatario` (identificacao), `usuario_id` (identificacao), `usuario_nome` (identificacao) |
 | [filiacao_recebe](../dados/dicionario/filiacao.md#filiacao_recebe) | identificacao, sens. sindical, financeiro, trabalhista | `cpf` (identificacao), `valor` (financeiro), `matricula_sindical` (sens. sindical), `fonte_pg_matricula` (trabalhista), `filiado_raw` (sens. sindical), `forma_recebimento` (financeiro), `nome` (identificacao) |
 | [filiacao_reembolsos](../dados/dicionario/filiacao.md#filiacao_reembolsos) | sens. sindical, financeiro | `justificativa` (sens. sindical), `valor` (financeiro), `tipo` (sens. sindical) |
+| [filiacao_repasse_eventos](../dados/dicionario/filiacao.md#filiacao_repasse_eventos) | identificacao | `observacao` (nenhum), `usuario_id` (identificacao), `usuario_nome` (identificacao) |
 
 </details>
 
-<sub>Titulares registrados no banco para estas tabelas: filiados.</sub>
+<sub>Titulares registrados no banco para estas tabelas: contatos das empresas; filiados; usuários do sistema.</sub>
 
 <a id="p03"></a>
 ## P03. Atendimento ao filiado no portal
@@ -539,8 +542,8 @@
 | [despesas](../dados/dicionario/financeiro.md#despesas) | identificacao, financeiro | `valor` (financeiro), `favorecido` (identificacao), `comprovante_pagamento_url` (financeiro) |
 | [documento_assinatura_eventos](../dados/dicionario/compras.md#documento_assinatura_eventos) | identificacao | `detalhe` (identificacao), `ip` (identificacao), `user_agent` (identificacao) |
 | [documento_assinaturas](../dados/dicionario/compras.md#documento_assinaturas) | identificacao, trabalhista, credencial | `nome` (identificacao), `cargo` (trabalhista), `email` (identificacao), `token` (credencial), `certificado` (identificacao), `codigo_hash` (credencial), `motivo_recusa` (identificacao), `ip` (identificacao), `user_agent` (identificacao), `telegram_chat_id` (identificacao), `telegram_telefone` (identificacao), `cpf` (identificacao), `nome_declarado` (identificacao), `rodada` (nenhum) |
-| [empresa](../dados/dicionario/plataforma.md#empresa) | identificacao | `cnpj_cpf` (identificacao), `nome_fantasia` (identificacao), `nome_razao` (identificacao), `foto` (identificacao), `email_contato` (identificacao), `lgpd_encarregado_nome` (identificacao), `lgpd_encarregado_email` (identificacao), `nit_pis` (identificacao) |
-| [empresa_contatos](../dados/dicionario/plataforma.md#empresa_contatos) | identificacao, trabalhista | `nome` (identificacao), `cargo` (trabalhista), `telefone` (identificacao), `email` (identificacao), `observacao` (identificacao) |
+| [empresa](../dados/dicionario/plataforma.md#empresa) | identificacao | `cnpj_cpf` (identificacao), `nome_fantasia` (identificacao), `nome_razao` (identificacao), `foto` (identificacao), `email_contato` (identificacao), `lgpd_encarregado_nome` (identificacao), `lgpd_encarregado_email` (identificacao), `nit_pis` (identificacao), `filiacao_repasse_desde` (nenhum) |
+| [empresa_contatos](../dados/dicionario/plataforma.md#empresa_contatos) | identificacao, trabalhista | `nome` (identificacao), `cargo` (trabalhista), `telefone` (identificacao), `email` (identificacao), `observacao` (identificacao), `contato_folha` (nenhum) |
 | [financeiro_caixa](../dados/dicionario/financeiro.md#financeiro_caixa) | identificacao, financeiro | `dono_conta_id` (identificacao), `transf_aportador_id` (identificacao), `transf_recebedor_id` (identificacao) |
 | [financeiro_cartao_faturas](../dados/dicionario/financeiro.md#financeiro_cartao_faturas) | identificacao | `fechada_por_usuario_id` (identificacao) |
 | [financeiro_dados_bancarios_alteracoes](../dados/dicionario/financeiro.md#financeiro_dados_bancarios_alteracoes) | identificacao, financeiro | `usuario_id` (identificacao), `dados` (financeiro), `dados_anteriores` (financeiro), `decidida_por_usuario_id` (identificacao) |
@@ -830,4 +833,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 224 de 224 tabelas com dado pessoal atribuídas a 16 processos.
+Cobertura: 227 de 227 tabelas com dado pessoal atribuídas a 16 processos.

@@ -51,6 +51,7 @@ const EXTRAS: Record<string, string> = {
   "/painel/filiados/solicitacoes": "/painel/ajuda/filiados/solicitacoes",
   "/painel/filiados/atendimentos": "/painel/ajuda/filiados/atendimentos",
   "/painel/filiados/receitas": "/painel/ajuda/filiados/receitas",
+  "/painel/filiados/receitas/controle": "/painel/ajuda/filiados/controle-envio",
   "/painel/filiados/duplicidades": "/painel/ajuda/filiados/duplicidades",
   "/painel/filiados/saude-cadastros/atualizar": "/painel/ajuda/filiados/atualizar-por-lista",
   "/painel/filiados/termos": "/painel/ajuda/filiados/termos",

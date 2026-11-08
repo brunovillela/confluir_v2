@@ -230,6 +230,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "Remessas de recebimento de contribuições por fonte pagadora",
       },
       {
+        slug: "controle-envio",
+        titulo: "Controle de envio das relações",
+        resumo: "Quais empresas mandaram a relação de descontos e depositaram, as cobranças e as inclusões e exclusões de desconto",
+      },
+      {
         slug: "prontuarios",
         titulo: "Prontuários",
         resumo: "A linha do tempo de cada filiado",

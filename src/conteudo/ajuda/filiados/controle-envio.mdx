@@ -1,0 +1,167 @@
+Todo mês, cada fonte pagadora deve mandar ao sindicato a **relação de descontos**
+(quem teve a contribuição descontada e quanto) e **depositar** o valor. O
+**Controle de envio** mostra, empresa por empresa e mês a mês, quem já mandou,
+quem depositou e quem está atrasado. Também lista as **inclusões e exclusões** de
+desconto que o sindicato precisa comunicar ao RH de cada empresa.
+
+Fica em **Filiação → Receitas → Controle de envio**.
+
+<RequerPermissao>Receitas</RequerPermissao>
+
+## Antes de começar: prazos e tipos
+
+Em **Prazos e tipos** fica a regra geral da entidade:
+
+<PassoAPasso>
+  <Passo titulo="Controlar a partir da competência">
+    O mês a partir do qual o controle cobra atraso. Antes dele, nada aparece como
+    atrasado. Filiações e desfiliações a partir dele entram nas inclusões e
+    exclusões a comunicar. Em branco, o controle fica desligado.
+  </Passo>
+  <Passo titulo="Tipos de contribuição">
+    Para cada tipo (associativa, assistencial e sindical), marque se entra no
+    controle e informe até que dia do **mês seguinte** à competência a relação deve
+    chegar e o depósito ser feito. Na assistencial e na sindical, informe também os
+    meses com desconto (por exemplo, `mar` ou `3, 9`). Em branco vale todo mês.
+  </Passo>
+</PassoAPasso>
+
+Uma empresa com prazo diferente, ou que não desconta algum tipo, ganha uma **regra
+própria** na página dela: **Representação → Empregadores → aba Arrecadação**, no
+quadro **Desconto em folha**. Ali também ficam os **contatos da folha**, as
+pessoas do RH que recebem as cobranças e as inclusões e exclusões.
+
+<Aviso tipo="nota" titulo="Grupos com repasse centralizado">
+  Quando um grupo empresarial repassa as contribuições de forma centralizada, o
+  grupo aparece como uma linha só, na empresa pagadora. A regra e os contatos da
+  folha ficam nela.
+</Aviso>
+
+## O quadro
+
+<Print src="filiados/controle-envio.png" alt="Controle de envio: quatro indicadores no topo (relações atrasadas, falta o depósito, para conferir e em dia), o aviso de inclusões e exclusões a comunicar e o quadro com uma empresa por linha e os últimos 12 meses em colunas, cada célula colorida com a situação." legenda="O quadro: cada linha é uma empresa, cada coluna um mês." />
+
+Cada célula é uma empresa num mês. As situações são:
+
+| Situação | O que quer dizer |
+| --- | --- |
+| **Relação atrasada** | O prazo de envio passou e a relação não chegou. |
+| **Falta o depósito** | A relação foi lançada, mas o prazo do depósito passou sem comprovante. |
+| **Valor diferente** | O depósito não bate com o total da relação. |
+| **Depósito sem relação** | Há comprovante de depósito, mas a relação não foi lançada. |
+| **Recebida, falta lançar** | A relação chegou e foi registrada, mas ainda não foi importada em Receitas. |
+| **Aguardando** | Ainda dentro do prazo. |
+| **Relação recebida** | A relação foi lançada e o depósito ainda está no prazo. |
+| **Recebida e paga** | Relação lançada e depósito registrado com o mesmo valor. |
+| **Sem desconto no mês** | A empresa informou que não houve desconto. |
+
+A situação vem do que já está em **Receitas**: os lançamentos da fonte na remessa
+do mês e o comprovante do depósito. Ao lançar a relação ou registrar o depósito,
+a célula muda sozinha.
+
+Por padrão, o quadro mostra só as empresas **com algo a fazer**; use **Todas** para
+ver todas. As setas mudam a janela de 12 meses. Com mais de um tipo no controle,
+os botões no alto do quadro trocam o tipo.
+
+## A página da empresa
+
+Clique no nome da empresa ou numa célula para abrir a página dela.
+
+<Print src="filiados/controle-envio-empresa.png" alt="Página da empresa no controle de envio: a faixa dos 12 meses, o mês escolhido com a situação, os valores e os prazos, os botões de ação, a trilha de cobranças e, ao lado, os contatos da folha e os prazos da empresa." legenda="A empresa: o mês escolhido, as ações e a trilha." />
+
+No mês escolhido aparecem os descontos lançados, o total da relação, o depósito e
+os prazos. Os botões:
+
+- **Abrir em Receitas** (ou **Lançar a relação**) leva à fonte na remessa do mês,
+  onde a relação é importada. Se a remessa do mês ainda não existe, o botão é
+  **Criar a remessa**.
+- **Chegou, falta lançar** marca que a relação chegou e tira o mês do atraso
+  enquanto ela não é importada.
+- **Sem desconto no mês** registra que a empresa informou que não descontou.
+- **Registrar contato** guarda uma cobrança ou conversa com o RH: meio, data e o
+  que foi combinado.
+- **Cobrar por e-mail** manda ao contato da folha um e-mail pronto, em nome da
+  entidade, com a competência e o prazo (da relação ou do depósito). A cobrança
+  fica na trilha.
+- **WhatsApp** abre a conversa com o contato da folha, com uma mensagem pronta.
+
+A **Trilha** guarda tudo o que foi registrado. **Chegou, falta lançar** e **Sem
+desconto no mês** podem ser desfeitos ali, se foram marcados por engano.
+
+## Inclusões e exclusões de desconto
+
+No fim da página da empresa estão as pessoas que o RH ainda não sabe que mudaram:
+
+- **Incluir**: quem se filiou com vínculo nessa empresa a partir do início do
+  controle;
+- **Excluir**: quem se desfiliou dela a partir do início do controle.
+
+Quem paga por Pix ou boleto não entra. Quem entrou e saiu antes de a empresa ser
+avisada da entrada também não.
+
+<PassoAPasso>
+  <Passo titulo="Confira a lista">
+    Todas as pessoas vêm marcadas; desmarque quem não deve ir agora. **Baixar
+    planilha** gera a lista das marcadas em CSV, que abre no Excel.
+  </Passo>
+  <Passo titulo="Envie ou registre">
+    **Enviar por e-mail ao contato da folha** manda a lista no corpo do e-mail e
+    em planilha anexa, e pede confirmação de recebimento. **Já enviei por outro
+    meio** só registra o envio (ofício, sistema do RH, em mãos), com a referência.
+  </Passo>
+  <Passo titulo="Confira na relação seguinte">
+    Em **Já enviadas**, cada pessoa mostra se a empresa cumpriu: **Descontado em**
+    (inclusão feita), **Sem desconto em** (exclusão feita) ou o alerta **Ainda sem
+    desconto** e **Ainda descontado**, conferidos na relação mais recente da
+    empresa.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="atencao" titulo="O envio registrado não se apaga">
+  O registro de cada envio é a prova do que foi comunicado à empresa, e quando.
+  Ele não pode ser alterado nem apagado. A planilha de cada envio continua
+  disponível em **Já enviadas**.
+</Aviso>
+
+## Avisos no painel
+
+Quem tem acesso a Receitas vê nas pendências do painel:
+
+- **Relações de desconto atrasadas**: empresas com relação ou depósito atrasado
+  nos 3 últimos meses. Registrar uma cobrança ou um contato tira a empresa do
+  aviso por 3 dias.
+- **Inclusões e exclusões a comunicar**: empresas com pessoas ainda não
+  comunicadas.
+
+Os avisos só aparecem com o controle ativado.
+
+## Erros comuns
+
+- **"Tudo aparece atrasado."** Confira o mês de início em **Prazos e tipos**: os
+  meses antes dele não contam. Se a empresa manda a relação mas ela não foi
+  importada, use **Chegou, falta lançar** ou lance-a em Receitas.
+- **"A empresa não aparece no quadro."** O quadro mostra as fontes pagadoras com
+  filiados ativos ou com algo lançado na janela. Em **Com algo a fazer**, só as
+  que pedem ação; use **Todas**.
+- **"Cobrar por e-mail não aparece."** Falta um contato da folha com e-mail.
+  Cadastre-o na página da empresa.
+- **"Valor diferente."** Confira em Receitas o total da relação e o comprovante
+  do depósito: um lançamento a mais ou a menos, ou um depósito de outra
+  competência, explica a diferença.
+- **"Nenhuma inclusão ou exclusão aparece."** O controle precisa estar ativado,
+  e a filiação ou desfiliação precisa ser do mês de início em diante.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Receitas",
+      href: "/painel/ajuda/filiados/receitas",
+      descricao: "Onde a relação é lançada e o depósito registrado",
+    },
+    {
+      titulo: "Empregadores",
+      href: "/painel/ajuda/representacao/empregadores",
+      descricao: "A aba Arrecadação, com o desconto em folha da empresa",
+    },
+  ]}
+/>

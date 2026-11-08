@@ -6,6 +6,8 @@ import { DIAS_PARADA as DIAS_FICHA_PARADA } from "@/lib/ficha-filiacao"
 
 import type { SessaoPainel } from "@/lib/auth"
 import { alcadaDoUsuario } from "@/lib/db/compras"
+import { contagemPendenciasDesconto } from "@/lib/db/desconto-comunicacoes"
+import { DIAS_SILENCIO_COBRANCA, empresasParaCobrar } from "@/lib/db/repasse"
 import { SITUACAO_EM_AUTORIZACAO } from "@/lib/db/ordens-ciclo"
 import { situacaoDosPlanos } from "@/lib/db/veiculos-manutencoes"
 import { rodadasComAptosSemLink, semLinkUrgente } from "@/lib/db/votacao-sem-link"
@@ -245,6 +247,33 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
         head(q)
           .in("situacao", ["em_preenchimento", "aguardando_assinatura"])
           .lt("updated_at", new Date(Date.now() - DIAS_FICHA_PARADA * 86_400_000).toISOString()),
+    })
+  }
+
+  // Controle de envio das relações de desconto: empresas atrasadas (sem
+  // cobrança registrada há DIAS_SILENCIO_COBRANCA dias) e inclusões/exclusões
+  // de desconto ainda não comunicadas. Só com o controle ativado.
+  if (pode("filiacao_receitas", ["filiacao_gestao"])) {
+    fontes.push({
+      chave: "repasse_atrasado",
+      titulo: "Relações de desconto atrasadas",
+      descricao: `Empresas sem relação ou sem depósito no prazo, sem cobrança nos últimos ${DIAS_SILENCIO_COBRANCA} dias`,
+      href: "/painel/filiados/receitas/controle",
+      tabela: "filiacao_repasse_eventos",
+      montar: (q) => head(q),
+      contarCom: () => empresasParaCobrar().catch(() => null),
+    })
+    fontes.push({
+      chave: "desconto_comunicar",
+      titulo: "Inclusões e exclusões a comunicar",
+      descricao: "Empresas que ainda não sabem de filiações ou desfiliações",
+      href: "/painel/filiados/receitas/controle",
+      tabela: "filiacao_desconto_comunicacoes",
+      montar: (q) => head(q),
+      contarCom: () =>
+        contagemPendenciasDesconto()
+          .then((m) => m.size)
+          .catch(() => null),
     })
   }
 

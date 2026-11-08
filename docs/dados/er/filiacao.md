@@ -94,6 +94,18 @@ erDiagram
     uuid convenio_id FK
     uuid endereco_id FK
   }
+  filiacao_desconto_comunicacao_itens {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid comunicacao_id FK
+    uuid vinculo_id FK
+    uuid filiado_id FK
+  }
+  filiacao_desconto_comunicacoes {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid empresa_id FK
+  }
   filiacao_duplicidades_ignoradas {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -148,6 +160,16 @@ erDiagram
     uuid id PK
     uuid sindicato_id FK
     uuid endereco_id FK
+  }
+  filiacao_repasse_eventos {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid empresa_id FK
+  }
+  filiacao_repasse_regras {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid empresa_id FK
   }
   filiacao_solicitacao_eventos {
     uuid id PK
@@ -333,6 +355,10 @@ erDiagram
   filiacao_convenios }o--o| filiacao_convenios_categorias : "categoria_id"
   filiacao_convenios_unidades }o--o| enderecos : "endereco_id"
   filiacao_convenios_unidades }o--o| filiacao_convenios : "convenio_id"
+  filiacao_desconto_comunicacao_itens }o--o| filiacao_vinculos : "vinculo_id"
+  filiacao_desconto_comunicacao_itens }o--o| filiacoes : "filiado_id"
+  filiacao_desconto_comunicacao_itens }o--|| filiacao_desconto_comunicacoes : "comunicacao_id"
+  filiacao_desconto_comunicacoes }o--|| empresa : "empresa_id"
   filiacao_duplicidades_ignoradas }o--o| usuarios : "criado_por"
   filiacao_inadimplencia_regras }o--o| usuarios : "atualizada_por"
   filiacao_prontuario }o--o| filiacoes : "filiacao_id"
@@ -357,6 +383,8 @@ erDiagram
   filiacao_reembolsos_config }o--o| usuarios : "atualizada_por"
   filiacao_registro }o--o| empresa : "sindicato_id"
   filiacao_registro }o--o| enderecos : "endereco_id"
+  filiacao_repasse_eventos }o--|| empresa : "empresa_id"
+  filiacao_repasse_regras }o--o| empresa : "empresa_id"
   filiacao_solicitacao_eventos }o--o| filiacao_solicitacoes : "solicitacao_id"
   filiacao_solicitacoes }o--o| empresa : "empregador_id"
   filiacao_solicitacoes }o--o| filiacao_tl_desconto : "tl_desconto_id"

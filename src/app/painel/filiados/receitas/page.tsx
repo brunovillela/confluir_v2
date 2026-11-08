@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, Banknote, ListChecks, Pencil, Plus, Receipt, TrendingUp } from "lucide-react"
+import { ArrowLeft, Banknote, CalendarCheck,ListChecks, Pencil, Plus, Receipt, TrendingUp } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -77,12 +77,20 @@ export default async function ReceitasPage({
               informados por fonte pagadora
             </p>
           </div>
-          <Button asChild>
-            <Link href="/painel/filiados/receitas/nova">
-              <Plus />
-              Nova remessa
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/painel/filiados/receitas/controle">
+                <CalendarCheck />
+                Controle de envio
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="/painel/filiados/receitas/nova">
+                <Plus />
+                Nova remessa
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
 
