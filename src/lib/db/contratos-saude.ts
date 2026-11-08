@@ -20,7 +20,6 @@ export const TIPOS_PENDENCIA_CONTRATO = [
   "arquivo",
   "fornecedor",
   "classificacao",
-  "valor",
   "inicio",
   "autorizacao",
   "aditivo",
@@ -28,7 +27,8 @@ export const TIPOS_PENDENCIA_CONTRATO = [
 ] as const
 export type PendenciaContrato = (typeof TIPOS_PENDENCIA_CONTRATO)[number]
 
-export const TIPOS_APONTAMENTO_CONTRATO = ["responsavel", "termino", "vencendo"] as const
+/** Sem valor é só apontamento (08/11): muito contrato não tem valor fixo. */
+export const TIPOS_APONTAMENTO_CONTRATO = ["valor", "responsavel", "termino", "vencendo"] as const
 export type ApontamentoContrato = (typeof TIPOS_APONTAMENTO_CONTRATO)[number]
 
 export const ROTULO_PROBLEMA_CONTRATO: Record<PendenciaContrato | ApontamentoContrato, string> = {
@@ -157,7 +157,6 @@ export async function saudeContratos(opcoes: { verSigilosos: boolean }): Promise
     if (!texto(c.arquivo_contrato)) pendencias.push("arquivo")
     if (!fornecedorId) pendencias.push("fornecedor")
     if (!texto(c.departamento_id) || !texto(c.centro_custo_id)) pendencias.push("classificacao")
-    if (!(Number(c.valor) > 0) && c.sob_demanda !== true) pendencias.push("valor")
     if (!texto(c.vigencia_inicio)) pendencias.push("inicio")
     // Migrados do Bubble não passaram pela autorização (mesma regra da página do contrato).
     if (!texto(c.bubble_id) && c.autorizacao_esta_autorizado !== true) pendencias.push("autorizacao")
@@ -165,6 +164,7 @@ export async function saudeContratos(opcoes: { verSigilosos: boolean }): Promise
     if (f && (f.fornecedor_bloqueado === true || f.bloqueado === true)) pendencias.push("fornecedor_bloqueado")
 
     const apontamentos: ApontamentoContrato[] = []
+    if (!(Number(c.valor) > 0) && c.sob_demanda !== true) apontamentos.push("valor")
     if (!texto(c.responsavel_id)) apontamentos.push("responsavel")
     const vigencia = vigenciaDe(texto(c.vigencia_termino), hoje)
     if (vigencia === "sem_termo") apontamentos.push("termino")
