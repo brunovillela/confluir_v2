@@ -265,6 +265,45 @@ export function valorDecisao(chave: ChaveDecisao, valor: string | null | undefin
   return (d?.opcoes as readonly { chave: string }[] | undefined)?.some((o) => o.chave === valor) ? (valor as string) : null
 }
 
+// ── Tempo do vídeo de sensibilização (08/11/2026) ───────────────────────────
+
+/**
+ * Folga na conferência do servidor: o relógio do banco (início do vídeo) e o
+ * do servidor (confirmação) diferem em um ou dois segundos.
+ */
+export const FOLGA_VIDEO_S = 5
+
+/**
+ * "3:20", "1:02:03", "3min20", "3 min 20 s" ou "200" → segundos. Vazio ou
+ * ilegível → null. O campo da campanha aceita o jeito como a pessoa fala.
+ */
+export function lerTempoVideo(v: string | null | undefined): number | null {
+  const s = (v ?? "").trim().toLowerCase().replace(/\s+/g, "")
+  if (!s) return null
+  if (/^\d+$/.test(s)) return Number(s)
+  const partes = /^(\d+):(\d{1,2})(?::(\d{1,2}))?$/.exec(s)
+  if (partes) {
+    const [a, b, c] = [Number(partes[1]), Number(partes[2]), partes[3] == null ? null : Number(partes[3])]
+    if (c == null) return b < 60 ? a * 60 + b : null
+    return b < 60 && c < 60 ? a * 3600 + b * 60 + c : null
+  }
+  const extenso = /^(?:(\d+)h)?(?:(\d+)(?:min|m))?(?:(\d+)(?:s|seg)?)?$/.exec(s)
+  if (extenso && (extenso[1] || extenso[2] || extenso[3])) {
+    return Number(extenso[1] ?? 0) * 3600 + Number(extenso[2] ?? 0) * 60 + Number(extenso[3] ?? 0)
+  }
+  return null
+}
+
+/** 200 → "3:20"; 3723 → "1:02:03". */
+export function formatarTempoVideo(segundos: number | null | undefined): string {
+  if (segundos == null || !Number.isFinite(segundos) || segundos <= 0) return ""
+  const s = Math.round(segundos)
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const r = String(s % 60).padStart(2, "0")
+  return h ? `${h}:${String(m).padStart(2, "0")}:${r}` : `${m}:${r}`
+}
+
 /** A carta pode ser assinada pelo próprio Confluir (08/11/2026)? */
 export function assinaPeloConfluir(aceitas: string | null | undefined): boolean {
   return aceitas === "confluir" || aceitas === "confluir_ou_carta"

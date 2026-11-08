@@ -38,7 +38,8 @@ const nextConfig: NextConfig = {
     const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://*.supabase.co"
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
+      // youtube.com/s.ytimg.com: a API do player conta o tempo assistido do vídeo da oposição.
+      "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://www.youtube.com https://s.ytimg.com",
       "style-src 'self' 'unsafe-inline'",
       `img-src 'self' data: blob: ${supabase} https://*.supabase.co https://cdn.bubble.io https://*.bubble.io https://s3.amazonaws.com`,
       "font-src 'self' data:",

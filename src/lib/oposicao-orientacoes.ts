@@ -76,7 +76,7 @@ export function instrucoesDaCampanha(c: CampanhaParaOrientacao, filiado: boolean
   if (c.temVideo) {
     itens.push(
       c.videoMinimo
-        ? "Assista ao vídeo da campanha até o fim do tempo indicado na tela; só então o botão para seguir é liberado."
+        ? "Assista ao vídeo da campanha pelo tempo indicado na tela. O tempo só conta com o vídeo tocando; só então o botão para seguir é liberado."
         : "Há um vídeo sobre a campanha. Recomendamos assistir antes de decidir."
     )
   }

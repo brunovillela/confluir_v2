@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import type { CampanhaDetalhe, OpcaoFonte } from "@/lib/db/oposicao"
+
+import { CampoTempoVideo } from "./campo-tempo-video"
 import {
   DECISOES_JURIDICAS,
   MODOS_FORMALIZACAO,
@@ -217,16 +219,7 @@ export function CampanhaForm({
               defaultValue={campanha?.video_filiado_url ?? ""}
             />
           </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="video_filiado_tempo">Tempo mín. (s)</Label>
-            <Input
-              id="video_filiado_tempo"
-              name="video_filiado_tempo"
-              type="number"
-              min={0}
-              defaultValue={campanha?.video_filiado_tempo ?? ""}
-            />
-          </div>
+          <CampoTempoVideo nome="video_filiado_tempo" idUrl="video_filiado_url" segundos={campanha?.video_filiado_tempo ?? null} />
         </div>
         <div className="grid gap-4 sm:grid-cols-[1fr_10rem]">
           <div className="grid gap-1.5">
@@ -237,16 +230,7 @@ export function CampanhaForm({
               defaultValue={campanha?.video_nao_filiado_url ?? ""}
             />
           </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="video_nao_filiado_tempo">Tempo mín. (s)</Label>
-            <Input
-              id="video_nao_filiado_tempo"
-              name="video_nao_filiado_tempo"
-              type="number"
-              min={0}
-              defaultValue={campanha?.video_nao_filiado_tempo ?? ""}
-            />
-          </div>
+          <CampoTempoVideo nome="video_nao_filiado_tempo" idUrl="video_nao_filiado_url" segundos={campanha?.video_nao_filiado_tempo ?? null} />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="video_agradecimento_url">

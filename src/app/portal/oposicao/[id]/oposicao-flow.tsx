@@ -13,21 +13,14 @@ import { SelectNativo } from "@/components/ui/select-nativo"
 import { Textarea } from "@/components/ui/textarea"
 import type { CampanhaPublica, VinculoAtivo } from "@/lib/db/oposicao"
 import { formatarData } from "@/lib/formato"
-import { DECLARACAO_PADRAO, exigeDocumentoComRegras } from "@/lib/oposicao-constantes"
+import { DECLARACAO_PADRAO, exigeDocumentoComRegras, formatarTempoVideo } from "@/lib/oposicao-constantes"
 import { nomesDasEtapas } from "@/lib/oposicao-orientacoes"
 import { cn } from "@/lib/utils"
+import { carregarYoutubeApi, idDoYoutube } from "@/lib/youtube-api"
 
-import { confirmarOposicao, desistir, sairDaOposicao } from "../actions"
+import { confirmarOposicao, desistir, iniciarVideo, sairDaOposicao } from "../actions"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario";
 
-/** Extrai o id do YouTube de um id cru ou URL. */
-function idYoutube(v: string | null): string | null {
-  if (!v) return null
-  const s = v.trim()
-  if (/^[\w-]{11}$/.test(s)) return s
-  const m = s.match(/(?:v=|youtu\.be\/|embed\/)([\w-]{11})/)
-  return m ? m[1] : null
-}
 
 /**
  * Onde a pessoa está no caminho (A104): um `<ol>` simples, como no
@@ -86,8 +79,25 @@ export function OposicaoFlow({
   // Decisão jurídica: com o vídeo dispensado, ele aparece sem tempo mínimo.
   const minimo = campanha.regras.video_minimo === "exigir" && videoTempo && videoTempo > 0 ? videoTempo : 0
   const comVideo = minimo > 0 || Boolean(videoUrl)
-  const [restante, setRestante] = useState(minimo)
   const [etapa, setEtapa] = useState<"video" | "form">(comVideo ? "video" : "form")
+  // Tempo do vídeo (08/11/2026): com o player do YouTube, o relógio só anda
+  // com o vídeo TOCANDO; sem ele (link de outro site, API bloqueada), anda
+  // com a página aberta, como antes. O servidor confere o mínimo desde o
+  // primeiro play e grava na trilha o que esta página contou.
+  const embed = idDoYoutube(videoUrl)
+  const [modoRelogio, setModoRelogio] = useState<"player" | "pagina">(embed ? "player" : "pagina")
+  const [tocando, setTocando] = useState(false)
+  const [assistido, setAssistido] = useState(0)
+  const restante = Math.max(0, minimo - assistido)
+  const iframeVideo = useRef<HTMLIFrameElement>(null)
+  const iniciado = useRef(false)
+  const avisarInicio = () => {
+    if (iniciado.current) return
+    iniciado.current = true
+    startTransition(() => {
+      void iniciarVideo(campanha.id)
+    })
+  }
   const [estado, formAction, pendente] = useActionState(confirmarOposicao, {})
   const [estDesistir, desistirAction, pendDesistir] = useActionState(desistir, {})
   const envio = useEnvioFormulario(desistirAction, estDesistir, {
@@ -132,11 +142,49 @@ export function OposicaoFlow({
     if (!matriculaEditada) setMatricula(vinculos.find((v) => v.fonteId === id)?.matricula ?? "")
   }
 
+  // O player do YouTube: liga o relógio no play, desliga na pausa e no fim.
   useEffect(() => {
-    if (etapa !== "video" || restante <= 0) return
-    const t = setInterval(() => setRestante((r) => Math.max(0, r - 1)), 1000)
+    if (etapa !== "video" || !embed || modoRelogio !== "player") return
+    let ativo = true
+    let player: { destroy(): void } | null = null
+    carregarYoutubeApi()
+      .then((YT) => {
+        if (!ativo || !iframeVideo.current) return
+        player = new YT.Player(iframeVideo.current, {
+          events: {
+            onStateChange: (e) => {
+              const agora = e.data === YT.PlayerState.PLAYING
+              setTocando(agora)
+              if (agora) avisarInicio()
+            },
+          },
+        })
+      })
+      .catch(() => {
+        // Sem a API: o relógio volta a contar com a página aberta.
+        if (!ativo) return
+        setModoRelogio("pagina")
+      })
+    return () => {
+      ativo = false
+      player?.destroy()
+    }
+    // avisarInicio só usa refs e a action.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [etapa, embed, modoRelogio])
+
+  // Sem player, o início conta da abertura da etapa do vídeo.
+  useEffect(() => {
+    if (etapa === "video" && modoRelogio === "pagina") avisarInicio()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [etapa, modoRelogio])
+
+  const contando = etapa === "video" && (modoRelogio === "pagina" || tocando)
+  useEffect(() => {
+    if (!contando) return
+    const t = setInterval(() => setAssistido((a) => a + 1), 1000)
     return () => clearInterval(t)
-  }, [etapa, restante])
+  }, [contando])
 
   // Ao sair do vídeo, o foco vai para o título da etapa nova: no teclado e no
   // leitor de tela a pessoa não fica num botão que sumiu.
@@ -155,8 +203,6 @@ export function OposicaoFlow({
     if (estado.erro) alertaErro.current?.scrollIntoView({ block: "center" })
   }, [estado])
 
-  const embed = idYoutube(videoUrl)
-
   if (etapa === "video") {
     const esperando = restante > 0
     return (
@@ -165,15 +211,16 @@ export function OposicaoFlow({
         <div className="grid gap-1">
           <h2 className="text-base font-semibold">Antes de decidir</h2>
           <p className="text-muted-foreground text-sm">
-            A entidade pede que você assista a este vídeo antes de decidir. Nada
-            é registrado nesta etapa.
+            A entidade pede que você assista a este vídeo antes de decidir. Sua
+            oposição ainda não é registrada nesta etapa.
           </p>
         </div>
 
         {embed ? (
           <div className="aspect-video w-full overflow-hidden rounded-lg border">
             <iframe
-              src={`https://www.youtube.com/embed/${embed}`}
+              ref={iframeVideo}
+              src={`https://www.youtube.com/embed/${embed}?enablejsapi=1&playsinline=1&rel=0`}
               title="Vídeo da entidade sobre a contribuição"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
               allowFullScreen
@@ -201,13 +248,26 @@ export function OposicaoFlow({
             {/* Os segundos ficam para quem enxerga; o leitor de tela ouve só
                 duas frases — a da espera e a da liberação (A129). */}
             <p aria-hidden className="text-muted-foreground text-center text-sm">
-              {esperando ? (
+              {!esperando ? (
+                "Pronto: você já pode prosseguir."
+              ) : modoRelogio === "player" ? (
                 <>
-                  O botão “Prosseguir com a oposição” libera em{" "}
-                  <span className="text-foreground font-semibold tabular-nums">{restante} s</span>.
+                  {tocando ? "" : assistido === 0 ? "Toque no play. " : "Vídeo pausado: o tempo só conta com o vídeo tocando. "}
+                  O botão “Prosseguir com a oposição” libera depois de{" "}
+                  <span className="text-foreground font-semibold tabular-nums">{formatarTempoVideo(minimo)}</span> de vídeo
+                  {assistido > 0 ? (
+                    <>
+                      {" "}
+                      (faltam <span className="text-foreground font-semibold tabular-nums">{formatarTempoVideo(restante)}</span>)
+                    </>
+                  ) : null}
+                  .
                 </>
               ) : (
-                "Pronto: você já pode prosseguir."
+                <>
+                  O botão “Prosseguir com a oposição” libera em{" "}
+                  <span className="text-foreground font-semibold tabular-nums">{formatarTempoVideo(restante)}</span>.
+                </>
               )}
             </p>
             <span id="espera-video" className="sr-only" aria-live="polite">
@@ -307,6 +367,7 @@ export function OposicaoFlow({
         className="grid gap-5"
       >
         <input type="hidden" name="campanha_id" value={campanha.id} />
+        <input type="hidden" name="video_assistido" value={assistido} />
         {estado.erro && (
           <Alert ref={alertaErro} variant="destructive">
             <AlertDescription>{estado.erro}</AlertDescription>

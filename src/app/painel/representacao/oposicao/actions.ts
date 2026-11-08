@@ -31,6 +31,7 @@ import {
   type PuladaLote,
 } from "@/lib/db/oposicao-gestao"
 import {
+  lerTempoVideo,
   MEIOS_ENVIO,
   MODOS_FORMALIZACAO,
   SITUACOES_CAMPANHA,
@@ -47,11 +48,6 @@ function texto(fd: FormData, campo: string): string {
 function ouNull(v: string): string | null {
   return v || null
 }
-function numero(fd: FormData, campo: string): number | null {
-  const v = texto(fd, campo)
-  return v && !Number.isNaN(Number(v)) ? Number(v) : null
-}
-
 /**
  * A permissão da ação na campanha (ou no padrão da entidade): com a decisão
  * "permissões separadas", configurar e avaliar pedem permissões próprias.
@@ -103,9 +99,9 @@ function lerDados(fd: FormData): Omit<DadosCampanha, "documento_modelo_url"> {
     situacao: lerSituacao(fd),
     texto_declaracao: ouNull(texto(fd, "texto_declaracao")),
     video_filiado_url: ouNull(texto(fd, "video_filiado_url")),
-    video_filiado_tempo: numero(fd, "video_filiado_tempo"),
+    video_filiado_tempo: lerTempoVideo(texto(fd, "video_filiado_tempo")),
     video_nao_filiado_url: ouNull(texto(fd, "video_nao_filiado_url")),
-    video_nao_filiado_tempo: numero(fd, "video_nao_filiado_tempo"),
+    video_nao_filiado_tempo: lerTempoVideo(texto(fd, "video_nao_filiado_tempo")),
     video_agradecimento_url: ouNull(texto(fd, "video_agradecimento_url")),
     fonteIds: fd.getAll("fonte").map(String).filter(Boolean),
     // Decisões jurídicas da campanha ("" = padrão da entidade).

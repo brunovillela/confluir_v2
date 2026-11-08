@@ -25,6 +25,7 @@ import {
 } from "@/lib/db/oposicao-ciencia"
 import { nomeEntidade } from "@/lib/db/organizacao"
 import { assinarCartaPeloConfluir, solicitarCodigoCarta } from "@/lib/db/oposicao-assinatura"
+import { registrarInicioDoVideo, segundosDesdeOInicioDoVideo } from "@/lib/db/oposicao-video"
 import { pendenciasDaOposicao } from "@/lib/db/portal-primeiro-acesso"
 import {
   avisarOposicaoRegistrada,
@@ -37,7 +38,7 @@ import {
   opcoesFontes,
   vinculosAtivos,
 } from "@/lib/db/oposicao"
-import { estadoPrazo, exigeDocumentoComRegras } from "@/lib/oposicao-constantes"
+import { estadoPrazo, exigeDocumentoComRegras, FOLGA_VIDEO_S, formatarTempoVideo } from "@/lib/oposicao-constantes"
 import { diagnosticarCodigoRecusado, emailDoCodigo } from "@/lib/auth-diagnostico"
 import { textoValidade } from "@/lib/auth-email-constantes"
 import { createClient } from "@/lib/supabase/server"
@@ -413,6 +414,23 @@ export async function confirmarOposicao(
       return { erro: "Confira os seus dados antes de confirmar. Recarregue a página." }
     }
   }
+  // Vídeo com tempo mínimo exigido (08/11/2026): conferido no servidor desde
+  // o primeiro play — editar a página não pula a espera.
+  const filiadoVideo = sessao.perfil === "filiado"
+  const videoTempo = filiadoVideo ? campanha.video_filiado_tempo : campanha.video_nao_filiado_tempo
+  const temVideo = Boolean(filiadoVideo ? campanha.video_filiado_url : campanha.video_nao_filiado_url) || Boolean(videoTempo)
+  const minimoVideo = campanha.regras.video_minimo === "exigir" && videoTempo && videoTempo > 0 ? videoTempo : 0
+  const desdeOPlay = temVideo ? await segundosDesdeOInicioDoVideo(campanhaId, sessao.cpf) : null
+  if (minimoVideo > 0) {
+    if (desdeOPlay == null) {
+      return { erro: "Assista ao vídeo da campanha antes de confirmar: toque no play. Recarregue a página." }
+    }
+    if (desdeOPlay + FOLGA_VIDEO_S < minimoVideo) {
+      return {
+        erro: `Assista ao vídeo até o fim do tempo indicado (${formatarTempoVideo(minimoVideo)}) antes de confirmar. Faltam ${formatarTempoVideo(minimoVideo - desdeOPlay) || "alguns segundos"}.`,
+      }
+    }
+  }
   // A fonte vem de um <select>, mas o valor é do navegador (A144): só vale
   // uma fonte DESTA campanha — editar a página não registra a oposição numa
   // empresa onde a pessoa não trabalha (a entidade envia as listas por fonte).
@@ -472,6 +490,22 @@ export async function confirmarOposicao(
     exigeDoc
   )
   if (erro || !id) return { erro: erro ?? "Falha ao registrar." }
+  // O vídeo na trilha da oposição: o que o navegador contou com o vídeo
+  // tocando (informado pela página) e o que o servidor mediu desde o play.
+  if (temVideo) {
+    const assistido = Math.max(0, Math.min(86_400, Math.floor(Number(texto(fd, "video_assistido")) || 0)))
+    await registrarEvento(
+      id,
+      "video_assistido",
+      [
+        `${assistido}s com o vídeo tocando (contados pela página)`,
+        desdeOPlay == null ? "sem play registrado" : `${desdeOPlay}s desde o primeiro play (servidor)`,
+        minimoVideo ? `mínimo exigido ${minimoVideo}s` : "tempo mínimo não exigido",
+      ].join(" · "),
+      ip,
+      ua
+    )
+  }
   // Comprovante por e-mail (A16), depois da resposta: o filiado também no
   // sino; o não filiado, no e-mail que confirmou com o código.
   avisarOposicaoRegistrada({
@@ -594,4 +628,14 @@ export async function assinarCarta(_prev: EstadoAssinarCarta, fd: FormData): Pro
 /** O formulário da carta tem dois botões: pedir o código ou assinar. */
 export async function acaoCartaConfluir(prev: EstadoAssinarCarta, fd: FormData): Promise<EstadoAssinarCarta> {
   return fd.get("intencao") === "codigo" ? pedirCodigoCarta(prev, fd) : assinarCarta(prev, fd)
+}
+
+
+/** Primeiro play no vídeo da campanha (08/11/2026): começa a contar no servidor. */
+export async function iniciarVideo(campanhaId: string): Promise<void> {
+  const sessao = await requireSessaoTrabalhador()
+  const r = await campanhaNoPrazo(campanhaId)
+  if ("erro" in r) return
+  const { ip, ua } = await rastro()
+  await registrarInicioDoVideo(campanhaId, sessao.cpf, sessao.perfil, ip, ua)
 }
