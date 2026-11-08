@@ -196,8 +196,19 @@ export const DECISOES_JURIDICAS = [
   {
     chave: "assinaturas_aceitas",
     rotulo: "Assinaturas aceitas na carta",
-    ajuda: "O Assinador gov.br pede conta prata ou ouro; o e-CPF (ICP-Brasil) é a alternativa para quem não tem.",
+    ajuda:
+      "Pelo Confluir, a pessoa assina na própria página, sem baixar nem reenviar arquivo: fica um certificado com QR code que os dois lados podem conferir. O Assinador gov.br pede conta prata ou ouro; o e-CPF (ICP-Brasil) é a alternativa para quem não tem.",
     opcoes: [
+      {
+        chave: "confluir",
+        rotulo: "Só pelo Confluir",
+        efeito: "A carta é assinada na página da oposição, com certificado e verificação pública. Não se baixa nem se envia PDF.",
+      },
+      {
+        chave: "confluir_ou_carta",
+        rotulo: "Confluir ou carta assinada no gov.br/e-CPF",
+        efeito: "O Confluir vem primeiro; quem preferir ainda pode assinar a carta no gov.br (ou com e-CPF) e enviar o PDF.",
+      },
       { chave: "govbr", rotulo: "Só gov.br", efeito: "Carta assinada com e-CPF fica como pendência na avaliação." },
       { chave: "govbr_icp", rotulo: "gov.br ou e-CPF (ICP-Brasil)", efeito: "As duas valem." },
     ],
@@ -252,6 +263,16 @@ export function rotuloOpcao(chave: ChaveDecisao, valor: string | null): string |
 export function valorDecisao(chave: ChaveDecisao, valor: string | null | undefined): string | null {
   const d = DECISOES_JURIDICAS.find((x) => x.chave === chave)
   return (d?.opcoes as readonly { chave: string }[] | undefined)?.some((o) => o.chave === valor) ? (valor as string) : null
+}
+
+/** A carta pode ser assinada pelo próprio Confluir (08/11/2026)? */
+export function assinaPeloConfluir(aceitas: string | null | undefined): boolean {
+  return aceitas === "confluir" || aceitas === "confluir_ou_carta"
+}
+
+/** A carta assinada fora (gov.br/e-CPF) e enviada em PDF ainda é aceita? */
+export function aceitaCartaEnviada(aceitas: string | null | undefined): boolean {
+  return aceitas !== "confluir"
 }
 
 /**

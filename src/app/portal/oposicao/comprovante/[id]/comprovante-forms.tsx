@@ -1,16 +1,17 @@
 "use client"
 
 import { useActionState, useRef, useState } from "react"
-import { Loader2, Printer, ShieldAlert, Upload } from "lucide-react"
+import { Loader2, Mail, PenLine, Printer, ShieldAlert, Upload } from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { TAMANHO_MAX_CARTA } from "@/lib/oposicao-constantes"
 
-import { enviarDocumento } from "../../actions"
+import { acaoCartaConfluir, enviarDocumento, type EstadoAssinarCarta } from "../../actions"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export function BotaoImprimir() {
@@ -167,6 +168,123 @@ export function EnviarDocumento({
           </Button>
         </div>
       )}
+    </form>
+  )
+}
+
+/**
+ * Assinar a carta pelo próprio Confluir (08/11/2026). Na mesma sessão em que
+ * o e-mail foi confirmado por código (dentro da janela da jornada), assina
+ * direto; depois disso, pede um código novo ao e-mail. O nome digitado e os
+ * dois aceites ficam no certificado.
+ */
+export function AssinarCartaConfluir({
+  opositorId,
+  nome,
+  emailMascarado,
+  dispensaCodigo,
+  codigoPendente,
+}: {
+  opositorId: string
+  nome: string | null
+  emailMascarado: string | null
+  dispensaCodigo: boolean
+  codigoPendente: boolean
+}) {
+  const [estado, formAction, pendente] = useActionState<EstadoAssinarCarta, FormData>(acaoCartaConfluir, {
+    precisaCodigo: !dispensaCodigo,
+  })
+  const envio = useEnvioFormulario(formAction, estado, { manter: true })
+  const [conteudo, setConteudo] = useState(false)
+  const [eletronico, setEletronico] = useState(false)
+  const precisaCodigo = Boolean(estado.precisaCodigo)
+  const codigoEnviado = Boolean(estado.codigoEnviadoPara) || codigoPendente
+  const idBase = `carta-${opositorId.slice(0, 8)}`
+  return (
+    <form action={formAction} {...envio} className="grid gap-4 print:hidden">
+      <input type="hidden" name="opositor_id" value={opositorId} />
+      {estado.erro && (
+        <Alert id={`${idBase}-erro`} variant="destructive" role="alert">
+          <AlertDescription>{estado.erro}</AlertDescription>
+        </Alert>
+      )}
+      <div className="grid gap-1.5">
+        <Label htmlFor={`${idBase}-nome`}>Seu nome completo</Label>
+        <Input
+          id={`${idBase}-nome`}
+          name="nome"
+          defaultValue={nome ?? ""}
+          autoComplete="name"
+          required
+          aria-describedby={`${idBase}-nome-dica`}
+        />
+        <p id={`${idBase}-nome-dica`} className="text-muted-foreground text-xs">
+          É o nome que aparece na assinatura e no certificado.
+        </p>
+      </div>
+      <label className="flex items-start gap-3 text-sm">
+        <Checkbox
+          name="aceite_conteudo"
+          checked={conteudo}
+          onCheckedChange={(v) => setConteudo(v === true)}
+          className="mt-0.5"
+        />
+        <span>Li a carta acima e quero me opor ao desconto.</span>
+      </label>
+      <label className="flex items-start gap-3 text-sm">
+        <Checkbox
+          name="aceite_eletronico"
+          checked={eletronico}
+          onCheckedChange={(v) => setEletronico(v === true)}
+          className="mt-0.5"
+        />
+        <span>
+          Aceito assinar eletronicamente. A assinatura fica registrada com data, hora, endereço IP e um certificado que
+          qualquer pessoa pode conferir.
+        </span>
+      </label>
+
+      {precisaCodigo && (
+        <div className="bg-muted/40 grid gap-3 rounded-md border p-3">
+          <p className="text-sm">
+            {codigoEnviado
+              ? `Enviamos um código de 6 dígitos para ${estado.codigoEnviadoPara ?? emailMascarado ?? "o seu e-mail"}. Ele vale por 10 minutos.`
+              : `Para confirmar que é você, enviamos um código de 6 dígitos para ${emailMascarado ?? "o e-mail do seu cadastro"}.`}
+          </p>
+          {codigoEnviado && (
+            <div className="grid gap-1.5">
+              <Label htmlFor={`${idBase}-codigo`}>Código</Label>
+              <Input
+                id={`${idBase}-codigo`}
+                name="codigo"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={7}
+                className="w-40 text-center font-mono text-lg tracking-widest"
+              />
+            </div>
+          )}
+          <div>
+            <Button type="submit" name="intencao" value="codigo" variant="outline" size="sm" disabled={pendente} formNoValidate>
+              <Mail />
+              {codigoEnviado ? "Enviar outro código" : "Enviar o código"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div>
+        <Button
+          type="submit"
+          name="intencao"
+          value="assinar"
+          disabled={pendente || !conteudo || !eletronico || (precisaCodigo && !codigoEnviado)}
+          size="lg"
+        >
+          {pendente ? <Loader2 className="animate-spin" /> : <PenLine />}
+          Assinar a carta
+        </Button>
+      </div>
     </form>
   )
 }

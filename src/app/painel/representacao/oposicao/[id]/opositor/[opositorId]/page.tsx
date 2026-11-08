@@ -153,7 +153,22 @@ export default async function OpositorPage({
               <p className="text-muted-foreground text-sm">Não foi possível gerar o link do arquivo.</p>
             )}
             <SeloAssinatura validacao={o.validacao} />
-            {podeAvaliar && <ReverificarAssinatura opositorId={o.id} campanhaId={id} />}
+            {/* Assinada pelo Confluir (08/11/2026): a prova é o certificado, não
+                uma assinatura PAdES no PDF — nada a reverificar. */}
+            {o.validacao?.origem === "confluir" ? (
+              o.validacao.certificado ? (
+                <div>
+                  <Button variant="outline" size="sm" asChild>
+                    <a href={`/verificar/${o.validacao.certificado}`} target="_blank" rel="noreferrer">
+                      <ExternalLink />
+                      Conferir o certificado {o.validacao.certificado}
+                    </a>
+                  </Button>
+                </div>
+              ) : null
+            ) : (
+              podeAvaliar && <ReverificarAssinatura opositorId={o.id} campanhaId={id} />
+            )}
           </CardContent>
         </Card>
       )}

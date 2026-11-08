@@ -24,6 +24,7 @@ import {
   orientacoesDaCampanha,
 } from "@/lib/db/oposicao-ciencia"
 import { nomeEntidade } from "@/lib/db/organizacao"
+import { assinarCartaPeloConfluir, solicitarCodigoCarta } from "@/lib/db/oposicao-assinatura"
 import { pendenciasDaOposicao } from "@/lib/db/portal-primeiro-acesso"
 import {
   avisarOposicaoRegistrada,
@@ -552,4 +553,45 @@ export async function enviarDocumento(
   // O comprovante mostra o resultado da conferência da assinatura e o link
   // para o PDF enviado — lidos do que acabou de ser gravado.
   redirect(`/portal/oposicao/comprovante/${opositorId}`)
+}
+
+// ── Carta assinada pelo próprio Confluir (08/11/2026) ────────────────────────
+
+export type EstadoAssinarCarta = EstadoForm & {
+  /** O código foi enviado (e-mail mascarado). */
+  codigoEnviadoPara?: string
+  /** A janela da sessão não vale: a tela passa a pedir o código. */
+  precisaCodigo?: boolean
+}
+
+export async function pedirCodigoCarta(_prev: EstadoAssinarCarta, fd: FormData): Promise<EstadoAssinarCarta> {
+  const sessao = await requireSessaoTrabalhador()
+  const { ip, ua } = await rastro()
+  const r = await solicitarCodigoCarta(String(fd.get("opositor_id") ?? ""), sessao, { ip, userAgent: ua })
+  if (r.erro) return { erro: r.erro, precisaCodigo: true }
+  return { codigoEnviadoPara: r.destino, precisaCodigo: true }
+}
+
+export async function assinarCarta(_prev: EstadoAssinarCarta, fd: FormData): Promise<EstadoAssinarCarta> {
+  const sessao = await requireSessaoTrabalhador()
+  const opositorId = String(fd.get("opositor_id") ?? "")
+  const { ip, ua } = await rastro()
+  const r = await assinarCartaPeloConfluir(
+    opositorId,
+    sessao,
+    {
+      codigo: (fd.get("codigo") as string | null) || null,
+      nome: String(fd.get("nome") ?? ""),
+      aceiteConteudo: fd.get("aceite_conteudo") === "on",
+      aceiteEletronico: fd.get("aceite_eletronico") === "on",
+    },
+    { ip, userAgent: ua }
+  )
+  if (r.erro) return { erro: r.erro, precisaCodigo: r.precisaCodigo ?? _prev.precisaCodigo, codigoEnviadoPara: _prev.codigoEnviadoPara }
+  redirect(`/portal/oposicao/comprovante/${opositorId}?assinada=1`)
+}
+
+/** O formulário da carta tem dois botões: pedir o código ou assinar. */
+export async function acaoCartaConfluir(prev: EstadoAssinarCarta, fd: FormData): Promise<EstadoAssinarCarta> {
+  return fd.get("intencao") === "codigo" ? pedirCodigoCarta(prev, fd) : assinarCarta(prev, fd)
 }

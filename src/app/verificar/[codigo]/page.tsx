@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { verificarCertificadoMinuta } from "@/lib/db/minuta-assinatura"
 import { verificarCertificadoRpa } from "@/lib/db/rpa-assinatura"
 import { verificarCertificadoAviso } from "@/lib/db/ferias-aviso"
+import { verificarCertificadoOposicao } from "@/lib/db/oposicao-assinatura"
 import { formatarMomento, verificarCertificado } from "@/lib/db/oficios-assinatura"
 import { formatarData } from "@/lib/formato"
 
@@ -32,6 +33,8 @@ export default async function VerificarCertificadoPage({
   if (recibo) return <VerificacaoContrato v={recibo} documento="recibo" />
   const aviso = await verificarCertificadoAviso(decodeURIComponent(codigo))
   if (aviso) return <VerificacaoContrato v={aviso} documento="aviso" />
+  const carta = await verificarCertificadoOposicao(decodeURIComponent(codigo))
+  if (carta) return <VerificacaoContrato v={carta} documento="carta" />
   const v = await verificarCertificado(decodeURIComponent(codigo))
 
   return (
@@ -205,10 +208,11 @@ function VerificacaoContrato({
   documento = "contrato",
 }: {
   v: NonNullable<Awaited<ReturnType<typeof verificarCertificadoMinuta>>>
-  /** O mesmo certificado serve ao contrato, ao recibo (RPA) e ao aviso de férias. */
-  documento?: "contrato" | "recibo" | "aviso"
+  /** O mesmo certificado serve ao contrato, ao recibo (RPA), ao aviso de férias e à carta de oposição. */
+  documento?: "contrato" | "recibo" | "aviso" | "carta"
 }) {
-  const doc = documento === "recibo" ? "recibo" : documento === "aviso" ? "aviso de férias" : "contrato"
+  const doc =
+    documento === "recibo" ? "recibo" : documento === "aviso" ? "aviso de férias" : documento === "carta" ? "carta de oposição" : "contrato"
   const valida = v.situacao === "assinado" && v.conteudoIntegro
   return (
     <main className="mx-auto w-full max-w-xl px-4 py-10">
@@ -221,7 +225,7 @@ function VerificacaoContrato({
           <Alert className="border-success/40 text-success-fg">
             <BadgeCheck />
             <AlertDescription>
-              Assinatura <strong>válida</strong>: corresponde a um {doc} assinado eletronicamente e o
+              Assinatura <strong>válida</strong>: corresponde {documento === "carta" ? "a uma" : "a um"} {doc} assinad{documento === "carta" ? "a" : "o"} eletronicamente e o
               conteúdo não foi alterado desde então.
               {documento !== "contrato" ? "" : v.concluida ? " Todas as partes assinaram." : " Ainda faltam assinaturas de outras partes."}
             </AlertDescription>
@@ -230,7 +234,7 @@ function VerificacaoContrato({
           <Alert variant="destructive">
             <AlertTriangle />
             <AlertDescription>
-              Esta pessoa assinou, mas o conteúdo do {doc} <strong>mudou depois</strong> ou o envio foi
+              Esta pessoa assinou, mas o conteúdo {documento === "carta" ? "da" : "do"} {doc} <strong>mudou depois</strong> ou o envio foi
               cancelado. Esta assinatura não vale para o conteúdo atual.
             </AlertDescription>
           </Alert>
@@ -267,7 +271,7 @@ function VerificacaoContrato({
           </CardContent>
         </Card>
         <p className="text-muted-foreground text-center text-xs">
-          A página de certificado ao fim do PDF do {doc} traz a trilha completa de cada assinatura:
+          A página de certificado ao fim do PDF {documento === "carta" ? "da" : "do"} {doc} traz a trilha completa de cada assinatura:
           envio, abertura, código de uso único, conferência do CPF e assinatura, com data, hora, IP e
           navegador.
         </p>

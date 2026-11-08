@@ -3,11 +3,8 @@ import { renderToBuffer } from "@react-pdf/renderer"
 
 import { requireSessaoTrabalhador } from "@/lib/auth"
 import { obterComprovante, registrarAcessoDoTitular } from "@/lib/db/oposicao"
-import { obterOrganizacao } from "@/lib/db/organizacao"
-import { formatarCnpjCpf } from "@/lib/formato"
+import { dadosDaCarta } from "@/lib/db/oposicao-assinatura"
 import { CartaOposicaoPDF } from "@/lib/pdf/carta-oposicao"
-
-import { logoDataUri } from "@/lib/pdf/logo-pdf"
 
 export const runtime = "nodejs"
 
@@ -28,23 +25,10 @@ export async function GET(
     )
   }
 
-  const org = await obterOrganizacao()
-  const logo = await logoDataUri(org?.logoUrl ?? null)
-
+  // Os mesmos dados da carta assinada pelo Confluir (o hash sai deles).
+  const { dados, logo } = await dadosDaCarta(c)
   const elemento = createElement(CartaOposicaoPDF, {
-    dados: {
-      organizacao: org?.nomeFantasia ?? org?.nomeRazao ?? null,
-      nome: c.nome,
-      cpf: c.cpf,
-      matricula: c.matricula,
-      empregador: c.empregadorNome,
-      empregadorCnpj: c.empregadorCnpj ? formatarCnpjCpf(c.empregadorCnpj) : null,
-      campanha: c.campanhaNome,
-      detalhe: c.detalhe_desconto,
-      declaracao: c.texto_declaracao,
-      protocolo: c.protocolo,
-      data: c.confirmado_em,
-    },
+    dados,
     logoDataUri: logo,
   }) as Parameters<typeof renderToBuffer>[0]
   const buffer = await renderToBuffer(elemento)

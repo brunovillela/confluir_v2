@@ -608,7 +608,7 @@ Envelope de assinatura eletrônica de um documento (ofício, termo de cessão), 
 | `canal` | text | não | `'email'::text` |  |  | Por onde o convite e o código de uso único foram entregues: email ou telegram. |
 | `telegram_chat_id` | text | sim |  |  | identificação |  |
 | `telegram_telefone` | text | sim |  |  | identificação |  |
-| `documento_tipo` | text | sim |  |  |  | oficio \| cessao \| minuta \| rpa \| ferias — define de onde sai o conteúdo assinado (documento_id) e o que acontece ao assinar. ferias: documento_id = pessoal_ferias_gozo.id (aviso de férias assinado pelo funcionário). |
+| `documento_tipo` | text | sim |  |  |  | oficio \| cessao \| minuta \| rpa \| ferias \| oposicao — define de onde sai o conteúdo assinado (documento_id) e o que acontece ao assinar. ferias: documento_id = pessoal_ferias_gozo.id (aviso de férias assinado pelo funcionário). oposicao: documento_id = oposicao_opositor.id (carta de oposição assinada pelo trabalhador no portal). |
 | `documento_id` | uuid | sim |  |  |  |  |
 | `ordem` | smallint | não | `1` |  |  | Ordem de assinatura. A cessão tem dois assinantes: cedente (1) e concessionário (2). |
 | `papel` | text | sim |  |  |  | Papel do assinante no documento (ex.: cedente, concessionário, signatário). |
@@ -617,7 +617,7 @@ Envelope de assinatura eletrônica de um documento (ofício, termo de cessão), 
 | `cpf_conferido_em` | timestamp with time zone | sim |  |  |  |  |
 | `rodada` | uuid | sim |  |  | nenhum | Envio do mesmo documento para vários assinantes ao mesmo tempo: os envelopes de um envio têm a mesma rodada. Nulo nos envios de um assinante só. |
 
-Checks: `ck_doc_assinaturas_papel` `CHECK (((papel IS NULL) OR (papel = ANY (ARRAY['cedente'::text, 'concessionario'::text, 'assinante'::text, 'contratante'::text, 'contratada'::text, 'testemunha'::text, 'prestador'::text])))) NOT VALID`; `ck_doc_assinaturas_tipo` `CHECK (((documento_tipo IS NULL) OR (documento_tipo = ANY (ARRAY['oficio'::text, 'cessao'::text, 'minuta'::text, 'rpa'::text, 'ferias'::text])))) NOT VALID`; `oficios_assinaturas_canal_check` `CHECK ((canal = ANY (ARRAY['email'::text, 'telegram'::text])))`; `oficios_assinaturas_situacao_check` `CHECK ((situacao = ANY (ARRAY['pendente'::text, 'assinado'::text, 'recusado'::text, 'cancelado'::text])))`
+Checks: `ck_doc_assinaturas_papel` `CHECK (((papel IS NULL) OR (papel = ANY (ARRAY['cedente'::text, 'concessionario'::text, 'assinante'::text, 'contratante'::text, 'contratada'::text, 'testemunha'::text, 'prestador'::text])))) NOT VALID`; `ck_doc_assinaturas_tipo` `CHECK (((documento_tipo IS NULL) OR (documento_tipo = ANY (ARRAY['oficio'::text, 'cessao'::text, 'minuta'::text, 'rpa'::text, 'ferias'::text, 'oposicao'::text])))) NOT VALID`; `oficios_assinaturas_canal_check` `CHECK ((canal = ANY (ARRAY['email'::text, 'telegram'::text])))`; `oficios_assinaturas_situacao_check` `CHECK ((situacao = ANY (ARRAY['pendente'::text, 'assinado'::text, 'recusado'::text, 'cancelado'::text])))`
 
 Índices: `documento_assinaturas_rodada_idx`, `idx_doc_assinaturas_documento`, `idx_oficios_assinaturas_oficio`, `oficios_assinaturas_pkey`, `ux_oficios_assinaturas_certificado`, `ux_oficios_assinaturas_token`
 

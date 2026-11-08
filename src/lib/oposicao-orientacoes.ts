@@ -1,4 +1,10 @@
-import { exigeDocumentoComRegras, type ModoFormalizacao, type RegrasOposicao } from "@/lib/oposicao-constantes"
+import {
+  aceitaCartaEnviada,
+  assinaPeloConfluir,
+  exigeDocumentoComRegras,
+  type ModoFormalizacao,
+  type RegrasOposicao,
+} from "@/lib/oposicao-constantes"
 
 /**
  * Oposição: o que a pessoa lê antes de se opor (pedido do Bruno, 30/10/2026)
@@ -81,17 +87,22 @@ export function instrucoesDaCampanha(c: CampanhaParaOrientacao, filiado: boolean
   if (c.temQuestionario) itens.push("Responda às perguntas da campanha.")
   itens.push("Leia a declaração de oposição e confirme. Você recebe um comprovante com número de protocolo na tela e no e-mail.")
   if (exigeCarta) {
+    // Assinatura pelo próprio Confluir (08/11/2026): sem baixar nem enviar PDF.
     itens.push(
-      `A oposição só vale com a carta. Depois de confirmar, baixe a carta em PDF, assine ${textoAssinatura(c.regras)} e envie o PDF assinado pelo comprovante.`
+      assinaPeloConfluir(c.regras.assinaturas_aceitas)
+        ? `A oposição só vale com a carta assinada. Depois de confirmar, assine a carta ali mesmo, no comprovante: leia, marque os aceites e assine. Não é preciso baixar nem enviar arquivo; se você voltar outro dia, um código chega no seu e-mail para confirmar que é você.${aceitaCartaEnviada(c.regras.assinaturas_aceitas) ? " Se preferir, ainda pode baixar a carta, assinar no gov.br ou com e-CPF e enviar o PDF." : ""}`
+        : `A oposição só vale com a carta. Depois de confirmar, baixe a carta em PDF, assine ${textoAssinatura(c.regras)} e envie o PDF assinado pelo comprovante.`
     )
     itens.push(
       c.regras.carta_fora_prazo === "recusar"
         ? `A carta assinada precisa chegar até ${data(c.prazo_fim)}. Depois dessa data o sistema não recebe mais a carta, e a oposição sem carta pode ser encerrada como não aceita.`
         : `Envie a carta assinada até ${data(c.prazo_fim)}. A carta que chegar depois fica registrada como fora do prazo, e a entidade decide se a aceita.`
     )
-    itens.push(
-      "Assinatura escaneada, foto da carta, assinatura feita no celular sem o gov.br ou PDF de outra pessoa não valem."
-    )
+    if (aceitaCartaEnviada(c.regras.assinaturas_aceitas)) {
+      itens.push(
+        "Na carta enviada em PDF, assinatura escaneada, foto da carta, assinatura feita no celular sem o gov.br ou PDF de outra pessoa não valem."
+      )
+    }
   }
   itens.push(
     "O sindicato confere cada oposição. Você acompanha a situação pelo comprovante (Em análise, Aceita ou Não aceita) e é avisado por e-mail."
@@ -186,9 +197,38 @@ export function perguntasDeAcesso(entidade: string): PerguntaFrequente[] {
 }
 
 function perguntasDaCarta(c: CampanhaParaOrientacao): PerguntaFrequente[] {
-  return [
+  const confluir = assinaPeloConfluir(c.regras.assinaturas_aceitas)
+  const enviada = aceitaCartaEnviada(c.regras.assinaturas_aceitas)
+  const peloConfluir: PerguntaFrequente[] = confluir
+    ? [
+        {
+          pergunta: "Como assino a carta?",
+          resposta:
+            'No próprio comprovante, logo depois de registrar a oposição: leia a carta, confira o seu nome, marque os dois aceites e toque em "Assinar a carta". Não é preciso baixar nem enviar arquivo. Se você voltar outro dia, o sistema manda um código de 6 dígitos para o seu e-mail para confirmar que é você.',
+        },
+        {
+          pergunta: "A assinatura pelo sistema vale?",
+          resposta:
+            "Vale: é uma assinatura eletrônica aceita pela entidade nesta campanha. Fica registrada com data, hora, endereço IP e o resumo do conteúdo assinado, e gera um PDF com certificado e QR code. Você e a entidade ficam com o mesmo PDF, e qualquer pessoa pode conferir a assinatura pelo código do certificado.",
+        },
+      ]
+    : []
+  if (!enviada) {
+    return [
+      ...peloConfluir,
       {
-        pergunta: "Como assino a carta pelo gov.br?",
+        pergunta: "Até quando posso assinar a carta?",
+        resposta:
+          c.regras.carta_fora_prazo === "recusar"
+            ? `Até ${data(c.prazo_fim)}. Depois disso o sistema não aceita mais a assinatura, e a oposição sem carta pode ser encerrada como não aceita.`
+            : `Até ${data(c.prazo_fim)}. A carta assinada depois fica marcada como fora do prazo, e a entidade decide se a aceita.`,
+      },
+    ]
+  }
+  return [
+      ...peloConfluir,
+      {
+        pergunta: confluir ? "Prefiro assinar pelo gov.br. Como faço?" : "Como assino a carta pelo gov.br?",
         resposta:
           'Baixe a carta em PDF pelo comprovante. Abra o Assinador do gov.br (assinador.iti.br) com a sua conta gov.br prata ou ouro, envie o PDF, assine e baixe o arquivo assinado. Depois, volte ao comprovante e envie esse PDF em "Enviar a carta assinada".',
       },
@@ -269,11 +309,15 @@ export function textosDivulgacao(p: {
   const cartaNaoFiliado = exigeDocumentoComRegras(c.modo_formalizacao, false, c.regras)
   const assinatura =
     c.regras.assinaturas_aceitas === "govbr" ? "no gov.br (conta prata ou ouro)" : "no gov.br (conta prata ou ouro) ou com e-CPF"
+  // Pelo Confluir (08/11/2026): assina na própria página, sem arquivo.
+  const passo = assinaPeloConfluir(c.regras.assinaturas_aceitas)
+    ? "assinar a carta ali mesmo, no próprio sistema (sem baixar nem enviar arquivo)"
+    : `baixar a carta, assinar ${assinatura} e enviar pelo próprio sistema`
   const carta =
     cartaFiliado && cartaNaoFiliado
-      ? `Depois de registrar, é preciso baixar a carta, assinar ${assinatura} e enviar pelo próprio sistema, também até ${data(c.prazo_fim)}.`
+      ? `Depois de registrar, é preciso ${passo}, também até ${data(c.prazo_fim)}.`
       : cartaNaoFiliado
-        ? `Quem não é filiado precisa, depois de registrar, baixar a carta, assinar ${assinatura} e enviar pelo próprio sistema, até ${data(c.prazo_fim)}.`
+        ? `Quem não é filiado precisa, depois de registrar, ${passo}, até ${data(c.prazo_fim)}.`
         : null
   const nome = p.campanhaNome ?? "contribuição assistencial"
   const whatsapp = [

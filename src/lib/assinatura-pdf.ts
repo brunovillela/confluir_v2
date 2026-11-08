@@ -54,6 +54,13 @@ export type ValidacaoAssinatura = {
   cpfConfere: boolean | null
   verificadoEm: string
   versao: 1
+  /**
+   * "confluir": a carta foi assinada no próprio Confluir (oposição,
+   * 08/11/2026) — não há assinatura PAdES no PDF para o validador ler; a
+   * prova é o certificado em documento_assinaturas (/verificar/<certificado>).
+   */
+  origem?: "confluir"
+  certificado?: string
 }
 
 // ── DER ──────────────────────────────────────────────────────────────────────

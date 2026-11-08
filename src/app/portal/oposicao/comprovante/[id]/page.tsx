@@ -28,11 +28,13 @@ import { requireSessaoTrabalhador } from "@/lib/auth"
 import { hojeSP } from "@/lib/db/comum"
 import { minhaOposicao, obterCampanhaPublica, obterComprovante, registrarAcessoDoTitular, type Comprovante } from "@/lib/db/oposicao"
 import { orientacoesDaCampanha } from "@/lib/db/oposicao-ciencia"
+import { dadosDaCarta, estadoDaAssinaturaCarta, type EstadoAssinaturaCarta } from "@/lib/db/oposicao-assinatura"
+import type { DadosCartaOposicao } from "@/lib/pdf/carta-oposicao"
 import { nomeEntidade, obterOrganizacao } from "@/lib/db/organizacao"
 import { configDoPortal } from "@/lib/db/portal-partes"
 import { formatarCnpjCpf, formatarData, formatarDataHora } from "@/lib/formato"
 import { mascaraCpf } from "@/lib/mascaras"
-import { estadoPrazo } from "@/lib/oposicao-constantes"
+import { aceitaCartaEnviada, assinaPeloConfluir, estadoPrazo } from "@/lib/oposicao-constantes"
 import { origemAtual } from "@/lib/tenant-url"
 import { regrasDaCampanha } from "@/lib/db/oposicao-regras"
 import { getVisualizacaoPortal } from "@/lib/visualizacao-filiado"
@@ -44,7 +46,7 @@ import {
   VARIANTE_SITUACAO_PORTAL,
 } from "../../situacao-portal"
 import { PerguntasFrequentes } from "../../orientacoes"
-import { BotaoImprimir, EnviarDocumento } from "./comprovante-forms"
+import { AssinarCartaConfluir, BotaoImprimir, EnviarDocumento } from "./comprovante-forms"
 
 export const metadata: Metadata = { title: "Comprovante de oposição" }
 
@@ -85,6 +87,14 @@ export default async function ComprovantePage({
   // Decisões jurídicas da campanha: carta depois do prazo e assinaturas aceitas.
   const { efetivas: regras } = await regrasDaCampanha(c.campanhaId)
   const cartaForaRecusada = regras.carta_fora_prazo === "recusar"
+  // Assinatura pelo próprio Confluir (08/11/2026): disponível conforme a
+  // decisão "assinaturas aceitas"; a carta enviada em PDF fica como
+  // alternativa (confluir_ou_carta) ou some (confluir).
+  const assinaConfluir = aguardando && assinaPeloConfluir(regras.assinaturas_aceitas)
+  const aceitaCarta = aceitaCartaEnviada(regras.assinaturas_aceitas)
+  const [estadoCarta, dadosCarta] = assinaConfluir
+    ? await Promise.all([estadoDaAssinaturaCarta(c, sessao, regras.assinaturas_aceitas), dadosDaCarta(c).then((d) => d.dados)])
+    : [null, null]
   // "Não quero me opor" não é oposição: nada de "Oposição registrada" nem de
   // comprovante para imprimir — só a escolha e, no prazo, o caminho de volta.
   const desistente = c.situacao === "desistente"
@@ -142,6 +152,95 @@ export default async function ComprovantePage({
     </div>
   ) : null
 
+  // Passos da carta assinada fora (gov.br/e-CPF) e enviada em PDF.
+  const passosCarta = (
+    <ol className="grid list-decimal gap-3 pl-5 text-sm">
+      <li>
+        <p>Baixe a sua carta de oposição, já preenchida com seus dados.</p>
+        <div className="mt-2 grid gap-1.5">
+          <Button variant="outline" asChild className="w-fit">
+            <a
+              href={`/portal/oposicao/comprovante/${c.id}/carta`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Download />
+              Baixar carta (PDF)
+            </a>
+          </Button>
+          {/* O modelo que a gestão cadastrou na campanha chega ao
+              trabalhador, como alternativa à carta gerada — um
+              documento só é assinado e enviado. */}
+          {c.modeloUrl && (
+            <p className="text-muted-foreground text-xs">
+              A entidade também oferece um modelo próprio:{" "}
+              <a
+                href={c.modeloUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary underline underline-offset-4"
+              >
+                baixar o modelo da entidade (PDF)
+              </a>
+              . Assine e envie só um dos dois documentos.
+            </p>
+          )}
+        </div>
+      </li>
+      <li>
+        <p>
+          Assine a carta no{" "}
+          <a
+            href={ASSINADOR_GOVBR}
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary inline-flex items-center gap-1 underline underline-offset-4"
+          >
+            Assinador gov.br
+            <ExternalLink className="size-3" />
+            <span className="sr-only">(abre em outra aba)</span>
+          </a>
+          .
+        </p>
+        <p className="text-muted-foreground mt-1 text-xs">
+          É gratuito e pede uma conta gov.br nível prata ou ouro. Assine com a
+          SUA conta: o CPF da assinatura precisa ser o seu. O gov.br devolve
+          um arquivo novo, já assinado — é ele que você envia.
+          {regras.assinaturas_aceitas === "govbr_icp"
+            ? " Sem conta prata ou ouro? A carta também pode ser assinada com certificado digital e-CPF (ICP-Brasil)."
+            : " Esta campanha aceita só a assinatura do gov.br."}
+        </p>
+        <PassoAPassoAssinador />
+      </li>
+      <li>
+        <p>
+          Envie aqui o PDF assinado
+          {c.prazo_fim && prazo === "aberto" ? ` até ${formatarData(c.prazo_fim)}` : ""}.
+        </p>
+        <div className="mt-2">
+          {!(cartaForaRecusada && prazo === "depois") && (
+            <EnviarDocumento opositorId={c.id} campanhaId={c.campanhaId} />
+          )}
+        </div>
+      </li>
+    </ol>
+  )
+  const blocoAssinatura = !assinaConfluir ? (
+    passosCarta
+  ) : (
+    <div className="grid gap-5">
+      <AssinarPeloConfluir c={c} estado={estadoCarta} dadosCarta={dadosCarta} bloqueada={cartaForaRecusada && prazo === "depois"} />
+      {aceitaCarta && (
+        <details className="rounded-md border px-3 print:hidden">
+          <summary className="text-primary focus-visible:ring-ring/50 flex min-h-11 cursor-pointer items-center rounded-md text-sm font-medium underline-offset-4 outline-none hover:underline focus-visible:ring-3">
+            Prefere assinar no gov.br e enviar o PDF?
+          </summary>
+          <div className="pb-3">{passosCarta}</div>
+        </details>
+      )}
+    </div>
+  )
+
   const conteudo = desistente ? (
     <Card>
       <CardHeader>
@@ -193,7 +292,7 @@ export default async function ComprovantePage({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <FileWarning className="text-warning-fg size-5" />
-          <h1 className="text-base font-semibold">Falta enviar a carta assinada</h1>
+          <h1 className="text-base font-semibold">{assinaConfluir ? "Falta assinar a carta" : "Falta enviar a carta assinada"}</h1>
         </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-5">
@@ -201,11 +300,11 @@ export default async function ComprovantePage({
           Sua oposição foi registrada (protocolo{" "}
           <strong className="tabular-nums">{c.protocolo ?? "—"}</strong>, em{" "}
           {formatarDataHora(c.confirmado_em)}), mas só é avaliada depois que a
-          carta assinada no gov.br chegar
+          {assinaConfluir ? " carta for assinada" : " carta assinada no gov.br chegar"}
           {c.prazo_fim && prazo === "aberto" ? (
             <>
               {" "}
-              — envie até <strong>{formatarData(c.prazo_fim)}</strong>
+              — {assinaConfluir ? "assine" : "envie"} até <strong>{formatarData(c.prazo_fim)}</strong>
             </>
           ) : null}
           .
@@ -228,77 +327,8 @@ export default async function ComprovantePage({
           </Alert>
         )}
 
-        {/* Os passos do gov.br com o link e o que é preciso (A105). */}
-        <ol className="grid list-decimal gap-3 pl-5 text-sm">
-          <li>
-            <p>Baixe a sua carta de oposição, já preenchida com seus dados.</p>
-            <div className="mt-2 grid gap-1.5">
-              <Button variant="outline" asChild className="w-fit">
-                <a
-                  href={`/portal/oposicao/comprovante/${c.id}/carta`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <Download />
-                  Baixar carta (PDF)
-                </a>
-              </Button>
-              {/* O modelo que a gestão cadastrou na campanha chega ao
-                  trabalhador, como alternativa à carta gerada — um
-                  documento só é assinado e enviado. */}
-              {c.modeloUrl && (
-                <p className="text-muted-foreground text-xs">
-                  A entidade também oferece um modelo próprio:{" "}
-                  <a
-                    href={c.modeloUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-primary underline underline-offset-4"
-                  >
-                    baixar o modelo da entidade (PDF)
-                  </a>
-                  . Assine e envie só um dos dois documentos.
-                </p>
-              )}
-            </div>
-          </li>
-          <li>
-            <p>
-              Assine a carta no{" "}
-              <a
-                href={ASSINADOR_GOVBR}
-                target="_blank"
-                rel="noreferrer"
-                className="text-primary inline-flex items-center gap-1 underline underline-offset-4"
-              >
-                Assinador gov.br
-                <ExternalLink className="size-3" />
-                <span className="sr-only">(abre em outra aba)</span>
-              </a>
-              .
-            </p>
-            <p className="text-muted-foreground mt-1 text-xs">
-              É gratuito e pede uma conta gov.br nível prata ou ouro. Assine com a
-              SUA conta: o CPF da assinatura precisa ser o seu. O gov.br devolve
-              um arquivo novo, já assinado — é ele que você envia.
-              {regras.assinaturas_aceitas === "govbr_icp"
-                ? " Sem conta prata ou ouro? A carta também pode ser assinada com certificado digital e-CPF (ICP-Brasil)."
-                : " Esta campanha aceita só a assinatura do gov.br."}
-            </p>
-            <PassoAPassoAssinador />
-          </li>
-          <li>
-            <p>
-              Envie aqui o PDF assinado
-              {c.prazo_fim && prazo === "aberto" ? ` até ${formatarData(c.prazo_fim)}` : ""}.
-            </p>
-            <div className="mt-2">
-              {!(cartaForaRecusada && prazo === "depois") && (
-                <EnviarDocumento opositorId={c.id} campanhaId={c.campanhaId} />
-              )}
-            </div>
-          </li>
-        </ol>
+        {/* Como assinar: pelo Confluir (08/11/2026), pela carta no gov.br (A105), ou os dois. */}
+        {blocoAssinatura}
 
         <OQueAcontece filiado={filiado} faltaCarta />
 
@@ -512,6 +542,84 @@ function PassoAPassoAssinador() {
   )
 }
 
+/**
+ * Assinar a carta aqui mesmo, pelo Confluir (08/11/2026): o texto da carta
+ * para ler e o formulário (nome, aceites e, fora da janela da sessão, o
+ * código). Sem baixar nem enviar arquivo.
+ */
+function AssinarPeloConfluir({
+  c,
+  estado,
+  dadosCarta,
+  bloqueada,
+}: {
+  c: Comprovante
+  estado: EstadoAssinaturaCarta | null
+  dadosCarta: DadosCartaOposicao | null
+  bloqueada: boolean
+}) {
+  return (
+    <section aria-labelledby="assinar-confluir" className="grid gap-4">
+      <div className="grid gap-1">
+        <h2 id="assinar-confluir" className="text-sm font-semibold">
+          Assine a carta aqui mesmo
+        </h2>
+        <p className="text-muted-foreground text-sm">
+          Sem baixar nem enviar arquivo. Leia a carta, confirme e assine: você e a entidade ficam com o PDF assinado e
+          um certificado que qualquer pessoa pode conferir.
+        </p>
+      </div>
+      {dadosCarta && <CartaParaLer d={dadosCarta} />}
+      {bloqueada ? (
+        <Alert variant="warning">
+          <AlertDescription>O prazo para assinar a carta terminou. Fale com a entidade.</AlertDescription>
+        </Alert>
+      ) : (
+        <AssinarCartaConfluir
+          opositorId={c.id}
+          nome={c.nome}
+          emailMascarado={estado?.emailMascarado ?? null}
+          dispensaCodigo={Boolean(estado?.prova.dispensaCodigo)}
+          codigoPendente={Boolean(estado?.codigoPendente)}
+        />
+      )}
+    </section>
+  )
+}
+
+/** O texto da carta na tela — o mesmo do PDF (lib/pdf/carta-oposicao). */
+function CartaParaLer({ d }: { d: DadosCartaOposicao }) {
+  const alvo = d.detalhe || "contribuição assistencial"
+  return (
+    <div className="bg-muted/40 grid gap-3 rounded-md border p-4 text-sm">
+      <p className="text-center text-xs font-semibold tracking-wide uppercase">
+        Carta de oposição à contribuição assistencial
+      </p>
+      <p>
+        Eu, <strong>{d.nome ?? "—"}</strong>, inscrito(a) no CPF sob o nº{" "}
+        <strong className="tabular-nums">{d.cpf ? mascaraCpf(d.cpf) : "—"}</strong>
+        {d.matricula ? `, matrícula ${d.matricula}` : ""}, trabalhador(a)
+        {d.empregador ? (
+          <>
+            {" "}
+            vinculado(a) à fonte pagadora <strong>{d.empregador}</strong>
+            {d.empregadorCnpj ? `, CNPJ ${d.empregadorCnpj}` : ""}
+          </>
+        ) : null}
+        , venho, pela presente, manifestar de forma livre e expressa a minha <strong>OPOSIÇÃO</strong> ao desconto{" "}
+        {d.detalhe ? `de ${alvo}` : `da ${alvo}`}
+        {d.campanha ? ` (${d.campanha})` : ""}, nos termos da legislação vigente.
+      </p>
+      {d.declaracao && <p className="bg-background rounded border p-3 text-xs whitespace-pre-wrap">{d.declaracao}</p>}
+      <p>
+        Declaro estar ciente de que esta manifestação será encaminhada à entidade sindical e submetida à avaliação
+        cabível.
+      </p>
+      {d.protocolo != null && <p className="text-muted-foreground text-xs">Protocolo: {d.protocolo}</p>}
+    </div>
+  )
+}
+
 function Campo({ rotulo, valor }: { rotulo: string; valor: string | null }) {
   return (
     <div>
@@ -624,7 +732,10 @@ function OQueAcontece({ filiado, faltaCarta = false }: { filiado: boolean; falta
  * dito ao trabalhador (indicativo — quem decide é a entidade), o link para o
  * PDF enviado e, em análise e no prazo, a troca do arquivo.
  */
-function DocumentoEnviado({ c, podeTrocar }: { c: Comprovante; podeTrocar: boolean }) {
+function DocumentoEnviado({ c, podeTrocar: podeTrocarArquivo }: { c: Comprovante; podeTrocar: boolean }) {
+  // Assinada pelo Confluir: não há arquivo a trocar; há o certificado.
+  const peloConfluir = c.validacao?.origem === "confluir"
+  const podeTrocar = podeTrocarArquivo && !peloConfluir
   // A conferência automática só serve enquanto a entidade não decidiu: numa
   // oposição já aceita, "a entidade pode não aceitar o documento" assustaria
   // à toa; numa não aceita, o motivo de verdade está no resultado acima.
@@ -638,7 +749,8 @@ function DocumentoEnviado({ c, podeTrocar }: { c: Comprovante; podeTrocar: boole
         Carta assinada
       </h2>
       <p className="text-sm">
-        Recebida{c.documentoRecebidoEm ? ` em ${formatarDataHora(c.documentoRecebidoEm)}` : ""}.
+        {peloConfluir ? "Assinada" : "Recebida"}
+        {c.documentoRecebidoEm ? ` em ${formatarDataHora(c.documentoRecebidoEm)}` : ""}.
       </p>
       {conferencia && (
         <Alert variant={conferencia.variante} className="print:hidden">
@@ -650,9 +762,23 @@ function DocumentoEnviado({ c, podeTrocar }: { c: Comprovante; podeTrocar: boole
         <Button variant="outline" asChild className="w-fit print:hidden">
           <a href={c.documentoUrl} target="_blank" rel="noreferrer">
             <FileText />
-            Ver o PDF enviado
+            {peloConfluir ? "Baixar a carta assinada" : "Ver o PDF enviado"}
           </a>
         </Button>
+      )}
+      {peloConfluir && c.validacao?.certificado && (
+        <p className="text-muted-foreground text-xs">
+          Qualquer pessoa pode conferir a assinatura em{" "}
+          <a
+            href={`/verificar/${c.validacao.certificado}`}
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary underline underline-offset-4"
+          >
+            /verificar/{c.validacao.certificado}
+          </a>
+          .
+        </p>
       )}
       {podeTrocar &&
         (conferencia?.problema ? (
@@ -681,6 +807,14 @@ function conferenciaDaAssinatura(
   problema: boolean
 } | null {
   if (!v) return null
+  if (v.origem === "confluir") {
+    return {
+      variante: "success",
+      Icone: BadgeCheck,
+      texto: `Carta assinada por você aqui no Confluir${v.certificado ? ` (certificado ${v.certificado})` : ""}. A entidade analisa a sua oposição.`,
+      problema: false,
+    }
+  }
   const reenviar = ate
     ? ` Você pode enviar outro arquivo até ${formatarData(ate)}.`
     : " Se precisar, fale com a entidade."

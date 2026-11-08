@@ -2001,12 +2001,17 @@ export async function reverificarAssinaturaOposicao(
   const admin = await createAdminClient()
   const { data: o } = await admin
     .from("oposicao_opositor")
-    .select("id, cpf, campanha_id, documento_assinado_url, carta")
+    .select("id, cpf, campanha_id, documento_assinado_url, carta, assinatura_validacao")
     .eq("id", id)
     .eq("emp_proprietaria_id", empId)
     .maybeSingle()
   const caminho = texto(o?.documento_assinado_url) ?? texto(o?.carta)
   if (!o || !caminho) return { erro: "Esta oposição não tem carta assinada." }
+  // Assinada pelo próprio Confluir (08/11/2026): o PDF não traz assinatura
+  // PAdES para o validador ler — a prova é o certificado (/verificar).
+  if ((o.assinatura_validacao as ValidacaoAssinatura | null)?.origem === "confluir") {
+    return { erro: "Esta carta foi assinada pelo Confluir: confira pelo certificado, não pelo PDF." }
+  }
   let bytes: Uint8Array
   if (/^(https?:)?\/\//.test(caminho)) {
     const url = new URL(caminho.startsWith("//") ? `https:${caminho}` : caminho)
