@@ -15,6 +15,10 @@ O schema é versionado com a CLI do Supabase (ver `supabase/LEIA-ME.md`).
 - `SUPABASE_DB_URL` (no `.env.local`) nunca é impressa nem colada em comandos visíveis; os scripts `db.mjs` e `linha-de-base-schema.mjs` a leem sozinhos.
 - Comentários antigos que citam `supabase/<nome>.sql` apontam para `supabase/historico/<nome>.sql` (seeds do demo: `supabase/seed/demo/`).
 
+# O que há de novo
+
+- Deploy com mudança que o usuário vê ganha um item em `src/lib/novidades.ts`, em linguagem de usuário, no mesmo commit: na entrada do dia, ou numa entrada nova no topo com a data (o `id` novo é o que dispara o aviso). Depois, `npm run produto:notas` regenera `docs/produto/notas-de-versao.md` (ADR 0024).
+
 # Dados pessoais e fornecedores
 
 - Integração nova que receba dado pessoal (API, SDK, webhook, IA, e-mail, analytics) entra em `docs/lgpd/suboperadores.md` e em `SUBOPERADORES` de `docs/lgpd/processos.mjs` antes de ir ao ar.
