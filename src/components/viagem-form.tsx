@@ -390,7 +390,8 @@ export function ViagemForm({
                       <IconePassagem modal={item.modal} className="text-muted-foreground size-4" />
                       Item {indice + 1} — passagem
                     </legend>
-                    {itens.length > 1 && (
+                    {/* Qualquer item sai, até a passagem que já vem aberta: dá para pedir só hospedagem. */}
+                    {(
                       <Button
                         type="button"
                         variant="ghost"
@@ -492,7 +493,8 @@ export function ViagemForm({
                       <BedDouble className="text-muted-foreground size-4" />
                       Item {indice + 1} — hospedagem
                     </legend>
-                    {itens.length > 1 && (
+                    {/* Qualquer item sai, até a passagem que já vem aberta: dá para pedir só hospedagem. */}
+                    {(
                       <Button
                         type="button"
                         variant="ghost"
@@ -541,6 +543,11 @@ export function ViagemForm({
               )
             )}
 
+            {itens.length === 0 && (
+              <p className="text-muted-foreground rounded-lg border border-dashed p-4 text-center text-sm">
+                Nenhum item ainda. Acrescente uma passagem, uma hospedagem ou os dois.
+              </p>
+            )}
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"

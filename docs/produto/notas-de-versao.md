@@ -6,10 +6,12 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 
 ## 09/11/2026 — Remessas do Pessoal mais fáceis de arrumar
 
+- Jornadas de trabalho: configure as jornadas da entidade uma vez e vincule os funcionários a elas, vários de uma vez. Mudou o horário? Altere a jornada e vale para todos os vinculados (Pessoal → Atribuições e SST → Jornadas de trabalho).
 - Contracheques e ponto: transferir um contracheque ou um registro de ponto para outra remessa aberta, pelo botão Transferir na linha.
 - Remessa vazia de contracheques ou de ponto pode ser excluída pelo botão no alto da remessa, mesmo finalizada.
 - Aquisição: a proposta da cotação e o arquivo do contrato aceitam PDF de até 3,8 MB, e o arquivo maior é recusado na hora, com a explicação. Antes, um PDF grande derrubava a tela com "Algo deu errado".
 - Recebimentos: descrição longa em até duas linhas, valor e Registrar chegada sempre à direita, e selo de atraso quando a previsão de entrega passou.
+- Viagens: dá para pedir só hospedagem. A passagem que o formulário traz aberto pode ser removida, como qualquer item.
 - Filiação → Controle de envio: registrar que uma empresa não tem valores a repassar (por exemplo, todos se desfiliaram), para o controle parar de cobrar a relação até o desconto voltar.
 
 ## 08/11/2026 — Financeiro em dia, oposição pronta e contratos saudáveis
