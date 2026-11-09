@@ -11,7 +11,7 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 - Remessa vazia de contracheques ou de ponto pode ser excluída pelo botão no alto da remessa, mesmo finalizada.
 - Aquisição: a proposta da cotação e o arquivo do contrato aceitam PDF de até 3,8 MB, e o arquivo maior é recusado na hora, com a explicação. Antes, um PDF grande derrubava a tela com "Algo deu errado".
 - Recebimentos: descrição longa em até duas linhas, valor e Registrar chegada sempre à direita, e selo de atraso quando a previsão de entrega passou.
-- Viagens: dá para pedir só hospedagem. A passagem que o formulário traz aberto pode ser removida, como qualquer item.
+- Viagens: dá para pedir só hospedagem. No alto do formulário, em O que precisa, escolha Passagem, Passagem e hospedagem ou Só hospedagem; qualquer item também pode ser removido.
 - Filiação → Controle de envio: registrar que uma empresa não tem valores a repassar (por exemplo, todos se desfiliaram), para o controle parar de cobrar a relação até o desconto voltar.
 
 ## 08/11/2026 — Financeiro em dia, oposição pronta e contratos saudáveis

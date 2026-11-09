@@ -92,6 +92,38 @@ function novaHospedagem(itens: ItemRascunho[]): ItemRascunho {
   }
 }
 
+/** "O que precisa", no topo dos itens — como o primeiro passo do /viagem no bot. */
+type Escopo = "passagem" | "ambos" | "hospedagem"
+
+const ESCOPOS: { valor: Escopo; rotulo: string }[] = [
+  { valor: "passagem", rotulo: "Passagem" },
+  { valor: "ambos", rotulo: "Passagem e hospedagem" },
+  { valor: "hospedagem", rotulo: "Só hospedagem" },
+]
+
+/** A escolha sai dos próprios itens: não há estado à parte para desencontrar. */
+function escopoDe(itens: ItemRascunho[]): Escopo | null {
+  const temPassagem = itens.some((i) => i.tipo === "passagem")
+  const temHospedagem = itens.some((i) => i.tipo === "hospedagem")
+  if (temPassagem && temHospedagem) return "ambos"
+  if (temPassagem) return "passagem"
+  if (temHospedagem) return "hospedagem"
+  return null
+}
+
+/**
+ * Troca a escolha preservando o que já foi digitado: só sai o tipo de item que
+ * a nova escolha não tem, e só entra um item novo do tipo que estiver faltando.
+ */
+function aplicarEscopo(itens: ItemRascunho[], escopo: Escopo): ItemRascunho[] {
+  const passagens = itens.filter((i) => i.tipo === "passagem")
+  const hospedagens = itens.filter((i) => i.tipo === "hospedagem")
+  if (escopo === "passagem") return passagens.length ? passagens : [novaPassagem()]
+  if (escopo === "hospedagem") return hospedagens.length ? hospedagens : [novaHospedagem([])]
+  const comPassagem = passagens.length ? itens : [novaPassagem(), ...itens]
+  return hospedagens.length ? comPassagem : [...comPassagem, novaHospedagem(comPassagem)]
+}
+
 /**
  * Pedido de viagem: a pessoa (ou a gestão por ela) descreve os trechos de
  * passagem e as estadias. Fica FECHADO até clicarem no botão, como os outros
@@ -380,6 +412,25 @@ export function ViagemForm({
               </div>
             )}
           </div>
+
+          <fieldset className="grid gap-2">
+            <legend className="mb-2 text-sm font-semibold">O que precisa</legend>
+            <div className="flex flex-wrap gap-2">
+              {ESCOPOS.map((e) => (
+                <Button
+                  key={e.valor}
+                  type="button"
+                  size="sm"
+                  variant={escopoDe(itens) === e.valor ? "default" : "outline"}
+                  aria-pressed={escopoDe(itens) === e.valor}
+                  onClick={() => setItens((l) => aplicarEscopo(l, e.valor))}
+                >
+                  {e.valor === "hospedagem" ? <BedDouble /> : <Plane />}
+                  {e.rotulo}
+                </Button>
+              ))}
+            </div>
+          </fieldset>
 
           <div className="grid gap-4">
             {itens.map((item, indice) =>
