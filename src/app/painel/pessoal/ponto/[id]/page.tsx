@@ -504,16 +504,19 @@ export default async function RemessaPontoPage({
                                 funcionario={i.funcionarioNome}
                                 posteriores={i.funcionario_id ? posteriores[i.funcionario_id] : undefined}
                               />
-                              {destinos.length > 0 && (
-                                <TransferirParaRemessa
-                                  acao={transferirRegistroPonto}
-                                  id={i.id}
-                                  remessaId={id}
-                                  destinos={destinos}
-                                  funcionario={i.funcionarioNome}
-                                  aviso="Horas, saldos e o espelho vão como estão: os saldos não são recalculados."
-                                />
-                              )}
+                            </div>
+                          )}
+                          {/* Embaixo, como nos contracheques: na linha, empurraria a tabela larga para fora da tela. */}
+                          {!bloqueada && destinos.length > 0 && (
+                            <div className="mt-1 flex justify-end">
+                              <TransferirParaRemessa
+                                acao={transferirRegistroPonto}
+                                id={i.id}
+                                remessaId={id}
+                                destinos={destinos}
+                                funcionario={i.funcionarioNome}
+                                aviso="Horas, saldos e o espelho vão como estão: os saldos não são recalculados."
+                              />
                             </div>
                           )}
                         </TableCell>
