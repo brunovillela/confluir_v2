@@ -13,6 +13,14 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-09",
+    titulo: "Cotação com PDF grande e recebimentos mais legíveis",
+    itens: [
+      "Aquisição: a proposta da cotação e o arquivo do contrato aceitam PDF de até 3,8 MB, e o arquivo maior é recusado na hora, com a explicação. Antes, um PDF grande derrubava a tela com \"Algo deu errado\".",
+      "Recebimentos: descrição longa em até duas linhas, valor e Registrar chegada sempre à direita, e selo de atraso quando a previsão de entrega passou.",
+    ],
+  },
+  {
     id: "2026-11-08",
     titulo: "Financeiro em dia, oposição pronta e contratos saudáveis",
     itens: [

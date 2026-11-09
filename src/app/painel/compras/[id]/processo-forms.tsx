@@ -39,6 +39,7 @@ import {
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
+import { LIMITE_ENVIO, prepararArquivo } from "@/lib/arquivo-envio"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -121,6 +122,8 @@ export function PropostaNovaForm({
     {}
   )
   const envio1 = useEnvioFormulario(formAction, estado)
+  // O envio inteiro tem teto de 4 MB: PDF maior derrubava a tela com erro genérico.
+  const [erroArquivo, setErroArquivo] = useState<string | null>(null)
   return (
     <form action={formAction} {...envio1} className="grid gap-4">
       {estado.erro && (
@@ -169,13 +172,24 @@ export function PropostaNovaForm({
           </select>
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor="proposta-arquivo">Proposta (PDF, até 5 MB)</Label>
+          <Label htmlFor="proposta-arquivo">Proposta (PDF, até 3,8 MB)</Label>
           <Input
             id="proposta-arquivo"
             name="arquivo"
             type="file"
             accept="application/pdf"
+            limite="até 3,8 MB"
+            onChange={async (e) => {
+              const { erro } = await prepararArquivo(e.currentTarget, {
+                aceita: "application/pdf",
+                erroTipo: "Envie a proposta em PDF.",
+                limite: LIMITE_ENVIO,
+                erroLimite: "O PDF deve ter no máximo 3,8 MB. Reduza o arquivo (por exemplo, imprimindo em PDF de novo) e tente outra vez.",
+              })
+              setErroArquivo(erro ?? null)
+            }}
           />
+          {erroArquivo && <p className="text-destructive text-xs">{erroArquivo}</p>}
         </div>
       </div>
       <div className="flex justify-end">

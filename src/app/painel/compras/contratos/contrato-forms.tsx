@@ -23,6 +23,7 @@ import {
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
+import { LIMITE_ENVIO, prepararArquivo } from "@/lib/arquivo-envio"
 
 type AcaoForm = (prev: EstadoForm, formData: FormData) => Promise<EstadoForm>
 
@@ -87,6 +88,8 @@ export function ContratoForm({
   // O centro de custo é filtrado pelo departamento e só se habilita depois
   // dele. Trocar o departamento descarta um centro que não é dele.
   const [depto, setDepto] = useState(contrato?.departamento_id ?? "")
+  // O envio inteiro tem teto de 4 MB: PDF maior derrubava a tela com erro genérico.
+  const [erroArquivo, setErroArquivo] = useState<string | null>(null)
   const [centro, setCentro] = useState(contrato?.centro_custo_id ?? "")
   const centrosVisiveis = depto
     ? centrosCusto.filter((c) => c.departamentoId === depto)
@@ -269,13 +272,24 @@ export function ContratoForm({
       </fieldset>
 
       <div className="grid gap-1.5">
-        <Label htmlFor="arquivo">Arquivo do contrato (PDF, até 5 MB)</Label>
+        <Label htmlFor="arquivo">Arquivo do contrato (PDF, até 3,8 MB)</Label>
         <Input
           id="arquivo"
           name="arquivo"
           type="file"
           accept="application/pdf"
+          limite="até 3,8 MB"
+          onChange={async (e) => {
+            const { erro } = await prepararArquivo(e.currentTarget, {
+              aceita: "application/pdf",
+              erroTipo: "Envie o contrato em PDF.",
+              limite: LIMITE_ENVIO,
+              erroLimite: "O PDF deve ter no máximo 3,8 MB. Reduza o arquivo (por exemplo, imprimindo em PDF de novo) e tente outra vez.",
+            })
+            setErroArquivo(erro ?? null)
+          }}
         />
+        {erroArquivo && <p className="text-destructive text-xs">{erroArquivo}</p>}
         {contrato?.arquivo_contrato && (
           <p className="text-muted-foreground text-xs">
             Já existe um arquivo — enviar outro substitui o atual.

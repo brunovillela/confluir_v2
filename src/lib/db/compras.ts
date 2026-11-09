@@ -2137,8 +2137,9 @@ export async function subirPdfCompras(
   if (arquivo.type !== "application/pdf") {
     return { erro: "O arquivo deve ser um PDF." }
   }
-  if (arquivo.size > 5 * 1024 * 1024) {
-    return { erro: "O arquivo deve ter no máximo 5 MB." }
+  // Teto do corpo da server action (next.config.ts): acima disso nem chega aqui.
+  if (arquivo.size > 4 * 1024 * 1024) {
+    return { erro: "O arquivo deve ter no máximo 4 MB." }
   }
   const caminho = `${prefixo}/${Date.now()}.pdf`
   const admin = await createAdminClient()
