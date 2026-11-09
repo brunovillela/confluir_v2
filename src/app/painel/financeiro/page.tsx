@@ -20,7 +20,6 @@ import { formatarMoeda } from "@/lib/formato";
 import { podeAcessar } from "@/lib/permissoes";
 
 import { FilasDoDia, FilasDoDiaCarregando } from "./filas-do-dia";
-import { LembreteFechamento } from "./lembrete-fechamento";
 import { SeloContasBancarias } from "./selo-contas-bancarias";
 
 export const metadata: Metadata = { title: "Financeiro — Confluir" };
@@ -209,15 +208,13 @@ export default async function FinanceiroPage() {
         </p>
       </div>
 
-      {veOrdens && (
+      {(veOrdens || podeAcessar(sessao.permissoes, "financeiro_pagamento")) && (
         <Suspense fallback={<FilasDoDiaCarregando />}>
-          <FilasDoDia veAvaliacoes={veAvaliacoes} />
-        </Suspense>
-      )}
-
-      {podeAcessar(sessao.permissoes, "financeiro_pagamento") && (
-        <Suspense fallback={null}>
-          <LembreteFechamento />
+          <FilasDoDia
+            veAvaliacoes={veAvaliacoes}
+            veFilas={veOrdens}
+            veFechamento={podeAcessar(sessao.permissoes, "financeiro_pagamento")}
+          />
         </Suspense>
       )}
 
