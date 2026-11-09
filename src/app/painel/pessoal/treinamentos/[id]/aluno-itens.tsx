@@ -34,10 +34,13 @@ export function AlunoTreinamentoForm({
   treinamentoId,
   funcionarios,
   aluno,
+  voltarHref,
 }: {
   treinamentoId: string
   funcionarios: { usuarioId: string; nome: string }[]
   aluno?: AlunoFormDados
+  /** Cancelar volta à lista no mesmo recorte e na linha do aluno. */
+  voltarHref?: string
 }) {
   const [estado, formAction, pendente] = useActionState(
     aluno ? atualizarAlunoTreinamento : criarAlunoTreinamento,
@@ -46,7 +49,7 @@ export function AlunoTreinamentoForm({
   const envio = useEnvioFormulario(formAction, estado)
 
   return (
-    <Card>
+    <Card id="formulario-aluno" className="scroll-mt-20">
       <CardHeader>
         <CardTitle className="text-base">
           {aluno
@@ -141,7 +144,7 @@ export function AlunoTreinamentoForm({
           <div className="flex items-center justify-end gap-2">
             {aluno && (
               <Button variant="ghost" asChild>
-                <Link href={`/painel/pessoal/treinamentos/${treinamentoId}`}>
+                <Link href={voltarHref ?? `/painel/pessoal/treinamentos/${treinamentoId}`}>
                   Cancelar
                 </Link>
               </Button>

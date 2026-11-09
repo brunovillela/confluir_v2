@@ -20,6 +20,7 @@ import {
 } from "@/lib/db/reembolsos"
 import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { formatarData, formatarMoeda } from "@/lib/formato"
+import { recorteDaLista, urlNaLista } from "@/lib/lista-estado"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 
 const SELECT_FILTRO =
@@ -72,6 +73,9 @@ export async function ListaSolicitacoesReembolso({ brutos }: { brutos: ParamsLis
 
   const paginacao = lerPaginacao(brutos, 30)
   const paginaAtual = paginar(filtrados, paginacao)
+  // O "Ver" leva o recorte (página, filtros) ao pedido, cujo voltar volta nele.
+  const recorte = recorteDaLista(brutos)
+  recorte.set("aba", "solicitacoes")
   const fotos = await fotosDosUsuarios(paginaAtual.linhas.map((r) => r.funcionario_id))
 
   return (
@@ -137,7 +141,7 @@ export async function ListaSolicitacoesReembolso({ brutos }: { brutos: ParamsLis
                 </TableRow>
               )}
               {paginaAtual.linhas.map((r) => (
-                <TableRow key={r.id}>
+                <TableRow key={r.id} id={`registro-${r.id}`} className="scroll-mt-20">
                   <TableCell className="max-w-56 font-medium">
                     {r.funcionario_id ? (
                       <div className="flex min-w-0 items-center gap-2">
@@ -177,7 +181,7 @@ export async function ListaSolicitacoesReembolso({ brutos }: { brutos: ParamsLis
                   </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm" asChild className="h-7 px-2">
-                      <Link href={`/painel/pessoal/reembolsos/${r.id}?de=solicitacoes`}>
+                      <Link href={urlNaLista(`/painel/pessoal/reembolsos/${r.id}`, recorte, { de: "solicitacoes" })}>
                         {r.situacao === "aguardando" ? "Avaliar" : "Ver"}
                       </Link>
                     </Button>

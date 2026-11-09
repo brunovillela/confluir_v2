@@ -6,7 +6,7 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 
 ## 09/11/2026 — Remessas do Pessoal mais fáceis de arrumar
 
-- Controle de ponto e contracheques: editar, salvar, cancelar, transferir ou abrir um registro e voltar não leva mais à página 1 nem ao topo. A lista continua na mesma página e na mesma quantidade por página, e a tela volta na linha da pessoa (a edição do ponto abre logo abaixo dela).
+- Pessoal: editar, salvar, cancelar, transferir ou abrir um registro e voltar não leva mais à página 1 nem ao topo. A lista continua na mesma página, com a mesma quantidade por página e os mesmos filtros, e a tela volta na linha da pessoa, destacada. Vale para ponto, contracheques, ASO, atestados e ausências, treinamentos, férias, níveis, anuênios, faltas, informes, diárias e reembolsos (no ponto, a edição abre logo abaixo da linha).
 - Jornadas de trabalho: configure as jornadas da entidade uma vez e vincule os funcionários a elas, vários de uma vez. Mudou o horário? Altere a jornada e vale para todos os vinculados (Pessoal → Atribuições e SST → Jornadas de trabalho).
 - Contracheques e ponto: transferir um contracheque ou um registro de ponto para outra remessa aberta, pelo botão Transferir na linha.
 - Remessa vazia de contracheques ou de ponto pode ser excluída pelo botão no alto da remessa, mesmo finalizada.

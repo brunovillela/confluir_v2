@@ -11,6 +11,7 @@ import {
   excluirAso,
   TIPOS_ASO,
 } from "@/lib/db/pessoal-saude"
+import { voltarNaLista } from "@/lib/lista-estado-servidor"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 async function exigirAcesso() {
@@ -95,7 +96,8 @@ export async function criarAsoAction(
   if (erro) return { erro }
 
   revalidar(dados.funcionario_id)
-  redirect("/painel/pessoal/aso?aba=registros&salvo=1")
+  // Volta à lista no recorte em que estava (página, filtros).
+  redirect(await voltarNaLista("/painel/pessoal/aso", { aba: "registros", salvo: "1" }))
 }
 
 export async function atualizarAsoAction(
@@ -117,7 +119,8 @@ export async function atualizarAsoAction(
   if (erro) return { erro }
 
   revalidar(dados.funcionario_id)
-  redirect("/painel/pessoal/aso?aba=registros&salvo=1")
+  // Volta na linha salva, no mesmo recorte, e não no topo da página 1.
+  redirect(await voltarNaLista("/painel/pessoal/aso", { aba: "registros", salvo: "1", linha: id }, `registro-${id}`))
 }
 
 export async function excluirAsoAction(

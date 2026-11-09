@@ -23,6 +23,7 @@ import {
 import { requirePermissao } from "@/lib/auth"
 import { listarTiposReembolso } from "@/lib/db/reembolsos"
 import { formatarMoeda } from "@/lib/formato"
+import { recorteDaLista, urlNaLista } from "@/lib/lista-estado"
 import { porcentagemTexto } from "@/lib/reembolsos-calculo"
 
 import { ExcluirTipoReembolsoBotao, TipoReembolsoForm } from "./tipos-form"
@@ -42,13 +43,17 @@ function limiteTexto(v: number | null): string {
 export default async function TiposReembolsoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ salvo?: string; editar?: string }>
+  searchParams: Promise<{ salvo?: string; editar?: string; linha?: string }>
 }) {
   await requirePermissao("pessoal_gestao", ["pessoal_reembolsos"])
 
-  const { salvo, editar } = await searchParams
+  const paramsBusca = await searchParams
+  const { salvo, editar, linha } = paramsBusca
   const { disponivel, tipos } = await listarTiposReembolso()
   const emEdicao = editar ? (tipos.find((t) => t.id === editar) ?? null) : null
+  // Editar leva ao formulário e Cancelar/Salvar voltam na linha, não no topo.
+  const naLista = (extras: Record<string, string> = {}, ancora?: string) =>
+    urlNaLista("/painel/pessoal/reembolsos/tipos", recorteDaLista(paramsBusca), extras, ancora)
 
   return (
     <>
@@ -116,7 +121,11 @@ export default async function TiposReembolsoPage({
                     </TableRow>
                   )}
                   {tipos.map((t) => (
-                    <TableRow key={t.id}>
+                    <TableRow
+                      key={t.id}
+                      id={`registro-${t.id}`}
+                      className={`scroll-mt-20 ${linha === t.id ? "bg-success/10" : editar === t.id ? "bg-muted/50" : ""}`}
+                    >
                       <TableCell className="max-w-56 font-medium">
                         <span className="block truncate">{t.nome}</span>
                         {t.descricao && (
@@ -159,7 +168,7 @@ export default async function TiposReembolsoPage({
                             className="h-7 px-2"
                           >
                             <Link
-                              href={`/painel/pessoal/reembolsos/tipos?editar=${t.id}`}
+                              href={naLista({ editar: t.id }, "formulario-tipo")}
                             >
                               Editar
                             </Link>
@@ -178,6 +187,7 @@ export default async function TiposReembolsoPage({
         {/* key força remontagem ao alternar criar/editar (defaultValue). */}
         <TipoReembolsoForm
           key={emEdicao?.id ?? "novo"}
+          voltarHref={emEdicao ? naLista({}, `registro-${emEdicao.id}`) : undefined}
           tipo={
             emEdicao
               ? {

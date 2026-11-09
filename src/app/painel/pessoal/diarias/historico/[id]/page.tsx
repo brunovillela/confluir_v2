@@ -1,10 +1,8 @@
 import type { Metadata } from "next"
-import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft } from "lucide-react"
 
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
-import { Button } from "@/components/ui/button"
+import { VoltarLista } from "@/components/voltar-lista"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   DadosRemessa,
@@ -36,12 +34,13 @@ export default async function RemessaDiariaPage({
         }}
       />
       <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-          <Link href="/painel/pessoal/diarias/historico">
-            <ArrowLeft />
-            Histórico de diárias
-          </Link>
-        </Button>
+        <VoltarLista
+          chave="diarias-historico"
+          base="/painel/pessoal/diarias/historico"
+          rotulo="Histórico de diárias"
+          ancora={`registro-${id}`}
+          className="-ml-2 mb-3"
+        />
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">
             {remessa.beneficiarioNome ?? "Remessa de diárias"}

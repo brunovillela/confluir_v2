@@ -13,6 +13,8 @@ import {
   criarAnuenio,
   listarAnuenioBase,
 } from "@/lib/db/carreira"
+import { urlNaLista } from "@/lib/lista-estado"
+import { voltarNaLista } from "@/lib/lista-estado-servidor"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 async function exigirAcesso() {
@@ -25,6 +27,26 @@ function revalidar(funcionarioId?: string | null) {
   revalidatePath("/painel/pessoal/anuenios/tabela")
   revalidatePath("/painel/perfil/contracheques")
   if (funcionarioId) revalidatePath(`/painel/pessoal/${funcionarioId}`)
+}
+
+/**
+ * Depois de editar ou excluir um lançamento, volta à tela de onde ele foi
+ * aberto (`de`), no recorte da lista de origem (`lista`: página, filtros) e,
+ * ao salvar, na linha do lançamento.
+ */
+function destinoDoLancamento(formData: FormData, funcionarioId: string | null, aviso: string, linha?: string) {
+  const de = String(formData.get("de") ?? "")
+  if (de === "carreira" && funcionarioId) return `/painel/pessoal/carreira/funcionario/${funcionarioId}?${aviso}`
+  const lista = new URLSearchParams(String(formData.get("lista") ?? ""))
+  if (de === "lancamentos") {
+    return urlNaLista(
+      "/painel/pessoal/anuenios",
+      lista,
+      `aba=lancamentos&${aviso}${linha ? `&linha=${linha}` : ""}`,
+      linha ? `registro-${linha}` : undefined
+    )
+  }
+  return urlNaLista("/painel/pessoal/anuenios", lista, aviso)
 }
 
 function lerCamposLancamento(formData: FormData) {
@@ -76,7 +98,7 @@ export async function atualizarLancamentoAnuenio(
   if (erro) return { erro }
 
   revalidar(dados.funcionario_id)
-  redirect("/painel/pessoal/anuenios?salvo=1")
+  redirect(destinoDoLancamento(formData, dados.funcionario_id, "salvo=1", id))
 }
 
 export async function excluirLancamentoAnuenio(
@@ -98,7 +120,7 @@ export async function excluirLancamentoAnuenio(
   if ((data ?? []).length === 0) return { erro: "Lançamento não encontrado." }
 
   revalidar(data![0].funcionario_id)
-  redirect("/painel/pessoal/anuenios?excluido=1")
+  redirect(destinoDoLancamento(formData, data![0].funcionario_id, "excluido=1"))
 }
 
 // ── Tabela base de alíquotas ───────────────────────────────────────────────
@@ -172,7 +194,8 @@ export async function atualizarNivelAnuenioBase(
   if (count === 0) return { erro: "Degrau não encontrado." }
 
   revalidar()
-  redirect("/painel/pessoal/anuenios/tabela?salvo=1")
+  // Volta na linha salva, não no topo da página.
+  redirect(await voltarNaLista("/painel/pessoal/anuenios/tabela", { salvo: "1", linha: id }, `registro-${id}`))
 }
 
 export async function excluirNivelAnuenioBase(

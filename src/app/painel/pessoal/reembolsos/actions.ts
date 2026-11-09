@@ -12,6 +12,7 @@ import {
   marcarReembolsoPago,
   tipoReembolsoEmUso,
 } from "@/lib/db/reembolsos"
+import { voltarNaLista } from "@/lib/lista-estado-servidor"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 async function exigirAcesso() {
@@ -63,7 +64,8 @@ export async function avaliarReembolsoAction(
   if (erro) return { erro }
 
   revalidar(id)
-  redirect(`/painel/pessoal/reembolsos/${id}?salvo=1`)
+  // Mantém o ?de= e o recorte da lista de origem: o voltar continua levando a ela.
+  redirect(await voltarNaLista(`/painel/pessoal/reembolsos/${id}`, { salvo: "1" }))
 }
 
 export async function marcarPagoAction(
@@ -158,7 +160,8 @@ export async function atualizarTipoReembolso(
   if (count === 0) return { erro: "Tipo não encontrado." }
 
   revalidar()
-  redirect("/painel/pessoal/reembolsos/tipos?salvo=1")
+  // Volta na linha salva, não no topo da página.
+  redirect(await voltarNaLista("/painel/pessoal/reembolsos/tipos", { salvo: "1", linha: id }, `registro-${id}`))
 }
 
 export async function excluirTipoReembolso(

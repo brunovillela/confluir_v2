@@ -22,6 +22,7 @@ import { funcionarioDaArea } from "@/lib/db/pessoal-area"
 import { buscarReembolso, listarTiposReembolso, listarReembolsos } from "@/lib/db/reembolsos"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { porcentagemTexto } from "@/lib/reembolsos-calculo"
+import { recorteDaLista, urlNaLista } from "@/lib/lista-estado"
 
 import { AvaliacaoReembolsoForm, MarcarPagoBotao } from "./avaliacao-form"
 
@@ -60,12 +61,16 @@ export default async function ReembolsoPage({
 }: {
   params: Promise<{ id: string }>
   /** de: "solicitacoes" (aba Solicitações); sem ele, volta ao funcionário. */
-  searchParams: Promise<{ salvo?: string; de?: string }>
+  searchParams: Promise<Record<string, string | undefined>>
 }) {
   const sessao = await requirePermissao("pessoal_gestao", ["pessoal_reembolsos"])
 
   const { id } = await params
-  const { salvo, de } = await searchParams
+  const sp = await searchParams
+  const { salvo, de } = sp
+  // O "Ver" da lista traz o recorte dela (página, filtros) junto do ?de=:
+  // o voltar e o anterior/próximo o mantêm.
+  const recorte = recorteDaLista(sp)
   const reembolso = await buscarReembolso(id)
   if (!reembolso) notFound()
 
@@ -87,7 +92,10 @@ export default async function ReembolsoPage({
   const solicitadaEm = `solicitada em ${formatarDataHora(reembolso.created_at)}`
   const voltar =
     de === "solicitacoes" || !fid
-      ? { href: "/painel/pessoal/reembolsos?aba=solicitacoes", rotulo: "Solicitações de reembolso" }
+      ? {
+          href: urlNaLista("/painel/pessoal/reembolsos", recorte, { aba: "solicitacoes", de: null }, `registro-${id}`),
+          rotulo: "Solicitações de reembolso",
+        }
       : { href: `/painel/pessoal/reembolsos/funcionario/${fid}`, rotulo: reembolso.funcionarioNome ?? "Funcionário" }
   // Anterior/próximo: os pedidos do mesmo funcionário, do mais antigo ao mais recente.
   const daPessoa = fid
@@ -97,7 +105,7 @@ export default async function ReembolsoPage({
   const destino = (x: (typeof daPessoa)[number] | undefined) =>
     x
       ? {
-          href: `/painel/pessoal/reembolsos/${x.id}${de ? `?de=${de}` : ""}`,
+          href: urlNaLista(`/painel/pessoal/reembolsos/${x.id}`, recorte),
           rotulo: `${x.tipoNome ?? "Reembolso"} · ${formatarDataHora(x.created_at).slice(0, 10)}`,
         }
       : null

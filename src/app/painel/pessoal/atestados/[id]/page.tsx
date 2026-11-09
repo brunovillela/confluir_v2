@@ -8,6 +8,7 @@ import { CabecalhoFuncionario } from "@/components/pessoal/cabecalho-funcionario
 import { NavegacaoRegistro } from "@/components/pessoal/navegacao-registro"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { VoltarLista } from "@/components/voltar-lista"
 import { requirePermissao } from "@/lib/auth"
 import { urlArquivoPessoal } from "@/lib/db/pessoal"
 import { funcionarioDaArea } from "@/lib/db/pessoal-area"
@@ -55,12 +56,24 @@ export default async function AtestadoPage({
   return (
     <>
       <RotuloTrilha valores={{ [id]: `Atestado de ${formatarData(a.inicio)}` }} />
-      <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 self-start">
-        <Link href={voltar.href}>
-          <ArrowLeft />
-          {voltar.rotulo}
-        </Link>
-      </Button>
+      {de === "atestados" || !fid ? (
+        // Da aba Atestados médicos: volta à lista como estava (página, filtros) e na linha.
+        <VoltarLista
+          chave="atestados-registros"
+          base="/painel/pessoal/atestados"
+          rotulo={voltar.rotulo}
+          padrao={voltar}
+          ancora={`registro-${a.id}`}
+          className="-ml-2 mb-1 self-start"
+        />
+      ) : (
+        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 self-start">
+          <Link href={voltar.href}>
+            <ArrowLeft />
+            {voltar.rotulo}
+          </Link>
+        </Button>
+      )}
       {funcionario ? (
         <CabecalhoFuncionario
           funcionario={funcionario}

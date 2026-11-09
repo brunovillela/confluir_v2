@@ -88,9 +88,12 @@ export type AtestadoFormDados = {
 export function AtestadoForm({
   funcionarios,
   atestado,
+  voltarHref,
 }: {
   funcionarios: Funcionario[]
   atestado?: AtestadoFormDados
+  /** Cancelar volta à lista no mesmo recorte (página, filtros) e na linha. */
+  voltarHref?: string
 }) {
   const [estado, formAction, pendente] = useActionState(
     atestado ? atualizarAtestadoAction : criarAtestadoAction,
@@ -102,10 +105,10 @@ export function AtestadoForm({
   )
 
   return (
-    <Card>
+    <Card id="formulario-atestado" className="scroll-mt-20">
       <CardHeader>
         <CardTitle className="text-base">
-          {atestado ? "Editar atestado" : "Registrar atestado médico"}
+          {atestado ?"Editar atestado" : "Registrar atestado médico"}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -197,7 +200,7 @@ export function AtestadoForm({
           <div className="flex items-center justify-end gap-2">
             {atestado && (
               <Button variant="ghost" asChild>
-                <Link href="/painel/pessoal/atestados">Cancelar</Link>
+                <Link href={voltarHref ?? "/painel/pessoal/atestados?aba=atestados"}>Cancelar</Link>
               </Button>
             )}
             <Button type="submit" disabled={pendente}>
@@ -256,9 +259,12 @@ export type AusenciaFormDados = {
 export function AusenciaForm({
   funcionarios,
   ausencia,
+  voltarHref,
 }: {
   funcionarios: Funcionario[]
   ausencia?: AusenciaFormDados
+  /** Cancelar volta à lista no mesmo recorte (página, filtros) e na linha. */
+  voltarHref?: string
 }) {
   const [estado, formAction, pendente] = useActionState(
     ausencia ? atualizarAusenciaAction : criarAusenciaAction,
@@ -267,10 +273,10 @@ export function AusenciaForm({
   const envio2 = useEnvioFormulario(formAction, estado)
 
   return (
-    <Card>
+    <Card id="formulario-ausencia" className="scroll-mt-20">
       <CardHeader>
         <CardTitle className="text-base">
-          {ausencia ? "Editar ausência" : "Registrar ausência"}
+          {ausencia ?"Editar ausência" : "Registrar ausência"}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -338,7 +344,7 @@ export function AusenciaForm({
           <div className="flex items-center justify-end gap-2">
             {ausencia && (
               <Button variant="ghost" asChild>
-                <Link href="/painel/pessoal/atestados?aba=ausencias">
+                <Link href={voltarHref ?? "/painel/pessoal/atestados?aba=ausencias"}>
                   Cancelar
                 </Link>
               </Button>

@@ -31,6 +31,8 @@ import {
   buscarTreinamento,
 } from "@/lib/db/treinamentos"
 import { formatarData } from "@/lib/formato"
+import { recorteDaLista, urlNaLista } from "@/lib/lista-estado"
+import { VoltarLista } from "@/components/voltar-lista"
 
 import { AlunoTreinamentoForm, ExcluirAlunoBotao } from "./aluno-itens"
 
@@ -42,12 +44,17 @@ export default async function TreinamentoPage({
 }: {
   params: Promise<{ id: string }>
   /** pessoa: veio da trilha do funcionário — mostra o cabeçalho dele e volta para lá. */
-  searchParams: Promise<{ salvo?: string; editar?: string; pessoa?: string }>
+  searchParams: Promise<{ salvo?: string; editar?: string; pessoa?: string; linha?: string }>
 }) {
   const sessao = await requirePermissao("pessoal_gestao")
 
   const { id } = await params
-  const { salvo, editar, pessoa } = await searchParams
+  const paramsBusca = await searchParams
+  const { salvo, editar, pessoa, linha } = paramsBusca
+  // Editar e Cancelar mantêm o recorte (ex.: ?pessoa=) e voltam na linha do aluno.
+  const recorte = recorteDaLista(paramsBusca)
+  const naLista = (extras: Record<string, string> = {}, ancora?: string) =>
+    urlNaLista(`/painel/pessoal/treinamentos/${id}`, recorte, extras, ancora)
   const [treinamento, funcionarios] = await Promise.all([
     buscarTreinamento(id),
     funcionariosParaSelecao(),
@@ -73,12 +80,23 @@ export default async function TreinamentoPage({
   return (
     <>
       <RotuloTrilha valores={{ [id]: treinamento.treinamento ?? "(sem nome)" }} />
-      <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 self-start">
-        <Link href={voltar.href}>
-          <ArrowLeft />
-          {voltar.rotulo}
-        </Link>
-      </Button>
+      {funcionario ? (
+        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 self-start">
+          <Link href={voltar.href}>
+            <ArrowLeft />
+            {voltar.rotulo}
+          </Link>
+        </Button>
+      ) : (
+        // Volta à lista de onde veio (Funcionários ou Catálogo) como estava.
+        <VoltarLista
+          chave="treinamentos-turma"
+          base="/painel/pessoal/treinamentos"
+          rotulo={voltar.rotulo}
+          ancora={`registro-${id}`}
+          className="-ml-2 mb-1 self-start"
+        />
+      )}
       {funcionario && (
         <CabecalhoFuncionario
           funcionario={funcionario}
@@ -115,7 +133,8 @@ export default async function TreinamentoPage({
         </p>
       </div>
 
-      {salvo === "1" && (
+      {/* Salvo numa linha: o aviso fica junto da lista, onde a tela volta. */}
+      {salvo === "1" && !linha && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Salvo com sucesso.</AlertDescription>
         </Alert>
@@ -129,7 +148,12 @@ export default async function TreinamentoPage({
             treinamento.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="grid gap-4">
+          {salvo === "1" && linha && (
+            <Alert className="border-success/40 text-success-fg">
+              <AlertDescription>Salvo com sucesso.</AlertDescription>
+            </Alert>
+          )}
           <div className="overflow-x-auto rounded-lg border">
             <Table>
               <TableHeader>
@@ -153,7 +177,11 @@ export default async function TreinamentoPage({
                   </TableRow>
                 )}
                 {alunos.map((a) => (
-                  <TableRow key={a.id}>
+                  <TableRow
+                    key={a.id}
+                    id={`registro-${a.id}`}
+                    className={`scroll-mt-20 ${linha === a.id ? "bg-success/10" : editar === a.id ? "bg-muted/50" : ""}`}
+                  >
                     <TableCell className="max-w-56 font-medium">
                       {a.aluno_id ? (
                         <Link
@@ -217,7 +245,7 @@ export default async function TreinamentoPage({
                           className="h-7 px-2"
                         >
                           <Link
-                            href={`/painel/pessoal/treinamentos/${id}?editar=${a.id}`}
+                            href={naLista({ editar: a.id }, "formulario-aluno")}
                           >
                             Editar
                           </Link>
@@ -236,6 +264,7 @@ export default async function TreinamentoPage({
       {/* key força remontagem ao alternar criar/editar (defaultValue). */}
       <AlunoTreinamentoForm
         key={emEdicao?.id ?? "novo"}
+        voltarHref={emEdicao ? naLista({}, `registro-${emEdicao.id}`) : undefined}
         treinamentoId={id}
         funcionarios={disponiveis}
         aluno={

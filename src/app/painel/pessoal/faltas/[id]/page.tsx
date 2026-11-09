@@ -8,6 +8,7 @@ import { CabecalhoFuncionario } from "@/components/pessoal/cabecalho-funcionario
 import { NavegacaoRegistro } from "@/components/pessoal/navegacao-registro"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { VoltarLista } from "@/components/voltar-lista"
 import { requirePermissao } from "@/lib/auth"
 import { lerConfigFaltas, listarFaltas } from "@/lib/db/faltas"
 import { funcionarioDaArea } from "@/lib/db/pessoal-area"
@@ -64,12 +65,24 @@ export default async function FaltaPage({
   return (
     <>
       <RotuloTrilha valores={{ [id]: `Falta de ${formatarData(falta.data)}` }} />
-      <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 self-start">
-        <Link href={voltar.href}>
-          <ArrowLeft />
-          {voltar.rotulo}
-        </Link>
-      </Button>
+      {fid && (de === "faltas" || de === "area") ? (
+        // Volta à lista de onde veio como estava (filtros, página); na aba Faltas, na linha.
+        <VoltarLista
+          chave={de === "faltas" ? "faltas-ano" : "faltas-funcionarios"}
+          base="/painel/pessoal/faltas"
+          rotulo={voltar.rotulo}
+          padrao={voltar}
+          ancora={de === "faltas" ? `registro-${id}` : undefined}
+          className="-ml-2 mb-1 self-start"
+        />
+      ) : (
+        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 self-start">
+          <Link href={voltar.href}>
+            <ArrowLeft />
+            {voltar.rotulo}
+          </Link>
+        </Button>
+      )}
       {funcionario ? (
         <CabecalhoFuncionario
           funcionario={funcionario}

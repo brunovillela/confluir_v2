@@ -144,6 +144,8 @@ function AbaFuncionarios({
   return (
     <>
       <LembrarLista chave="treinamentos-funcionarios" url={urlAtual} />
+      {/* Também para o voltar da turma (treinamentos/[id]), aberta daqui ou do Catálogo. */}
+      <LembrarLista chave="treinamentos-turma" url={urlAtual} />
       <FiltrosFuncionarios filtros={f} departamentos={departamentosDaLista(funcionarios)} />
       <TabelaFuncionarios
         pagina={pagina}

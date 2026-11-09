@@ -25,6 +25,7 @@ import { requirePermissao } from "@/lib/auth"
 import { listarCargos, listarNivelSalarialBase } from "@/lib/db/carreira"
 import { listarTabelasSalariais } from "@/lib/db/tabelas-salariais"
 import { formatarData, formatarMoeda } from "@/lib/formato"
+import { paginaDoIndice } from "@/lib/lista-estado"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { rotuloTabelaSalarial } from "@/lib/tabela-salarial"
 
@@ -56,6 +57,7 @@ export default async function TabelaSalarialPage({
     tabela?: string
     pagina?: string
     porPagina?: string
+    linha?: string
   }>
 }) {
   await requirePermissao("pessoal_gestao", ["pessoal_niveis_salariais"])
@@ -82,20 +84,24 @@ export default async function TabelaSalarialPage({
       ? base
       : base.filter((b) => b.cargo_id === cargoFiltro)
 
+  // Editando ou recém-salvo, abre na página em que o degrau está.
   const paginacao = lerPaginacao(brutos, 30)
+  const emFoco = editar ?? brutos.linha
+  const indiceEmFoco = emFoco ? filtrados.findIndex((b) => b.id === emFoco) : -1
+  if (indiceEmFoco >= 0) paginacao.pagina = paginaDoIndice(indiceEmFoco, paginacao.porPagina)
   const paginaAtual = paginar(filtrados, paginacao)
 
   const emEdicao = editar ? (base.find((b) => b.id === editar) ?? null) : null
   const adicionando = brutos.novo === "1" && !emEdicao
 
   // Abrir e fechar o formulário não perde a tabela, o filtro nem a página.
-  const lista = (extra?: string) => {
+  const lista = (extra?: string, ancora?: string) => {
     const q = new URLSearchParams()
     if (tabela) q.set("tabela", tabela.id)
     if (cargoFiltro !== "todos") q.set("cargo", cargoFiltro)
-    if (brutos.pagina) q.set("pagina", brutos.pagina)
+    if (paginaAtual.pagina > 1) q.set("pagina", String(paginaAtual.pagina))
     if (brutos.porPagina) q.set("porPagina", brutos.porPagina)
-    return `/painel/pessoal/niveis/tabela?${q}${extra ? `&${extra}` : ""}`
+    return `/painel/pessoal/niveis/tabela?${q}${extra ? `&${extra}` : ""}${ancora ? `#${ancora}` : ""}`
   }
 
   return (
@@ -182,7 +188,7 @@ export default async function TabelaSalarialPage({
         <NivelBaseForm
           key={emEdicao?.id ?? "novo"}
           tabelaId={tabela.id}
-          voltar={lista()}
+          voltar={lista(undefined, emEdicao ? `registro-${emEdicao.id}` : undefined)}
           cargos={cargos.map((c) => ({
             id: c.id,
             nome: c.nome ?? "(sem nome)",
@@ -273,7 +279,11 @@ export default async function TabelaSalarialPage({
                       </TableRow>
                     )}
                     {paginaAtual.linhas.map((b) => (
-                      <TableRow key={b.id}>
+                      <TableRow
+                        key={b.id}
+                        id={`registro-${b.id}`}
+                        className={`scroll-mt-20 ${brutos.linha === b.id ? "bg-success/10" : editar === b.id ? "bg-muted/50" : ""}`}
+                      >
                         <TableCell className="font-medium whitespace-nowrap">
                           {[b.nivel_vertical, b.nivel_horizontal]
                             .filter(Boolean)
@@ -296,7 +306,7 @@ export default async function TabelaSalarialPage({
                               asChild
                               className="h-7 px-2"
                             >
-                              <Link href={lista(`editar=${b.id}`)}>Editar</Link>
+                              <Link href={lista(`editar=${b.id}`, "formulario-degrau")}>Editar</Link>
                             </Button>
                             <ExcluirNivelBaseBotao id={b.id} />
                           </div>

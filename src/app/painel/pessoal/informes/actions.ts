@@ -11,6 +11,7 @@ import {
   notificarInformeLiberado,
   proximaOrdemRemessaInformes,
 } from "@/lib/db/informes"
+import { voltarNaLista } from "@/lib/lista-estado-servidor"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 async function exigirAcesso() {
@@ -128,7 +129,8 @@ export async function atualizarRemessaInformes(
   if (count === 0) return { erro: "Remessa não encontrada." }
 
   revalidar(id)
-  redirect(`/painel/pessoal/informes/${id}?salvo=1`)
+  // Mantém a página da lista de informes em que estava.
+  redirect(await voltarNaLista(`/painel/pessoal/informes/${id}`, { salvo: "1" }))
 }
 
 /** Exclusão só de remessa VAZIA — com informes, exclua os informes antes. */

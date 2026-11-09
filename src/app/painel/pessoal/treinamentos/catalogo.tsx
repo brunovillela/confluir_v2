@@ -19,6 +19,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { listarTreinamentos } from "@/lib/db/treinamentos"
+import { recorteDaLista, urlNaLista } from "@/lib/lista-estado"
+import { LembrarLista } from "@/components/voltar-lista"
 
 import { TreinamentoForm } from "./treinamento-form"
 
@@ -34,9 +36,15 @@ export async function CatalogoTreinamentos({ brutos }: { brutos: Record<string, 
   const emEdicao = editar
     ? (treinamentos.find((t) => t.id === editar) ?? null)
     : null
+  // Editar e Cancelar mantêm o recorte da página (aba) e voltam na linha.
+  const recorte = recorteDaLista(brutos)
+  recorte.set("aba", "catalogo")
+  const naLista = (extras: Record<string, string> = {}, ancora?: string) =>
+    urlNaLista("/painel/pessoal/treinamentos", recorte, extras, ancora)
 
   return (
     <>
+      <LembrarLista chave="treinamentos-turma" url={naLista()} />
       {salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Treinamento salvo.</AlertDescription>
@@ -84,7 +92,11 @@ export async function CatalogoTreinamentos({ brutos }: { brutos: Record<string, 
                     </TableRow>
                   )}
                   {treinamentos.map((t) => (
-                    <TableRow key={t.id}>
+                    <TableRow
+                      key={t.id}
+                      id={`registro-${t.id}`}
+                      className={`scroll-mt-20 ${brutos.linha === t.id ? "bg-success/10" : editar === t.id ? "bg-muted/50" : ""}`}
+                    >
                       <TableCell className="max-w-56 font-medium">
                         <Link
                           href={`/painel/pessoal/treinamentos/${t.id}`}
@@ -114,7 +126,7 @@ export async function CatalogoTreinamentos({ brutos }: { brutos: Record<string, 
                           className="h-7 px-2"
                         >
                           <Link
-                            href={`/painel/pessoal/treinamentos?aba=catalogo&editar=${t.id}`}
+                            href={naLista({ editar: t.id }, "formulario-treinamento")}
                           >
                             Editar
                           </Link>
@@ -131,6 +143,7 @@ export async function CatalogoTreinamentos({ brutos }: { brutos: Record<string, 
         {/* key força remontagem ao alternar criar/editar (defaultValue). */}
         <TreinamentoForm
           key={emEdicao?.id ?? "novo"}
+          voltarHref={emEdicao ? naLista({}, `registro-${emEdicao.id}`) : undefined}
           treinamento={
             emEdicao
               ? {

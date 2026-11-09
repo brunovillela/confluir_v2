@@ -9,6 +9,7 @@ import { NavegacaoRegistro } from "@/components/pessoal/navegacao-registro"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { VoltarLista } from "@/components/voltar-lista"
 import { requirePermissao } from "@/lib/auth"
 import { carregarBaseInformes, type InformeArea } from "@/lib/db/informes-area"
 import { urlArquivoPessoal } from "@/lib/db/pessoal"
@@ -56,12 +57,23 @@ export default async function InformePage({
   return (
     <>
       <RotuloTrilha valores={{ funcionario: "Funcionários", [usuarioId]: funcionario.nome, [informeId]: `Ano-base ${inf.ano}` }} />
-      <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 self-start">
-        <Link href={voltar.href}>
-          <ArrowLeft />
-          {voltar.rotulo}
-        </Link>
-      </Button>
+      {deRemessa ? (
+        // Volta à remessa na página em que estava, na linha deste informe.
+        <VoltarLista
+          chave={`informes-remessa:${inf.remessaId}`}
+          base={voltar.href}
+          rotulo={voltar.rotulo}
+          ancora={`registro-${inf.id}`}
+          className="-ml-2 mb-1 self-start"
+        />
+      ) : (
+        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 self-start">
+          <Link href={voltar.href}>
+            <ArrowLeft />
+            {voltar.rotulo}
+          </Link>
+        </Button>
+      )}
       <CabecalhoFuncionario
         funcionario={funcionario}
         area="informes"

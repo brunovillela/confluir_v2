@@ -25,7 +25,14 @@ export type DegrauFormDados = {
   aliquotaPct: string
 }
 
-export function AnuenioBaseForm({ degrau }: { degrau?: DegrauFormDados }) {
+export function AnuenioBaseForm({
+  degrau,
+  voltarHref,
+}: {
+  degrau?: DegrauFormDados
+  /** Cancelar volta à tabela na linha do degrau. */
+  voltarHref?: string
+}) {
   const [estado, formAction, pendente] = useActionState(
     degrau ? atualizarNivelAnuenioBase : criarNivelAnuenioBase,
     {}
@@ -33,7 +40,7 @@ export function AnuenioBaseForm({ degrau }: { degrau?: DegrauFormDados }) {
   const envio = useEnvioFormulario(formAction, estado)
 
   return (
-    <Card>
+    <Card id="formulario-degrau" className="scroll-mt-20">
       <CardHeader>
         <CardTitle className="text-base">
           {degrau ? `Editar degrau — nível ${degrau.nivel ?? "?"}` : "Adicionar degrau"}
@@ -75,7 +82,7 @@ export function AnuenioBaseForm({ degrau }: { degrau?: DegrauFormDados }) {
 
           <div className="flex items-center justify-end gap-2">
             <Button variant="ghost" asChild>
-              <Link href="/painel/pessoal/anuenios/tabela">Cancelar</Link>
+              <Link href={voltarHref ?? "/painel/pessoal/anuenios/tabela"}>Cancelar</Link>
             </Button>
             <Button type="submit" disabled={pendente}>
               {pendente && <Loader2 className="animate-spin" />}

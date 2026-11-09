@@ -35,11 +35,19 @@ export function AnuenioLancamentoForm({
   funcionarios,
   niveis,
   lancamento,
+  de,
+  lista,
+  voltarHref = "/painel/pessoal/anuenios",
 }: {
   funcionarios: { usuarioId: string; nome: string }[]
   /** Degraus da base com rótulo pronto ('Nível 4 — 4,6%'). */
   niveis: { id: string; rotulo: string }[]
   lancamento?: AnuenioFormDados
+  /** Tela de origem ("carreira", "funcionarios", "lancamentos"): é para lá que volta ao salvar. */
+  de?: string
+  /** Recorte da lista de origem ("pagina=2&busca=…"): salvar volta nele. */
+  lista?: string
+  voltarHref?: string
 }) {
   const [estado, formAction, pendente] = useActionState(
     lancamento ? atualizarLancamentoAnuenio : criarLancamentoAnuenio,
@@ -68,6 +76,8 @@ export function AnuenioLancamentoForm({
 
       <form action={formAction} {...envio} className="grid gap-4">
         {lancamento && <input type="hidden" name="id" value={lancamento.id} />}
+        {de && <input type="hidden" name="de" value={de} />}
+        {lista && <input type="hidden" name="lista" value={lista} />}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Dados do anuênio</CardTitle>
@@ -157,7 +167,7 @@ export function AnuenioLancamentoForm({
 
         <div className="flex items-center justify-end gap-2">
           <Button variant="ghost" asChild>
-            <Link href="/painel/pessoal/anuenios">Cancelar</Link>
+            <Link href={voltarHref}>Cancelar</Link>
           </Button>
           <Button type="submit" disabled={pendente}>
             {pendente && <Loader2 className="animate-spin" />}
@@ -172,6 +182,8 @@ export function AnuenioLancamentoForm({
           className="flex justify-end border-t pt-4"
         >
           <input type="hidden" name="id" value={lancamento.id} />
+          {de && <input type="hidden" name="de" value={de} />}
+          {lista && <input type="hidden" name="lista" value={lista} />}
           <Button
             type="submit"
             variant="ghost"

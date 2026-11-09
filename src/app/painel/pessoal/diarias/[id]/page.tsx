@@ -10,6 +10,7 @@ import { requirePermissao } from "@/lib/auth"
 import { buscarSolicitacaoDiaria, descontosDaDiaria, listarSolicitacoesDiaria } from "@/lib/db/diarias"
 import { funcionarioDaArea } from "@/lib/db/pessoal-area"
 import { formatarData } from "@/lib/formato"
+import { recorteDaLista, urlNaLista } from "@/lib/lista-estado"
 import { urlComprovanteDespesa } from "@/lib/db/diarias-despesas"
 import { cobrancasDiariaPendentes } from "@/lib/db/veiculos"
 
@@ -23,12 +24,16 @@ export default async function SolicitacaoDiariaPage({
 }: {
   params: Promise<{ id: string }>
   /** de: "solicitacoes" (aba Solicitações); sem ele, volta ao funcionário. */
-  searchParams: Promise<{ salvo?: string; de?: string }>
+  searchParams: Promise<Record<string, string | undefined>>
 }) {
   const sessao = await requirePermissao("pessoal_gestao", ["pessoal_diarias"])
 
   const { id } = await params
-  const { salvo, de } = await searchParams
+  const sp = await searchParams
+  const { salvo, de } = sp
+  // O "Ver" da lista traz o recorte dela (página, filtros) junto do ?de=:
+  // o voltar e o anterior/próximo o mantêm.
+  const recorte = recorteDaLista(sp)
   const solicitacao = await buscarSolicitacaoDiaria(id)
   if (!solicitacao) notFound()
   // Diária de diretor mora na porta da Diretoria, com permissão própria.
@@ -40,7 +45,10 @@ export default async function SolicitacaoDiariaPage({
   const funcionario = fid ? await funcionarioDaArea(fid) : null
   const voltar =
     de === "solicitacoes" || !fid
-      ? { href: "/painel/pessoal/diarias?aba=solicitacoes", rotulo: "Solicitações de diária" }
+      ? {
+          href: urlNaLista("/painel/pessoal/diarias", recorte, { aba: "solicitacoes", de: null }, `registro-${id}`),
+          rotulo: "Solicitações de diária",
+        }
       : { href: `/painel/pessoal/diarias/funcionario/${fid}`, rotulo: solicitacao.funcionarioNome ?? "Funcionário" }
   // Anterior/próximo: as diárias do mesmo funcionário, pela data da atividade.
   const daPessoa = fid
@@ -52,7 +60,7 @@ export default async function SolicitacaoDiariaPage({
   const destino = (d: (typeof daPessoa)[number] | undefined) =>
     d
       ? {
-          href: `/painel/pessoal/diarias/${d.id}${de ? `?de=${de}` : ""}`,
+          href: urlNaLista(`/painel/pessoal/diarias/${d.id}`, recorte),
           rotulo: `${formatarData(d.data_inicio ?? d.created_at)} · ${d.complementoDe ? "despesas" : (d.tipoNome ?? "diária")}`,
         }
       : null

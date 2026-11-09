@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { LembrarLista } from "@/components/voltar-lista"
+import { urlNaLista } from "@/lib/lista-estado"
 import { requirePermissao } from "@/lib/auth"
 import { hojeSP } from "@/lib/db/comum"
 import { avancaAte, carregarCarreira } from "@/lib/db/carreira-area"
@@ -91,7 +92,8 @@ export default async function AnueniosPage({
         </div>
       </div>
 
-      {sp.salvo === "1" && (
+      {/* Salvo numa linha: o aviso fica junto da lista, onde a tela volta. */}
+      {sp.salvo === "1" && !sp.linha && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Lançamento salvo.</AlertDescription>
         </Alert>
@@ -205,7 +207,13 @@ function AbaFuncionarios({
             valor: (l) => {
               const a = anuenioDe.get(l.usuarioId)
               return a ? (
-                <Link href={`/painel/pessoal/anuenios/${a.atual.id}?de=funcionarios`} className="hover:underline">
+                <Link
+                  // Leva o recorte (filtros, ordem, página): salvar e voltar devolvem a lista como estava.
+                  href={urlNaLista(`/painel/pessoal/anuenios/${a.atual.id}`, new URLSearchParams(urlAtual.split("?")[1]), {
+                    de: "funcionarios",
+                  })}
+                  className="hover:underline"
+                >
                   {a.rotulo} · {a.aliquota}
                 </Link>
               ) : (

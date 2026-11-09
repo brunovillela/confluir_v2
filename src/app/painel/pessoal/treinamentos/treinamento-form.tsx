@@ -28,8 +28,11 @@ export type TreinamentoFormDados = {
 
 export function TreinamentoForm({
   treinamento,
+  voltarHref,
 }: {
   treinamento?: TreinamentoFormDados
+  /** Cancelar volta ao Catálogo na linha do treinamento. */
+  voltarHref?: string
 }) {
   const [estado, formAction, pendente] = useActionState(
     treinamento ? atualizarTreinamento : criarTreinamento,
@@ -49,7 +52,7 @@ export function TreinamentoForm({
   const erro = estado.erro ?? estadoExcluir.erro
 
   return (
-    <Card>
+    <Card id="formulario-treinamento" className="scroll-mt-20">
       <CardHeader>
         <CardTitle className="text-base">
           {treinamento ? "Editar treinamento" : "Adicionar treinamento"}
@@ -104,7 +107,7 @@ export function TreinamentoForm({
           <div className="flex items-center justify-end gap-2">
             {treinamento && (
               <Button variant="ghost" asChild>
-                <Link href="/painel/pessoal/treinamentos">Cancelar</Link>
+                <Link href={voltarHref ?? "/painel/pessoal/treinamentos?aba=catalogo"}>Cancelar</Link>
               </Button>
             )}
             <Button type="submit" disabled={pendente}>

@@ -16,6 +16,7 @@ import {
 import { funcionariosParaSelecao } from "@/lib/db/pessoal"
 import { funcionarioDaArea } from "@/lib/db/pessoal-area"
 import { formatarData, formatarMoeda } from "@/lib/formato"
+import { recorteDaLista, urlNaLista } from "@/lib/lista-estado"
 
 import { NivelLancamentoForm } from "../lancamento-form"
 
@@ -29,12 +30,17 @@ export default async function EditarNivelPage({
 }: {
   params: Promise<{ id: string }>
   /** de: "carreira" (Carreira do funcionário), "funcionarios" (aba Funcionários); sem ele, Lançamentos. */
-  searchParams: Promise<{ de?: string }>
+  searchParams: Promise<Record<string, string | undefined>>
 }) {
   const sessao = await requirePermissao("pessoal_gestao", ["pessoal_niveis_salariais"])
 
   const { id } = await params
-  const { de } = await searchParams
+  const sp = await searchParams
+  const { de } = sp
+  // O "Editar" das listas traz junto o recorte delas (página, filtros, aba):
+  // voltar, cancelar e salvar devolvem a lista como estava.
+  const lista = recorteDaLista(sp)
+  lista.delete("de")
   const [lancamento, funcionarios] = await Promise.all([
     buscarNivelSalarial(id),
     funcionariosParaSelecao(),
@@ -47,8 +53,11 @@ export default async function EditarNivelPage({
     de === "carreira" && lancamento.funcionario_id
       ? { href: `/painel/pessoal/carreira/funcionario/${lancamento.funcionario_id}`, rotulo: lancamento.funcionarioNome ?? "Carreira" }
       : de === "funcionarios"
-        ? { href: "/painel/pessoal/niveis", rotulo: "Níveis salariais" }
-        : { href: "/painel/pessoal/niveis?aba=lancamentos", rotulo: "Lançamentos de níveis salariais" }
+        ? { href: urlNaLista("/painel/pessoal/niveis", lista), rotulo: "Níveis salariais" }
+        : {
+            href: urlNaLista("/painel/pessoal/niveis", lista, { aba: "lancamentos" }, `registro-${id}`),
+            rotulo: "Lançamentos de níveis salariais",
+          }
 
   return (
     <>
@@ -72,6 +81,7 @@ export default async function EditarNivelPage({
       <NivelLancamentoForm
         de={de === "carreira" || de === "funcionarios" ? de : "lancamentos"}
         voltarHref={voltar.href}
+        lista={de === "carreira" ? undefined : lista.toString()}
         funcionarios={funcionarios}
         tiposAvanco={TIPOS_AVANCO}
         niveis={base.map((b) => ({

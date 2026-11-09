@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { SITUACOES_DIARIA, type SolicitacaoDiaria } from "@/lib/db/diarias"
 import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { formatarData, formatarMoeda } from "@/lib/formato"
+import { recorteDaLista, urlNaLista } from "@/lib/lista-estado"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { semAcento } from "@/lib/texto"
 
@@ -43,6 +44,9 @@ export async function ListaSolicitacoesDiaria({
   })
   const paginacao = lerPaginacao(brutos, 30)
   const paginaAtual = paginar(filtradas, paginacao)
+  // O "Ver" leva o recorte (página, filtros) à diária, cujo voltar volta nele.
+  const recorte = recorteDaLista(brutos)
+  recorte.set("aba", "solicitacoes")
   const fotos = await fotosDosUsuarios(paginaAtual.linhas.map((s) => s.funcionario_id))
 
   return (
@@ -109,7 +113,7 @@ export async function ListaSolicitacoesDiaria({
                 </TableRow>
               )}
               {paginaAtual.linhas.map((s) => (
-                <TableRow key={s.id}>
+                <TableRow key={s.id} id={`registro-${s.id}`} className="scroll-mt-20">
                   <TableCell className="max-w-56 font-medium">
                     {s.funcionario_id ? (
                       <div className="flex min-w-0 items-center gap-2">
@@ -146,7 +150,7 @@ export async function ListaSolicitacoesDiaria({
                   </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm" asChild className="h-7 px-2">
-                      <Link href={`/painel/pessoal/diarias/${s.id}?de=solicitacoes`}>Ver</Link>
+                      <Link href={urlNaLista(`/painel/pessoal/diarias/${s.id}`, recorte, { de: "solicitacoes" })}>Ver</Link>
                     </Button>
                   </TableCell>
                 </TableRow>

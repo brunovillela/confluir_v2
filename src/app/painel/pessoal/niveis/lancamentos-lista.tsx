@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { TrendingUp } from "lucide-react"
 
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -18,6 +19,7 @@ import {
   TIPOS_AVANCO,
 } from "@/lib/db/carreira"
 import { formatarData, formatarMoeda } from "@/lib/formato"
+import { paginaDoIndice, recorteDaLista, urlNaLista } from "@/lib/lista-estado"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 
 const SELECT_FILTRO =
@@ -57,11 +59,24 @@ export async function ListaLancamentosNiveis({ brutos }: { brutos: ParamsLista &
     return true
   })
 
+  // Recém-salvo (?linha=), abre na página em que o lançamento está.
   const paginacao = lerPaginacao(brutos, 30)
+  const indiceEmFoco = brutos.linha ? filtrados.findIndex((n) => n.id === brutos.linha) : -1
+  if (indiceEmFoco >= 0) paginacao.pagina = paginaDoIndice(indiceEmFoco, paginacao.porPagina)
   const paginaAtual = paginar(filtrados, paginacao)
+  // O "Editar" leva o recorte (página, filtros) ao lançamento, que volta nele.
+  const recorte = recorteDaLista(brutos)
+  recorte.set("aba", "lancamentos")
+  if (paginaAtual.pagina > 1) recorte.set("pagina", String(paginaAtual.pagina))
+  else recorte.delete("pagina")
 
   return (
     <>
+      {brutos.salvo === "1" && brutos.linha && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>Lançamento salvo.</AlertDescription>
+        </Alert>
+      )}
       <p className="text-muted-foreground text-xs">
         {filtrados.length} lançamento{filtrados.length === 1 ? "" : "s"}
       </p>
@@ -126,7 +141,11 @@ export async function ListaLancamentosNiveis({ brutos }: { brutos: ParamsLista &
                 </TableRow>
               )}
               {paginaAtual.linhas.map((n) => (
-                <TableRow key={n.id}>
+                <TableRow
+                  key={n.id}
+                  id={`registro-${n.id}`}
+                  className={`scroll-mt-20 ${brutos.linha === n.id ? "bg-success/10" : ""}`}
+                >
                   <TableCell className="max-w-56 font-medium">
                     {n.funcionario_id ? (
                       <Link
@@ -163,7 +182,7 @@ export async function ListaLancamentosNiveis({ brutos }: { brutos: ParamsLista &
                   </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm" asChild className="h-7 px-2">
-                      <Link href={`/painel/pessoal/niveis/${n.id}`}>Editar</Link>
+                      <Link href={urlNaLista(`/painel/pessoal/niveis/${n.id}`, recorte)}>Editar</Link>
                     </Button>
                   </TableCell>
                 </TableRow>

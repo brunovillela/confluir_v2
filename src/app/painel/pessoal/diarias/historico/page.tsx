@@ -19,7 +19,9 @@ import { periodoRemessa, SituacaoRemessaBadge } from "@/components/diarias-histo
 import { requirePermissao } from "@/lib/auth"
 import { listarRemessasDiaria } from "@/lib/db/diarias-historico"
 import { formatarMoeda } from "@/lib/formato"
+import { recorteDaLista, urlNaLista } from "@/lib/lista-estado"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
+import { LembrarLista } from "@/components/voltar-lista"
 
 export const metadata: Metadata = { title: "Histórico de diárias — Confluir" }
 
@@ -57,6 +59,11 @@ export default async function HistoricoDiariasPage({
   return (
     <>
       <RotuloTrilha valores={{ historico: "Histórico" }} />
+      {/* O voltar da remessa abre o histórico como estava (busca, ano, página), na linha. */}
+      <LembrarLista
+        chave="diarias-historico"
+        url={urlNaLista("/painel/pessoal/diarias/historico", recorteDaLista(brutos))}
+      />
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/painel/pessoal/diarias">
@@ -128,7 +135,7 @@ export default async function HistoricoDiariasPage({
                 </TableRow>
               )}
               {paginaAtual.linhas.map((r) => (
-                <TableRow key={r.id}>
+                <TableRow key={r.id} id={`registro-${r.id}`} className="scroll-mt-20">
                   <TableCell className="max-w-56 font-medium">
                     <span className="block truncate">{r.beneficiarioNome ?? "(sem beneficiário)"}</span>
                     <span className="text-muted-foreground block text-xs font-normal md:hidden">{periodoRemessa(r)}</span>

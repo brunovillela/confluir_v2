@@ -49,6 +49,7 @@ export function PeriodoFeriasForm({
   periodo,
   funcionarioPadrao,
   inicioPadrao,
+  voltarHref,
 }: {
   funcionarios: { usuarioId: string; nome: string }[]
   periodo?: PeriodoFormDados
@@ -56,6 +57,8 @@ export function PeriodoFeriasForm({
   funcionarioPadrao?: string | null
   /** Sugestão de início do aquisitivo (dia seguinte ao último período). */
   inicioPadrao?: string | null
+  /** Cancelar mantém o recorte da página do período (ex.: ?de=periodos). */
+  voltarHref?: string
 }) {
   const [estado, formAction, pendente] = useActionState(
     periodo ? atualizarPeriodoAction : criarPeriodoAction,
@@ -91,11 +94,13 @@ export function PeriodoFeriasForm({
   }
 
   const erro = estado.erro ?? estadoExcluir.erro
-  const voltar = periodo
-    ? `/painel/pessoal/ferias/${periodo.id}`
-    : funcionarioPadrao
-      ? `/painel/pessoal/ferias/funcionario/${funcionarioPadrao}`
-      : "/painel/pessoal/ferias"
+  const voltar =
+    voltarHref ??
+    (periodo
+      ? `/painel/pessoal/ferias/${periodo.id}`
+      : funcionarioPadrao
+        ? `/painel/pessoal/ferias/funcionario/${funcionarioPadrao}`
+        : "/painel/pessoal/ferias")
 
   return (
     <div className="grid gap-4">

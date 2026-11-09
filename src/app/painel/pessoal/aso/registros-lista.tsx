@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { ExternalLink, HeartPulse } from "lucide-react"
 
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,7 +18,9 @@ import { funcionariosParaSelecao, urlArquivoPessoal } from "@/lib/db/pessoal"
 import { listarAsos, TIPOS_ASO } from "@/lib/db/pessoal-saude"
 import { comFuncionariosAtuais } from "@/lib/db/opcoes-pessoas"
 import { formatarData } from "@/lib/formato"
+import { paginaDoIndice, recorteDaLista, urlNaLista } from "@/lib/lista-estado"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
+import { LembrarLista } from "@/components/voltar-lista"
 
 import { AsoForm, ExcluirAsoBotao } from "./aso-form"
 
@@ -82,8 +85,19 @@ export async function ListaRegistrosAso({ brutos }: { brutos: ParamsLista & Reco
     return true
   })
 
+  // Editando ou recém-salvo, abre na página em que a linha está.
   const paginacao = lerPaginacao(brutos, 30)
+  const emFoco = editar ?? brutos.linha
+  const indiceEmFoco = emFoco ? filtrados.findIndex((a) => a.id === emFoco) : -1
+  if (indiceEmFoco >= 0) paginacao.pagina = paginaDoIndice(indiceEmFoco, paginacao.porPagina)
   const paginaAtual = paginar(filtrados, paginacao)
+  // Editar, Cancelar e o voltar do registro mantêm página, filtros e aba.
+  const base = "/painel/pessoal/aso"
+  const recorte = recorteDaLista(brutos)
+  recorte.set("aba", "registros")
+  if (paginaAtual.pagina > 1) recorte.set("pagina", String(paginaAtual.pagina))
+  else recorte.delete("pagina")
+  const naLista = (extras: Record<string, string> = {}, ancora?: string) => urlNaLista(base, recorte, extras, ancora)
 
   const urls = new Map<string, string | null>()
   for (const a of paginaAtual.linhas) {
@@ -97,6 +111,7 @@ export async function ListaRegistrosAso({ brutos }: { brutos: ParamsLista & Reco
 
   return (
     <>
+      <LembrarLista chave="aso-registros" url={naLista()} />
       <form method="GET" className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="aba" value="registros" />
         <Input
@@ -135,6 +150,12 @@ export async function ListaRegistrosAso({ brutos }: { brutos: ParamsLista & Reco
         </Button>
       </form>
 
+      {brutos.salvo === "1" && brutos.linha && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>ASO salvo.</AlertDescription>
+        </Alert>
+      )}
+
       <div className="overflow-hidden rounded-xl border">
         <div className="overflow-x-auto">
           <Table>
@@ -165,7 +186,11 @@ export async function ListaRegistrosAso({ brutos }: { brutos: ParamsLista & Reco
                 </TableRow>
               )}
               {paginaAtual.linhas.map((a) => (
-                <TableRow key={a.id}>
+                <TableRow
+                  key={a.id}
+                  id={`registro-${a.id}`}
+                  className={`scroll-mt-20 ${brutos.linha === a.id ? "bg-success/10" : editar === a.id ? "bg-muted/50" : ""}`}
+                >
                   <TableCell className="max-w-56 font-medium">
                     {a.funcionario_id ? (
                       <Link
@@ -254,7 +279,7 @@ export async function ListaRegistrosAso({ brutos }: { brutos: ParamsLista & Reco
                         asChild
                         className="h-7 px-2"
                       >
-                        <Link href={`/painel/pessoal/aso?aba=registros&editar=${a.id}`}>
+                        <Link href={naLista({ editar: a.id }, "formulario-aso")}>
                           Editar
                         </Link>
                       </Button>
@@ -279,6 +304,7 @@ export async function ListaRegistrosAso({ brutos }: { brutos: ParamsLista & Reco
       {/* key força remontagem ao alternar criar/editar (defaultValue). */}
       <AsoForm
         key={emEdicao?.id ?? "novo"}
+        voltarHref={emEdicao ? naLista({}, `registro-${emEdicao.id}`) : undefined}
         funcionarios={funcionarios}
         tipos={TIPOS_ASO}
         aso={

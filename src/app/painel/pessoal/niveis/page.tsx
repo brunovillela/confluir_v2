@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { LembrarLista } from "@/components/voltar-lista"
+import { urlNaLista } from "@/lib/lista-estado"
 import { requirePermissao } from "@/lib/auth"
 import { hojeSP } from "@/lib/db/comum"
 import { avancaAte, carregarCarreira } from "@/lib/db/carreira-area"
@@ -103,7 +104,8 @@ export default async function NiveisPage({
         </div>
       </div>
 
-      {sp.salvo === "1" && (
+      {/* Salvo numa linha: o aviso fica junto da lista, onde a tela volta. */}
+      {sp.salvo === "1" && !sp.linha && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Lançamento salvo.</AlertDescription>
         </Alert>
@@ -197,6 +199,9 @@ function AbaFuncionarios({
   const urlAtual = `/painel/pessoal/niveis?${new URLSearchParams(
     Object.entries({ ...params, pagina: sp.pagina, porPagina: sp.porPagina }).filter((e): e is [string, string] => Boolean(e[1]))
   )}`
+  // O lançamento aberto daqui leva o recorte (filtros, ordem, página) e volta nele.
+  const urlLancamento = (id: string) =>
+    urlNaLista(`/painel/pessoal/niveis/${id}`, new URLSearchParams(urlAtual.split("?")[1]), { de: "funcionarios" })
 
   return (
     <>
@@ -216,7 +221,7 @@ function AbaFuncionarios({
             valor: (l) => {
               const n = nivelDe.get(l.usuarioId)
               return n ? (
-                <Link href={`/painel/pessoal/niveis/${n.atual.id}?de=funcionarios`} className="hover:underline">
+                <Link href={urlLancamento(n.atual.id)} className="hover:underline">
                   {n.rotulo}
                 </Link>
               ) : (
@@ -273,7 +278,7 @@ function AbaFuncionarios({
                   <Link
                     href={
                       n
-                        ? `/painel/pessoal/niveis/${n.atual.id}?de=funcionarios`
+                        ? urlLancamento(n.atual.id)
                         : `/painel/pessoal/niveis/novo?funcionario=${l.usuarioId}`
                     }
                   >

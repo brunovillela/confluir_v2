@@ -21,6 +21,8 @@ import {
   salvarVigenciaTabela,
   tornarTabelaVigente,
 } from "@/lib/db/tabelas-salariais"
+import { urlNaLista } from "@/lib/lista-estado"
+import { voltarNaLista } from "@/lib/lista-estado-servidor"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 async function exigirAcesso() {
@@ -39,12 +41,24 @@ function revalidar(funcionarioId?: string | null) {
   }
 }
 
-/** Depois de salvar ou excluir, volta à tela de onde o lançamento foi aberto. */
-function destinoDoLancamento(formData: FormData, funcionarioId: string | null, aviso: string) {
+/**
+ * Depois de salvar ou excluir, volta à tela de onde o lançamento foi aberto.
+ * `lista` (campo oculto) é o recorte da lista de origem (página, filtros):
+ * a volta é na mesma página e, ao salvar, na linha do lançamento (`linha`).
+ */
+function destinoDoLancamento(formData: FormData, funcionarioId: string | null, aviso: string, linha?: string) {
   const de = String(formData.get("de") ?? "")
   if (de === "carreira" && funcionarioId) return `/painel/pessoal/carreira/funcionario/${funcionarioId}?${aviso}`
-  if (de === "lancamentos") return `/painel/pessoal/niveis?aba=lancamentos&${aviso}`
-  return `/painel/pessoal/niveis?${aviso}`
+  const lista = new URLSearchParams(String(formData.get("lista") ?? ""))
+  if (de === "lancamentos") {
+    return urlNaLista(
+      "/painel/pessoal/niveis",
+      lista,
+      `aba=lancamentos&${aviso}${linha ? `&linha=${linha}` : ""}`,
+      linha ? `registro-${linha}` : undefined
+    )
+  }
+  return urlNaLista("/painel/pessoal/niveis", lista, aviso)
 }
 
 function lerCamposLancamento(formData: FormData) {
@@ -108,7 +122,7 @@ export async function atualizarLancamentoNivel(
   if (erro) return { erro }
 
   revalidar(dados.funcionario_id)
-  redirect(destinoDoLancamento(formData, dados.funcionario_id, "salvo=1"))
+  redirect(destinoDoLancamento(formData, dados.funcionario_id, "salvo=1", id))
 }
 
 export async function excluirLancamentoNivel(
@@ -333,7 +347,15 @@ export async function atualizarNivelBase(
   if (count === 0) return { erro: "Degrau não encontrado." }
 
   revalidar()
-  redirect(paginaDaTabela(String(formData.get("tabela_id") ?? ""), "salvo=1"))
+  // Volta na linha salva, com o filtro de cargo e a página que estavam.
+  const tabelaId = String(formData.get("tabela_id") ?? "")
+  redirect(
+    await voltarNaLista(
+      "/painel/pessoal/niveis/tabela",
+      { tabela: tabelaId || null, salvo: "1", linha: id },
+      `registro-${id}`
+    )
+  )
 }
 
 export async function excluirNivelBase(

@@ -88,6 +88,7 @@ export function NivelLancamentoForm({
   funcionarioInicial,
   de,
   voltarHref = "/painel/pessoal/niveis",
+  lista,
 }: {
   funcionarios: { usuarioId: string; nome: string }[]
   niveis: OpcaoNivelBase[]
@@ -98,6 +99,8 @@ export function NivelLancamentoForm({
   /** Tela de origem ("carreira", "funcionarios", "lancamentos"): é para lá que volta ao salvar. */
   de?: string
   voltarHref?: string
+  /** Recorte da lista de origem ("pagina=2&busca=…"): salvar volta nele. */
+  lista?: string
 }) {
   const [estado, formAction, pendente] = useActionState(
     lancamento ? atualizarLancamentoNivel : criarLancamentoNivel,
@@ -127,6 +130,7 @@ export function NivelLancamentoForm({
       <form action={formAction} {...envio} className="grid gap-4">
         {lancamento && <input type="hidden" name="id" value={lancamento.id} />}
         {de && <input type="hidden" name="de" value={de} />}
+        {lista && <input type="hidden" name="lista" value={lista} />}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Dados do nível salarial</CardTitle>
@@ -253,6 +257,7 @@ export function NivelLancamentoForm({
         >
           <input type="hidden" name="id" value={lancamento.id} />
           {de && <input type="hidden" name="de" value={de} />}
+          {lista && <input type="hidden" name="lista" value={lista} />}
           <Button
             type="submit"
             variant="ghost"

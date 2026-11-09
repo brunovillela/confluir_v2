@@ -13,6 +13,7 @@ import {
   tipoDiariaEmUso,
 } from "@/lib/db/diarias"
 import { categoriaDiariaValida } from "@/lib/diarias-constantes"
+import { voltarNaLista } from "@/lib/lista-estado-servidor"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 async function exigirAcesso() {
@@ -71,7 +72,8 @@ export async function avaliarDiaria(
   redirect(
     daDiretoria
       ? `/painel/institucional/diretoria/diarias/${id}?salvo=1`
-      : `/painel/pessoal/diarias/${id}?salvo=1`
+      : // Mantém o ?de= e o recorte da lista de origem: o voltar continua levando a ela.
+        await voltarNaLista(`/painel/pessoal/diarias/${id}`, { salvo: "1" })
   )
 }
 
@@ -158,7 +160,8 @@ export async function atualizarTipoDiaria(
   if (count === 0) return { erro: "Tipo não encontrado." }
 
   revalidar()
-  redirect("/painel/pessoal/diarias/tipos?salvo=1")
+  // Volta na linha salva, não no topo da página.
+  redirect(await voltarNaLista("/painel/pessoal/diarias/tipos", { salvo: "1", linha: id }, `registro-${id}`))
 }
 
 export async function excluirTipoDiaria(

@@ -54,7 +54,7 @@ export function NivelBaseForm({
   const envio = useEnvioFormulario(formAction, estado)
 
   return (
-    <Card>
+    <Card id="formulario-degrau" className="scroll-mt-20">
       <CardHeader>
         <CardTitle className="text-base">
           {degrau

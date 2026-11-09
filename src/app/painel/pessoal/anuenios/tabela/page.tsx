@@ -31,11 +31,11 @@ function aliquotaPct(v: number | null): string {
 export default async function TabelaAnuenioPage({
   searchParams,
 }: {
-  searchParams: Promise<{ salvo?: string; editar?: string; novo?: string }>
+  searchParams: Promise<{ salvo?: string; editar?: string; novo?: string; linha?: string }>
 }) {
   await requirePermissao("pessoal_gestao", ["pessoal_anuenios"])
 
-  const { salvo, editar, novo } = await searchParams
+  const { salvo, editar, novo, linha } = await searchParams
   const base = await listarAnuenioBase()
   const emEdicao = editar ? (base.find((b) => b.id === editar) ?? null) : null
   const adicionando = novo === "1" && !emEdicao
@@ -81,6 +81,7 @@ export default async function TabelaAnuenioPage({
         {(adicionando || emEdicao) && (
           <AnuenioBaseForm
             key={emEdicao?.id ?? "novo"}
+            voltarHref={emEdicao ? `/painel/pessoal/anuenios/tabela#registro-${emEdicao.id}` : undefined}
             degrau={
               emEdicao
                 ? {
@@ -122,7 +123,11 @@ export default async function TabelaAnuenioPage({
                     </TableRow>
                   )}
                   {base.map((b) => (
-                    <TableRow key={b.id}>
+                    <TableRow
+                      key={b.id}
+                      id={`registro-${b.id}`}
+                      className={`scroll-mt-20 ${linha === b.id ? "bg-success/10" : editar === b.id ? "bg-muted/50" : ""}`}
+                    >
                       <TableCell className="font-medium tabular-nums">
                         {b.nivel ?? "—"}
                       </TableCell>
@@ -138,7 +143,7 @@ export default async function TabelaAnuenioPage({
                             className="h-7 px-2"
                           >
                             <Link
-                              href={`/painel/pessoal/anuenios/tabela?editar=${b.id}`}
+                              href={`/painel/pessoal/anuenios/tabela?editar=${b.id}#formulario-degrau`}
                             >
                               Editar
                             </Link>

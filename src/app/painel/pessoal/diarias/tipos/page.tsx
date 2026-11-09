@@ -23,6 +23,7 @@ import {
 import { requirePermissao } from "@/lib/auth"
 import { listarTiposDiaria } from "@/lib/db/diarias"
 import { formatarMoeda } from "@/lib/formato"
+import { recorteDaLista, urlNaLista } from "@/lib/lista-estado"
 
 import { ExcluirTipoDiariaBotao, TipoDiariaForm } from "./tipos-form"
 
@@ -39,13 +40,17 @@ function valorTexto(v: number | null): string {
 export default async function TiposDiariaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ salvo?: string; editar?: string }>
+  searchParams: Promise<{ salvo?: string; editar?: string; linha?: string }>
 }) {
   await requirePermissao("pessoal_gestao", ["pessoal_diarias"])
 
-  const { salvo, editar } = await searchParams
+  const paramsBusca = await searchParams
+  const { salvo, editar, linha } = paramsBusca
   const { disponivel, tipos } = await listarTiposDiaria()
   const emEdicao = editar ? (tipos.find((t) => t.id === editar) ?? null) : null
+  // Editar leva ao formulário e Cancelar/Salvar voltam na linha, não no topo.
+  const naLista = (extras: Record<string, string> = {}, ancora?: string) =>
+    urlNaLista("/painel/pessoal/diarias/tipos", recorteDaLista(paramsBusca), extras, ancora)
 
   return (
     <>
@@ -113,7 +118,11 @@ export default async function TiposDiariaPage({
                     </TableRow>
                   )}
                   {tipos.map((t) => (
-                    <TableRow key={t.id}>
+                    <TableRow
+                      key={t.id}
+                      id={`registro-${t.id}`}
+                      className={`scroll-mt-20 ${linha === t.id ? "bg-success/10" : editar === t.id ? "bg-muted/50" : ""}`}
+                    >
                       <TableCell className="max-w-64">
                         <span className="block truncate font-medium">{t.nome}</span>
                         {t.descricao && (
@@ -167,7 +176,7 @@ export default async function TiposDiariaPage({
                             className="h-7 px-2"
                           >
                             <Link
-                              href={`/painel/pessoal/diarias/tipos?editar=${t.id}`}
+                              href={naLista({ editar: t.id }, "formulario-tipo")}
                             >
                               Editar
                             </Link>
@@ -186,6 +195,7 @@ export default async function TiposDiariaPage({
         {/* key força remontagem ao alternar criar/editar (defaultValue). */}
         <TipoDiariaForm
           key={emEdicao?.id ?? "novo"}
+          voltarHref={emEdicao ? naLista({}, `registro-${emEdicao.id}`) : undefined}
           tipo={
             emEdicao
               ? {

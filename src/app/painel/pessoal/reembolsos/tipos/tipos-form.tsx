@@ -32,8 +32,11 @@ export type TipoReembolsoFormDados = {
 
 export function TipoReembolsoForm({
   tipo,
+  voltarHref,
 }: {
   tipo?: TipoReembolsoFormDados
+  /** Cancelar volta à lista na linha do tipo. */
+  voltarHref?: string
 }) {
   const [estado, formAction, pendente] = useActionState(
     tipo ? atualizarTipoReembolso : criarTipoReembolso,
@@ -42,7 +45,7 @@ export function TipoReembolsoForm({
   const envio = useEnvioFormulario(formAction, estado)
 
   return (
-    <Card>
+    <Card id="formulario-tipo" className="scroll-mt-20">
       <CardHeader>
         <CardTitle className="text-base">
           {tipo ? `Editar tipo — ${tipo.nome}` : "Adicionar tipo de reembolso"}
@@ -113,7 +116,7 @@ export function TipoReembolsoForm({
           <div className="flex items-center justify-end gap-2">
             {tipo && (
               <Button variant="ghost" asChild>
-                <Link href="/painel/pessoal/reembolsos/tipos">Cancelar</Link>
+                <Link href={voltarHref ?? "/painel/pessoal/reembolsos/tipos"}>Cancelar</Link>
               </Button>
             )}
             <Button type="submit" disabled={pendente}>

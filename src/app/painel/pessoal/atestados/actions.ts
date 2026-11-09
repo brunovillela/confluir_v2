@@ -16,6 +16,7 @@ import {
   excluirAtestado,
   excluirAusencia,
 } from "@/lib/db/pessoal-saude"
+import { voltarNaLista } from "@/lib/lista-estado-servidor"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 async function exigirAcesso() {
@@ -106,7 +107,8 @@ export async function criarAtestadoAction(
   if (erro) return { erro }
 
   revalidar(dados.funcionario_id)
-  redirect("/painel/pessoal/atestados?aba=atestados&salvo=1")
+  // Volta à lista no recorte em que estava (página, filtros).
+  redirect(await voltarNaLista("/painel/pessoal/atestados", { aba: "atestados", salvo: "1" }))
 }
 
 export async function atualizarAtestadoAction(
@@ -131,7 +133,10 @@ export async function atualizarAtestadoAction(
   if (erro) return { erro }
 
   revalidar(dados.funcionario_id)
-  redirect("/painel/pessoal/atestados?aba=atestados&salvo=1")
+  // Volta na linha salva, no mesmo recorte, e não no topo da página 1.
+  redirect(
+    await voltarNaLista("/painel/pessoal/atestados", { aba: "atestados", salvo: "1", linha: id }, `registro-${id}`)
+  )
 }
 
 export async function excluirAtestadoAction(
@@ -191,7 +196,7 @@ export async function criarAusenciaAction(
   if (erro) return { erro }
 
   revalidar(dados.funcionario_id)
-  redirect("/painel/pessoal/atestados?aba=ausencias&salvo=1")
+  redirect(await voltarNaLista("/painel/pessoal/atestados", { aba: "ausencias", salvo: "1" }))
 }
 
 export async function atualizarAusenciaAction(
@@ -210,7 +215,9 @@ export async function atualizarAusenciaAction(
   if (erro) return { erro }
 
   revalidar(dados.funcionario_id)
-  redirect("/painel/pessoal/atestados?aba=ausencias&salvo=1")
+  redirect(
+    await voltarNaLista("/painel/pessoal/atestados", { aba: "ausencias", salvo: "1", linha: id }, `registro-${id}`)
+  )
 }
 
 export async function excluirAusenciaAction(

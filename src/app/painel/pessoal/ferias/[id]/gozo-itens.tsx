@@ -41,11 +41,14 @@ export function GozoForm({
   saldo,
   jaTemGozos,
   gozo,
+  voltarHref,
 }: {
   periodoId: string
   saldo: number
   jaTemGozos: boolean
   gozo?: GozoFormDados
+  /** Cancelar volta à página no mesmo recorte (ex.: ?de=) e na linha do gozo. */
+  voltarHref?: string
 }) {
   const [estado, formAction, pendente] = useActionState(
     gozo ? atualizarGozoAction : criarGozoAction,
@@ -57,7 +60,7 @@ export function GozoForm({
   const divisao = jaTemGozos
 
   return (
-    <Card>
+    <Card id="formulario-gozo" className="scroll-mt-20">
       <CardHeader>
         <CardTitle className="text-base">
           {gozo ? "Editar gozo" : "Adicionar gozo"}
@@ -114,7 +117,7 @@ export function GozoForm({
           <div className="flex items-center justify-end gap-2">
             {gozo && (
               <Button variant="ghost" asChild>
-                <Link href={`/painel/pessoal/ferias/${periodoId}`}>
+                <Link href={voltarHref ?? `/painel/pessoal/ferias/${periodoId}`}>
                   Cancelar
                 </Link>
               </Button>

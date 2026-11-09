@@ -30,7 +30,9 @@ import {
 } from "@/lib/db/informes"
 import { funcionariosParaSelecao, urlArquivoPessoal } from "@/lib/db/pessoal"
 import { formatarData } from "@/lib/formato"
+import { recorteDaLista, urlNaLista } from "@/lib/lista-estado"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
+import { LembrarLista } from "@/components/voltar-lista"
 
 import { RemessaInformesForm } from "../remessa-form"
 import {
@@ -70,6 +72,10 @@ export default async function RemessaInformesPage({
   // Página concorrida (cabeçalho + formulário): 10 informes por página.
   const paginacao = lerPaginacao(paramsBusca, 10)
   const paginaAtual = paginar(itens, paginacao)
+  // O informe aberto daqui (?de=remessa) volta a esta página, na linha dele.
+  const recorte = recorteDaLista(paramsBusca)
+  if (paginaAtual.pagina > 1) recorte.set("pagina", String(paginaAtual.pagina))
+  else recorte.delete("pagina")
 
   const urls = new Map<string, string | null>()
   for (const i of paginaAtual.linhas) {
@@ -90,6 +96,7 @@ export default async function RemessaInformesPage({
           [id]: `Ano-base ${remessa.ano_referencia_os ?? "(sem ano)"}`,
         }}
       />
+      <LembrarLista chave={`informes-remessa:${id}`} url={urlNaLista(`/painel/pessoal/informes/${id}`, recorte)} />
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/painel/pessoal/informes">
@@ -123,7 +130,7 @@ export default async function RemessaInformesPage({
           </div>
           {!editandoRemessa && (
             <Button variant="outline" asChild>
-              <Link href={`/painel/pessoal/informes/${id}?editar=remessa`}>
+              <Link href={urlNaLista(`/painel/pessoal/informes/${id}`, recorte, { editar: "remessa" })}>
                 <Pencil />
                 Editar remessa
               </Link>
@@ -180,7 +187,7 @@ export default async function RemessaInformesPage({
                       </TableRow>
                     )}
                     {paginaAtual.linhas.map((i) => (
-                      <TableRow key={i.id}>
+                      <TableRow key={i.id} id={`registro-${i.id}`} className="scroll-mt-20">
                         <TableCell className="max-w-56 truncate font-medium">
                           {i.funcionario_id ? (
                             <Link

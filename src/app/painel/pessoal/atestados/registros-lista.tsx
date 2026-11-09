@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { ExternalLink, Stethoscope } from "lucide-react"
 
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,7 +21,9 @@ import {
 } from "@/lib/db/pessoal-saude"
 import { comFuncionariosAtuais } from "@/lib/db/opcoes-pessoas"
 import { formatarData } from "@/lib/formato"
+import { paginaDoIndice, recorteDaLista, urlNaLista } from "@/lib/lista-estado"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
+import { LembrarLista } from "@/components/voltar-lista"
 
 import {
   AtestadoForm,
@@ -89,9 +92,33 @@ export async function RegistrosSaude({ brutos }: { brutos: ParamsLista & Record<
   )
   const ausenciasFiltradas = filtrar(ausencias)
 
+  // Editando ou recém-salvo, abre na página em que a linha está.
   const paginacao = lerPaginacao(brutos, 30)
+  const emFoco = editar ?? brutos.linha
+  const indiceEmFoco = !emFoco
+    ? -1
+    : aba === "atestados"
+      ? atestadosFiltrados.findIndex((a) => a.id === emFoco)
+      : ausenciasFiltradas.findIndex((a) => a.id === emFoco)
+  if (indiceEmFoco >= 0) paginacao.pagina = paginaDoIndice(indiceEmFoco, paginacao.porPagina)
   const paginaAtestados = paginar(atestadosFiltrados, paginacao)
   const paginaAusencias = paginar(ausenciasFiltradas, paginacao)
+  // Editar, Cancelar e o voltar do registro mantêm página, filtros e aba.
+  const base = "/painel/pessoal/atestados"
+  const paginaVisivel = (aba === "atestados" ? paginaAtestados : paginaAusencias).pagina
+  const recorte = recorteDaLista(brutos)
+  recorte.set("aba", aba)
+  if (paginaVisivel > 1) recorte.set("pagina", String(paginaVisivel))
+  else recorte.delete("pagina")
+  const naLista = (extras: Record<string, string | null> = {}, ancora?: string) =>
+    urlNaLista(base, recorte, extras, ancora)
+  const classeLinha = (id: string) =>
+    `scroll-mt-20 ${brutos.linha === id ? "bg-success/10" : editar === id ? "bg-muted/50" : ""}`
+  const avisoSalvo = brutos.salvo === "1" && Boolean(brutos.linha) && (
+    <Alert className="border-success/40 text-success-fg">
+      <AlertDescription>Registro salvo.</AlertDescription>
+    </Alert>
+  )
 
   // Signed URLs só para a página visível de atestados.
   const urls = new Map<string, string | null>()
@@ -118,6 +145,7 @@ export async function RegistrosSaude({ brutos }: { brutos: ParamsLista & Record<
 
   return (
     <>
+      {aba === "atestados" && <LembrarLista chave="atestados-registros" url={naLista()} />}
       <form method="GET" className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="aba" value={aba} />
         <Input
@@ -146,6 +174,8 @@ export async function RegistrosSaude({ brutos }: { brutos: ParamsLista & Record<
           Filtrar
         </Button>
       </form>
+
+      {avisoSalvo}
 
       {aba === "atestados" ? (
         <>
@@ -182,7 +212,7 @@ export async function RegistrosSaude({ brutos }: { brutos: ParamsLista & Record<
                     </TableRow>
                   )}
                   {paginaAtestados.linhas.map((a) => (
-                    <TableRow key={a.id}>
+                    <TableRow key={a.id} id={`registro-${a.id}`} className={classeLinha(a.id)}>
                       <TableCell className="max-w-56 font-medium">
                         {a.funcionario_id ? (
                           <Link
@@ -239,7 +269,7 @@ export async function RegistrosSaude({ brutos }: { brutos: ParamsLista & Record<
                             className="h-7 px-2"
                           >
                             <Link
-                              href={`/painel/pessoal/atestados?aba=atestados&editar=${a.id}`}
+                              href={naLista({ editar: a.id }, "formulario-atestado")}
                             >
                               Editar
                             </Link>
@@ -265,6 +295,7 @@ export async function RegistrosSaude({ brutos }: { brutos: ParamsLista & Record<
           {/* key força remontagem ao alternar criar/editar (defaultValue). */}
           <AtestadoForm
             key={atestadoEmEdicao?.id ?? "novo"}
+            voltarHref={atestadoEmEdicao ? naLista({}, `registro-${atestadoEmEdicao.id}`) : undefined}
             funcionarios={funcionarios}
             atestado={
               atestadoEmEdicao
@@ -313,7 +344,7 @@ export async function RegistrosSaude({ brutos }: { brutos: ParamsLista & Record<
                   </TableRow>
                 )}
                 {paginaAusencias.linhas.map((a) => (
-                  <TableRow key={a.id}>
+                  <TableRow key={a.id} id={`registro-${a.id}`} className={classeLinha(a.id)}>
                     <TableCell className="max-w-56 font-medium">
                       {a.funcionario_id ? (
                         <Link
@@ -353,7 +384,13 @@ export async function RegistrosSaude({ brutos }: { brutos: ParamsLista & Record<
                             className="h-7 px-2"
                           >
                             <Link
-                              href={`/painel/pessoal/atestados?aba=atestados&editar=${a.atestado_id}`}
+                              href={urlNaLista(
+                                base,
+                                recorte,
+                                // Troca de aba: a página é a do atestado, não a da ausência.
+                                { aba: "atestados", editar: a.atestado_id, pagina: null },
+                                "formulario-atestado"
+                              )}
                             >
                               Ver atestado
                             </Link>
@@ -367,7 +404,7 @@ export async function RegistrosSaude({ brutos }: { brutos: ParamsLista & Record<
                               className="h-7 px-2"
                             >
                               <Link
-                                href={`/painel/pessoal/atestados?aba=ausencias&editar=${a.id}`}
+                                href={naLista({ editar: a.id }, "formulario-ausencia")}
                               >
                                 Editar
                               </Link>
@@ -393,6 +430,7 @@ export async function RegistrosSaude({ brutos }: { brutos: ParamsLista & Record<
 
           <AusenciaForm
             key={ausenciaEmEdicao?.id ?? "nova"}
+            voltarHref={ausenciaEmEdicao ? naLista({}, `registro-${ausenciaEmEdicao.id}`) : undefined}
             funcionarios={funcionarios}
             ausencia={
               ausenciaEmEdicao

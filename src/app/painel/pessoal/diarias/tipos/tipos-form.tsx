@@ -38,7 +38,14 @@ export type TipoDiariaFormDados = {
   quadro: string
 }
 
-export function TipoDiariaForm({ tipo }: { tipo?: TipoDiariaFormDados }) {
+export function TipoDiariaForm({
+  tipo,
+  voltarHref,
+}: {
+  tipo?: TipoDiariaFormDados
+  /** Cancelar volta à lista na linha do tipo. */
+  voltarHref?: string
+}) {
   const [estado, formAction, pendente] = useActionState(
     tipo ? atualizarTipoDiaria : criarTipoDiaria,
     {}
@@ -46,7 +53,7 @@ export function TipoDiariaForm({ tipo }: { tipo?: TipoDiariaFormDados }) {
   const envio = useEnvioFormulario(formAction, estado)
 
   return (
-    <Card>
+    <Card id="formulario-tipo" className="scroll-mt-20">
       <CardHeader>
         <CardTitle className="text-base">
           {tipo ? `Editar tipo — ${tipo.nome}` : "Adicionar tipo de diária"}
@@ -132,7 +139,7 @@ export function TipoDiariaForm({ tipo }: { tipo?: TipoDiariaFormDados }) {
           <div className="flex items-center justify-end gap-2">
             {tipo && (
               <Button variant="ghost" asChild>
-                <Link href="/painel/pessoal/diarias/tipos">Cancelar</Link>
+                <Link href={voltarHref ?? "/painel/pessoal/diarias/tipos"}>Cancelar</Link>
               </Button>
             )}
             <Button type="submit" disabled={pendente}>

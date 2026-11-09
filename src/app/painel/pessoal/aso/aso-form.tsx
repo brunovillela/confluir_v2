@@ -33,10 +33,13 @@ export function AsoForm({
   funcionarios,
   tipos,
   aso,
+  voltarHref,
 }: {
   funcionarios: { usuarioId: string; nome: string }[]
   tipos: readonly string[]
   aso?: AsoFormDados
+  /** Cancelar volta à lista no mesmo recorte (página, filtros) e na linha. */
+  voltarHref?: string
 }) {
   const [estado, formAction, pendente] = useActionState(
     aso ? atualizarAsoAction : criarAsoAction,
@@ -45,7 +48,7 @@ export function AsoForm({
   const envio = useEnvioFormulario(formAction, estado)
 
   return (
-    <Card>
+    <Card id="formulario-aso" className="scroll-mt-20">
       <CardHeader>
         <CardTitle className="text-base">
           {aso ? "Editar ASO" : "Registrar ASO"}
@@ -153,7 +156,7 @@ export function AsoForm({
           <div className="flex items-center justify-end gap-2">
             {aso && (
               <Button variant="ghost" asChild>
-                <Link href="/painel/pessoal/aso">Cancelar</Link>
+                <Link href={voltarHref ?? "/painel/pessoal/aso?aba=registros"}>Cancelar</Link>
               </Button>
             )}
             <Button type="submit" disabled={pendente}>

@@ -11,6 +11,7 @@ import {
   alunoJaMatriculado,
   notificarMatriculaTreinamento,
 } from "@/lib/db/treinamentos"
+import { voltarNaLista } from "@/lib/lista-estado-servidor"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 async function exigirAcesso() {
@@ -99,7 +100,10 @@ export async function atualizarTreinamento(
   if (count === 0) return { erro: "Treinamento não encontrado." }
 
   revalidar(id)
-  redirect(`/painel/pessoal/treinamentos/${id}?salvo=1`)
+  // O formulário de edição fica no Catálogo: volta nele, na linha salva.
+  redirect(
+    await voltarNaLista("/painel/pessoal/treinamentos", { aba: "catalogo", salvo: "1", linha: id }, `registro-${id}`)
+  )
 }
 
 export async function excluirTreinamento(
@@ -254,7 +258,10 @@ export async function atualizarAlunoTreinamento(
   if (count === 0) return { erro: "Registro não encontrado." }
 
   revalidar(treinamentoId)
-  redirect(`/painel/pessoal/treinamentos/${treinamentoId}?salvo=1`)
+  // Volta na linha do aluno, mantendo o recorte (ex.: ?pessoa= da trilha do funcionário).
+  redirect(
+    await voltarNaLista(`/painel/pessoal/treinamentos/${treinamentoId}`, { salvo: "1", linha: id }, `registro-${id}`)
+  )
 }
 
 export async function excluirAlunoTreinamento(

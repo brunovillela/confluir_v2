@@ -16,6 +16,7 @@ import {
 } from "@/lib/db/ferias"
 import { enviarAvisoFerias, gozosSemAviso, reenviarAvisoFerias, refazerAvisosPendentes } from "@/lib/db/ferias-aviso"
 import { salvarRegraPagamentoFerias } from "@/lib/db/ferias-regras"
+import { voltarNaLista } from "@/lib/lista-estado-servidor"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 async function exigirAcesso() {
@@ -103,7 +104,8 @@ export async function atualizarPeriodoAction(
   if (erro) return { erro }
 
   revalidar(id, dados.trabalhador_id)
-  redirect(`/painel/pessoal/ferias/${id}?salvo=1`)
+  // Mantém o ?de= (de onde o período foi aberto), para o voltar não se perder.
+  redirect(await voltarNaLista(`/painel/pessoal/ferias/${id}`, { salvo: "1" }))
 }
 
 export async function excluirPeriodoAction(
@@ -125,6 +127,10 @@ export async function excluirPeriodoAction(
   const destino = /^\/painel\/pessoal\/ferias(\/funcionario\/[\w-]+|\?aba=periodos)?$/.test(voltar)
     ? voltar
     : "/painel/pessoal/ferias"
+  // Da aba Períodos: volta na mesma página e com os mesmos filtros.
+  if (destino === "/painel/pessoal/ferias?aba=periodos") {
+    redirect(await voltarNaLista("/painel/pessoal/ferias", { aba: "periodos", excluido: "1" }))
+  }
   redirect(`${destino}${destino.includes("?") ? "&" : "?"}excluido=1`)
 }
 
@@ -193,7 +199,7 @@ export async function criarGozoAction(
   if (erro) return { erro }
 
   revalidar(periodoId)
-  redirect(`/painel/pessoal/ferias/${periodoId}?salvo=1`)
+  redirect(await voltarNaLista(`/painel/pessoal/ferias/${periodoId}`, { salvo: "1" }))
 }
 
 export async function atualizarGozoAction(
@@ -219,7 +225,10 @@ export async function atualizarGozoAction(
   if (erro) return { erro }
 
   revalidar(periodoId)
-  redirect(`/painel/pessoal/ferias/${periodoId}?salvo=1`)
+  // Volta na linha do gozo, mantendo o ?de= do período.
+  redirect(
+    await voltarNaLista(`/painel/pessoal/ferias/${periodoId}`, { salvo: "1", linha: gozoId }, `registro-${gozoId}`)
+  )
 }
 
 export async function excluirGozoAction(

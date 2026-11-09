@@ -9,6 +9,8 @@ import type { FaltaJustificada } from "@/lib/db/faltas"
 import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import type { SituacaoFalta } from "@/lib/faltas-constantes"
 import { formatarData } from "@/lib/formato"
+import { recorteDaLista, urlNaLista } from "@/lib/lista-estado"
+import { LembrarLista } from "@/components/voltar-lista"
 
 import { ExcluirFaltaBotao } from "./faltas-forms"
 import { BadgeFalta, LinkComprovacao } from "./faltas-ui"
@@ -37,6 +39,11 @@ export async function ListaFaltasAno({
   const fotos = await fotosDosUsuarios(lista.map((f) => f.funcionarioId))
   return (
     <>
+      {/* O voltar da falta (?de=faltas) abre a lista com os mesmos filtros, na linha. */}
+      <LembrarLista
+        chave="faltas-ano"
+        url={urlNaLista("/painel/pessoal/faltas", recorteDaLista(brutos), { aba: "faltas", ano })}
+      />
       <form method="GET" className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="aba" value="faltas" />
         <SelectNativo name="ano" defaultValue={ano} aria-label="Ano" className="h-9 w-auto">
@@ -85,7 +92,7 @@ export async function ListaFaltasAno({
             </TableHeader>
             <TableBody>
               {lista.map((f) => (
-                <TableRow key={f.id}>
+                <TableRow key={f.id} id={`registro-${f.id}`} className="scroll-mt-20">
                   <TableCell className="whitespace-nowrap">
                     <Link href={`/painel/pessoal/faltas/${f.id}?de=faltas`} className="hover:underline">
                       {formatarData(f.data)}

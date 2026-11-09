@@ -63,7 +63,8 @@ export default async function AtestadosPage({
         <p className="text-muted-foreground mt-1 text-xs">Registros de saúde e afastamentos dos funcionários</p>
       </div>
 
-      {sp.salvo === "1" && (
+      {/* Salvo numa linha: o aviso fica junto da lista, onde a tela volta. */}
+      {sp.salvo === "1" && !sp.linha && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Registro salvo.</AlertDescription>
         </Alert>

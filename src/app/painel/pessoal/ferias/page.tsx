@@ -47,6 +47,7 @@ import {
   type ChaveSituacao,
 } from "@/lib/ferias-painel"
 import { formatarData } from "@/lib/formato"
+import { recorteDaLista, urlNaLista } from "@/lib/lista-estado"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { filtrarFuncionarios, lerFiltrosArea, ordenarPor, paramsDosFiltros } from "@/lib/pessoal-area"
 import { cn } from "@/lib/utils"
@@ -528,6 +529,11 @@ function ListaPeriodos({
 
   return (
     <>
+      {/* O voltar do período (?de=periodos) abre a aba como estava, na linha. */}
+      <LembrarLista
+        chave="ferias-periodos"
+        url={urlNaLista("/painel/pessoal/ferias", recorteDaLista(brutos), { aba: "periodos" })}
+      />
       <form method="GET" className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="aba" value="periodos" />
         <Input
@@ -602,7 +608,9 @@ function ListaPeriodos({
                 return (
                   <TableRow
                     key={p.id}
+                    id={`registro-${p.id}`}
                     className={cn(
+                      "scroll-mt-20",
                       fase?.fase === "concessivo" && "bg-info/5",
                       fase?.fase === "terminando" && "bg-warning/10",
                       fase?.fase === "vencido" && "bg-destructive/5"

@@ -15,6 +15,7 @@ import {
 } from "@/lib/db/carreira"
 import { funcionariosParaSelecao } from "@/lib/db/pessoal"
 import { funcionarioDaArea } from "@/lib/db/pessoal-area"
+import { recorteDaLista, urlNaLista } from "@/lib/lista-estado"
 
 import { AnuenioLancamentoForm } from "../lancamento-form"
 
@@ -28,12 +29,17 @@ export default async function EditarAnuenioPage({
 }: {
   params: Promise<{ id: string }>
   /** de: "carreira" (Carreira do funcionário), "funcionarios" (aba Funcionários); sem ele, Lançamentos. */
-  searchParams: Promise<{ de?: string }>
+  searchParams: Promise<Record<string, string | undefined>>
 }) {
   const sessao = await requirePermissao("pessoal_gestao", ["pessoal_anuenios"])
 
   const { id } = await params
-  const { de } = await searchParams
+  const sp = await searchParams
+  const { de } = sp
+  // O "Editar" das listas traz junto o recorte delas (página, filtros, aba):
+  // voltar, cancelar e salvar devolvem a lista como estava.
+  const lista = recorteDaLista(sp)
+  lista.delete("de")
   const [lancamento, funcionarios, base] = await Promise.all([
     buscarAnuenio(id),
     funcionariosParaSelecao(),
@@ -45,8 +51,12 @@ export default async function EditarAnuenioPage({
     de === "carreira" && lancamento.funcionario_id
       ? { href: `/painel/pessoal/carreira/funcionario/${lancamento.funcionario_id}`, rotulo: lancamento.funcionarioNome ?? "Carreira" }
       : de === "funcionarios"
-        ? { href: "/painel/pessoal/anuenios", rotulo: "Anuênios" }
-        : { href: "/painel/pessoal/anuenios?aba=lancamentos", rotulo: "Lançamentos de anuênios" }
+        ? { href: urlNaLista("/painel/pessoal/anuenios", lista), rotulo: "Anuênios" }
+        : {
+            href: urlNaLista("/painel/pessoal/anuenios", lista, { aba: "lancamentos" }, `registro-${id}`),
+            rotulo: "Lançamentos de anuênios",
+          }
+  const origem = de === "carreira" && lancamento.funcionario_id ? "carreira" : de === "funcionarios" ? de : "lancamentos"
 
   return (
     <>
@@ -69,6 +79,9 @@ export default async function EditarAnuenioPage({
       )}
       <p className="text-muted-foreground text-xs">O próximo nível é recalculado ao salvar.</p>
       <AnuenioLancamentoForm
+        de={origem}
+        lista={origem === "carreira" ? undefined : lista.toString()}
+        voltarHref={voltar.href}
         funcionarios={funcionarios}
         niveis={base.map((b) => ({
           id: b.id,

@@ -32,6 +32,8 @@ import { funcionarioDaArea } from "@/lib/db/pessoal-area"
 import { situacaoDosAvisos } from "@/lib/db/ferias-aviso"
 import { formatarMomentoAssinatura } from "@/lib/db/assinatura-comum"
 import { formatarData } from "@/lib/formato"
+import { recorteDaLista, urlNaLista } from "@/lib/lista-estado"
+import { VoltarLista } from "@/components/voltar-lista"
 
 import { ExcluirPeriodoBotao } from "../excluir-periodo"
 import { PeriodoFeriasForm } from "../periodo-form"
@@ -54,12 +56,16 @@ export default async function PeriodoFeriasPage({
 }: {
   params: Promise<{ id: string }>
   /** de: "area" (fila da área) ou "periodos" (aba Períodos); sem ele, volta ao funcionário. */
-  searchParams: Promise<{ salvo?: string; editar?: string; de?: string }>
+  searchParams: Promise<{ salvo?: string; editar?: string; de?: string; linha?: string }>
 }) {
   const sessao = await requirePermissao("pessoal_gestao")
 
   const { id } = await params
-  const { salvo, editar, de } = await searchParams
+  const paramsBusca = await searchParams
+  const { salvo, editar, de, linha } = paramsBusca
+  // Editar e Cancelar mantêm o ?de= (o voltar ao topo da página depende dele).
+  const naPagina = (extras: Record<string, string> = {}, ancora?: string) =>
+    urlNaLista(`/painel/pessoal/ferias/${id}`, recorteDaLista(paramsBusca), extras, ancora)
   const [periodo, funcionarios, todos] = await Promise.all([
     buscarPeriodoFerias(id),
     funcionariosParaSelecao(),
@@ -106,12 +112,24 @@ export default async function PeriodoFeriasPage({
   return (
     <>
       <RotuloTrilha valores={{ [id]: `Período ${anos}` }} />
-      <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 self-start">
-        <Link href={voltar.href}>
-          <ArrowLeft />
-          {voltar.rotulo}
-        </Link>
-      </Button>
+      {de === "periodos" || de === "area" ? (
+        // Volta à lista de onde veio como estava (página, filtros); na aba Períodos, na linha.
+        <VoltarLista
+          chave={de === "periodos" ? "ferias-periodos" : "ferias-funcionarios"}
+          base="/painel/pessoal/ferias"
+          rotulo={voltar.rotulo}
+          padrao={voltar}
+          ancora={de === "periodos" ? `registro-${id}` : undefined}
+          className="-ml-2 mb-1 self-start"
+        />
+      ) : (
+        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 self-start">
+          <Link href={voltar.href}>
+            <ArrowLeft />
+            {voltar.rotulo}
+          </Link>
+        </Button>
+      )}
       {funcionario ? (
         <CabecalhoFuncionario
           funcionario={funcionario}
@@ -147,7 +165,7 @@ export default async function PeriodoFeriasPage({
               />
             )}
             <Button variant="outline" size="sm" asChild>
-              <Link href={`/painel/pessoal/ferias/${id}?editar=periodo`}>
+              <Link href={naPagina({ editar: "periodo" })}>
                 <Pencil />
                 Editar período
               </Link>
@@ -166,7 +184,8 @@ export default async function PeriodoFeriasPage({
         ]}
       />
 
-      {salvo === "1" && (
+      {/* Gozo salvo: o aviso fica junto da tabela, onde a tela volta. */}
+      {salvo === "1" && !linha && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Salvo com sucesso.</AlertDescription>
         </Alert>
@@ -174,6 +193,7 @@ export default async function PeriodoFeriasPage({
 
       {editandoPeriodo ? (
         <PeriodoFeriasForm
+          voltarHref={naPagina()}
           funcionarios={funcionarios}
           periodo={{
             id: periodo.id,
@@ -228,7 +248,12 @@ export default async function PeriodoFeriasPage({
                 avisa o funcionário por notificação e email.
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="grid gap-4">
+              {salvo === "1" && linha && (
+                <Alert className="border-success/40 text-success-fg">
+                  <AlertDescription>Gozo salvo.</AlertDescription>
+                </Alert>
+              )}
               <div className="overflow-x-auto rounded-lg border">
                 <Table>
                   <TableHeader>
@@ -256,7 +281,11 @@ export default async function PeriodoFeriasPage({
                       </TableRow>
                     )}
                     {periodo.gozos.map((g) => (
-                      <TableRow key={g.id}>
+                      <TableRow
+                        key={g.id}
+                        id={`registro-${g.id}`}
+                        className={`scroll-mt-20 ${linha === g.id ? "bg-success/10" : editar === g.id ? "bg-muted/50" : ""}`}
+                      >
                         <TableCell className="font-medium whitespace-nowrap">
                           {formatarData(g.inicio)}
                         </TableCell>
@@ -343,7 +372,7 @@ export default async function PeriodoFeriasPage({
                               className="h-7 px-2"
                             >
                               <Link
-                                href={`/painel/pessoal/ferias/${id}?editar=${g.id}`}
+                                href={naPagina({ editar: g.id }, "formulario-gozo")}
                               >
                                 Editar
                               </Link>
@@ -376,6 +405,7 @@ export default async function PeriodoFeriasPage({
             /* key força remontagem ao alternar criar/editar (defaultValue). */
             <GozoForm
               key={gozoEmEdicao?.id ?? "novo"}
+              voltarHref={gozoEmEdicao ? naPagina({}, `registro-${gozoEmEdicao.id}`) : undefined}
               periodoId={id}
               saldo={gozoEmEdicao ? r.saldo + (gozoEmEdicao.dias ?? 0) : r.saldo}
               jaTemGozos={
