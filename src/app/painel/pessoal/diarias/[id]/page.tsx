@@ -23,7 +23,7 @@ export default async function SolicitacaoDiariaPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  /** de: "solicitacoes" (aba Solicitações); sem ele, volta ao funcionário. */
+  /** de: "solicitacoes" (aba Solicitações) ou "remessa"; sem ele, volta ao funcionário. */
   searchParams: Promise<Record<string, string | undefined>>
 }) {
   const sessao = await requirePermissao("pessoal_gestao", ["pessoal_diarias"])
@@ -43,8 +43,14 @@ export default async function SolicitacaoDiariaPage({
 
   const fid = solicitacao.funcionario_id
   const funcionario = fid ? await funcionarioDaArea(fid) : null
+  // Aberta pela remessa: volta à remessa, na diária.
   const voltar =
-    de === "solicitacoes" || !fid
+    de === "remessa" && solicitacao.remessaId
+      ? {
+          href: `/painel/pessoal/diarias/remessas/${solicitacao.remessaId}#diaria-${id}`,
+          rotulo: `Remessa ${solicitacao.remessaCodigo ?? "de diárias"}`,
+        }
+      : de === "solicitacoes" || !fid
       ? {
           href: urlNaLista("/painel/pessoal/diarias", recorte, { aba: "solicitacoes", de: null }, `registro-${id}`),
           rotulo: "Solicitações de diária",

@@ -98,7 +98,8 @@ export function ListaRemessasDiarias({
           {remessas.map((r) => {
             const fora = r.contagem.cancelada + r.contagem.reprovada
             return (
-              <TableRow key={r.id}>
+              // id: o voltar da remessa cai nesta linha, não no topo da lista.
+              <TableRow key={r.id} id={`remessa-${r.id}`} className="scroll-mt-20">
                 <TableCell>
                   <Link href={`${base}/${r.id}`} className="text-primary tabular-nums hover:underline">
                     {r.codigo ?? "(sem código)"}
@@ -148,6 +149,7 @@ export function DetalheRemessaDiarias({
   solicitacoes,
   voltar,
   diariaBase,
+  diariaQuery = "",
   despesasUrls,
   podeAvaliar,
   geraDiarias,
@@ -164,6 +166,8 @@ export function DetalheRemessaDiarias({
   voltar: { href: string; rotulo: string }
   /** Base do link de cada diária (ex.: /painel/pessoal/diarias). */
   diariaBase: string
+  /** Acrescentado ao link de cada diária (ex.: "?de=remessa"): o voltar dela volta à remessa. */
+  diariaQuery?: string
   despesasUrls: Map<string, string | null>
   /** Quem vê pode aprovar/devolver (nunca a própria remessa). */
   podeAvaliar: boolean
@@ -282,11 +286,12 @@ export function DetalheRemessaDiarias({
             return (
               <div
                 key={s.id}
-                className={`rounded-md border p-3 text-sm ${pendencia ? "border-destructive/50 bg-destructive/5" : ""}`}
+                id={`diaria-${s.id}`}
+                className={`scroll-mt-20 rounded-md border p-3 text-sm ${pendencia ? "border-destructive/50 bg-destructive/5" : ""}`}
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <Link href={`${diariaBase}/${s.id}`} className="text-primary font-medium hover:underline">
+                    <Link href={`${diariaBase}/${s.id}${diariaQuery}`} className="text-primary font-medium hover:underline">
                       {s.complementoDe
                         ? `Despesas depois da viagem (${s.tipoNome ?? "diária"})`
                         : `${s.tipoNome ?? "Diária"} × ${s.quantidade ?? 1}`}

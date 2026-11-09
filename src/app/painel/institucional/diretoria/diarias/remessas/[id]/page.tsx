@@ -19,8 +19,9 @@ export default async function RemessaDiariasPage({ params }: { params: Promise<{
       <RotuloTrilha valores={{ [id]: `Remessa ${ctx.remessa.codigo ?? ""}` }} />
       <DetalheRemessaDiarias
         {...ctx}
-        voltar={{ href: "/painel/institucional/diretoria/diarias/remessas", rotulo: "Remessas de diárias" }}
+        voltar={{ href: `/painel/institucional/diretoria/diarias/remessas#remessa-${id}`, rotulo: "Remessas de diárias" }}
         diariaBase="/painel/institucional/diretoria/diarias"
+        diariaQuery="?de=remessa"
       />
     </>
   )

@@ -21,12 +21,13 @@ export default async function DiariaDiretoriaPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ salvo?: string; nova?: string }>
+  /** de: "remessa" quando aberta pela remessa (o voltar volta a ela). */
+  searchParams: Promise<{ salvo?: string; nova?: string; de?: string }>
 }) {
   await requirePermissao("diretoria_diarias", ["configuracoes"])
 
   const { id } = await params
-  const { salvo, nova } = await searchParams
+  const { salvo, nova, de } = await searchParams
   const solicitacao = await buscarSolicitacaoDiaria(id)
   if (!solicitacao) notFound()
   // Diária de funcionário é do RH — a porta dela é Pessoal.
@@ -63,7 +64,15 @@ export default async function DiariaDiretoriaPage({
 
       <DetalheDiaria
         solicitacao={solicitacao}
-        voltar={{ href: "/painel/institucional/diretoria/diarias", rotulo: "Diárias da diretoria" }}
+        voltar={
+          // Aberta pela remessa: volta à remessa, na diária.
+          de === "remessa" && solicitacao.remessaId
+            ? {
+                href: `/painel/institucional/diretoria/diarias/remessas/${solicitacao.remessaId}#diaria-${id}`,
+                rotulo: `Remessa ${solicitacao.remessaCodigo ?? "de diárias"}`,
+              }
+            : { href: "/painel/institucional/diretoria/diarias", rotulo: "Diárias da diretoria" }
+        }
         remessaHref={solicitacao.remessaId ? `/painel/institucional/diretoria/diarias/remessas/${solicitacao.remessaId}` : null}
         pessoaHref={null}
         despesasUrls={urlPorDespesa}

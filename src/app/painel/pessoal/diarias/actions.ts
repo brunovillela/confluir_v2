@@ -71,7 +71,7 @@ export async function avaliarDiaria(
   revalidar(id)
   redirect(
     daDiretoria
-      ? `/painel/institucional/diretoria/diarias/${id}?salvo=1`
+      ? await voltarNaLista(`/painel/institucional/diretoria/diarias/${id}`, { salvo: "1" })
       : // Mantém o ?de= e o recorte da lista de origem: o voltar continua levando a ela.
         await voltarNaLista(`/painel/pessoal/diarias/${id}`, { salvo: "1" })
   )
