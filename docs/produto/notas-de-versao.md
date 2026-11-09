@@ -13,6 +13,7 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 - Recebimentos: descrição longa em até duas linhas, valor e Registrar chegada sempre à direita, e selo de atraso quando a previsão de entrega passou.
 - Viagens: dá para pedir só hospedagem. No alto do formulário, em O que precisa, escolha Passagem, Passagem e hospedagem ou Só hospedagem; qualquer item também pode ser removido.
 - Filiação → Controle de envio: registrar que uma empresa não tem valores a repassar (por exemplo, todos se desfiliaram), para o controle parar de cobrar a relação até o desconto voltar.
+- Criar senha pelo link do e-mail: se a senha escolhida não for aceita, a tela diz o motivo e dá para tentar outra com o mesmo link, sem precisar pedir um novo.
 
 ## 08/11/2026 — Financeiro em dia, oposição pronta e contratos saudáveis
 
