@@ -4,6 +4,11 @@
 
 O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga. É o mesmo conteúdo do aviso "O que há de novo" dentro do sistema. O detalhe técnico de cada entrega está no histórico do git; as decisões de arquitetura, em [`docs/arquitetura/adr/`](../arquitetura/adr/LEIA-ME.md).
 
+## 09/11/2026 — Cotação com PDF grande e recebimentos mais legíveis
+
+- Aquisição: a proposta da cotação e o arquivo do contrato aceitam PDF de até 3,8 MB, e o arquivo maior é recusado na hora, com a explicação. Antes, um PDF grande derrubava a tela com "Algo deu errado".
+- Recebimentos: descrição longa em até duas linhas, valor e Registrar chegada sempre à direita, e selo de atraso quando a previsão de entrega passou.
+
 ## 08/11/2026 — Financeiro em dia, oposição pronta e contratos saudáveis
 
 - Financeiro: "O que fazer hoje" no topo da área, e, no mesmo quadro, o fechamento do mês só com o que as filas não mostram, sem contar nada duas vezes.
