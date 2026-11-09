@@ -41,6 +41,8 @@ import {
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
+import { recorteDaLista, urlNaLista } from "@/lib/lista-estado"
+import { LembrarLista } from "@/components/voltar-lista"
 
 import { RemessaContrachequesForm } from "../remessa-form"
 import { excluirRemessaContracheques, liberacaoEmMassaContracheques, transferirContracheque } from "../actions"
@@ -108,6 +110,8 @@ export default async function RemessaContrachequesPage({
   return (
     <>
       <RotuloTrilha valores={{ [id]: remessa.nome_remessa ?? "Remessa" }} />
+      {/* O voltar do contracheque reabre a remessa na mesma página da lista. */}
+      <LembrarLista chave={`contracheques-remessa:${id}`} url={urlNaLista(`/painel/pessoal/contracheques/${id}`, recorteDaLista(paramsBusca))} />
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/painel/pessoal/contracheques">
@@ -170,11 +174,6 @@ export default async function RemessaContrachequesPage({
         </div>
       </div>
 
-      {paramsBusca.transferido && (
-        <Alert className="border-success/40 text-success-fg">
-          <AlertDescription>Contracheque transferido para {paramsBusca.transferido}.</AlertDescription>
-        </Alert>
-      )}
       {salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Remessa salva com sucesso.</AlertDescription>
@@ -185,7 +184,7 @@ export default async function RemessaContrachequesPage({
         <RemessaContrachequesForm remessa={remessa} comDataPagamento={config.disponivel} />
       ) : (
         <>
-          <Card>
+          <Card id="registros" className="scroll-mt-20">
             <CardHeader>
               <CardTitle className="text-base">Contracheques da remessa</CardTitle>
               <CardDescription>
@@ -196,6 +195,12 @@ export default async function RemessaContrachequesPage({
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
+              {/* Junto da lista: a tela volta aqui (âncora), não ao topo. */}
+              {paramsBusca.transferido && (
+                <Alert className="border-success/40 text-success-fg">
+                  <AlertDescription>Contracheque transferido para {paramsBusca.transferido}.</AlertDescription>
+                </Alert>
+              )}
               {!bloqueada && itens.length > 0 && (
                 <LiberacaoEmMassa
                   formId="massa-contracheques"
@@ -235,7 +240,7 @@ export default async function RemessaContrachequesPage({
                       </TableRow>
                     )}
                     {paginaAtual.linhas.map((i) => (
-                      <TableRow key={i.id}>
+                      <TableRow key={i.id} id={`registro-${i.id}`} className="scroll-mt-20">
                         {!bloqueada && (
                           <TableCell>
                             <MarcarLinha formId="massa-contracheques" id={i.id} rotulo={i.funcionarioNome ?? "contracheque"} />

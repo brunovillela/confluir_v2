@@ -3,6 +3,7 @@
 import { tenantAtual } from "@/lib/tenant"
 
 import { revalidatePath } from "next/cache"
+import { voltarNaLista } from "@/lib/lista-estado-servidor"
 import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
@@ -579,5 +580,5 @@ export async function transferirContracheque(
     .maybeSingle()
   revalidar(origemId)
   revalidar(destinoId)
-  redirect(`/painel/pessoal/contracheques/${origemId}?transferido=${encodeURIComponent(nomeDestino?.nome_remessa ?? "outra remessa")}`)
+  redirect(await voltarNaLista(`/painel/pessoal/contracheques/${origemId}`, { transferido: nomeDestino?.nome_remessa ?? "outra remessa" }, "registros"))
 }

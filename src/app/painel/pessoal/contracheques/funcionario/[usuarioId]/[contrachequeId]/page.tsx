@@ -18,6 +18,7 @@ import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
 import { AcoesContracheque } from "../../../[id]/contracheque-itens"
+import { VoltarLista } from "@/components/voltar-lista"
 
 export const metadata: Metadata = { title: "Contracheque — Confluir" }
 
@@ -70,12 +71,23 @@ export default async function ContrachequePage({
   return (
     <>
       <RotuloTrilha valores={{ funcionario: "Funcionários", [usuarioId]: funcionario.nome, [contrachequeId]: cc.remessaNome }} />
-      <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 self-start">
-        <Link href={voltar.href}>
-          <ArrowLeft />
-          {voltar.rotulo}
-        </Link>
-      </Button>
+      {deRemessa ? (
+        // Volta à remessa como estava (página e itens por página), na linha deste contracheque.
+        <VoltarLista
+          chave={`contracheques-remessa:${cc.remessaId}`}
+          base={voltar.href}
+          rotulo={voltar.rotulo}
+          ancora={`registro-${cc.id}`}
+          className="-ml-2 mb-1 self-start"
+        />
+      ) : (
+        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 self-start">
+          <Link href={voltar.href}>
+            <ArrowLeft />
+            {voltar.rotulo}
+          </Link>
+        </Button>
+      )}
       <CabecalhoFuncionario
         funcionario={funcionario}
         area="contracheques"

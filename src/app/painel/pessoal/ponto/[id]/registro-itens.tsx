@@ -65,8 +65,11 @@ export function RegistroPontoForm({
   saldosAnteriores,
   faixas,
   posteriores,
+  voltarHref,
 }: {
   remessaId: string
+  /** Cancelar volta à remessa na mesma página da lista (e na linha, se editando). */
+  voltarHref?: string
   funcionarios: { usuarioId: string; nome: string }[]
   registro?: RegistroPontoFormDados
   saldosAnteriores: Record<string, SaldoAnteriorPonto>
@@ -316,7 +319,7 @@ export function RegistroPontoForm({
 
           <div className="flex items-center justify-end gap-2">
             <Button variant="ghost" asChild>
-              <Link href={`/painel/pessoal/ponto/${remessaId}`}>Cancelar</Link>
+              <Link href={voltarHref ?? `/painel/pessoal/ponto/${remessaId}`}>Cancelar</Link>
             </Button>
             <Button type="submit" disabled={pendente}>
               {pendente && <Loader2 className="animate-spin" />}

@@ -38,6 +38,7 @@ export function VoltarLista({
   icone = <ArrowLeft />,
   // self-start: na coluna flex da página o botão não estica (nem centraliza o texto).
   className = "-ml-2 mb-3 self-start",
+  ancora,
 }: {
   chave: string
   base: string
@@ -45,6 +46,8 @@ export function VoltarLista({
   padrao?: { href: string; rotulo: string }
   icone?: React.ReactNode
   className?: string
+  /** Âncora da linha na lista (ex.: `registro-<id>`): volta nela, não no topo. */
+  ancora?: string
 }) {
   const salvo = useSyncExternalStore(
     semAssinatura,
@@ -59,7 +62,8 @@ export function VoltarLista({
     },
     () => null
   )
-  const destino = salvo ? { href: salvo, rotulo } : padrao
+  const escolhido = salvo ? { href: salvo, rotulo } : padrao
+  const destino = ancora ? { ...escolhido, href: `${escolhido.href.split("#")[0]}#${ancora}` } : escolhido
   return (
     <Button variant="ghost" size="sm" asChild className={className}>
       <Link href={destino.href}>

@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { Fragment } from "react"
 import { notFound } from "next/navigation"
 import { ArrowLeft, BarChart3, Download, ExternalLink, FileUp, Pencil, Plus } from "lucide-react"
 
@@ -42,7 +43,9 @@ import { isentosNaCompetencia, periodoIsencao } from "@/lib/db/ponto-isencoes"
 import { decimalHoras, hhmm } from "@/lib/horas"
 import { espelhosPendentes } from "@/lib/db/ponto-marcacoes"
 import { obterResenha } from "@/lib/db/ponto-resenha"
+import { paginaDoIndice, recorteDaLista, urlNaLista } from "@/lib/lista-estado"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
+import { LembrarLista } from "@/components/voltar-lista"
 
 import { LerEspelhosBotao } from "../analise/botoes"
 import { CartaoResenha, PainelIndicadores } from "../analise/componentes"
@@ -79,6 +82,8 @@ export default async function RemessaPontoPage({
     erro_cascata?: string
     /** Nome da remessa para onde um registro foi transferido. */
     transferido?: string
+    /** Registro recém-salvo: a lista abre na página dele, com a linha destacada. */
+    linha?: string
   }>
 }) {
   await requirePermissao("pessoal_gestao")
@@ -99,8 +104,18 @@ export default async function RemessaPontoPage({
   const isencoes = await isentosNaCompetencia(competenciaDaRemessa(remessa))
 
   // Página concorrida (cabeçalho + formulário): 10 registros por página.
+  // Editando ou recém-salvo, abre na página em que a linha está.
   const paginacao = lerPaginacao(paramsBusca, 10)
+  const emFoco = editar && editar !== "remessa" ? editar : paramsBusca.linha
+  const indiceEmFoco = emFoco ? itens.findIndex((i) => i.id === emFoco) : -1
+  if (indiceEmFoco >= 0) paginacao.pagina = paginaDoIndice(indiceEmFoco, paginacao.porPagina)
   const paginaAtual = paginar(itens, paginacao)
+  // Os botões das linhas mantêm página, itens por página e aba.
+  const base = `/painel/pessoal/ponto/${id}`
+  const recorte = recorteDaLista(paramsBusca)
+  recorte.set("pagina", String(paginaAtual.pagina))
+  if (paginaAtual.pagina === 1) recorte.delete("pagina")
+  const naLista = (extras: Record<string, string> = {}, ancora?: string) => urlNaLista(base, recorte, extras, ancora)
 
   const urls = new Map<string, string | null>()
   for (const i of paginaAtual.linhas) {
@@ -129,6 +144,8 @@ export default async function RemessaPontoPage({
   // Formulário fechado por padrão: abre pelo botão "Novo registro" no topo
   // (?novo=1) ou pelo "Editar" da linha (?editar=<id>).
   const formAberto = !bloqueada && (paramsBusca.novo === "1" || registroEmEdicao !== null)
+  // Edição de uma linha abre logo abaixo dela; o novo registro, no alto.
+  const formNaLinha = formAberto && registroEmEdicao !== null && paginaAtual.linhas.some((i) => i.id === registroEmEdicao.id)
 
   // Indicadores da remessa (sobre todos os registros, não só a página).
   const soma = (campo: keyof (typeof itens)[number]) =>
@@ -143,9 +160,46 @@ export default async function RemessaPontoPage({
   const semEspelho = itens.filter((i) => !i.arquivo).length
   const comPagas = itens.filter((i) => (i.horas_pagas_70 ?? 0) + (i.horas_pagas_100 ?? 0) > 0).length
 
+  // Avisos de uma ação na linha (salvar, excluir, transferir) aparecem junto
+  // da lista, onde a tela volta (âncora), e não no topo.
+  const avisosNaLista = Boolean(paramsBusca.linha || paramsBusca.transferido || paramsBusca.excluido)
+  const avisos = (
+    <>
+        {paramsBusca.transferido && (
+          <Alert className="border-success/40 text-success-fg">
+            <AlertDescription>
+              Registro transferido para {paramsBusca.transferido}. Horas e saldos foram como estavam: confira os saldos das
+              remessas seguintes.
+            </AlertDescription>
+          </Alert>
+        )}
+        {(salvo === "1" || paramsBusca.excluido === "1") && (
+          <Alert className="border-success/40 text-success-fg">
+            <AlertDescription>
+              {salvo === "1" ? "Salvo com sucesso." : "Registro excluído."}
+              {recalculadas !== undefined &&
+                (recalculadas
+                  ? ` Saldos recalculados nas remessas posteriores: ${recalculadas.split("|").join(", ")}.`
+                  : " Nenhuma remessa posterior foi recalculada.")}
+              {parada && ` ${parada} está finalizada: ela e as seguintes ficaram como estavam.`}
+            </AlertDescription>
+          </Alert>
+        )}
+        {paramsBusca.erro_cascata && (
+          <Alert variant="destructive">
+            <AlertDescription>
+              {paramsBusca.excluido === "1" ? "O registro foi excluído" : "O registro foi salvo"}, mas o recálculo das remessas posteriores falhou: {paramsBusca.erro_cascata}
+            </AlertDescription>
+          </Alert>
+        )}
+  
+    </>
+  )
+
   return (
     <>
       <RotuloTrilha valores={{ [id]: remessa.nome_remessa ?? "(sem nome)" }} />
+      <LembrarLista chave={`ponto-remessa:${id}`} url={naLista()} />
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/painel/pessoal/ponto">
@@ -184,7 +238,7 @@ export default async function RemessaPontoPage({
             <div className="flex flex-wrap gap-2">
               {!bloqueada && !naAnalise && (
                 <Button asChild>
-                  <Link href={`/painel/pessoal/ponto/${id}?novo=1`}>
+                  <Link href={naLista({ novo: "1" })}>
                     <Plus />
                     Novo registro
                   </Link>
@@ -216,33 +270,7 @@ export default async function RemessaPontoPage({
         </div>
       </div>
 
-      {paramsBusca.transferido && (
-        <Alert className="border-success/40 text-success-fg">
-          <AlertDescription>
-            Registro transferido para {paramsBusca.transferido}. Horas e saldos foram como estavam: confira os saldos das
-            remessas seguintes.
-          </AlertDescription>
-        </Alert>
-      )}
-      {(salvo === "1" || paramsBusca.excluido === "1") && (
-        <Alert className="border-success/40 text-success-fg">
-          <AlertDescription>
-            {salvo === "1" ? "Salvo com sucesso." : "Registro excluído."}
-            {recalculadas !== undefined &&
-              (recalculadas
-                ? ` Saldos recalculados nas remessas posteriores: ${recalculadas.split("|").join(", ")}.`
-                : " Nenhuma remessa posterior foi recalculada.")}
-            {parada && ` ${parada} está finalizada: ela e as seguintes ficaram como estavam.`}
-          </AlertDescription>
-        </Alert>
-      )}
-      {paramsBusca.erro_cascata && (
-        <Alert variant="destructive">
-          <AlertDescription>
-            {paramsBusca.excluido === "1" ? "O registro foi excluído" : "O registro foi salvo"}, mas o recálculo das remessas posteriores falhou: {paramsBusca.erro_cascata}
-          </AlertDescription>
-        </Alert>
-      )}
+      {!avisosNaLista && avisos}
 
       {!editandoRemessa && (
         <nav className="flex gap-1 border-b text-sm" aria-label="Abas da remessa">
@@ -267,8 +295,9 @@ export default async function RemessaPontoPage({
         <AnaliseDaRemessa remessaId={id} />
       ) : (
         <>
-          {formAberto && (
+          {formAberto && !formNaLinha && (
             <RegistroPontoForm
+              voltarHref={naLista({}, "registros")}
               key={registroEmEdicao?.id ?? "novo"}
               saldosAnteriores={saldosAnteriores}
               faixas={faixas}
@@ -355,7 +384,7 @@ export default async function RemessaPontoPage({
             </GrupoColapsavel>
           )}
 
-          <Card>
+          <Card id="registros" className="scroll-mt-20">
             <CardHeader>
               <CardTitle className="text-base">Registros de ponto</CardTitle>
               <CardDescription>
@@ -365,6 +394,7 @@ export default async function RemessaPontoPage({
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
+              {avisosNaLista && avisos}
               {!bloqueada && itens.length > 0 && (
                 <LiberacaoEmMassa
                   formId="massa-ponto"
@@ -408,7 +438,11 @@ export default async function RemessaPontoPage({
                       </TableRow>
                     )}
                     {paginaAtual.linhas.map((i) => (
-                      <TableRow key={i.id}>
+                      <Fragment key={i.id}>
+                      <TableRow
+                        id={`registro-${i.id}`}
+                        className={`scroll-mt-20 ${paramsBusca.linha === i.id ? "bg-success/10" : registroEmEdicao?.id === i.id && formNaLinha ? "bg-muted/50" : ""}`}
+                      >
                         {!bloqueada && (
                           <TableCell>
                             <MarcarLinha formId="massa-ponto" id={i.id} rotulo={i.funcionarioNome ?? "registro"} />
@@ -492,7 +526,8 @@ export default async function RemessaPontoPage({
                                 className="h-7 px-2"
                               >
                                 <Link
-                                  href={`/painel/pessoal/ponto/${id}?editar=${i.id}`}
+                                  href={naLista({ editar: i.id }, `registro-${i.id}`)}
+                                  scroll={false}
                                 >
                                   Editar
                                 </Link>
@@ -521,6 +556,24 @@ export default async function RemessaPontoPage({
                           )}
                         </TableCell>
                       </TableRow>
+                      {formNaLinha && registroEmEdicao?.id === i.id && (
+                        <TableRow className="hover:bg-transparent">
+                          <TableCell colSpan={bloqueada ? 10 : 11} className="bg-muted/30 p-3 whitespace-normal">
+                            <div className="sticky left-3 max-w-4xl">
+                              <RegistroPontoForm
+                                voltarHref={naLista({}, `registro-${i.id}`)}
+                                saldosAnteriores={saldosAnteriores}
+                                faixas={faixas}
+                                posteriores={posteriores}
+                                remessaId={id}
+                                funcionarios={disponiveis}
+                                registro={registroEmEdicao}
+                              />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      </Fragment>
                     ))}
                   </TableBody>
                 </Table>

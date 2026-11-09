@@ -5,12 +5,14 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { SelectNativo } from "@/components/ui/select-nativo"
+import { PARAMS_DE_ACAO } from "@/lib/lista-estado"
 import { OPCOES_POR_PAGINA } from "@/lib/paginacao"
 
 /**
  * Rodapé de paginação dirigido por URL (?pagina= / ?porPagina=, com prefixo
  * opcional para páginas com mais de uma tabela). Preserva os demais filtros
- * da querystring; trocar a quantidade por página volta à página 1.
+ * da querystring; trocar a quantidade por página volta à página 1. Avisos de
+ * uma ação já feita ("Salvo"…) e formulário aberto (?editar=) não vão junto.
  */
 export function Paginacao({
   total,
@@ -37,6 +39,7 @@ export function Paginacao({
 
   function navegar(mudancas: { pagina?: number; porPagina?: number }) {
     const q = new URLSearchParams(searchParams)
+    for (const k of PARAMS_DE_ACAO) q.delete(k)
     const novaPagina = mudancas.pagina ?? 1
     if (novaPagina > 1) q.set(chave("pagina"), String(novaPagina))
     else q.delete(chave("pagina"))

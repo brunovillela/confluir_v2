@@ -3,6 +3,7 @@
 import { tenantAtual } from "@/lib/tenant"
 
 import { revalidatePath } from "next/cache"
+import { voltarNaLista } from "@/lib/lista-estado-servidor"
 import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
@@ -330,7 +331,7 @@ export async function criarRegistroPonto(
 
   const cascata = await cascataSePedida(formData, remessaId, funcionarioId)
   revalidar(remessaId)
-  redirect(`/painel/pessoal/ponto/${remessaId}?salvo=1${cascata}`)
+  redirect(await voltarNaLista(`/painel/pessoal/ponto/${remessaId}`, `salvo=1&linha=${criado.id}${cascata}`, `registro-${criado.id}`))
 }
 
 export async function atualizarRegistroPonto(
@@ -391,7 +392,7 @@ export async function atualizarRegistroPonto(
 
   const cascata = anterior.funcionario_id ? await cascataSePedida(formData, remessaId, anterior.funcionario_id) : ""
   revalidar(remessaId)
-  redirect(`/painel/pessoal/ponto/${remessaId}?salvo=1${cascata}`)
+  redirect(await voltarNaLista(`/painel/pessoal/ponto/${remessaId}`, `salvo=1&linha=${id}${cascata}`, `registro-${id}`))
 }
 
 /**
@@ -438,7 +439,7 @@ export async function excluirRegistroPonto(
   // anterior a esta (se o gestor pediu para recalcular).
   const cascata = registro.funcionario_id ? await cascataSePedida(formData, remessaId, registro.funcionario_id) : ""
   revalidar(remessaId)
-  if (cascata) redirect(`/painel/pessoal/ponto/${remessaId}?excluido=1${cascata}`)
+  if (cascata) redirect(await voltarNaLista(`/painel/pessoal/ponto/${remessaId}`, `excluido=1${cascata}`, "registros"))
   return { ok: "Registro excluído." }
 }
 
@@ -721,5 +722,5 @@ export async function transferirRegistroPonto(
 
   revalidar(origemId)
   revalidar(destinoId)
-  redirect(`/painel/pessoal/ponto/${origemId}?transferido=${encodeURIComponent(destino.nome ?? "outra remessa")}`)
+  redirect(await voltarNaLista(`/painel/pessoal/ponto/${origemId}`, { transferido: destino.nome ?? "outra remessa" }, "registros"))
 }

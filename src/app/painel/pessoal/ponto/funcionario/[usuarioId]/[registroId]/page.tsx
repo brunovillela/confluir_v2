@@ -6,6 +6,7 @@ import { ArrowLeft, ExternalLink, Pencil } from "lucide-react"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { CabecalhoFuncionario } from "@/components/pessoal/cabecalho-funcionario"
 import { NavegacaoRegistro } from "@/components/pessoal/navegacao-registro"
+import { VoltarLista } from "@/components/voltar-lista"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -109,12 +110,23 @@ export default async function RegistroPontoPage({
   return (
     <>
       <RotuloTrilha valores={{ funcionario: "Funcionários", [usuarioId]: funcionario.nome, [registroId]: rotuloCompetenciaPonto(comp) }} />
-      <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 self-start">
-        <Link href={voltar.href}>
-          <ArrowLeft />
-          {voltar.rotulo}
-        </Link>
-      </Button>
+      {deRemessa ? (
+        // Volta à remessa como estava (página e itens por página), na linha deste registro.
+        <VoltarLista
+          chave={`ponto-remessa:${remessaId}`}
+          base={voltar.href}
+          rotulo={voltar.rotulo}
+          ancora={`registro-${registroId}`}
+          className="-ml-2 mb-1 self-start"
+        />
+      ) : (
+        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 self-start">
+          <Link href={voltar.href}>
+            <ArrowLeft />
+            {voltar.rotulo}
+          </Link>
+        </Button>
+      )}
       <CabecalhoFuncionario
         funcionario={funcionario}
         area="ponto"
@@ -152,7 +164,7 @@ export default async function RegistroPontoPage({
               )}
               {remessa?.finalizada !== true && (
                 <Button variant="outline" size="sm" asChild>
-                  <Link href={`/painel/pessoal/ponto/${remessaId}?editar=${registroId}`}>
+                  <Link href={`/painel/pessoal/ponto/${remessaId}?editar=${registroId}#registro-${registroId}`}>
                     <Pencil />
                     Editar
                   </Link>
