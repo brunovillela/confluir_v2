@@ -59,6 +59,66 @@ erDiagram
     uuid evento_id PK,FK
     uuid usuario_id PK,FK
   }
+  congresso_config_versoes {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid autor_id FK
+  }
+  congresso_eixos {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+  }
+  congresso_grupos {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid eixo_id FK
+  }
+  congresso_papeis {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+  }
+  congresso_participante_historico {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid participante_id FK
+    uuid autor_id FK
+  }
+  congresso_participantes {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid filiacao_id FK
+    uuid usuario_id FK
+    uuid papel_id FK
+    uuid unidade_id FK
+    uuid grupo_id FK
+    uuid titular_id FK
+  }
+  congresso_sessoes {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid grupo_id FK
+    uuid eixo_id FK
+  }
+  congresso_unidades {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+  }
+  congressos {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid evento_id FK
+    uuid etapa_anterior_id FK
+    uuid etapa_seguinte_id FK
+    uuid criado_por FK
+  }
   negociacao_empresas {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -135,6 +195,30 @@ erDiagram
   ato_eventos }o--o| empresa : "emp_contratante_id"
   ato_eventos_participantes }o--|| ato_eventos : "evento_id"
   ato_eventos_participantes }o--|| usuarios : "usuario_id"
+  congresso_config_versoes }o--o| usuarios : "autor_id"
+  congresso_config_versoes }o--|| congressos : "congresso_id"
+  congresso_eixos }o--|| congressos : "congresso_id"
+  congresso_grupos }o--o| congresso_eixos : "eixo_id"
+  congresso_grupos }o--|| congressos : "congresso_id"
+  congresso_papeis }o--|| congressos : "congresso_id"
+  congresso_participante_historico }o--o| congresso_participantes : "participante_id"
+  congresso_participante_historico }o--o| usuarios : "autor_id"
+  congresso_participante_historico }o--|| congressos : "congresso_id"
+  congresso_participantes }o--o| congresso_grupos : "grupo_id"
+  congresso_participantes }o--o| congresso_papeis : "papel_id"
+  congresso_participantes }o--o| congresso_participantes : "titular_id"
+  congresso_participantes }o--o| congresso_unidades : "unidade_id"
+  congresso_participantes }o--o| filiacoes : "filiacao_id"
+  congresso_participantes }o--o| usuarios : "usuario_id"
+  congresso_participantes }o--|| congressos : "congresso_id"
+  congresso_sessoes }o--o| congresso_eixos : "eixo_id"
+  congresso_sessoes }o--o| congresso_grupos : "grupo_id"
+  congresso_sessoes }o--|| congressos : "congresso_id"
+  congresso_unidades }o--|| congressos : "congresso_id"
+  congressos }o--o| congressos : "etapa_anterior_id"
+  congressos }o--o| congressos : "etapa_seguinte_id"
+  congressos }o--o| eventos : "evento_id"
+  congressos }o--o| usuarios : "criado_por"
   negociacao_empresas }o--o| empresa : "empresa_id"
   negociacao_empresas }o--o| negociacoes : "negociacao_id"
   negociacao_eventos }o--o| negociacoes : "negociacao_id"

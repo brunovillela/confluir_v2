@@ -31,6 +31,7 @@
 | P14 | [Frota: veículos e condutores](#p14) | 15 | identificação, financeiro | sim |
 | P15 | [Comunicação, eventos e avisos](#p15) | 9 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P16 | [Contas de acesso, segurança, auditoria e gestão interna](#p16) | 24 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
+| P17 | [Congressos e conferências](#p17) | 2 | identificação, **sensível: filiação/posição sindical** | sim |
 
 <a id="p01"></a>
 ## P01. Filiação e cadastro do associado
@@ -808,6 +809,41 @@
 
 <sub>Titulares registrados no banco para estas tabelas: beneficiários de ordens; condutores; demais pessoas envolvidas em processo; diretores; eleitores; filiados; fornecedores pf; funcionários; inscritos; interessados; pessoas que usam a chave de api da entidade; público externo; sistemas; trabalhadores não filiados; usuários do sistema; usuários do sistema (operadores da plataforma).</sub>
 
+<a id="p17"></a>
+## P17. Congressos e conferências
+
+**Finalidade.** Organizar congressos, plenárias e conferências que a entidade promove ou de que participa: configuração do regimento, delegações, inscrição e lista de participantes (delegados, natos, suplentes, observadores, convidados), programa e grupos de trabalho.
+
+**Titulares.** Delegados, observadores e convidados de congressos (filiados ou não), diretores natos.
+
+**Categorias de dados.** identificação; **sensível: filiação/posição sindical**.
+
+**Base legal (proposta).**
+
+- Art. 11, II, a e art. 7º, V: organização da representação e da deliberação sindical previstas no estatuto (CF art. 8º).
+- Art. 11, II, d: exercício regular de direitos, para comprovar quem participou e com que direito em caso de contestação.
+
+**Compartilhamento com terceiros.** Etapa seguinte do processo congressual (ex.: lista de delegados eleitos enviada à federação), quando a configuração prevê.
+
+**Suboperadores.** Supabase, Vercel, Sentry.
+
+**Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha). Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
+
+**Retenção.** Participantes e trilha: 5 anos após o encerramento do congresso (prazo de contestação de deliberações e eleições); depois, ficam só os totais. Proposta a validar em retencao.md.
+
+**Medidas de segurança.** RLS por tenant; permissões próprias (`congressos`, `congressos_gestao`); trilhas só com inserção (versões da configuração e histórico do participante); acessibilidade visível só a quem organiza.
+
+<details><summary>Tabelas (2) e colunas com dado pessoal</summary>
+
+| Tabela | Categorias | Colunas com dado pessoal |
+|---|---|---|
+| [congresso_participante_historico](../dados/dicionario/representacao.md#congresso_participante_historico) | sens. sindical | `detalhe` (sens. sindical), `autor_id` (identificacao) |
+| [congresso_participantes](../dados/dicionario/representacao.md#congresso_participantes) | identificacao, sens. sindical | `nome` (identificacao), `nome_social` (identificacao), `cpf` (identificacao), `email` (identificacao), `telefone` (identificacao), `genero` (identificacao), `filiacao_id` (sens. sindical), `usuario_id` (identificacao), `papel_id` (sens. sindical), `unidade_id` (sens. sindical), `titular_id` (nenhum), `situacao` (nenhum), `origem` (nenhum), `inscrito_em` (nenhum), `acessibilidade` (sens. saude), `observacao` (identificacao) |
+
+</details>
+
+<sub>Titulares registrados no banco para estas tabelas: convidados de congressos; delegados; observadores; participantes de congressos.</sub>
+
 ## Fluxos transversais
 
 ### Recursos de IA
@@ -822,9 +858,9 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 | Suboperador | Papel | Localização | Processos |
 |---|---|---|---|
-| Supabase | Banco de dados, autenticação e arquivos | Dados no Brasil (AWS São Paulo, sa-east-1); empresa nos EUA | P01, P02, P03, P04, P05, P06, P07, P08, P09, P10, P11, P12, P13, P14, P15, P16 |
-| Vercel | Hospedagem da aplicação e execução das funções | Funções em São Paulo (gru1); empresa e rede de borda nos EUA | P01, P02, P03, P04, P05, P06, P07, P08, P09, P10, P11, P12, P13, P14, P15, P16 |
-| Sentry | Registro de erros (CPF mascarado, sem corpo de requisição) | União Europeia (Alemanha) | P01, P02, P03, P04, P05, P06, P07, P08, P09, P10, P11, P12, P13, P14, P15, P16 |
+| Supabase | Banco de dados, autenticação e arquivos | Dados no Brasil (AWS São Paulo, sa-east-1); empresa nos EUA | P01, P02, P03, P04, P05, P06, P07, P08, P09, P10, P11, P12, P13, P14, P15, P16, P17 |
+| Vercel | Hospedagem da aplicação e execução das funções | Funções em São Paulo (gru1); empresa e rede de borda nos EUA | P01, P02, P03, P04, P05, P06, P07, P08, P09, P10, P11, P12, P13, P14, P15, P16, P17 |
+| Sentry | Registro de erros (CPF mascarado, sem corpo de requisição) | União Europeia (Alemanha) | P01, P02, P03, P04, P05, P06, P07, P08, P09, P10, P11, P12, P13, P14, P15, P16, P17 |
 | OpenAI | Recursos de IA: leitura de PDF/imagem e redação (store: false) | EUA | P01, P02, P06, P07, P08, P10, P11, P12, P13, P14, P15 |
 | Brevo / Resend | Envio de e-mails transacionais | Brevo: União Europeia (França); Resend: EUA | P01, P02, P03, P04, P05, P07, P10, P11, P12, P13, P15, P16 |
 | Telegram | Bot de avisos, aprovações e votação | Exterior | P05, P07, P10, P11, P14, P16 |
@@ -835,4 +871,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 229 de 229 tabelas com dado pessoal atribuídas a 16 processos.
+Cobertura: 231 de 231 tabelas com dado pessoal atribuídas a 17 processos.

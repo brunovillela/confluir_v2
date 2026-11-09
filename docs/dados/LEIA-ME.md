@@ -2,7 +2,7 @@
 
 # Dicionário de dados do Confluir
 
-Gerado a partir do banco de produção (catálogo do Postgres + comentários). **392 tabelas** no schema `public`, **229** com dado pessoal (1157 colunas etiquetadas).
+Gerado a partir do banco de produção (catálogo do Postgres + comentários). **401 tabelas** no schema `public`, **231** com dado pessoal (1184 colunas etiquetadas).
 
 - Etiquetas LGPD: cada tabela termina o comentário com `[lgpd:<categorias>|titulares:<quem>]` e cada coluna com dado pessoal com `[lgpd:<categoria>]` (Onda A4).
 - Para mudar uma descrição ou classificação: migração com `comment on …` (`npm run db:nova`), aplicar, e `npm run db:dicionario`.
@@ -14,8 +14,8 @@ Gerado a partir do banco de produção (catálogo do Postgres + comentários). *
 
 | Categoria | Tabelas |
 |---|---|
-| identificação | 180 |
-| **sensível: sindical** | 55 |
+| identificação | 181 |
+| **sensível: sindical** | 57 |
 | trabalhista | 54 |
 | financeiro | 50 |
 | **credencial (nunca exportar)** | 20 |
@@ -28,7 +28,7 @@ Gerado a partir do banco de produção (catálogo do Postgres + comentários). *
 | Filiação e portal do associado | 57 | 37 | [dicionario/filiacao.md](dicionario/filiacao.md) | [er/filiacao.md](er/filiacao.md) |
 | Empregadores e grupos empresariais | 4 | 0 | [dicionario/empregadores.md](dicionario/empregadores.md) | [er/empregadores.md](er/empregadores.md) |
 | Votações e assembleias | 33 | 15 | [dicionario/votacao.md](dicionario/votacao.md) | [er/votacao.md](er/votacao.md) |
-| Representação, acordos e negociações | 18 | 9 | [dicionario/representacao.md](dicionario/representacao.md) | [er/representacao.md](er/representacao.md) |
+| Representação, acordos e negociações | 27 | 11 | [dicionario/representacao.md](dicionario/representacao.md) | [er/representacao.md](er/representacao.md) |
 | Diretoria e ofícios | 11 | 8 | [dicionario/diretoria.md](dicionario/diretoria.md) | [er/diretoria.md](er/diretoria.md) |
 | Pessoal (RH da entidade) | 61 | 40 | [dicionario/pessoal.md](dicionario/pessoal.md) | [er/pessoal.md](er/pessoal.md) |
 | Saúde do trabalhador | 13 | 11 | [dicionario/saude.md](dicionario/saude.md) | [er/saude.md](er/saude.md) |

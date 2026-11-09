@@ -768,6 +768,8 @@ ACL plana por usuário: uma coluna booleana por área/ação do sistema, mais al
 | `deliberacoes_restrito` | boolean | sim | `false` |  | nenhum | Deliberações das atas: consulta todas (livres, reservadas e restritas). |
 | `viagens_solicitar` | boolean | sim | `false` |  | nenhum | Viagens: solicita passagem e hospedagem para si (exige ser funcionário com vínculo em vigor ou diretor em exercício). |
 | `viagens_solicitar_terceiros` | boolean | sim | `false` |  | nenhum | Viagens: solicita passagem e hospedagem para outro diretor, funcionário ou convidado. |
+| `congressos` | boolean | sim | `false` |  | nenhum | Congressos e conferências: consultar congressos, configuração e participantes. |
+| `congressos_gestao` | boolean | sim | `false` |  | nenhum | Congressos e conferências: criar, configurar e gerir participantes, delegações e programa. |
 
 Únicas: `UNIQUE (bubble_id)`
 

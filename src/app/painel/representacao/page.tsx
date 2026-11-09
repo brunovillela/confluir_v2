@@ -4,6 +4,7 @@ import {
   FileSignature,
   Gavel,
   Handshake,
+  Landmark,
   type LucideIcon,
   UsersRound,
   Vote,
@@ -61,6 +62,13 @@ const AREAS: Area[] = [
     chave: "assembleias",
   },
   {
+    titulo: "Congressos e conferências",
+    descricao: "Regimento como configuração, delegações, participantes, grupos e programa",
+    href: "/painel/representacao/congressos",
+    icone: Landmark,
+    chave: "congressos",
+  },
+  {
     titulo: "Empregadores",
     descricao: "Empregadores: acordos, votações, oposições, reuniões, setoriais e documentação",
     href: "/painel/representacao/empregadores",
@@ -75,8 +83,12 @@ export default async function RepresentacaoPage() {
     "acordos_coletivos",
     "negociacoes",
     "empregadores",
+    "congressos",
+    "congressos_gestao",
   ])
-  const areas = AREAS.filter((a) => podeAcessar(sessao.permissoes, a.chave))
+  const areas = AREAS.filter((a) =>
+    podeAcessar(sessao.permissoes, a.chave, a.chave === "congressos" ? ["congressos_gestao"] : [])
+  )
 
   return (
     <>

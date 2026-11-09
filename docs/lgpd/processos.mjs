@@ -245,6 +245,21 @@ export const PROCESSOS = [
     seguranca: "Turnstile e cadência de códigos; MFA; identidade separada do metadata (`auth_identidades`); auditoria sem colunas cifradas; API com escopo por endpoint (CPF só com `filiados_cpf`) e chave só no cabeçalho; livro de exportações e log da API gravados só pelo service_role (a entidade só lê).",
     observacoes: "Pendência: a `auditoria` copia em claro códigos e tokens com nomes fora da lista de ocultos.",
   },
+  {
+    id: "P17",
+    nome: "Congressos e conferências",
+    tabelas: /^congresso/,
+    finalidade: "Organizar congressos, plenárias e conferências que a entidade promove ou de que participa: configuração do regimento, delegações, inscrição e lista de participantes (delegados, natos, suplentes, observadores, convidados), programa e grupos de trabalho.",
+    titulares: "Delegados, observadores e convidados de congressos (filiados ou não), diretores natos",
+    baseLegal: [
+      "Art. 11, II, a e art. 7º, V: organização da representação e da deliberação sindical previstas no estatuto (CF art. 8º).",
+      "Art. 11, II, d: exercício regular de direitos, para comprovar quem participou e com que direito em caso de contestação.",
+    ],
+    compartilhamento: "Etapa seguinte do processo congressual (ex.: lista de delegados eleitos enviada à federação), quando a configuração prevê.",
+    suboperadores: [...BASE],
+    retencao: "Participantes e trilha: 5 anos após o encerramento do congresso (prazo de contestação de deliberações e eleições); depois, ficam só os totais. Proposta a validar em retencao.md.",
+    seguranca: "RLS por tenant; permissões próprias (`congressos`, `congressos_gestao`); trilhas só com inserção (versões da configuração e histórico do participante); acessibilidade visível só a quem organiza.",
+  },
 ]
 
 /** Fluxos transversais que não são tabelas (entram no ROPA como seção própria). */

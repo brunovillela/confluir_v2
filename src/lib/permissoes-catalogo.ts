@@ -160,6 +160,8 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
         rotulo: "Negociações sindicais (pauta e propostas — sigiloso)",
       },
       { chave: "empregadores", rotulo: "Empregadores e fontes pagadoras" },
+      { chave: "congressos", rotulo: "Congressos e conferências — consultar" },
+      { chave: "congressos_gestao", rotulo: "Congressos e conferências — configurar e gerir participantes" },
     ],
   },
   {

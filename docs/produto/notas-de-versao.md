@@ -15,6 +15,7 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 - Viagens: dá para pedir só hospedagem. No alto do formulário, em O que precisa, escolha Passagem, Passagem e hospedagem ou Só hospedagem; qualquer item também pode ser removido.
 - Filiação → Controle de envio: registrar que uma empresa não tem valores a repassar (por exemplo, todos se desfiliaram), para o controle parar de cobrar a relação até o desconto voltar.
 - Criar senha pelo link do e-mail: se a senha escolhida não for aceita, a tela diz o motivo e dá para tentar outra com o mesmo link, sem precisar pedir um novo.
+- Representação Sindical → Congressos e conferências (novo): crie o congresso copiando a edição anterior ou a partir de um modelo, ajuste as regras do regimento na configuração (cada mudança vira uma versão, com o artigo de origem), defina papéis e direitos, bases com limite de delegados, eixos, grupos e sessões, e monte a lista de participantes. A diretoria entra como nata com um clique, e a ordem de inscrição confirma quem cabe em cada base e põe o restante na lista de espera.
 
 ## 08/11/2026 — Financeiro em dia, oposição pronta e contratos saudáveis
 

@@ -100,7 +100,7 @@ const MODULOS = [
   ["filiacao", "Filiação e portal do associado", /^(filiacao|filiacoes|portal|oposicao|vinculos|telefones|emails|enderecos|dados_bancarios|registro_sindical|fonte|carencia)/],
   ["empregadores", "Empregadores e grupos empresariais", /^(empresas|grupo_empresarial|grupos)/],
   ["votacao", "Votações e assembleias", /^(voto|votacao)/],
-  ["representacao", "Representação, acordos e negociações", /^(acordo|negociacao|negociacoes|representacao|reuniao|ato|atas|agenda)/],
+  ["representacao", "Representação, acordos e negociações", /^(acordo|negociacao|negociacoes|representacao|reuniao|ato|atas|agenda|congresso)/],
   ["diretoria", "Diretoria e ofícios", /^(diretoria|dir_|oficios)/],
   ["pessoal", "Pessoal (RH da entidade)", /^(pessoal|pes_|prestadores|prestcont|aso$)/],
   ["saude", "Saúde do trabalhador", /^saude/],

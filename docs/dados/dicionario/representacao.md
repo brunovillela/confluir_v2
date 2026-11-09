@@ -2,7 +2,7 @@
 
 # Representação, acordos e negociações
 
-18 tabelas. Diagrama: [er/representacao.md](../er/representacao.md).
+27 tabelas. Diagrama: [er/representacao.md](../er/representacao.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -15,6 +15,15 @@
 | [agenda_representantes](#agenda_representantes) | identificação | Participantes (usuários representantes) de um compromisso da agenda. Tabela vazia; não veio dado na migração do Bubble e o código não a usa. |
 | [ato_eventos](#ato_eventos) | identificação | Atos e mobilizações sindicais (nome, cidade, fotos, período). Sem uso encontrado no código (possível legado do Bubble), tabela vazia. |
 | [ato_eventos_participantes](#ato_eventos_participantes) | **sensível: sindical** | Junção ato x usuário participante. Sem uso encontrado no código (possível legado do Bubble), tabela vazia. |
+| [congresso_config_versoes](#congresso_config_versoes) | — | Histórico da configuração de cada congresso (só inserção): quem mudou, por quê e, depois da aprovação do regimento, a deliberação que autori… |
+| [congresso_eixos](#congresso_eixos) | — | Eixos temáticos do congresso. |
+| [congresso_grupos](#congresso_grupos) | — | Grupos de trabalho (GT) do congresso, com eixo e vagas. |
+| [congresso_papeis](#congresso_papeis) | — | Papéis do congresso (delegado, nato, suplente, observador, convidado…) com a matriz de direitos em jsonb (voz, voto, assinar moção, candidat… |
+| [congresso_participante_historico](#congresso_participante_historico) | **sensível: sindical** | Trilha de cada participante (só inserção): inscrição, troca de papel ou base, lista de espera, cancelamento. |
+| [congresso_participantes](#congresso_participantes) | identificação, **sensível: sindical** | Pessoas do congresso: delegados, natos, suplentes, observadores, convidados. Podem ser filiados ou não. A participação revela atuação sindic… |
+| [congresso_sessoes](#congresso_sessoes) | — | Sessões do programa (plenária, mesa, grupo, setorial, atividade conjunta…), com horário. |
+| [congresso_unidades](#congresso_unidades) | — | Bases, entidades, segmentos ou ramos que formam as delegações, com limite de delegados e número de sócios para o cálculo de vagas. |
+| [congressos](#congressos) | — | Congressos, plenárias e conferências que a entidade promove ou de que participa. Cada um aponta para um evento do módulo Eventos e guarda a … |
 | [negociacao_empresas](#negociacao_empresas) | — | Junção negociação coletiva x empresa (fonte pagadora) envolvida. |
 | [negociacao_eventos](#negociacao_eventos) | — | Linha do tempo de uma negociação coletiva: reuniões, propostas e marcos registrados no painel de Negociações. |
 | [negociacoes](#negociacoes) | — | Negociação coletiva (ACT ou CCT) com data-base, situação, acordo vigente e final, e a campanha de votação ligada. Tela Representação > Negoc… |
@@ -257,6 +266,246 @@ Junção ato x usuário participante. Sem uso encontrado no código (possível l
 | 🔑 `usuario_id` | uuid | não |  | → usuarios (**cascade**) | **sensível: sindical** | Participação da pessoa em ato sindical revela posição sindical. |
 
 Índices: `ato_eventos_participantes_pkey`
+
+## congresso_config_versoes
+
+Histórico da configuração de cada congresso (só inserção): quem mudou, por quê e, depois da aprovação do regimento, a deliberação que autorizou.
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
+| `versao` | integer | não |  |  |  |  |
+| `config` | jsonb | não |  |  |  |  |
+| `motivo` | text | sim |  |  |  |  |
+| `deliberacao` | text | sim |  |  |  |  |
+| `autor_id` | uuid | sim |  | → usuarios (set null) | identificação | Quem gravou a versão. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Checks: `congresso_config_versoes_versao_check` `CHECK ((versao > 0))`
+
+Índices: `congresso_config_versoes_pkey`, `congresso_config_versoes_um`
+
+## congresso_eixos
+
+Eixos temáticos do congresso.
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
+| `nome` | text | não |  |  |  |  |
+| `descricao` | text | sim |  |  |  |  |
+| `ordem` | integer | não | `0` |  |  |  |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | sim |  |  |  |  |
+
+Checks: `congresso_eixos_nome_check` `CHECK ((length(TRIM(BOTH FROM nome)) > 0))`
+
+Índices: `congresso_eixos_pkey`
+
+## congresso_grupos
+
+Grupos de trabalho (GT) do congresso, com eixo e vagas.
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
+| `eixo_id` | uuid | sim |  | → congresso_eixos (set null) |  |  |
+| `nome` | text | não |  |  |  |  |
+| `sala` | text | sim |  |  |  |  |
+| `vagas` | integer | sim |  |  |  |  |
+| `ordem` | integer | não | `0` |  |  |  |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | sim |  |  |  |  |
+
+Checks: `congresso_grupos_nome_check` `CHECK ((length(TRIM(BOTH FROM nome)) > 0))`; `congresso_grupos_vagas_check` `CHECK (((vagas IS NULL) OR (vagas > 0)))`
+
+Índices: `congresso_grupos_pkey`
+
+## congresso_papeis
+
+Papéis do congresso (delegado, nato, suplente, observador, convidado…) com a matriz de direitos em jsonb (voz, voto, assinar moção, candidatar-se, quórum…).
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
+| `nome` | text | não |  |  |  |  |
+| `categoria` | text | não | `'outro'::text` |  |  |  |
+| `cor` | text | sim |  |  |  |  |
+| `ordem` | integer | não | `0` |  |  |  |
+| `direitos` | jsonb | não | `'{}'::jsonb` |  |  |  |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | sim |  |  |  |  |
+
+Checks: `congresso_papeis_categoria_check` `CHECK ((categoria = ANY (ARRAY['delegado'::text, 'suplente'::text, 'nato'::text, 'observador'::text, 'convidado'::text, 'expositor'::text, 'assessor'::text, 'imprensa'::text, 'equipe'::text, 'comissao'::text, 'outro'::text])))`; `congresso_papeis_nome_check` `CHECK ((length(TRIM(BOTH FROM nome)) > 0))`
+
+Índices: `congresso_papeis_nome`, `congresso_papeis_pkey`
+
+## congresso_participante_historico
+
+Trilha de cada participante (só inserção): inscrição, troca de papel ou base, lista de espera, cancelamento.
+
+- **LGPD:** **sensível: sindical** · titulares: participantes de congressos
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
+| `participante_id` | uuid | sim |  | → congresso_participantes (set null) |  |  |
+| `acao` | text | não |  |  |  |  |
+| `detalhe` | jsonb | não | `'{}'::jsonb` |  | **sensível: sindical** | O que mudou (antes e depois). |
+| `autor_id` | uuid | sim |  | → usuarios (set null) | identificação | Quem fez a alteração. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Índices: `congresso_participante_historico_pessoa`, `congresso_participante_historico_pkey`
+
+## congresso_participantes
+
+Pessoas do congresso: delegados, natos, suplentes, observadores, convidados. Podem ser filiados ou não. A participação revela atuação sindical.
+
+- **LGPD:** identificação, **sensível: sindical** · titulares: delegados, observadores e convidados de congressos
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
+| `nome` | text | não |  |  | identificação | Nome civil. |
+| `nome_social` | text | sim |  |  | identificação | Nome social, usado no crachá e nas listas quando informado. |
+| `cpf` | text | sim |  |  | identificação | CPF só com dígitos, para evitar duplicidade e conferir no credenciamento. |
+| `email` | text | sim |  |  | identificação | E-mail para o link pessoal e avisos do congresso. |
+| `telefone` | text | sim |  |  | identificação | Telefone de contato. |
+| `genero` | text | sim |  |  | identificação | Gênero declarado, usado só para conferir cotas e paridade. |
+| `filiacao_id` | uuid | sim |  | → filiacoes (set null) | **sensível: sindical** | Filiado correspondente, quando houver. |
+| `usuario_id` | uuid | sim |  | → usuarios (set null) | identificação | Usuário do Confluir correspondente (ex.: diretor nato). |
+| `papel_id` | uuid | sim |  | → congresso_papeis (set null) | **sensível: sindical** | Papel no congresso (define os direitos). |
+| `unidade_id` | uuid | sim |  | → congresso_unidades (set null) | **sensível: sindical** | Base, entidade ou segmento que a pessoa representa. |
+| `grupo_id` | uuid | sim |  | → congresso_grupos (set null) |  |  |
+| `titular_id` | uuid | sim |  | → congresso_participantes (set null) | nenhum | Para suplentes: o titular a quem a pessoa substitui. |
+| `situacao` | text | não | `'inscrito'::text` |  | nenhum | inscrito, confirmado, lista_espera, recusado ou cancelado. |
+| `origem` | text | não | `'manual'::text` |  | nenhum | Como entrou: manual, nato, inscricao, planilha, indicacao, ata ou copia. |
+| `inscrito_em` | timestamp with time zone | não | `now()` |  | nenhum | Horário da inscrição; decide a ordem quando o regimento define delegados por ordem de inscrição. |
+| `acessibilidade` | text | sim |  |  | **sensível: saúde** | Necessidade de acessibilidade informada pela pessoa. Pode revelar deficiência: mostrar só a quem organiza. |
+| `observacao` | text | sim |  |  | identificação | Observação interna da comissão. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | sim |  |  |  |  |
+
+Checks: `congresso_participantes_cpf_check` `CHECK (((cpf IS NULL) OR (cpf ~ '^[0-9]{11}$'::text)))`; `congresso_participantes_nome_check` `CHECK ((length(TRIM(BOTH FROM nome)) > 0))`; `congresso_participantes_origem_check` `CHECK ((origem = ANY (ARRAY['manual'::text, 'nato'::text, 'inscricao'::text, 'planilha'::text, 'indicacao'::text, 'ata'::text, 'copia'::text])))`; `congresso_participantes_situacao_check` `CHECK ((situacao = ANY (ARRAY['inscrito'::text, 'confirmado'::text, 'lista_espera'::text, 'recusado'::text, 'cancelado'::text])))`
+
+Índices: `congresso_participantes_cpf`, `congresso_participantes_filiacao`, `congresso_participantes_ordem`, `congresso_participantes_pkey`
+
+## congresso_sessoes
+
+Sessões do programa (plenária, mesa, grupo, setorial, atividade conjunta…), com horário.
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
+| `tipo` | text | não | `'plenaria'::text` |  |  |  |
+| `titulo` | text | não |  |  |  |  |
+| `inicio` | timestamp with time zone | sim |  |  |  |  |
+| `fim` | timestamp with time zone | sim |  |  |  |  |
+| `grupo_id` | uuid | sim |  | → congresso_grupos (set null) |  |  |
+| `eixo_id` | uuid | sim |  | → congresso_eixos (set null) |  |  |
+| `local` | text | sim |  |  |  |  |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | sim |  |  |  |  |
+
+Checks: `congresso_sessoes_horario` `CHECK (((fim IS NULL) OR (inicio IS NULL) OR (fim >= inicio)))`; `congresso_sessoes_tipo_check` `CHECK ((tipo = ANY (ARRAY['credenciamento'::text, 'plenaria'::text, 'mesa_debate'::text, 'grupo'::text, 'setorial'::text, 'atividade_conjunta'::text, 'cultural'::text, 'eleicao'::text, 'outra'::text])))`; `congresso_sessoes_titulo_check` `CHECK ((length(TRIM(BOTH FROM titulo)) > 0))`
+
+Índices: `congresso_sessoes_congresso`, `congresso_sessoes_pkey`
+
+## congresso_unidades
+
+Bases, entidades, segmentos ou ramos que formam as delegações, com limite de delegados e número de sócios para o cálculo de vagas.
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
+| `tipo` | text | não | `'base'::text` |  |  |  |
+| `nome` | text | não |  |  |  |  |
+| `limite_delegados` | integer | sim |  |  |  |  |
+| `socios` | integer | sim |  |  |  |  |
+| `observacao` | text | sim |  |  |  |  |
+| `ordem` | integer | não | `0` |  |  |  |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | sim |  |  |  |  |
+
+Checks: `congresso_unidades_limite_delegados_check` `CHECK (((limite_delegados IS NULL) OR (limite_delegados >= 0)))`; `congresso_unidades_nome_check` `CHECK ((length(TRIM(BOTH FROM nome)) > 0))`; `congresso_unidades_socios_check` `CHECK (((socios IS NULL) OR (socios >= 0)))`; `congresso_unidades_tipo_check` `CHECK ((tipo = ANY (ARRAY['base'::text, 'entidade'::text, 'segmento'::text, 'ramo'::text, 'delegacao'::text])))`
+
+Índices: `congresso_unidades_nome`, `congresso_unidades_pkey`
+
+## congressos
+
+Congressos, plenárias e conferências que a entidade promove ou de que participa. Cada um aponta para um evento do módulo Eventos e guarda a configuração vigente das regras (regimento como dado).
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `evento_id` | uuid | sim |  | → eventos (set null) |  |  |
+| `nome` | text | não |  |  |  |  |
+| `edicao` | integer | sim |  |  |  |  |
+| `tema` | text | sim |  |  |  |  |
+| `modo` | text | não | `'promove'::text` |  | nenhum | promove: a entidade organiza; participa: a entidade só envia delegação a um evento externo. |
+| `situacao` | text | não | `'preparacao'::text` |  | nenhum | preparacao, inscricoes, em_andamento, encerrado ou cancelado. |
+| `etapa_anterior_id` | uuid | sim |  | → congressos (set null) |  |  |
+| `etapa_seguinte_id` | uuid | sim |  | → congressos (set null) |  |  |
+| `etapa_seguinte_nome` | text | sim |  |  | nenhum | Nome da etapa seguinte quando ela não está no Confluir (ex.: Plenafup 2027). |
+| `config` | jsonb | não | `'{}'::jsonb` |  | nenhum | Configuração vigente (catálogo em docs/plano-congressos-configuracao.md), normalizada por src/lib/congressos/config.ts. Cópia da última linha de congresso_config_versoes. |
+| `config_versao` | integer | não | `1` |  | nenhum | Número da versão vigente da configuração. |
+| `regimento_aprovado_em` | timestamp with time zone | sim |  |  | nenhum | Quando o regimento foi aprovado; depois disso, mudar a configuração exige registrar a deliberação. |
+| `criado_por` | uuid | sim |  | → usuarios (set null) |  |  |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | sim |  |  |  |  |
+
+Checks: `congressos_edicao_check` `CHECK (((edicao IS NULL) OR (edicao > 0)))`; `congressos_modo_check` `CHECK ((modo = ANY (ARRAY['promove'::text, 'participa'::text])))`; `congressos_nome_check` `CHECK ((length(TRIM(BOTH FROM nome)) > 0))`; `congressos_situacao_check` `CHECK ((situacao = ANY (ARRAY['preparacao'::text, 'inscricoes'::text, 'em_andamento'::text, 'encerrado'::text, 'cancelado'::text])))`
+
+Índices: `congressos_emp`, `congressos_evento`, `congressos_pkey`
 
 ## negociacao_empresas
 
