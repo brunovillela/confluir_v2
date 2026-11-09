@@ -184,13 +184,14 @@ export async function excluirRemessaPonto(
     .eq("id", id)
     .maybeSingle()
   if (!remessa) return { erro: "Remessa não encontrada." }
-  if (remessa.finalizada === true) {
-    return { erro: "Remessa finalizada não pode ser excluída — reabra antes." }
-  }
 
   // Com registros, só com a confirmação explícita ("excluir a remessa inteira").
   const { data: registros } = await admin.from("pessoal_registro_ponto").select("id").eq("remessa_id", id)
   const ids = (registros ?? []).map((r) => r.id as string)
+  // Vazia sai mesmo finalizada; com registros, só reabrindo antes.
+  if (ids.length > 0 && remessa.finalizada === true) {
+    return { erro: "Remessa finalizada com registros não pode ser excluída — reabra antes." }
+  }
   if (ids.length > 0 && formData.get("com_registros") !== "1") {
     return {
       erro: `A remessa tem ${ids.length} registro${ids.length === 1 ? "" : "s"} de ponto — confirme a exclusão da remessa inteira.`,
@@ -666,4 +667,59 @@ export async function liberacaoEmMassaPonto(_prev: EstadoForm, formData: FormDat
       ? `${mudar.length} registro(s) liberado(s); cada funcionário foi avisado.`
       : `${mudar.length} registro(s) bloqueado(s).`,
   }
+}
+
+/**
+ * Transfere o registro de ponto para outra remessa ABERTA (as duas precisam
+ * estar abertas). Horas, saldos, espelho e liberação vão como estão: os
+ * saldos não são recalculados. Um registro por funcionário em cada remessa.
+ */
+export async function transferirRegistroPonto(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await exigirGestao()
+
+  const id = String(formData.get("id") ?? "")
+  const origemId = String(formData.get("remessa_id") ?? "")
+  const destinoId = String(formData.get("destino_id") ?? "")
+  if (!id || !origemId) return { erro: "Registro inválido." }
+  if (!destinoId) return { erro: "Escolha a remessa de destino." }
+  if (destinoId === origemId) return { erro: "Escolha outra remessa." }
+
+  const origem = await remessaAberta(origemId)
+  if ("erro" in origem) return origem
+  const destino = await remessaAberta(destinoId)
+  if ("erro" in destino) return { erro: "A remessa de destino está finalizada ou não existe — escolha uma remessa aberta." }
+
+  const admin = await createAdminClient()
+  const { data: reg } = await admin
+    .from("pessoal_registro_ponto")
+    .select("id, funcionario_id")
+    .eq("id", id)
+    .eq("remessa_id", origemId)
+    .maybeSingle()
+  if (!reg) return { erro: "Registro não encontrado." }
+  if (reg.funcionario_id) {
+    const { data: existente } = await admin
+      .from("pessoal_registro_ponto")
+      .select("id")
+      .eq("remessa_id", destinoId)
+      .eq("funcionario_id", reg.funcionario_id)
+      .limit(1)
+    if ((existente ?? []).length > 0) {
+      return { erro: "O funcionário já tem registro de ponto na remessa de destino — exclua um dos dois antes." }
+    }
+  }
+
+  const { error } = await admin
+    .from("pessoal_registro_ponto")
+    .update({ remessa_id: destinoId, ordem: destino.ordem })
+    .eq("id", id)
+    .eq("remessa_id", origemId)
+  if (error) return { erro: `Não foi possível transferir: ${error.message}` }
+
+  revalidar(origemId)
+  revalidar(destinoId)
+  redirect(`/painel/pessoal/ponto/${origemId}?transferido=${encodeURIComponent(destino.nome ?? "outra remessa")}`)
 }

@@ -29,6 +29,7 @@ import { Paginacao } from "@/components/paginacao"
 import { requirePermissao } from "@/lib/auth"
 import {
   buscarRemessaPonto,
+  listarRemessasPonto,
   funcionariosParaSelecao,
   registrosDaRemessaPonto,
   urlArquivoPessoal,
@@ -46,7 +47,8 @@ import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { LerEspelhosBotao } from "../analise/botoes"
 import { CartaoResenha, PainelIndicadores } from "../analise/componentes"
 import { RemessaPontoForm } from "../remessa-form"
-import { liberacaoEmMassaPonto } from "../actions"
+import { excluirRemessaPonto, liberacaoEmMassaPonto, transferirRegistroPonto } from "../actions"
+import { ExcluirRemessaVazia, TransferirParaRemessa } from "@/components/pessoal/remessa-acoes"
 import { ExcluirRegistroBotao, RegistroPontoForm } from "./registro-itens"
 
 export const metadata: Metadata = {
@@ -75,6 +77,8 @@ export default async function RemessaPontoPage({
     recalculadas?: string
     parada?: string
     erro_cascata?: string
+    /** Nome da remessa para onde um registro foi transferido. */
+    transferido?: string
   }>
 }) {
   await requirePermissao("pessoal_gestao")
@@ -116,6 +120,12 @@ export default async function RemessaPontoPage({
 
   // Remessa finalizada: sem inclusão, edição ou exclusão de registros.
   const bloqueada = remessa.finalizada === true
+  // Transferir: só entre remessas abertas (esta e o destino).
+  const destinos = bloqueada
+    ? []
+    : (await listarRemessasPonto())
+        .filter((r) => r.id !== id && r.finalizada !== true)
+        .map((r) => ({ id: r.id, nome: r.nome_remessa ?? "(sem nome)" }))
   // Formulário fechado por padrão: abre pelo botão "Novo registro" no topo
   // (?novo=1) ou pelo "Editar" da linha (?editar=<id>).
   const formAberto = !bloqueada && (paramsBusca.novo === "1" || registroEmEdicao !== null)
@@ -200,11 +210,20 @@ export default async function RemessaPontoPage({
                   Editar remessa
                 </Link>
               </Button>
+              {itens.length === 0 && <ExcluirRemessaVazia acao={excluirRemessaPonto} id={id} />}
             </div>
           )}
         </div>
       </div>
 
+      {paramsBusca.transferido && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>
+            Registro transferido para {paramsBusca.transferido}. Horas e saldos foram como estavam: confira os saldos das
+            remessas seguintes.
+          </AlertDescription>
+        </Alert>
+      )}
       {(salvo === "1" || paramsBusca.excluido === "1") && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>
@@ -485,6 +504,16 @@ export default async function RemessaPontoPage({
                                 funcionario={i.funcionarioNome}
                                 posteriores={i.funcionario_id ? posteriores[i.funcionario_id] : undefined}
                               />
+                              {destinos.length > 0 && (
+                                <TransferirParaRemessa
+                                  acao={transferirRegistroPonto}
+                                  id={i.id}
+                                  remessaId={id}
+                                  destinos={destinos}
+                                  funcionario={i.funcionarioNome}
+                                  aviso="Horas, saldos e o espelho vão como estão: os saldos não são recalculados."
+                                />
+                              )}
                             </div>
                           )}
                         </TableCell>

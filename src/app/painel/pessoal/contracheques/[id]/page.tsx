@@ -29,6 +29,7 @@ import {
   buscarRemessaContracheques,
   contrachequesDaRemessa,
   funcionariosParaSelecao,
+  listarRemessasContracheques,
   naturezaRemessaContracheques,
   urlArquivoPessoal,
 } from "@/lib/db/pessoal"
@@ -42,7 +43,8 @@ import { podeAcessar } from "@/lib/permissoes"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 
 import { RemessaContrachequesForm } from "../remessa-form"
-import { liberacaoEmMassaContracheques } from "../actions"
+import { excluirRemessaContracheques, liberacaoEmMassaContracheques, transferirContracheque } from "../actions"
+import { ExcluirRemessaVazia, TransferirParaRemessa } from "@/components/pessoal/remessa-acoes"
 import { AcoesContracheque, NovoContrachequeForm } from "./contracheque-itens"
 
 export const metadata: Metadata = { title: "Remessa de contracheques — Confluir" }
@@ -55,6 +57,8 @@ export default async function RemessaContrachequesPage({
   searchParams: Promise<{
     salvo?: string
     editar?: string
+    /** Nome da remessa para onde um contracheque foi transferido. */
+    transferido?: string
     pagina?: string
     porPagina?: string
   }>
@@ -94,6 +98,12 @@ export default async function RemessaContrachequesPage({
 
   // Remessa finalizada: sem inclusão, edição ou exclusão de contracheques.
   const bloqueada = remessa.finalizada === true
+  // Transferir: só entre remessas abertas (esta e o destino).
+  const destinos = bloqueada
+    ? []
+    : (await listarRemessasContracheques())
+        .filter((r) => r.id !== id && r.finalizada !== true)
+        .map((r) => ({ id: r.id, nome: r.nome_remessa ?? "(sem nome)" }))
 
   return (
     <>
@@ -154,11 +164,17 @@ export default async function RemessaContrachequesPage({
                   Editar remessa
                 </Link>
               </Button>
+              {itens.length === 0 && <ExcluirRemessaVazia acao={excluirRemessaContracheques} id={id} />}
             </div>
           )}
         </div>
       </div>
 
+      {paramsBusca.transferido && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>Contracheque transferido para {paramsBusca.transferido}.</AlertDescription>
+        </Alert>
+      )}
       {salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Remessa salva com sucesso.</AlertDescription>
@@ -304,6 +320,18 @@ export default async function RemessaContrachequesPage({
                               }
                               valorLiquido={i.valor_liquido != null ? Number(i.valor_liquido) : null}
                             />
+                          )}
+                          {!bloqueada && destinos.length > 0 && (
+                            <div className="mt-1 flex justify-end">
+                              <TransferirParaRemessa
+                                acao={transferirContracheque}
+                                id={i.id}
+                                remessaId={id}
+                                destinos={destinos}
+                                funcionario={i.funcionarioNome}
+                                aviso="O PDF, o líquido, a liberação e a ordem de pagamento vão junto."
+                              />
+                            </div>
                           )}
                         </TableCell>
                       </TableRow>

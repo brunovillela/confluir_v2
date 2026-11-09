@@ -178,9 +178,6 @@ export async function excluirRemessaContracheques(
     .eq("id", id)
     .maybeSingle()
   if (!remessa) return { erro: "Remessa não encontrada." }
-  if (remessa.finalizada === true) {
-    return { erro: "Remessa finalizada não pode ser excluída — reabra antes." }
-  }
 
   const { count } = await admin
     .from("pessoal_contracheques")
@@ -523,4 +520,64 @@ export async function liberacaoEmMassaContracheques(
       ? `${mudar.length} contracheque(s) liberado(s); cada funcionário foi avisado.`
       : `${mudar.length} contracheque(s) bloqueado(s).`,
   }
+}
+
+/**
+ * Transfere o contracheque para outra remessa ABERTA (as duas precisam estar
+ * abertas). O PDF, o líquido, a liberação e a ordem de pagamento vão junto;
+ * só muda a remessa. Um contracheque por funcionário em cada remessa.
+ */
+export async function transferirContracheque(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await exigirAcesso()
+
+  const id = String(formData.get("id") ?? "")
+  const origemId = String(formData.get("remessa_id") ?? "")
+  const destinoId = String(formData.get("destino_id") ?? "")
+  if (!id || !origemId) return { erro: "Contracheque inválido." }
+  if (!destinoId) return { erro: "Escolha a remessa de destino." }
+  if (destinoId === origemId) return { erro: "Escolha outra remessa." }
+
+  const origem = await remessaAberta(origemId)
+  if ("erro" in origem) return origem
+  const destino = await remessaAberta(destinoId)
+  if ("erro" in destino) return { erro: "A remessa de destino está finalizada ou não existe — escolha uma remessa aberta." }
+
+  const admin = await createAdminClient()
+  const { data: cc } = await admin
+    .from("pessoal_contracheques")
+    .select("id, funcionario_id")
+    .eq("id", id)
+    .eq("remessa_id", origemId)
+    .maybeSingle()
+  if (!cc) return { erro: "Contracheque não encontrado." }
+  if (cc.funcionario_id) {
+    const { data: existente } = await admin
+      .from("pessoal_contracheques")
+      .select("id")
+      .eq("remessa_id", destinoId)
+      .eq("funcionario_id", cc.funcionario_id)
+      .limit(1)
+    if ((existente ?? []).length > 0) {
+      return { erro: "O funcionário já tem contracheque na remessa de destino — exclua um dos dois antes." }
+    }
+  }
+
+  const { error } = await admin
+    .from("pessoal_contracheques")
+    .update({ remessa_id: destinoId, ordem: destino.ordem })
+    .eq("id", id)
+    .eq("remessa_id", origemId)
+  if (error) return { erro: `Não foi possível transferir: ${error.message}` }
+
+  const { data: nomeDestino } = await admin
+    .from("pessoal_contracheques_remessas")
+    .select("nome_remessa")
+    .eq("id", destinoId)
+    .maybeSingle()
+  revalidar(origemId)
+  revalidar(destinoId)
+  redirect(`/painel/pessoal/contracheques/${origemId}?transferido=${encodeURIComponent(nomeDestino?.nome_remessa ?? "outra remessa")}`)
 }
