@@ -420,6 +420,8 @@ export async function calcularMovimento(
       "enderecos",
       "pessoal_dependentes",
       "pessoal_funcionario_jornada",
+      "pessoal_jornada_funcionarios",
+      "pessoal_jornada_dias",
       "pessoal_funcionario_funcao",
       "pessoal_nivel_salarial_base",
     ])
@@ -427,6 +429,19 @@ export async function calcularMovimento(
     .lt("momento", auditoriaAte)
     .order("momento", { ascending: true })
     .range(0, 4999)
+  // Jornadas da entidade: nome e quem segue cada uma (mudança no horário da
+  // jornada vira uma linha para cada funcionário vinculado).
+  const [{ data: jornadasEmp }, { data: vinculosJornada }] = await Promise.all([
+    admin.from("pessoal_jornadas").select("id, nome").eq("emp_proprietaria_id", emp),
+    admin.from("pessoal_jornada_funcionarios").select("jornada_id, funcionario_id").eq("emp_proprietaria_id", emp).range(0, 4999),
+  ])
+  const nomeJornada = new Map((jornadasEmp ?? []).map((j) => [String(j.id), String(j.nome)]))
+  const seguidores = new Map<string, string[]>()
+  for (const v of vinculosJornada ?? []) {
+    const arr = seguidores.get(String(v.jornada_id)) ?? []
+    arr.push(String(v.funcionario_id))
+    seguidores.set(String(v.jornada_id), arr)
+  }
   for (const a of (auds ?? []) as Record<string, unknown>[]) {
     const tabela = String(a.tabela)
     const antes = (a.antes ?? {}) as Record<string, unknown>
@@ -488,6 +503,33 @@ export async function calcularMovimento(
         descricao: tabela === "pessoal_funcionario_jornada" ? "Jornada de trabalho alterada" : "Função alterada",
         origem: `/painel/pessoal/${f}`,
       })
+    } else if (tabela === "pessoal_jornada_funcionarios") {
+      const f = texto(linha.funcionario_id)
+      if (!f || !funcionarios.has(f)) continue
+      const nome = nomeJornada.get(String(depois.jornada_id ?? linha.jornada_id))
+      add({
+        ...base,
+        // Mesma chave da jornada antiga: várias mudanças no dia viram uma linha.
+        chave: `pessoal_funcionario_jornada:${f}:${quando}`,
+        secao: "contrato",
+        funcionarioId: f,
+        descricao: op === "DELETE" ? "Jornada de trabalho retirada" : `Jornada de trabalho: ${nome ?? "alterada"}`,
+        origem: "/painel/pessoal/atribuicoes/jornadas",
+      })
+    } else if (tabela === "pessoal_jornada_dias") {
+      const j = texto(linha.jornada_id)
+      if (!j) continue
+      for (const f of seguidores.get(j) ?? []) {
+        if (!funcionarios.has(f)) continue
+        add({
+          ...base,
+          chave: `pessoal_funcionario_jornada:${f}:${quando}`,
+          secao: "contrato",
+          funcionarioId: f,
+          descricao: `Horário da jornada ${nomeJornada.get(j) ?? ""} alterado`.replace("  ", " "),
+          origem: `/painel/pessoal/atribuicoes/jornadas?jornada=${j}`,
+        })
+      }
     } else if (tabela === "pessoal_nivel_salarial_base" && op === "UPDATE" && campos.includes("salario_base")) {
       // Mexer numa tabela guardada ou em preparação não muda o salário de ninguém.
       if (linha.tabela_id && linha.tabela_id !== tabelaVigente?.id) continue

@@ -1,29 +1,39 @@
 "use client"
 
 import { useActionState } from "react"
-import { Loader2 } from "lucide-react"
+import { Loader2, Trash2 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import {
   DIAS_SEMANA,
   formatarHora,
   type JornadaDia,
 } from "@/lib/pessoal-sst-constantes"
 
-import { salvarJornada } from "../actions"
+import { excluirJornadaModelo, salvarJornadaModelo } from "../actions"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
-/** Editor da jornada semanal de UM funcionário (linha por dia da semana). */
+/** Cria ou edita uma jornada da entidade (nome + horário de cada dia). */
 export function JornadaForm({
-  funcionarioId,
+  id,
+  nome,
+  observacao,
   dias,
+  vinculados,
 }: {
-  funcionarioId: string
+  id?: string
+  nome?: string
+  observacao?: string | null
   dias: JornadaDia[]
+  /** Quantos funcionários seguem esta jornada (aviso ao salvar). */
+  vinculados: number
 }) {
-  const [estado, action, pend] = useActionState(salvarJornada, {})
+  const [estado, action, pend] = useActionState(salvarJornadaModelo, {})
   const envio = useEnvioFormulario(action, estado)
   const porDia = new Map(dias.map((d) => [d.dia_semana, d]))
 
@@ -33,7 +43,7 @@ export function JornadaForm({
   }
 
   return (
-    <form action={action} {...envio} className="grid gap-3">
+    <form action={action} {...envio} className="grid gap-4">
       {estado.erro && (
         <Alert variant="destructive">
           <AlertDescription>{estado.erro}</AlertDescription>
@@ -44,7 +54,29 @@ export function JornadaForm({
           <AlertDescription>{estado.ok}</AlertDescription>
         </Alert>
       )}
-      <input type="hidden" name="funcionario_id" value={funcionarioId} />
+      {id && <input type="hidden" name="id" value={id} />}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-1.5">
+          <Label htmlFor="jornada-nome">Nome</Label>
+          <Input
+            id="jornada-nome"
+            name="nome"
+            defaultValue={nome ?? ""}
+            placeholder="Ex.: Administrativo 8h às 17h"
+            required
+          />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="jornada-obs">Observação (opcional)</Label>
+          <Textarea
+            id="jornada-obs"
+            name="observacao"
+            defaultValue={observacao ?? ""}
+            rows={1}
+            placeholder="Ex.: cláusula do acordo que define o horário"
+          />
+        </div>
+      </div>
       <div className="grid gap-2">
         {DIAS_SEMANA.map((d) => {
           const j = porDia.get(d.valor)
@@ -71,16 +103,42 @@ export function JornadaForm({
         })}
       </div>
       <p className="text-muted-foreground text-xs">
-        Dia sem os dois horários preenchidos = sem expediente. A jornada
-        alimenta o % de ocupação nos relatórios e o alerta de acesso fora do
-        horário de trabalho.
+        Dia sem os dois horários = sem expediente.
+        {vinculados > 0 &&
+          ` A alteração vale para ${vinculados === 1 ? "o funcionário vinculado" : `os ${vinculados} funcionários vinculados`} e entra no movimento da folha.`}
       </p>
       <div>
         <Button type="submit" disabled={pend}>
           {pend && <Loader2 className="animate-spin" />}
-          Salvar jornada
+          {id ? "Salvar jornada" : "Criar jornada"}
         </Button>
       </div>
+    </form>
+  )
+}
+
+/** Excluir a jornada (só sem funcionários vinculados; o servidor confere). */
+export function ExcluirJornada({ id }: { id: string }) {
+  const [estado, action, pend] = useActionState(excluirJornadaModelo, {})
+  const envio = useEnvioFormulario(action, estado, {
+    antes: (e) => {
+      confirmarEnvio(e, "Excluir esta jornada? Não dá para desfazer.")
+    },
+  })
+  return (
+    <form action={action} {...envio} className="grid justify-items-end gap-1">
+      <input type="hidden" name="id" value={id} />
+      <Button
+        type="submit"
+        variant="outline"
+        size="sm"
+        disabled={pend}
+        className="text-destructive hover:text-destructive"
+      >
+        {pend ? <Loader2 className="animate-spin" /> : <Trash2 />}
+        Excluir jornada
+      </Button>
+      {estado.erro && <span className="text-destructive text-xs">{estado.erro}</span>}
     </form>
   )
 }

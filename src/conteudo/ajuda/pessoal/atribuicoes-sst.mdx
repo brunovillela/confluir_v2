@@ -29,8 +29,9 @@ O hub tem oito frentes e uma configuração:
   (o "contrato") e a análise de **desvio de função por executor**.
 - **GHE** — os Grupos Homogêneos de Exposição: trabalhadores com exposição
   semelhante aos mesmos perigos, avaliados em grupo.
-- **Jornadas de trabalho** — a jornada contratada de cada funcionário (dias e
-  horários), base do % de ocupação e do alerta de acesso fora do horário.
+- **Jornadas de trabalho** — as jornadas da entidade (dias e horários) e qual
+  delas cada funcionário segue; base do % de ocupação e do alerta de acesso
+  fora do horário.
 - **Matriz de treinamento** — os treinamentos exigidos por funcionário e o
   status de cada um.
 - **Relatórios** — presença física, tempo, ocupação da jornada, perigos e
@@ -89,9 +90,31 @@ Comece pelas funções. Elas são a base do comparativo com o contrato.
 
 ## Passo 2 — Jornadas de trabalho
 
-Em **Jornadas de trabalho**, cadastre a jornada contratada de cada funcionário:
-para cada dia da semana, o horário de início e de fim. Dia sem horários é dia
-sem expediente.
+A jornada é configurada uma vez e vinculada aos funcionários. Assim, uma
+mudança geral de horário se faz num lugar só.
+
+<PassoAPasso>
+  <Passo titulo="Crie as jornadas">
+    Em **Jornadas de trabalho → Nova jornada**, dê um nome (ex.:
+    *Administrativo 8h às 17h*) e informe, para cada dia da semana, o horário
+    de início e de fim. Dia sem horários é dia sem expediente.
+  </Passo>
+  <Passo titulo="Vincule os funcionários">
+    Na lista **Funcionários**, marque quem segue a jornada (ou **Marcar todos**),
+    escolha a jornada e clique em **Vincular**. Cada funcionário tem uma
+    jornada; vincular a outra troca. **Sem jornada** tira a jornada dos
+    marcados.
+  </Passo>
+  <Passo titulo="Altere quando mudar">
+    Em **Editar**, mude os horários e salve: a alteração vale para todos os
+    funcionários vinculados e entra no **movimento da folha** de cada um. A
+    troca de jornada de um funcionário também entra.
+  </Passo>
+</PassoAPasso>
+
+Uma jornada só pode ser excluída quando não tem ninguém vinculado.
+
+<Print src="pessoal/jornadas.png" alt="Jornadas de trabalho: a jornada Administrativo 8h às 17h aberta para edição (nome, observação e horário de cada dia, com o aviso de que a alteração vale para os 9 vinculados), a lista das jornadas da entidade com horário, carga semanal e número de funcionários, e a lista de funcionários com caixas de marcar, a escolha da jornada e o botão Vincular." legenda="Jornadas da entidade e o vínculo de cada funcionário." />
 
 A jornada alimenta duas coisas:
 

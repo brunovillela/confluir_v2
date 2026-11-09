@@ -251,6 +251,21 @@ erDiagram
     uuid id PK
     uuid emp_proprietaria_id FK
   }
+  pessoal_jornada_dias {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid jornada_id FK
+  }
+  pessoal_jornada_funcionarios {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid funcionario_id FK
+    uuid jornada_id FK
+  }
+  pessoal_jornadas {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+  }
   pessoal_nivel_salarial {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -432,6 +447,9 @@ erDiagram
   pessoal_ghe_membros }o--o| usuarios : "funcionario_id"
   pessoal_informes_rendimentos }o--o| pessoal_informes_rendimentos_remessas : "remessa_id"
   pessoal_informes_rendimentos }o--o| usuarios : "funcionario_id"
+  pessoal_jornada_dias }o--|| pessoal_jornadas : "jornada_id"
+  pessoal_jornada_funcionarios }o--|| pessoal_jornadas : "jornada_id"
+  pessoal_jornada_funcionarios }o--|| usuarios : "funcionario_id"
   pessoal_nivel_salarial }o--o| pessoal_nivel_salarial_base : "nivel_atual_id"
   pessoal_nivel_salarial }o--o| pessoal_nivel_salarial_base : "proximo_nivel_id"
   pessoal_nivel_salarial }o--o| usuarios : "funcionario_id"

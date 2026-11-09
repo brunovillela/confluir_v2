@@ -24,7 +24,7 @@
 | P07 | [Diretoria, mandatos e ofícios](#p07) | 8 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P08 | [Saúde do trabalhador (CAT, atendimentos, CIPA)](#p08) | 11 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, trabalhista | sim |
 | P09 | [Jurídico](#p09) | 4 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista | sim |
-| P10 | [Pessoal: RH dos funcionários da entidade](#p10) | 40 | identificação, **sensível: saúde**, financeiro, trabalhista | sim |
+| P10 | [Pessoal: RH dos funcionários da entidade](#p10) | 41 | identificação, **sensível: saúde**, financeiro, trabalhista | sim |
 | P11 | [Financeiro, compras, fornecedores e contratos](#p11) | 35 | identificação, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P12 | [Institucional: custeios, viagens, linhas e patrimônio](#p12) | 10 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P13 | [Hospedagem conveniada e cessão de espaços](#p13) | 12 | identificação, **sensível: filiação/posição sindical**, financeiro, credencial (segredo de acesso, nunca exportar) | sim |
@@ -445,7 +445,7 @@
 
 **Observações.** Comprovantes mandados ao bot do Telegram (recibo de reembolso, atestado) passam pelo Telegram e pela IA por iniciativa do próprio funcionário; o chat mostra só o período do atestado. Pendências: a resenha do ponto envia à IA até 30 funcionários por nome; `pessoal_folha_competencias.snapshot` guarda cópia de dados pessoais; documentos ainda no CDN do Bubble.
 
-<details><summary>Tabelas (40) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (41) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -476,6 +476,7 @@
 | [pessoal_funcionario_jornada](../dados/dicionario/pessoal.md#pessoal_funcionario_jornada) | trabalhista | `dia_semana` (trabalhista), `hora_inicio` (trabalhista), `hora_fim` (trabalhista) |
 | [pessoal_ghe_membros](../dados/dicionario/pessoal.md#pessoal_ghe_membros) | trabalhista | _pela existência do registro_ |
 | [pessoal_informes_rendimentos](../dados/dicionario/pessoal.md#pessoal_informes_rendimentos) | financeiro | `arquivo_url` (financeiro) |
+| [pessoal_jornada_funcionarios](../dados/dicionario/pessoal.md#pessoal_jornada_funcionarios) | trabalhista | `funcionario_id` (identificacao), `jornada_id` (trabalhista) |
 | [pessoal_nivel_salarial](../dados/dicionario/pessoal.md#pessoal_nivel_salarial) | financeiro, trabalhista | `proximo_nivel_texto` (trabalhista), `tipo_avanco` (trabalhista), `proximo_nivel_data` (trabalhista), `nivel_atual_data` (trabalhista), `nivel_atual_id` (financeiro) |
 | [pessoal_plano_saude](../dados/dicionario/pessoal.md#pessoal_plano_saude) | identificacao, sens. saude, trabalhista | `aposentado` (trabalhista), `nome_beneficiario` (identificacao), `situacao_dependente` (sens. saude) |
 | [pessoal_ponto_importacao_itens](../dados/dicionario/pessoal.md#pessoal_ponto_importacao_itens) | identificacao, trabalhista | `nome_lido` (identificacao), `cpf_lido` (identificacao), `funcionario_id` (identificacao), `arquivo` (trabalhista), `leitura` (trabalhista), `apuracao` (trabalhista), `aplicado_por` (identificacao) |
@@ -834,4 +835,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 228 de 228 tabelas com dado pessoal atribuídas a 16 processos.
+Cobertura: 229 de 229 tabelas com dado pessoal atribuídas a 16 processos.

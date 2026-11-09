@@ -125,9 +125,9 @@ export default async function AtribuicoesPage() {
     {
       href: "/painel/pessoal/atribuicoes/jornadas",
       titulo: "Jornadas de trabalho",
-      indicador: plural(r.jornadas, "jornada cadastrada", "jornadas cadastradas"),
+      indicador: plural(r.jornadas, "funcionário com jornada", "funcionários com jornada"),
       descricao:
-        "Jornada contratada por funcionário — base do % de ocupação e do alerta fora de horário",
+        "Jornadas da entidade, vinculadas a cada funcionário — base do % de ocupação e do alerta fora de horário",
       icone: CalendarClock,
     },
     {

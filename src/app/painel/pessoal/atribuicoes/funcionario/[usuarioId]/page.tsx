@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { VoltarLista } from "@/components/voltar-lista"
 import { requirePermissao } from "@/lib/auth"
 import { funcionarioDaArea } from "@/lib/db/pessoal-area"
-import { jornadaDoUsuario, matrizTreinamento, relatorioDeFuncionarios } from "@/lib/db/pessoal-sst"
+import { jornadaDoFuncionario, matrizTreinamento, relatorioDeFuncionarios } from "@/lib/db/pessoal-sst"
 
 export const metadata: Metadata = { title: "SST do funcionário — Confluir" }
 
@@ -29,14 +29,15 @@ const hm = (min: number) => `${Math.floor(min / 60)}h${String(Math.round(min % 6
 export default async function SstFuncionarioPage({ params }: { params: Promise<{ usuarioId: string }> }) {
   const sessao = await requirePermissao("pessoal_gestao")
   const { usuarioId } = await params
-  const [funcionario, relatorio, jornada, matriz] = await Promise.all([
+  const [funcionario, relatorio, jornadaVinculada, matriz] = await Promise.all([
     funcionarioDaArea(usuarioId),
     relatorioDeFuncionarios([usuarioId]).catch(() => []),
-    jornadaDoUsuario(usuarioId).catch(() => []),
+    jornadaDoFuncionario(usuarioId).catch(() => null),
     matrizTreinamento().catch(() => []),
   ])
   if (!funcionario) notFound()
   const r = relatorio[0]
+  const jornada = jornadaVinculada?.dias ?? []
   const exigidos = matriz.find((m) => m.funcionarioId === usuarioId)
   const riscos = [...(r?.riscos ?? [])].sort((a, b) => ((b.piorResidual ?? b.pior)?.valor ?? 0) - ((a.piorResidual ?? a.pior)?.valor ?? 0))
 
@@ -57,7 +58,7 @@ export default async function SstFuncionarioPage({ params }: { params: Promise<{
           <Link href={`/painel/pessoal/atribuicoes/relatorios?escopo=funcionario&id=${usuarioId}`}>Relatório completo</Link>
         </Button>
         <Button variant="outline" size="sm" asChild>
-          <Link href={`/painel/pessoal/atribuicoes/jornadas?id=${usuarioId}`}>Editar jornada</Link>
+          <Link href={jornadaVinculada ? `/painel/pessoal/atribuicoes/jornadas?jornada=${jornadaVinculada.jornadaId}` : "/painel/pessoal/atribuicoes/jornadas"}>{jornadaVinculada ? "Editar jornada" : "Vincular jornada"}</Link>
         </Button>
       </div>
 
@@ -121,6 +122,7 @@ export default async function SstFuncionarioPage({ params }: { params: Promise<{
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Jornada contratada</CardTitle>
+            {jornadaVinculada && <CardDescription>{jornadaVinculada.nome}</CardDescription>}
           </CardHeader>
           <CardContent>
             {jornada.length === 0 ? (

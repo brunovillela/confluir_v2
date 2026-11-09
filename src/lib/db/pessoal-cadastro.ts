@@ -95,6 +95,7 @@ const LANCAMENTOS: { tabela: string; coluna: string; rotulo: string; plural: str
 const CONFIGURACAO: { tabela: string; coluna: string }[] = [
   { tabela: "pessoal_funcionario_funcao", coluna: "funcionario_id" },
   { tabela: "pessoal_funcionario_jornada", coluna: "funcionario_id" },
+  { tabela: "pessoal_jornada_funcionarios", coluna: "funcionario_id" },
   { tabela: "pessoal_ghe_membros", coluna: "funcionario_id" },
   { tabela: "pessoal_dependentes", coluna: "funcionario_id" },
 ]

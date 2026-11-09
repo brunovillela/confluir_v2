@@ -2,7 +2,7 @@
 
 # Pessoal (RH da entidade)
 
-58 tabelas. Diagrama: [er/pessoal.md](../er/pessoal.md).
+61 tabelas. Diagrama: [er/pessoal.md](../er/pessoal.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -41,12 +41,15 @@
 | [pessoal_folha_competencias](#pessoal_folha_competencias) | identificação, financeiro, trabalhista | Competências do movimento da folha ENVIADAS à contabilidade, com a fotografia (snapshot) das linhas entregues. Competência sem linha aqui es… |
 | [pessoal_folha_config](#pessoal_folha_config) | identificação | Configuração do movimento da folha para a contabilidade, uma linha por entidade (src/lib/db/folha-movimento.ts). |
 | [pessoal_funcionario_funcao](#pessoal_funcionario_funcao) | trabalhista | Função (atribuição) exercida por um funcionário. Gravada em Pessoal > Atribuições; alterações entram no movimento da folha. |
-| [pessoal_funcionario_jornada](#pessoal_funcionario_jornada) | trabalhista | Jornada de trabalho de um funcionário por dia da semana (hora de início e fim). Gravada em Pessoal > Atribuições; alterações entram no movim… |
+| [pessoal_funcionario_jornada](#pessoal_funcionario_jornada) | trabalhista | LEGADO (até 09/11/2026): jornada gravada em cada funcionário, por dia da semana. Substituída por pessoal_jornadas + pessoal_jornada_funciona… |
 | [pessoal_funcoes](#pessoal_funcoes) | — | Catálogo de funções da entidade (nome, descrição) atribuíveis aos funcionários. Gravado em Pessoal > Atribuições. |
 | [pessoal_ghe](#pessoal_ghe) | — | Grupo Homogêneo de Exposição (GHE) de SST: funcionários expostos aos mesmos riscos. Gravado em Pessoal > Atribuições. |
 | [pessoal_ghe_membros](#pessoal_ghe_membros) | trabalhista | Funcionário integrante de um GHE (grupo de exposição a riscos de SST). Gravado em Pessoal > Atribuições. |
 | [pessoal_informes_rendimentos](#pessoal_informes_rendimentos) | financeiro | Informe de rendimentos anual (PDF) de um funcionário numa remessa, liberado para consulta em Meu perfil. Espelho do Bubble; enviado em Pesso… |
 | [pessoal_informes_rendimentos_remessas](#pessoal_informes_rendimentos_remessas) | — | Espelho de "Pessoal - Informes de rendimentos - Remessas" do Bubble |
+| [pessoal_jornada_dias](#pessoal_jornada_dias) | — | Horário de cada dia da semana de uma jornada (0=domingo … 6=sábado). Dia sem linha = sem expediente. |
+| [pessoal_jornada_funcionarios](#pessoal_jornada_funcionarios) | trabalhista | Jornada de trabalho de cada funcionário (uma por funcionário). Alterações entram no movimento da folha. |
+| [pessoal_jornadas](#pessoal_jornadas) | — | Jornadas de trabalho da entidade (ex.: "Administrativo 8h–17h"): configuradas uma vez e vinculadas aos funcionários. Alterar a jornada alter… |
 | [pessoal_nivel_salarial](#pessoal_nivel_salarial) | financeiro, trabalhista | Lançamento de nível salarial de um funcionário (nível atual e próximo, tipo de avanço: automático, mérito, ajuste, inicial). Espelho do Bubb… |
 | [pessoal_nivel_salarial_base](#pessoal_nivel_salarial_base) | — | Tabela salarial: cargo x nível vertical x horizontal x carreira, com o salário base. Espelho do Bubble; cadastrada em Pessoal > Níveis. |
 | [pessoal_plano_saude](#pessoal_plano_saude) | **sensível: saúde**, identificação, trabalhista | Beneficiário do plano de saúde vinculado a um funcionário titular (dependente, aposentado). Espelho do Bubble. Sem uso encontrado no código … |
@@ -1038,7 +1041,7 @@ Função (atribuição) exercida por um funcionário. Gravada em Pessoal > Atrib
 
 ## pessoal_funcionario_jornada
 
-Jornada de trabalho de um funcionário por dia da semana (hora de início e fim). Gravada em Pessoal > Atribuições; alterações entram no movimento da folha.
+LEGADO (até 09/11/2026): jornada gravada em cada funcionário, por dia da semana. Substituída por pessoal_jornadas + pessoal_jornada_funcionarios; o sistema não lê nem grava mais aqui.
 
 - **LGPD:** trabalhista · titulares: funcionários
 - **RLS:** ligado · policies: `tenant_isolation`
@@ -1163,6 +1166,69 @@ Espelho de "Pessoal - Informes de rendimentos - Remessas" do Bubble
 Únicas: `UNIQUE (bubble_id)`
 
 Índices: `pessoal_informes_rendimentos_remessas_bubble_id_key`, `pessoal_informes_rendimentos_remessas_pkey`
+
+## pessoal_jornada_dias
+
+Horário de cada dia da semana de uma jornada (0=domingo … 6=sábado). Dia sem linha = sem expediente.
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `jornada_id` | uuid | não |  | → pessoal_jornadas (**cascade**) |  |  |
+| `dia_semana` | smallint | não |  |  |  |  |
+| `hora_inicio` | time without time zone | não |  |  |  |  |
+| `hora_fim` | time without time zone | não |  |  |  |  |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | sim |  |  |  |  |
+
+Checks: `pessoal_jornada_dias_dia_semana_check` `CHECK (((dia_semana >= 0) AND (dia_semana <= 6)))`; `pessoal_jornada_dias_horario` `CHECK ((hora_fim > hora_inicio))`
+
+Índices: `pessoal_jornada_dias_dia`, `pessoal_jornada_dias_pkey`
+
+## pessoal_jornada_funcionarios
+
+Jornada de trabalho de cada funcionário (uma por funcionário). Alterações entram no movimento da folha.
+
+- **LGPD:** trabalhista · titulares: funcionários
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `funcionario_id` | uuid | não |  | → usuarios (**cascade**) | identificação | Funcionário. |
+| `jornada_id` | uuid | não |  | → pessoal_jornadas (restrict) | trabalhista | Jornada a que está vinculado. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | sim |  |  |  |  |
+
+Índices: `pessoal_jornada_funcionarios_jornada`, `pessoal_jornada_funcionarios_pkey`, `pessoal_jornada_funcionarios_um`
+
+## pessoal_jornadas
+
+Jornadas de trabalho da entidade (ex.: "Administrativo 8h–17h"): configuradas uma vez e vinculadas aos funcionários. Alterar a jornada altera todos os vinculados (09/11/2026).
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `nome` | text | não |  |  | nenhum | Nome da jornada, único na entidade. |
+| `observacao` | text | sim |  |  | nenhum | Observação livre (ex.: cláusula do acordo que a define). |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | sim |  |  |  |  |
+
+Checks: `pessoal_jornadas_nome_check` `CHECK ((length(TRIM(BOTH FROM nome)) > 0))`
+
+Índices: `pessoal_jornadas_nome`, `pessoal_jornadas_pkey`
 
 ## pessoal_nivel_salarial
 

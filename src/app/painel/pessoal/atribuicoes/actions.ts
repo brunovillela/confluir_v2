@@ -8,6 +8,7 @@ import { type EstadoForm } from "@/lib/contas"
 import { hojeSP, lerEmLotes } from "@/lib/db/comum"
 import { analisarSST, sugerirPlanoCargos } from "@/lib/db/pessoal-sst-ia"
 import { buscarAtividade } from "@/lib/db/pessoal-sst"
+import { DIAS_SEMANA } from "@/lib/pessoal-sst-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import { semAcento } from "@/lib/texto"
@@ -744,58 +745,201 @@ export async function excluirMedida(
   return { ok: "Medida removida." }
 }
 
-// ── Jornada de trabalho contratada ───────────────────────────────────────────
+// ── Jornadas de trabalho ─────────────────────────────────────────────────────
+
+const HORA_RE = /^\d{1,2}:\d{2}$/
+const hhmm = (v: string | null | undefined) => (v ? v.slice(0, 5) : null)
 
 /**
- * Salva a jornada semanal de um funcionário: um campo hora_inicio/hora_fim por
- * dia (nomes `inicio_0`..`inicio_6`, `fim_0`..`fim_6`). Dia sem os dois
- * horários = sem expediente (linha removida).
+ * Cria ou altera uma jornada da entidade: nome, observação e um campo
+ * hora_inicio/hora_fim por dia (`inicio_0`..`inicio_6`, `fim_0`..`fim_6`).
+ * Dia sem os dois horários = sem expediente. Só grava os dias que mudaram,
+ * para o movimento da folha não acusar alteração onde não houve.
  */
-export async function salvarJornada(
+export async function salvarJornadaModelo(
   _prev: EstadoForm,
   fd: FormData
 ): Promise<EstadoForm> {
   await exigir()
-  const funcionarioId = txt(fd, "funcionario_id")
-  if (!funcionarioId) return { erro: "Escolha o funcionário." }
+  const id = txt(fd, "id")
+  const nome = txt(fd, "nome")
+  const observacao = txt(fd, "observacao")
+  if (!nome) return { erro: "Dê um nome à jornada (ex.: Administrativo 8h às 17h)." }
+
+  const dias: { dia: number; inicio: string; fim: string }[] = []
+  for (const d of DIAS_SEMANA) {
+    const inicio = txt(fd, `inicio_${d.valor}`)
+    const fim = txt(fd, `fim_${d.valor}`)
+    if (!inicio && !fim) continue
+    if (!inicio || !fim || !HORA_RE.test(inicio) || !HORA_RE.test(fim)) {
+      return { erro: `${d.rotulo}: preencha o início e o fim, ou deixe os dois em branco.` }
+    }
+    if (fim <= inicio) return { erro: `${d.rotulo}: o fim deve ser depois do início.` }
+    dias.push({ dia: d.valor, inicio, fim })
+  }
+  if (dias.length === 0) return { erro: "Informe o horário de pelo menos um dia." }
+
   const admin = await createAdminClient()
   const emp = await tenantAtual()
 
-  const hora = (v: string | null): string | null => {
-    if (!v) return null
-    return /^\d{1,2}:\d{2}$/.test(v) ? v : null
+  const { data: mesmoNome } = await admin
+    .from("pessoal_jornadas")
+    .select("id, nome")
+    .eq("emp_proprietaria_id", emp)
+    .ilike("nome", nome)
+  if ((mesmoNome ?? []).some((j) => j.id !== id)) {
+    return { erro: `Já existe uma jornada chamada "${nome}".` }
   }
 
-  for (let dia = 0; dia <= 6; dia++) {
-    const inicio = hora(txt(fd, `inicio_${dia}`))
-    const fim = hora(txt(fd, `fim_${dia}`))
-    if (inicio && fim) {
-      if (fim <= inicio) {
-        return { erro: `Dia ${dia}: o fim deve ser depois do início.` }
-      }
-      const { error } = await admin.from("pessoal_funcionario_jornada").upsert(
-        {
-          emp_proprietaria_id: emp,
-          funcionario_id: funcionarioId,
-          dia_semana: dia,
-          hora_inicio: inicio,
-          hora_fim: fim,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "emp_proprietaria_id,funcionario_id,dia_semana" }
-      )
-      if (error) return { erro: `Não foi possível salvar: ${error.message}` }
-    } else {
+  let jornadaId = id
+  if (jornadaId) {
+    const { error } = await admin
+      .from("pessoal_jornadas")
+      .update({ nome, observacao, updated_at: new Date().toISOString() })
+      .eq("id", jornadaId)
+      .eq("emp_proprietaria_id", emp)
+    if (error) return { erro: `Não foi possível salvar: ${error.message}` }
+  } else {
+    const { data, error } = await admin
+      .from("pessoal_jornadas")
+      .insert({ emp_proprietaria_id: emp, nome, observacao })
+      .select("id")
+      .single()
+    if (error || !data) return { erro: `Não foi possível criar: ${error?.message ?? "erro desconhecido"}` }
+    jornadaId = data.id as string
+  }
+
+  const { data: atuais } = await admin
+    .from("pessoal_jornada_dias")
+    .select("dia_semana, hora_inicio, hora_fim")
+    .eq("jornada_id", jornadaId)
+  const antes = new Map(
+    (atuais ?? []).map((a) => [a.dia_semana as number, a])
+  )
+  for (const d of dias) {
+    const a = antes.get(d.dia)
+    if (a && hhmm(a.hora_inicio as string) === d.inicio.padStart(5, "0") && hhmm(a.hora_fim as string) === d.fim.padStart(5, "0")) continue
+    const { error } = await admin.from("pessoal_jornada_dias").upsert(
+      {
+        emp_proprietaria_id: emp,
+        jornada_id: jornadaId,
+        dia_semana: d.dia,
+        hora_inicio: d.inicio,
+        hora_fim: d.fim,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "jornada_id,dia_semana" }
+    )
+    if (error) return { erro: `Não foi possível salvar: ${error.message}` }
+  }
+  const sairam = [...antes.keys()].filter((dia) => !dias.some((d) => d.dia === dia))
+  if (sairam.length) {
+    const { error } = await admin
+      .from("pessoal_jornada_dias")
+      .delete()
+      .eq("jornada_id", jornadaId)
+      .in("dia_semana", sairam)
+    if (error) return { erro: `Não foi possível salvar: ${error.message}` }
+  }
+
+  revalidatePath("/painel/pessoal/atribuicoes/jornadas")
+  if (!id) redirect(`/painel/pessoal/atribuicoes/jornadas?jornada=${jornadaId}&criada=1`)
+  const { count } = await admin
+    .from("pessoal_jornada_funcionarios")
+    .select("id", { count: "exact", head: true })
+    .eq("jornada_id", jornadaId)
+  return {
+    ok:
+      count && count > 0
+        ? `Jornada salva. Vale para ${count === 1 ? "1 funcionário" : `${count} funcionários`}.`
+        : "Jornada salva.",
+  }
+}
+
+/** Exclui uma jornada sem funcionários vinculados. */
+export async function excluirJornadaModelo(
+  _prev: EstadoForm,
+  fd: FormData
+): Promise<EstadoForm> {
+  await exigir()
+  const id = txt(fd, "id")
+  if (!id) return { erro: "Jornada não informada." }
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { count } = await admin
+    .from("pessoal_jornada_funcionarios")
+    .select("id", { count: "exact", head: true })
+    .eq("jornada_id", id)
+  if (count && count > 0) {
+    return { erro: "Há funcionários nesta jornada: vincule-os a outra antes de excluir." }
+  }
+  const { error } = await admin.from("pessoal_jornadas").delete().eq("id", id).eq("emp_proprietaria_id", emp)
+  if (error) return { erro: `Não foi possível excluir: ${error.message}` }
+  revalidatePath("/painel/pessoal/atribuicoes/jornadas")
+  redirect("/painel/pessoal/atribuicoes/jornadas?excluida=1")
+}
+
+/**
+ * Vincula os funcionários marcados a uma jornada (`jornada_id` vazio = tira a
+ * jornada deles). Quem já está na jornada escolhida fica como está.
+ */
+export async function vincularJornada(
+  _prev: EstadoForm,
+  fd: FormData
+): Promise<EstadoForm> {
+  await exigir()
+  const ids = [...new Set(fd.getAll("funcionario_id").map(String).filter(Boolean))]
+  const jornadaId = txt(fd, "jornada_id")
+  if (ids.length === 0) return { erro: "Marque pelo menos um funcionário." }
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+
+  const { data: atuais } = await admin
+    .from("pessoal_jornada_funcionarios")
+    .select("funcionario_id, jornada_id")
+    .eq("emp_proprietaria_id", emp)
+    .in("funcionario_id", ids)
+  const atual = new Map((atuais ?? []).map((a) => [a.funcionario_id as string, a.jornada_id as string]))
+
+  if (!jornadaId) {
+    const comJornada = ids.filter((f) => atual.has(f))
+    if (comJornada.length) {
       const { error } = await admin
-        .from("pessoal_funcionario_jornada")
+        .from("pessoal_jornada_funcionarios")
         .delete()
-        .eq("funcionario_id", funcionarioId)
-        .eq("dia_semana", dia)
+        .eq("emp_proprietaria_id", emp)
+        .in("funcionario_id", comJornada)
       if (error) return { erro: `Não foi possível salvar: ${error.message}` }
     }
+    revalidatePath("/painel/pessoal/atribuicoes/jornadas")
+    return { ok: comJornada.length === 1 ? "Jornada retirada de 1 funcionário." : `Jornada retirada de ${comJornada.length} funcionários.` }
+  }
+
+  const { data: jornada } = await admin
+    .from("pessoal_jornadas")
+    .select("id, nome")
+    .eq("id", jornadaId)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  if (!jornada) return { erro: "Jornada não encontrada." }
+
+  const mudar = ids.filter((f) => atual.get(f) !== jornadaId)
+  if (mudar.length) {
+    const { error } = await admin.from("pessoal_jornada_funcionarios").upsert(
+      mudar.map((f) => ({
+        emp_proprietaria_id: emp,
+        funcionario_id: f,
+        jornada_id: jornadaId,
+        updated_at: new Date().toISOString(),
+      })),
+      { onConflict: "emp_proprietaria_id,funcionario_id" }
+    )
+    if (error) return { erro: `Não foi possível salvar: ${error.message}` }
   }
   revalidatePath("/painel/pessoal/atribuicoes/jornadas")
-  return { ok: "Jornada salva." }
+  return {
+    ok: `${mudar.length === 1 ? "1 funcionário vinculado" : `${mudar.length} funcionários vinculados`} à jornada ${jornada.nome}.`,
+  }
 }
 
 // ── GHE (Grupo Homogêneo de Exposição) ───────────────────────────────────────

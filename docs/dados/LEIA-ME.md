@@ -2,7 +2,7 @@
 
 # Dicionário de dados do Confluir
 
-Gerado a partir do banco de produção (catálogo do Postgres + comentários). **389 tabelas** no schema `public`, **228** com dado pessoal (1153 colunas etiquetadas).
+Gerado a partir do banco de produção (catálogo do Postgres + comentários). **392 tabelas** no schema `public`, **229** com dado pessoal (1157 colunas etiquetadas).
 
 - Etiquetas LGPD: cada tabela termina o comentário com `[lgpd:<categorias>|titulares:<quem>]` e cada coluna com dado pessoal com `[lgpd:<categoria>]` (Onda A4).
 - Para mudar uma descrição ou classificação: migração com `comment on …` (`npm run db:nova`), aplicar, e `npm run db:dicionario`.
@@ -16,7 +16,7 @@ Gerado a partir do banco de produção (catálogo do Postgres + comentários). *
 |---|---|
 | identificação | 180 |
 | **sensível: sindical** | 55 |
-| trabalhista | 53 |
+| trabalhista | 54 |
 | financeiro | 50 |
 | **credencial (nunca exportar)** | 20 |
 | **sensível: saúde** | 18 |
@@ -30,7 +30,7 @@ Gerado a partir do banco de produção (catálogo do Postgres + comentários). *
 | Votações e assembleias | 33 | 15 | [dicionario/votacao.md](dicionario/votacao.md) | [er/votacao.md](er/votacao.md) |
 | Representação, acordos e negociações | 18 | 9 | [dicionario/representacao.md](dicionario/representacao.md) | [er/representacao.md](er/representacao.md) |
 | Diretoria e ofícios | 11 | 8 | [dicionario/diretoria.md](dicionario/diretoria.md) | [er/diretoria.md](er/diretoria.md) |
-| Pessoal (RH da entidade) | 58 | 39 | [dicionario/pessoal.md](dicionario/pessoal.md) | [er/pessoal.md](er/pessoal.md) |
+| Pessoal (RH da entidade) | 61 | 40 | [dicionario/pessoal.md](dicionario/pessoal.md) | [er/pessoal.md](er/pessoal.md) |
 | Saúde do trabalhador | 13 | 11 | [dicionario/saude.md](dicionario/saude.md) | [er/saude.md](er/saude.md) |
 | Jurídico | 5 | 4 | [dicionario/juridico.md](dicionario/juridico.md) | [er/juridico.md](er/juridico.md) |
 | Financeiro | 31 | 22 | [dicionario/financeiro.md](dicionario/financeiro.md) | [er/financeiro.md](er/financeiro.md) |

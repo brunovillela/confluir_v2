@@ -25,7 +25,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
  * exposição de cada pessoa. FUNÇÕES (`pessoal_funcoes`) agrupam o plano de
  * cargos (`pessoal_atribuicoes_cargo`) e os funcionários
  * (`pessoal_funcionario_funcao`); o desvio de função é analisado por executor
- * contra o plano. Jornada contratada em `pessoal_funcionario_jornada`; GHE em
+ * contra o plano. Jornada em `pessoal_jornadas` (vínculo em `pessoal_jornada_funcionarios`); GHE em
  * `pessoal_ghe`/`pessoal_ghe_membros`.
  *
  * Escrita fica nas actions das rotas. Ver [[confluir-fase-3a]] e o SQL
@@ -1096,40 +1096,101 @@ export async function relatorioDeFuncionarios(
 
 // ── Jornada de trabalho contratada ───────────────────────────────────────────
 
-/** Jornada (linhas por dia) de um conjunto de funcionários: usuarioId → dias. */
-export async function jornadasDosFuncionarios(
-  usuarioIds: string[]
+/** Ordena os dias de segunda a domingo (o banco guarda 0=domingo). */
+function ordenarDias(dias: JornadaDia[]): JornadaDia[] {
+  return [...dias].sort(
+    (a, b) => ((a.dia_semana + 6) % 7) - ((b.dia_semana + 6) % 7)
+  )
+}
+
+/** Horários (por dia) de um conjunto de jornadas: jornadaId → dias. */
+async function diasDasJornadas(
+  jornadaIds: string[]
 ): Promise<Map<string, JornadaDia[]>> {
   const mapa = new Map<string, JornadaDia[]>()
-  const ids = [...new Set(usuarioIds.filter(Boolean))]
+  const ids = [...new Set(jornadaIds.filter(Boolean))]
   if (ids.length === 0) return mapa
   const admin = await createAdminClient()
-  // PostgREST corta em 1.000 linhas (até 7 por pessoa) — fatias + lotes.
   const { data } = await emLotesPorIds<{
-    funcionario_id: Texto
+    jornada_id: Texto
     dia_semana: number | null
     hora_inicio: Texto
     hora_fim: Texto
   }>(ids, (lote, de, ate) =>
     admin
-      .from("pessoal_funcionario_jornada")
-      .select("funcionario_id, dia_semana, hora_inicio, hora_fim")
-      .in("funcionario_id", lote)
+      .from("pessoal_jornada_dias")
+      .select("jornada_id, dia_semana, hora_inicio, hora_fim")
+      .in("jornada_id", lote)
       .order("id")
       .range(de, ate)
   )
-  if (!data) return mapa // schema ausente → sem jornadas
-  for (const j of data) {
-    if (!j.funcionario_id || typeof j.dia_semana !== "number") continue
-    const arr = mapa.get(j.funcionario_id) ?? []
+  for (const j of data ?? []) {
+    if (!j.jornada_id || typeof j.dia_semana !== "number") continue
+    const arr = mapa.get(j.jornada_id) ?? []
     arr.push({
       dia_semana: j.dia_semana,
       hora_inicio: j.hora_inicio as string | null,
       hora_fim: j.hora_fim as string | null,
     })
-    mapa.set(j.funcionario_id, arr)
+    mapa.set(j.jornada_id, arr)
+  }
+  for (const [k, v] of mapa) mapa.set(k, ordenarDias(v))
+  return mapa
+}
+
+export type JornadaVinculada = {
+  jornadaId: string
+  nome: string
+  dias: JornadaDia[]
+}
+
+/** Jornada vinculada a cada funcionário informado: usuarioId → jornada. */
+export async function jornadasVinculadas(
+  usuarioIds: string[]
+): Promise<Map<string, JornadaVinculada>> {
+  const mapa = new Map<string, JornadaVinculada>()
+  const ids = [...new Set(usuarioIds.filter(Boolean))]
+  if (ids.length === 0) return mapa
+  const admin = await createAdminClient()
+  const { data: vinc } = await emLotesPorIds<{
+    funcionario_id: Texto
+    jornada_id: Texto
+  }>(ids, (lote, de, ate) =>
+    admin
+      .from("pessoal_jornada_funcionarios")
+      .select("funcionario_id, jornada_id")
+      .in("funcionario_id", lote)
+      .order("id")
+      .range(de, ate)
+  )
+  if (!vinc?.length) return mapa // schema ausente ou ninguém vinculado
+  const jornadaIds = [
+    ...new Set(vinc.map((v) => v.jornada_id).filter(Boolean) as string[]),
+  ]
+  const [{ data: jornadas }, dias] = await Promise.all([
+    admin.from("pessoal_jornadas").select("id, nome").in("id", jornadaIds),
+    diasDasJornadas(jornadaIds),
+  ])
+  const nomes = new Map(
+    (jornadas ?? []).map((j) => [j.id as string, j.nome as string])
+  )
+  for (const v of vinc) {
+    if (!v.funcionario_id || !v.jornada_id) continue
+    mapa.set(v.funcionario_id, {
+      jornadaId: v.jornada_id,
+      nome: nomes.get(v.jornada_id) ?? "(jornada)",
+      dias: dias.get(v.jornada_id) ?? [],
+    })
   }
   return mapa
+}
+
+/** Jornada (linhas por dia) de um conjunto de funcionários: usuarioId → dias. */
+export async function jornadasDosFuncionarios(
+  usuarioIds: string[]
+): Promise<Map<string, JornadaDia[]>> {
+  const vinculadas = await jornadasVinculadas(usuarioIds)
+  return new Map([...vinculadas].map(([k, v]) => [k, v.dias]))
 }
 
 /** Jornada de UM usuário (para o alerta fora de horário). [] = sem jornada. */
@@ -1138,34 +1199,99 @@ export async function jornadaDoUsuario(usuarioId: string): Promise<JornadaDia[]>
   return mapa.get(usuarioId) ?? []
 }
 
+/** Jornada vinculada a UM funcionário (nome + dias), ou null. */
+export async function jornadaDoFuncionario(
+  usuarioId: string
+): Promise<JornadaVinculada | null> {
+  const mapa = await jornadasVinculadas([usuarioId])
+  return mapa.get(usuarioId) ?? null
+}
+
+export type JornadaModelo = {
+  id: string
+  nome: string
+  observacao: string | null
+  dias: JornadaDia[]
+  minSemana: number
+  minMes: number
+  /** Funcionários vinculados (ids). */
+  funcionarioIds: string[]
+}
+
+/** Jornadas de trabalho configuradas na entidade, com quem está vinculado. */
+export async function listarJornadasModelo(): Promise<JornadaModelo[]> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: jornadas, error } = await admin
+    .from("pessoal_jornadas")
+    .select("id, nome, observacao")
+    .eq("emp_proprietaria_id", emp)
+  if (error || !jornadas?.length) return []
+  const ids = jornadas.map((j) => j.id as string)
+  const [dias, vinc] = await Promise.all([
+    diasDasJornadas(ids),
+    emLotes<{ funcionario_id: Texto; jornada_id: Texto }>((de, ate) =>
+      admin
+        .from("pessoal_jornada_funcionarios")
+        .select("funcionario_id, jornada_id")
+        .eq("emp_proprietaria_id", emp)
+        .order("id")
+        .range(de, ate)
+    ),
+  ])
+  const porJornada = new Map<string, string[]>()
+  for (const v of vinc.data ?? []) {
+    if (!v.jornada_id || !v.funcionario_id) continue
+    const arr = porJornada.get(v.jornada_id) ?? []
+    arr.push(v.funcionario_id)
+    porJornada.set(v.jornada_id, arr)
+  }
+  return jornadas
+    .map((j) => {
+      const d = dias.get(j.id as string) ?? []
+      return {
+        id: j.id as string,
+        nome: j.nome as string,
+        observacao: (j.observacao as string | null) ?? null,
+        dias: d,
+        minSemana: minutosSemanaisJornada(d),
+        minMes: minutosMensaisJornada(d),
+        funcionarioIds: porJornada.get(j.id as string) ?? [],
+      }
+    })
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR", { numeric: true }))
+}
+
 export type LinhaJornada = {
   funcionarioId: string
   nome: string | null
   funcaoNome: string | null
+  jornadaId: string | null
+  jornadaNome: string | null
   dias: JornadaDia[]
   minSemana: number
   minMes: number
 }
 
-/** Jornadas dos funcionários informados, com carga semanal/mensal calculada. */
+/** Funcionários informados com a jornada vinculada e a carga semanal/mensal. */
 export async function listarJornadas(
   funcionarios: { usuarioId: string; nome: string | null }[]
 ): Promise<LinhaJornada[]> {
   const ids = funcionarios.map((f) => f.usuarioId)
-  const [jornadas, funcoesMap] = await Promise.all([
-    jornadasDosFuncionarios(ids),
+  const [vinculadas, funcoesMap] = await Promise.all([
+    jornadasVinculadas(ids),
     funcoesDosFuncionarios(),
   ])
   return funcionarios
     .map((f) => {
-      const dias = (jornadas.get(f.usuarioId) ?? []).sort(
-        (a, b) =>
-          ((a.dia_semana + 6) % 7) - ((b.dia_semana + 6) % 7) // seg…dom
-      )
+      const j = vinculadas.get(f.usuarioId)
+      const dias = j?.dias ?? []
       return {
         funcionarioId: f.usuarioId,
         nome: f.nome,
         funcaoNome: funcoesMap.get(f.usuarioId)?.nome ?? null,
+        jornadaId: j?.jornadaId ?? null,
+        jornadaNome: j?.nome ?? null,
         dias,
         minSemana: minutosSemanaisJornada(dias),
         minMes: minutosMensaisJornada(dias),
@@ -1678,7 +1804,7 @@ export async function resumoSST(): Promise<ResumoSST> {
       .eq("emp_proprietaria_id", emp),
     emLotes<{ funcionario_id: Texto }>((de, ate) =>
       admin
-        .from("pessoal_funcionario_jornada")
+        .from("pessoal_jornada_funcionarios")
         .select("funcionario_id")
         .eq("emp_proprietaria_id", emp)
         .order("id")
