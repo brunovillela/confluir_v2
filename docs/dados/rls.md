@@ -160,6 +160,7 @@ O app lê os dados de um tenant com `createAdminClient()` (JWT `authenticated` c
 | `filiacao_registro` | filiacao | sim | — | | | | |
 | `filiacao_repasse_eventos` | filiacao | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `filiacao_repasse_regras` | filiacao | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
+| `filiacao_repasse_sem_valores` | filiacao | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `filiacao_solicitacao_eventos` | filiacao | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `filiacao_solicitacoes` | filiacao | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `filiacao_suspensoes` | filiacao | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |

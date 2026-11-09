@@ -258,6 +258,7 @@ export default async function ControleEnvioPage({ searchParams }: { searchParams
                                 {l.grupo && ` · grupo ${l.grupo.nome}`}
                                 {l.regra.controla && ` · relação até dia ${l.regra.diaEnvio}`}
                                 {l.regra.excecao && " · regra própria"}
+                                {l.semValores && ` · sem valores desde ${rotuloCompetencia(l.semValores.desde)}`}
                                 {tipo !== "Associativa" && l.regra.controla && ` · ${rotuloMeses(l.regra.meses)}`}
                               </p>
                               {pend && (
@@ -281,7 +282,7 @@ export default async function ControleEnvioPage({ searchParams }: { searchParams
                 </div>
               )}
               <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
-                {(["atrasada", "falta_deposito", "divergente", "recebida_fora", "aguardando", "recebida", "paga", "sem_desconto"] as const).map((s) => (
+                {(["atrasada", "falta_deposito", "divergente", "recebida_fora", "aguardando", "recebida", "paga", "sem_desconto", "sem_repasse"] as const).map((s) => (
                   <span key={s} className="text-muted-foreground inline-flex items-center gap-1.5 text-xs" title={ROTULO_SITUACAO[s].explicacao}>
                     <span className={cn("size-3 rounded-sm border", CLASSE_TOM[ROTULO_SITUACAO[s].tom])} />
                     {ROTULO_SITUACAO[s].rotulo}

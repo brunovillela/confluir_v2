@@ -16,7 +16,7 @@
 | # | Processo | Tabelas | Categorias de dados | Transferência internacional |
 |---|---|---|---|---|
 | P01 | [Filiação e cadastro do associado](#p01) | 18 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
-| P02 | [Contribuições, receitas e cobranças](#p02) | 6 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista | sim |
+| P02 | [Contribuições, receitas e cobranças](#p02) | 7 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista | sim |
 | P03 | [Atendimento ao filiado no portal](#p03) | 6 | identificação, **sensível: filiação/posição sindical**, credencial (segredo de acesso, nunca exportar) | sim |
 | P04 | [Oposição à contribuição assistencial](#p04) | 5 | identificação, **sensível: filiação/posição sindical**, trabalhista | sim |
 | P05 | [Assembleias e votações](#p05) | 15 | identificação, **sensível: filiação/posição sindical**, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
@@ -110,7 +110,7 @@
 
 **Observações.** A `filiacao_recebe` tem ~795 mil linhas com CPF, nome e valor: maior volume de dado sindical do sistema.
 
-<details><summary>Tabelas (6) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (7) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -120,6 +120,7 @@
 | [filiacao_recebe](../dados/dicionario/filiacao.md#filiacao_recebe) | identificacao, sens. sindical, financeiro, trabalhista | `cpf` (identificacao), `valor` (financeiro), `matricula_sindical` (sens. sindical), `fonte_pg_matricula` (trabalhista), `filiado_raw` (sens. sindical), `forma_recebimento` (financeiro), `nome` (identificacao) |
 | [filiacao_reembolsos](../dados/dicionario/filiacao.md#filiacao_reembolsos) | sens. sindical, financeiro | `justificativa` (sens. sindical), `valor` (financeiro), `tipo` (sens. sindical) |
 | [filiacao_repasse_eventos](../dados/dicionario/filiacao.md#filiacao_repasse_eventos) | identificacao | `observacao` (nenhum), `usuario_id` (identificacao), `usuario_nome` (identificacao) |
+| [filiacao_repasse_sem_valores](../dados/dicionario/filiacao.md#filiacao_repasse_sem_valores) | identificacao | `motivo` (nenhum), `registrado_por_id` (identificacao), `registrado_por` (identificacao), `encerrado_por` (identificacao) |
 
 </details>
 
@@ -833,4 +834,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 227 de 227 tabelas com dado pessoal atribuídas a 16 processos.
+Cobertura: 228 de 228 tabelas com dado pessoal atribuídas a 16 processos.

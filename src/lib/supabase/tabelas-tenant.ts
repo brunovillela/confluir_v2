@@ -173,6 +173,7 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "oposicao_envios_empregador",
   "filiacao_repasse_regras",
   "filiacao_repasse_eventos",
+  "filiacao_repasse_sem_valores",
   "filiacao_desconto_comunicacoes",
   "filiacao_desconto_comunicacao_itens",
   "oposicao_eventos",

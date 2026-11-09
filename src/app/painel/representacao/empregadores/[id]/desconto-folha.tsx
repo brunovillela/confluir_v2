@@ -4,7 +4,7 @@ import { ArrowRight, UserMinus, UserPlus } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { pendenciasDeDesconto } from "@/lib/db/desconto-comunicacoes"
 import { contatosDaFolha, quadroRepasse, regrasRepasse, tiposControlados, unidadeRepasse } from "@/lib/db/repasse"
-import { regraEfetiva, rotuloCurto, TIPOS_CONTRIBUICAO } from "@/lib/repasse"
+import { regraEfetiva, rotuloCompetencia, rotuloCurto, TIPOS_CONTRIBUICAO } from "@/lib/repasse"
 
 import { ContatosFolha, RegraEmpresaForm } from "@/app/painel/filiados/receitas/controle/formularios"
 import { CelulaSituacao } from "@/app/painel/filiados/receitas/controle/situacao"
@@ -66,6 +66,12 @@ export async function DescontoEmFolha({ empresaId, nome }: { empresaId: string; 
         </div>
       </CardHeader>
       <CardContent className="grid gap-6">
+        {quadro.linhas[0]?.semValores && (
+          <p className="text-success-fg text-sm">
+            <span className="font-medium">Sem valores a repassar desde {rotuloCompetencia(quadro.linhas[0].semValores.desde)}.</span>{" "}
+            {quadro.linhas[0].semValores.motivo}
+          </p>
+        )}
         {celulas.length > 0 && (
           <div className="-mx-6 overflow-x-auto px-6">
             <div className="flex gap-1">

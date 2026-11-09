@@ -2,6 +2,7 @@ import { expect, test } from "playwright/test"
 
 import {
   competenciaAplica,
+  dentroDoPeriodo,
   diasDeAtraso,
   janelaCompetencias,
   lerMeses,
@@ -118,5 +119,22 @@ test.describe("situação da célula", () => {
   test("depósito sem relação aparece mesmo fora do controle", () => {
     expect(situacaoEnvio({ ...base, aplica: false, deposito: 100 })).toBe("deposito_sem_relacao")
     expect(situacaoEnvio({ ...base, aplica: false })).toBe("nao_se_aplica")
+  })
+
+  test("sem valores a repassar: não cobra, mas relação ou depósito que chegar aparece", () => {
+    const vencida = { ...base, hoje: "2026-11-20", semRepasse: true }
+    expect(situacaoEnvio(vencida)).toBe("sem_repasse")
+    expect(situacaoEnvio({ ...vencida, aplica: false })).toBe("sem_repasse")
+    expect(situacaoEnvio({ ...vencida, lancamentos: 2, valor: 90, deposito: 90 })).toBe("paga")
+    expect(situacaoEnvio({ ...vencida, deposito: 50 })).toBe("deposito_sem_relacao")
+  })
+
+  test("período sem valores: aberto e encerrado", () => {
+    const periodos = [{ desde: 202610, ate: null }, { desde: 202601, ate: 202603 }]
+    expect(dentroDoPeriodo(202610, periodos)).toBe(true)
+    expect(dentroDoPeriodo(202712, periodos)).toBe(true)
+    expect(dentroDoPeriodo(202609, periodos)).toBe(false)
+    expect(dentroDoPeriodo(202602, periodos)).toBe(true)
+    expect(dentroDoPeriodo(202604, periodos)).toBe(false)
   })
 })

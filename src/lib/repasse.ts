@@ -133,6 +133,7 @@ export const SITUACOES_ENVIO = [
   "recebida",
   "paga",
   "sem_desconto",
+  "sem_repasse",
   "sem_relacao",
   "nao_se_aplica",
 ] as const
@@ -150,6 +151,7 @@ export const ROTULO_SITUACAO: Record<SituacaoEnvio, { rotulo: string; curto: str
   recebida: { rotulo: "Relação recebida", curto: "Recebida", tom: "info", explicacao: "A relação foi lançada; o depósito ainda está no prazo." },
   paga: { rotulo: "Recebida e paga", curto: "Em dia", tom: "sucesso", explicacao: "Relação lançada e depósito registrado com o mesmo valor." },
   sem_desconto: { rotulo: "Sem desconto no mês", curto: "Sem desconto", tom: "sucesso", explicacao: "A empresa informou que não houve desconto nesta competência." },
+  sem_repasse: { rotulo: "Sem valores a repassar", curto: "Sem valores", tom: "sucesso", explicacao: "Registrado que a empresa não tem valores a repassar nesta competência (ex.: todos os trabalhadores se desfiliaram)." },
   sem_relacao: { rotulo: "Sem relação", curto: "Sem relação", tom: "neutro", explicacao: "Antes do início do controle: a relação não foi lançada, mas não conta como atraso." },
   nao_se_aplica: { rotulo: "Não se aplica", curto: "—", tom: "neutro", explicacao: "Este tipo não é descontado nesta competência para esta empresa." },
 }
@@ -168,6 +170,8 @@ export type DadosCelula = {
   deposito: number | null
   recebidaFora: boolean
   semDesconto: boolean
+  /** A competência cai num período "sem valores a repassar" da empresa. */
+  semRepasse?: boolean
   hoje: string
   prazoEnvio: string
   prazoDeposito: string
@@ -182,6 +186,7 @@ export function situacaoEnvio(d: DadosCelula): SituacaoEnvio {
     return d.hoje > d.prazoDeposito && !d.antesDoControle ? "falta_deposito" : "recebida"
   }
   if (d.deposito !== null) return "deposito_sem_relacao"
+  if (d.semRepasse) return "sem_repasse"
   if (!d.aplica) return "nao_se_aplica"
   if (d.semDesconto) return "sem_desconto"
   if (d.recebidaFora) return "recebida_fora"
@@ -238,4 +243,9 @@ export function lerMeses(texto: string): number[] | null | { erro: string } {
 export function rotuloMeses(meses: number[] | null): string {
   if (!meses || meses.length === 12) return "todos os meses"
   return meses.map((m) => MESES_CURTOS[m - 1]).join(", ")
+}
+
+/** A competência cai em algum dos períodos (desde..ate, ate null = em aberto)? */
+export function dentroDoPeriodo(competencia: number, periodos: { desde: number; ate: number | null }[]): boolean {
+  return periodos.some((p) => competencia >= p.desde && (p.ate === null || competencia <= p.ate))
 }

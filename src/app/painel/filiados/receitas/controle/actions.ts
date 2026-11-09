@@ -14,6 +14,8 @@ import {
   removerContatoFolha,
   salvarContatoFolha,
   salvarInicioControle,
+  encerrarSemValores,
+  registrarSemValores,
   salvarRegraRepasse,
   unidadeRepasse,
 } from "@/lib/db/repasse"
@@ -368,4 +370,32 @@ export async function comunicarDescontoAction(_: EstadoForm, f: FormData): Promi
   if (r.erro) return { erro: r.erro }
   revalidar(empresaId)
   return { ok: `Envio registrado: ${r.itens?.length ?? 0} pessoa(s).` }
+}
+
+// ── Sem valores a repassar ──────────────────────────────────────────────────
+
+export async function registrarSemValoresAction(_: EstadoForm, f: FormData): Promise<EstadoForm> {
+  const quem = await sessao()
+  const empresaId = texto(f, "empresa_id")
+  if (!empresaId) return { erro: "Empresa não informada." }
+  const desde = lerCompetenciaMes(texto(f, "desde"))
+  if (!desde || !competenciaValida(desde)) return { erro: "Informe a competência a partir da qual não há valores.", campo: "desde" }
+  const motivo = texto(f, "motivo")
+  if (!motivo) return { erro: "Informe o motivo (ex.: todos os trabalhadores se desfiliaram).", campo: "motivo" }
+  const { erro } = await registrarSemValores({ empresaId, desde, motivo, usuarioId: quem.id, usuarioNome: quem.nome })
+  if (erro) return { erro }
+  revalidar(empresaId)
+  return { ok: `Registrado: sem valores a repassar desde ${rotuloCompetencia(desde)}.` }
+}
+
+export async function encerrarSemValoresAction(_: EstadoForm, f: FormData): Promise<EstadoForm> {
+  const quem = await sessao()
+  const empresaId = texto(f, "empresa_id")
+  if (!empresaId) return { erro: "Empresa não informada." }
+  const retomada = lerCompetenciaMes(texto(f, "retomada"))
+  if (!retomada || !competenciaValida(retomada)) return { erro: "Informe a competência em que o desconto volta.", campo: "retomada" }
+  const { erro } = await encerrarSemValores({ empresaId, retomada, usuarioNome: quem.nome })
+  if (erro) return { erro }
+  revalidar(empresaId)
+  return { ok: `O controle volta a cobrar a relação a partir de ${rotuloCompetencia(retomada)}.` }
 }

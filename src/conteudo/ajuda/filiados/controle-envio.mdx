@@ -54,6 +54,7 @@ Cada célula é uma empresa num mês. As situações são:
 | **Relação recebida** | A relação foi lançada e o depósito ainda está no prazo. |
 | **Recebida e paga** | Relação lançada e depósito registrado com o mesmo valor. |
 | **Sem desconto no mês** | A empresa informou que não houve desconto. |
+| **Sem valores a repassar** | A empresa está registrada como sem valores a repassar (por exemplo, todos se desfiliaram). |
 
 A situação vem do que já está em **Receitas**: os lançamentos da fonte na remessa
 do mês e o comprovante do depósito. Ao lançar a relação ou registrar o depósito,
@@ -87,6 +88,36 @@ os prazos. Os botões:
 
 A **Trilha** guarda tudo o que foi registrado. **Chegou, falta lançar** e **Sem
 desconto no mês** podem ser desfeitos ali, se foram marcados por engano.
+
+## Empresa sem valores a repassar
+
+Quando uma empresa deixa de ter o que repassar (por exemplo, todos os
+trabalhadores se desfiliaram), registre isso uma vez, em vez de marcar **Sem
+desconto no mês** todo mês:
+
+<PassoAPasso>
+  <Passo titulo="Registre">
+    Na página da empresa, use **Sem valores a repassar**: informe a competência a
+    partir da qual não há valores e o motivo. Se a empresa não tem nenhum filiado
+    ativo, o quadro aparece em destaque, com o motivo já sugerido.
+  </Passo>
+  <Passo titulo="O controle para de cobrar">
+    Dessa competência em diante, os meses aparecem como **Sem valores a
+    repassar**, em todos os tipos de contribuição, e a empresa sai dos avisos de
+    atraso. Se chegar uma relação ou um depósito, ele aparece normalmente.
+  </Passo>
+  <Passo titulo="Quando o desconto voltar">
+    No aviso do alto da página, use **Voltou a ter desconto** e informe a
+    competência da volta. O período fica guardado em **Períodos sem valores**.
+    Informar a mesma competência do início desfaz o registro.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="nota" titulo="Filiado ativo numa empresa sem valores">
+  Se a empresa registrada como sem valores voltar a ter filiados ativos, ou
+  tiver inclusões a comunicar, o aviso do alto da página pede para conferir se o
+  desconto voltou.
+</Aviso>
 
 ## Inclusões e exclusões de desconto
 
@@ -145,6 +176,8 @@ Os avisos só aparecem com o controle ativado.
   que pedem ação; use **Todas**.
 - **"Cobrar por e-mail não aparece."** Falta um contato da folha com e-mail.
   Cadastre-o na página da empresa.
+- **"A empresa não tem mais filiados e continua atrasada."** Registre **Sem
+  valores a repassar** na página dela.
 - **"Valor diferente."** Confira em Receitas o total da relação e o comprovante
   do depósito: um lançamento a mais ou a menos, ou um depósito de outra
   competência, explica a diferença.

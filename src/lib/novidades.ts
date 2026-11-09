@@ -18,6 +18,7 @@ export const NOVIDADES: Novidade[] = [
     itens: [
       "Aquisição: a proposta da cotação e o arquivo do contrato aceitam PDF de até 3,8 MB, e o arquivo maior é recusado na hora, com a explicação. Antes, um PDF grande derrubava a tela com \"Algo deu errado\".",
       "Recebimentos: descrição longa em até duas linhas, valor e Registrar chegada sempre à direita, e selo de atraso quando a previsão de entrega passou.",
+      "Filiação → Controle de envio: registrar que uma empresa não tem valores a repassar (por exemplo, todos se desfiliaram), para o controle parar de cobrar a relação até o desconto voltar.",
     ],
   },
   {

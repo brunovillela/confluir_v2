@@ -2,7 +2,7 @@
 
 # Filiação e portal do associado
 
-56 tabelas. Diagrama: [er/filiacao.md](../er/filiacao.md).
+57 tabelas. Diagrama: [er/filiacao.md](../er/filiacao.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -34,6 +34,7 @@
 | [filiacao_registro](#filiacao_registro) | identificação, **sensível: sindical** | Registro de filiação com CPF, nome, sexo, matrícula e condição sindical. Sem uso encontrado no código (possível legado do Bubble, substituíd… |
 | [filiacao_repasse_eventos](#filiacao_repasse_eventos) | identificação | Trilha do controle de envio de cada fonte pagadora por competência e tipo: relação recebida fora do sistema, sem desconto no mês, cobrança e… |
 | [filiacao_repasse_regras](#filiacao_repasse_regras) | — | Prazo para as fontes pagadoras enviarem a relação de descontos e depositarem, por tipo de contribuição. empresa_id null = regra geral da ent… |
+| [filiacao_repasse_sem_valores](#filiacao_repasse_sem_valores) | identificação | Períodos em que uma fonte pagadora não tem valores a repassar ao sindicato (ex.: todos os trabalhadores se desfiliaram): o controle de envio… |
 | [filiacao_solicitacao_eventos](#filiacao_solicitacao_eventos) | **sensível: sindical**, identificação | Trilha de eventos de cada solicitação de filiação pela ficha pública (criada, código enviado, e-mail verificado, assinada, avaliada...), com… |
 | [filiacao_solicitacoes](#filiacao_solicitacoes) | **sensível: sindical**, identificação, trabalhista, **credencial (nunca exportar)** | Solicitações de filiação feitas pela ficha pública (/filiar) sem login: dados pessoais, vínculo, aceites LGPD e de desconto, verificação de … |
 | [filiacao_suspensoes](#filiacao_suspensoes) | **sensível: sindical**, financeiro, identificação | Dispensas concedidas a um filiado (por CPF) da regra de carência ou de inadimplência, total ou para um benefício, com vigência, motivo e rev… |
@@ -841,6 +842,32 @@ Prazo para as fontes pagadoras enviarem a relação de descontos e depositarem, 
 Checks: `filiacao_repasse_regras_dia_deposito_check` `CHECK (((dia_deposito >= 1) AND (dia_deposito <= 31)))`; `filiacao_repasse_regras_dia_envio_check` `CHECK (((dia_envio >= 1) AND (dia_envio <= 31)))`; `filiacao_repasse_regras_meses_check` `CHECK (((meses IS NULL) OR ((meses <@ ARRAY[(1)::smallint, (2)::smallint, (3)::smallint, (4)::smallint, (5)::smallint, (6)::smallint, (7)::smallint, (8)::smallint, (9)::smallint, (10)::smallint, (11)::smallint, (12)::smallint]) AND (cardinality(meses) > 0))))`; `filiacao_repasse_regras_tipo_check` `CHECK ((tipo = ANY (ARRAY['Associativa'::text, 'Assistencial'::text, 'Sindical'::text])))`
 
 Índices: `filiacao_repasse_regras_pkey`, `filiacao_repasse_regras_unica`
+
+## filiacao_repasse_sem_valores
+
+Períodos em que uma fonte pagadora não tem valores a repassar ao sindicato (ex.: todos os trabalhadores se desfiliaram): o controle de envio não cobra a relação nesses meses. Vale para todos os tipos de contribuição (09/11/2026).
+
+- **LGPD:** identificação · titulares: usuários do sistema
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `empresa_id` | uuid | não |  | → empresa (**cascade**) |  | Fonte pagadora (no grupo centralizado, a empresa pagadora). |
+| `desde` | integer | não |  |  |  | Primeira competência (AAAAMM) sem valores a repassar. |
+| `ate` | integer | sim |  |  |  | Última competência (AAAAMM) sem valores; null = período em aberto. |
+| `motivo` | text | não |  |  | nenhum | Por que não há valores (ex.: todos os trabalhadores se desfiliaram). |
+| `registrado_em` | timestamp with time zone | não | `now()` |  |  |  |
+| `registrado_por_id` | uuid | sim |  |  | identificação | Quem registrou. |
+| `registrado_por` | text | sim |  |  | identificação | Nome de quem registrou, no momento do registro. |
+| `encerrado_em` | timestamp with time zone | sim |  |  |  | Quando o período foi encerrado (a empresa voltou a ter desconto). |
+| `encerrado_por` | text | sim |  |  | identificação | Nome de quem encerrou o período. |
+
+Checks: `filiacao_repasse_sem_valores_ate_check` `CHECK (((ate IS NULL) OR (((ate >= 200001) AND (ate <= 210012)) AND (((ate % 100) >= 1) AND ((ate % 100) <= 12)))))`; `filiacao_repasse_sem_valores_desde_check` `CHECK ((((desde >= 200001) AND (desde <= 210012)) AND (((desde % 100) >= 1) AND ((desde % 100) <= 12))))`; `filiacao_repasse_sem_valores_motivo_check` `CHECK ((length(TRIM(BOTH FROM motivo)) > 0))`; `filiacao_repasse_sem_valores_periodo` `CHECK (((ate IS NULL) OR (ate >= desde)))`
+
+Índices: `filiacao_repasse_sem_valores_aberto`, `filiacao_repasse_sem_valores_pkey`
 
 ## filiacao_solicitacao_eventos
 

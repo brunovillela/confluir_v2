@@ -6,6 +6,7 @@ import { listarGrupos } from "@/lib/db/grupos-empresariais"
 import { listarRemessas } from "@/lib/db/receitas"
 import {
   competenciaAplica,
+  dentroDoPeriodo,
   competenciaDoDia,
   competenciaValida,
   janelaCompetencias,
@@ -207,6 +208,8 @@ export type CelulaRepasse = {
 export type LinhaQuadro = UnidadeRepasse & {
   regra: RegraEfetiva
   celulas: CelulaRepasse[]
+  /** Período "sem valores a repassar" em aberto, se houver. */
+  semValores: PeriodoSemValores | null
 }
 
 export type QuadroRepasse = {
@@ -264,7 +267,7 @@ export async function quadroRepasse(opcoes: {
 
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  const [{ unidades, unidadeDaFonte }, resumo, remessasTodas, eventos] = await Promise.all([
+  const [{ unidades, unidadeDaFonte }, resumo, remessasTodas, eventos, periodos] = await Promise.all([
     unidadesDeRepasse(),
     lerEmLotes<ResumoRpc>((a, b) =>
       admin
@@ -287,6 +290,7 @@ export async function quadroRepasse(opcoes: {
         .order("id")
         .range(a, b)
     ),
+    periodosSemValores(opcoes.empresaId),
   ])
 
   const remessasDaJanela = remessasTodas.filter(
@@ -360,6 +364,7 @@ export async function quadroRepasse(opcoes: {
           deposito: depositos.has(`${u.id}|${c}`) ? depositos.get(`${u.id}|${c}`)! : null,
           recebidaFora: evs.some((e) => e.evento === "relacao_recebida"),
           semDesconto: evs.some((e) => e.evento === "sem_desconto"),
+          semRepasse: dentroDoPeriodo(c, periodos.get(u.id) ?? []),
           hoje,
           prazoEnvio,
           prazoDeposito,
@@ -373,7 +378,7 @@ export async function quadroRepasse(opcoes: {
         ultimoEvento: ultimo ? { evento: ultimo.evento, data: ultimo.data } : null,
       }
     })
-    linhas.push({ ...u, regra, celulas })
+    linhas.push({ ...u, regra, celulas, semValores: (periodos.get(u.id) ?? []).find((p) => p.ate === null) ?? null })
   }
   linhas.sort((a, b) => b.filiadosAtivos - a.filiadosAtivos || a.nome.localeCompare(b.nome, "pt-BR"))
   return { ...base, linhas }
@@ -595,4 +600,115 @@ export async function empresasParaCobrar(): Promise<number | null> {
 
 export function invalidarAvisosRepasse() {
   cacheAvisos.clear()
+}
+
+// ── Sem valores a repassar ──────────────────────────────────────────────────
+
+export type PeriodoSemValores = {
+  id: string
+  desde: number
+  ate: number | null
+  motivo: string
+  registradoEm: string
+  registradoPor: string | null
+  encerradoEm: string | null
+  encerradoPor: string | null
+}
+
+type LinhaPeriodo = {
+  id: string
+  empresa_id: string
+  desde: number
+  ate: number | null
+  motivo: string
+  registrado_em: string
+  registrado_por: string | null
+  encerrado_em: string | null
+  encerrado_por: string | null
+}
+
+/** Períodos sem valores a repassar, por empresa (do mais recente ao mais antigo). */
+export async function periodosSemValores(empresaId?: string): Promise<Map<string, PeriodoSemValores[]>> {
+  const admin = await createAdminClient()
+  let q = admin
+    .from("filiacao_repasse_sem_valores")
+    .select("id, empresa_id, desde, ate, motivo, registrado_em, registrado_por, encerrado_em, encerrado_por")
+    .eq("emp_proprietaria_id", await tenantAtual())
+  if (empresaId) q = q.eq("empresa_id", empresaId)
+  const { data, error } = await q.order("desde", { ascending: false })
+  const mapa = new Map<string, PeriodoSemValores[]>()
+  if (error) {
+    if (esquemaAusente(error)) return mapa
+    throw new Error(`Falha ao ler os períodos sem valores: ${error.message}`)
+  }
+  for (const l of (data ?? []) as LinhaPeriodo[]) {
+    const p: PeriodoSemValores = {
+      id: l.id,
+      desde: l.desde,
+      ate: l.ate,
+      motivo: l.motivo,
+      registradoEm: l.registrado_em,
+      registradoPor: l.registrado_por,
+      encerradoEm: l.encerrado_em,
+      encerradoPor: l.encerrado_por,
+    }
+    mapa.set(l.empresa_id, [...(mapa.get(l.empresa_id) ?? []), p])
+  }
+  return mapa
+}
+
+export async function registrarSemValores(dados: {
+  empresaId: string
+  desde: number
+  motivo: string
+  usuarioId: string | null
+  usuarioNome: string | null
+}): Promise<{ erro?: string }> {
+  if (!competenciaValida(dados.desde)) return { erro: "Competência inválida." }
+  if (!dados.motivo.trim()) return { erro: "Informe o motivo." }
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: dono } = await admin.from("empresa").select("id").eq("id", dados.empresaId).maybeSingle()
+  if (!dono) return { erro: "Empresa não encontrada." }
+  const periodos = (await periodosSemValores(dados.empresaId)).get(dados.empresaId) ?? []
+  if (periodos.some((p) => p.ate === null)) return { erro: "Esta empresa já está registrada como sem valores a repassar." }
+  if (periodos.some((p) => p.ate !== null && p.ate >= dados.desde)) {
+    return { erro: "Já existe um período sem valores que cobre esta competência. Escolha uma competência posterior." }
+  }
+  const { error } = await admin.from("filiacao_repasse_sem_valores").insert({
+    emp_proprietaria_id: emp,
+    empresa_id: dados.empresaId,
+    desde: dados.desde,
+    motivo: dados.motivo.trim(),
+    registrado_por_id: dados.usuarioId,
+    registrado_por: dados.usuarioNome,
+  })
+  if (error) return { erro: esquemaAusente(error) ? AVISO_SQL_REPASSE : `Não foi possível registrar: ${error.message}` }
+  return {}
+}
+
+/**
+ * A empresa voltou a ter desconto a partir de `retomada`: o período em aberto
+ * termina na competência anterior. Retomar na mesma competência em que o
+ * período começou apaga o registro (foi engano).
+ */
+export async function encerrarSemValores(dados: {
+  empresaId: string
+  retomada: number
+  usuarioNome: string | null
+}): Promise<{ erro?: string }> {
+  if (!competenciaValida(dados.retomada)) return { erro: "Competência inválida." }
+  const admin = await createAdminClient()
+  const aberto = ((await periodosSemValores(dados.empresaId)).get(dados.empresaId) ?? []).find((p) => p.ate === null)
+  if (!aberto) return { erro: "Não há período sem valores em aberto para esta empresa." }
+  if (dados.retomada < aberto.desde) return { erro: "A retomada não pode ser antes do início do período." }
+  const { error } =
+    dados.retomada === aberto.desde
+      ? await admin.from("filiacao_repasse_sem_valores").delete().eq("id", aberto.id)
+      : await admin
+          .from("filiacao_repasse_sem_valores")
+          .update({ ate: somarMeses(dados.retomada, -1), encerrado_em: new Date().toISOString(), encerrado_por: dados.usuarioNome })
+          .eq("id", aberto.id)
+  if (error) return { erro: `Não foi possível encerrar: ${error.message}` }
+  return {}
 }

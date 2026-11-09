@@ -2,7 +2,7 @@
 
 # Dicionário de dados do Confluir
 
-Gerado a partir do banco de produção (catálogo do Postgres + comentários). **388 tabelas** no schema `public`, **227** com dado pessoal (1149 colunas etiquetadas).
+Gerado a partir do banco de produção (catálogo do Postgres + comentários). **389 tabelas** no schema `public`, **228** com dado pessoal (1153 colunas etiquetadas).
 
 - Etiquetas LGPD: cada tabela termina o comentário com `[lgpd:<categorias>|titulares:<quem>]` e cada coluna com dado pessoal com `[lgpd:<categoria>]` (Onda A4).
 - Para mudar uma descrição ou classificação: migração com `comment on …` (`npm run db:nova`), aplicar, e `npm run db:dicionario`.
@@ -14,7 +14,7 @@ Gerado a partir do banco de produção (catálogo do Postgres + comentários). *
 
 | Categoria | Tabelas |
 |---|---|
-| identificação | 179 |
+| identificação | 180 |
 | **sensível: sindical** | 55 |
 | trabalhista | 53 |
 | financeiro | 50 |
@@ -25,7 +25,7 @@ Gerado a partir do banco de produção (catálogo do Postgres + comentários). *
 
 | Módulo | Tabelas | Com dado pessoal | Dicionário | Diagrama |
 |---|---|---|---|---|
-| Filiação e portal do associado | 56 | 36 | [dicionario/filiacao.md](dicionario/filiacao.md) | [er/filiacao.md](er/filiacao.md) |
+| Filiação e portal do associado | 57 | 37 | [dicionario/filiacao.md](dicionario/filiacao.md) | [er/filiacao.md](er/filiacao.md) |
 | Empregadores e grupos empresariais | 4 | 0 | [dicionario/empregadores.md](dicionario/empregadores.md) | [er/empregadores.md](er/empregadores.md) |
 | Votações e assembleias | 33 | 15 | [dicionario/votacao.md](dicionario/votacao.md) | [er/votacao.md](er/votacao.md) |
 | Representação, acordos e negociações | 18 | 9 | [dicionario/representacao.md](dicionario/representacao.md) | [er/representacao.md](er/representacao.md) |

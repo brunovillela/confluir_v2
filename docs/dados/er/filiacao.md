@@ -171,6 +171,11 @@ erDiagram
     uuid emp_proprietaria_id FK
     uuid empresa_id FK
   }
+  filiacao_repasse_sem_valores {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid empresa_id FK
+  }
   filiacao_solicitacao_eventos {
     uuid id PK
     uuid solicitacao_id FK
@@ -385,6 +390,7 @@ erDiagram
   filiacao_registro }o--o| enderecos : "endereco_id"
   filiacao_repasse_eventos }o--|| empresa : "empresa_id"
   filiacao_repasse_regras }o--o| empresa : "empresa_id"
+  filiacao_repasse_sem_valores }o--|| empresa : "empresa_id"
   filiacao_solicitacao_eventos }o--o| filiacao_solicitacoes : "solicitacao_id"
   filiacao_solicitacoes }o--o| empresa : "empregador_id"
   filiacao_solicitacoes }o--o| filiacao_tl_desconto : "tl_desconto_id"

@@ -9,7 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requirePermissao } from "@/lib/auth"
 import { comunicacoesDaEmpresa, pendenciasDeDesconto } from "@/lib/db/desconto-comunicacoes"
 import {
+  competenciaCorrente,
   contatosDaFolha,
+  periodosSemValores,
   eventosDaEmpresa,
   quadroRepasse,
   regrasRepasse,
@@ -36,6 +38,7 @@ import {
 import { cn } from "@/lib/utils"
 
 import { AcoesCompetencia, ComunicarDesconto, ContatosFolha, DesfazerEvento } from "../formularios"
+import { EncerrarSemValores, RegistrarSemValores } from "../sem-valores"
 import { CelulaSituacao, SeloSituacao } from "../situacao"
 
 export const metadata: Metadata = { title: "Controle de envio da empresa — Confluir" }
@@ -52,11 +55,12 @@ export default async function ControleEmpresaPage({
   const p = await searchParams
   const unidade = await unidadeRepasse(empresaId)
   if (!unidade) notFound()
-  const [regras, contatos, eventos, pendencias] = await Promise.all([
+  const [regras, contatos, eventos, pendencias, periodosMapa] = await Promise.all([
     regrasRepasse(),
     contatosDaFolha(unidade.id),
     eventosDaEmpresa(unidade.id),
     pendenciasDeDesconto(unidade.id),
+    periodosSemValores(unidade.id),
   ])
   const daEmpresa = regras.porEmpresa.get(unidade.id) ?? {}
   const tipos = TIPOS_CONTRIBUICAO.filter((t) => tiposControlados(regras).includes(t) || daEmpresa[t])
@@ -80,6 +84,10 @@ export default async function ControleEmpresaPage({
       ? `/painel/filiados/receitas/${remessaId}/grupo/${unidade.grupo.id}`
       : `/painel/filiados/receitas/${remessaId}/${unidade.id}`
   const contatosCliente = contatos.map((c) => ({ ...c }))
+  const periodos = periodosMapa.get(unidade.id) ?? []
+  const semValores = periodos.find((x) => x.ate === null) ?? null
+  const encerrados = periodos.filter((x) => x.ate !== null)
+  const corrente = competenciaCorrente()
   const inclusoes = pendencias.itens.filter((i) => i.acao === "inclusao").length
   const exclusoes = pendencias.itens.length - inclusoes
 
@@ -108,6 +116,29 @@ export default async function ControleEmpresaPage({
           </Button>
         </div>
       </div>
+
+      {semValores && (
+        <Alert className="border-success/40">
+          <AlertDescription className="grid gap-3">
+            <p>
+              <span className="font-medium">Sem valores a repassar desde {rotuloCompetencia(semValores.desde)}.</span>{" "}
+              {semValores.motivo}
+              <span className="text-muted-foreground">
+                {" "}
+                · registrado em {formatarData(semValores.registradoEm)}
+                {semValores.registradoPor && ` por ${semValores.registradoPor}`}
+              </span>
+            </p>
+            {(unidade.filiadosAtivos > 0 || inclusoes > 0) && (
+              <p className="text-warning-fg text-sm font-medium">
+                Atenção: esta empresa tem {unidade.filiadosAtivos} filiado(s) ativo(s)
+                {inclusoes > 0 && ` e ${inclusoes} inclusão(ões) a comunicar`}. Confira se o desconto voltou.
+              </p>
+            )}
+            <EncerrarSemValores empresaId={unidade.id} desde={semValores.desde} sugestao={corrente} />
+          </AlertDescription>
+        </Alert>
+      )}
 
       {tipos.length > 1 && (
         <div className="bg-muted flex w-fit rounded-md p-0.5">
@@ -276,6 +307,38 @@ export default async function ControleEmpresaPage({
               <ContatosFolha empresaId={unidade.id} contatos={contatosCliente} />
             </CardContent>
           </Card>
+          {!semValores && (
+            <Card className={cn(unidade.filiadosAtivos === 0 && "border-warning/50")}>
+              <CardHeader>
+                <CardTitle className="text-base">Sem valores a repassar?</CardTitle>
+                <CardDescription>
+                  {unidade.filiadosAtivos === 0
+                    ? "Nenhum filiado ativo nesta empresa. Se ela não tem mais o que repassar, registre para o controle parar de cobrar a relação."
+                    : "Quando a empresa deixa de ter o que repassar (por exemplo, todos se desfiliaram), registre para o controle parar de cobrar a relação."}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3">
+                <RegistrarSemValores empresaId={unidade.id} sugestao={corrente} semFiliados={unidade.filiadosAtivos === 0} />
+              </CardContent>
+            </Card>
+          )}
+          {encerrados.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Períodos sem valores</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-2 text-sm">
+                {encerrados.map((x) => (
+                  <p key={x.id}>
+                    <span className="font-medium">
+                      {rotuloCompetencia(x.desde)} a {rotuloCompetencia(x.ate!)}
+                    </span>
+                    <span className="text-muted-foreground"> · {x.motivo}</span>
+                  </p>
+                ))}
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Prazos desta empresa</CardTitle>
