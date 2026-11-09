@@ -1,12 +1,13 @@
 import "server-only"
 import { tenantAtual } from "@/lib/tenant"
-import { FORMA_PAGA_NO_ATO } from "@/lib/compras-constantes"
+import { FORMA_PAGA_NO_ATO, FORMAS_COM_COMPROVANTE } from "@/lib/compras-constantes"
 
 import { hojeSP, lerEmLotes, lerEmLotesPorIds, texto } from "@/lib/db/comum"
 import { favorecidosDasOrdens } from "@/lib/db/ordens-favorecido"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { descreverParecidas, ordensParecidas, type OrdemParecida } from "@/lib/db/ordens-duplicidade"
 import { rotuloCentroCusto } from "@/lib/centros-custo-rotulo"
+import { ABERTAS_PAGAVEIS, idsDuplicadasAPagar, idsProcessandoParado, idsSemCentroComRateio } from "@/lib/db/ordens-pendencias"
 
 export const ORDENS_POR_PAGINA = 50
 
@@ -116,17 +117,48 @@ export type FiltrosOrdens = {
   /** forma_pagamento exata. */
   formaPagamento?: string
   /**
-   * Pendência do fechamento (07/11/2026): "sem_centro" (sem centro de custo da
-   * despesa) ou "sem_debito" (sem a conta de onde o dinheiro saiu); "" não filtra.
+   * Pendência de "O que fazer hoje" e do fechamento (PENDENCIAS_ORDENS); ""
+   * não filtra. A contagem dos indicadores usa a mesma regra.
    */
-  pendencia?: "" | "sem_centro" | "sem_debito"
+  pendencia?: "" | PendenciaOrdem
   /** "AAAA-MM": só as pagas (pela data do pagamento) neste mês; "" não filtra. */
   pagoNoMes?: string
+  /** "AAAA-MM-DD": pagas a partir desta data; "" não filtra. */
+  pagoDesde?: string
+  /** "AAAA-MM-DD": vencimento a partir de / até esta data; "" não filtra. */
+  venceDe?: string
+  venceAte?: string
   pagina?: number
   porPagina?: number
   ordem?: "vencimento" | "pagamento" | "valor"
   dir?: "asc" | "desc"
 }
+
+/** As pendências que os indicadores do Financeiro abrem como lista filtrada. */
+export const PENDENCIAS_ORDENS = {
+  vencidas: "A pagar vencidas",
+  vence_hoje: "Vencem hoje",
+  duplicadas: "Possíveis duplicadas a pagar",
+  processando_parado: "Processando há 5 dias ou mais",
+  sem_comprovante: "Pagas por Pix ou TED sem comprovante",
+  sem_centro: "Pagas sem centro de custo",
+  sem_debito: "Pagas sem conta de débito",
+} as const
+export type PendenciaOrdem = keyof typeof PENDENCIAS_ORDENS
+export const ehPendenciaOrdem = (v: unknown): v is PendenciaOrdem =>
+  typeof v === "string" && Object.prototype.hasOwnProperty.call(PENDENCIAS_ORDENS, v)
+
+/** Ids que a pendência pede (calculados antes da consulta). */
+type IdsPendencia = { incluir?: string[]; excluir?: string[] }
+
+async function idsDaPendencia(pendencia: FiltrosOrdens["pendencia"]): Promise<IdsPendencia> {
+  if (pendencia === "duplicadas") return { incluir: await idsDuplicadasAPagar() }
+  if (pendencia === "processando_parado") return { incluir: await idsProcessandoParado() }
+  if (pendencia === "sem_centro") return { excluir: await idsSemCentroComRateio().catch(() => []) }
+  return {}
+}
+
+const DATA_ISO = /^\d{4}-\d{2}-\d{2}$/
 
 export type ListaOrdens = {
   linhas: OrdemLinha[]
@@ -153,6 +185,7 @@ type BuilderFiltros = {
   is(coluna: string, valor: null | boolean): BuilderFiltros
   gte(coluna: string, valor: unknown): BuilderFiltros
   lte(coluna: string, valor: unknown): BuilderFiltros
+  lt(coluna: string, valor: unknown): BuilderFiltros
 }
 
 function escaparLike(termo: string): string {
@@ -190,10 +223,14 @@ function aplicarFiltrosOrdens<T>(
     formaPagamento = "",
     pendencia = "",
     pagoNoMes = "",
+    pagoDesde = "",
+    venceDe = "",
+    venceAte = "",
   }: FiltrosOrdens,
   empId: string,
   /** Filtro por filiado: as ordens dele já resolvidas (reembolsos e custeios). */
-  ordensDoFiliado: string[] = []
+  ordensDoFiliado: string[] = [],
+  idsPendencia: IdsPendencia = {}
 ): T {
   let q = (builder as unknown as BuilderFiltros)
     .eq("emp_proprietaria_id", empId)
@@ -209,8 +246,18 @@ function aplicarFiltrosOrdens<T>(
   if (departamento) q = q.eq("departamento_id", departamento)
   if (projeto) q = q.eq("projeto_id", projeto)
   if (formaPagamento) q = q.eq("forma_pagamento", formaPagamento)
+  const hoje = hojeSP()
+  if (pendencia === "vencidas") q = q.in("situacao", ABERTAS_PAGAVEIS).lt("vencimento", hoje)
+  if (pendencia === "vence_hoje") q = q.in("situacao", ABERTAS_PAGAVEIS).eq("vencimento", hoje)
+  if (pendencia === "sem_comprovante")
+    q = q.eq("situacao", "Paga").is("arquivo_pagamento", null).in("forma_pagamento", FORMAS_COM_COMPROVANTE)
   if (pendencia === "sem_centro") q = q.eq("situacao", "Paga").is("centro_custo_despesa_id", null)
   if (pendencia === "sem_debito") q = q.eq("situacao", "Paga").is("centro_custo_receita_id", null)
+  if (idsPendencia.incluir) q = q.in("id", idsPendencia.incluir.length ? idsPendencia.incluir : [NENHUMA])
+  if (idsPendencia.excluir?.length) q = q.not("id", "in", `(${idsPendencia.excluir.join(",")})`)
+  if (DATA_ISO.test(pagoDesde)) q = q.gte("data_pagamento", pagoDesde)
+  if (DATA_ISO.test(venceDe)) q = q.gte("vencimento", venceDe)
+  if (DATA_ISO.test(venceAte)) q = q.lte("vencimento", venceAte)
   if (/^\d{4}-(0[1-9]|1[0-2])$/.test(pagoNoMes)) {
     const [a, m] = pagoNoMes.split("-").map(Number)
     q = q.gte("data_pagamento", `${pagoNoMes}-01`).lte("data_pagamento", new Date(Date.UTC(a, m, 0)).toISOString().slice(0, 10))
@@ -251,7 +298,8 @@ export async function listarOrdens(
     q,
     filtros,
     await tenantAtual(),
-    beneficiario.startsWith("f:") ? await ordensDoFiliado(beneficiario.slice(2)) : []
+    beneficiario.startsWith("f:") ? await ordensDoFiliado(beneficiario.slice(2)) : [],
+    await idsDaPendencia(filtros.pendencia)
   )
 
   const de = (pagina - 1) * porPagina
@@ -332,10 +380,11 @@ export async function extratoOrdens(
   const limiteFuturo = futurosDias === null ? null : somar(hoje, futurosDias)
   const beneficiario = filtros.beneficiario ?? ""
   const doFiliado = beneficiario.startsWith("f:") ? await ordensDoFiliado(beneficiario.slice(2)) : []
+  const idsPendencia = await idsDaPendencia(filtros.pendencia)
   const situacaoLivre = !filtros.situacao || filtros.situacao === "todas"
 
   const base = () => {
-    let q = aplicarFiltrosOrdens(admin.from("ordens_pagamento").select(SELECT_ORDEM), filtros, emp, doFiliado)
+    let q = aplicarFiltrosOrdens(admin.from("ordens_pagamento").select(SELECT_ORDEM), filtros, emp, doFiliado, idsPendencia)
     if (situacaoLivre) q = q.not("situacao", "in", `(${FORA_DO_EXTRATO.map((s) => `"${s}"`).join(",")})`)
     return q
   }

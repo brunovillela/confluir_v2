@@ -34,6 +34,8 @@ import {
   opcoesFiltrosOrdens,
   ORDENS_POR_PAGINA,
   SITUACOES_ORDEM,
+  ehPendenciaOrdem,
+  PENDENCIAS_ORDENS,
   type FiltrosOrdens,
 } from "@/lib/db/financeiro"
 import { TIPO_ORDEM_FOLHA } from "@/lib/contracheques-constantes"
@@ -65,6 +67,9 @@ type ParamsBusca = {
   formaPagamento?: string
   pendencia?: string
   pagoNoMes?: string
+  pagoDesde?: string
+  venceDe?: string
+  venceAte?: string
   pagina?: string
   porPagina?: string
   ordem?: string
@@ -128,7 +133,10 @@ function normalizarFiltros(params: ParamsBusca): FiltrosPagina {
     departamento: params.departamento ?? "",
     projeto: params.projeto ?? "",
     formaPagamento: params.formaPagamento ?? "",
-    pendencia: params.pendencia === "sem_centro" || params.pendencia === "sem_debito" ? params.pendencia : "",
+    pendencia: ehPendenciaOrdem(params.pendencia) ? params.pendencia : "",
+    pagoDesde: dataIso(params.pagoDesde),
+    venceDe: dataIso(params.venceDe),
+    venceAte: dataIso(params.venceAte),
     pagoNoMes: /^\d{4}-(0[1-9]|1[0-2])$/.test(params.pagoNoMes ?? "") ? params.pagoNoMes! : "",
     pagina: Math.max(1, Number(params.pagina) || 1),
     porPagina: (OPCOES_POR_PAGINA as readonly number[]).includes(
@@ -142,6 +150,10 @@ function normalizarFiltros(params: ParamsBusca): FiltrosPagina {
     dir: params.dir === "asc" ? "asc" : "desc",
     visao: params.visao === "lista" ? "lista" : "extrato",
   }
+}
+
+function dataIso(v: string | undefined): string {
+  return /^\d{4}-\d{2}-\d{2}$/.test(v ?? "") ? v! : ""
 }
 
 function montarUrl(
@@ -161,6 +173,9 @@ function montarUrl(
     q.set("formaPagamento", String(merged.formaPagamento))
   if (merged.pendencia) q.set("pendencia", String(merged.pendencia))
   if (merged.pagoNoMes) q.set("pagoNoMes", String(merged.pagoNoMes))
+  if (merged.pagoDesde) q.set("pagoDesde", String(merged.pagoDesde))
+  if (merged.venceDe) q.set("venceDe", String(merged.venceDe))
+  if (merged.venceAte) q.set("venceAte", String(merged.venceAte))
   if (Number(merged.pagina) > 1) q.set("pagina", String(merged.pagina))
   if (Number(merged.porPagina) !== ORDENS_POR_PAGINA)
     q.set("porPagina", String(merged.porPagina))
@@ -285,12 +300,25 @@ export default async function OrdensPage({
       href: montarUrl(filtros, { formaPagamento: "", pagina: 1 }),
     },
     filtros.pendencia && {
-      rotulo: filtros.pendencia === "sem_centro" ? "Pagas sem centro de custo" : "Pagas sem conta de débito",
+      rotulo: PENDENCIAS_ORDENS[filtros.pendencia],
       href: montarUrl(filtros, { pendencia: "", pagina: 1 }),
     },
     filtros.pagoNoMes && {
       rotulo: `Pagas em ${filtros.pagoNoMes.slice(5, 7)}/${filtros.pagoNoMes.slice(0, 4)}`,
       href: montarUrl(filtros, { pagoNoMes: "", pagina: 1 }),
+    },
+    filtros.pagoDesde && {
+      rotulo: "Pagas desde " + formatarData(filtros.pagoDesde),
+      href: montarUrl(filtros, { pagoDesde: "", pagina: 1 }),
+    },
+    (filtros.venceDe || filtros.venceAte) && {
+      rotulo:
+        filtros.venceDe && filtros.venceAte
+          ? "Vencimento de " + formatarData(filtros.venceDe) + " a " + formatarData(filtros.venceAte)
+          : filtros.venceDe
+            ? "Vencimento a partir de " + formatarData(filtros.venceDe)
+            : "Vencimento até " + formatarData(filtros.venceAte),
+      href: montarUrl(filtros, { venceDe: "", venceAte: "", pagina: 1 }),
     },
   ].filter(Boolean) as { rotulo: string; href: string }[]
 
@@ -353,6 +381,9 @@ export default async function OrdensPage({
           {filtros.visao === "lista" && <input type="hidden" name="visao" value="lista" />}
           {filtros.pendencia && <input type="hidden" name="pendencia" value={filtros.pendencia} />}
           {filtros.pagoNoMes && <input type="hidden" name="pagoNoMes" value={filtros.pagoNoMes} />}
+          {filtros.pagoDesde && <input type="hidden" name="pagoDesde" value={filtros.pagoDesde} />}
+          {filtros.venceDe && <input type="hidden" name="venceDe" value={filtros.venceDe} />}
+          {filtros.venceAte && <input type="hidden" name="venceAte" value={filtros.venceAte} />}
           {filtros.situacao !== "todas" && (
             <input type="hidden" name="situacao" value={filtros.situacao} />
           )}
@@ -413,6 +444,9 @@ export default async function OrdensPage({
             {filtros.visao === "lista" && <input type="hidden" name="visao" value="lista" />}
           {filtros.pendencia && <input type="hidden" name="pendencia" value={filtros.pendencia} />}
           {filtros.pagoNoMes && <input type="hidden" name="pagoNoMes" value={filtros.pagoNoMes} />}
+          {filtros.pagoDesde && <input type="hidden" name="pagoDesde" value={filtros.pagoDesde} />}
+          {filtros.venceDe && <input type="hidden" name="venceDe" value={filtros.venceDe} />}
+          {filtros.venceAte && <input type="hidden" name="venceAte" value={filtros.venceAte} />}
             {filtros.porPagina !== ORDENS_POR_PAGINA && (
               <input type="hidden" name="porPagina" value={filtros.porPagina} />
             )}

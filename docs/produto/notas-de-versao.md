@@ -14,7 +14,7 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 
 ## 08/11/2026 — Financeiro em dia, oposição pronta e contratos saudáveis
 
-- Financeiro: "O que fazer hoje" no topo da área, e, no mesmo quadro, o fechamento do mês só com o que as filas não mostram, sem contar nada duas vezes.
+- Financeiro: "O que fazer hoje" no topo da área, e, no mesmo quadro, o fechamento do mês só com o que as filas não mostram, sem contar nada duas vezes; clicar num número abre a lista filtrada com exatamente aquelas ordens.
 - Ordens de pagamento: distribuir vários comprovantes de uma vez (a IA lê e sugere a ordem de cada um), pagar pela própria conciliação do extrato, marcar Processando em lote, aviso de possível duplicidade na hora de pagar e alerta de vencimento distante demais (ano digitado errado). O comprovante só é cobrado de Pix, Pix QR Code e TED.
 - Contratos → Saúde dos contratos: um medidor como o dos cadastros da filiação, apontando o que falta em cada contrato.
 - Filiação → Controle de envio das relações de desconto: quadro por empresa e mês mostra quem mandou a relação, quem falta cobrar e as inclusões e exclusões a enviar ao RH.

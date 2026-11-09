@@ -28,14 +28,19 @@ const ABAS = [
 ] as const
 
 /** Financeiro fecha o mês com o extrato, não com a memória (onda 5, A1). */
-export default async function ConciliacaoPage({ searchParams }: { searchParams: Promise<{ situacao?: string; extrato?: string }> }) {
+export default async function ConciliacaoPage({ searchParams }: { searchParams: Promise<{ situacao?: string; extrato?: string; mes?: string }> }) {
   const sessao = await requirePermissao("financeiro_pagamento", ["financeiro_leitura"])
   const podeEscrever = podeAcessar(sessao.permissoes, "financeiro_pagamento")
   const sp = await searchParams
   const situacao = ABAS.find((a) => a.valor === sp.situacao)?.valor ?? "pendente"
+  // Mês (vindo das pendências do fechamento): só os lançamentos dele.
+  const mes = /^\d{4}-(0[1-9]|1[0-2])$/.test(sp.mes ?? "") ? sp.mes! : null
+  const periodo = mes
+    ? { de: `${mes}-01`, ate: new Date(Date.UTC(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)), 0)).toISOString().slice(0, 10) }
+    : {}
   const resumo = await resumoConciliacao()
   const [lancamentos, extratos, opcoes] = resumo.disponivel
-    ? await Promise.all([listarLancamentos({ situacao, extratoId: sp.extrato }), listarExtratos(), situacao === "pendente" ? opcoesParaComprovacao() : Promise.resolve({ remessas: [], fontes: [] })])
+    ? await Promise.all([listarLancamentos({ situacao, extratoId: sp.extrato, ...periodo }), listarExtratos(), situacao === "pendente" ? opcoesParaComprovacao() : Promise.resolve({ remessas: [], fontes: [] })])
     : [[], [], { remessas: [], fontes: [] }]
   // Débitos que pagam ordens ainda a pagar (o Financeiro paga no banco e registra depois).
   const [aPagar, debitos] =
@@ -47,6 +52,8 @@ export default async function ConciliacaoPage({ searchParams }: { searchParams: 
           ),
         ])
       : [null, []]
+  if (aPagar && periodo.de && periodo.ate)
+    aPagar.itens = aPagar.itens.filter((i) => i.lancamento.data >= periodo.de! && i.lancamento.data <= periodo.ate!)
   const idsAPagar = new Set(aPagar?.itens.map((i) => i.lancamento.id) ?? [])
   const lancamentosRestantes = lancamentos.filter((l) => !idsAPagar.has(l.id))
 
@@ -100,9 +107,18 @@ export default async function ConciliacaoPage({ searchParams }: { searchParams: 
           <div className="flex flex-wrap items-center gap-2">
             {ABAS.map((a) => (
               <Button key={a.valor} variant={a.valor === situacao ? "default" : "outline"} size="sm" asChild>
-                <Link href={`/painel/financeiro/conciliacao?situacao=${a.valor}${sp.extrato ? `&extrato=${sp.extrato}` : ""}`}>{a.rotulo}</Link>
+                <Link href={`/painel/financeiro/conciliacao?situacao=${a.valor}${sp.extrato ? `&extrato=${sp.extrato}` : ""}${mes ? `&mes=${mes}` : ""}`}>{a.rotulo}</Link>
               </Button>
             ))}
+            {mes && (
+              <Link
+                href={`/painel/financeiro/conciliacao?situacao=${situacao}${sp.extrato ? `&extrato=${sp.extrato}` : ""}`}
+                className="bg-muted hover:bg-muted/70 inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs"
+                title="Tirar o filtro do mês"
+              >
+                Lançamentos de {mes.slice(5, 7)}/{mes.slice(0, 4)} ✕
+              </Link>
+            )}
             {sp.extrato && (
               <Button variant="ghost" size="sm" asChild>
                 <Link href={`/painel/financeiro/conciliacao?situacao=${situacao}`}>Todos os extratos</Link>

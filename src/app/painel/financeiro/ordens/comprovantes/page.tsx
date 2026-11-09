@@ -16,12 +16,24 @@ import { Distribuidor } from "./distribuidor"
 export const metadata: Metadata = { title: "Distribuir comprovantes — Confluir" }
 
 const NOME_MES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
+function somarDias(iso: string, dias: number): string {
+  const d = new Date(`${iso}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + dias)
+  return d.toISOString().slice(0, 10)
+}
 const rotuloMes = (mes: string) => `${NOME_MES[Number(mes.slice(5, 7)) - 1]}/${mes.slice(0, 4)}`
 
-export default async function DistribuirComprovantesPage({ searchParams }: { searchParams: Promise<{ mes?: string }> }) {
+export default async function DistribuirComprovantesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ mes?: string; dias?: string }>
+}) {
   await requirePermissao("financeiro_pagamento")
   const sp = await searchParams
   const mes = /^\d{4}-(0[1-9]|1[0-2])$/.test(sp.mes ?? "") ? sp.mes! : null
+  // "dias" (vindo de "O que fazer hoje"): pagas nos últimos N dias, hoje incluído.
+  const dias = !mes && Number(sp.dias) > 0 && Number(sp.dias) <= 365 ? Math.floor(Number(sp.dias)) : null
+  const desde = dias ? somarDias(hojeSP(), -(dias - 1)) : null
   // O ano inteiro alimenta os atalhos por mês; a lista mostra o mês escolhido.
   const [debitos, todas] = await Promise.all([
     listarCentrosDeDebito().then((cs) =>
@@ -34,7 +46,11 @@ export default async function DistribuirComprovantesPage({ searchParams }: { sea
     const m = (o.dataPagamento ?? "").slice(0, 7)
     if (m) porMes.set(m, (porMes.get(m) ?? 0) + 1)
   }
-  const lista = mes ? todas.filter((o) => (o.dataPagamento ?? "").startsWith(mes)) : todas
+  const lista = mes
+    ? todas.filter((o) => (o.dataPagamento ?? "").startsWith(mes))
+    : desde
+      ? todas.filter((o) => (o.dataPagamento ?? "") >= desde)
+      : todas
   const meses = [...porMes.entries()].sort((a, b) => b[0].localeCompare(a[0]))
   // Mês escolhido fora do último ano: busca direto.
   const listaFinal = mes && !porMes.has(mes) ? await pagasSemComprovante(mes) : lista
@@ -57,7 +73,7 @@ export default async function DistribuirComprovantesPage({ searchParams }: { sea
         <CardHeader>
           <CardTitle className="text-base">
             Pagas por Pix ou TED sem comprovante ({listaFinal.length}
-            {mes ? ` em ${rotuloMes(mes)}` : " no último ano"})
+            {mes ? ` em ${rotuloMes(mes)}` : dias ? ` nos últimos ${dias} dias` : " no último ano"})
           </CardTitle>
           <CardDescription className="text-xs">
             Pix, Pix QR Code e TED já pagos sem o comprovante anexado. Dinheiro, cartão e boleto não entram.
@@ -66,10 +82,15 @@ export default async function DistribuirComprovantesPage({ searchParams }: { sea
             <div className="flex flex-wrap gap-1.5 pt-1">
               <Link
                 href="/painel/financeiro/ordens/comprovantes"
-                className={cn("rounded-md border px-2 py-0.5 text-xs", !mes ? "bg-primary text-primary-foreground" : "hover:bg-muted")}
+                className={cn("rounded-md border px-2 py-0.5 text-xs", !mes && !dias ? "bg-primary text-primary-foreground" : "hover:bg-muted")}
               >
                 Todos ({todas.length})
               </Link>
+              {dias && (
+                <span className="bg-primary text-primary-foreground rounded-md border px-2 py-0.5 text-xs">
+                  Últimos {dias} dias ({lista.length})
+                </span>
+              )}
               {meses.map(([m, n]) => (
                 <Link
                   key={m}

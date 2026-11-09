@@ -449,11 +449,20 @@ export async function listarExtratos(limite = 20): Promise<Extrato[]> {
   return (data ?? []).map((e) => montarExtrato(e as Record<string, unknown>))
 }
 
-export async function listarLancamentos(filtro: { situacao: Lancamento["situacao"]; extratoId?: string; limite?: number }): Promise<LancamentoComCandidatas[]> {
+export async function listarLancamentos(filtro: {
+  situacao: Lancamento["situacao"]
+  extratoId?: string
+  limite?: number
+  /** Só os lançamentos de um mês (AAAA-MM-DD, primeiro e último dia). */
+  de?: string
+  ate?: string
+}): Promise<LancamentoComCandidatas[]> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
   let q = admin.from("banco_lancamentos").select("*").eq("emp_proprietaria_id", emp).eq("situacao", filtro.situacao)
   if (filtro.extratoId) q = q.eq("extrato_id", filtro.extratoId)
+  if (filtro.de) q = q.gte("data", filtro.de)
+  if (filtro.ate) q = q.lte("data", filtro.ate)
   const { data, error } = await q.order("data", { ascending: false }).order("created_at", { ascending: false }).limit(filtro.limite ?? 300)
   if (error) return []
   const lancs = (data ?? []).map((l) => montarLancamento(l as Record<string, unknown>))

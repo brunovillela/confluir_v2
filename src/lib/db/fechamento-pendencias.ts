@@ -88,14 +88,14 @@ export async function pendenciasDoMes(mes: string): Promise<ResumoFechamento> {
       rotulo: "Processando sem registro do pagamento",
       explicacao: "Vencem no mês ou antes e seguem Processando: registre o pagamento (ou pelo extrato do banco) ou volte para A pagar.",
       quantidade: n(processando),
-      href: "/painel/financeiro/ordens?situacao=Processando",
+      href: `/painel/financeiro/ordens?visao=lista&situacao=Processando&venceAte=${ate}`,
     },
     {
       codigo: "a_pagar",
       rotulo: "A pagar que venciam no mês",
       explicacao: "Ficaram para trás: pague, mude o vencimento ou cancele.",
       quantidade: n(aPagarVencidas),
-      href: "/painel/financeiro/ordens?situacao=A+pagar#vencidas",
+      href: `/painel/financeiro/ordens?visao=lista&situacao=A+pagar&venceDe=${de}&venceAte=${ate}`,
     },
     {
       codigo: "sem_comprovante",
@@ -123,7 +123,7 @@ export async function pendenciasDoMes(mes: string): Promise<ResumoFechamento> {
       rotulo: "Lançamentos do extrato sem conciliar",
       explicacao: "Saídas e entradas do banco no mês que ainda não casaram com nada.",
       quantidade: n(extrato),
-      href: "/painel/financeiro/conciliacao",
+      href: `/painel/financeiro/conciliacao?situacao=pendente&mes=${mes}`,
     },
   ]
   const pendencias = lista.filter((p) => p.quantidade > 0)
