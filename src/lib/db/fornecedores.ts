@@ -14,7 +14,8 @@ import { esquemaAusente } from "@/lib/db/comum"
 import { ligarOrdensSemForma } from "@/lib/db/ordens-destino"
 import { avisoRepetida, dadoRepetido } from "@/lib/db/dados-bancarios-repetida"
 import { donosDaPessoa } from "@/lib/db/dados-bancarios-pessoa"
-import { normalizarBanco, validarAgencia, validarConta } from "@/lib/bancos"
+import { normalizarBanco, validarAgencia, validarChavePix, validarConta } from "@/lib/bancos"
+import { TIPOS_CHAVE_PIX } from "@/lib/contracheques-constantes"
 
 /**
  * Fornecedores — cadastro completo sobre linhas de `empresa`, com:
@@ -69,6 +70,8 @@ export type ContaBancaria = {
   conta: string | null
   tipo_conta: string | null
   pix: string | null
+  /** Tipo da chave Pix (TIPOS_CHAVE_PIX). */
+  pix_tipo?: string | null
   favorecido: string | null
   titular_documento?: string | null
 }
@@ -243,6 +246,7 @@ export async function buscarFornecedor(
           conta: (x.conta as string | null) ?? null,
           tipo_conta: (x.tipo_conta as string | null) ?? null,
           pix: (x.pix as string | null) ?? null,
+          pix_tipo: (x.pix_tipo as string | null) ?? null,
           favorecido: (x.favorecido as string | null) ?? null,
         })),
     contratosVigentes: contratos.filter((c) => c.vigente),
@@ -862,6 +866,8 @@ export type DadosConta = {
   conta: string | null
   tipo_conta: string | null
   pix: string | null
+  /** Tipo da chave Pix (TIPOS_CHAVE_PIX); obrigatório quando há chave. */
+  pix_tipo?: string | null
   favorecido: string | null
   /** CPF/CNPJ do titular como digitado; vazio = não informado. */
   titular_documento?: string | null
@@ -883,8 +889,26 @@ export async function salvarConta(
   if (agencia.erro) return { erro: agencia.erro }
   const numero = validarConta(dados.conta)
   if (numero.erro) return { erro: numero.erro }
+  // Chave Pix com o tipo, conferida e padronizada como no Pix da compra.
+  let pix: string | null = null
+  let pixTipo: string | null = null
+  if (dados.pix?.trim()) {
+    pixTipo = (TIPOS_CHAVE_PIX as readonly string[]).includes(dados.pix_tipo ?? "") ? dados.pix_tipo! : null
+    if (!pixTipo) return { erro: "Escolha o tipo da chave Pix." }
+    const conferida = validarChavePix(pixTipo, dados.pix)
+    if (conferida.erro) return { erro: conferida.erro }
+    pix = conferida.valor
+  }
   const banco = normalizarBanco(dados.banco, dados.banco_codigo)
-  const linha = { ...dados, banco: banco.banco, banco_codigo: banco.codigo, agencia: agencia.valor, conta: numero.valor }
+  const linha = {
+    ...dados,
+    pix,
+    pix_tipo: pixTipo,
+    banco: banco.banco,
+    banco_codigo: banco.codigo,
+    agencia: agencia.valor,
+    conta: numero.valor,
+  }
   const repetida = await dadoRepetido(await donosDaPessoa("fornecedor", fornecedorId), linha, contaId ?? null)
   if (repetida) return { erro: avisoRepetida(repetida, "fornecedor") }
   const admin = await createAdminClient()

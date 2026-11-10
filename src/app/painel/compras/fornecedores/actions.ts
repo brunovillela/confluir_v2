@@ -207,6 +207,7 @@ export async function salvarContaAction(
       conta: ouNull(texto(formData, "conta")),
       tipo_conta: ouNull(texto(formData, "tipo_conta")),
       pix: ouNull(texto(formData, "pix")),
+      pix_tipo: ouNull(texto(formData, "pix_tipo")),
       favorecido: ouNull(texto(formData, "favorecido")),
       titular_documento: texto(formData, "titular_documento"),
     },

@@ -149,10 +149,12 @@ export async function salvarContaEntidadeAction(
     entidadeId,
     {
       banco: ouNull(texto(formData, "banco")),
+      banco_codigo: ouNull(texto(formData, "banco_codigo").replace(/\D/g, "")),
       agencia: ouNull(texto(formData, "agencia")),
       conta: ouNull(texto(formData, "conta")),
       tipo_conta: ouNull(texto(formData, "tipo_conta")),
       pix: ouNull(texto(formData, "pix")),
+      pix_tipo: ouNull(texto(formData, "pix_tipo")),
       favorecido: ouNull(texto(formData, "favorecido")),
       titular_documento: texto(formData, "titular_documento"),
     },

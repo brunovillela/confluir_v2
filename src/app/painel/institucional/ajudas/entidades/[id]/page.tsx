@@ -385,7 +385,7 @@ export default async function EntidadeApoiadaPage({
                       {[
                         c.agencia && `ag. ${c.agencia}`,
                         c.conta && `conta ${c.conta}`,
-                        c.pix && `Pix ${c.pix}`,
+                        c.pix && `Pix${c.pix_tipo ? ` (${c.pix_tipo})` : ""} ${c.pix}`,
                         c.favorecido && `favorecido ${c.favorecido}`,
                       ]
                         .filter(Boolean)

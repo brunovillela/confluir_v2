@@ -168,3 +168,21 @@ export function contaConferida(c: { conferida_em?: unknown; conferida_titular?: 
   if (!c?.conferida_em) return false
   return c.conferida_titular === assinaturaTitular(c.titular_documento, c.favorecido)
 }
+
+/**
+ * Tipo provável de uma chave Pix gravada sem o tipo (cadastros antigos):
+ * só para vir pré-escolhido na edição, quem salva confere. Onze dígitos que
+ * formam um CPF válido contam como CPF; senão, como telefone.
+ */
+export function deduzirTipoPix(chave: string | null | undefined): "CNPJ / CPF" | "Telefone" | "E-mail" | "Chave aleatória" | null {
+  const s = (chave ?? "").trim()
+  if (!s) return null
+  if (s.includes("@")) return "E-mail"
+  if (/^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i.test(s)) return "Chave aleatória"
+  const d = s.replace(/\D/g, "")
+  if (s.startsWith("+")) return "Telefone"
+  if (d.length === 14) return "CNPJ / CPF"
+  if (d.length === 11 && validarCpf(d)) return "CNPJ / CPF"
+  if (d.length === 10 || d.length === 11 || (d.length >= 12 && d.length <= 13 && d.startsWith("55"))) return "Telefone"
+  return null
+}

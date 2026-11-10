@@ -35,6 +35,8 @@ import {
 } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
+import { deduzirTipoPix } from "@/lib/bancos"
+import { TIPOS_CHAVE_PIX } from "@/lib/contracheques-constantes"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -593,6 +595,22 @@ export function ContaForm({
           >
             <option value="">Não informado</option>
             {TIPOS_CONTA.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="cb-pix-tipo">Tipo da chave Pix</Label>
+          <select
+            id="cb-pix-tipo"
+            name="pix_tipo"
+            className={SELECT}
+            defaultValue={conta?.pix_tipo ?? deduzirTipoPix(conta?.pix) ?? ""}
+          >
+            <option value="">Sem chave Pix</option>
+            {TIPOS_CHAVE_PIX.map((t) => (
               <option key={t} value={t}>
                 {t}
               </option>
