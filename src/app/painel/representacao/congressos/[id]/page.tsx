@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
 import { AJUSTE_POR_CHAVE, descreverValor, valor } from "@/lib/congressos/config"
-import { resumoDireitos } from "@/lib/congressos/regras"
+import { gerarSlug, resumoDireitos } from "@/lib/congressos/regras"
 import {
   listarPapeis,
   listarParticipantes,
@@ -31,6 +31,7 @@ import {
 } from "@/lib/db/congressos"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
+import { origemAtual } from "@/lib/tenant-url"
 
 import { regimentoAprovadoAction } from "../actions"
 import {
@@ -40,7 +41,10 @@ import {
   EditarParticipante,
   EditarUnidade,
   EixoForm,
+  GerarLink,
   GrupoForm,
+  ImportarLista,
+  PaginaPublicaForm,
   ImportarNatos,
   NovoParticipante,
   PapelForm,
@@ -139,7 +143,12 @@ export default async function CongressoPage({
 // ── Visão geral ──────────────────────────────────────────────────────────────
 
 async function AbaGeral({ c, gestor }: { c: Congresso; gestor: boolean }) {
-  const [painel, opcoes] = await Promise.all([painelDoCongresso(c), gestor ? opcoesNovoCongresso() : null])
+  const [painel, opcoes, papeis, origem] = await Promise.all([
+    painelDoCongresso(c),
+    gestor ? opcoesNovoCongresso() : null,
+    listarPapeis(c.id),
+    origemAtual(),
+  ])
   const base = `/painel/representacao/congressos/${c.id}`
   const resumo = [
     "delegacao.forma",
@@ -255,6 +264,28 @@ async function AbaGeral({ c, gestor }: { c: Congresso; gestor: boolean }) {
               ))}
               {painel.elegibilidade.length > 30 && <li className="text-muted-foreground">e mais {painel.elegibilidade.length - 30}.</li>}
             </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {gestor && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Página pública de inscrição</CardTitle>
+            <CardDescription>
+              Substitui o formulário avulso: a pessoa se inscreve, a regra de vagas é aplicada na hora e ela recebe um link
+              pessoal para acompanhar a situação.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <PaginaPublicaForm
+              congressoId={c.id}
+              slug={c.slug}
+              aberta={c.inscricaoPublica}
+              sugestao={gerarSlug(`${c.edicao ? `${c.edicao}-` : ""}${c.nome}`)}
+              origem={origem}
+              papeisPublicos={papeis.filter((p) => p.inscricaoPublica).map((p) => p.nome)}
+            />
           </CardContent>
         </Card>
       )}
@@ -674,6 +705,7 @@ async function AbaParticipantes({
       {gestor && (
         <div className="flex flex-wrap items-start gap-3">
           <NovoParticipante congressoId={c.id} opcoes={opcoes} />
+          <ImportarLista congressoId={c.id} papeis={opcoes.papeis} unidades={opcoes.unidades} />
           {natosDaDiretoria && papelNato && <ImportarNatos congressoId={c.id} papelId={papelNato.id} />}
           {forma === "ordem_inscricao" && unidades.length > 0 && <AplicarOrdem congressoId={c.id} />}
         </div>
@@ -764,6 +796,13 @@ async function AbaParticipantes({
                             {p.titularId && ` · suplente de ${nomePorId.get(p.titularId) ?? "—"}`}
                             {p.acessibilidade && gestor && ` · acessibilidade: ${p.acessibilidade}`}
                           </div>
+                          {gestor && p.situacao !== "cancelado" && (
+                            <GerarLink
+                              congressoId={c.id}
+                              participante={{ id: p.id, nome, email: p.email }}
+                              temLink={!!p.linkGeradoEm}
+                            />
+                          )}
                         </TableCell>
                         <TableCell>
                           {papel ? (

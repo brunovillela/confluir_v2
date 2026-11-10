@@ -123,6 +123,8 @@ export type Congresso = CongressoLinha & {
   config: ConfigCongresso
   configVersao: number
   regimentoAprovadoEm: string | null
+  slug: string | null
+  inscricaoPublica: boolean
   criadoPorNome: string | null
   createdAt: string
 }
@@ -134,6 +136,7 @@ export type Papel = {
   cor: string | null
   ordem: number
   direitos: Direitos
+  inscricaoPublica: boolean
 }
 
 export type Unidade = {
@@ -178,6 +181,8 @@ export type Participante = {
   inscritoEm: string
   acessibilidade: string | null
   observacao: string | null
+  /** Quando o link pessoal atual foi gerado (null = sem link). */
+  linkGeradoEm: string | null
 }
 
 export type VersaoConfig = {
@@ -308,6 +313,8 @@ export async function obterCongresso(id: string): Promise<Congresso | null> {
     config: normalizarConfig(c.config),
     configVersao: Number(c.config_versao ?? 1),
     regimentoAprovadoEm: t(c.regimento_aprovado_em),
+    slug: t(c.slug),
+    inscricaoPublica: c.inscricao_publica === true,
     criadoPorNome: c.criado_por ? (nomes.get(c.criado_por as string) ?? null) : null,
     createdAt: c.created_at as string,
   }
@@ -318,7 +325,7 @@ export async function listarPapeis(congressoId: string): Promise<Papel[]> {
   const emp = await tenantAtual()
   const { data } = await admin
     .from("congresso_papeis")
-    .select("id, nome, categoria, cor, ordem, direitos")
+    .select("id, nome, categoria, cor, ordem, direitos, inscricao_publica")
     .eq("emp_proprietaria_id", emp)
     .eq("congresso_id", congressoId)
     .order("ordem")
@@ -330,6 +337,7 @@ export async function listarPapeis(congressoId: string): Promise<Papel[]> {
     cor: t(p.cor),
     ordem: Number(p.ordem ?? 0),
     direitos: normalizarDireitos(p.categoria as CategoriaPapel, p.direitos),
+    inscricaoPublica: p.inscricao_publica === true,
   }))
 }
 
@@ -379,7 +387,7 @@ export async function listarPrograma(congressoId: string): Promise<{ eixos: Eixo
 }
 
 const CAMPOS_PARTICIPANTE =
-  "id, nome, nome_social, cpf, email, telefone, genero, filiacao_id, usuario_id, papel_id, unidade_id, grupo_id, titular_id, situacao, origem, inscrito_em, acessibilidade, observacao"
+  "id, nome, nome_social, cpf, email, telefone, genero, filiacao_id, usuario_id, papel_id, unidade_id, grupo_id, titular_id, situacao, origem, inscrito_em, acessibilidade, observacao, token_gerado_em"
 
 function mapParticipante(p: Record<string, unknown>): Participante {
   return {
@@ -401,6 +409,7 @@ function mapParticipante(p: Record<string, unknown>): Participante {
     inscritoEm: p.inscrito_em as string,
     acessibilidade: t(p.acessibilidade),
     observacao: t(p.observacao),
+    linkGeradoEm: t(p.token_gerado_em),
   }
 }
 
@@ -631,12 +640,12 @@ async function conferirElegibilidade(
 
 // ── Escrita ──────────────────────────────────────────────────────────────────
 
-async function registrarHistorico(
+export async function registrarHistorico(
   congressoId: string,
   participanteId: string | null,
   acao: string,
   detalhe: Record<string, unknown>,
-  autorId: string
+  autorId: string | null
 ) {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
@@ -838,7 +847,7 @@ export async function marcarRegimentoAprovado(c: Congresso, aprovado: boolean): 
 export async function salvarPapel(
   congressoId: string,
   id: string | null,
-  dados: { nome: string; categoria: CategoriaPapel; cor: string | null; ordem: number; direitos: Direitos }
+  dados: { nome: string; categoria: CategoriaPapel; cor: string | null; ordem: number; direitos: Direitos; inscricao_publica?: boolean }
 ): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()

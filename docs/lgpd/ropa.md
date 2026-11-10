@@ -812,7 +812,7 @@
 <a id="p17"></a>
 ## P17. Congressos e conferências
 
-**Finalidade.** Organizar congressos, plenárias e conferências que a entidade promove ou de que participa: configuração do regimento, delegações, inscrição e lista de participantes (delegados, natos, suplentes, observadores, convidados), programa e grupos de trabalho.
+**Finalidade.** Organizar congressos, plenárias e conferências que a entidade promove ou de que participa: configuração do regimento, delegações, inscrição e lista de participantes (delegados, natos, suplentes, observadores, convidados), programa e grupos de trabalho. Inclui a inscrição pela página pública (com ciência do tratamento, IP e link pessoal guardado só como hash) e a importação de listas por planilha ou ata, que pode ser lida por IA.
 
 **Titulares.** Delegados, observadores e convidados de congressos (filiados ou não), diretores natos.
 
@@ -825,9 +825,9 @@
 
 **Compartilhamento com terceiros.** Etapa seguinte do processo congressual (ex.: lista de delegados eleitos enviada à federação), quando a configuração prevê.
 
-**Suboperadores.** Supabase, Vercel, Sentry.
+**Suboperadores.** Supabase, Vercel, Sentry, Brevo / Resend, OpenAI.
 
-**Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha). Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
+**Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
 **Retenção.** Participantes e trilha: 5 anos após o encerramento do congresso (prazo de contestação de deliberações e eleições); depois, ficam só os totais. Proposta a validar em retencao.md.
 
@@ -838,7 +838,7 @@
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
 | [congresso_participante_historico](../dados/dicionario/representacao.md#congresso_participante_historico) | sens. sindical | `detalhe` (sens. sindical), `autor_id` (identificacao) |
-| [congresso_participantes](../dados/dicionario/representacao.md#congresso_participantes) | identificacao, sens. sindical | `nome` (identificacao), `nome_social` (identificacao), `cpf` (identificacao), `email` (identificacao), `telefone` (identificacao), `genero` (identificacao), `filiacao_id` (sens. sindical), `usuario_id` (identificacao), `papel_id` (sens. sindical), `unidade_id` (sens. sindical), `titular_id` (nenhum), `situacao` (nenhum), `origem` (nenhum), `inscrito_em` (nenhum), `acessibilidade` (sens. saude), `observacao` (identificacao) |
+| [congresso_participantes](../dados/dicionario/representacao.md#congresso_participantes) | identificacao, sens. sindical | `nome` (identificacao), `nome_social` (identificacao), `cpf` (identificacao), `email` (identificacao), `telefone` (identificacao), `genero` (identificacao), `filiacao_id` (sens. sindical), `usuario_id` (identificacao), `papel_id` (sens. sindical), `unidade_id` (sens. sindical), `titular_id` (nenhum), `situacao` (nenhum), `origem` (nenhum), `inscrito_em` (nenhum), `acessibilidade` (sens. saude), `observacao` (identificacao), `token_hash` (credencial), `token_gerado_em` (nenhum), `aceite_em` (nenhum), `inscricao_ip` (identificacao) |
 
 </details>
 
@@ -861,8 +861,8 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 | Supabase | Banco de dados, autenticação e arquivos | Dados no Brasil (AWS São Paulo, sa-east-1); empresa nos EUA | P01, P02, P03, P04, P05, P06, P07, P08, P09, P10, P11, P12, P13, P14, P15, P16, P17 |
 | Vercel | Hospedagem da aplicação e execução das funções | Funções em São Paulo (gru1); empresa e rede de borda nos EUA | P01, P02, P03, P04, P05, P06, P07, P08, P09, P10, P11, P12, P13, P14, P15, P16, P17 |
 | Sentry | Registro de erros (CPF mascarado, sem corpo de requisição) | União Europeia (Alemanha) | P01, P02, P03, P04, P05, P06, P07, P08, P09, P10, P11, P12, P13, P14, P15, P16, P17 |
-| OpenAI | Recursos de IA: leitura de PDF/imagem e redação (store: false) | EUA | P01, P02, P06, P07, P08, P10, P11, P12, P13, P14, P15 |
-| Brevo / Resend | Envio de e-mails transacionais | Brevo: União Europeia (França); Resend: EUA | P01, P02, P03, P04, P05, P07, P10, P11, P12, P13, P15, P16 |
+| OpenAI | Recursos de IA: leitura de PDF/imagem e redação (store: false) | EUA | P01, P02, P06, P07, P08, P10, P11, P12, P13, P14, P15, P17 |
+| Brevo / Resend | Envio de e-mails transacionais | Brevo: União Europeia (França); Resend: EUA | P01, P02, P03, P04, P05, P07, P10, P11, P12, P13, P15, P16, P17 |
 | Telegram | Bot de avisos, aprovações e votação | Exterior | P05, P07, P10, P11, P14, P16 |
 | Cloudflare Turnstile | Verificação anti-robô nos formulários de acesso | EUA (rede global) | P04, P05, P16 |
 | Serviços de push dos navegadores (Google, Apple, Mozilla) | Entrega de notificações push | EUA | P03, P15 |

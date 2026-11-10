@@ -38,7 +38,12 @@ import {
   type TipoSessao,
   type TipoUnidade,
 } from "@/lib/db/congressos"
+import { gerarLinkPessoal, salvarPaginaPublica } from "@/lib/db/congressos-inscricao"
+import { enviarEmail } from "@/lib/email"
+import { validarCpf } from "@/lib/cpf"
 import { deCampoDataHora } from "@/lib/formato"
+import { gerarSlug } from "@/lib/congressos/regras"
+import { origemAtual } from "@/lib/tenant-url"
 
 /**
  * Congressos — escrita. Tudo exige `congressos_gestao`.
@@ -173,6 +178,7 @@ export async function salvarPapelAction(_p: EstadoForm, fd: FormData): Promise<E
     cor: opc(fd, "cor"),
     ordem: num(fd, "ordem") ?? 0,
     direitos,
+    inscricao_publica: fd.get("inscricao_publica") === "on",
   })
   if (r.erro) return { erro: r.erro }
   revalidar(congressoId)
@@ -303,7 +309,7 @@ async function lerParticipante(fd: FormData): Promise<DadosParticipante | { erro
   }
   if (nome.length < 3) return { erro: "Informe o nome ou escolha um filiado.", campo: "nome" }
   const cpf = cpfBruto ? limparCpf(cpfBruto) : null
-  if (cpfBruto && !cpf) return { erro: "CPF inválido: precisa ter 11 dígitos.", campo: "cpf" }
+  if (cpfBruto && (!cpf || !validarCpf(cpf))) return { erro: "CPF inválido: confira os números.", campo: "cpf" }
   return {
     nome,
     nomeSocial: opc(fd, "nome_social"),
@@ -369,4 +375,42 @@ export async function aplicarOrdemAction(_p: EstadoForm, fd: FormData): Promise<
   if (r.erro) return { erro: r.erro }
   revalidar(id)
   return { ok: r.ok }
+}
+
+// ── Página pública e link pessoal ────────────────────────────────────────────
+
+export async function paginaPublicaAction(_p: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  await gestor()
+  const id = txt(fd, "id")
+  const c = await obterCongresso(id)
+  if (!c) return { erro: "Congresso não encontrado." }
+  const slug = gerarSlug(txt(fd, "slug"))
+  const r = await salvarPaginaPublica(c, slug, fd.get("inscricao_publica") === "on")
+  if (r.erro) return { erro: r.erro, campo: "slug" }
+  revalidar(id)
+  return { ok: "Página pública salva." }
+}
+
+export type EstadoLink = EstadoForm & { link?: string; enviado?: boolean }
+
+/** Gera o link pessoal (invalida o anterior) e, se houver e-mail, envia. */
+export async function gerarLinkAction(_p: EstadoLink, fd: FormData): Promise<EstadoLink> {
+  const sessao = await gestor()
+  const congressoId = txt(fd, "congresso_id")
+  const r = await gerarLinkPessoal(congressoId, txt(fd, "id"), sessao.usuario.id)
+  if (r.erro || !r.token) return { erro: r.erro ?? "Falha ao gerar o link." }
+  const link = `${await origemAtual()}/congresso/eu/${r.token}`
+  let enviado = false
+  const email = opc(fd, "email")
+  if (email && fd.get("enviar") === "on") {
+    const c = await obterCongresso(congressoId)
+    enviado = await enviarEmail({
+      email,
+      nome: opc(fd, "nome"),
+      assunto: `Seu link pessoal — ${c?.nome ?? "congresso"}`,
+      html: `<p>Olá, ${(opc(fd, "nome") ?? "").split(" ")[0]}!</p><p>Este é o seu link pessoal para acompanhar a sua participação em <strong>${c?.nome ?? "congresso"}</strong>:</p><p><a href="${link}">${link}</a></p><p>Não repasse este link: ele identifica você no congresso.</p><p>{ENTIDADE}</p>`,
+    })
+  }
+  revalidar(congressoId)
+  return { ok: enviado ? "Link gerado e enviado por e-mail." : "Link gerado. Copie e envie à pessoa.", link, enviado }
 }

@@ -359,6 +359,7 @@ Papéis do congresso (delegado, nato, suplente, observador, convidado…) com a 
 | `direitos` | jsonb | não | `'{}'::jsonb` |  |  |  |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `updated_at` | timestamp with time zone | sim |  |  |  |  |
+| `inscricao_publica` | boolean | não | `false` |  | nenhum | O papel aparece como opção na inscrição pública (ex.: delegado, observador). |
 
 Checks: `congresso_papeis_categoria_check` `CHECK ((categoria = ANY (ARRAY['delegado'::text, 'suplente'::text, 'nato'::text, 'observador'::text, 'convidado'::text, 'expositor'::text, 'assessor'::text, 'imprensa'::text, 'equipe'::text, 'comissao'::text, 'outro'::text])))`; `congresso_papeis_nome_check` `CHECK ((length(TRIM(BOTH FROM nome)) > 0))`
 
@@ -417,10 +418,14 @@ Pessoas do congresso: delegados, natos, suplentes, observadores, convidados. Pod
 | `observacao` | text | sim |  |  | identificação | Observação interna da comissão. |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `updated_at` | timestamp with time zone | sim |  |  |  |  |
+| `token_hash` | text | sim |  |  | **credencial (nunca exportar)** | SHA-256 do token do link pessoal (/congresso/eu/<token>). O token em claro só existe no link enviado. |
+| `token_gerado_em` | timestamp with time zone | sim |  |  | nenhum | Quando o link pessoal atual foi gerado; gerar outro invalida o anterior. |
+| `aceite_em` | timestamp with time zone | sim |  |  | nenhum | Ciência do tratamento de dados na inscrição pública. |
+| `inscricao_ip` | text | sim |  |  | identificação | IP da inscrição pública, para apurar abuso (ex.: inscrições em massa). |
 
 Checks: `congresso_participantes_cpf_check` `CHECK (((cpf IS NULL) OR (cpf ~ '^[0-9]{11}$'::text)))`; `congresso_participantes_nome_check` `CHECK ((length(TRIM(BOTH FROM nome)) > 0))`; `congresso_participantes_origem_check` `CHECK ((origem = ANY (ARRAY['manual'::text, 'nato'::text, 'inscricao'::text, 'planilha'::text, 'indicacao'::text, 'ata'::text, 'copia'::text])))`; `congresso_participantes_situacao_check` `CHECK ((situacao = ANY (ARRAY['inscrito'::text, 'confirmado'::text, 'lista_espera'::text, 'recusado'::text, 'cancelado'::text])))`
 
-Índices: `congresso_participantes_cpf`, `congresso_participantes_filiacao`, `congresso_participantes_ordem`, `congresso_participantes_pkey`
+Índices: `congresso_participantes_cpf`, `congresso_participantes_filiacao`, `congresso_participantes_ordem`, `congresso_participantes_pkey`, `congresso_participantes_token`
 
 ## congresso_sessoes
 
@@ -502,10 +507,12 @@ Congressos, plenárias e conferências que a entidade promove ou de que particip
 | `criado_por` | uuid | sim |  | → usuarios (set null) |  |  |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `updated_at` | timestamp with time zone | sim |  |  |  |  |
+| `slug` | text | sim |  |  | nenhum | Endereço da página pública de inscrição (/congresso/<slug>), único na entidade. |
+| `inscricao_publica` | boolean | não | `false` |  | nenhum | Liga a inscrição pela página pública; a janela de datas vem da configuração (inscricao.abre/fecha). |
 
 Checks: `congressos_edicao_check` `CHECK (((edicao IS NULL) OR (edicao > 0)))`; `congressos_modo_check` `CHECK ((modo = ANY (ARRAY['promove'::text, 'participa'::text])))`; `congressos_nome_check` `CHECK ((length(TRIM(BOTH FROM nome)) > 0))`; `congressos_situacao_check` `CHECK ((situacao = ANY (ARRAY['preparacao'::text, 'inscricoes'::text, 'em_andamento'::text, 'encerrado'::text, 'cancelado'::text])))`
 
-Índices: `congressos_emp`, `congressos_evento`, `congressos_pkey`
+Índices: `congressos_emp`, `congressos_evento`, `congressos_pkey`, `congressos_slug`
 
 ## negociacao_empresas
 

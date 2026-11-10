@@ -13,6 +13,15 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-10",
+    titulo: "Congressos: inscrição pelo link e importação de listas",
+    itens: [
+      "Congressos e conferências: página pública de inscrição. A pessoa escolhe como vai participar e a base, a regra de vagas é aplicada na hora (confirmada ou lista de espera) e ela recebe um link pessoal para acompanhar a situação e o programa, sem criar conta.",
+      "Congressos: link pessoal também para quem a comissão incluiu, com cópia ou envio por e-mail. Gerar um novo invalida o anterior.",
+      "Congressos: importar participantes de uma planilha (Nome, CPF, Base, Condição…) ou de uma ata em PDF ou foto, lida pela IA. Tudo passa por conferência antes de gravar: novos, já no congresso e linhas com problema.",
+    ],
+  },
+  {
     id: "2026-11-09",
     titulo: "Remessas do Pessoal mais fáceis de arrumar",
     itens: [

@@ -15,6 +15,9 @@ import {
   conferirConsistencia,
   conferirCotaGenero,
   DIREITOS_PADRAO,
+  gerarSlug,
+  inscricaoAberta,
+  situacaoNaInscricao,
   limparCpf,
   minimoDaCota,
   MODELOS,
@@ -22,6 +25,7 @@ import {
   resumoDireitos,
   vagasDaBase,
 } from "@/lib/congressos/regras"
+import { casarPapel, conferirLinhas, lerGrade } from "@/lib/congressos/importacao"
 
 test.describe("catálogo e normalização", () => {
   test("chaves únicas e padrões válidos", () => {
@@ -232,6 +236,93 @@ test.describe("consistência", () => {
   test("evento virtual que exige presença", () => {
     const c = normalizarConfig({ valores: { "identidade.formato": "virtual" } })
     expect(conferirConsistencia({ ...base, config: c }).some((a) => a.nivel === "erro")).toBe(true)
+  })
+})
+
+test.describe("inscrição pública", () => {
+  const agora = new Date("2027-05-10T12:00:00Z")
+  test("janela e situação do congresso", () => {
+    const base = { inscricaoPublica: true, situacao: "inscricoes", abre: "2027-05-01T00:00:00Z", fecha: "2027-05-20T00:00:00Z", agora }
+    expect(inscricaoAberta(base).aberta).toBe(true)
+    expect(inscricaoAberta({ ...base, inscricaoPublica: false }).aberta).toBe(false)
+    expect(inscricaoAberta({ ...base, abre: "2027-05-11T00:00:00Z" }).motivo).toBe("As inscrições ainda não começaram.")
+    expect(inscricaoAberta({ ...base, fecha: "2027-05-09T00:00:00Z" }).motivo).toBe("As inscrições estão encerradas.")
+    expect(inscricaoAberta({ ...base, situacao: "cancelado" }).aberta).toBe(false)
+    expect(inscricaoAberta({ ...base, abre: null, fecha: null }).aberta).toBe(true)
+  })
+
+  test("situação de quem se inscreve", () => {
+    const ordem = configDoModelo("sindical_regional")
+    expect(situacaoNaInscricao({ config: ordem, ocupaVaga: true, vagas: 2, ocupadas: 1 })).toBe("confirmado")
+    expect(situacaoNaInscricao({ config: ordem, ocupaVaga: true, vagas: 2, ocupadas: 2 })).toBe("lista_espera")
+    expect(situacaoNaInscricao({ config: ordem, ocupaVaga: false, vagas: 2, ocupadas: 2 })).toBe("confirmado")
+    const comissao = aplicarMudancas(ordem, { "inscricao.aprovacao": "comissao" }).config
+    expect(situacaoNaInscricao({ config: comissao, ocupaVaga: true, vagas: 2, ocupadas: 0 })).toBe("inscrito")
+    const indicacao = configDoModelo("conferencia_publica")
+    expect(situacaoNaInscricao({ config: indicacao, ocupaVaga: true, vagas: 5, ocupadas: 0 })).toBe("inscrito")
+    expect(situacaoNaInscricao({ config: configDoModelo("assembleia_simples"), ocupaVaga: true, vagas: null, ocupadas: 9 })).toBe("confirmado")
+  })
+
+  test("endereço da página", () => {
+    expect(gerarSlug("22 Congrenf — Energia, Democracia")).toBe("22-congrenf-energia-democracia")
+  })
+})
+
+test.describe("importação de listas", () => {
+  const papeis = [
+    { id: "pd", nome: "Delegado", categoria: "delegado" },
+    { id: "ps", nome: "Suplente", categoria: "suplente" },
+    { id: "pn", nome: "Delegado nato", categoria: "nato" },
+  ]
+  const unidades = [
+    { id: "u1", nome: "Macaé" },
+    { id: "u2", nome: "P-51" },
+  ]
+
+  test("reconhece o cabeçalho e devolve o zero do CPF", () => {
+    const grade = [
+      ["Relação de delegados"],
+      ["Nome completo", "C.P.F.", "Local de trabalho", "Condição"],
+      ["Ana Souza", "529.982.247-25", "Macae", "Titular"],
+      ["", "", "", ""],
+      ["Bruno Lima", "1234567890", "P-51", "Suplente"],
+    ]
+    const linhas = lerGrade(grade)!
+    expect(linhas).toHaveLength(2)
+    expect(linhas[0]).toMatchObject({ linha: 3, nome: "Ana Souza", cpf: "52998224725", base: "Macae", papel: "Titular" })
+    expect(linhas[1].linha).toBe(5)
+    expect(lerGrade([["a", "b"], ["c", "d"]])).toBeNull()
+  })
+
+  test("papel por palavra-chave: suplente não vira delegado", () => {
+    expect(casarPapel("Suplente", papeis, "pd")).toBe("ps")
+    expect(casarPapel("Delegada suplente", papeis, "pd")).toBe("ps")
+    expect(casarPapel("Membro nato", papeis, "pd")).toBe("pn")
+    expect(casarPapel("Titular", papeis, null)).toBe("pd")
+    expect(casarPapel(null, papeis, "pd")).toBe("pd")
+  })
+
+  test("conferência aponta repetidos, já existentes e base desconhecida", () => {
+    const linhas = [
+      { linha: 2, nome: "Ana Souza", cpf: "52998224725", email: null, telefone: null, genero: null, base: "macaé", papel: null },
+      { linha: 3, nome: "Ana de novo", cpf: "52998224725", email: null, telefone: null, genero: null, base: null, papel: null },
+      { linha: 4, nome: "Carlos", cpf: null, email: null, telefone: null, genero: null, base: "Campos", papel: null },
+      { linha: 5, nome: "Dora Já", cpf: null, email: null, telefone: null, genero: null, base: null, papel: null },
+      { linha: 6, nome: "Eva", cpf: "11111111112", email: null, telefone: null, genero: null, base: null, papel: null },
+    ]
+    const r = conferirLinhas(linhas, {
+      unidades,
+      papeis,
+      papelPadrao: "pd",
+      unidadePadrao: "u2",
+      cpfsExistentes: new Set(),
+      nomesExistentes: new Set(["dora ja"]),
+    })
+    expect(r.map((x) => x.situacao)).toEqual(["nova", "problema", "problema", "ja_esta", "problema"])
+    expect(r[0]).toMatchObject({ unidadeId: "u1", papelId: "pd" })
+    expect(r[1].unidadeId).toBe("u2")
+    expect(r[2].motivo).toContain("Campos")
+    expect(r[4].motivo).toBe("CPF inválido.")
   })
 })
 

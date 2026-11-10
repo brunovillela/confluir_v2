@@ -594,3 +594,58 @@ export function limparCpf(v: string | null | undefined): string | null {
   const d = String(v ?? "").replace(/\D/g, "")
   return d.length === 11 ? d : null
 }
+
+// ── Inscrição pública ────────────────────────────────────────────────────────
+
+/** Endereço da página pública: minúsculo, sem acento, hífens. */
+export function gerarSlug(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60)
+}
+
+/** A página pública aceita inscrições agora? Devolve o motivo quando não. */
+export function inscricaoAberta(d: {
+  inscricaoPublica: boolean
+  situacao: string
+  abre: ValorAjuste
+  fecha: ValorAjuste
+  agora?: Date
+}): { aberta: boolean; motivo?: string } {
+  const agora = (d.agora ?? new Date()).getTime()
+  if (!d.inscricaoPublica) return { aberta: false, motivo: "A inscrição por este link não está aberta." }
+  if (d.situacao === "cancelado") return { aberta: false, motivo: "Este congresso foi cancelado." }
+  if (d.situacao === "encerrado") return { aberta: false, motivo: "Este congresso já foi encerrado." }
+  const abre = data(d.abre)
+  const fecha = data(d.fecha)
+  if (abre !== null && agora < abre) return { aberta: false, motivo: "As inscrições ainda não começaram." }
+  if (fecha !== null && agora > fecha) return { aberta: false, motivo: "As inscrições estão encerradas." }
+  return { aberta: true }
+}
+
+/**
+ * Situação de quem acaba de se inscrever. Por ordem de inscrição, ocupa a vaga
+ * se ainda houver; senão, vai para a espera (ou é recusado). Quando a comissão
+ * aprova cada inscrição, ou a forma é indicação/eleição, fica "inscrito".
+ */
+export function situacaoNaInscricao(d: {
+  config: ConfigCongresso
+  ocupaVaga: boolean
+  vagas: number | null
+  ocupadas: number
+}): "inscrito" | "confirmado" | "lista_espera" | "recusado" {
+  if (valor(d.config, "inscricao.aprovacao") === "comissao") return "inscrito"
+  const forma = valor<string>(d.config, "delegacao.forma")
+  if (!d.ocupaVaga) return "confirmado"
+  if (forma === "inscricao_livre") return "confirmado"
+  if (forma !== "ordem_inscricao") return "inscrito"
+  if (d.vagas === null || d.ocupadas < d.vagas) return "confirmado"
+  const excedente = valor<string>(d.config, "delegacao.lista_espera")
+  if (excedente === "recusa") return "recusado"
+  if (excedente === "comissao") return "inscrito"
+  return "lista_espera"
+}

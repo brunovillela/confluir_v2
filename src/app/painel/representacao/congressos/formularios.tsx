@@ -32,6 +32,9 @@ import { type EstadoForm } from "@/lib/contas"
 import { paraCampoDataHora } from "@/lib/formato"
 
 import {
+  gerarLinkAction,
+  paginaPublicaAction,
+  type EstadoLink,
   aplicarOrdemAction,
   criarCongressoAction,
   importarNatosAction,
@@ -48,6 +51,7 @@ import {
   salvarUnidadeAction,
   situacaoParticipanteAction,
 } from "./actions"
+import { conferirImportacaoAction, gravarImportacaoAction, type EstadoImportacao } from "./importar-actions"
 
 type Acao = (p: EstadoForm, fd: FormData) => Promise<EstadoForm>
 
@@ -540,7 +544,7 @@ export function PapelForm({
   podeEditar,
 }: {
   congressoId: string
-  papel?: { id: string; nome: string; categoria: string; cor: string | null; ordem: number; direitos: Direitos }
+  papel?: { id: string; nome: string; categoria: string; cor: string | null; ordem: number; direitos: Direitos; inscricaoPublica: boolean }
   podeEditar: boolean
 }) {
   const [estado, acao, pendente] = useActionState(salvarPapelAction, {})
@@ -610,6 +614,10 @@ export function PapelForm({
         <input type="hidden" name="ordem" value={papel.ordem} />
       </div>
       <p className="text-sm">{resumoDireitos(direitos ?? papel.direitos)}</p>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="inscricao_publica" defaultChecked={papel.inscricaoPublica} className="accent-primary size-4" disabled={!podeEditar} />
+        Aparece como opção na inscrição pela página do congresso
+      </label>
       <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
         {DIREITOS_ROTULO.map((d) =>
           d.tipo === "voz" ? (
@@ -1190,5 +1198,256 @@ export function AplicarOrdem({ congressoId }: { congressoId: string }) {
       rotulo="Aplicar a ordem de inscrição"
       confirmar="Reaplicar a ordem de inscrição em todas as bases? Quem estiver dentro do limite fica confirmado; quem passar vai para a lista de espera. Cada mudança fica no histórico da pessoa."
     />
+  )
+}
+
+// ── Página pública ───────────────────────────────────────────────────────────
+
+export function PaginaPublicaForm({
+  congressoId,
+  slug,
+  aberta,
+  sugestao,
+  origem,
+  papeisPublicos,
+}: {
+  congressoId: string
+  slug: string | null
+  aberta: boolean
+  sugestao: string
+  origem: string
+  papeisPublicos: string[]
+}) {
+  const [estado, acao, pendente] = useActionState(paginaPublicaAction, {})
+  const envio = useEnvioFormulario(acao, estado, { manter: true })
+  const [valorSlug, setValorSlug] = useState(slug ?? sugestao)
+  const url = `${origem}/congresso/${valorSlug}`
+  return (
+    <form action={acao} {...envio} className="grid gap-3">
+      <input type="hidden" name="id" value={congressoId} />
+      <div className="grid gap-1.5">
+        <Label htmlFor="slug">Endereço da página</Label>
+        <div className="flex flex-wrap items-center gap-1 text-sm">
+          <span className="text-muted-foreground">{origem}/congresso/</span>
+          <Input id="slug" name="slug" value={valorSlug} onChange={(e) => setValorSlug(e.target.value)} className="w-64" />
+        </div>
+      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="inscricao_publica" defaultChecked={aberta} className="accent-primary size-4" />
+        Aceitar inscrições pela página (dentro do prazo da configuração)
+      </label>
+      <p className="text-muted-foreground text-xs">
+        {papeisPublicos.length
+          ? `Na página, a pessoa escolhe entre: ${papeisPublicos.join(", ")}.`
+          : "Nenhum papel marcado para a inscrição pública: marque em Papéis e direitos."}{" "}
+        Cada inscrito recebe um link pessoal para acompanhar a situação.
+      </p>
+      <Retorno estado={estado} />
+      <div className="flex flex-wrap items-center gap-3">
+        <Enviar pendente={pendente} variant="outline">
+          Salvar
+        </Enviar>
+        {slug && aberta && (
+          <a href={url} target="_blank" rel="noreferrer" className="text-primary text-sm underline underline-offset-4">
+            Abrir a página
+          </a>
+        )}
+      </div>
+    </form>
+  )
+}
+
+// ── Link pessoal ─────────────────────────────────────────────────────────────
+
+export function GerarLink({
+  congressoId,
+  participante,
+  temLink,
+}: {
+  congressoId: string
+  participante: { id: string; nome: string; email: string | null }
+  temLink: boolean
+}) {
+  const [estado, acao, pendente] = useActionState<EstadoLink, FormData>(gerarLinkAction, {})
+  const [copiado, setCopiado] = useState(false)
+  return (
+    <div className="grid gap-1">
+      <form
+        action={acao}
+        onSubmit={temLink ? (e) => confirmarEnvio(e, "Gerar um novo link pessoal? O link anterior deixa de funcionar.") : undefined}
+        className="flex flex-wrap items-center gap-2"
+      >
+        <input type="hidden" name="congresso_id" value={congressoId} />
+        <input type="hidden" name="id" value={participante.id} />
+        <input type="hidden" name="nome" value={participante.nome} />
+        {participante.email && <input type="hidden" name="email" value={participante.email} />}
+        {participante.email && (
+          <label className="text-muted-foreground flex items-center gap-1 text-xs">
+            <input type="checkbox" name="enviar" defaultChecked className="accent-primary size-3.5" />
+            enviar por e-mail
+          </label>
+        )}
+        <Button type="submit" size="sm" variant="ghost" disabled={pendente}>
+          {pendente && <Loader2 className="animate-spin" />}
+          {temLink ? "Novo link pessoal" : "Gerar link pessoal"}
+        </Button>
+      </form>
+      {estado.erro && <span className="text-destructive text-xs">{estado.erro}</span>}
+      {estado.link && (
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <code className="bg-muted max-w-80 truncate rounded px-1.5 py-0.5">{estado.link}</code>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={async () => {
+              await navigator.clipboard.writeText(estado.link!)
+              setCopiado(true)
+            }}
+          >
+            {copiado ? "Copiado" : "Copiar"}
+          </Button>
+          <span className="text-muted-foreground">{estado.ok}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Importar lista ───────────────────────────────────────────────────────────
+
+const ROTULO_LINHA = { nova: "Nova", ja_esta: "Já está", problema: "Problema" } as const
+
+export function ImportarLista({
+  congressoId,
+  papeis,
+  unidades,
+}: {
+  congressoId: string
+  papeis: { id: string; nome: string; categoria: string }[]
+  unidades: { id: string; nome: string }[]
+}) {
+  const [aberto, setAberto] = useState(false)
+  const [conf, conferir, conferindo] = useActionState<EstadoImportacao, FormData>(conferirImportacaoAction, {})
+  const [grav, gravar, gravando] = useActionState<EstadoImportacao, FormData>(gravarImportacaoAction, {})
+  const papelDelegado = papeis.find((p) => p.categoria === "delegado")?.id ?? ""
+  const nomePapel = new Map(papeis.map((p) => [p.id, p.nome]))
+  const nomeUnidade = new Map(unidades.map((u) => [u.id, u.nome]))
+
+  if (!aberto) {
+    return (
+      <Button variant="outline" onClick={() => setAberto(true)}>
+        Importar planilha ou ata
+      </Button>
+    )
+  }
+  const linhas = grav.ok ? [] : (conf.linhas ?? [])
+  const novas = linhas.filter((l) => l.situacao === "nova").length
+  return (
+    <div className="grid w-full gap-4 rounded-lg border p-4">
+      <form action={conferir} className="grid gap-3">
+        <input type="hidden" name="congresso_id" value={congressoId} />
+        <p className="text-muted-foreground text-sm">
+          Planilha (.xlsx, .csv) com colunas como Nome, CPF, Base, Condição, E-mail, Telefone e Gênero é lida direto. Ata de
+          eleição em PDF ou foto, ou planilha sem esses títulos, é lida pela IA. Nada é gravado antes da sua conferência.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-1.5">
+            <Label htmlFor="imp-arquivo">Arquivo</Label>
+            <Input id="imp-arquivo" name="arquivo" type="file" accept=".xlsx,.xls,.ods,.csv,.pdf,.jpg,.jpeg,.png,.webp" required />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="imp-papel">Papel quando não constar</Label>
+            <SelectNativo id="imp-papel" name="papel_padrao" defaultValue={papelDelegado}>
+              <option value="">Sem papel</option>
+              {papeis.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nome}
+                </option>
+              ))}
+            </SelectNativo>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="imp-unidade">Base quando não constar</Label>
+            <SelectNativo id="imp-unidade" name="unidade_padrao" defaultValue="">
+              <option value="">Nenhuma</option>
+              {unidades.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.nome}
+                </option>
+              ))}
+            </SelectNativo>
+          </div>
+        </div>
+        {conf.erro && <Retorno estado={{ erro: conf.erro }} />}
+        <div className="flex gap-2">
+          <Enviar pendente={conferindo} variant="outline">
+            Conferir o arquivo
+          </Enviar>
+          <Button type="button" variant="ghost" onClick={() => setAberto(false)}>
+            Fechar
+          </Button>
+        </div>
+      </form>
+
+      {grav.ok && <Retorno estado={{ ok: grav.ok }} />}
+      {linhas.length > 0 && (
+        <div className="grid gap-3">
+          <p className="text-sm">
+            {conf.origem === "ata" ? "Lido pela IA. Confira nome a nome. " : ""}
+            <strong>{novas}</strong> nova(s), {linhas.filter((l) => l.situacao === "ja_esta").length} já no congresso,{" "}
+            {linhas.filter((l) => l.situacao === "problema").length} com problema.
+          </p>
+          <div className="max-h-96 overflow-auto rounded border">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/60 sticky top-0">
+                <tr className="text-left">
+                  <th className="px-2 py-1.5">Linha</th>
+                  <th className="px-2 py-1.5">Nome</th>
+                  <th className="px-2 py-1.5">CPF</th>
+                  <th className="px-2 py-1.5">Papel</th>
+                  <th className="px-2 py-1.5">Base</th>
+                  <th className="px-2 py-1.5">Conferência</th>
+                </tr>
+              </thead>
+              <tbody>
+                {linhas.map((l) => (
+                  <tr key={l.linha} className="border-t">
+                    <td className="text-muted-foreground px-2 py-1 tabular-nums">{l.linha}</td>
+                    <td className="px-2 py-1">{l.nome || "—"}</td>
+                    <td className="text-muted-foreground px-2 py-1 tabular-nums">{l.cpf ?? "—"}</td>
+                    <td className="px-2 py-1">{(l.papelId && nomePapel.get(l.papelId)) || "—"}</td>
+                    <td className="px-2 py-1">{(l.unidadeId && nomeUnidade.get(l.unidadeId)) || l.base || "—"}</td>
+                    <td className="px-2 py-1">
+                      <Badge variant={l.situacao === "nova" ? "success" : l.situacao === "ja_esta" ? "secondary" : "destructive"}>
+                        {ROTULO_LINHA[l.situacao]}
+                      </Badge>
+                      {l.motivo && <span className="text-muted-foreground ml-1 text-xs">{l.motivo}</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {novas > 0 && (
+            <form action={gravar} className="flex flex-wrap items-center gap-3">
+              <input type="hidden" name="congresso_id" value={congressoId} />
+              <input type="hidden" name="origem" value={conf.origem ?? "planilha"} />
+              <input type="hidden" name="papel_padrao" value={conf.papelPadrao ?? ""} />
+              <input type="hidden" name="unidade_padrao" value={conf.unidadePadrao ?? ""} />
+              <input
+                type="hidden"
+                name="linhas"
+                value={JSON.stringify(
+                  linhas.map(({ linha, nome, cpf, email, telefone, genero, base, papel }) => ({ linha, nome, cpf, email, telefone, genero, base, papel }))
+                )}
+              />
+              <Enviar pendente={gravando}>Incluir {novas} participante(s)</Enviar>
+              {grav.erro && <span className="text-destructive text-sm">{grav.erro}</span>}
+            </form>
+          )}
+        </div>
+      )}
+    </div>
   )
 }

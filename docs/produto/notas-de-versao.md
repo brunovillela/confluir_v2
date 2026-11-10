@@ -4,6 +4,12 @@
 
 O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga. É o mesmo conteúdo do aviso "O que há de novo" dentro do sistema. O detalhe técnico de cada entrega está no histórico do git; as decisões de arquitetura, em [`docs/arquitetura/adr/`](../arquitetura/adr/LEIA-ME.md).
 
+## 10/11/2026 — Congressos: inscrição pelo link e importação de listas
+
+- Congressos e conferências: página pública de inscrição. A pessoa escolhe como vai participar e a base, a regra de vagas é aplicada na hora (confirmada ou lista de espera) e ela recebe um link pessoal para acompanhar a situação e o programa, sem criar conta.
+- Congressos: link pessoal também para quem a comissão incluiu, com cópia ou envio por e-mail. Gerar um novo invalida o anterior.
+- Congressos: importar participantes de uma planilha (Nome, CPF, Base, Condição…) ou de uma ata em PDF ou foto, lida pela IA. Tudo passa por conferência antes de gravar: novos, já no congresso e linhas com problema.
+
 ## 09/11/2026 — Remessas do Pessoal mais fáceis de arrumar
 
 - Pessoal: editar, salvar, cancelar, transferir ou abrir um registro e voltar não leva mais à página 1 nem ao topo. A lista continua na mesma página, com a mesma quantidade por página e os mesmos filtros, e a tela volta na linha da pessoa, destacada. Vale para ponto, contracheques, ASO, atestados e ausências, treinamentos, férias, níveis, anuênios, faltas, informes, diárias e reembolsos (no ponto, a edição abre logo abaixo da linha). Nas remessas de diárias, do Pessoal e da Diretoria, a diária aberta pela remessa volta para a remessa, na própria diária.
