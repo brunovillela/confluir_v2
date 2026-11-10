@@ -6,6 +6,7 @@ import { redirect } from "next/navigation"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import {
+  arquivarConta,
   atualizarFornecedor,
   criarEntidadeApoiada,
   definirInativa,
@@ -132,6 +133,21 @@ export async function excluirEnderecoEntidadeAction(
   const enderecoId = texto(formData, "endereco_id")
   if (!entidadeId || !enderecoId) return { erro: "Endereço inválido." }
   const { erro } = await excluirEndereco(entidadeId, enderecoId)
+  if (erro) return { erro }
+  revalidar(entidadeId)
+  redirect(`${BASE}/${entidadeId}?salvo=1`)
+}
+
+export async function arquivarContaEntidadeAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requireEdicao()
+  const entidadeId = texto(formData, "fornecedor_id")
+  const contaId = texto(formData, "conta_id")
+  if (!entidadeId || !contaId) return { erro: "Conta inválida." }
+  const arquivar = texto(formData, "arquivar") !== "nao"
+  const { erro } = await arquivarConta(entidadeId, contaId, arquivar, sessao.usuario.id)
   if (erro) return { erro }
   revalidar(entidadeId)
   redirect(`${BASE}/${entidadeId}?salvo=1`)

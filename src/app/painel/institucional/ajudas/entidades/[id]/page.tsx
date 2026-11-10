@@ -37,6 +37,7 @@ import {
   FornecedorForm,
 } from "../../../../compras/fornecedores/fornecedor-forms"
 import {
+  arquivarContaEntidadeAction,
   atualizarEntidadeAction,
   criarEntidadeAction,
   definirInativaEntidadeAction,
@@ -55,6 +56,7 @@ const ACOES_ENTIDADE = {
   excluirFornecedor: excluirEntidadeAction,
   excluirEndereco: excluirEnderecoEntidadeAction,
   excluirConta: excluirContaEntidadeAction,
+  arquivarConta: arquivarContaEntidadeAction,
 }
 
 function linhaEndereco(campos: (string | null)[]): string {
@@ -112,6 +114,7 @@ export default async function EntidadeApoiadaPage({
     conta?: string
     pagina?: string
     porPagina?: string
+    ordens_movidas?: string
   }>
 }) {
   const sessao = await requirePermissao("apoio_institucional", [
@@ -125,6 +128,8 @@ export default async function EntidadeApoiadaPage({
   const detalhe = await buscarFornecedor(id)
   if (!detalhe) notFound()
   const { fornecedor: e, enderecos, contas, ordens } = detalhe
+  const contasAtivas = contas.filter((c) => !c.arquivada_em)
+  const contasArquivadas = contas.filter((c) => c.arquivada_em)
 
   const editando = brutos.editar === "1" && podeEditar
   const enderecoParam = brutos.endereco ?? ""
@@ -189,7 +194,11 @@ export default async function EntidadeApoiadaPage({
 
       {brutos.salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">
-          <AlertDescription>Alteração salva.</AlertDescription>
+          <AlertDescription>
+            Alteração salva.
+            {Number(brutos.ordens_movidas) > 0 &&
+              ` A conta excluída era duplicada: ${brutos.ordens_movidas} ordem(ns) de pagamento que a usavam passaram para a outra conta com a mesma chave Pix ou a mesma agência e conta.`}
+          </AlertDescription>
         </Alert>
       )}
 
@@ -351,12 +360,12 @@ export default async function EntidadeApoiadaPage({
             </div>
           </CardHeader>
           <CardContent className="grid gap-3">
-            {contas.length === 0 && contaParam !== "novo" && (
+            {contasAtivas.length === 0 && contaParam !== "novo" && (
               <p className="text-muted-foreground text-sm">
-                Nenhuma conta cadastrada.
+                {contasArquivadas.length ? "Nenhuma conta em uso." : "Nenhuma conta cadastrada."}
               </p>
             )}
-            {contas.map((c) =>
+            {contasAtivas.map((c) =>
               contaParam === c.id ? (
                 <ContaForm
                   key={c.id}
@@ -398,6 +407,15 @@ export default async function EntidadeApoiadaPage({
                         <Link href={`${aqui}?conta=${c.id}`}>Editar</Link>
                       </Button>
                       <BotaoAcaoFornecedor
+                        acao="arquivarConta"
+                        acoes={ACOES_ENTIDADE}
+                        campos={{ fornecedor_id: e.id, conta_id: c.id }}
+                        confirmacao="Arquivar esta conta? Ela sai das escolhas de pagamento; as ordens que já a usam continuam com ela."
+                        variant="ghost"
+                      >
+                        Arquivar
+                      </BotaoAcaoFornecedor>
+                      <BotaoAcaoFornecedor
                         acao="excluirConta"
                         acoes={ACOES_ENTIDADE}
                         campos={{ fornecedor_id: e.id, conta_id: c.id }}
@@ -418,6 +436,61 @@ export default async function EntidadeApoiadaPage({
                 aoCancelarHref={aqui}
                 acao={salvarContaEntidadeAction}
               />
+            )}
+            {contasArquivadas.length > 0 && (
+              <details className="group">
+                <summary className="text-muted-foreground hover:text-foreground cursor-pointer text-xs">
+                  Contas arquivadas ({contasArquivadas.length}) — fora das escolhas de pagamento
+                </summary>
+                <div className="mt-2 grid gap-2">
+                  {contasArquivadas.map((c) => (
+                    <div
+                      key={c.id}
+                      className="border-border text-muted-foreground flex flex-wrap items-start justify-between gap-2 rounded-md border border-dashed p-3 text-sm"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium">
+                          {c.banco ?? (c.pix ? "Pix" : "(sem banco)")}
+                          {c.arquivada_em && (
+                            <span className="font-normal"> · arquivada em {formatarData(c.arquivada_em)}</span>
+                          )}
+                        </p>
+                        <p className="text-xs">
+                          {[
+                            c.agencia && `ag. ${c.agencia}`,
+                            c.conta && `conta ${c.conta}`,
+                            c.pix && `Pix${c.pix_tipo ? ` (${c.pix_tipo})` : ""} ${c.pix}`,
+                            c.favorecido && `favorecido ${c.favorecido}`,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ") || "—"}
+                        </p>
+                      </div>
+                      {podeEditar && (
+                        <div className="flex gap-1">
+                          <BotaoAcaoFornecedor
+                            acao="arquivarConta"
+                            acoes={ACOES_ENTIDADE}
+                            campos={{ fornecedor_id: e.id, conta_id: c.id, arquivar: "nao" }}
+                            variant="ghost"
+                          >
+                            Desarquivar
+                          </BotaoAcaoFornecedor>
+                          <BotaoAcaoFornecedor
+                            acao="excluirConta"
+                            acoes={ACOES_ENTIDADE}
+                            campos={{ fornecedor_id: e.id, conta_id: c.id }}
+                            confirmacao="Excluir esta conta?"
+                            variant="ghost"
+                          >
+                            Excluir
+                          </BotaoAcaoFornecedor>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </details>
             )}
           </CardContent>
         </Card>
