@@ -65,6 +65,7 @@ import { AssembleiasDaRodada, type JanelaItem } from "./assembleias-rodada"
 import { AvisoAptos } from "./aviso-aptos"
 import { GuardaContatos } from "./guarda-contatos"
 import { DuplicadosAptos } from "./duplicados-aptos"
+import { ExportarAptos } from "./exportar-aptos"
 import { LinkDeVotoBotao } from "./link-voto"
 import { Perguntas } from "./perguntas"
 import { linkUnicoVotacao } from "../../actions"
@@ -359,6 +360,8 @@ export default async function RodadaPage({
             <div className="flex flex-wrap gap-2">
               <NovoEleitorBotao rodadaId={rodada.id} />
               <ImportarAptos rodadaId={rodada.id} />
+              {/* Planilha e PDF com os filtros da aba (09/11/2026). */}
+              {contagemAptos.total > 0 && <ExportarAptos rodadaId={rodada.id} />}
             </div>
           </div>
         </CardHeader>

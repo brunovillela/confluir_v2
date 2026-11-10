@@ -1859,35 +1859,30 @@ export async function removerAgendaDaAssembleia(
 
 const APTOS_POR_PAGINA = 50
 
-export async function listarAptos(
-  rodadaId: string,
-  filtros: {
-    busca?: string
-    pagina?: number
-    porPagina?: number
-    /** "sim" = já votou (hora_voto preenchida); "nao" = ainda não votou. */
-    votou?: "sim" | "nao"
-    /** Situação do link pessoal; "sem_link" = ainda não votou e sem link (pendente, sem e-mail ou falha). */
-    link?: FiltroLinkApto
-  }
-): Promise<{
-  linhas: AptoLinha[]
-  total: number
-  pagina: number
-  totalPaginas: number
-}> {
-  const admin = await createAdminClient()
-  const pagina = filtros.pagina && filtros.pagina > 0 ? filtros.pagina : 1
-  const porPagina =
-    filtros.porPagina && filtros.porPagina > 0
-      ? filtros.porPagina
-      : APTOS_POR_PAGINA
+/** Filtros da lista de aptos (a tela e a extração usam os mesmos). */
+export type FiltrosAptos = {
+  busca?: string
+  /** "sim" = já votou (hora_voto preenchida); "nao" = ainda não votou. */
+  votou?: "sim" | "nao"
+  /** Situação do link pessoal; "sem_link" = ainda não votou e sem link (pendente, sem e-mail ou falha). */
+  link?: FiltroLinkApto
+}
 
+/**
+ * A consulta dos aptos da rodada com os filtros da tela — a mesma para a
+ * lista paginada e para a extração (09/11/2026).
+ */
+function consultaAptos(
+  admin: Awaited<ReturnType<typeof createAdminClient>>,
+  rodadaId: string,
+  filtros: FiltrosAptos,
+  contar = false
+) {
   let q = admin
     .from("voto_assembleias_aptos")
     // "*": as colunas do conflito (supabase/aptos-primeiro-acesso.sql) podem
     // ainda não existir.
-    .select("*", { count: "exact" })
+    .select("*", contar ? { count: "exact" } : undefined)
     .eq("rod_assembleia_id", rodadaId)
   if (filtros.busca?.trim()) {
     const termo = filtros.busca.trim()
@@ -1921,14 +1916,11 @@ export async function listarAptos(
     q = q.eq("aviso_email_erro", filtros.link)
   }
 
-  const de = (pagina - 1) * porPagina
-  const { data, error, count } = await q
-    .order("nome_completo", { ascending: true, nullsFirst: false })
-    .range(de, de + porPagina - 1)
-  if (error) throw new Error(`Falha ao listar aptos: ${error.message}`)
+  return q
+}
 
+function linhaApto(a: Record<string, unknown>): AptoLinha {
   return {
-    linhas: ((data ?? []) as Record<string, unknown>[]).map((a) => ({
       id: String(a.id),
       cpf: (a.cpf as string | null) ?? null,
       nome_completo: (a.nome_completo as string | null) ?? null,
@@ -1943,11 +1935,67 @@ export async function listarAptos(
       aviso_email_em: (a.aviso_email_em as string | null) ?? null,
       aviso_email_erro: (a.aviso_email_erro as string | null) ?? null,
       aviso_primeiro_em: (a.aviso_primeiro_em as string | null) ?? null,
-    })),
+  }
+}
+
+export async function listarAptos(
+  rodadaId: string,
+  filtros: FiltrosAptos & {
+    pagina?: number
+    porPagina?: number
+  }
+): Promise<{
+  linhas: AptoLinha[]
+  total: number
+  pagina: number
+  totalPaginas: number
+}> {
+  const admin = await createAdminClient()
+  const pagina = filtros.pagina && filtros.pagina > 0 ? filtros.pagina : 1
+  const porPagina =
+    filtros.porPagina && filtros.porPagina > 0
+      ? filtros.porPagina
+      : APTOS_POR_PAGINA
+
+  const de = (pagina - 1) * porPagina
+  const { data, error, count } = await consultaAptos(admin, rodadaId, filtros, true)
+    .order("nome_completo", { ascending: true, nullsFirst: false })
+    .range(de, de + porPagina - 1)
+  if (error) throw new Error(`Falha ao listar aptos: ${error.message}`)
+
+  return {
+    linhas: ((data ?? []) as Record<string, unknown>[]).map(linhaApto),
     total: count ?? 0,
     pagina,
     totalPaginas: Math.max(1, Math.ceil((count ?? 0) / porPagina)),
   }
+}
+
+/** Apto na extração: a linha da lista e o canal do voto. */
+export type AptoExtracao = AptoLinha & {
+  /** online | urna_digital | urna_fisica (o comprovante de participação). */
+  canal: string | null
+  presenca_em: string | null
+}
+
+/**
+ * TODOS os aptos da rodada com os filtros da tela, para a extração (planilha
+ * e PDF, 09/11/2026). Em lotes de 1.000 — o PostgREST não devolve mais que
+ * isso de uma vez —, em ordem de nome e id (estável entre os lotes).
+ */
+export async function todosAptos(rodadaId: string, filtros: FiltrosAptos): Promise<AptoExtracao[]> {
+  const admin = await createAdminClient()
+  const linhas = await lerEmLotes<Record<string, unknown>>((de, ate) =>
+    consultaAptos(admin, rodadaId, filtros)
+      .order("nome_completo", { ascending: true, nullsFirst: false })
+      .order("id")
+      .range(de, ate)
+  )
+  return linhas.map((a) => ({
+    ...linhaApto(a),
+    canal: (a.comprovante_canal as string | null) ?? null,
+    presenca_em: (a.presenca_em as string | null) ?? null,
+  }))
 }
 
 /** Contagem de votantes e ausentes na rodada (para os filtros/indicador). */

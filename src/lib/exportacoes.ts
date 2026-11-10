@@ -20,6 +20,7 @@ export const RECURSOS_EXPORTACAO = {
   etiquetas: { rotulo: "Etiquetas dos Correios", categorias: ["identificacao", "sindical"] },
   links_voto: { rotulo: "Links de voto dos aptos", categorias: ["identificacao", "cpf", "voto"] },
   apuracao_relatorio: { rotulo: "Relação de votantes (apuração)", categorias: ["identificacao", "cpf", "voto"] },
+  aptos_rodada: { rotulo: "Relação de aptos da rodada", categorias: ["identificacao", "cpf", "voto"] },
   cat: { rotulo: "CATs", categorias: ["identificacao", "saude", "trabalhista"] },
   folha_movimento: { rotulo: "Movimento da folha (contabilidade)", categorias: ["identificacao", "cpf", "trabalhista", "financeiro"] },
   ponto_remessa: { rotulo: "Remessa de controle de ponto", categorias: ["identificacao", "cpf", "trabalhista"] },
