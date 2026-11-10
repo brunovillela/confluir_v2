@@ -226,10 +226,10 @@ export async function excluirContaAction(
   const fornecedorId = texto(formData, "fornecedor_id")
   const contaId = texto(formData, "conta_id")
   if (!fornecedorId || !contaId) return { erro: "Conta inválida." }
-  const { erro } = await excluirConta(fornecedorId, contaId)
+  const { erro, ordensMovidas } = await excluirConta(fornecedorId, contaId)
   if (erro) return { erro }
   revalidarFornecedor(fornecedorId)
-  redirect(`/painel/compras/fornecedores/${fornecedorId}?salvo=1`)
+  redirect(`/painel/compras/fornecedores/${fornecedorId}?salvo=1${ordensMovidas ? `&ordens_movidas=${ordensMovidas}` : ""}`)
 }
 
 /**

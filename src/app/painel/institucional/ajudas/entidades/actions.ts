@@ -173,8 +173,8 @@ export async function excluirContaEntidadeAction(
   const entidadeId = texto(formData, "fornecedor_id")
   const contaId = texto(formData, "conta_id")
   if (!entidadeId || !contaId) return { erro: "Conta inválida." }
-  const { erro } = await excluirConta(entidadeId, contaId)
+  const { erro, ordensMovidas } = await excluirConta(entidadeId, contaId)
   if (erro) return { erro }
   revalidar(entidadeId)
-  redirect(`${BASE}/${entidadeId}?salvo=1`)
+  redirect(`${BASE}/${entidadeId}?salvo=1${ordensMovidas ? `&ordens_movidas=${ordensMovidas}` : ""}`)
 }

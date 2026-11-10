@@ -14,7 +14,7 @@ import { esquemaAusente } from "@/lib/db/comum"
 import { ligarOrdensSemForma } from "@/lib/db/ordens-destino"
 import { avisoRepetida, dadoRepetido } from "@/lib/db/dados-bancarios-repetida"
 import { donosDaPessoa } from "@/lib/db/dados-bancarios-pessoa"
-import { normalizarBanco, validarAgencia, validarChavePix, validarConta } from "@/lib/bancos"
+import { chaveDaConta, chaveDoPix, normalizarBanco, validarAgencia, validarChavePix, validarConta } from "@/lib/bancos"
 import { TIPOS_CHAVE_PIX } from "@/lib/contracheques-constantes"
 
 /**
@@ -934,18 +934,68 @@ export async function salvarConta(
   return {}
 }
 
+/**
+ * Exclui a conta do fornecedor. Conta usada em ordens de pagamento fica no
+ * histórico delas (a chave estrangeira não deixa apagar):
+ * - se for duplicada de outra conta do MESMO fornecedor (mesma chave Pix ou
+ *   mesma agência e conta), as ordens passam para a outra e esta é apagada —
+ *   o destino do pagamento continua o mesmo;
+ * - senão, a exclusão é recusada com os códigos das ordens.
+ */
 export async function excluirConta(
   fornecedorId: string,
   contaId: string
-): Promise<{ erro?: string }> {
+): Promise<{ erro?: string; ordensMovidas?: number }> {
   const admin = await createAdminClient()
+  const { data: conta } = await admin
+    .from("dados_bancarios")
+    .select("id, banco, agencia, conta, pix")
+    .eq("id", contaId)
+    .eq("fornecedor_id", fornecedorId)
+    .maybeSingle()
+  if (!conta) return { erro: "Conta não encontrada neste fornecedor." }
+
+  const { data: ordens, error: erroOrdens } = await admin
+    .from("ordens_pagamento")
+    .select("id, codigo")
+    .eq("dados_bancarios_id", contaId)
+  if (erroOrdens) return { erro: `Não foi possível conferir as ordens da conta: ${erroOrdens.message}` }
+
+  if (ordens?.length) {
+    const minhaConta = chaveDaConta(conta.agencia, conta.conta)
+    const meuPix = chaveDoPix(conta.pix)
+    const { data: outras } = await admin
+      .from("dados_bancarios")
+      .select("id, banco, agencia, conta, pix")
+      .eq("fornecedor_id", fornecedorId)
+      .neq("id", contaId)
+    const gemea = ((outras ?? []) as Record<string, string | null>[]).find(
+      (o) =>
+        (minhaConta && chaveDaConta(o.agencia, o.conta) === minhaConta) ||
+        (!minhaConta && meuPix && chaveDoPix(o.pix) === meuPix)
+    )
+    const codigos = ordens.map((o) => o.codigo ?? "(sem código)").join(", ")
+    if (!gemea) {
+      return {
+        erro:
+          `Esta conta foi usada em ${ordens.length} ordem(ns) de pagamento (${codigos}) e fica no histórico delas, ` +
+          "por isso não pode ser excluída. Para não usá-la mais, escolha outra conta nos próximos pagamentos.",
+      }
+    }
+    const { error: erroTroca } = await admin
+      .from("ordens_pagamento")
+      .update({ dados_bancarios_id: gemea.id })
+      .eq("dados_bancarios_id", contaId)
+    if (erroTroca) return { erro: `Não foi possível passar as ordens para a outra conta: ${erroTroca.message}` }
+  }
+
   const { error } = await admin
     .from("dados_bancarios")
     .delete()
     .eq("id", contaId)
     .eq("fornecedor_id", fornecedorId)
   if (error) return { erro: `Não foi possível excluir: ${error.message}` }
-  return {}
+  return { ordensMovidas: ordens?.length ?? 0 }
 }
 
 // ── Mescla de cadastros duplicados ─────────────────────────────────────────

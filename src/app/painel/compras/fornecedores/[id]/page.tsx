@@ -144,6 +144,7 @@ export default async function FornecedorPage({
     porPagina?: string
     mesclado?: string
     pendentes?: string
+    ordens_movidas?: string
   }>
 }) {
   const sessao = await requirePermissao("aquisicoes_fornecedores", [
@@ -280,7 +281,11 @@ export default async function FornecedorPage({
 
       {brutos.salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">
-          <AlertDescription>Alteração salva.</AlertDescription>
+          <AlertDescription>
+            Alteração salva.
+            {Number(brutos.ordens_movidas) > 0 &&
+              ` A conta excluída era duplicada: ${brutos.ordens_movidas} ordem(ns) de pagamento que a usavam passaram para a outra conta com a mesma chave Pix ou a mesma agência e conta.`}
+          </AlertDescription>
         </Alert>
       )}
 
