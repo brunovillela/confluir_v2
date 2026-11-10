@@ -314,6 +314,19 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
     })
   }
 
+  // Aquisição: a fila do comprador (mesmo critério da Área do comprador):
+  // Via Aquisição, não cancelada, não comprada — a cotar, em cotação ou cotada.
+  if (pode("aquisicoes_comprador")) {
+    fontes.push({
+      chave: "compras_comprador",
+      titulo: "Aquisições aguardando o comprador",
+      descricao: "Solicitações a cotar, cotações abertas e cotadas a comprar",
+      href: "/painel/compras/comprador",
+      tabela: "compras_solicitacoes",
+      montar: (q) => head(q).eq("aquisicao_direta", false).eq("cancelado", false).eq("comprado", false),
+    })
+  }
+
   // Aquisição: fornecimentos a receber
   if (pode("aquisicoes_recebimentos", ["aquisicoes_compras_edicao"])) {
     fontes.push({

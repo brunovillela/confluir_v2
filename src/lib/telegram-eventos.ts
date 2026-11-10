@@ -81,6 +81,7 @@ export const EVENTOS_TELEGRAM = [
   { chave: "pendencia_espacos", rotulo: "Pedido de uso de espaço", grupo: "pendencia", acesso: { permissoes: ["espacos", "espacos_gestao"] } },
   { chave: "pendencia_viagens", rotulo: "Pedido de viagem a atender", grupo: "pendencia", acesso: { permissoes: ["viagens_gestao"] } },
   { chave: "pendencia_dados_bancarios", rotulo: "Conta bancária incluída, alterada ou excluída por funcionário/diretor a confirmar", grupo: "pendencia", acesso: { permissoes: ["financeiro_pagamento"] } },
+  { chave: "pendencia_cotacao", rotulo: "Nova aquisição a cotar (comprador)", grupo: "pendencia", acesso: { permissoes: ["aquisicoes_comprador"] } },
   { chave: "pendencia_recebimentos", rotulo: "Fornecimento a receber", grupo: "pendencia", acesso: { permissoes: ["aquisicoes_recebimentos", "aquisicoes_compras_edicao"] } },
   { chave: "pendencia_caixa", rotulo: "Despesa lançada no seu caixa a reconhecer, despesa sua não reconhecida ou aporte recusado", grupo: "pendencia" },
   { chave: "veiculos_manutencao", rotulo: "Revisão preventiva da frota próxima ou vencida", grupo: "pendencia", acesso: { permissoes: ["veiculos_gestao"] } },

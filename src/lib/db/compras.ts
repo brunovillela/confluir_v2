@@ -1,5 +1,5 @@
 import "server-only"
-import { formatarMoeda } from "@/lib/formato"
+import { formatarData, formatarMoeda } from "@/lib/formato"
 import {
   apontamentosPorOrdem,
   inserirOrdemVerificada,
@@ -503,6 +503,8 @@ export async function listarProcessos(
 }
 
 export type ResumoCompras = {
+  /** Via Aquisição esperando o comprador abrir a cotação. */
+  aCotar: number
   emCotacao: number
   aguardandoCompra: number
   ordensEmAutorizacao: number
@@ -528,9 +530,19 @@ export async function resumoCompras(escopo?: EscopoCompras): Promise<ResumoCompr
     .eq("comprado", false)
     .eq("em_cotacao", false)
     .not("cotacao_termino", "is", null)
+  let aCotarQ = admin
+    .from("compras_solicitacoes")
+    .select("id", { count: "exact", head: true })
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("aquisicao_direta", false)
+    .eq("cancelado", false)
+    .eq("comprado", false)
+    .eq("em_cotacao", false)
+    .is("cotacao_termino", null)
   if (filtro) {
     cotacao = cotacao.or(filtro)
     aguardando = aguardando.or(filtro)
+    aCotarQ = aCotarQ.or(filtro)
   }
   const ordensBase = admin
     .from("ordens_pagamento")
@@ -539,7 +551,7 @@ export async function resumoCompras(escopo?: EscopoCompras): Promise<ResumoCompr
     .eq("tipo", "Compras")
     .eq("situacao", "Em autorização")
     .eq("excluido", false)
-  const [emCotacao, aguardandoCompra, ordens, fornecimentos] =
+  const [emCotacao, aguardandoCompra, ordens, fornecimentos, aCotar] =
     await Promise.all([
       cotacao,
       aguardando,
@@ -551,9 +563,11 @@ export async function resumoCompras(escopo?: EscopoCompras): Promise<ResumoCompr
         .select("id", { count: "exact", head: true })
         .eq("emp_proprietaria_id", await tenantAtual())
         .eq("recebido", false),
+      aCotarQ,
     ])
 
   return {
+    aCotar: aCotar.count ?? 0,
     emCotacao: emCotacao.count ?? 0,
     aguardandoCompra: aguardandoCompra.count ?? 0,
     ordensEmAutorizacao: ordens.count ?? 0,
@@ -853,7 +867,35 @@ export async function criarSolicitacao(
     if (esquemaAusente(error)) return { erro: AVISO_SQL }
     return { erro: `Não foi possível registrar a solicitação: ${error?.message}` }
   }
+  avisarCompradores(String(data.id), nova)
   return { id: String(data.id) }
+}
+
+/**
+ * Solicitação nova Via Aquisição: o comprador fica sabendo na hora (aviso
+ * "pendencia_cotacao", pelos canais que ele ligou em Meu perfil → Avisos).
+ * A pendência mora também na caixa de entrada e no lembrete diário.
+ */
+function avisarCompradores(processoId: string, nova: NovaSolicitacao): void {
+  depoisDaResposta(async () => {
+    const admin = await createAdminClient()
+    const [{ data: proc }, { data: depto }] = await Promise.all([
+      admin.from("compras_solicitacoes").select("codigo").eq("id", processoId).maybeSingle(),
+      nova.departamento_id
+        ? admin.from("empresa_departamentos").select("departamento").eq("id", nova.departamento_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ])
+    const prazo = nova.data_limite ? `, receber até ${formatarData(nova.data_limite)}` : ""
+    const setor = depto?.departamento ? ` (${depto.departamento})` : ""
+    const textoAviso = `Nova aquisição a cotar: ${proc?.codigo ?? ""} — ${nova.produto ?? "(sem descrição)"}${setor}${prazo}`
+    return avisarQuemPode("aquisicoes_comprador", [], {
+      texto: textoAviso.slice(0, 300),
+      link: `/painel/compras/${processoId}`,
+      evento: "pendencia_cotacao",
+      assunto: `Aquisição a cotar: ${proc?.codigo ?? ""}`,
+      exceto: nova.solicitante_id ?? null,
+    })
+  })
 }
 
 export type NovaCompraDireta = NovaSolicitacao & {

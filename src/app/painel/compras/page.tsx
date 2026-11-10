@@ -166,9 +166,11 @@ export default async function ComprasPage({
             href="/painel/compras/comprador"
             icone={ClipboardList}
             indicador={
-              resumo.emCotacao + resumo.aguardandoCompra > 0
-                ? `${resumo.emCotacao + resumo.aguardandoCompra} a operar`
-                : null
+              resumo.aCotar > 0
+                ? `${resumo.aCotar} a cotar${resumo.emCotacao + resumo.aguardandoCompra > 0 ? ` · ${resumo.emCotacao + resumo.aguardandoCompra} em andamento` : ""}`
+                : resumo.emCotacao + resumo.aguardandoCompra > 0
+                  ? `${resumo.emCotacao + resumo.aguardandoCompra} a operar`
+                  : null
             }
           />
         )}
@@ -238,7 +240,12 @@ export default async function ComprasPage({
         )}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <CardResumo
+          rotulo="A cotar"
+          valor={resumo.aCotar}
+          href={veComprador ? "/painel/compras/comprador" : processos({ situacao: "solicitada" })}
+        />
         <CardResumo
           rotulo="Em cotação"
           valor={resumo.emCotacao}
