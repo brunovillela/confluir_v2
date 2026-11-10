@@ -15,6 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { CampoSenha } from "@/components/ui/campo-senha"
 import { Label } from "@/components/ui/label"
 import { renovarTurnstile, Turnstile } from "@/components/auth/turnstile"
 import { mensagemLinkRecusado } from "@/lib/auth-email-constantes"
@@ -89,10 +90,9 @@ export function LoginForm({
                 Esqueci minha senha
               </Link>
             </div>
-            <Input
+            <CampoSenha
               id="senha"
               name="senha"
-              type="password"
               autoComplete="current-password"
               required
             />

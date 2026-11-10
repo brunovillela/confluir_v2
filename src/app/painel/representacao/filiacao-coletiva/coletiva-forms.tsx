@@ -14,6 +14,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { CampoSenha } from "@/components/ui/campo-senha"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Turnstile } from "@/components/auth/turnstile"
@@ -362,10 +363,9 @@ export function ReverterProcesso({ id }: { id: string }) {
       </div>
       <div className="grid gap-1.5">
         <Label htmlFor="senha">Sua senha de acesso</Label>
-        <Input
+        <CampoSenha
           id="senha"
           name="senha"
-          type="password"
           autoComplete="current-password"
         />
         <p className="text-muted-foreground text-xs">

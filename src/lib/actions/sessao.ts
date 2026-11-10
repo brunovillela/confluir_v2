@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation"
 
+import { mensagemSenhaRecusada } from "@/lib/senha-recusa"
 import { createClient } from "@/lib/supabase/server"
 
 export async function sairDoPainel() {
@@ -34,7 +35,9 @@ export async function redefinirSenha(
   const supabase = await createClient()
   const { error } = await supabase.auth.updateUser({ password: senha })
   if (error) {
-    return { erro: "Não foi possível salvar a senha. Tente novamente." }
+    // O motivo real (fraca, vazada, igual à anterior) em vez do genérico.
+    console.error("[definir-senha] senha recusada:", error.code ?? "", error.message)
+    return { erro: mensagemSenhaRecusada(error as Parameters<typeof mensagemSenhaRecusada>[0]) }
   }
 
   return { ok: "Senha definida com sucesso." }

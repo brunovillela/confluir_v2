@@ -12,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+import { CampoSenha } from "@/components/ui/campo-senha"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { opcoesPadrao } from "@/lib/portal-partes-constantes"
@@ -166,10 +166,9 @@ export function PortalLoginForm({
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="senha">Senha</Label>
-                <Input
+                <CampoSenha
                   id="senha"
                   name="senha"
-                  type="password"
                   autoComplete="current-password"
                   required
                   aria-describedby={descritoPor(estadoSenha.erro && "erro-senha")}

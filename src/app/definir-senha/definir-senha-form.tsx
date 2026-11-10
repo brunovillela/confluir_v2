@@ -13,8 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { SenhaNova } from "@/components/auth/senha-nova"
 import { redefinirSenha } from "@/lib/actions/sessao"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
@@ -45,7 +44,7 @@ export function DefinirSenhaForm({ destino }: { destino: string }) {
       <CardHeader>
         <CardTitle>Definir senha</CardTitle>
         <CardDescription>
-          Escolha uma senha com pelo menos 8 caracteres.
+          Escolha a sua senha de acesso.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -55,28 +54,7 @@ export function DefinirSenhaForm({ destino }: { destino: string }) {
               <AlertDescription>{estado.erro}</AlertDescription>
             </Alert>
           )}
-          <div className="grid gap-2">
-            <Label htmlFor="senha">Nova senha</Label>
-            <Input
-              id="senha"
-              name="senha"
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              required
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="confirmacao">Confirmar senha</Label>
-            <Input
-              id="confirmacao"
-              name="confirmacao"
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              required
-            />
-          </div>
+          <SenhaNova rotulo="Nova senha" />
           <Button type="submit" disabled={pendente}>
             {pendente && <Loader2 className="animate-spin" />}
             Salvar senha
