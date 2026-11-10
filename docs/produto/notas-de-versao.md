@@ -9,6 +9,7 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 - Congressos e conferências: página pública de inscrição. A pessoa escolhe como vai participar e a base, a regra de vagas é aplicada na hora (confirmada ou lista de espera) e ela recebe um link pessoal para acompanhar a situação e o programa, sem criar conta.
 - Congressos: link pessoal também para quem a comissão incluiu, com cópia ou envio por e-mail. Gerar um novo invalida o anterior.
 - Congressos: importar participantes de uma planilha (Nome, CPF, Base, Condição…) ou de uma ata em PDF ou foto, lida pela IA. Tudo passa por conferência antes de gravar: novos, já no congresso e linhas com problema.
+- Aquisição: ao gerar a ordem de pagamento de uma compra, inclua uma observação (ex.: "50% do valor total, referente à antecipação do serviço"). Ela vai na descrição da ordem e aparece na lista, na autorização e no extrato.
 
 ## 09/11/2026 — Remessas do Pessoal mais fáceis de arrumar
 
