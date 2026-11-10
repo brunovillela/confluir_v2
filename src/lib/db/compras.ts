@@ -1415,6 +1415,8 @@ export async function gerarOrdemFornecimento(
     valor?: number | null
     /** Forma deste pagamento (padrão: a do fornecimento). */
     forma_pagamento?: string | null
+    /** Observação de quem lança (ex.: "50% do valor, antecipação"): vai na descrição da ordem. */
+    observacao?: string | null
     /** O "para onde" da forma (cartão, caixa, chave/conta, código Pix, boleto). */
     detalhe?: DetalhePagamento | null
   },
@@ -1486,7 +1488,7 @@ export async function gerarOrdemFornecimento(
   const { data: ordem, error: erroOrdem } = await inserirOrdemVerificada({
       codigo: gerarCodigoProcesso(),
       tipo: "Compras",
-      descricao: `Compra ${processo.codigo ?? ""} — ${processo.solicitacao_produto ?? "(sem descrição)"}${parcial ? ` (pagamento ${numero})` : ""}`,
+      descricao: `Compra ${processo.codigo ?? ""} — ${processo.solicitacao_produto ?? "(sem descrição)"}${parcial ? ` (pagamento ${numero})` : ""}${dados.observacao ? ` — ${dados.observacao}` : ""}`,
       situacao: "Em autorização",
       valor_inicial_cobranca: valor,
       forma_pagamento: dados.forma_pagamento ?? f.forma_pagamento,

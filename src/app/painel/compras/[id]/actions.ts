@@ -296,6 +296,7 @@ export async function gerarOrdemAction(
       valor,
       forma_pagamento: forma,
       detalhe: pagamento.detalhe,
+      observacao: texto(formData, "observacao").replace(/\s+/g, " ").slice(0, 200) || null,
     },
     lerConfirmacao(formData)
   )

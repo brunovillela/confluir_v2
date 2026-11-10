@@ -364,6 +364,20 @@ export function GerarOrdemForm({
         </div>
       </div>
 
+      {/* Observação: vai na descrição da ordem (lista, extrato, autorização). */}
+      <div className="grid max-w-3xl gap-1.5">
+        <Label htmlFor={`observacao-${fornecimentoId}`}>Observação da ordem (opcional)</Label>
+        <Input
+          id={`observacao-${fornecimentoId}`}
+          name="observacao"
+          maxLength={200}
+          placeholder="Ex.: 50% do valor total, referente à antecipação do serviço"
+        />
+        <p className="text-muted-foreground text-xs">
+          Entra na descrição da ordem de pagamento, depois do código e do objeto da compra.
+        </p>
+      </div>
+
       {/* 2. O "para onde" da forma: o campo muda com ela (chave Pix, código
           copia e cola, arquivo do boleto, conta, cartão ou caixa). */}
       <div className="bg-muted/40 grid min-w-0 gap-3 rounded-md border p-3">
