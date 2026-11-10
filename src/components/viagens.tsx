@@ -6,6 +6,7 @@ import { formatarData, formatarMoeda } from "@/lib/formato"
 import {
   descreverHorario,
   ROTULO_MODAL,
+  ROTULO_QUARTO,
   ROTULO_SITUACAO_VIAGEM,
   type SituacaoViagem,
 } from "@/lib/viagens-constantes"
@@ -55,6 +56,9 @@ export function ResumoItensViagem({ itens }: { itens: ItemViagem[] }) {
                     · {formatarData(i.checkin)}
                     {i.checkout && <>–{formatarData(i.checkout)}</>}
                   </span>
+                )}
+                {i.quartoPedido === "coletivo" && (
+                  <span className="text-muted-foreground"> · coletivo</span>
                 )}
               </span>
             </>
@@ -120,6 +124,10 @@ export function CamposItemViagem({
                   : null
               }
             />
+            <Campo rotulo="Quarto pedido" valor={ROTULO_QUARTO[i.quartoPedido]} />
+            {i.quartoPedido === "coletivo" && (
+              <Campo rotulo="Prefere dividir com" valor={i.dividirCom ?? "Sem preferência"} />
+            )}
           </>
         )}
         <Campo rotulo="Necessidades especiais" valor={i.necessidadesEspeciais} />

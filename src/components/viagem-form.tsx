@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { IconePassagem } from "@/components/viagens"
 import { type EstadoForm } from "@/lib/contas"
-import type { BeneficiarioViagem, CriterioHorario, ModalPassagem } from "@/lib/viagens-constantes"
+import type { BeneficiarioViagem, CriterioHorario, ModalPassagem, QuartoPedido } from "@/lib/viagens-constantes"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -48,6 +48,8 @@ type ItemRascunho =
       cidade: string
       checkin: string
       checkout: string
+      quartoPedido: QuartoPedido
+      dividirCom: string
       necessidades: string
       observacoes: string
     }
@@ -87,6 +89,8 @@ function novaHospedagem(itens: ItemRascunho[]): ItemRascunho {
     cidade: ida?.tipo === "passagem" ? ida.destino.replace(/\s*\([^)]*\)\s*$/, "") : "",
     checkin: ida?.tipo === "passagem" ? ida.data : "",
     checkout: volta?.tipo === "passagem" ? volta.data : "",
+    quartoPedido: "individual",
+    dividirCom: "",
     necessidades: "",
     observacoes: "",
   }
@@ -583,6 +587,37 @@ export function ViagemForm({
                         onChange={(e) => atualizar(item.chave, { checkout: e.target.value })}
                       />
                     </div>
+                  </div>
+                  {/* Só indicação: quem atende monta os quartos e pode juntar ou separar as pessoas. */}
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="grid gap-1.5">
+                      <Label>Quarto</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {(["individual", "coletivo"] as const).map((q) => (
+                          <Button
+                            key={q}
+                            type="button"
+                            size="sm"
+                            variant={item.quartoPedido === q ? "default" : "outline"}
+                            aria-pressed={item.quartoPedido === q}
+                            onClick={() => atualizar(item.chave, { quartoPedido: q })}
+                          >
+                            {q === "individual" ? "Individual" : "Coletivo"}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                    {item.quartoPedido === "coletivo" && (
+                      <div className="grid gap-1.5 sm:col-span-2">
+                        <Label>Prefere dividir com</Label>
+                        <Input
+                          value={item.dividirCom}
+                          maxLength={200}
+                          placeholder="Opcional. Ex.: Maria Souza (a equipe de viagens monta os quartos)"
+                          onChange={(e) => atualizar(item.chave, { dividirCom: e.target.value })}
+                        />
+                      </div>
+                    )}
                   </div>
                   <CamposComuns
                     necessidades={item.necessidades}

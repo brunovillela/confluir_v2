@@ -14,6 +14,7 @@ import {
   ROTULO_MODAL,
   type CriterioHorario,
   type ModalPassagem,
+  type QuartoPedido,
 } from "@/lib/viagens-constantes"
 
 export type PassoViagem =
@@ -28,6 +29,7 @@ export type PassoViagem =
   | "cidade"
   | "checkin"
   | "checkout"
+  | "quarto"
   | "motivo"
   | "departamento"
   | "confirmar"
@@ -49,6 +51,8 @@ export type DadosViagemBot = {
   cidade?: string
   checkin?: string
   checkout?: string
+  /** Quarto pedido para a hospedagem (só indicação; o atendimento monta os quartos). */
+  quarto?: QuartoPedido
   motivo?: string
   /** undefined = ainda não respondeu; null = deixar para a equipe. */
   departamentoId?: string | null
@@ -193,6 +197,11 @@ export function perguntaDoPasso(estado: EstadoViagemBot, ctx: ContextoViagem): P
       return { texto: "Data do check-in? <i>Ex.: 12/11</i>" }
     case "checkout":
       return { texto: "Data do check-out?" }
+    case "quarto":
+      return {
+        texto: "Quarto individual ou coletivo? <i>A equipe de viagens monta os quartos.</i>",
+        botoes: [[b("🛏️ Individual", "q:i"), b("👥 Coletivo", "q:c")]],
+      }
     case "motivo":
       return { texto: "Qual o motivo da viagem? <i>Ex.: reunião com a empresa X, congresso Y</i>" }
     case "departamento": {
@@ -229,7 +238,8 @@ export function resumoViagemBot(d: DadosViagemBot, ctx: ContextoViagem): string 
     if (d.volta) linhas.push(`• ${modal}: ${para} → ${de}, ${dataCurta(d.volta)} (${horarioCurto(d.horarioVolta)})`)
   }
   if (d.cidade && d.checkin && d.checkout) {
-    linhas.push(`• Hospedagem em ${escaparHtmlTelegram(d.cidade)}: ${dataCurta(d.checkin)} a ${dataCurta(d.checkout)}`)
+    const quarto = d.quarto === "coletivo" ? ", quarto coletivo" : d.quarto === "individual" ? ", quarto individual" : ""
+    linhas.push(`• Hospedagem em ${escaparHtmlTelegram(d.cidade)}: ${dataCurta(d.checkin)} a ${dataCurta(d.checkout)}${quarto}`)
   }
   if (d.motivo) linhas.push(`Motivo: ${escaparHtmlTelegram(d.motivo)}`)
   const depto = ctx.departamentos.find((x) => x.id === d.departamentoId)
@@ -365,7 +375,7 @@ export function responderViagemBot(
       // Com volta, o hotel vai da ida à volta; só ida, pergunta o check-out.
       if (d.volta && d.ida && d.volta > d.ida) {
         d.checkout = d.volta
-        return ir("motivo", d)
+        return ir("quarto", d)
       }
       return ir("checkout", d)
     }
@@ -386,6 +396,11 @@ export function responderViagemBot(
       const r = lerData(entrada, ctx, minima, "o dia seguinte ao check-in")
       if ("erro" in r) return r
       d.checkout = r.valor
+      return ir("quarto", d)
+    }
+    case "quarto": {
+      if (botao !== "q:i" && botao !== "q:c") return { erro: "Toque em Individual ou Coletivo." }
+      d.quarto = botao === "q:c" ? "coletivo" : "individual"
       return ir("motivo", d)
     }
     case "motivo": {
@@ -439,7 +454,7 @@ export function itensDaViagemBot(d: DadosViagemBot): Record<string, unknown>[] {
     if (d.volta) itens.push(trecho(d.destino, d.origem, d.volta, d.horarioVolta))
   }
   if (d.hotel && d.cidade && d.checkin && d.checkout) {
-    itens.push({ tipo: "hospedagem", cidade: d.cidade, checkin: d.checkin, checkout: d.checkout, observacoes: "Pedido pelo Telegram." })
+    itens.push({ tipo: "hospedagem", cidade: d.cidade, checkin: d.checkin, checkout: d.checkout, quartoPedido: d.quarto ?? "individual", observacoes: "Pedido pelo Telegram." })
   }
   return itens
 }

@@ -1268,6 +1268,7 @@ modulo,tabela,coluna,categoria,titulares,descricao
 "institucional","viagens_itens","observacoes","identificacao","viajantes (diretores, funcionários, convidados)","Texto livre."
 "institucional","viagens_itens","localizador","identificacao","viajantes (diretores, funcionários, convidados)","Localizador da reserva, ligado à pessoa."
 "institucional","viagens_itens","voucher","identificacao","viajantes (diretores, funcionários, convidados)","Voucher ou bilhete com nome do viajante."
+"institucional","viagens_itens","dividir_com","identificacao","viajantes (diretores, funcionários, convidados)","Hospedagem em quarto coletivo: com quem a pessoa prefere dividir, em texto livre."
 "institucional","viagens_solicitacoes","","identificacao","diretores, funcionários, convidados","Pedido de viagem (passagens e/ou hospedagens) para diretor, funcionário ou convidado. Os trechos e estadias ficam em viagens_itens."
 "institucional","viagens_solicitacoes","convidado_nome","identificacao","diretores, funcionários, convidados",""
 "institucional","viagens_solicitacoes","convidado_cpf","identificacao","diretores, funcionários, convidados",""

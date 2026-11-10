@@ -603,7 +603,7 @@
 | [patrimonio_item_responsavel](../dados/dicionario/institucional.md#patrimonio_item_responsavel) | identificacao | `arquivo_cautela` (identificacao) |
 | [patrimonio_recinto_responsavel](../dados/dicionario/institucional.md#patrimonio_recinto_responsavel) | trabalhista | `funcionario_id` (trabalhista) |
 | [viagens_config](../dados/dicionario/institucional.md#viagens_config) | identificacao | `emails_aviso` (identificacao) |
-| [viagens_itens](../dados/dicionario/institucional.md#viagens_itens) | identificacao, sens. saude | `origem` (identificacao), `destino` (identificacao), `data_viagem` (identificacao), `necessidades_especiais` (sens. saude), `observacoes` (identificacao), `localizador` (identificacao), `voucher` (identificacao) |
+| [viagens_itens](../dados/dicionario/institucional.md#viagens_itens) | identificacao, sens. saude | `origem` (identificacao), `destino` (identificacao), `data_viagem` (identificacao), `necessidades_especiais` (sens. saude), `observacoes` (identificacao), `localizador` (identificacao), `voucher` (identificacao), `dividir_com` (identificacao) |
 | [viagens_solicitacoes](../dados/dicionario/institucional.md#viagens_solicitacoes) | identificacao | `convidado_nome` (identificacao), `convidado_cpf` (identificacao), `convidado_nascimento` (identificacao), `convidado_email` (identificacao), `convidado_telefone` (identificacao), `motivo` (identificacao) |
 | [viagens_telegram_conversas](../dados/dicionario/institucional.md#viagens_telegram_conversas) | identificacao | `chat_id` (identificacao), `usuario_id` (identificacao), `passo` (nenhum), `dados` (identificacao), `atualizado_em` (nenhum), `expira_em` (nenhum) |
 

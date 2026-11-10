@@ -17,6 +17,7 @@ import {
   type FiltroViagens,
   type ItemViagemEntrada,
   type ModalPassagem,
+  type QuartoPedido,
   type SituacaoViagem,
   type TipoItemViagem,
   validarItensViagem,
@@ -47,6 +48,10 @@ export type ItemViagem = {
   cidade: string | null
   checkin: string | null
   checkout: string | null
+  /** Hospedagem: quarto pedido (individual | coletivo) — só indicação. */
+  quartoPedido: QuartoPedido
+  /** Hospedagem em quarto coletivo: com quem a pessoa prefere dividir. */
+  dividirCom: string | null
   necessidadesEspeciais: string | null
   observacoes: string | null
   fornecedorId: string | null
@@ -119,6 +124,8 @@ function mapItem(i: Record<string, unknown>): ItemViagem {
     cidade: texto(i.cidade),
     checkin: texto(i.checkin),
     checkout: texto(i.checkout),
+    quartoPedido: i.quarto_pedido === "coletivo" ? "coletivo" : "individual",
+    dividirCom: texto(i.dividir_com),
     necessidadesEspeciais: texto(i.necessidades_especiais),
     observacoes: texto(i.observacoes),
     fornecedorId: texto(i.fornecedor_id),
@@ -423,6 +430,9 @@ function linhaDoItem(item: ItemViagemEntrada, ordem: number): Record<string, unk
     ordem,
     necessidades_especiais: item.necessidades,
     observacoes: item.observacoes,
+    // Também na passagem: numa inserção em lote, a coluna ausente vira NULL (e é NOT NULL).
+    quarto_pedido: item.tipo === "hospedagem" ? item.quartoPedido : "individual",
+    dividir_com: item.tipo === "hospedagem" ? item.dividirCom : null,
   }
   if (item.tipo === "passagem") {
     return {

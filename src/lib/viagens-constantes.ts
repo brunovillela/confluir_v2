@@ -33,6 +33,13 @@ export const ROTULO_BENEFICIARIO: Record<BeneficiarioViagem, string> = {
 export type TipoItemViagem = "passagem" | "hospedagem"
 export type ModalPassagem = "aerea" | "rodoviaria"
 export type CriterioHorario = "ate" | "depois"
+/** Quarto que quem viaja pede para a hospedagem. Só indicação: o atendimento monta os quartos. */
+export type QuartoPedido = "individual" | "coletivo"
+
+export const ROTULO_QUARTO: Record<QuartoPedido, string> = {
+  individual: "Quarto individual",
+  coletivo: "Quarto coletivo",
+}
 
 export const ROTULO_MODAL: Record<ModalPassagem, string> = {
   aerea: "Aérea",
@@ -94,6 +101,9 @@ export type ItemHospedagemEntrada = {
   cidade: string
   checkin: string
   checkout: string
+  quartoPedido: QuartoPedido
+  /** Só em quarto coletivo: com quem prefere dividir, em texto livre. */
+  dividirCom: string | null
   necessidades: string | null
   observacoes: string | null
 }
@@ -187,7 +197,21 @@ export function validarItensViagem(
       if (checkout <= checkin) {
         return { erro: `Item ${n}: o check-out precisa ser depois do check-in.` }
       }
-      itens.push({ tipo: "hospedagem", cidade, checkin, checkout, necessidades, observacoes })
+      const quartoPedido: QuartoPedido = o.quartoPedido === "coletivo" ? "coletivo" : "individual"
+      const dividirCom = quartoPedido === "coletivo" ? txt(o.dividirCom) : null
+      if (dividirCom && dividirCom.length > 200) {
+        return { erro: `Item ${n}: "Prefere dividir com" passa de 200 caracteres.` }
+      }
+      itens.push({
+        tipo: "hospedagem",
+        cidade,
+        checkin,
+        checkout,
+        quartoPedido,
+        dividirCom,
+        necessidades,
+        observacoes,
+      })
     } else {
       return { erro: `Item ${n}: tipo desconhecido.` }
     }

@@ -76,6 +76,7 @@ test.describe("conversa do /viagem", () => {
       { texto: "até 10h" },
       { botao: "sh" },
       { botao: "h:s" },
+      { botao: "q:c" },
       { texto: "Reunião no TST" },
     ])
     expect(fim.passo).toBe("departamento")
@@ -89,10 +90,12 @@ test.describe("conversa do /viagem", () => {
     const itens = itensDaViagemBot(confirmar.dados)
     expect(itens.map((i) => i.tipo)).toEqual(["passagem", "passagem", "hospedagem"])
     expect(itens[1]).toMatchObject({ origem: "Brasília", destino: "Rio de Janeiro", data: "2026-11-14", saidaHora: null })
-    expect(itens[2]).toMatchObject({ cidade: "Brasília", checkin: "2026-11-12", checkout: "2026-11-14" })
+    expect(itens[2]).toMatchObject({ cidade: "Brasília", checkin: "2026-11-12", checkout: "2026-11-14", quartoPedido: "coletivo" })
+    expect(resumoViagemBot(confirmar.dados, ctx)).toContain("quarto coletivo")
     const r = validarItensViagem(itens, HOJE)
     expect("itens" in r && r.itens.length).toBe(3)
     expect("itens" in r && r.itens[0]).toMatchObject({ modal: "aerea", saidaCriterio: "ate", saidaHora: "10:00" })
+    expect("itens" in r && r.itens[2]).toMatchObject({ quartoPedido: "coletivo", dividirCom: null })
   })
 
   test("rodoviária só ida com hotel pergunta o check-out", () => {
@@ -107,7 +110,10 @@ test.describe("conversa do /viagem", () => {
     ])
     expect(fim.passo).toBe("checkout")
     expect(responderViagemBot(fim, { texto: "03/11" }, ctx)).toHaveProperty("erro")
-    const depois = conversa(fim, [{ texto: "05/11" }, { texto: "Visita à base" }])
+    const quarto = conversa(fim, [{ texto: "05/11" }])
+    expect(quarto.passo).toBe("quarto")
+    expect(responderViagemBot(quarto, { texto: "tanto faz" }, ctx)).toHaveProperty("erro")
+    const depois = conversa(quarto, [{ botao: "q:i" }, { texto: "Visita à base" }])
     expect(depois.passo).toBe("departamento")
     // Funcionário: sem sugestão, lista inteira + "a equipe define".
     const botoes = perguntaDoPasso(depois, ctx).botoes ?? []
@@ -124,6 +130,7 @@ test.describe("conversa do /viagem", () => {
       { texto: "São Paulo" },
       { texto: "20/11" },
       { texto: "22/11" },
+      { botao: "q:i" },
       { texto: "Curso" },
       { botao: "d:dep-formacao" },
     ])
@@ -161,6 +168,7 @@ test.describe("conversa do /viagem", () => {
       { texto: "<b>Recife</b>" },
       { texto: "20/11" },
       { texto: "22/11" },
+      { botao: "q:i" },
       { texto: "A & B" },
       { botao: "d:-" },
     ])

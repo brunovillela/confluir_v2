@@ -24,6 +24,7 @@ export const NOVIDADES: Novidade[] = [
       "Fornecedores: arquivar uma conta bancária que não se usa mais. Ela sai das escolhas de pagamento, as ordens antigas continuam com ela, e dá para desarquivar.",
       "Fornecedores: excluir uma conta duplicada (mesma chave Pix ou mesma agência e conta de outra conta do fornecedor) passa as ordens dela para a outra conta. Conta usada em ordens e sem duplicada não é excluída, e a tela diz em quais ordens ela está.",
       "Aquisição: ao gerar a ordem de pagamento de uma compra, inclua uma observação (ex.: \"50% do valor total, referente à antecipação do serviço\"). Ela vai na descrição da ordem e aparece na lista, na autorização e no extrato.",
+      "Viagens: a hospedagem diz se o quarto é Individual ou Coletivo e, no coletivo, com quem a pessoa prefere dividir — também no /viagem do Telegram. É uma indicação para a equipe de viagens, que monta os quartos; o pedido aparece na viagem e na exportação.",
       "Acesso: o link de criar ou redefinir senha não se perde mais quando é enviado pelo WhatsApp — ele só é usado quando a pessoa salva a senha. E acabou o \"não foi possível confirmar que você não é um robô\" ao ir da tela de entrada para \"Esqueci minha senha\".",
     ],
   },

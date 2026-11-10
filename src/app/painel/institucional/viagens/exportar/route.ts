@@ -54,6 +54,8 @@ export async function GET(request: NextRequest) {
             ? formatarData(i.checkin)
             : "",
         i.checkout ? formatarData(i.checkout) : "",
+        i.tipo === "hospedagem" ? (i.quartoPedido === "coletivo" ? "Coletivo" : "Individual") : "",
+        i.tipo === "hospedagem" ? (i.dividirCom ?? "") : "",
         i.fornecedorNome ?? "",
         i.localizador ?? "",
         moeda(i.valor),
@@ -76,6 +78,8 @@ export async function GET(request: NextRequest) {
     "Trecho / cidade",
     "Data / check-in",
     "Check-out",
+    "Quarto pedido",
+    "Prefere dividir com",
     "Agência",
     "Localizador",
     "Valor (R$)",
