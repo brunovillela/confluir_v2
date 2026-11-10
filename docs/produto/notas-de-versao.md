@@ -11,6 +11,7 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 - Congressos: link pessoal também para quem a comissão incluiu, com cópia ou envio por e-mail. Gerar um novo invalida o anterior.
 - Congressos: importar participantes de uma planilha (Nome, CPF, Base, Condição…) ou de uma ata em PDF ou foto, lida pela IA. Tudo passa por conferência antes de gravar: novos, já no congresso e linhas com problema.
 - Fornecedores: a chave Pix da conta agora vai com o tipo (CNPJ / CPF, Telefone, E-mail ou Chave aleatória) e é conferida pelo tipo ao salvar. Em conta antiga, o tipo provável já vem escolhido na edição.
+- Fornecedores: arquivar uma conta bancária que não se usa mais. Ela sai das escolhas de pagamento, as ordens antigas continuam com ela, e dá para desarquivar.
 - Fornecedores: excluir uma conta duplicada (mesma chave Pix ou mesma agência e conta de outra conta do fornecedor) passa as ordens dela para a outra conta. Conta usada em ordens e sem duplicada não é excluída, e a tela diz em quais ordens ela está.
 - Aquisição: ao gerar a ordem de pagamento de uma compra, inclua uma observação (ex.: "50% do valor total, referente à antecipação do serviço"). Ela vai na descrição da ordem e aparece na lista, na autorização e no extrato.
 - Acesso: o link de criar ou redefinir senha não se perde mais quando é enviado pelo WhatsApp — ele só é usado quando a pessoa salva a senha. E acabou o "não foi possível confirmar que você não é um robô" ao ir da tela de entrada para "Esqueci minha senha".
