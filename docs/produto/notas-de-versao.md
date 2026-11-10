@@ -6,6 +6,7 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 
 ## 10/11/2026 — Congressos: inscrição pelo link e importação de listas
 
+- Aquisição: o comprador fica sabendo de cada solicitação nova. Aviso "Nova aquisição a cotar" (e-mail, Telegram ou celular, ligado em Meu perfil → Avisos), a fila na caixa de entrada do painel e no lembrete diário, o quadro "A cotar" na página de Aquisição e, na Área do comprador, há quantos dias cada solicitação espera.
 - Jornadas de trabalho: segundo turno em cada dia, para o intervalo intrajornada (ex.: 08:00 às 12:00 e 13:00 às 17:00). A carga soma só os turnos, e o alerta de acesso fora do horário vale só antes da primeira entrada e depois da última saída. Cada jornada tem página própria, com o horário, quem a segue (incluir e mover) e a edição, que fecha ao salvar.
 - Congressos e conferências: página pública de inscrição. A pessoa escolhe como vai participar e a base, a regra de vagas é aplicada na hora (confirmada ou lista de espera) e ela recebe um link pessoal para acompanhar a situação e o programa, sem criar conta.
 - Congressos: link pessoal também para quem a comissão incluiu, com cópia ou envio por e-mail. Gerar um novo invalida o anterior.
