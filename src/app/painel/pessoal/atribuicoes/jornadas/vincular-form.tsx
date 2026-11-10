@@ -31,10 +31,21 @@ export type LinhaVinculo = {
 export function VincularJornadas({
   linhas,
   jornadas,
+  semJornada = true,
+  convite = "Marque os funcionários e escolha a jornada:",
+  botao = "Vincular",
+  vazio = "Nenhum funcionário ativo.",
 }: {
   linhas: LinhaVinculo[]
+  /** Destinos possíveis. Um só e sem "Sem jornada": vai direto, sem escolha. */
   jornadas: { id: string; nome: string }[]
+  /** Oferece "Sem jornada" (tirar a jornada dos marcados). */
+  semJornada?: boolean
+  convite?: string
+  botao?: string
+  vazio?: string
 }) {
+  const destinoFixo = !semJornada && jornadas.length === 1 ? jornadas[0] : null
   const [estado, action, pend] = useActionState(vincularJornada, {})
   const [marcados, setMarcados] = useState<Set<string>>(new Set())
   const todos = useRef<HTMLInputElement>(null)
@@ -76,10 +87,11 @@ export function VincularJornadas({
       ))}
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm">
-          {n === 0
-            ? "Marque os funcionários e escolha a jornada:"
-            : `${n === 1 ? "1 marcado" : `${n} marcados`} →`}
+          {n === 0 ? convite : `${n === 1 ? "1 marcado" : `${n} marcados`}${destinoFixo ? "" : " →"}`}
         </span>
+        {destinoFixo ? (
+          <input type="hidden" name="jornada_id" value={destinoFixo.id} />
+        ) : (
         <select
           name="jornada_id"
           aria-label="Jornada"
@@ -91,11 +103,12 @@ export function VincularJornadas({
               {j.nome}
             </option>
           ))}
-          <option value="">Sem jornada</option>
+          {semJornada && <option value="">Sem jornada</option>}
         </select>
+        )}
         <Button type="submit" size="sm" disabled={pend || n === 0}>
           {pend && <Loader2 className="animate-spin" />}
-          Vincular
+          {botao}
         </Button>
       </div>
 
@@ -128,7 +141,7 @@ export function VincularJornadas({
                 <TableCell colSpan={5} className="h-32">
                   <div className="text-muted-foreground flex flex-col items-center justify-center gap-2 text-center">
                     <CalendarClock className="size-6" />
-                    <p className="text-sm">Nenhum funcionário ativo.</p>
+                    <p className="text-sm">{vazio}</p>
                   </div>
                 </TableCell>
               </TableRow>

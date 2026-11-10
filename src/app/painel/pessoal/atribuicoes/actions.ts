@@ -751,10 +751,12 @@ const HORA_RE = /^\d{1,2}:\d{2}$/
 const hhmm = (v: string | null | undefined) => (v ? v.slice(0, 5) : null)
 
 /**
- * Cria ou altera uma jornada da entidade: nome, observação e um campo
- * hora_inicio/hora_fim por dia (`inicio_0`..`inicio_6`, `fim_0`..`fim_6`).
- * Dia sem os dois horários = sem expediente. Só grava os dias que mudaram,
- * para o movimento da folha não acusar alteração onde não houve.
+ * Cria ou altera uma jornada da entidade: nome, observação e, por dia, o
+ * primeiro turno (`inicio_<dia>`, `fim_<dia>`) e o segundo, opcional
+ * (`inicio2_<dia>`, `fim2_<dia>`), separados pelo intervalo intrajornada.
+ * Dia sem horários = sem expediente. Só grava os dias que mudaram, para o
+ * movimento da folha não acusar alteração onde não houve. Ao salvar, volta à
+ * página da jornada com o formulário fechado.
  */
 export async function salvarJornadaModelo(
   _prev: EstadoForm,
@@ -766,16 +768,26 @@ export async function salvarJornadaModelo(
   const observacao = txt(fd, "observacao")
   if (!nome) return { erro: "Dê um nome à jornada (ex.: Administrativo 8h às 17h)." }
 
-  const dias: { dia: number; inicio: string; fim: string }[] = []
+  const dias: { dia: number; inicio: string; fim: string; inicio2: string | null; fim2: string | null }[] = []
+  const h = (v: string | null) => (v ? v.padStart(5, "0") : null)
   for (const d of DIAS_SEMANA) {
-    const inicio = txt(fd, `inicio_${d.valor}`)
-    const fim = txt(fd, `fim_${d.valor}`)
-    if (!inicio && !fim) continue
+    const inicio = h(txt(fd, `inicio_${d.valor}`))
+    const fim = h(txt(fd, `fim_${d.valor}`))
+    const inicio2 = h(txt(fd, `inicio2_${d.valor}`))
+    const fim2 = h(txt(fd, `fim2_${d.valor}`))
+    if (!inicio && !fim && !inicio2 && !fim2) continue
     if (!inicio || !fim || !HORA_RE.test(inicio) || !HORA_RE.test(fim)) {
-      return { erro: `${d.rotulo}: preencha o início e o fim, ou deixe os dois em branco.` }
+      return { erro: `${d.rotulo}: preencha a entrada e a saída do 1º turno, ou deixe o dia em branco.` }
     }
-    if (fim <= inicio) return { erro: `${d.rotulo}: o fim deve ser depois do início.` }
-    dias.push({ dia: d.valor, inicio, fim })
+    if (fim <= inicio) return { erro: `${d.rotulo}: a saída do 1º turno deve ser depois da entrada.` }
+    if (inicio2 || fim2) {
+      if (!inicio2 || !fim2 || !HORA_RE.test(inicio2) || !HORA_RE.test(fim2)) {
+        return { erro: `${d.rotulo}: preencha a entrada e a saída do 2º turno, ou deixe as duas em branco.` }
+      }
+      if (inicio2 <= fim) return { erro: `${d.rotulo}: o 2º turno começa depois do fim do 1º (o intervalo fica entre eles).` }
+      if (fim2 <= inicio2) return { erro: `${d.rotulo}: a saída do 2º turno deve ser depois da entrada.` }
+    }
+    dias.push({ dia: d.valor, inicio, fim, inicio2, fim2 })
   }
   if (dias.length === 0) return { erro: "Informe o horário de pelo menos um dia." }
 
@@ -811,14 +823,21 @@ export async function salvarJornadaModelo(
 
   const { data: atuais } = await admin
     .from("pessoal_jornada_dias")
-    .select("dia_semana, hora_inicio, hora_fim")
+    .select("dia_semana, hora_inicio, hora_fim, hora_inicio_2, hora_fim_2")
     .eq("jornada_id", jornadaId)
   const antes = new Map(
     (atuais ?? []).map((a) => [a.dia_semana as number, a])
   )
   for (const d of dias) {
     const a = antes.get(d.dia)
-    if (a && hhmm(a.hora_inicio as string) === d.inicio.padStart(5, "0") && hhmm(a.hora_fim as string) === d.fim.padStart(5, "0")) continue
+    if (
+      a &&
+      hhmm(a.hora_inicio as string) === d.inicio &&
+      hhmm(a.hora_fim as string) === d.fim &&
+      hhmm(a.hora_inicio_2 as string | null) === d.inicio2 &&
+      hhmm(a.hora_fim_2 as string | null) === d.fim2
+    )
+      continue
     const { error } = await admin.from("pessoal_jornada_dias").upsert(
       {
         emp_proprietaria_id: emp,
@@ -826,6 +845,8 @@ export async function salvarJornadaModelo(
         dia_semana: d.dia,
         hora_inicio: d.inicio,
         hora_fim: d.fim,
+        hora_inicio_2: d.inicio2,
+        hora_fim_2: d.fim2,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "jornada_id,dia_semana" }
@@ -842,18 +863,9 @@ export async function salvarJornadaModelo(
     if (error) return { erro: `Não foi possível salvar: ${error.message}` }
   }
 
-  revalidatePath("/painel/pessoal/atribuicoes/jornadas")
-  if (!id) redirect(`/painel/pessoal/atribuicoes/jornadas?jornada=${jornadaId}&criada=1`)
-  const { count } = await admin
-    .from("pessoal_jornada_funcionarios")
-    .select("id", { count: "exact", head: true })
-    .eq("jornada_id", jornadaId)
-  return {
-    ok:
-      count && count > 0
-        ? `Jornada salva. Vale para ${count === 1 ? "1 funcionário" : `${count} funcionários`}.`
-        : "Jornada salva.",
-  }
+  revalidatePath("/painel/pessoal/atribuicoes/jornadas", "layout")
+  // Salvo: a página da jornada abre com o formulário fechado.
+  redirect(`/painel/pessoal/atribuicoes/jornadas/${jornadaId}?${id ? "salva" : "criada"}=1`)
 }
 
 /** Exclui uma jornada sem funcionários vinculados. */
@@ -875,7 +887,7 @@ export async function excluirJornadaModelo(
   }
   const { error } = await admin.from("pessoal_jornadas").delete().eq("id", id).eq("emp_proprietaria_id", emp)
   if (error) return { erro: `Não foi possível excluir: ${error.message}` }
-  revalidatePath("/painel/pessoal/atribuicoes/jornadas")
+  revalidatePath("/painel/pessoal/atribuicoes/jornadas", "layout")
   redirect("/painel/pessoal/atribuicoes/jornadas?excluida=1")
 }
 
@@ -911,7 +923,7 @@ export async function vincularJornada(
         .in("funcionario_id", comJornada)
       if (error) return { erro: `Não foi possível salvar: ${error.message}` }
     }
-    revalidatePath("/painel/pessoal/atribuicoes/jornadas")
+    revalidatePath("/painel/pessoal/atribuicoes/jornadas", "layout")
     return { ok: comJornada.length === 1 ? "Jornada retirada de 1 funcionário." : `Jornada retirada de ${comJornada.length} funcionários.` }
   }
 
@@ -936,7 +948,7 @@ export async function vincularJornada(
     )
     if (error) return { erro: `Não foi possível salvar: ${error.message}` }
   }
-  revalidatePath("/painel/pessoal/atribuicoes/jornadas")
+  revalidatePath("/painel/pessoal/atribuicoes/jornadas", "layout")
   return {
     ok: `${mudar.length === 1 ? "1 funcionário vinculado" : `${mudar.length} funcionários vinculados`} à jornada ${jornada.nome}.`,
   }

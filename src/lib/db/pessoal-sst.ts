@@ -1116,10 +1116,12 @@ async function diasDasJornadas(
     dia_semana: number | null
     hora_inicio: Texto
     hora_fim: Texto
+    hora_inicio_2: Texto
+    hora_fim_2: Texto
   }>(ids, (lote, de, ate) =>
     admin
       .from("pessoal_jornada_dias")
-      .select("jornada_id, dia_semana, hora_inicio, hora_fim")
+      .select("jornada_id, dia_semana, hora_inicio, hora_fim, hora_inicio_2, hora_fim_2")
       .in("jornada_id", lote)
       .order("id")
       .range(de, ate)
@@ -1131,6 +1133,8 @@ async function diasDasJornadas(
       dia_semana: j.dia_semana,
       hora_inicio: j.hora_inicio as string | null,
       hora_fim: j.hora_fim as string | null,
+      hora_inicio_2: j.hora_inicio_2 as string | null,
+      hora_fim_2: j.hora_fim_2 as string | null,
     })
     mapa.set(j.jornada_id, arr)
   }

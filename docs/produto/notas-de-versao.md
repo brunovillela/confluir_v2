@@ -6,6 +6,7 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 
 ## 10/11/2026 — Congressos: inscrição pelo link e importação de listas
 
+- Jornadas de trabalho: segundo turno em cada dia, para o intervalo intrajornada (ex.: 08:00 às 12:00 e 13:00 às 17:00). A carga soma só os turnos, e o alerta de acesso fora do horário vale só antes da primeira entrada e depois da última saída. Cada jornada tem página própria, com o horário, quem a segue (incluir e mover) e a edição, que fecha ao salvar.
 - Congressos e conferências: página pública de inscrição. A pessoa escolhe como vai participar e a base, a regra de vagas é aplicada na hora (confirmada ou lista de espera) e ela recebe um link pessoal para acompanhar a situação e o programa, sem criar conta.
 - Congressos: link pessoal também para quem a comissão incluiu, com cópia ou envio por e-mail. Gerar um novo invalida o anterior.
 - Congressos: importar participantes de uma planilha (Nome, CPF, Base, Condição…) ou de uma ata em PDF ou foto, lida pela IA. Tudo passa por conferência antes de gravar: novos, já no congresso e linhas com problema.

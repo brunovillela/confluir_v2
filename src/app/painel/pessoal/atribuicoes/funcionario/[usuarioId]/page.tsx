@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { VoltarLista } from "@/components/voltar-lista"
 import { requirePermissao } from "@/lib/auth"
 import { funcionarioDaArea } from "@/lib/db/pessoal-area"
+import { horarioDoDiaJornada } from "@/lib/pessoal-sst-constantes"
 import { jornadaDoFuncionario, matrizTreinamento, relatorioDeFuncionarios } from "@/lib/db/pessoal-sst"
 
 export const metadata: Metadata = { title: "SST do funcionário — Confluir" }
@@ -58,7 +59,7 @@ export default async function SstFuncionarioPage({ params }: { params: Promise<{
           <Link href={`/painel/pessoal/atribuicoes/relatorios?escopo=funcionario&id=${usuarioId}`}>Relatório completo</Link>
         </Button>
         <Button variant="outline" size="sm" asChild>
-          <Link href={jornadaVinculada ? `/painel/pessoal/atribuicoes/jornadas?jornada=${jornadaVinculada.jornadaId}` : "/painel/pessoal/atribuicoes/jornadas"}>{jornadaVinculada ? "Editar jornada" : "Vincular jornada"}</Link>
+          <Link href={jornadaVinculada ? `/painel/pessoal/atribuicoes/jornadas/${jornadaVinculada.jornadaId}` : "/painel/pessoal/atribuicoes/jornadas"}>{jornadaVinculada ? "Abrir jornada" : "Vincular jornada"}</Link>
         </Button>
       </div>
 
@@ -135,7 +136,7 @@ export default async function SstFuncionarioPage({ params }: { params: Promise<{
                     <li key={d.dia_semana} className="flex justify-between gap-2">
                       <span>{DIAS[d.dia_semana] ?? d.dia_semana}</span>
                       <span className="tabular-nums">
-                        {(d.hora_inicio ?? "").slice(0, 5)} – {(d.hora_fim ?? "").slice(0, 5)}
+                        {horarioDoDiaJornada(d)}
                       </span>
                     </li>
                   ))}

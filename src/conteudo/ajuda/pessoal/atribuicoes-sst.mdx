@@ -29,7 +29,7 @@ O hub tem oito frentes e uma configuração:
   (o "contrato") e a análise de **desvio de função por executor**.
 - **GHE** — os Grupos Homogêneos de Exposição: trabalhadores com exposição
   semelhante aos mesmos perigos, avaliados em grupo.
-- **Jornadas de trabalho** — as jornadas da entidade (dias e horários) e qual
+- **Jornadas de trabalho** — as jornadas da entidade (dias, turnos e intervalo) e qual
   delas cada funcionário segue; base do % de ocupação e do alerta de acesso
   fora do horário.
 - **Matriz de treinamento** — os treinamentos exigidos por funcionário e o
@@ -96,32 +96,43 @@ mudança geral de horário se faz num lugar só.
 <PassoAPasso>
   <Passo titulo="Crie as jornadas">
     Em **Jornadas de trabalho → Nova jornada**, dê um nome (ex.:
-    *Administrativo 8h às 17h*) e informe, para cada dia da semana, o horário
-    de início e de fim. Dia sem horários é dia sem expediente.
+    *Administrativo 8h às 17h*) e informe, para cada dia da semana, a entrada
+    e a saída do **1º turno**. Quando há intervalo intrajornada (o almoço),
+    preencha também o **2º turno**: por exemplo, 08:00 às 12:00 e 13:00 às
+    17:00. Dia em branco é dia sem expediente. Ao criar, abre a página da
+    jornada.
   </Passo>
-  <Passo titulo="Vincule os funcionários">
-    Na lista **Funcionários**, marque quem segue a jornada (ou **Marcar todos**),
-    escolha a jornada e clique em **Vincular**. Cada funcionário tem uma
-    jornada; vincular a outra troca. **Sem jornada** tira a jornada dos
-    marcados.
+  <Passo titulo="Inclua os funcionários">
+    Na página da jornada, em **Incluir funcionários**, marque quem segue essa
+    jornada e clique em **Incluir nesta jornada**. Cada funcionário tem uma
+    jornada só: incluir numa tira da anterior. Em **Funcionários nesta
+    jornada**, marque e use **Mover** para levar alguém a outra jornada (ou a
+    **Sem jornada**). A lista de Jornadas de trabalho também vincula vários
+    de uma vez.
   </Passo>
   <Passo titulo="Altere quando mudar">
-    Em **Editar**, mude os horários e salve: a alteração vale para todos os
-    funcionários vinculados e entra no **movimento da folha** de cada um. A
-    troca de jornada de um funcionário também entra.
+    Na página da jornada, **Editar jornada** abre o formulário ali mesmo.
+    Mude os horários e clique em **Salvar jornada**: o formulário fecha e a
+    alteração vale para todos os funcionários da jornada, entrando no
+    **movimento da folha** de cada um. A troca de jornada de um funcionário
+    também entra.
   </Passo>
 </PassoAPasso>
 
-Uma jornada só pode ser excluída quando não tem ninguém vinculado.
+<Print src="pessoal/jornada.png" alt="Página da jornada Administrativo 8h às 17h: carga de 38h por semana, o quadro do horário com 1º turno, intervalo, 2º turno e total de cada dia (segunda a quinta 08:00 às 12:00 e 13:00 às 17:00, sexta 08:00 às 14:00), os funcionários nesta jornada com o botão Mover e a lista para incluir funcionários." legenda="A página da jornada: horário, intervalo e quem a segue." />
 
-<Print src="pessoal/jornadas.png" alt="Jornadas de trabalho: a jornada Administrativo 8h às 17h aberta para edição (nome, observação e horário de cada dia, com o aviso de que a alteração vale para os 9 vinculados), a lista das jornadas da entidade com horário, carga semanal e número de funcionários, e a lista de funcionários com caixas de marcar, a escolha da jornada e o botão Vincular." legenda="Jornadas da entidade e o vínculo de cada funcionário." />
+<Print src="pessoal/jornada-editar.png" alt="Editar jornada: nome, observação e, para cada dia, a entrada e a saída do 1º turno e do 2º turno, com os botões Salvar jornada e Cancelar." legenda="Editar jornada: 1º e 2º turno de cada dia." />
+
+A página da jornada só oferece **Excluir jornada** quando ninguém está nela.
 
 A jornada alimenta duas coisas:
 
 - o **% de ocupação** nos relatórios — quanto as atividades consomem da
-  disponibilidade contratada do funcionário;
+  disponibilidade contratada do funcionário (a carga soma os turnos, sem o
+  intervalo);
 - o **alerta de acesso fora do horário** — quando o funcionário usa o sistema
-  fora da jornada, uma faixa fixa avisa na tela.
+  antes da primeira entrada ou depois da última saída do dia, uma faixa fixa
+  avisa na tela. O intervalo entre os turnos não conta como fora do horário.
 
 ## Passo 3 — Cadastrar uma atividade
 

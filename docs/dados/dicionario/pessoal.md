@@ -1181,12 +1181,14 @@ Horário de cada dia da semana de uma jornada (0=domingo … 6=sábado). Dia sem
 | `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
 | `jornada_id` | uuid | não |  | → pessoal_jornadas (**cascade**) |  |  |
 | `dia_semana` | smallint | não |  |  |  |  |
-| `hora_inicio` | time without time zone | não |  |  |  |  |
-| `hora_fim` | time without time zone | não |  |  |  |  |
+| `hora_inicio` | time without time zone | não |  |  | nenhum | Entrada do primeiro turno do dia. |
+| `hora_fim` | time without time zone | não |  |  | nenhum | Saída do primeiro turno do dia. |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `updated_at` | timestamp with time zone | sim |  |  |  |  |
+| `hora_inicio_2` | time without time zone | sim |  |  | nenhum | Entrada do segundo turno (volta do intervalo intrajornada); null = dia de turno único. |
+| `hora_fim_2` | time without time zone | sim |  |  | nenhum | Saída do segundo turno (última saída do dia); null = dia de turno único. |
 
-Checks: `pessoal_jornada_dias_dia_semana_check` `CHECK (((dia_semana >= 0) AND (dia_semana <= 6)))`; `pessoal_jornada_dias_horario` `CHECK ((hora_fim > hora_inicio))`
+Checks: `pessoal_jornada_dias_dia_semana_check` `CHECK (((dia_semana >= 0) AND (dia_semana <= 6)))`; `pessoal_jornada_dias_horario` `CHECK ((hora_fim > hora_inicio))`; `pessoal_jornada_dias_segundo_turno` `CHECK ((((hora_inicio_2 IS NULL) AND (hora_fim_2 IS NULL)) OR ((hora_inicio_2 IS NOT NULL) AND (hora_fim_2 IS NOT NULL) AND (hora_inicio_2 > hora_fim) AND (hora_fim_2 > hora_inicio_2))))`
 
 Índices: `pessoal_jornada_dias_dia`, `pessoal_jornada_dias_pkey`
 

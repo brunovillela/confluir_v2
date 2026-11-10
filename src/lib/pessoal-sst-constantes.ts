@@ -198,6 +198,9 @@ export type JornadaDia = {
   dia_semana: number
   hora_inicio: string | null // "HH:MM" ou "HH:MM:SS"
   hora_fim: string | null
+  /** Segundo turno (volta do intervalo intrajornada); ausente = turno único. */
+  hora_inicio_2?: string | null
+  hora_fim_2?: string | null
 }
 
 /** "HH:MM[:SS]" → minutos desde 00:00, ou null. */
@@ -209,15 +212,38 @@ export function horaParaMinutos(hora: string | null): number | null {
   return v >= 0 && v < 24 * 60 ? v : null
 }
 
-/** Minutos contratados por semana (soma dos dias com início e fim válidos). */
-export function minutosSemanaisJornada(dias: JornadaDia[]): number {
+/** Minutos trabalhados num dia: os dois turnos, sem o intervalo entre eles. */
+export function minutosDoDiaJornada(d: JornadaDia): number {
   let total = 0
-  for (const d of dias) {
-    const ini = horaParaMinutos(d.hora_inicio)
-    const fim = horaParaMinutos(d.hora_fim)
+  for (const [i, f] of [
+    [d.hora_inicio, d.hora_fim],
+    [d.hora_inicio_2 ?? null, d.hora_fim_2 ?? null],
+  ] as const) {
+    const ini = horaParaMinutos(i)
+    const fim = horaParaMinutos(f)
     if (ini !== null && fim !== null && fim > ini) total += fim - ini
   }
   return total
+}
+
+/** Minutos do intervalo intrajornada do dia (0 = turno único). */
+export function intervaloDoDiaJornada(d: JornadaDia): number {
+  const fim1 = horaParaMinutos(d.hora_fim)
+  const ini2 = horaParaMinutos(d.hora_inicio_2 ?? null)
+  return fim1 !== null && ini2 !== null && ini2 > fim1 ? ini2 - fim1 : 0
+}
+
+/** Minutos contratados por semana (soma dos turnos de cada dia). */
+export function minutosSemanaisJornada(dias: JornadaDia[]): number {
+  return dias.reduce((t, d) => t + minutosDoDiaJornada(d), 0)
+}
+
+/** "08:00–12:00 e 13:00–17:00" (ou só o primeiro turno). */
+export function horarioDoDiaJornada(d: JornadaDia): string {
+  const t1 = `${formatarHora(d.hora_inicio)}–${formatarHora(d.hora_fim)}`
+  return d.hora_inicio_2 && d.hora_fim_2
+    ? `${t1} e ${formatarHora(d.hora_inicio_2)}–${formatarHora(d.hora_fim_2)}`
+    : t1
 }
 
 /** Semanas médias por mês (mesma base do VEZES_POR_MES semanal). */
@@ -240,7 +266,9 @@ export function pctDisponibilidade(
 
 /**
  * O instante (data no fuso do tenant) está dentro da jornada do dia?
- * Retorna null quando não há jornada cadastrada para o dia (sem expediente).
+ * Vale entre os extremos: da primeira entrada à última saída. O intervalo
+ * intrajornada conta como dentro (usar o sistema no almoço não é "fora do
+ * horário"). Retorna null quando não há jornada cadastrada para o dia.
  */
 export function dentroDaJornada(
   dias: JornadaDia[],
@@ -250,7 +278,7 @@ export function dentroDaJornada(
   const d = dias.find((x) => x.dia_semana === diaSemana)
   if (!d) return null
   const ini = horaParaMinutos(d.hora_inicio)
-  const fim = horaParaMinutos(d.hora_fim)
+  const fim = horaParaMinutos(d.hora_fim_2 ?? null) ?? horaParaMinutos(d.hora_fim)
   if (ini === null || fim === null) return null
   return minutosDoDia >= ini && minutosDoDia <= fim
 }

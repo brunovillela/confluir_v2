@@ -1,16 +1,10 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import { ArrowLeft, CalendarClock, Plus } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 import {
   Table,
   TableBody,
@@ -24,12 +18,11 @@ import { listarFuncionarios } from "@/lib/db/pessoal"
 import { listarJornadas, listarJornadasModelo } from "@/lib/db/pessoal-sst"
 import {
   DIAS_SEMANA,
-  formatarHora,
   formatarTempoMes,
+  horarioDoDiaJornada,
   type JornadaDia,
 } from "@/lib/pessoal-sst-constantes"
 
-import { ExcluirJornada, JornadaForm } from "./jornada-form"
 import { VincularJornadas } from "./vincular-form"
 
 export const metadata: Metadata = { title: "Jornadas de trabalho — Confluir" }
@@ -38,7 +31,7 @@ export const metadata: Metadata = { title: "Jornadas de trabalho — Confluir" }
 function resumoDias(dias: JornadaDia[]): string {
   const grupos: { de: number; ate: number; horario: string }[] = []
   for (const d of dias) {
-    const horario = `${formatarHora(d.hora_inicio)}–${formatarHora(d.hora_fim)}`
+    const horario = horarioDoDiaJornada(d)
     const pos = DIAS_SEMANA.findIndex((x) => x.valor === d.dia_semana)
     const ult = grupos.at(-1)
     if (ult && ult.horario === horario && ult.ate === pos - 1) ult.ate = pos
@@ -57,10 +50,12 @@ function resumoDias(dias: JornadaDia[]): string {
 export default async function JornadasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ jornada?: string; nova?: string; criada?: string; excluida?: string }>
+  searchParams: Promise<{ jornada?: string; excluida?: string }>
 }) {
   await requirePermissao("pessoal_gestao")
-  const { jornada: jornadaId, nova, criada, excluida } = await searchParams
+  const { jornada: jornadaId, excluida } = await searchParams
+  // Endereço antigo (?jornada=<id>): a jornada tem página própria.
+  if (jornadaId) redirect(`/painel/pessoal/atribuicoes/jornadas/${jornadaId}`)
 
   const [funcionarios, jornadas] = await Promise.all([
     listarFuncionarios({ situacao: "ativos" }),
@@ -69,9 +64,6 @@ export default async function JornadasPage({
   const linhas = await listarJornadas(
     funcionarios.linhas.map((l) => ({ usuarioId: l.usuarioId, nome: l.nome }))
   )
-  const nomePorId = new Map(linhas.map((l) => [l.funcionarioId, l.nome]))
-  const selecionada = jornadaId ? jornadas.find((j) => j.id === jornadaId) : null
-  const editando = Boolean(selecionada || nova)
   const semJornada = linhas.filter((l) => !l.jornadaId).length
 
   return (
@@ -94,81 +86,18 @@ export default async function JornadasPage({
             horário.
           </p>
         </div>
-        {!editando && (
-          <Button asChild>
-            <Link href="/painel/pessoal/atribuicoes/jornadas?nova=1">
-              <Plus />
-              Nova jornada
-            </Link>
-          </Button>
-        )}
+        <Button asChild>
+          <Link href="/painel/pessoal/atribuicoes/jornadas/nova">
+            <Plus />
+            Nova jornada
+          </Link>
+        </Button>
       </div>
 
       {excluida && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Jornada excluída.</AlertDescription>
         </Alert>
-      )}
-
-      {editando && (
-        <Card>
-          <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
-            <div className="grid gap-1.5">
-              <CardTitle className="text-base">
-                {selecionada ? selecionada.nome : "Nova jornada"}
-              </CardTitle>
-              <CardDescription>
-                {selecionada
-                  ? `${selecionada.minSemana > 0 ? `${formatarTempoMes(selecionada.minSemana)} por semana (~${formatarTempoMes(selecionada.minMes)}/mês) · ` : ""}${
-                      selecionada.funcionarioIds.length === 0
-                        ? "nenhum funcionário vinculado"
-                        : selecionada.funcionarioIds.length === 1
-                          ? "1 funcionário vinculado"
-                          : `${selecionada.funcionarioIds.length} funcionários vinculados`
-                    }`
-                  : "Dê um nome e informe o horário de cada dia. Depois, vincule os funcionários na lista abaixo."}
-              </CardDescription>
-            </div>
-            <div className="flex flex-wrap items-start gap-2">
-              {selecionada && selecionada.funcionarioIds.length === 0 && (
-                <ExcluirJornada id={selecionada.id} />
-              )}
-              <Button asChild variant="ghost" size="sm">
-                <Link href="/painel/pessoal/atribuicoes/jornadas">Fechar</Link>
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            {criada && selecionada && (
-              <Alert className="border-success/40 text-success-fg">
-                <AlertDescription>
-                  Jornada criada. Agora vincule os funcionários na lista abaixo.
-                </AlertDescription>
-              </Alert>
-            )}
-            <JornadaForm
-              key={selecionada?.id ?? "nova"}
-              id={selecionada?.id}
-              nome={selecionada?.nome}
-              observacao={selecionada?.observacao}
-              dias={selecionada?.dias ?? []}
-              vinculados={selecionada?.funcionarioIds.length ?? 0}
-            />
-            {selecionada && selecionada.funcionarioIds.length > 0 && (() => {
-              const ativos = selecionada.funcionarioIds
-                .map((id) => nomePorId.get(id))
-                .filter((n): n is string => Boolean(n))
-                .sort((x, y) => x.localeCompare(y, "pt-BR"))
-              const outros = selecionada.funcionarioIds.length - ativos.length
-              return (
-                <p className="text-muted-foreground text-xs">
-                  Vinculados: {ativos.join(", ") || "nenhum ativo"}
-                  {outros > 0 && ` (e ${outros === 1 ? "1 desligado" : `${outros} desligados`})`}.
-                </p>
-              )
-            })()}
-          </CardContent>
-        </Card>
       )}
 
       <section className="grid gap-2">
@@ -192,7 +121,7 @@ export default async function JornadasPage({
                       <CalendarClock className="size-6" />
                       <p className="text-sm">
                         Nenhuma jornada configurada. Comece por{" "}
-                        <Link className="underline" href="/painel/pessoal/atribuicoes/jornadas?nova=1">
+                        <Link className="underline" href="/painel/pessoal/atribuicoes/jornadas/nova">
                           Nova jornada
                         </Link>
                         .
@@ -202,9 +131,11 @@ export default async function JornadasPage({
                 </TableRow>
               )}
               {jornadas.map((j) => (
-                <TableRow key={j.id} data-state={j.id === selecionada?.id ? "selected" : undefined}>
+                <TableRow key={j.id} id={`jornada-${j.id}`} className="scroll-mt-20">
                   <TableCell className="font-medium">
-                    {j.nome}
+                    <Link href={`/painel/pessoal/atribuicoes/jornadas/${j.id}`} className="hover:underline">
+                      {j.nome}
+                    </Link>
                     {j.observacao && (
                       <span className="text-muted-foreground block text-xs font-normal">
                         {j.observacao}
@@ -222,9 +153,7 @@ export default async function JornadasPage({
                   </TableCell>
                   <TableCell className="text-right">
                     <Button asChild size="sm" variant="outline">
-                      <Link href={`/painel/pessoal/atribuicoes/jornadas?jornada=${j.id}`}>
-                        Editar
-                      </Link>
+                      <Link href={`/painel/pessoal/atribuicoes/jornadas/${j.id}`}>Abrir</Link>
                     </Button>
                   </TableCell>
                 </TableRow>

@@ -527,7 +527,7 @@ export async function calcularMovimento(
           secao: "contrato",
           funcionarioId: f,
           descricao: `Horário da jornada ${nomeJornada.get(j) ?? ""} alterado`.replace("  ", " "),
-          origem: `/painel/pessoal/atribuicoes/jornadas?jornada=${j}`,
+          origem: `/painel/pessoal/atribuicoes/jornadas/${j}`,
         })
       }
     } else if (tabela === "pessoal_nivel_salarial_base" && op === "UPDATE" && campos.includes("salario_base")) {
