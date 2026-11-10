@@ -39,6 +39,22 @@ export async function GET(request: NextRequest) {
       ? "/portal"
       : "/login"
 
+  // Link de CRIAR/REDEFINIR SENHA (convite, recuperação): não gasta aqui —
+  // encaminha ao formulário /acesso/senha, que só confere o código ao salvar.
+  // Um GET gastava o link, e a pré-visualização do WhatsApp (o robô abre o
+  // link antes da pessoa) o matava: a pessoa via "link já usado" e ficava sem
+  // senha (Guilherme, 10/11/2026, userAgent WhatsApp/2.23). Vale também para
+  // os links antigos já enviados e para o e-mail reserva do próprio Supabase.
+  if (tokenHash && (type === "recovery" || type === "invite")) {
+    const alvo = new URL("/acesso/senha", request.url)
+    alvo.searchParams.set("token_hash", tokenHash)
+    alvo.searchParams.set("type", type)
+    if (destino !== "/definir-senha" && searchParams.has("next")) {
+      alvo.searchParams.set("destino", destino)
+    }
+    return NextResponse.redirect(alvo)
+  }
+
   const supabase = await createClient()
   let motivo: MotivoRecusaLink
 

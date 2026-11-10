@@ -24,7 +24,7 @@ import { destinoDoPortal } from "@/lib/portal-destino"
 import { mensagemDaSituacao } from "@/lib/portal-partes-constantes"
 import { createClient } from "@/lib/supabase/server"
 import { bloqueioAtivo, chaveDeLogin, limparFalhasLogin, registrarFalhaLogin } from "@/lib/login-bloqueio"
-import { exigirHumano, tokenHumano } from "@/lib/turnstile"
+import { exigirHumano, exigirTokenPresente, tokenHumano } from "@/lib/turnstile"
 
 import { emFiliacaoColetiva, igualarTempo, mensagemFiliacaoNaoAtiva } from "./situacao-entrada"
 
@@ -109,7 +109,8 @@ export async function loginFiliadoSenha(
   }
 
   if (!user) {
-    const erroHumano = await exigirHumano(formData)
+    // O Supabase confere o token no signInWithPassword: aqui só a presença.
+    const erroHumano = exigirTokenPresente(formData)
     if (erroHumano) return { erro: erroHumano }
     // O bloqueio vem ANTES da busca e conta também CPF desconhecido: se só os
     // CPFs do cadastro chegassem a "Muitas tentativas", o próprio bloqueio

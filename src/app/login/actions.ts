@@ -11,7 +11,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { bloqueioAtivo, chaveDeLogin, limparFalhasLogin, registrarFalhaLogin } from "@/lib/login-bloqueio"
 import { fatorVerificado, ROTA_VERIFICACAO } from "@/lib/mfa"
-import { exigirHumano, tokenHumano } from "@/lib/turnstile"
+import { exigirHumano, exigirTokenPresente, tokenHumano } from "@/lib/turnstile"
 import { escaparLike } from "@/lib/texto"
 import { recusaQueNaoESenha, sessaoDaMesmaConta } from "@/lib/entrada-senha"
 
@@ -35,7 +35,8 @@ export async function loginFuncionario(
   // segue para dentro em vez de recusar com o token do Turnstile já gasto.
   let user = await sessaoDaMesmaConta(supabase, email)
   if (!user) {
-    const erroHumano = await exigirHumano(formData)
+    // O Supabase confere o token no signInWithPassword: aqui só a presença.
+    const erroHumano = exigirTokenPresente(formData)
     if (erroHumano) return { erro: erroHumano }
     const chave = chaveDeLogin("senha", email)
     const bloqueio = await bloqueioAtivo(chave)
@@ -50,7 +51,7 @@ export async function loginFuncionario(
       const outroMotivo = recusaQueNaoESenha(error, "painel")
       if (outroMotivo) return { erro: outroMotivo }
       await registrarFalhaLogin(chave)
-      return { erro: "Email ou senha incorretos." }
+      return { erro: "Email ou senha incorretos. Ainda não criou a sua senha, ou não lembra dela? Use “Esqueci minha senha” para receber o link." }
     }
     await limparFalhasLogin(chave)
     user = data.user

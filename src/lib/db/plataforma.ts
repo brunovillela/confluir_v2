@@ -1,7 +1,7 @@
 import "server-only"
 import { texto } from "@/lib/db/comum"
 
-import { linkConfirmacaoEmail } from "@/lib/auth-email-constantes"
+import { linkCriarSenha } from "@/lib/auth-email-constantes"
 import { avisoValidadeLinkHtml, enviarEmail } from "@/lib/email"
 import { botaoEmail, linkReserva, tituloEmail } from "@/lib/email-layout"
 import { CHAVES_PERMISSAO } from "@/lib/permissoes-catalogo"
@@ -293,7 +293,7 @@ export async function criarTenant(
     .update({ auth_user_id: convite.user.id })
     .eq("id", usuarioId)
 
-  const link = linkConfirmacaoEmail(origemDoTenant(slug), convite.properties)
+  const link = linkCriarSenha(origemDoTenant(slug), convite.properties)
   const primeiroNome = dados.admin_nome.split(" ")[0]
   const emailEnviado = link
     ? await enviarEmail({

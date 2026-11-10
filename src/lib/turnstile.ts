@@ -27,15 +27,31 @@ export function tokenHumano(fd: FormData): string | undefined {
   return t || undefined
 }
 
+/** Sem token: o widget ainda não terminou (ou não foi desenhado). */
+export const ERRO_SEM_TOKEN =
+  "A verificação de segurança ainda não terminou. Aguarde alguns segundos e clique de novo."
+
+/**
+ * Para as chamadas em que o PRÓPRIO Supabase confere o token
+ * (signInWithPassword com captcha ligado): só verifica que o token veio.
+ * Conferir também na Cloudflare gastava o token antes do Supabase, que às
+ * vezes o recusava como duplicado ("timeout-or-duplicate", log de 10/11/2026).
+ */
+export function exigirTokenPresente(fd: FormData): string | null {
+  if (!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) return null
+  return tokenHumano(fd) ? null : ERRO_SEM_TOKEN
+}
+
 /**
  * Confere o token com a Cloudflare. Devolve a mensagem de erro para a tela,
  * ou null quando está tudo certo (ou quando a proteção está desligada).
+ * Só para fluxos em que o Supabase NÃO confere o token depois (ver acima).
  */
 export async function exigirHumano(fd: FormData): Promise<string | null> {
   const segredo = process.env.TURNSTILE_SECRET_KEY
   if (!segredo) return null
   const token = tokenHumano(fd)
-  if (!token) return ERRO_HUMANO
+  if (!token) return ERRO_SEM_TOKEN
   try {
     const h = await headers()
     const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || undefined

@@ -2,7 +2,7 @@ import "server-only"
 import { esquemaAusente, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
-import { linkConfirmacaoEmail } from "@/lib/auth-email-constantes"
+import { linkCriarSenha } from "@/lib/auth-email-constantes"
 import { cpfConfiavel, grafiasDoCpf } from "@/lib/cpf"
 import { avisoValidadeLinkHtml, enviarEmail } from "@/lib/email"
 import { botaoEmail, linkReserva, tituloEmail } from "@/lib/email-layout"
@@ -449,7 +449,7 @@ export async function concederLogin(acessoId: string): Promise<ResultadoLogin> {
     .update({ auth_user_id: data.user.id })
     .eq("id", u.id)
 
-  const link = linkConfirmacaoEmail(origem, data.properties)
+  const link = linkCriarSenha(origem, data.properties)
   const nome = texto(u.nome_completo) ?? texto(u.nome_guerra)
   const emailEnviado = link
     ? await enviarEmail({
@@ -487,7 +487,7 @@ export async function gerarLinkRecuperacao(
     email,
     options: { redirectTo: redirectSenha },
   })
-  const link = linkConfirmacaoEmail(origem, data.properties)
+  const link = linkCriarSenha(origem, data.properties)
   if (error || !link) {
     return { erro: `Não foi possível gerar o link: ${error?.message ?? "erro"}` }
   }
