@@ -265,6 +265,7 @@ export async function ordensParaRemessa(): Promise<{ disponivel: boolean; ordens
     .from("dados_bancarios")
     .select("id, banco, banco_codigo, agencia, conta, tipo_conta, pix, pix_tipo, favorecido, titular_documento, conferida_em, conferida_titular, fornecedor_id, usuario_id, favorito, prefere_pix")
     .or([empIds.length ? `fornecedor_id.in.(${empIds.join(",")})` : null, usuIds.length ? `usuario_id.in.(${usuIds.join(",")})` : null].filter(Boolean).join(","))
+    .is("arquivada_em", null)
     .limit(2000)
     .then((r) => r, () => ({ data: [] as Record<string, unknown>[] }))
   const meiosPorDono = new Map<string, Record<string, unknown>[]>()

@@ -184,6 +184,7 @@ export async function meiosPagamentoFornecedor(fornecedorId: string): Promise<{
     .from("dados_bancarios")
     .select("id, banco, agencia, conta, tipo_conta, pix, pix_tipo, favorecido")
     .eq("fornecedor_id", fornecedorId)
+    .is("arquivada_em", null) // arquivada: fora das escolhas
     .order("created_at", { ascending: false })
   const linhas = (data ?? []) as Record<string, string | null>[]
   return {

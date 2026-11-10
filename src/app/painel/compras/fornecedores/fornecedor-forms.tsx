@@ -21,6 +21,7 @@ import type {
 import type { DadosCnpj } from "@/lib/db/fornecedores-cnpj"
 
 import {
+  arquivarContaAction,
   atualizarFornecedorAction,
   comprovanteAutomaticoAction,
   criarFornecedorAction,
@@ -49,6 +50,7 @@ const ACOES_SIMPLES: Record<string, AcaoServidor> = {
   excluirFornecedor: excluirFornecedorAction,
   excluirEndereco: excluirEnderecoAction,
   excluirConta: excluirContaAction,
+  arquivarConta: arquivarContaAction,
   excluirContato: excluirContatoAction,
 }
 

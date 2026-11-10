@@ -97,6 +97,8 @@ Dados bancários e chaves Pix de usuários, filiados e fornecedores (migrado do 
 | `conferida_por_usuario_id` | uuid | sim |  | → usuarios (set null) | identificação | Quem marcou a conta como conferida. |
 | `conferida_obs` | text | sim |  |  | financeiro | Observação da conferência (ex.: conta do cônjuge, autorizada por e-mail). |
 | `conferida_titular` | text | sim |  |  | financeiro | Titular da conta (documento\|nome) na hora da conferência; se mudar, a conferência deixa de valer. |
+| `arquivada_em` | timestamp with time zone | sim |  |  | nenhum | Quando a conta foi arquivada: sai das escolhas de pagamento, as ordens antigas continuam com ela. |
+| `arquivada_por_usuario_id` | uuid | sim |  | → usuarios (set null) | identificação | Quem arquivou a conta. |
 
 Únicas: `UNIQUE (bubble_id)`
 

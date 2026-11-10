@@ -160,6 +160,8 @@ export default async function FornecedorPage({
   const detalhe = await buscarFornecedor(id)
   if (!detalhe) notFound()
   const { fornecedor: f, enderecos, contas, ordens } = detalhe
+  const contasAtivas = contas.filter((c) => !c.arquivada_em)
+  const contasArquivadas = contas.filter((c) => c.arquivada_em)
   const [incorporados, destinoMescla, viaMarketplace, contatos, pedidoBancario, enviaComprovante] = await Promise.all([
     incorporadosPor(f.id),
     mescladoEm(f.id),
@@ -194,7 +196,7 @@ export default async function FornecedorPage({
     duplicados = count ?? 0
   }
   const problemas = problemasDoCadastro(f, {
-    temPagamento: contas.some((c) => c.pix?.trim() || c.conta?.trim()),
+    temPagamento: contasAtivas.some((c) => c.pix?.trim() || c.conta?.trim()),
     temEndereco: enderecos === null ? null : enderecos.length > 0,
     duplicadoCom: f.inativa ? 0 : duplicados,
   })
@@ -651,12 +653,12 @@ export default async function FornecedorPage({
             </div>
           </CardHeader>
           <CardContent className="grid gap-3">
-            {contas.length === 0 && contaParam !== "novo" && (
+            {contasAtivas.length === 0 && contaParam !== "novo" && (
               <p className="text-muted-foreground text-sm">
-                Nenhuma conta cadastrada.
+                {contasArquivadas.length ? "Nenhuma conta em uso." : "Nenhuma conta cadastrada."}
               </p>
             )}
-            {contas.map((c) =>
+            {contasAtivas.map((c) =>
               contaParam === c.id ? (
                 <ContaForm
                   key={c.id}
@@ -697,6 +699,14 @@ export default async function FornecedorPage({
                       <Link href={`${aqui}?conta=${c.id}`}>Editar</Link>
                     </Button>
                     <BotaoAcaoFornecedor
+                      acao="arquivarConta"
+                      campos={{ fornecedor_id: f.id, conta_id: c.id }}
+                      confirmacao="Arquivar esta conta? Ela sai das escolhas de pagamento; as ordens que já a usam continuam com ela."
+                      variant="ghost"
+                    >
+                      Arquivar
+                    </BotaoAcaoFornecedor>
+                    <BotaoAcaoFornecedor
                       acao="excluirConta"
                       campos={{ fornecedor_id: f.id, conta_id: c.id }}
                       confirmacao="Excluir esta conta?"
@@ -711,6 +721,59 @@ export default async function FornecedorPage({
             )}
             {contaParam === "novo" && (
               <ContaForm fornecedorId={f.id} documentoPadrao={f.cnpj_cpf} aoCancelarHref={aqui} />
+            )}
+            {contasArquivadas.length > 0 && (
+              <details className="group">
+                <summary className="text-muted-foreground hover:text-foreground cursor-pointer text-xs">
+                  Contas arquivadas ({contasArquivadas.length}) — fora das escolhas de pagamento
+                </summary>
+                <div className="mt-2 grid gap-2">
+                  {contasArquivadas.map((c) => (
+                    <div
+                      key={c.id}
+                      className="border-border text-muted-foreground flex flex-wrap items-start justify-between gap-2 rounded-md border border-dashed p-3 text-sm"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium">
+                          {c.banco ?? (c.pix ? "Pix" : "(sem banco)")}
+                          {c.arquivada_em && (
+                            <span className="font-normal"> · arquivada em {formatarData(c.arquivada_em)}</span>
+                          )}
+                        </p>
+                        <p className="text-xs">
+                          {[
+                            c.agencia && `ag. ${c.agencia}`,
+                            c.conta && `conta ${c.conta}`,
+                            c.pix && `Pix${c.pix_tipo ? ` (${c.pix_tipo})` : ""} ${c.pix}`,
+                            c.favorecido && `favorecido ${c.favorecido}`,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ") || "—"}
+                        </p>
+                      </div>
+                      {podeEditar && (
+                        <div className="flex gap-1">
+                          <BotaoAcaoFornecedor
+                            acao="arquivarConta"
+                            campos={{ fornecedor_id: f.id, conta_id: c.id, arquivar: "nao" }}
+                            variant="ghost"
+                          >
+                            Desarquivar
+                          </BotaoAcaoFornecedor>
+                          <BotaoAcaoFornecedor
+                            acao="excluirConta"
+                            campos={{ fornecedor_id: f.id, conta_id: c.id }}
+                            confirmacao="Excluir esta conta?"
+                            variant="ghost"
+                          >
+                            Excluir
+                          </BotaoAcaoFornecedor>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </details>
             )}
             <ContasOutrosCadastros tipo="fornecedor" id={f.id} />
           </CardContent>

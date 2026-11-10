@@ -74,6 +74,8 @@ export type ContaBancaria = {
   pix_tipo?: string | null
   favorecido: string | null
   titular_documento?: string | null
+  /** Arquivada: fora das escolhas de pagamento; as ordens antigas seguem com ela. */
+  arquivada_em?: string | null
 }
 
 export type ContratoFornecedor = {
@@ -248,6 +250,7 @@ export async function buscarFornecedor(
           pix: (x.pix as string | null) ?? null,
           pix_tipo: (x.pix_tipo as string | null) ?? null,
           favorecido: (x.favorecido as string | null) ?? null,
+          arquivada_em: (x.arquivada_em as string | null) ?? null,
         })),
     contratosVigentes: contratos.filter((c) => c.vigente),
     contratosTerminados: contratos.filter((c) => !c.vigente),
@@ -979,7 +982,7 @@ export async function excluirConta(
       return {
         erro:
           `Esta conta foi usada em ${ordens.length} ordem(ns) de pagamento (${codigos}) e fica no histórico delas, ` +
-          "por isso não pode ser excluída. Para não usá-la mais, escolha outra conta nos próximos pagamentos.",
+          "por isso não pode ser excluída. Para não usá-la mais, clique em Arquivar: ela sai das escolhas de pagamento e as ordens continuam com ela.",
       }
     }
     const { error: erroTroca } = await admin
@@ -996,6 +999,35 @@ export async function excluirConta(
     .eq("fornecedor_id", fornecedorId)
   if (error) return { erro: `Não foi possível excluir: ${error.message}` }
   return { ordensMovidas: ordens?.length ?? 0 }
+}
+
+/**
+ * Arquiva (ou desarquiva) a conta: arquivada, sai das escolhas de pagamento e
+ * dos indicadores; as ordens que já a usam continuam apontando para ela.
+ */
+export async function arquivarConta(
+  fornecedorId: string,
+  contaId: string,
+  arquivar: boolean,
+  usuarioId: string
+): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("dados_bancarios")
+    .update(
+      arquivar
+        ? { arquivada_em: new Date().toISOString(), arquivada_por_usuario_id: usuarioId }
+        : { arquivada_em: null, arquivada_por_usuario_id: null }
+    )
+    .eq("id", contaId)
+    .eq("fornecedor_id", fornecedorId)
+    .select("id")
+  if (error) {
+    if (esquemaAusente(error)) return { erro: AVISO_SQL }
+    return { erro: `Não foi possível ${arquivar ? "arquivar" : "desarquivar"} a conta: ${error.message}` }
+  }
+  if (!data?.length) return { erro: "Conta não encontrada neste fornecedor." }
+  return {}
 }
 
 // ── Mescla de cadastros duplicados ─────────────────────────────────────────

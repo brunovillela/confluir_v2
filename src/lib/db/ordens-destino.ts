@@ -108,7 +108,7 @@ async function cadastroDosFavorecidos(linhas: LinhaDestino[]): Promise<Map<strin
 
   const [porFornecedor, porUsuario, pessoas, integrantes] = await Promise.all([
     fornecedores.length
-      ? admin.from("dados_bancarios").select(COLUNAS).in("fornecedor_id", fornecedores)
+      ? admin.from("dados_bancarios").select(COLUNAS).in("fornecedor_id", fornecedores).is("arquivada_em", null)
       : Promise.resolve({ data: [] as Record<string, unknown>[] }),
     usuarios.length
       ? admin.from("dados_bancarios").select(COLUNAS).in("usuario_id", usuarios)
@@ -185,7 +185,7 @@ async function cadastroDosFavorecidos(linhas: LinhaDestino[]): Promise<Map<strin
     }
     const ids = (k: string) => [...destinos.keys()].filter((d) => d.startsWith(`${k}:`)).map((d) => d.slice(2))
     const [{ data: dF }, { data: dU }, { data: dP }] = await Promise.all([
-      ids("f").length ? admin.from("dados_bancarios").select(COLUNAS).in("fornecedor_id", ids("f")) : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+      ids("f").length ? admin.from("dados_bancarios").select(COLUNAS).in("fornecedor_id", ids("f")).is("arquivada_em", null) : Promise.resolve({ data: [] as Record<string, unknown>[] }),
       ids("u").length ? admin.from("dados_bancarios").select(COLUNAS).in("usuario_id", ids("u")) : Promise.resolve({ data: [] as Record<string, unknown>[] }),
       ids("p").length ? admin.from("dados_bancarios").select(COLUNAS).in("filiado_id", ids("p")) : Promise.resolve({ data: [] as Record<string, unknown>[] }),
     ])

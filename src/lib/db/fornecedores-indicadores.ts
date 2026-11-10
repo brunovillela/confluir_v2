@@ -158,7 +158,7 @@ export async function panoramaFornecedores(): Promise<LinhaFornecedor[]> {
         .range(de, ate)
     ),
     lerEmLotes<Record<string, unknown>>((de, ate) =>
-      admin.from("dados_bancarios").select("fornecedor_id, pix, conta").not("fornecedor_id", "is", null).order("id").range(de, ate)
+      admin.from("dados_bancarios").select("fornecedor_id, pix, conta").not("fornecedor_id", "is", null).is("arquivada_em", null).order("id").range(de, ate)
     ).catch(() => []),
     lerEmLotes<Record<string, unknown>>((de, ate) =>
       admin.from("enderecos").select("empresa_id").not("empresa_id", "is", null).order("id").range(de, ate)

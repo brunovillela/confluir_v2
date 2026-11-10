@@ -6,6 +6,7 @@ import { redirect } from "next/navigation"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import {
+  arquivarConta,
   atualizarFornecedor,
   criarFornecedor,
   definirComprovanteAutomatico,
@@ -213,6 +214,21 @@ export async function salvarContaAction(
     },
     contaId
   )
+  if (erro) return { erro }
+  revalidarFornecedor(fornecedorId)
+  redirect(`/painel/compras/fornecedores/${fornecedorId}?salvo=1`)
+}
+
+export async function arquivarContaAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requireGestaoFornecedores()
+  const fornecedorId = texto(formData, "fornecedor_id")
+  const contaId = texto(formData, "conta_id")
+  if (!fornecedorId || !contaId) return { erro: "Conta inválida." }
+  const arquivar = texto(formData, "arquivar") !== "nao"
+  const { erro } = await arquivarConta(fornecedorId, contaId, arquivar, sessao.usuario.id)
   if (erro) return { erro }
   revalidarFornecedor(fornecedorId)
   redirect(`/painel/compras/fornecedores/${fornecedorId}?salvo=1`)
