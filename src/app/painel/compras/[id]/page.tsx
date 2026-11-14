@@ -52,6 +52,8 @@ import { CustoDoRpa } from "./custo-rpa"
 import { ComprovanteAcoes } from "./comprovante-envio"
 import { LinhaDoTempoProcesso, type EtapaProcesso } from "./linha-do-tempo"
 import { AnexarNotaMarketplace, VincularVendedor } from "./marketplace-nota"
+import { MarcarCreditoUsado, RegistrarCancelamentoCompra } from "./cancelamento-compra"
+import { hojeSP } from "@/lib/db/comum"
 import { AnexarRpaAssinadoBotao } from "../rpa/rpa-forms"
 
 export const metadata: Metadata = {
@@ -266,6 +268,7 @@ export default async function ProcessoCompraPage({
           recebidoPorNome: processo.recebidoPorNome,
           recebimento_de_acordo: processo.recebimento_de_acordo,
           recebimento_observacao: processo.recebimento_observacao,
+          cancelamento: null,
         },
       ]
     : (processo.fornecimentos ?? [])
@@ -306,6 +309,7 @@ export default async function ProcessoCompraPage({
     fornecimentosBase.map(async (f) => ({
       ...f,
       notaUrl: await urlArquivoCompras(f.nota_fiscal_url),
+      cancelamentoUrl: await urlArquivoCompras(f.cancelamento?.comprovanteUrl ?? null),
       ordem: f.ordem
         ? { ...f.ordem, notaUrl: await urlArquivoCompras(f.ordem.notaFiscal ?? null) }
         : null,
@@ -768,7 +772,13 @@ export default async function ProcessoCompraPage({
                   </p>
                   <div className="flex items-center gap-2">
                     <span className="text-base font-semibold tabular-nums">{formatarMoeda(f.valor)}</span>
-                    {f.recebido ? <Badge variant="success">Recebido</Badge> : <Badge variant="info">A receber</Badge>}
+                    {f.cancelamento ? (
+                      <Badge variant="warning">Cancelada pelo vendedor</Badge>
+                    ) : f.recebido ? (
+                      <Badge variant="success">Recebido</Badge>
+                    ) : (
+                      <Badge variant="info">A receber</Badge>
+                    )}
                   </div>
                 </header>
 
@@ -830,6 +840,13 @@ export default async function ProcessoCompraPage({
                           normalmente; anexe a nota quando ela chegar.
                         </span>
                         {podeAjustar && (
+                          <span className="flex flex-wrap gap-2">
+                          <RegistrarCancelamentoCompra
+                            processoId={processo.id}
+                            fornecimentoId={f.id}
+                            valor={f.valor}
+                            hoje={hojeSP()}
+                          />
                           <AnexarNotaMarketplace
                             processoId={processo.id}
                             fornecimentoId={f.id}
@@ -837,8 +854,54 @@ export default async function ProcessoCompraPage({
                             fornecedores={vendedoresPossiveis}
                             vendedorAtual={f.vendedor_id}
                           />
+                          </span>
                         )}
                       </div>
+                    )}
+                    {f.cancelamento ? (
+                      <div className="border-warning/40 bg-warning/5 grid gap-1 rounded-md border p-3 text-sm">
+                        <p>
+                          <strong>Compra cancelada pelo vendedor</strong>
+                          {f.cancelamento.data ? ` em ${formatarData(f.cancelamento.data)}` : ""} —{" "}
+                          {f.cancelamento.desfecho === "credito" ? "virou crédito para compras futuras" : "o dinheiro foi devolvido"}
+                          {f.cancelamento.valor !== null ? ` (${formatarMoeda(f.cancelamento.valor)})` : ""}.
+                        </p>
+                        {f.cancelamento.obs && <p className="text-muted-foreground text-xs">{f.cancelamento.obs}</p>}
+                        <p className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                          {f.cancelamento.registradoPorNome && <span>Registrado por {f.cancelamento.registradoPorNome}</span>}
+                          {f.cancelamentoUrl && (
+                            <a href={f.cancelamentoUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                              Comprovante do cancelamento
+                            </a>
+                          )}
+                          {f.cancelamento.desfecho === "credito" &&
+                            (f.cancelamento.creditoUsadoEm ? (
+                              <span>
+                                Crédito usado em {formatarData(f.cancelamento.creditoUsadoEm.slice(0, 10))}
+                                {f.cancelamento.creditoUsadoObs ? ` — ${f.cancelamento.creditoUsadoObs}` : ""}
+                              </span>
+                            ) : (
+                              <>
+                                <Badge variant="info">Crédito em aberto</Badge>
+                                {podeAjustar && <MarcarCreditoUsado processoId={processo.id} fornecimentoId={f.id} />}
+                              </>
+                            ))}
+                        </p>
+                      </div>
+                    ) : (
+                      podeAjustar &&
+                      processo.comprado &&
+                      !processo.cancelado &&
+                      !f.nota_a_receber && (
+                        <div className="flex justify-start">
+                          <RegistrarCancelamentoCompra
+                            processoId={processo.id}
+                            fornecimentoId={f.id}
+                            valor={f.valor}
+                            hoje={hojeSP()}
+                          />
+                        </div>
+                      )
                     )}
                     {/* Ordem de compra ao fornecedor (o fornecimento montado do legado ainda não existe no
                         banco; no marketplace o pedido é feito na própria plataforma). */}
@@ -866,7 +929,8 @@ export default async function ProcessoCompraPage({
                         {f.recebimento_observacao && <> · Observação: {f.recebimento_observacao}</>}
                       </p>
                     ) : (
-                      podeReceber && (
+                      podeReceber &&
+                      !f.cancelamento && (
                         <>
                           <Separator />
                           <RecebimentoForm processoId={processo.id} fornecimentoId={f.id} />

@@ -137,6 +137,20 @@ export type Fornecimento = {
   recebidoPorNome: string | null
   recebimento_de_acordo: boolean | null
   recebimento_observacao: string | null
+  /** Compra cancelada pelo vendedor depois de feita (crédito ou devolução). */
+  cancelamento: CancelamentoFornecimento | null
+}
+
+export type CancelamentoFornecimento = {
+  desfecho: "credito" | "devolucao"
+  valor: number | null
+  data: string | null
+  obs: string | null
+  comprovanteUrl: string | null
+  registradoPorNome: string | null
+  /** Crédito: quando foi usado (null = em aberto). */
+  creditoUsadoEm: string | null
+  creditoUsadoObs: string | null
 }
 
 export type OrdemDoProcesso = {
@@ -645,6 +659,7 @@ export async function buscarProcesso(
     ...(fornecimentosBrutos ?? []).flatMap((x) => [
       x.comprador_id,
       x.recebimento_recebido_por_id,
+      x.cancelado_por_id,
     ]),
   ].filter((v): v is string => Boolean(v))
 
@@ -747,6 +762,19 @@ export async function buscarProcesso(
             (x.recebimento_de_acordo as boolean | null) ?? null,
           recebimento_observacao:
             (x.recebimento_observacao as string | null) ?? null,
+          cancelamento:
+            x.cancelamento_desfecho === "credito" || x.cancelamento_desfecho === "devolucao"
+              ? {
+                  desfecho: x.cancelamento_desfecho,
+                  valor: x.cancelamento_valor === null || x.cancelamento_valor === undefined ? null : Number(x.cancelamento_valor),
+                  data: (x.cancelamento_data as string | null) ?? null,
+                  obs: (x.cancelamento_obs as string | null) ?? null,
+                  comprovanteUrl: (x.cancelamento_comprovante_url as string | null) ?? null,
+                  registradoPorNome: x.cancelado_por_id ? (usuarios.get(String(x.cancelado_por_id)) ?? null) : null,
+                  creditoUsadoEm: (x.credito_usado_em as string | null) ?? null,
+                  creditoUsadoObs: (x.credito_usado_obs as string | null) ?? null,
+                }
+              : null,
         }))
 
   const ordensVinculadas = new Set(

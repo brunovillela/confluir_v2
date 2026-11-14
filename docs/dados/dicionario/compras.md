@@ -83,10 +83,20 @@ Cada compra efetivada com um fornecedor dentro de um processo de compra: valor, 
 | `nota_a_receber` | boolean | não | `false` |  |  | Compra em marketplace cuja nota fiscal ainda não chegou. |
 | `nota_aviso_em` | timestamp with time zone | sim |  |  |  | Último aviso por e-mail cobrando a nota a receber. |
 | `vendedor_id` | uuid | sim |  | → empresa (set null) |  | Vendedor do marketplace (loja) quando difere do fornecedor. |
+| `cancelamento_desfecho` | text | sim |  |  | nenhum | Compra cancelada pelo vendedor depois de feita: credito (para compras futuras) ou devolucao (o dinheiro voltou). Nulo = não cancelada. |
+| `cancelamento_valor` | numeric(12,2) | sim |  |  | financeiro | Valor do crédito ou da devolução informado no cancelamento. |
+| `cancelamento_data` | date | sim |  |  | nenhum | Data do cancelamento (do estorno ou da concessão do crédito). |
+| `cancelamento_obs` | text | sim |  |  | nenhum | Observação do cancelamento (motivo, código do crédito, como foi devolvido). |
+| `cancelamento_comprovante_url` | text | sim |  |  | nenhum | Comprovante do cancelamento (e-mail do vendedor, estorno, vale-crédito) no bucket de compras. Vale como documento equivalente à nota na ordem. |
+| `cancelado_em` | timestamp with time zone | sim |  |  | nenhum | Quando o cancelamento foi registrado no sistema. |
+| `cancelado_por_id` | uuid | sim |  | → usuarios (set null) | identificação | Quem registrou o cancelamento. |
+| `credito_usado_em` | timestamp with time zone | sim |  |  | nenhum | Quando o crédito do cancelamento foi marcado como usado. Nulo com desfecho credito = crédito em aberto. |
+| `credito_usado_por_id` | uuid | sim |  | → usuarios (set null) | identificação | Quem marcou o crédito como usado. |
+| `credito_usado_obs` | text | sim |  |  | nenhum | Em que compra o crédito foi usado (código do processo ou observação). |
 
-Checks: `compras_fornecimentos_valor_check` `CHECK ((valor >= (0)::numeric))`
+Checks: `compras_fornecimentos_cancelamento_desfecho_check` `CHECK (((cancelamento_desfecho IS NULL) OR (cancelamento_desfecho = ANY (ARRAY['credito'::text, 'devolucao'::text]))))`; `compras_fornecimentos_valor_check` `CHECK ((valor >= (0)::numeric))`
 
-Índices: `compras_fornecimentos_nota_a_receber_idx`, `compras_fornecimentos_pkey`, `compras_fornecimentos_vendedor_idx`, `idx_compras_fornecimentos_pendentes`, `idx_compras_fornecimentos_processo`
+Índices: `compras_fornecimentos_credito_aberto_idx`, `compras_fornecimentos_nota_a_receber_idx`, `compras_fornecimentos_pkey`, `compras_fornecimentos_vendedor_idx`, `idx_compras_fornecimentos_pendentes`, `idx_compras_fornecimentos_processo`
 
 ## compras_itens
 

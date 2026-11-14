@@ -16,6 +16,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-11-14",
     titulo: "Ordens de pagamento: busca por quem recebe",
     itens: [
+      "Aquisição: compra cancelada pelo vendedor depois de feita. Na compra, \"Compra cancelada pelo vendedor\" registra se o dinheiro virou crédito para compras futuras ou foi devolvido, com valor, data e comprovante: a compra sai de Notas a receber e dos avisos de nota, ordens não pagas são canceladas e, nas pagas, o comprovante vira o documento da despesa. Os créditos ficam em \"Créditos com fornecedores\" (em Notas a receber) até serem marcados como usados.",
       "Comunicação → Aniversariantes → Do mês: os aniversariantes do mês inteiro numa lista só, por dia — filiados ativos e o quadro da entidade (diretores, funcionários, prestadores, aprendizes e estagiários). Quem é das duas coisas aparece uma vez, com os dois rótulos; dá para filtrar, buscar por nome e passar de mês.",
       "Ordens de pagamento: a busca agora acha a ordem pelo nome ou CPF/CNPJ de quem recebe — funcionário, diretor, filiado, empresa ou convidado —, com as palavras em qualquer ordem e sem acento. O filtro Favorecido também passa a listar quem não tem cadastro (marcado como \"Sem cadastro\").",
     ],

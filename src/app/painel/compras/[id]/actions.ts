@@ -36,6 +36,7 @@ import {
 import { compraNoEscopo, escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
 import { trocarCodigoPix, trocarNotaDaCompra, trocarNotaDaOrdem } from "@/lib/db/compras-ajustes"
 import { receberNotaMarketplace, vincularVendedor } from "@/lib/db/compras-marketplace"
+import { marcarCreditoUsado, registrarCancelamentoCompra } from "@/lib/db/compras-cancelamento"
 import { enviarOrdemCompra } from "@/lib/db/ordem-compra"
 import { enviarComprovanteAoFornecedor } from "@/lib/db/comprovante-fornecedor"
 import { podeAcessar } from "@/lib/permissoes"
@@ -447,6 +448,75 @@ export async function vincularVendedorAction(_prev: EstadoForm, formData: FormDa
   if (erro) return { erro }
   revalidarProcesso(processoId)
   return { ok: "Vendedor vinculado." }
+}
+
+// ── Compra cancelada pelo vendedor: crédito ou devolução ─────────────────────
+
+/**
+ * O vendedor cancelou uma compra já feita. Registra o desfecho (crédito ou
+ * devolução), tira a compra de Notas a receber, cancela as ordens não pagas e,
+ * nas pagas, usa o comprovante como documento da despesa.
+ */
+export async function registrarCancelamentoCompraAction(
+  _prev: EstadoForm & { avisos?: string[] },
+  formData: FormData
+): Promise<EstadoForm & { avisos?: string[] }> {
+  const sessao = await requireAjustePagamento(formData)
+  const processoId = texto(formData, "processo_id")
+  if (!processoId) return { erro: "Pedido inválido." }
+  const real = await fornecimentoReal(processoId, texto(formData, "fornecimento_id"))
+  if (real.erro || !real.id) return { erro: real.erro ?? "Fornecimento não encontrado." }
+  const desfecho = texto(formData, "desfecho")
+  if (desfecho !== "credito" && desfecho !== "devolucao") return { erro: "Escolha: crédito ou devolução do dinheiro." }
+  const data = dataISO(texto(formData, "data"))
+  if (!data) return { erro: "Informe a data do cancelamento." }
+  const valorTexto = texto(formData, "valor")
+  const valor = valorTexto ? parseValorBR(valorTexto) : null
+  if (valorTexto && (valor === null || !Number.isFinite(valor) || valor <= 0)) return { erro: "Valor inválido." }
+  if (desfecho === "credito" && valor === null) return { erro: "Informe o valor do crédito." }
+  const obs = texto(formData, "obs") || null
+
+  let caminho: string | null = null
+  const arquivo = formData.get("comprovante")
+  if (arquivo instanceof File && arquivo.size > 0) {
+    const r = await subirComprovanteCompras(`cancelamentos/${processoId}`, arquivo)
+    if (r.erro || !r.caminho) return { erro: r.erro ?? "Falha ao subir o comprovante." }
+    caminho = r.caminho
+  }
+  const r = await registrarCancelamentoCompra({
+    processoId,
+    fornecimentoId: real.id,
+    desfecho,
+    valor,
+    data,
+    obs,
+    comprovante: caminho,
+    usuarioId: sessao.usuario.id,
+  })
+  if (r.erro) {
+    if (caminho) await (await createAdminClient()).storage.from("compras").remove([caminho])
+    return { erro: r.erro }
+  }
+  revalidarProcesso(processoId)
+  revalidatePath("/painel/compras/notas-a-receber")
+  revalidatePath("/painel/financeiro/ordens")
+  return {
+    ok: desfecho === "credito" ? "Cancelamento registrado; o crédito ficou em aberto." : "Cancelamento registrado.",
+    avisos: r.avisos,
+  }
+}
+
+/** Crédito de compra cancelada usado numa compra nova. */
+export async function marcarCreditoUsadoAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const sessao = await requireAjustePagamento(formData)
+  const fornecimentoId = texto(formData, "fornecimento_id")
+  const processoId = texto(formData, "processo_id")
+  if (!fornecimentoId) return { erro: "Pedido inválido." }
+  const r = await marcarCreditoUsado(fornecimentoId, texto(formData, "obs"), sessao.usuario.id)
+  if (r.erro) return { erro: r.erro }
+  if (processoId) revalidarProcesso(processoId)
+  revalidatePath("/painel/compras/notas-a-receber")
+  return { ok: "Crédito marcado como usado." }
 }
 
 // ── Ordem de compra ao fornecedor ────────────────────────────────────────────

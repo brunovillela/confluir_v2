@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, FileClock } from "lucide-react"
+import { ArrowLeft, FileClock, Wallet } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -9,6 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requirePermissao } from "@/lib/auth"
 import { escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
 import { DIAS_AVISO_NOTA, listarNotasAReceber } from "@/lib/db/compras-marketplace"
+import { creditosEmAberto } from "@/lib/db/compras-cancelamento"
+import { MarcarCreditoUsado } from "../[id]/cancelamento-compra"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
@@ -28,7 +30,16 @@ export default async function NotasAReceberPage() {
   const escopo = podeAcessar(sessao.permissoes, "aquisicoes_comprador")
     ? null
     : await escopoComprasDoUsuario(sessao.usuario.id)
-  const { disponivel, itens } = await listarNotasAReceber(escopo)
+  const [{ disponivel, itens }, creditos] = await Promise.all([
+    listarNotasAReceber(escopo),
+    creditosEmAberto().catch(() => ({ disponivel: false, itens: [] })),
+  ])
+  // Quem ajusta o pagamento da compra (a action confere o escopo do processo).
+  const podeMarcar = podeAcessar(sessao.permissoes, "aquisicoes_compras_edicao", [
+    "aquisicoes_comprador",
+    "aquisicoes_compra_direta",
+  ])
+  const totalCreditos = creditos.itens.reduce((s, c) => s + (c.valor ?? 0), 0)
   const atrasadas = itens.filter((i) => i.dias >= DIAS_AVISO_NOTA).length
 
   return (
@@ -65,7 +76,8 @@ export default async function NotasAReceberPage() {
           </CardTitle>
           <CardDescription>
             Abra a compra e use <strong>Anexar nota</strong>: a IA lê o emitente e liga o vendedor. Depois de{" "}
-            {DIAS_AVISO_NOTA} dias sem a nota, quem comprou recebe um e-mail (uma vez).
+            {DIAS_AVISO_NOTA} dias sem a nota, quem comprou recebe um e-mail (uma vez). Se o vendedor cancelou a
+            compra, use <strong>Compra cancelada pelo vendedor</strong> na compra: ela sai daqui.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -117,6 +129,41 @@ export default async function NotasAReceberPage() {
           )}
         </CardContent>
       </Card>
+
+      {creditos.itens.length > 0 && (
+        <Card id="creditos">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Wallet className="size-4" />
+              Créditos com fornecedores ({creditos.itens.length} · {formatarMoeda(totalCreditos)})
+            </CardTitle>
+            <CardDescription>
+              Compras canceladas pelo vendedor que viraram crédito. Ao usar numa compra nova, marque aqui.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="divide-y text-sm">
+              {creditos.itens.map((c) => (
+                <li key={c.fornecimentoId} className="grid items-center gap-2 py-2.5 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+                  <div className="min-w-0">
+                    <p className="font-medium">{c.fornecedor}</p>
+                    <p className="text-muted-foreground truncate text-xs">
+                      <Link href={`/painel/compras/${c.processoId}`} className="text-primary hover:underline">
+                        {c.codigo ?? "(sem código)"}
+                      </Link>
+                      {c.produto ? ` · ${c.produto}` : ""}
+                      {c.data ? ` · cancelada em ${formatarData(c.data)}` : ""}
+                      {c.obs ? ` · ${c.obs}` : ""}
+                    </p>
+                  </div>
+                  <span className="text-right font-medium tabular-nums">{formatarMoeda(c.valor)}</span>
+                  {podeMarcar ? <MarcarCreditoUsado processoId={c.processoId} fornecimentoId={c.fornecimentoId} /> : <span />}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
     </>
   )
 }
