@@ -21,15 +21,35 @@ e a finalização.
     **Detalhamento** e, se for o caso, **Projeto estratégico**.
   </Passo>
   <Passo titulo="Acompanhe">
-    A página do projeto mostra as **solicitações de compra vinculadas**, com o valor
-    solicitado. A lista traz os totais de projetos, de orçamento em andamento e do
-    solicitado em Aquisição, com busca pelo título e filtros por tipo e situação.
+    A página do projeto mostra as **tarefas** do projeto e as **solicitações de
+    compra vinculadas**, com o valor solicitado. A lista traz os totais de projetos,
+    de orçamento em andamento e do solicitado em Aquisição, com busca pelo título e
+    filtros por tipo e situação.
   </Passo>
   <Passo titulo="Finalize">
     **Marcar como finalizado** tira o projeto da visão padrão, que mostra os **Em
-    andamento**. **Reabrir projeto** o traz de volta.
+    andamento**. Se ainda há tarefas abertas, o sistema avisa antes: elas são
+    finalizadas junto. **Reabrir projeto** o traz de volta, mas não reabre as tarefas.
   </Passo>
 </PassoAPasso>
+
+### Tarefas do projeto
+
+Como na demanda, o projeto pode ter **tarefas**, se você quiser. No cartão **Tarefas**
+da página do projeto:
+
+- **Adicionar** cria uma tarefa nova, com responsável e prazo;
+- **Vincular uma tarefa avulsa** traz uma tarefa que já existia sem vínculo;
+- o botão de **desvincular** na linha tira a tarefa do projeto. Ela continua
+  existindo, avulsa, com o mesmo responsável e prazo.
+
+Na primeira tarefa, o projeto **cria sozinho uma demanda**, com o nome "Projeto:" e o
+título. As tarefas do projeto ficam nela e seguem a rotina de qualquer demanda: o
+responsável é avisado e elas aparecem em **Tarefas**. O link **Ver a demanda do
+projeto** leva até ela. Finalizar o projeto finaliza as tarefas e passa a demanda dele
+para **Feito**.
+
+Mexe nas tarefas do projeto quem tem **Projetos — editar**, **Tarefas** ou **Demandas**.
 
 ## Demandas e tarefas
 
@@ -38,13 +58,25 @@ e a finalização.
     Uma frente de atuação. **Nova demanda** pede o **Nome da demanda** (obrigatório),
     a **Situação** (A fazer, Fazendo ou Feito), o **Responsável**, o **Prazo**, o
     **Orçamento** e a **Descrição**. Na página da demanda, a situação troca direto e
-    as tarefas dela ficam listadas.
+    as tarefas dela ficam listadas. Ali também dá para **vincular uma tarefa avulsa**
+    e **desvincular** uma tarefa, que continua existindo, avulsa.
   </Passo>
   <Passo titulo="Tarefa">
     Algo **a fazer**, com responsável e prazo. Pode ser ligada a uma demanda, a um
     projeto ou a uma anomalia, ou ser **avulsa**, criada em **Tarefas**. A tela
-    **Tarefas** filtra por **Pendentes**, **Atrasadas**, **Concluídas** ou **Todas**.
-    O botão da linha conclui ou reabre a tarefa.
+    **Tarefas** filtra por **Pendentes**, **Atrasadas**, **Concluídas** ou **Todas**, e
+    por **Minhas** (as tarefas de que você é o responsável). O botão da linha conclui
+    ou reabre a tarefa.
+  </Passo>
+  <Passo titulo="O responsável é avisado">
+    Quem é escolhido como **responsável** recebe o aviso **Tarefa atribuída a você** no
+    sino e, se ligou em **Meu perfil → Avisos**, por e-mail, Telegram ou celular. Quem
+    cria a tarefa para si mesmo não é avisado.
+  </Passo>
+  <Passo titulo="Finalizar">
+    Passar a demanda para **Feito** finaliza as tarefas que ainda estavam abertas,
+    com a data de hoje. O sistema avisa antes. Voltar a demanda para A fazer ou
+    Fazendo não reabre as tarefas.
   </Passo>
 </PassoAPasso>
 
@@ -84,7 +116,8 @@ tratado. Ela tem cartão próprio em Ferramentas.
 | Permissão | O que libera |
 |---|---|
 | **Demandas** | Criar, editar, mudar a situação e excluir demandas; e tudo o que Tarefas libera |
-| **Tarefas** | Ver as demandas (sem editá-las) e trabalhar nas tarefas: criar e concluir, avulsas, de demandas ou de projetos |
+| **Tarefas** | Ver as demandas (sem editá-las) e trabalhar nas tarefas: criar, concluir, vincular e desvincular, avulsas, de demandas ou de projetos |
+| **Projetos — editar** | Além do projeto, as tarefas dele: criar, concluir, vincular e desvincular |
 | **Anomalias** | Ver, registrar e tratar anomalias: o fato, a causa raiz e as providências |
 
 O **conteúdo das anomalias** só aparece para quem tem a permissão **Anomalias**. Quem
@@ -107,6 +140,10 @@ Quem só tem Anomalias não vê as demandas.
   demanda antiga, sem criador registrado, é do responsável por ela.
 - **"Não consigo marcar a demanda como Feito."** Ela veio do portal: use **Responder
   e concluir**.
+- **"Esta tarefa já tem vínculo."** Só tarefas avulsas entram numa demanda ou num
+  projeto. Desvincule a tarefa de onde ela está antes.
+- **"O responsável não recebeu o aviso por e-mail."** O sino sempre recebe; e-mail,
+  Telegram e celular dependem de **Meu perfil → Avisos → Tarefa atribuída a você**.
 - **"Descreva o fato (o que aconteceu)."** O fato é o único campo obrigatório da
   anomalia.
 

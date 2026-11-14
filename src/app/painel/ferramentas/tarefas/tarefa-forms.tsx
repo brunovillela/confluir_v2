@@ -1,16 +1,20 @@
 "use client"
 
 import { useActionState } from "react"
-import { Check, Loader2, Plus, RotateCcw } from "lucide-react"
+import { Check, Link2, Loader2, Plus, RotateCcw, Unlink } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { type EstadoForm } from "@/lib/contas"
-import { type OpcaoPessoa } from "@/lib/db/nucleo"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { type OpcaoPessoa, type TarefaAvulsa } from "@/lib/db/nucleo"
+import { formatarData } from "@/lib/formato"
 
 import {
   alternarConclusaoTarefaAction,
   criarTarefaAction,
+  desvincularTarefaAction,
+  vincularTarefaAction,
 } from "./actions"
 
 const SELECT =
@@ -122,6 +126,70 @@ export function ToggleTarefa({
         ) : (
           <Check />
         )}
+      </Button>
+      {estado.erro && <span className="text-destructive text-xs">{estado.erro}</span>}
+    </form>
+  )
+}
+
+/**
+ * Traz uma tarefa avulsa (sem demanda, projeto nem anomalia) para a demanda ou
+ * o projeto da tela. No projeto, ela entra também na demanda do projeto.
+ */
+export function VincularTarefa({ pai, avulsas }: { pai: PaiFixo; avulsas: TarefaAvulsa[] }) {
+  const [estado, formAction, pendente] = useActionState<EstadoForm, FormData>(vincularTarefaAction, {})
+  if (avulsas.length === 0) return null
+  return (
+    <form action={formAction} className="grid gap-2 sm:grid-cols-[1fr_auto]">
+      <input type="hidden" name={pai.campo} value={pai.id} />
+      <select name="tarefa_id" defaultValue="" required className={SELECT} aria-label="Tarefa avulsa a vincular">
+        <option value="">Vincular uma tarefa avulsa…</option>
+        {avulsas.map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.titulo ?? "(sem título)"}
+            {t.demandadoNome ? ` — ${t.demandadoNome}` : ""}
+            {t.prazo ? ` · até ${formatarData(t.prazo)}` : ""}
+          </option>
+        ))}
+      </select>
+      <div className="flex items-start">
+        <Button type="submit" size="sm" variant="outline" disabled={pendente}>
+          {pendente ? <Loader2 className="animate-spin" /> : <Link2 />}
+          Vincular
+        </Button>
+      </div>
+      {estado.erro && <p className="text-destructive text-sm sm:col-span-2">{estado.erro}</p>}
+    </form>
+  )
+}
+
+/** Tira a tarefa da demanda ou do projeto: ela continua existindo, avulsa. */
+export function DesvincularTarefa({ tarefaId, titulo, pai }: { tarefaId: string; titulo: string | null; pai: PaiFixo }) {
+  const [estado, formAction, pendente] = useActionState<EstadoForm, FormData>(desvincularTarefaAction, {})
+  const onde = pai.campo === "projeto_id" ? "deste projeto" : "desta demanda"
+  return (
+    <form
+      action={formAction}
+      onSubmit={(e) =>
+        confirmarEnvio(e, {
+          titulo: "Desvincular a tarefa?",
+          descricao: `"${titulo ?? "(sem título)"}" deixa de ser ${onde} e continua existindo como tarefa avulsa, com o mesmo responsável e prazo.`,
+          confirmar: "Desvincular",
+        })
+      }
+      className="inline"
+    >
+      <input type="hidden" name="tarefa_id" value={tarefaId} />
+      <input type="hidden" name={pai.campo} value={pai.id} />
+      <Button
+        type="submit"
+        variant="ghost"
+        size="sm"
+        disabled={pendente}
+        title={`Desvincular ${onde}`}
+        aria-label={`Desvincular a tarefa ${onde}`}
+      >
+        {pendente ? <Loader2 className="animate-spin" /> : <Unlink />}
       </Button>
       {estado.erro && <span className="text-destructive text-xs">{estado.erro}</span>}
     </form>

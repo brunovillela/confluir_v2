@@ -67,10 +67,11 @@ Demanda (iniciativa ou pedido interno com responsável, prazo e orçamento) da t
 | `created_at` | timestamp with time zone | sim | `now()` |  |  |  |
 | `updated_at` | timestamp with time zone | sim | `now()` |  |  |  |
 | `criado_por` | uuid | sim |  | → usuarios |  |  |
+| `projeto_id` | uuid | sim |  | → projeto (set null) | nenhum | Projeto dono desta demanda (criada pelo projeto ao receber a primeira tarefa). Nulo nas demandas comuns; no máximo uma por projeto. |
 
 Únicas: `UNIQUE (bubble_id)`
 
-Índices: `demandas_bubble_id_key`, `demandas_pkey`, `idx_demandas_criado_por`
+Índices: `demandas_bubble_id_key`, `demandas_pkey`, `demandas_projeto_id_unico`, `idx_demandas_criado_por`
 
 ## demandas_check
 

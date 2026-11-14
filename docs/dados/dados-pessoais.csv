@@ -201,6 +201,7 @@ modulo,tabela,coluna,categoria,titulares,descricao
 "ferramentas","demandas","","identificacao","funcionários, diretores","Demanda (iniciativa ou pedido interno com responsável, prazo e orçamento) da tela Ferramentas > Demandas. Colunas *_raw guardam listas do Bubble ainda não normalizadas."
 "ferramentas","demandas","descricao","identificacao","funcionários, diretores","Texto livre; pode citar pessoas."
 "ferramentas","demandas","membros_raw","identificacao","funcionários, diretores","Lista de bubble_ids dos membros (pessoas) da demanda."
+"ferramentas","demandas","projeto_id","nenhum","funcionários, diretores","Projeto dono desta demanda (criada pelo projeto ao receber a primeira tarefa). Nulo nas demandas comuns; no máximo uma por projeto."
 "ferramentas","demandas_check_tarefas","","identificacao","funcionários, diretores","Tarefa com demandante e demandado, prazo e documentos, filha de demanda, projeto ou anomalia (pai polimórfico). Lida em lib/db/nucleo.ts; origem Bubble."
 "ferramentas","demandas_check_tarefas","demandado_documentos","identificacao","funcionários, diretores","Arquivos anexados pelo demandado; podem conter dados pessoais."
 "ferramentas","demandas_check_tarefas","demandante_documentos","identificacao","funcionários, diretores","Arquivos anexados pelo demandante; podem conter dados pessoais."

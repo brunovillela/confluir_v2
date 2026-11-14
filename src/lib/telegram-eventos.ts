@@ -72,6 +72,8 @@ export const EVENTOS_TELEGRAM = [
   { chave: "pessoal_aviso_ferias", rotulo: "Aviso de férias assinado pelo funcionário (quem cuida do Pessoal)", grupo: "notificacao", acesso: { permissoes: ["pessoal_gestao"], coordenador: true } },
   // Sem o assunto (o sigilo da deliberação não vale fora do painel): só o prazo e o link.
   { chave: "deliberacao_responsavel", rotulo: "Deliberação de ata atribuída a você", grupo: "notificacao", acesso: { permissoes: ["deliberacoes_livre", "deliberacoes_reservado", "deliberacoes_restrito"] } },
+  // Responsável por tarefa pode ser qualquer pessoa do painel (não só quem tem Tarefas).
+  { chave: "tarefa_responsavel", rotulo: "Tarefa atribuída a você", grupo: "notificacao" },
   // Avisos a quem precisa AGIR (onda 2, U2): entram só para quem tem a
   // permissão correspondente (ou coordena quem pediu).
   { chave: "pendencia_aprovacao", rotulo: "Ordem de pagamento entrou na sua alçada", grupo: "pendencia", acesso: { permissoes: ["aquisicoes_avaliacoes", "financeiro_pagamento"], alcada: true } },

@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Pencil } from "lucide-react"
+import { ArrowLeft, FolderKanban, Pencil } from "lucide-react"
 
 import { TextoComLinks } from "@/components/texto-com-links"
 
@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import {
   listarPessoasAtribuiveis,
+  listarTarefasAvulsas,
   obterDemanda,
   resumoExclusaoDemanda,
 } from "@/lib/db/nucleo"
@@ -19,7 +20,7 @@ import { atendimentoDaDemanda, podeVerAtendimento } from "@/lib/db/portal-atendi
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
-import { AdicionarTarefa } from "../../tarefas/tarefa-forms"
+import { AdicionarTarefa, VincularTarefa } from "../../tarefas/tarefa-forms"
 import { TarefasLista } from "../../tarefas/tarefas-lista"
 import { AtendimentoPainel } from "@/app/painel/filiados/atendimentos/atendimento-painel"
 
@@ -40,11 +41,12 @@ export default async function DemandaPage({
   const { id } = await params
   const { salvo } = await searchParams
 
-  const [demanda, pessoas, resumoExclusao, atendimento] = await Promise.all([
+  const [demanda, pessoas, resumoExclusao, atendimento, avulsas] = await Promise.all([
     obterDemanda(id),
     listarPessoasAtribuiveis(),
     resumoExclusaoDemanda(id),
     atendimentoDaDemanda(id),
+    listarTarefasAvulsas(),
   ])
   if (!demanda) notFound()
 
@@ -55,6 +57,7 @@ export default async function DemandaPage({
     : demanda.responsavelId === sessao.usuario.id
 
   const concluidas = demanda.tarefas.filter((t) => t.concluido).length
+  const pendentes = demanda.tarefas.length - concluidas
 
   return (
     <>
@@ -97,11 +100,26 @@ export default async function DemandaPage({
           </p>
         </div>
         {editor ? (
-          <SituacaoDemanda demandaId={id} situacao={demanda.situacao} />
+          <SituacaoDemanda demandaId={id} situacao={demanda.situacao} pendentes={pendentes} />
         ) : (
           demanda.situacao && <Badge variant="outline">{demanda.situacao}</Badge>
         )}
       </div>
+
+      {demanda.projetoId && (
+        <Alert>
+          <FolderKanban />
+          <AlertDescription>
+            <p>
+              Esta é a demanda do projeto{" "}
+              <Link href={`/painel/ferramentas/projetos/${demanda.projetoId}`} className="text-primary font-medium hover:underline">
+                {demanda.projetoNome}
+              </Link>
+              : reúne as tarefas dele. Finalizar o projeto conclui as tarefas e esta demanda.
+            </p>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {atendimento && podeVerAtendimento(sessao.permissoes, atendimento.atendimento.assunto) && (
         // Demanda que nasceu de uma solicitação do portal: responder aqui é
@@ -129,13 +147,15 @@ export default async function DemandaPage({
               ({concluidas}/{demanda.tarefas.length})
             </span>
           </p>
-          <div className="mb-4">
+          <div className="mb-4 grid gap-3">
             <AdicionarTarefa pessoas={pessoas} pai={{ campo: "demanda_id", id }} />
+            <VincularTarefa pai={{ campo: "demanda_id", id }} avulsas={avulsas} />
           </div>
           <TarefasLista
             tarefas={demanda.tarefas}
             pai={{ campo: "demanda_id", id }}
             vazio="Nenhuma tarefa nesta demanda ainda."
+            desvincular
           />
         </CardContent>
       </Card>

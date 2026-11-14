@@ -56,6 +56,7 @@ export default async function EditarDemandaPage({
               membro_responsavel_id: demanda.responsavelId,
             }}
             pessoas={pessoas}
+            pendentes={demanda.tarefas.filter((t) => !t.concluido).length}
           />
         </CardContent>
       </Card>

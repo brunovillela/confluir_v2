@@ -17,6 +17,7 @@ erDiagram
     uuid emp_proprietaria_id FK
     uuid membro_responsavel_id FK
     uuid criado_por FK
+    uuid projeto_id FK
   }
   demandas_check {
     uuid id PK
@@ -55,6 +56,7 @@ erDiagram
   }
   assinaturas }o--o| diretoria_atas : "ata_id"
   assinaturas }o--o| usuarios : "assinador_id"
+  demandas }o--o| projeto : "projeto_id"
   demandas }o--o| usuarios : "criado_por"
   demandas }o--o| usuarios : "membro_responsavel_id"
   demandas_check }o--o| demandas : "demanda_id"

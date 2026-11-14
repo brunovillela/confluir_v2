@@ -7,6 +7,7 @@ import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import {
   atualizarDemanda,
+  concluirTarefasPendentes,
   criarDemanda,
   definirSituacaoDemanda,
   excluirDemanda,
@@ -123,6 +124,8 @@ export async function atualizarDemandaAction(
 
   const { erro } = await atualizarDemanda(id, dados)
   if (erro) return { erro }
+  // Finalizar a demanda conclui as tarefas que ainda estavam abertas (a tela avisa antes).
+  if (dados.situacao === "Feito") await concluirTarefasPendentes({ demandaId: id })
   await sincronizarAtendimentoDaDemanda(id, dados.situacao)
   revalidarAtendimento()
   revalidatePath("/painel/ferramentas/demandas")
@@ -150,9 +153,20 @@ export async function definirSituacaoDemandaAction(
 
   const { erro } = await definirSituacaoDemanda(id, nova)
   if (erro) return { erro }
+  let concluidas = 0
+  if (nova === "Feito") {
+    const r = await concluirTarefasPendentes({ demandaId: id })
+    if (r.erro) return { erro: r.erro }
+    concluidas = r.concluidas
+  }
   await sincronizarAtendimentoDaDemanda(id, nova)
   revalidarAtendimento()
   revalidatePath("/painel/ferramentas/demandas")
   revalidatePath(`/painel/ferramentas/demandas/${id}`)
-  return { ok: "Situação atualizada." }
+  revalidatePath("/painel/ferramentas/tarefas")
+  return {
+    ok: concluidas
+      ? `Situação atualizada. ${concluidas === 1 ? "1 tarefa foi concluída" : `${concluidas} tarefas foram concluídas`} junto.`
+      : "Situação atualizada.",
+  }
 }

@@ -60,3 +60,12 @@ export function derivarEstagioAnomalia(a: {
   if (a.anomalia_investigada) return "investigada"
   return "registrada"
 }
+
+/** Texto do aviso antes de finalizar: as tarefas abertas serão concluídas junto. */
+export function avisoTarefasAoFinalizar(pendentes: number, de: "demanda" | "projeto"): { titulo: string; descricao: string; confirmar: string } {
+  return {
+    titulo: de === "projeto" ? "Finalizar o projeto?" : "Finalizar a demanda?",
+    descricao: `${pendentes === 1 ? "A tarefa ainda aberta" : `As ${pendentes} tarefas ainda abertas`} ${de === "projeto" ? "deste projeto" : "desta demanda"} ${pendentes === 1 ? "será finalizada" : "serão finalizadas"} junto, com a data de hoje. Reabrir depois não as reabre.`,
+    confirmar: "Finalizar",
+  }
+}

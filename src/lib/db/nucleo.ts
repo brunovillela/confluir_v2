@@ -195,11 +195,14 @@ export type DetalheDemanda = {
   /** Quem abriu a demanda. Nulo nas linhas antigas (nao havia a coluna). */
   criadoPorId: string | null
   criadoPorNome: string | null
+  /** Projeto dono da demanda (a "demanda do projeto"); nulo nas comuns. */
+  projetoId: string | null
+  projetoNome: string | null
   tarefas: TarefaLinha[]
 }
 
 const COLS_DEMANDA =
-  "id, nome, descricao, situacao, prazo, orcamento, membro_responsavel_id"
+  "id, nome, descricao, situacao, prazo, orcamento, membro_responsavel_id, projeto_id"
 
 export async function obterDemanda(id: string): Promise<DetalheDemanda | null> {
   const admin = await createAdminClient()
@@ -231,11 +234,15 @@ export async function obterDemanda(id: string): Promise<DetalheDemanda | null> {
 
   const responsavelId = texto(d.membro_responsavel_id)
   const criadoPorId = texto(d.criado_por)
-  const [nomes, tarefas] = await Promise.all([
+  const projetoId = texto(d.projeto_id)
+  const [nomes, tarefas, projeto] = await Promise.all([
     nomesDosUsuarios(
       [responsavelId, criadoPorId].filter((v): v is string => Boolean(v))
     ),
     listarTarefas({ paiTipo: "demanda", paiId: id }),
+    projetoId
+      ? admin.from("projeto").select("descricao_sumaria").eq("id", projetoId).eq("emp_proprietaria_id", emp).maybeSingle()
+      : Promise.resolve({ data: null }),
   ])
 
   return {
@@ -249,8 +256,67 @@ export async function obterDemanda(id: string): Promise<DetalheDemanda | null> {
     responsavelNome: responsavelId ? (nomes.get(responsavelId) ?? null) : null,
     criadoPorId,
     criadoPorNome: criadoPorId ? (nomes.get(criadoPorId) ?? null) : null,
+    projetoId,
+    projetoNome: projetoId ? (texto(projeto.data?.descricao_sumaria) ?? "(projeto sem título)") : null,
     tarefas: tarefas.tarefas,
   }
+}
+
+// ── Demanda do projeto ──────────────────────────────────────────────────────
+
+/**
+ * A demanda que é DO projeto (`demandas.projeto_id`): o projeto a cria
+ * sozinho quando recebe a primeira tarefa, e as tarefas dele seguem a rotina
+ * de qualquer demanda. No máximo uma por projeto (índice único) — com duas
+ * abas criando ao mesmo tempo, a segunda lê a da primeira.
+ */
+export async function demandaDoProjeto(projetoId: string): Promise<{ id: string; situacao: string | null } | null> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("demandas")
+    .select("id, situacao")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("projeto_id", projetoId)
+    .maybeSingle()
+  return data ? { id: String(data.id), situacao: texto(data.situacao) } : null
+}
+
+export async function garantirDemandaDoProjeto(
+  projetoId: string,
+  usuarioId: string
+): Promise<{ id?: string; erro?: string }> {
+  const existente = await demandaDoProjeto(projetoId)
+  if (existente) return { id: existente.id }
+
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: p } = await admin
+    .from("projeto")
+    .select("descricao_sumaria, termino_previsao, finalizado")
+    .eq("id", projetoId)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  if (!p) return { erro: "Projeto não encontrado." }
+
+  const { data, error } = await admin
+    .from("demandas")
+    .insert({
+      nome: `Projeto: ${texto(p.descricao_sumaria) ?? "(sem título)"}`,
+      descricao: "Demanda criada pelo projeto para reunir as tarefas dele.",
+      situacao: p.finalizado === true ? "Feito" : "Fazendo",
+      prazo: texto(p.termino_previsao),
+      membro_responsavel_id: usuarioId,
+      criado_por: usuarioId,
+      projeto_id: projetoId,
+      emp_proprietaria_id: emp,
+    })
+    .select("id")
+    .single()
+  if (!error) return { id: String(data.id) }
+  // Outra aba criou no mesmo instante (índice único): usa a dela.
+  const criada = await demandaDoProjeto(projetoId)
+  if (criada) return { id: criada.id }
+  return { erro: `Falha ao criar a demanda do projeto: ${error.message}` }
 }
 
 export type DadosDemanda = {
@@ -497,8 +563,15 @@ export async function listarTarefas(
   const busca = (filtro.busca ?? "").trim()
   if (busca) query = query.ilike("titulo", `%${busca}%`)
   if (filtro.demandadoId) query = query.eq("demandado_id", filtro.demandadoId)
-  if (filtro.paiTipo && filtro.paiId)
+  if (filtro.paiTipo === "projeto" && filtro.paiId) {
+    // As do projeto e as que entraram direto na demanda do projeto.
+    const demanda = await demandaDoProjeto(filtro.paiId)
+    query = demanda
+      ? query.or(`projeto_id.eq.${filtro.paiId},demanda_id.eq.${demanda.id}`)
+      : query.eq("projeto_id", filtro.paiId)
+  } else if (filtro.paiTipo && filtro.paiId) {
     query = query.eq(`${filtro.paiTipo}_id`, filtro.paiId)
+  }
 
   const hoje = hojeISO()
   if (filtro.status === "concluidas") query = query.eq("concluido", true)
@@ -560,10 +633,11 @@ function paiDaTarefa(
   t: LinhaTarefaBruta,
   nomes: { demandas: Map<string, string>; projetos: Map<string, string>; anomalias: Map<string, string> }
 ): { tipo: "demanda" | "projeto" | "anomalia" | null; id: string | null; nome: string | null } {
-  if (t.demanda_id)
-    return { tipo: "demanda", id: t.demanda_id as string, nome: nomes.demandas.get(t.demanda_id as string) ?? null }
+  // Tarefa de projeto também está na demanda do projeto: mostra o projeto.
   if (t.projeto_id)
     return { tipo: "projeto", id: t.projeto_id as string, nome: nomes.projetos.get(t.projeto_id as string) ?? null }
+  if (t.demanda_id)
+    return { tipo: "demanda", id: t.demanda_id as string, nome: nomes.demandas.get(t.demanda_id as string) ?? null }
   if (t.anomalia_id)
     return { tipo: "anomalia", id: t.anomalia_id as string, nome: nomes.anomalias.get(t.anomalia_id as string) ?? null }
   return { tipo: null, id: null, nome: null }
@@ -651,6 +725,125 @@ export async function atualizarTarefa(
     .eq("emp_proprietaria_id", await tenantAtual())
   if (error) return { erro: `Falha ao salvar tarefa: ${error.message}` }
   return {}
+}
+
+// ── Vincular, desvincular e finalizar junto ────────────────────────────────
+
+export type TarefaAvulsa = { id: string; titulo: string | null; prazo: string | null; demandadoNome: string | null }
+
+/** Tarefas pendentes sem vínculo nenhum — as que dá para trazer para uma demanda ou projeto. */
+export async function listarTarefasAvulsas(): Promise<TarefaAvulsa[]> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("demandas_check_tarefas")
+    .select("id, titulo, data_prazo_entrega, demandado_id")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .is("demanda_id", null)
+    .is("projeto_id", null)
+    .is("anomalia_id", null)
+    .not("concluido", "is", true)
+    .order("data_prazo_entrega", { ascending: true, nullsFirst: false })
+    .limit(300)
+  if (error) return []
+  const nomes = await nomesDosUsuarios((data ?? []).map((t) => t.demandado_id as string).filter(Boolean))
+  return (data ?? []).map((t) => ({
+    id: String(t.id),
+    titulo: texto(t.titulo),
+    prazo: texto(t.data_prazo_entrega),
+    demandadoNome: t.demandado_id ? (nomes.get(String(t.demandado_id)) ?? null) : null,
+  }))
+}
+
+/**
+ * Traz uma tarefa AVULSA para a demanda (e, se a demanda é de um projeto,
+ * para o projeto também). Tarefa que já tem vínculo não muda: primeiro se
+ * desvincula de onde está.
+ */
+export async function vincularTarefa(
+  tarefaId: string,
+  pai: { demandaId: string; projetoId: string | null }
+): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("demandas_check_tarefas")
+    .update({ demanda_id: pai.demandaId, projeto_id: pai.projetoId, updated_at: new Date().toISOString() })
+    .eq("id", tarefaId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .is("demanda_id", null)
+    .is("projeto_id", null)
+    .is("anomalia_id", null)
+    .select("id")
+  if (error) return { erro: `Falha ao vincular a tarefa: ${error.message}` }
+  if (!data?.length) return { erro: "Esta tarefa já tem vínculo. Desvincule-a de onde está antes." }
+  return {}
+}
+
+/** Filtro "tarefas da demanda e/ou do projeto" no formato do PostgREST. */
+function filtroDoPai(de: { demandaId?: string | null; projetoId?: string | null }): string | null {
+  const partes = [
+    de.demandaId ? `demanda_id.eq.${de.demandaId}` : null,
+    de.projetoId ? `projeto_id.eq.${de.projetoId}` : null,
+  ].filter(Boolean)
+  return partes.length ? partes.join(",") : null
+}
+
+/**
+ * Tira a tarefa da demanda e do projeto: ela continua existindo, avulsa, com
+ * o mesmo responsável. Só mexe se ela é mesmo da demanda ou do projeto da
+ * tela (o formulário não escolhe tarefa de outro lugar).
+ */
+export async function desvincularTarefa(
+  tarefaId: string,
+  de: { demandaId: string | null; projetoId: string | null }
+): Promise<{ erro?: string }> {
+  const filtro = filtroDoPai(de)
+  if (!filtro) return { erro: "Vínculo inválido." }
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("demandas_check_tarefas")
+    .update({ demanda_id: null, projeto_id: null, checklist_id: null, updated_at: new Date().toISOString() })
+    .eq("id", tarefaId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .or(filtro)
+    .select("id")
+  if (error) return { erro: `Falha ao desvincular a tarefa: ${error.message}` }
+  if (!data?.length) return { erro: "A tarefa não pertence a esta demanda ou projeto." }
+  return {}
+}
+
+/** Quantas tarefas ainda abertas a demanda e/ou o projeto têm (para o aviso antes de finalizar). */
+export async function contarTarefasPendentes(de: { demandaId?: string | null; projetoId?: string | null }): Promise<number> {
+  const filtro = filtroDoPai(de)
+  if (!filtro) return 0
+  const admin = await createAdminClient()
+  const { count } = await admin
+    .from("demandas_check_tarefas")
+    .select("id", { count: "exact", head: true })
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .not("concluido", "is", true)
+    .or(filtro)
+  return count ?? 0
+}
+
+/**
+ * Finalizar a demanda ou o projeto conclui as tarefas que ainda estavam
+ * abertas, com a data de hoje. Reabrir depois não as reabre.
+ */
+export async function concluirTarefasPendentes(
+  de: { demandaId?: string | null; projetoId?: string | null }
+): Promise<{ concluidas: number; erro?: string }> {
+  const filtro = filtroDoPai(de)
+  if (!filtro) return { concluidas: 0 }
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("demandas_check_tarefas")
+    .update({ concluido: true, data_entrega: hojeISO(), updated_at: new Date().toISOString() })
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .not("concluido", "is", true)
+    .or(filtro)
+    .select("id")
+  if (error) return { concluidas: 0, erro: `Falha ao concluir as tarefas: ${error.message}` }
+  return { concluidas: data?.length ?? 0 }
 }
 
 /** A anomalia a que a tarefa pertence (ou null) — decide quem pode mexer nela. */

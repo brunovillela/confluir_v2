@@ -18,7 +18,7 @@ import {
   type SituacaoTarefa,
 } from "@/lib/nucleo-constantes"
 
-import { ToggleTarefa, type PaiFixo } from "./tarefa-forms"
+import { DesvincularTarefa, ToggleTarefa, type PaiFixo } from "./tarefa-forms"
 
 const CLASSE_SITUACAO: Record<SituacaoTarefa, string> = {
   concluida: "text-muted-foreground",
@@ -40,10 +40,13 @@ export function TarefasLista({
   tarefas,
   pai,
   vazio = "Nenhuma tarefa.",
+  desvincular = false,
 }: {
   tarefas: TarefaLinha[]
   pai?: PaiFixo
   vazio?: string
+  /** Com `pai`: botão para tirar a tarefa da demanda/projeto (ela fica avulsa). */
+  desvincular?: boolean
 }) {
   if (tarefas.length === 0) {
     return (
@@ -60,6 +63,7 @@ export function TarefasLista({
           <TableHead>Responsável</TableHead>
           <TableHead>Prazo</TableHead>
           <TableHead>Situação</TableHead>
+          {pai && desvincular && <TableHead className="w-10" />}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -108,6 +112,11 @@ export function TarefasLista({
                 {ROTULOS_SITUACAO_TAREFA[t.situacao]}
               </Badge>
             </TableCell>
+            {pai && desvincular && (
+              <TableCell className="py-1">
+                <DesvincularTarefa tarefaId={t.id} titulo={t.titulo} pai={pai} />
+              </TableCell>
+            )}
           </TableRow>
         ))}
       </TableBody>

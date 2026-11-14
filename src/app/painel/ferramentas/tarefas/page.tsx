@@ -17,7 +17,7 @@ export const metadata: Metadata = { title: "Tarefas — Confluir" }
 const SELECT_FILTRO =
   "border-input bg-background text-foreground h-9 max-w-52 truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 
-type Params = { busca?: string; status?: string }
+type Params = { busca?: string; status?: string; minhas?: string }
 
 export default async function TarefasPage({
   searchParams,
@@ -35,9 +35,11 @@ export default async function TarefasPage({
     brutos.status === "todas"
       ? brutos.status
       : "pendentes"
+  // "Minhas": as tarefas de que sou o responsável (o link do aviso "Tarefa atribuída a você").
+  const minhas = brutos.minhas === "1"
 
   const [{ disponivel, tarefas: todas }, pessoas] = await Promise.all([
-    listarTarefas({ busca, status }),
+    listarTarefas({ busca, status, demandadoId: minhas ? String(sessao.usuario.id) : undefined }),
     listarPessoasAtribuiveis(),
   ])
   // Tarefa de anomalia qualquer um executa; o CONTEÚDO da anomalia (nome e
@@ -108,6 +110,10 @@ export default async function TarefasPage({
           <option value="atrasadas">Atrasadas</option>
           <option value="concluidas">Concluídas</option>
           <option value="todas">Todas</option>
+        </select>
+        <select name="minhas" defaultValue={minhas ? "1" : ""} className={SELECT_FILTRO} aria-label="Responsável">
+          <option value="">De todos</option>
+          <option value="1">Minhas</option>
         </select>
         <Button type="submit" variant="outline" size="sm">
           Filtrar

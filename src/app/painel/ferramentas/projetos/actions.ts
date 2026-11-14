@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
+import { concluirTarefasPendentes, definirSituacaoDemanda, demandaDoProjeto } from "@/lib/db/nucleo"
 import {
   atualizarProjeto,
   criarProjeto,
@@ -83,6 +84,19 @@ export async function alternarFinalizadoAction(
 
   const { erro } = await definirFinalizado(id, finalizado)
   if (erro) return { erro }
+  // A demanda do projeto acompanha: finalizar conclui as tarefas abertas (a
+  // tela avisa antes) e fecha a demanda; reabrir só reabre a demanda.
+  const demanda = await demandaDoProjeto(id)
+  if (finalizado) {
+    const r = await concluirTarefasPendentes({ projetoId: id, demandaId: demanda?.id ?? null })
+    if (r.erro) return { erro: r.erro }
+  }
+  if (demanda) {
+    await definirSituacaoDemanda(demanda.id, finalizado ? "Feito" : "Fazendo")
+    revalidatePath(`/painel/ferramentas/demandas/${demanda.id}`)
+    revalidatePath("/painel/ferramentas/demandas")
+  }
+  revalidatePath("/painel/ferramentas/tarefas")
   revalidatePath("/painel/ferramentas/projetos")
   revalidatePath(`/painel/ferramentas/projetos/${id}`)
   redirect(`/painel/ferramentas/projetos/${id}?salvo=1`)

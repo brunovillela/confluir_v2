@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { type EstadoForm } from "@/lib/contas"
 import { type OpcaoPessoa } from "@/lib/db/nucleo"
-import { SITUACOES_DEMANDA } from "@/lib/nucleo-constantes"
+import { SITUACOES_DEMANDA, avisoTarefasAoFinalizar } from "@/lib/nucleo-constantes"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 const SELECT =
@@ -28,13 +29,22 @@ export function DemandaForm({
   action,
   dados,
   pessoas,
+  pendentes = 0,
 }: {
   action: (prev: EstadoForm, formData: FormData) => Promise<EstadoForm>
   dados?: DemandaFormDados
   pessoas: OpcaoPessoa[]
+  /** Tarefas abertas da demanda: salvar como "Feito" avisa que serão finalizadas. */
+  pendentes?: number
 }) {
   const [estado, formAction, pendente] = useActionState(action, {})
-  const envio = useEnvioFormulario(formAction, estado)
+  const envio = useEnvioFormulario(formAction, estado, {
+    antes: (e) => {
+      const situacao = new FormData(e.currentTarget).get("situacao")
+      if (situacao === "Feito" && dados?.situacao !== "Feito" && pendentes > 0)
+        confirmarEnvio(e, avisoTarefasAoFinalizar(pendentes, "demanda"))
+    },
+  })
 
   return (
     <form action={formAction} {...envio} className="grid max-w-2xl gap-4">

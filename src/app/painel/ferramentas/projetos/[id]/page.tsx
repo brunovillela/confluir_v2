@@ -16,10 +16,13 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
+import { demandaDoProjeto, listarPessoasAtribuiveis, listarTarefas, listarTarefasAvulsas } from "@/lib/db/nucleo"
 import { obterProjeto } from "@/lib/db/projetos"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
+import { AdicionarTarefa, VincularTarefa } from "../../tarefas/tarefa-forms"
+import { TarefasLista } from "../../tarefas/tarefas-lista"
 import { ProjetoAcoes } from "./projeto-acoes"
 
 export const metadata: Metadata = { title: "Projeto — Confluir" }
@@ -35,11 +38,22 @@ export default async function ProjetoPage({
     "ferramentas_projetos_edicao",
   ])
   const editor = podeAcessar(sessao.permissoes, "ferramentas_projetos_edicao")
+  // Mexe nas tarefas do projeto quem edita o projeto ou cuida de Tarefas/Demandas.
+  const editaTarefas = editor || podeAcessar(sessao.permissoes, "ferramentas_tarefas", ["ferramentas_demandas"])
+  const veDemandas = podeAcessar(sessao.permissoes, "ferramentas_demandas", ["ferramentas_tarefas"])
   const { id } = await params
   const { salvo } = await searchParams
 
-  const projeto = await obterProjeto(id)
+  const [projeto, tarefas, demanda, pessoas, avulsas] = await Promise.all([
+    obterProjeto(id),
+    listarTarefas({ paiTipo: "projeto", paiId: id }),
+    demandaDoProjeto(id),
+    editaTarefas ? listarPessoasAtribuiveis() : Promise.resolve([]),
+    editaTarefas ? listarTarefasAvulsas() : Promise.resolve([]),
+  ])
   if (!projeto) notFound()
+  const concluidas = tarefas.tarefas.filter((t) => t.concluido).length
+  const pendentes = tarefas.tarefas.length - concluidas
 
   const saldo =
     projeto.orcamento != null ? projeto.orcamento - projeto.gastoCompras : null
@@ -98,7 +112,7 @@ export default async function ProjetoPage({
           </p>
         </div>
         {editor && (
-          <ProjetoAcoes projetoId={id} finalizado={projeto.finalizado === true} />
+          <ProjetoAcoes projetoId={id} finalizado={projeto.finalizado === true} pendentes={pendentes} />
         )}
       </div>
 
@@ -146,6 +160,42 @@ export default async function ProjetoPage({
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardContent>
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-sm font-medium">
+              Tarefas{" "}
+              <span className="text-muted-foreground font-normal">
+                ({concluidas}/{tarefas.tarefas.length})
+              </span>
+            </p>
+            {demanda && veDemandas && (
+              <Link href={`/painel/ferramentas/demandas/${demanda.id}`} className="text-primary text-xs hover:underline">
+                Ver a demanda do projeto
+              </Link>
+            )}
+          </div>
+          {editaTarefas && !projeto.finalizado && (
+            <div className="mb-4 grid gap-3">
+              <AdicionarTarefa pessoas={pessoas} pai={{ campo: "projeto_id", id }} />
+              <VincularTarefa pai={{ campo: "projeto_id", id }} avulsas={avulsas} />
+              {!demanda && (
+                <p className="text-muted-foreground text-xs">
+                  Na primeira tarefa, o projeto cria a demanda dele, e as tarefas seguem a rotina das
+                  demandas: o responsável é avisado e elas aparecem em Tarefas.
+                </p>
+              )}
+            </div>
+          )}
+          <TarefasLista
+            tarefas={tarefas.tarefas}
+            pai={{ campo: "projeto_id", id }}
+            vazio="Nenhuma tarefa neste projeto ainda."
+            desvincular={editaTarefas}
+          />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent>

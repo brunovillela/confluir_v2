@@ -7,17 +7,28 @@ import { Button } from "@/components/ui/button"
 
 import { alternarFinalizadoAction } from "../actions"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
+import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { avisoTarefasAoFinalizar } from "@/lib/nucleo-constantes"
 
-/** Botão do editor: finalizar / reabrir o projeto. */
+/**
+ * Botão do editor: finalizar / reabrir o projeto. Com tarefas abertas,
+ * finalizar avisa antes que elas serão concluídas junto.
+ */
 export function ProjetoAcoes({
   projetoId,
   finalizado,
+  pendentes = 0,
 }: {
   projetoId: string
   finalizado: boolean
+  pendentes?: number
 }) {
   const [estado, acao, pendente] = useActionState(alternarFinalizadoAction, {})
-  const envio = useEnvioFormulario(acao, estado)
+  const envio = useEnvioFormulario(acao, estado, {
+    antes: (e) => {
+      if (!finalizado && pendentes > 0) confirmarEnvio(e, avisoTarefasAoFinalizar(pendentes, "projeto"))
+    },
+  })
 
   return (
     <div className="grid gap-2">

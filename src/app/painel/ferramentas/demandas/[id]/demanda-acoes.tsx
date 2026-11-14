@@ -1,17 +1,17 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useRef } from "react"
 import { Loader2, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { type EstadoForm } from "@/lib/contas"
-import { SITUACOES_DEMANDA } from "@/lib/nucleo-constantes"
+import { SITUACOES_DEMANDA, avisoTarefasAoFinalizar } from "@/lib/nucleo-constantes"
 
 import {
   definirSituacaoDemandaAction,
   excluirDemandaAction,
 } from "../actions"
-import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { confirmar, confirmarEnvio } from "@/components/ui/confirmacao"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -20,14 +20,18 @@ const SELECT =
 export function SituacaoDemanda({
   demandaId,
   situacao,
+  pendentes = 0,
 }: {
   demandaId: string
   situacao: string | null
+  /** Tarefas abertas: passar para "Feito" avisa que serão finalizadas. */
+  pendentes?: number
 }) {
   const [estado, formAction, pendente] = useActionState<EstadoForm, FormData>(
     definirSituacaoDemandaAction,
     {}
   )
+  const anterior = useRef(situacao ?? "A fazer")
 
   return (
     <form action={formAction} className="flex items-center gap-2">
@@ -36,7 +40,15 @@ export function SituacaoDemanda({
         name="situacao"
         defaultValue={situacao ?? "A fazer"}
         className={SELECT}
-        onChange={(e) => e.currentTarget.form?.requestSubmit()}
+        onChange={async (e) => {
+          const select = e.currentTarget
+          if (select.value === "Feito" && pendentes > 0 && !(await confirmar(avisoTarefasAoFinalizar(pendentes, "demanda")))) {
+            select.value = anterior.current
+            return
+          }
+          anterior.current = select.value
+          select.form?.requestSubmit()
+        }}
       >
         {SITUACOES_DEMANDA.map((s) => (
           <option key={s} value={s}>
@@ -46,6 +58,7 @@ export function SituacaoDemanda({
       </select>
       {pendente && <Loader2 className="text-muted-foreground size-4 animate-spin" />}
       {estado.erro && <span className="text-destructive text-xs">{estado.erro}</span>}
+      {estado.ok && estado.ok !== "Situação atualizada." && <span className="text-success-fg text-xs">{estado.ok}</span>}
     </form>
   )
 }
