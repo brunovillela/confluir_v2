@@ -205,6 +205,7 @@ modulo,tabela,coluna,categoria,titulares,descricao
 "ferramentas","demandas_check_tarefas","","identificacao","funcionários, diretores","Tarefa com demandante e demandado, prazo e documentos, filha de demanda, projeto ou anomalia (pai polimórfico). Lida em lib/db/nucleo.ts; origem Bubble."
 "ferramentas","demandas_check_tarefas","demandado_documentos","identificacao","funcionários, diretores","Arquivos anexados pelo demandado; podem conter dados pessoais."
 "ferramentas","demandas_check_tarefas","demandante_documentos","identificacao","funcionários, diretores","Arquivos anexados pelo demandante; podem conter dados pessoais."
+"ferramentas","demandas_check_tarefas","prioridade","nenhum","funcionários, diretores","Prioridade da tarefa: alta, media ou baixa (padrão media). Usada para ordenar as listas."
 "ferramentas","demandas_comentarios","","identificacao","funcionários, diretores","Comentário em uma demanda (origem Bubble), lido em lib/db/nucleo.ts. Tabela vazia."
 "ferramentas","demandas_comentarios","descricao","identificacao","funcionários, diretores","Texto livre do comentário."
 "financeiro","despesas","","financeiro;identificacao","favorecidos pessoa física","Espelho vazio de Financeiro - Despesas do Bubble (migração inicial). Sem uso encontrado no código (possível legado do Bubble); as despesas vivem nas ordens de pagamento."

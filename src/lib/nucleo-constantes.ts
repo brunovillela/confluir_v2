@@ -69,3 +69,41 @@ export function avisoTarefasAoFinalizar(pendentes: number, de: "demanda" | "proj
     confirmar: "Finalizar",
   }
 }
+
+/** Prioridade da tarefa (coluna `prioridade`; padrão "media"). */
+export const PRIORIDADES_TAREFA = ["alta", "media", "baixa"] as const
+export type PrioridadeTarefa = (typeof PRIORIDADES_TAREFA)[number]
+
+export const ROTULOS_PRIORIDADE_TAREFA: Record<PrioridadeTarefa, string> = {
+  alta: "Alta",
+  media: "Média",
+  baixa: "Baixa",
+}
+
+export function ehPrioridadeTarefa(v: unknown): v is PrioridadeTarefa {
+  return typeof v === "string" && (PRIORIDADES_TAREFA as readonly string[]).includes(v)
+}
+
+/** Ordem das listas de tarefas. */
+export const ORDENS_TAREFAS = ["prazo", "prioridade"] as const
+export type OrdemTarefas = (typeof ORDENS_TAREFAS)[number]
+
+/**
+ * Ordena sem mexer na lista recebida. Prazo: o mais próximo primeiro, sem
+ * prazo no fim. Prioridade: alta, média, baixa e, dentro do nível, o prazo.
+ * Em qualquer ordem, as concluídas vão para o fim.
+ */
+export function ordenarTarefas<T extends { prazo: string | null; prioridade: PrioridadeTarefa; concluido: boolean; titulo: string | null }>(
+  tarefas: readonly T[],
+  ordem: OrdemTarefas
+): T[] {
+  const prazo = (a: T, b: T) => (a.prazo ?? "9999-99-99").localeCompare(b.prazo ?? "9999-99-99")
+  const nivel = (t: T) => PRIORIDADES_TAREFA.indexOf(t.prioridade)
+  return [...tarefas].sort(
+    (a, b) =>
+      Number(a.concluido) - Number(b.concluido) ||
+      (ordem === "prioridade" ? nivel(a) - nivel(b) : 0) ||
+      prazo(a, b) ||
+      (a.titulo ?? "").localeCompare(b.titulo ?? "", "pt-BR")
+  )
+}

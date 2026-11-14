@@ -19,6 +19,7 @@ import { type EstadoForm } from "@/lib/contas"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { type OpcaoPessoa, type TarefaAvulsa } from "@/lib/db/nucleo"
 import { formatarData } from "@/lib/formato"
+import { PRIORIDADES_TAREFA, ROTULOS_PRIORIDADE_TAREFA, type PrioridadeTarefa } from "@/lib/nucleo-constantes"
 
 import {
   alternarConclusaoTarefaAction,
@@ -35,6 +36,18 @@ const SELECT =
 export type PaiFixo = {
   campo: "demanda_id" | "projeto_id" | "anomalia_id"
   id: string
+}
+
+function SelectPrioridade({ id, padrao = "media" }: { id?: string; padrao?: PrioridadeTarefa }) {
+  return (
+    <select id={id} name="prioridade" defaultValue={padrao} className={SELECT} aria-label={id ? undefined : "Prioridade"}>
+      {PRIORIDADES_TAREFA.map((p) => (
+        <option key={p} value={p}>
+          {id ? ROTULOS_PRIORIDADE_TAREFA[p] : `Prioridade ${ROTULOS_PRIORIDADE_TAREFA[p].toLowerCase()}`}
+        </option>
+      ))}
+    </select>
+  )
 }
 
 function SelectPessoa({
@@ -76,12 +89,12 @@ export function AdicionarTarefa({
   return (
     <form action={formAction} className="grid gap-2 sm:grid-cols-[1fr_auto]">
       {pai && <input type="hidden" name={pai.campo} value={pai.id} />}
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid gap-2 sm:grid-cols-3">
         <Input
           name="titulo"
           required
           placeholder="Descreva a tarefa"
-          className="sm:col-span-2"
+          className="sm:col-span-3"
         />
         <SelectPessoa nome="demandado_id" rotulo="Responsável (demandado)" pessoas={pessoas} />
         <Input
@@ -90,6 +103,7 @@ export function AdicionarTarefa({
           aria-label="Prazo"
           className="[color-scheme:light] dark:[color-scheme:dark]"
         />
+        <SelectPrioridade />
       </div>
       <div className="flex items-start">
         <Button type="submit" size="sm" disabled={pendente}>
@@ -214,6 +228,7 @@ type TarefaEditavel = {
   demandadoId: string | null
   demandadoNome: string | null
   prazo: string | null
+  prioridade: PrioridadeTarefa
 }
 
 /**
@@ -242,7 +257,7 @@ export function AcoesTarefa({ tarefa, pessoas }: { tarefa: TarefaEditavel; pesso
             <Pencil />
           </Button>
         </DialogTrigger>
-        <DialogContent>
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Editar tarefa</DialogTitle>
             <DialogDescription>Se o responsável mudar, a pessoa nova é avisada.</DialogDescription>
@@ -253,7 +268,7 @@ export function AcoesTarefa({ tarefa, pessoas }: { tarefa: TarefaEditavel; pesso
               <Label htmlFor={`titulo-${tarefa.id}`}>Tarefa</Label>
               <Input id={`titulo-${tarefa.id}`} name="titulo" required defaultValue={tarefa.titulo ?? ""} />
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-3">
               <div className="grid gap-1.5">
                 <Label htmlFor={`responsavel-${tarefa.id}`}>Responsável</Label>
                 <select
@@ -279,6 +294,10 @@ export function AcoesTarefa({ tarefa, pessoas }: { tarefa: TarefaEditavel; pesso
                   defaultValue={tarefa.prazo ?? ""}
                   className="[color-scheme:light] dark:[color-scheme:dark]"
                 />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor={`prioridade-${tarefa.id}`}>Prioridade</Label>
+                <SelectPrioridade id={`prioridade-${tarefa.id}`} padrao={tarefa.prioridade} />
               </div>
             </div>
             {estado.erro && <p className="text-destructive text-sm">{estado.erro}</p>}

@@ -128,8 +128,11 @@ Tarefa com demandante e demandado, prazo e documentos, filha de demanda, projeto
 | `updated_at` | timestamp with time zone | sim | `now()` |  |  |  |
 | `demanda_id` | uuid | sim |  | → demandas (set null) |  | Demanda-pai (opcional). Junto de projeto_id e anomalia_id compõe o pai polimórfico da tarefa; todos nulos = tarefa solta. |
 | `titulo` | text | sim |  |  |  | Enunciado da tarefa. Substitui o antigo texto em `demanda` (mantido só por compatibilidade). |
+| `prioridade` | text | não | `'media'::text` |  | nenhum | Prioridade da tarefa: alta, media ou baixa (padrão media). Usada para ordenar as listas. |
 
 Únicas: `UNIQUE (bubble_id)`
+
+Checks: `demandas_check_tarefas_prioridade_check` `CHECK ((prioridade = ANY (ARRAY['alta'::text, 'media'::text, 'baixa'::text])))`
 
 Índices: `demandas_check_tarefas_bubble_id_key`, `demandas_check_tarefas_pkey`, `idx_tarefas_anomalia`, `idx_tarefas_demanda`, `idx_tarefas_demandado`, `idx_tarefas_projeto`
 

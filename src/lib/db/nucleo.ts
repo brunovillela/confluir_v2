@@ -5,6 +5,8 @@ import { tenantAtual } from "@/lib/tenant"
 
 import {
   derivarSituacaoTarefa,
+  ehPrioridadeTarefa,
+  type PrioridadeTarefa,
   type SituacaoDemanda,
   type SituacaoTarefa,
 } from "@/lib/nucleo-constantes"
@@ -487,7 +489,7 @@ export async function definirSituacaoDemanda(
 // ════════════════════════════════════════════════════════════════════════════
 
 const COLS_TAREFA =
-  "id, titulo, concluido, tipo, data_prazo_entrega, data_entrega, demandante_id, demandado_id, demanda_id, projeto_id, anomalia_id"
+  "id, titulo, concluido, tipo, prioridade, data_prazo_entrega, data_entrega, demandante_id, demandado_id, demanda_id, projeto_id, anomalia_id"
 
 async function contarTarefasPorPai(
   coluna: "demanda_id" | "projeto_id" | "anomalia_id",
@@ -534,6 +536,7 @@ export type TarefaLinha = {
   situacao: SituacaoTarefa
   concluido: boolean
   prazo: string | null
+  prioridade: PrioridadeTarefa
   demandanteNome: string | null
   /** Responsável: o id serve à edição da tarefa. */
   demandadoId: string | null
@@ -612,6 +615,7 @@ export async function listarTarefas(
         ),
         concluido: t.concluido === true,
         prazo: texto(t.data_prazo_entrega),
+        prioridade: ehPrioridadeTarefa(t.prioridade) ? t.prioridade : "media",
         demandanteNome: t.demandante_id
           ? (nomes.get(t.demandante_id as string) ?? null)
           : null,
@@ -676,6 +680,7 @@ export type DadosTarefa = {
   data_prazo_entrega: string | null
   demandante_id: string | null
   demandado_id: string | null
+  prioridade?: PrioridadeTarefa
   /** Pai opcional — no máximo um preenchido. */
   demanda_id?: string | null
   projeto_id?: string | null
@@ -694,6 +699,7 @@ export async function criarTarefa(
       data_prazo_entrega: dados.data_prazo_entrega,
       demandante_id: dados.demandante_id,
       demandado_id: dados.demandado_id,
+      prioridade: dados.prioridade ?? "media",
       demanda_id: dados.demanda_id ?? null,
       projeto_id: dados.projeto_id ?? null,
       anomalia_id: dados.anomalia_id ?? null,
@@ -850,13 +856,13 @@ export async function concluirTarefasPendentes(
 }
 
 /**
- * Edição pela tela (título, responsável e prazo): só esses campos mudam — o
+ * Edição pela tela (título, responsável, prazo e prioridade): só esses mudam — o
  * tipo e o demandante, que o formulário não mostra, ficam como estão.
  * Devolve o responsável de antes, para avisar só quando ele muda.
  */
 export async function editarTarefa(
   id: string,
-  dados: { titulo: string; demandado_id: string | null; data_prazo_entrega: string | null }
+  dados: { titulo: string; demandado_id: string | null; data_prazo_entrega: string | null; prioridade: PrioridadeTarefa }
 ): Promise<{ erro?: string; responsavelAnterior?: string | null }> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()

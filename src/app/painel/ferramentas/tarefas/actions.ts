@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { requirePermissao } from "@/lib/auth"
 import { podeAcessar } from "@/lib/permissoes"
 import { type EstadoForm } from "@/lib/contas"
+import { ehPrioridadeTarefa, type PrioridadeTarefa } from "@/lib/nucleo-constantes"
 import { avisar, depoisDaResposta, usuariosComPermissao } from "@/lib/db/avisos"
 import {
   atualizarTarefa,
@@ -68,6 +69,12 @@ async function exigirPermissaoDaTarefa(
   return anomalia ? { usuarioId } : { erro: "Sem permissão para esta tarefa." }
 }
 
+/** Prioridade do formulário; fora da lista (ou ausente) vira "media". */
+function prioridade(formData: FormData): PrioridadeTarefa {
+  const v = texto(formData, "prioridade")
+  return ehPrioridadeTarefa(v) ? v : "media"
+}
+
 function lerDados(formData: FormData): DadosTarefa {
   return {
     titulo: texto(formData, "titulo"),
@@ -75,6 +82,7 @@ function lerDados(formData: FormData): DadosTarefa {
     data_prazo_entrega: dataISO(texto(formData, "data_prazo_entrega")),
     demandante_id: texto(formData, "demandante_id") || null,
     demandado_id: texto(formData, "demandado_id") || null,
+    prioridade: prioridade(formData),
     demanda_id: texto(formData, "demanda_id") || null,
     projeto_id: texto(formData, "projeto_id") || null,
     anomalia_id: texto(formData, "anomalia_id") || null,
@@ -244,6 +252,7 @@ export async function editarTarefaAction(_prev: EstadoForm, formData: FormData):
     titulo: texto(formData, "titulo"),
     demandado_id: texto(formData, "demandado_id") || null,
     data_prazo_entrega: dataISO(texto(formData, "data_prazo_entrega")),
+    prioridade: prioridade(formData),
   }
   if (!dados.titulo) return { erro: "Descreva a tarefa." }
 
