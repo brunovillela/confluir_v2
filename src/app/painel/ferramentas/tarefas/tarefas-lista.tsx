@@ -1,6 +1,6 @@
 "use client"
 
-import { useSyncExternalStore } from "react"
+import { useId, useState, useSyncExternalStore } from "react"
 import Link from "next/link"
 
 import { PessoaNome } from "@/components/pessoa-nome"
@@ -18,6 +18,7 @@ import { formatarData } from "@/lib/formato"
 import {
   ORDENS_TAREFAS,
   ordenarTarefas,
+  PRIORIDADES_TAREFA,
   ROTULOS_PAI_TAREFA,
   ROTULOS_PRIORIDADE_TAREFA,
   ROTULOS_SITUACAO_TAREFA,
@@ -103,111 +104,152 @@ export function TarefasLista({
   const comAcoes = Boolean(pessoas) || Boolean(pai && desvincular)
   // O servidor não conhece a escolha do navegador: lá, e na hidratação, é o prazo.
   const ordem = useSyncExternalStore(assinarOrdem, lerOrdem, () => "prazo" as const)
+  // Filtro de prioridade: vale só nesta tela (não fica lembrado, para não esconder tarefas depois).
+  const [prioridade, setPrioridade] = useState<PrioridadeTarefa | "todas">("todas")
+  const idPrioridade = useId()
+  const idOrdem = useId()
 
   if (tarefas.length === 0) {
     return (
       <p className="text-muted-foreground py-6 text-center text-sm">{vazio}</p>
     )
   }
-  const ordenadas = ordenarTarefas(tarefas, ordem)
+  const contagem = (p: PrioridadeTarefa) => tarefas.filter((t) => t.prioridade === p).length
+  const filtradas = prioridade === "todas" ? tarefas : tarefas.filter((t) => t.prioridade === prioridade)
+  const ordenadas = ordenarTarefas(filtradas, ordem)
+  const opcoes = [
+    { valor: "todas" as const, rotulo: `Todas (${tarefas.length})` },
+    ...PRIORIDADES_TAREFA.map((p) => ({ valor: p, rotulo: `${ROTULOS_PRIORIDADE_TAREFA[p]} (${contagem(p)})` })),
+  ]
   return (
     <div className="grid gap-2">
-      <div className="flex flex-wrap items-center justify-end gap-2 text-xs">
-        <span className="text-muted-foreground" id="rotulo-ordem-tarefas">
-          Ordenar por
-        </span>
-        <div className="bg-muted inline-flex rounded-md p-0.5" role="group" aria-labelledby="rotulo-ordem-tarefas">
-          {ORDENS_TAREFAS.map((o) => (
-            <button
-              key={o}
-              type="button"
-              onClick={() => gravarOrdem(o)}
-              aria-pressed={ordem === o}
-              className={`rounded px-2 py-1 transition-colors ${
-                ordem === o ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {o === "prazo" ? "Prazo" : "Prioridade"}
-            </button>
-          ))}
+      <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 text-xs">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-muted-foreground" id={idPrioridade}>
+            Prioridade
+          </span>
+          <div className="bg-muted inline-flex flex-wrap rounded-md p-0.5" role="group" aria-labelledby={idPrioridade}>
+            {opcoes.map((o) => (
+              <button
+                key={o.valor}
+                type="button"
+                onClick={() => setPrioridade(o.valor)}
+                aria-pressed={prioridade === o.valor}
+                className={`rounded px-2 py-1 transition-colors ${
+                  prioridade === o.valor
+                    ? "bg-background text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {o.rotulo}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-muted-foreground" id={idOrdem}>
+            Ordenar por
+          </span>
+          <div className="bg-muted inline-flex rounded-md p-0.5" role="group" aria-labelledby={idOrdem}>
+            {ORDENS_TAREFAS.map((o) => (
+              <button
+                key={o}
+                type="button"
+                onClick={() => gravarOrdem(o)}
+                aria-pressed={ordem === o}
+                className={`rounded px-2 py-1 transition-colors ${
+                  ordem === o ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {o === "prazo" ? "Prazo" : "Prioridade"}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-10" />
-            <TableHead>Tarefa</TableHead>
-            {!pai && <TableHead>Vínculo</TableHead>}
-            <TableHead>Responsável</TableHead>
-            <TableHead>Prazo</TableHead>
-            <TableHead>Prioridade</TableHead>
-            <TableHead>Situação</TableHead>
-            {comAcoes && <TableHead className="w-px"><span className="sr-only">Ações</span></TableHead>}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {ordenadas.map((t) => (
-            <TableRow key={t.id}>
-              <TableCell className="py-1">
-                <ToggleTarefa tarefaId={t.id} concluido={t.concluido} pai={pai} />
-              </TableCell>
-              <TableCell className="max-w-80">
-                <span
-                  className={`line-clamp-2 ${t.concluido ? "text-muted-foreground line-through" : ""}`}
-                >
-                  {t.titulo ?? "(sem título)"}
-                </span>
-              </TableCell>
-              {!pai && (
-                <TableCell className="whitespace-nowrap text-sm">
-                  {t.paiTipo && t.paiId ? (
-                    <Link
-                      href={`${ROTA_PAI[t.paiTipo]}/${t.paiId}`}
-                      className="hover:underline"
-                    >
-                      <span className="text-muted-foreground">
-                        {ROTULOS_PAI_TAREFA[t.paiTipo]}:
-                      </span>{" "}
-                      <span className="line-clamp-1 inline">{t.paiNome ?? "—"}</span>
-                    </Link>
-                  ) : t.paiTipo ? (
-                    // Pai sem id: vínculo restrito (anomalia para quem não tem a permissão).
-                    <span className="text-muted-foreground" title="Sem acesso ao conteúdo">
-                      {ROTULOS_PAI_TAREFA[t.paiTipo]}
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
-                </TableCell>
-              )}
-              <TableCell className="whitespace-nowrap text-sm">
-                {t.demandadoNome ? <PessoaNome nome={t.demandadoNome} fotoUrl={t.demandadoFotoUrl} /> : "—"}
-              </TableCell>
-              <TableCell className="whitespace-nowrap text-sm">
-                {t.prazo ? formatarData(t.prazo) : "—"}
-              </TableCell>
-              <TableCell>
-                <Badge variant="outline" className={CLASSE_PRIORIDADE[t.prioridade]}>
-                  {ROTULOS_PRIORIDADE_TAREFA[t.prioridade]}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <Badge variant="outline" className={CLASSE_SITUACAO[t.situacao]}>
-                  {ROTULOS_SITUACAO_TAREFA[t.situacao]}
-                </Badge>
-              </TableCell>
-              {comAcoes && (
-                <TableCell className="py-1">
-                  <div className="flex items-center justify-end">
-                    {pessoas && <AcoesTarefa tarefa={t} pessoas={pessoas} />}
-                    {pai && desvincular && <DesvincularTarefa tarefaId={t.id} titulo={t.titulo} pai={pai} />}
-                  </div>
-                </TableCell>
-              )}
+      {ordenadas.length === 0 ? (
+        <p className="text-muted-foreground py-6 text-center text-sm">
+          Nenhuma tarefa com prioridade{" "}
+          {prioridade === "todas" ? "" : ROTULOS_PRIORIDADE_TAREFA[prioridade].toLowerCase()} nesta lista.
+        </p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-10" />
+              <TableHead>Tarefa</TableHead>
+              {!pai && <TableHead>Vínculo</TableHead>}
+              <TableHead>Responsável</TableHead>
+              <TableHead>Prazo</TableHead>
+              <TableHead>Prioridade</TableHead>
+              <TableHead>Situação</TableHead>
+              {comAcoes && <TableHead className="w-px"><span className="sr-only">Ações</span></TableHead>}
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {ordenadas.map((t) => (
+              <TableRow key={t.id}>
+                <TableCell className="py-1">
+                  <ToggleTarefa tarefaId={t.id} concluido={t.concluido} pai={pai} />
+                </TableCell>
+                <TableCell className="max-w-80">
+                  <span
+                    className={`line-clamp-2 ${t.concluido ? "text-muted-foreground line-through" : ""}`}
+                  >
+                    {t.titulo ?? "(sem título)"}
+                  </span>
+                </TableCell>
+                {!pai && (
+                  <TableCell className="whitespace-nowrap text-sm">
+                    {t.paiTipo && t.paiId ? (
+                      <Link
+                        href={`${ROTA_PAI[t.paiTipo]}/${t.paiId}`}
+                        className="hover:underline"
+                      >
+                        <span className="text-muted-foreground">
+                          {ROTULOS_PAI_TAREFA[t.paiTipo]}:
+                        </span>{" "}
+                        <span className="line-clamp-1 inline">{t.paiNome ?? "—"}</span>
+                      </Link>
+                    ) : t.paiTipo ? (
+                      // Pai sem id: vínculo restrito (anomalia para quem não tem a permissão).
+                      <span className="text-muted-foreground" title="Sem acesso ao conteúdo">
+                        {ROTULOS_PAI_TAREFA[t.paiTipo]}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                )}
+                <TableCell className="whitespace-nowrap text-sm">
+                  {t.demandadoNome ? <PessoaNome nome={t.demandadoNome} fotoUrl={t.demandadoFotoUrl} /> : "—"}
+                </TableCell>
+                <TableCell className="whitespace-nowrap text-sm">
+                  {t.prazo ? formatarData(t.prazo) : "—"}
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className={CLASSE_PRIORIDADE[t.prioridade]}>
+                    {ROTULOS_PRIORIDADE_TAREFA[t.prioridade]}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className={CLASSE_SITUACAO[t.situacao]}>
+                    {ROTULOS_SITUACAO_TAREFA[t.situacao]}
+                  </Badge>
+                </TableCell>
+                {comAcoes && (
+                  <TableCell className="py-1">
+                    <div className="flex items-center justify-end">
+                      {pessoas && <AcoesTarefa tarefa={t} pessoas={pessoas} />}
+                      {pai && desvincular && <DesvincularTarefa tarefaId={t.id} titulo={t.titulo} pai={pai} />}
+                    </div>
+                  </TableCell>
+                )}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
     </div>
   )
 }
