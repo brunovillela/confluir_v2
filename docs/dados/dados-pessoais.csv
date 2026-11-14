@@ -925,6 +925,7 @@ modulo,tabela,coluna,categoria,titulares,descricao
 "pessoal","pessoal_jornada_funcionarios","jornada_id","trabalhista","funcionários","Jornada a que está vinculado."
 "pessoal","pessoal_nivel_salarial","","financeiro;trabalhista","funcionários","Lançamento de nível salarial de um funcionário (nível atual e próximo, tipo de avanço: automático, mérito, ajuste, inicial). Espelho do Bubble; gravado em Pessoal > Níveis (lib/db/carreira)."
 "pessoal","pessoal_nivel_salarial","proximo_nivel_texto","trabalhista","funcionários",""
+"pessoal","pessoal_ferias_gozo","cancelado_por","identificacao","funcionários","Quem cancelou: o próprio funcionário (até o início das férias) ou alguém da gestão de pessoal."
 "pessoal","pessoal_nivel_salarial","tipo_avanco","trabalhista","funcionários",""
 "pessoal","pessoal_nivel_salarial","proximo_nivel_data","trabalhista","funcionários",""
 "pessoal","pessoal_nivel_salarial","nivel_atual_data","trabalhista","funcionários",""

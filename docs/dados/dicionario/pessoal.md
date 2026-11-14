@@ -955,7 +955,7 @@ Gozo de férias solicitado por um funcionário dentro de um período (datas, dia
 | `updated_at` | timestamp with time zone | sim | `now()` |  |  |  |
 | `abono_solicitado` | boolean | não | `false` |  | trabalhista |  |
 | `cancelado_em` | timestamp with time zone | sim |  |  |  | Quando o gozo foi cancelado (null = vigente). Cancelado não conta no saldo nem nas 3 partes do período; fica só como histórico. |
-| `cancelado_por` | uuid | sim |  | → usuarios (set null) |  | Quem cancelou: o próprio funcionário (até o início das férias) ou alguém da gestão de pessoal. |
+| `cancelado_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem cancelou: o próprio funcionário (até o início das férias) ou alguém da gestão de pessoal. |
 
 Únicas: `UNIQUE (bubble_id)`
 
