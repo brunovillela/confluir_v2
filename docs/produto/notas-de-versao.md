@@ -6,6 +6,7 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 
 ## 14/11/2026 — Ordens de pagamento: busca por quem recebe
 
+- Comunicação → Aniversariantes → Do mês: os aniversariantes do mês inteiro numa lista só, por dia — filiados ativos e o quadro da entidade (diretores, funcionários, prestadores, aprendizes e estagiários). Quem é das duas coisas aparece uma vez, com os dois rótulos; dá para filtrar, buscar por nome e passar de mês.
 - Ordens de pagamento: a busca agora acha a ordem pelo nome ou CPF/CNPJ de quem recebe — funcionário, diretor, filiado, empresa ou convidado —, com as palavras em qualquer ordem e sem acento. O filtro Favorecido também passa a listar quem não tem cadastro (marcado como "Sem cadastro").
 
 ## 10/11/2026 — Congressos: inscrição pelo link e importação de listas

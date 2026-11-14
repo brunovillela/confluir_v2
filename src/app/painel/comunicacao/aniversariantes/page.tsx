@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, ChevronLeft, ChevronRight, MessageSquareText, RotateCcw } from "lucide-react"
+import { ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, MessageSquareText, RotateCcw } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -131,6 +131,13 @@ export default async function AniversariantesPage({
             Filiados ativos que fazem aniversário: o parabéns por e-mail e o botão para mandar pelo WhatsApp.
           </p>
         </div>
+        <div className="flex flex-wrap gap-2">
+        <Button asChild variant="outline">
+          <Link href="/painel/comunicacao/aniversariantes/mes">
+            <CalendarDays />
+            Do mês (filiados e equipe)
+          </Link>
+        </Button>
         {config.disponivel && (
           <Button asChild variant="outline">
             <Link href="/painel/comunicacao/aniversariantes/mensagens">
@@ -139,6 +146,7 @@ export default async function AniversariantesPage({
             </Link>
           </Button>
         )}
+        </div>
       </div>
 
       {!config.disponivel && (
