@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { TileIndicador } from "@/components/graficos/tile"
 import { hojeSP } from "@/lib/db/comum"
-import { situacaoDoFuncionario } from "@/lib/ferias-painel"
+import { podeCancelarSemGestao, situacaoDoFuncionario } from "@/lib/ferias-painel"
 import { ExternalLink, TreePalm } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -64,7 +64,8 @@ export default async function MinhasFeriasPage({
     })
 
   // Indicadores (padrão de 3 níveis): a mesma situação de férias que a gestão vê.
-  const situacaoFerias = situacaoDoFuncionario(ferias, hojeSP(), null)
+  const hoje = hojeSP()
+  const situacaoFerias = situacaoDoFuncionario(ferias, hoje, null)
   const gozadosFerias = ferias.reduce((s, p) => s + resumoPeriodo(p).gozados, 0)
   const aguardandoFerias = ferias.reduce((s, p) => s + resumoPeriodo(p).aguardando, 0)
   return (
@@ -225,10 +226,17 @@ export default async function MinhasFeriasPage({
                             )}
                           </TableCell>
                           <TableCell className="text-right">
-                            <CancelarFeriasBotao
-                              id={g.id}
-                              autorizado={g.autorizado === true}
-                            />
+                            {podeCancelarSemGestao(g.inicio, hoje) ? (
+                              <CancelarFeriasBotao
+                                id={g.id}
+                                autorizado={g.autorizado === true}
+                                dias={g.dias}
+                              />
+                            ) : (
+                              <span className="text-muted-foreground text-xs">
+                                Começou: cancelar só pelo departamento de pessoal
+                              </span>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}

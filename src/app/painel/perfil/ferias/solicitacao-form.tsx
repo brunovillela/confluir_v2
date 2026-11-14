@@ -95,16 +95,19 @@ export function SolicitarFeriasForm({
 export function CancelarFeriasBotao({
   id,
   autorizado = false,
+  dias = null,
 }: {
   id: string
   autorizado?: boolean
+  dias?: number | null
 }) {
   const [estado, formAction, pendente] = useActionState(cancelarFeriasAction, {})
   const envio2 = useEnvioFormulario(formAction, estado, {
     antes: (e) => {
+      const volta = dias ? ` Os ${dias} dias voltam ao período para você pedir de novo.` : " Os dias voltam ao período para você pedir de novo."
       const pergunta = autorizado
-        ? "Estas férias já foram AUTORIZADAS. Cancelar assim mesmo? Combine a troca com o departamento de pessoal."
-        : "Cancelar esta solicitação de férias?"
+        ? `Estas férias já foram AUTORIZADAS. Cancelar assim mesmo? Combine a troca com o departamento de pessoal.${volta}`
+        : `Cancelar esta solicitação de férias?${volta}`
       confirmarEnvio(e, pergunta)},
   })
 

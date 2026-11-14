@@ -11,7 +11,7 @@ import {
   criarGozo,
   criarPeriodoFerias,
   definirAutorizacaoGozo,
-  excluirGozo,
+  cancelarGozo,
   excluirPeriodoFerias,
 } from "@/lib/db/ferias"
 import { enviarAvisoFerias, gozosSemAviso, reenviarAvisoFerias, refazerAvisosPendentes } from "@/lib/db/ferias-aviso"
@@ -231,21 +231,22 @@ export async function atualizarGozoAction(
   )
 }
 
-export async function excluirGozoAction(
+export async function cancelarGozoAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  await exigirAcesso()
+  const sessao = await exigirAcesso()
 
   const periodoId = String(formData.get("periodo_id") ?? "")
   const gozoId = String(formData.get("id") ?? "")
   if (!gozoId) return { erro: "Gozo inválido." }
 
-  const { erro } = await excluirGozo(gozoId)
+  // Gestão de pessoal cancela a qualquer momento, inclusive depois do início.
+  const { erro, dias } = await cancelarGozo(gozoId, { usuarioId: sessao.usuario.id, gestao: true })
   if (erro) return { erro }
 
   revalidar(periodoId)
-  return { ok: "Gozo excluído." }
+  return { ok: dias ? `Gozo cancelado. Os ${dias} dias voltaram ao período.` : "Gozo cancelado." }
 }
 
 export async function alternarAutorizacaoGozo(

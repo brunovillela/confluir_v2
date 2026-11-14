@@ -6,7 +6,7 @@ import { redirect } from "next/navigation"
 import { requireSessaoPainel } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import {
-  cancelarMinhaSolicitacaoGozo,
+  cancelarGozo,
   solicitarGozo,
 } from "@/lib/db/ferias"
 import { lerDias } from "@/lib/periodo-dias"
@@ -52,9 +52,10 @@ export async function cancelarFeriasAction(
   const id = String(formData.get("id") ?? "")
   if (!id) return { erro: "Solicitação inválida." }
 
-  const { erro } = await cancelarMinhaSolicitacaoGozo(id, sessao.usuario.id)
+  // Pelo perfil vale a regra do funcionário: só até o início das férias.
+  const { erro, dias } = await cancelarGozo(id, { usuarioId: sessao.usuario.id, gestao: false })
   if (erro) return { erro }
 
   revalidar()
-  return { ok: "Solicitação cancelada." }
+  return { ok: dias ? `Cancelado. Os ${dias} dias voltaram ao período.` : "Cancelado." }
 }

@@ -31,6 +31,14 @@ export function gozoRecusado(g: { autorizado: boolean | null; data_autorizacao?:
   return g.autorizado !== true && Boolean(g.data_autorizacao)
 }
 
+/**
+ * O funcionário cancela o próprio gozo até o dia em que as férias começam
+ * (inclusive). Depois do início, só a gestão de pessoal cancela (14/11/2026).
+ */
+export function podeCancelarSemGestao(inicio: string | null, hojeISO: string): boolean {
+  return !inicio || hojeISO <= inicio
+}
+
 /** Alerta de prazo: mesmo corte do painel inicial do Pessoal. */
 export const DIAS_ALERTA_CONCESSIVO = 120
 

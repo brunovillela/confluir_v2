@@ -31,6 +31,8 @@ import { funcionariosParaSelecao, urlArquivoPessoal } from "@/lib/db/pessoal"
 import { funcionarioDaArea } from "@/lib/db/pessoal-area"
 import { situacaoDosAvisos } from "@/lib/db/ferias-aviso"
 import { formatarMomentoAssinatura } from "@/lib/db/assinatura-comum"
+import { hojeSP } from "@/lib/db/comum"
+import { podeCancelarSemGestao } from "@/lib/ferias-painel"
 import { formatarData } from "@/lib/formato"
 import { recorteDaLista, urlNaLista } from "@/lib/lista-estado"
 import { VoltarLista } from "@/components/voltar-lista"
@@ -40,7 +42,7 @@ import { PeriodoFeriasForm } from "../periodo-form"
 import {
   AutorizarGozoBotao,
   AvisoFeriasSituacao,
-  ExcluirGozoBotao,
+  CancelarGozoBotao,
   GozoForm,
 } from "./gozo-itens"
 
@@ -61,6 +63,7 @@ export default async function PeriodoFeriasPage({
   const sessao = await requirePermissao("pessoal_gestao")
 
   const { id } = await params
+  const hoje = hojeSP()
   const paramsBusca = await searchParams
   const { salvo, editar, de, linha } = paramsBusca
   // Editar e Cancelar mantêm o ?de= (o voltar ao topo da página depende dele).
@@ -377,7 +380,12 @@ export default async function PeriodoFeriasPage({
                                 Editar
                               </Link>
                             </Button>
-                            <ExcluirGozoBotao periodoId={id} gozoId={g.id} />
+                            <CancelarGozoBotao
+                              periodoId={id}
+                              gozoId={g.id}
+                              dias={g.dias}
+                              comecou={!podeCancelarSemGestao(g.inicio, hoje)}
+                            />
                           </div>
                         </TableCell>
                       </TableRow>

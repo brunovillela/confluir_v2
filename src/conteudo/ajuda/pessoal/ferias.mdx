@@ -72,7 +72,7 @@ CLT.
 
 <Print src="pessoal/ferias-funcionario.png" alt="Férias de uma funcionária: atalhos para as outras áreas, os cartões de saldo a gozar, próximo prazo, próximas férias e dias autorizados com os dias aguardando autorização, e o histórico do período com o gozo aguardando." legenda="Férias do funcionário: os dias autorizados e, à parte, o que aguarda autorização." />
 
-<Print src="pessoal/ferias-registro.png" alt="Um período aquisitivo aberto, com o cabeçalho da funcionária, a situação, as datas do aquisitivo e do concessivo e Editar período: dias de direito, abono, descanso disponível, dias gozados e saldo; o gozo autorizado com a coluna Aviso mostrando Abrir e Assinado em 19/10/2026, e as ações Desfazer, Editar e excluir; e o formulário Adicionar gozo." legenda="Nível 3: o período aquisitivo e os gozos dele." />
+<Print src="pessoal/ferias-registro.png" alt="Um período aquisitivo aberto, com o cabeçalho da funcionária, a situação, as datas do aquisitivo e do concessivo e Editar período: dias de direito, abono, descanso disponível, dias gozados e saldo; o gozo autorizado com a coluna Aviso mostrando Abrir e Assinado em 19/10/2026, e as ações Desfazer, Editar e Cancelar; e o formulário Adicionar gozo." legenda="Nível 3: o período aquisitivo e os gozos dele." />
 
 <Print src="pessoal/perfil-ferias.png" alt="Minhas férias, com o saldo a gozar, o prazo para gozar, as próximas férias e os dias autorizados acima da solicitação e do histórico." legenda="O que o funcionário vê: Meu perfil → Férias, com a solicitação." />
 
@@ -99,7 +99,26 @@ fracionar as férias.
 
 Não há botão de recusar um gozo. **Desfazer** volta um gozo autorizado para
 *Aguardando autorização*. Para não conceder um pedido, combine com o funcionário e
-exclua o gozo: a exclusão não avisa ninguém pelo sistema.
+**cancele** o gozo.
+
+## Cancelar um gozo
+
+Cancelar apaga o gozo e **devolve os dias ao saldo do período**, para serem
+usados em outra solicitação. A ausência “Férias” e o aviso pendente de
+assinatura caem junto, e um período *finalizado* é reaberto.
+
+| Quem cancela | Até o início das férias | Depois do início |
+|---|---|---|
+| **O funcionário** (Meu perfil › Férias) | sim, inclusive no próprio dia do início | não — a linha mostra que só o departamento de pessoal cancela |
+| **A gestão de pessoal** (botão **Cancelar** na linha do gozo) | sim | sim |
+
+Quem não cancelou fica sabendo pelo sino: o funcionário, quando o
+departamento cancela (também pelo Telegram, se ativou); a gestão de pessoal,
+quando o funcionário cancela férias que já estavam autorizadas.
+
+O **abono pecuniário** já confirmado no período não é desfeito pelo
+cancelamento — se a venda de 1/3 também não vale mais, desmarque o abono em
+**Editar período**.
 
 ## Aviso de férias assinado pelo funcionário
 
@@ -121,8 +140,7 @@ quando o aviso não pode ser enviado (cadastro sem e-mail ou sem CPF).
   funcionário escreveu) ou *Aviso não enviado* — este com o botão **Enviar
   aviso**; o pendente tem **Reenviar link**.
 - **Ajustar as datas** do gozo muda o aviso: o link antigo deixa de valer e sai
-  um aviso novo. **Desfazer a autorização**, excluir ou cancelar o gozo cancela
-  o link.
+  um aviso novo. **Desfazer a autorização** ou cancelar o gozo cancela o link.
 - Sem **e-mail** ou sem **CPF válido** no cadastro, o aviso não sai — complete a
   ficha do funcionário e use **Enviar aviso**.
 - O aviso não cita lei. A **data de pagamento** segue as **Regras de férias** da
@@ -146,7 +164,7 @@ quando o aviso não pode ser enviado (cadastro sem e-mail ou sem CPF).
   Ao **autorizar** um gozo, ele entra nas **ausências** do funcionário como
   “Férias” — é o que aparece na coluna do dia do painel, na análise do ponto e
   nos relatórios. **Ajustar** as datas do gozo ajusta a ausência; **desfazer a
-  autorização**, excluir ou cancelar o gozo tira a ausência. Não é preciso
+  autorização** ou cancelar o gozo tira a ausência. Não é preciso
   lançar férias à mão em Atestados e ausências.
 </Aviso>
 
@@ -188,7 +206,7 @@ quando o aviso não pode ser enviado (cadastro sem e-mail ou sem CPF).
   Pessoal.
 - **Excluir período** só aparece quando o período **não tem nenhum gozo**
   registrado (na página do período, na do funcionário e em Todos os períodos).
-  Com gozo, exclua os gozos antes.
+  Com gozo, cancele os gozos antes.
 
 ### Situação do funcionário
 

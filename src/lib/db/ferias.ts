@@ -4,7 +4,8 @@ import { gozoRecusado } from "@/lib/ferias-painel"
 import { avisarQuemPodeOuCoordena, depoisDaResposta, querEmail } from "@/lib/db/avisos"
 import { botoesPendencia } from "@/lib/telegram-pendencias-fluxo"
 import { cancelarAvisoFerias, sincronizarAvisoDoGozo } from "@/lib/db/ferias-aviso"
-import { lerEmLotes, nomesDosUsuarios } from "@/lib/db/comum"
+import { hojeSP, lerEmLotes, nomesDosUsuarios } from "@/lib/db/comum"
+import { podeCancelarSemGestao } from "@/lib/ferias-painel"
 import { tenantAtual } from "@/lib/tenant"
 
 import { referenciaDaData } from "@/lib/db/carreira"
@@ -624,47 +625,87 @@ async function notificarPessoalGestao(
 }
 
 /**
- * Funcionário cancela o PRÓPRIO gozo — inclusive já autorizado (trocas ocorrem
- * com frequência, por necessidade dele ou do empregador). Quando o gozo já
- * estava AUTORIZADO, o departamento de pessoal é avisado (sino) para tratar a
- * troca. O confirm da UI reforça o aviso; aqui só garante que o gozo é dele.
+ * Cancela um gozo de férias (14/11). Quem pode:
+ *  - o próprio funcionário, até o dia em que as férias começam (inclusive);
+ *  - a gestão de pessoal (`pessoal_gestao`), a qualquer momento — depois do
+ *    início, só ela.
+ * Os dias do gozo voltam ao saldo do período (o saldo é a soma dos gozos), e
+ * um período finalizado é reaberto para aceitar outra solicitação. A ausência
+ * "Férias" e o aviso pendente de assinatura caem junto. Quem não cancelou fica
+ * sabendo: a gestão (se o gozo já estava autorizado) ou o funcionário.
  */
-export async function cancelarMinhaSolicitacaoGozo(
+export async function cancelarGozo(
   gozoId: string,
-  usuarioId: string
-): Promise<{ erro?: string }> {
+  quem: { usuarioId: string; gestao: boolean }
+): Promise<{ erro?: string; dias?: number }> {
   const admin = await createAdminClient()
+  const emp = await tenantAtual()
   const { data, error } = await admin
     .from("pessoal_ferias_gozo")
-    .select("id, funcionario_id, autorizado, inicio, termino, dias")
+    .select("id, funcionario_id, ferias_periodo_id, autorizado, inicio, termino, dias")
     .eq("id", gozoId)
+    .eq("emp_proprietaria_id", emp)
     .maybeSingle()
   if (error) return { erro: `Falha ao cancelar: ${error.message}` }
-  if (!data || data.funcionario_id !== usuarioId) {
-    return { erro: "Solicitação não encontrada." }
+  if (!data) return { erro: "Gozo não encontrado." }
+
+  const doProprio = data.funcionario_id === quem.usuarioId
+  if (!quem.gestao) {
+    if (!doProprio) return { erro: "Solicitação não encontrada." }
+    if (!podeCancelarSemGestao(data.inicio, hojeSP())) {
+      return {
+        erro: `Estas férias começaram em ${formatarData(data.inicio)}. Depois do início, só o departamento de pessoal pode cancelar.`,
+      }
+    }
   }
+
   const eraAutorizado = data.autorizado === true
   await removerAusenciasDoGozo(gozoId)
-  await cancelarAvisoFerias(gozoId, usuarioId, "Gozo cancelado pelo funcionário")
+  await cancelarAvisoFerias(
+    gozoId,
+    quem.usuarioId,
+    doProprio ? "Gozo cancelado pelo funcionário" : "Gozo cancelado pelo departamento de pessoal"
+  )
   const { error: erroDel, count } = await admin
     .from("pessoal_ferias_gozo")
     .delete({ count: "exact" })
     .eq("id", gozoId)
-    .eq("funcionario_id", usuarioId)
+    .eq("emp_proprietaria_id", emp)
   if (erroDel) return { erro: `Não foi possível cancelar: ${erroDel.message}` }
-  if (count === 0) return { erro: "Solicitação não encontrada." }
+  if (count === 0) return { erro: "Gozo não encontrado." }
 
-  if (eraAutorizado) {
-    const nomes = await nomesDosUsuarios([usuarioId])
-    const nome = nomes.get(usuarioId) ?? "Um funcionário"
-    const mensagem = `${nome} cancelou férias que já estavam autorizadas (${data.dias ?? "?"} dias, de ${formatarData(data.inicio)} a ${formatarData(data.termino)}). Verifique a necessidade de troca.`
+  // Os dias voltam ao período: finalizado, ele reabre para a nova solicitação.
+  if (data.ferias_periodo_id) {
+    const { error: erroReabrir } = await admin
+      .from("pessoal_ferias")
+      .update({ finalizado: false, updated_at: new Date().toISOString() })
+      .eq("id", data.ferias_periodo_id)
+      .eq("emp_proprietaria_id", emp)
+      .eq("finalizado", true)
+    if (erroReabrir) console.error("Falha ao reabrir o período do gozo cancelado:", erroReabrir.message)
+  }
+
+  const dias = data.dias ?? 0
+  const trecho = `${data.dias ?? "?"} dias, de ${formatarData(data.inicio)} a ${formatarData(data.termino)}`
+  if (doProprio && eraAutorizado) {
+    const nomes = await nomesDosUsuarios([quem.usuarioId])
+    const nome = nomes.get(quem.usuarioId) ?? "Um funcionário"
+    const mensagem = `${nome} cancelou férias que já estavam autorizadas (${trecho}). Os dias voltaram ao período. Verifique a necessidade de troca.`
     try {
-      await notificarPessoalGestao(mensagem, usuarioId)
+      await notificarPessoalGestao(mensagem, quem.usuarioId)
     } catch (e) {
       console.error("Falha ao notificar pessoal do cancelamento:", e)
     }
+  } else if (!doProprio && data.funcionario_id) {
+    const mensagem = `O departamento de pessoal cancelou ${eraAutorizado ? "suas férias" : "seu pedido de férias"} (${trecho}). Os ${data.dias ?? ""} dias voltaram ao período e podem ser pedidos de novo em Meu perfil › Férias.`
+    try {
+      await criarNotificacao({ usuarioId: data.funcionario_id, texto: mensagem })
+    } catch (e) {
+      console.error("Falha ao notificar o funcionário do cancelamento:", e)
+    }
+    await enviarPushTelegram(data.funcionario_id, mensagem, "ferias")
   }
-  return {}
+  return { dias }
 }
 
 export async function atualizarGozo(
@@ -698,19 +739,6 @@ export async function atualizarGozo(
   await sincronizarAusenciaDoGozo(gozoId, { inicio: atual.inicio, termino: atual.termino })
   // Datas novas mudam o aviso: o link antigo cai e sai um aviso novo.
   await sincronizarAvisoDoGozo(gozoId, null)
-  return {}
-}
-
-export async function excluirGozo(gozoId: string): Promise<{ erro?: string }> {
-  await removerAusenciasDoGozo(gozoId)
-  await cancelarAvisoFerias(gozoId, null, "Gozo excluído")
-  const admin = await createAdminClient()
-  const { error, count } = await admin
-    .from("pessoal_ferias_gozo")
-    .delete({ count: "exact" })
-    .eq("id", gozoId)
-  if (error) return { erro: `Não foi possível excluir: ${error.message}` }
-  if (count === 0) return { erro: "Gozo não encontrado." }
   return {}
 }
 

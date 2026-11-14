@@ -2,7 +2,7 @@
 
 import { useActionState } from "react"
 import Link from "next/link"
-import { Check, Loader2, Trash2, Undo2 } from "lucide-react"
+import { Check, Loader2, Undo2, X } from "lucide-react"
 
 import { CamposPeriodo } from "@/components/campos-periodo"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -23,7 +23,7 @@ import {
   atualizarGozoAction,
   criarGozoAction,
   enviarAvisoFeriasAction,
-  excluirGozoAction,
+  cancelarGozoAction,
 } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
@@ -195,17 +195,34 @@ export function AutorizarGozoBotao({
   )
 }
 
-export function ExcluirGozoBotao({
+/**
+ * Cancelar o gozo (gestão de pessoal): vale a qualquer momento, inclusive
+ * depois do início. Os dias voltam ao saldo do período e o funcionário é
+ * avisado. O funcionário cancela pelo perfil só até o início.
+ */
+export function CancelarGozoBotao({
   periodoId,
   gozoId,
+  dias,
+  comecou,
 }: {
   periodoId: string
   gozoId: string
+  dias: number | null
+  /** As férias já começaram (o funcionário não pode mais cancelar sozinho). */
+  comecou: boolean
 }) {
-  const [estado, formAction, pendente] = useActionState(excluirGozoAction, {})
+  const [estado, formAction, pendente] = useActionState(cancelarGozoAction, {})
   const envio4 = useEnvioFormulario(formAction, estado, {
     antes: (e) => {
-      confirmarEnvio(e, "Excluir este gozo de férias?")},
+      const volta = dias ? `Os ${dias} dias voltam ao saldo do período` : "Os dias voltam ao saldo do período"
+      confirmarEnvio(
+        e,
+        comecou
+          ? `Estas férias já começaram. Cancelar o gozo assim mesmo? ${volta} e o funcionário é avisado.`
+          : `Cancelar este gozo de férias? ${volta} e o funcionário é avisado.`
+      )
+    },
   })
 
   return (
@@ -225,7 +242,8 @@ export function ExcluirGozoBotao({
         disabled={pendente}
         className="text-destructive hover:text-destructive h-7 px-2"
       >
-        {pendente ? <Loader2 className="animate-spin" /> : <Trash2 />}
+        {pendente ? <Loader2 className="animate-spin" /> : <X />}
+        Cancelar
       </Button>
     </form>
   )
