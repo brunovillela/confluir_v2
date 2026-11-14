@@ -125,6 +125,7 @@ export default async function TarefasPage({
           <TarefasLista
             tarefas={tarefas}
             vazio="Nenhuma tarefa com estes filtros."
+            pessoas={pessoas}
           />
         </CardContent>
       </Card>

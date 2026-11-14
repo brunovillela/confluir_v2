@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { type TarefaLinha } from "@/lib/db/nucleo"
+import { type OpcaoPessoa, type TarefaLinha } from "@/lib/db/nucleo"
 import { formatarData } from "@/lib/formato"
 import {
   ROTULOS_PAI_TAREFA,
@@ -18,7 +18,7 @@ import {
   type SituacaoTarefa,
 } from "@/lib/nucleo-constantes"
 
-import { DesvincularTarefa, ToggleTarefa, type PaiFixo } from "./tarefa-forms"
+import { AcoesTarefa, DesvincularTarefa, ToggleTarefa, type PaiFixo } from "./tarefa-forms"
 
 const CLASSE_SITUACAO: Record<SituacaoTarefa, string> = {
   concluida: "text-muted-foreground",
@@ -41,13 +41,17 @@ export function TarefasLista({
   pai,
   vazio = "Nenhuma tarefa.",
   desvincular = false,
+  pessoas,
 }: {
   tarefas: TarefaLinha[]
   pai?: PaiFixo
   vazio?: string
   /** Com `pai`: botão para tirar a tarefa da demanda/projeto (ela fica avulsa). */
   desvincular?: boolean
+  /** Com a lista de responsáveis possíveis, cada linha ganha Editar e Excluir. */
+  pessoas?: OpcaoPessoa[]
 }) {
+  const comAcoes = Boolean(pessoas) || Boolean(pai && desvincular)
   if (tarefas.length === 0) {
     return (
       <p className="text-muted-foreground py-6 text-center text-sm">{vazio}</p>
@@ -63,7 +67,7 @@ export function TarefasLista({
           <TableHead>Responsável</TableHead>
           <TableHead>Prazo</TableHead>
           <TableHead>Situação</TableHead>
-          {pai && desvincular && <TableHead className="w-10" />}
+          {comAcoes && <TableHead className="w-px"><span className="sr-only">Ações</span></TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -112,9 +116,12 @@ export function TarefasLista({
                 {ROTULOS_SITUACAO_TAREFA[t.situacao]}
               </Badge>
             </TableCell>
-            {pai && desvincular && (
+            {comAcoes && (
               <TableCell className="py-1">
-                <DesvincularTarefa tarefaId={t.id} titulo={t.titulo} pai={pai} />
+                <div className="flex items-center justify-end">
+                  {pessoas && <AcoesTarefa tarefa={t} pessoas={pessoas} />}
+                  {pai && desvincular && <DesvincularTarefa tarefaId={t.id} titulo={t.titulo} pai={pai} />}
+                </div>
               </TableCell>
             )}
           </TableRow>

@@ -159,6 +159,7 @@ export default async function AnomaliaPage({
             tarefas={anomalia.providencias}
             pai={{ campo: "anomalia_id", id }}
             vazio="Nenhuma providência registrada ainda."
+            pessoas={pessoas}
           />
         </CardContent>
       </Card>

@@ -193,6 +193,7 @@ export default async function ProjetoPage({
             pai={{ campo: "projeto_id", id }}
             vazio="Nenhuma tarefa neste projeto ainda."
             desvincular={editaTarefas}
+            pessoas={editaTarefas ? pessoas : undefined}
           />
         </CardContent>
       </Card>

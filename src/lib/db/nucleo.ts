@@ -535,6 +535,8 @@ export type TarefaLinha = {
   concluido: boolean
   prazo: string | null
   demandanteNome: string | null
+  /** Responsável: o id serve à edição da tarefa. */
+  demandadoId: string | null
   demandadoNome: string | null
   demandadoFotoUrl: string | null
   paiTipo: "demanda" | "projeto" | "anomalia" | null
@@ -613,6 +615,7 @@ export async function listarTarefas(
         demandanteNome: t.demandante_id
           ? (nomes.get(t.demandante_id as string) ?? null)
           : null,
+        demandadoId: texto(t.demandado_id),
         demandadoNome: t.demandado_id
           ? (nomes.get(t.demandado_id as string) ?? null)
           : null,
@@ -844,6 +847,60 @@ export async function concluirTarefasPendentes(
     .select("id")
   if (error) return { concluidas: 0, erro: `Falha ao concluir as tarefas: ${error.message}` }
   return { concluidas: data?.length ?? 0 }
+}
+
+/**
+ * Edição pela tela (título, responsável e prazo): só esses campos mudam — o
+ * tipo e o demandante, que o formulário não mostra, ficam como estão.
+ * Devolve o responsável de antes, para avisar só quando ele muda.
+ */
+export async function editarTarefa(
+  id: string,
+  dados: { titulo: string; demandado_id: string | null; data_prazo_entrega: string | null }
+): Promise<{ erro?: string; responsavelAnterior?: string | null }> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: antes } = await admin
+    .from("demandas_check_tarefas")
+    .select("demandado_id")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  if (!antes) return { erro: "Tarefa não encontrada." }
+  const { error } = await admin
+    .from("demandas_check_tarefas")
+    .update({ ...dados, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("emp_proprietaria_id", emp)
+  if (error) return { erro: `Falha ao salvar a tarefa: ${error.message}` }
+  return { responsavelAnterior: texto(antes.demandado_id) }
+}
+
+/** Apaga a tarefa (os departamentos ligados a ela vão junto, pela chave em cascata). */
+export async function excluirTarefa(id: string): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("demandas_check_tarefas")
+    .delete()
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .select("id")
+  if (error) return { erro: `Falha ao excluir a tarefa: ${error.message}` }
+  if (!data?.length) return { erro: "Tarefa não encontrada." }
+  return {}
+}
+
+/** De onde a tarefa é (para revalidar a página certa depois de editar ou excluir). */
+export async function paisDaTarefa(id: string): Promise<{ demandaId: string | null; projetoId: string | null; anomaliaId: string | null } | null> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("demandas_check_tarefas")
+    .select("demanda_id, projeto_id, anomalia_id")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (!data) return null
+  return { demandaId: texto(data.demanda_id), projetoId: texto(data.projeto_id), anomaliaId: texto(data.anomalia_id) }
 }
 
 /** A anomalia a que a tarefa pertence (ou null) — decide quem pode mexer nela. */

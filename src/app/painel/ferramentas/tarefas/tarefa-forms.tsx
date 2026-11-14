@@ -1,10 +1,20 @@
 "use client"
 
-import { useActionState } from "react"
-import { Check, Link2, Loader2, Plus, RotateCcw, Unlink } from "lucide-react"
+import { useActionState, useState } from "react"
+import { Check, Link2, Loader2, Pencil, Plus, RotateCcw, Save, Trash2, Unlink } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { type EstadoForm } from "@/lib/contas"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { type OpcaoPessoa, type TarefaAvulsa } from "@/lib/db/nucleo"
@@ -14,6 +24,8 @@ import {
   alternarConclusaoTarefaAction,
   criarTarefaAction,
   desvincularTarefaAction,
+  editarTarefaAction,
+  excluirTarefaAction,
   vincularTarefaAction,
 } from "./actions"
 
@@ -193,5 +205,121 @@ export function DesvincularTarefa({ tarefaId, titulo, pai }: { tarefaId: string;
       </Button>
       {estado.erro && <span className="text-destructive text-xs">{estado.erro}</span>}
     </form>
+  )
+}
+
+type TarefaEditavel = {
+  id: string
+  titulo: string | null
+  demandadoId: string | null
+  demandadoNome: string | null
+  prazo: string | null
+}
+
+/**
+ * Editar (título, responsável e prazo) e excluir a tarefa. Responsável novo é
+ * avisado; excluir pede confirmação e não tem volta.
+ */
+export function AcoesTarefa({ tarefa, pessoas }: { tarefa: TarefaEditavel; pessoas: OpcaoPessoa[] }) {
+  const [aberto, setAberto] = useState(false)
+  const [estado, formAction, pendente] = useActionState<EstadoForm, FormData>(async (prev, fd) => {
+    const r = await editarTarefaAction(prev, fd)
+    if (r.ok) setAberto(false)
+    return r
+  }, {})
+  const [estadoExcluir, excluir, excluindo] = useActionState<EstadoForm, FormData>(excluirTarefaAction, {})
+  // Responsável que saiu da lista de pessoas continua escolhido.
+  const opcoes =
+    tarefa.demandadoId && !pessoas.some((p) => p.id === tarefa.demandadoId)
+      ? [{ id: tarefa.demandadoId, nome: tarefa.demandadoNome ?? "(responsável atual)" }, ...pessoas]
+      : pessoas
+
+  return (
+    <span className="inline-flex items-center">
+      <Dialog open={aberto} onOpenChange={setAberto}>
+        <DialogTrigger asChild>
+          <Button type="button" variant="ghost" size="sm" title="Editar a tarefa" aria-label="Editar a tarefa">
+            <Pencil />
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar tarefa</DialogTitle>
+            <DialogDescription>Se o responsável mudar, a pessoa nova é avisada.</DialogDescription>
+          </DialogHeader>
+          <form action={formAction} className="grid gap-3">
+            <input type="hidden" name="tarefa_id" value={tarefa.id} />
+            <div className="grid gap-1.5">
+              <Label htmlFor={`titulo-${tarefa.id}`}>Tarefa</Label>
+              <Input id={`titulo-${tarefa.id}`} name="titulo" required defaultValue={tarefa.titulo ?? ""} />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-1.5">
+                <Label htmlFor={`responsavel-${tarefa.id}`}>Responsável</Label>
+                <select
+                  id={`responsavel-${tarefa.id}`}
+                  name="demandado_id"
+                  defaultValue={tarefa.demandadoId ?? ""}
+                  className={SELECT}
+                >
+                  <option value="">(sem responsável)</option>
+                  {opcoes.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor={`prazo-${tarefa.id}`}>Prazo</Label>
+                <Input
+                  id={`prazo-${tarefa.id}`}
+                  name="data_prazo_entrega"
+                  type="date"
+                  defaultValue={tarefa.prazo ?? ""}
+                  className="[color-scheme:light] dark:[color-scheme:dark]"
+                />
+              </div>
+            </div>
+            {estado.erro && <p className="text-destructive text-sm">{estado.erro}</p>}
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setAberto(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={pendente}>
+                {pendente ? <Loader2 className="animate-spin" /> : <Save />}
+                Salvar
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <form
+        action={excluir}
+        onSubmit={(e) =>
+          confirmarEnvio(e, {
+            titulo: "Excluir a tarefa?",
+            descricao: `"${tarefa.titulo ?? "(sem título)"}" será apagada de vez, também da demanda, do projeto ou da anomalia a que pertence. Esta ação não pode ser desfeita.`,
+            confirmar: "Excluir",
+            destrutivo: true,
+          })
+        }
+        className="inline"
+      >
+        <input type="hidden" name="tarefa_id" value={tarefa.id} />
+        <Button
+          type="submit"
+          variant="ghost"
+          size="sm"
+          className="text-destructive hover:text-destructive"
+          disabled={excluindo}
+          title="Excluir a tarefa"
+          aria-label="Excluir a tarefa"
+        >
+          {excluindo ? <Loader2 className="animate-spin" /> : <Trash2 />}
+        </Button>
+      </form>
+      {estadoExcluir.erro && <span className="text-destructive text-xs">{estadoExcluir.erro}</span>}
+    </span>
   )
 }

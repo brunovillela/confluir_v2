@@ -22,6 +22,7 @@ export const NOVIDADES: Novidade[] = [
       "Ordens de pagamento: a busca agora acha a ordem pelo nome ou CPF/CNPJ de quem recebe — funcionário, diretor, filiado, empresa ou convidado —, com as palavras em qualquer ordem e sem acento. O filtro Favorecido também passa a listar quem não tem cadastro (marcado como \"Sem cadastro\").",
       "Projetos com tarefas: na página do projeto, crie tarefas ou vincule tarefas avulsas. Na primeira, o projeto cria a demanda dele, e as tarefas seguem a rotina das demandas. Na demanda e no projeto, uma tarefa pode ser desvinculada (continua existindo, avulsa). Finalizar a demanda ou o projeto finaliza as tarefas abertas, com aviso antes.",
       "Tarefas: o responsável é avisado de que a tarefa é dele, no sino e, se quiser, por e-mail, Telegram ou celular (ligue \"Tarefa atribuída a você\" em Meu perfil → Avisos). Em Tarefas, o filtro Minhas mostra só as suas.",
+      "Tarefas: editar o título, o responsável e o prazo (o lápis na linha) e excluir a tarefa (a lixeira, com confirmação), na lista de Tarefas e nas páginas da demanda, do projeto e da anomalia. Trocar o responsável avisa a pessoa nova.",
     ],
   },
   {

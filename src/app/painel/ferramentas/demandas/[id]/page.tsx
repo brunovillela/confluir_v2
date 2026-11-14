@@ -156,6 +156,7 @@ export default async function DemandaPage({
             pai={{ campo: "demanda_id", id }}
             vazio="Nenhuma tarefa nesta demanda ainda."
             desvincular
+            pessoas={pessoas}
           />
         </CardContent>
       </Card>

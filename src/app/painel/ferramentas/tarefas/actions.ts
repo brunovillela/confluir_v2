@@ -7,14 +7,16 @@ import { podeAcessar } from "@/lib/permissoes"
 import { type EstadoForm } from "@/lib/contas"
 import { avisar, depoisDaResposta, usuariosComPermissao } from "@/lib/db/avisos"
 import {
-  anomaliaDaTarefa,
   atualizarTarefa,
   criarTarefa,
   definirConclusaoTarefa,
   demandaDoProjeto,
   desvincularTarefa,
+  editarTarefa,
+  excluirTarefa,
   garantirDemandaDoProjeto,
   obterDemanda,
+  paisDaTarefa,
   vincularTarefa,
   type DadosTarefa,
 } from "@/lib/db/nucleo"
@@ -56,9 +58,13 @@ async function exigirPermissaoDaTarefa(
   ])
   const usuarioId = String(sessao.usuario.id)
   if (podeAcessar(sessao.permissoes, "ferramentas_tarefas", ["ferramentas_demandas"])) return { usuarioId }
-  if (projetoDoForm && podeAcessar(sessao.permissoes, "ferramentas_projetos_edicao")) return { usuarioId }
+  // Tarefa existente: o vínculo vem do banco, não do formulário.
+  const pais = tarefaId ? await paisDaTarefa(tarefaId) : null
+  if (tarefaId && !pais) return { erro: "Tarefa não encontrada." }
+  const projeto = tarefaId ? pais?.projetoId : projetoDoForm
+  if (projeto && podeAcessar(sessao.permissoes, "ferramentas_projetos_edicao")) return { usuarioId }
   if (!podeAcessar(sessao.permissoes, "ferramentas_anomalias")) return { erro: "Sem permissão para esta tarefa." }
-  const anomalia = tarefaId ? await anomaliaDaTarefa(tarefaId) : anomaliaDoForm || null
+  const anomalia = tarefaId ? (pais?.anomaliaId ?? null) : anomaliaDoForm || null
   return anomalia ? { usuarioId } : { erro: "Sem permissão para esta tarefa." }
 }
 
@@ -80,7 +86,10 @@ function lerDados(formData: FormData): DadosTarefa {
  * preferência, e-mail, Telegram e celular. Quem atribui a si mesmo não é
  * avisado. Depois da resposta, melhor esforço.
  */
-function avisarResponsavel(dados: DadosTarefa, quemCriou: string): void {
+function avisarResponsavel(
+  dados: Pick<DadosTarefa, "titulo" | "demandado_id" | "data_prazo_entrega">,
+  quemCriou: string
+): void {
   const responsavel = dados.demandado_id
   if (!responsavel || responsavel === quemCriou) return
   depoisDaResposta(async () => {
@@ -211,4 +220,49 @@ export async function desvincularTarefaAction(
   if (erro) return { erro }
   revalidarTarefa(formData, { demandaId })
   return { ok: "Tarefa desvinculada." }
+}
+
+/** Revalida a lista e as páginas de onde a tarefa é (lidas do banco). */
+function revalidarPais(pais: { demandaId: string | null; projetoId: string | null; anomaliaId: string | null } | null): void {
+  revalidatePath("/painel/ferramentas/tarefas")
+  if (pais?.demandaId) revalidatePath(`/painel/ferramentas/demandas/${pais.demandaId}`)
+  if (pais?.projetoId) revalidatePath(`/painel/ferramentas/projetos/${pais.projetoId}`)
+  if (pais?.anomaliaId) revalidatePath(`/painel/ferramentas/anomalias/${pais.anomaliaId}`)
+  if (pais?.demandaId || pais?.projetoId) revalidatePath("/painel/ferramentas/demandas")
+}
+
+/**
+ * Edita título, responsável e prazo. Responsável novo (outra pessoa) é
+ * avisado, como na criação.
+ */
+export async function editarTarefaAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const id = texto(formData, "tarefa_id")
+  if (!id) return { erro: "Tarefa inválida." }
+  const acesso = await exigirPermissaoDaTarefa(id, "")
+  if ("erro" in acesso) return { erro: acesso.erro }
+  const dados = {
+    titulo: texto(formData, "titulo"),
+    demandado_id: texto(formData, "demandado_id") || null,
+    data_prazo_entrega: dataISO(texto(formData, "data_prazo_entrega")),
+  }
+  if (!dados.titulo) return { erro: "Descreva a tarefa." }
+
+  const { erro, responsavelAnterior } = await editarTarefa(id, dados)
+  if (erro) return { erro }
+  if (dados.demandado_id && dados.demandado_id !== responsavelAnterior) avisarResponsavel(dados, acesso.usuarioId)
+  revalidarPais(await paisDaTarefa(id))
+  return { ok: "Tarefa salva." }
+}
+
+/** Exclui a tarefa de vez (a tela confirma antes). */
+export async function excluirTarefaAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const id = texto(formData, "tarefa_id")
+  if (!id) return { erro: "Tarefa inválida." }
+  const acesso = await exigirPermissaoDaTarefa(id, "")
+  if ("erro" in acesso) return { erro: acesso.erro }
+  const pais = await paisDaTarefa(id)
+  const { erro } = await excluirTarefa(id)
+  if (erro) return { erro }
+  revalidarPais(pais)
+  return { ok: "Tarefa excluída." }
 }
