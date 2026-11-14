@@ -15,6 +15,13 @@ import { filtroDoEscopo, type EscopoCompras } from "@/lib/db/compras-acesso"
 import { type SituacaoProcesso } from "@/lib/compras-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { avaliarOrdem } from "@/lib/db/ordens-ciclo"
+import {
+  creditoAbatidoNasOrdens,
+  descreverAbatimento,
+  planejarAbatimento,
+  registrarUsosCredito,
+  type PlanoAbatimento,
+} from "@/lib/db/compras-cancelamento"
 import { PERMISSOES_USUARIO_FK } from "@/lib/permissoes"
 import { resolverPermissoes } from "@/lib/permissoes-resolver"
 import {
@@ -953,6 +960,11 @@ export type NovaCompraDireta = NovaSolicitacao & {
    */
   nota_a_receber?: boolean
   vendedor_id?: string | null
+  /**
+   * Abater o crédito em aberto do fornecedor (compra cancelada pelo vendedor):
+   * a ordem sai com o valor descontado; coberta por inteiro, já sai Paga.
+   */
+  abater_credito?: boolean
 }
 
 /**
@@ -1005,16 +1017,26 @@ export async function criarCompraDireta(
     }
   }
 
+  // Crédito com o fornecedor (compra cancelada) abatido no valor a pagar.
+  const credito =
+    nova.abater_credito && !nova.por_rpa
+      ? await planejarAbatimento(nova.fornecedor_id, nova.valor)
+      : { abatido: 0, usos: [] as PlanoAbatimento["usos"] }
+  const valorAPagar = Math.round((nova.valor - credito.abatido) * 100) / 100
+  const cobertaPeloCredito = credito.abatido > 0 && valorAPagar <= 0.005
+
   // Como no legado, a ordem tem código próprio; o vínculo com o processo é
   // a coluna processo_compra_id. Paga por RPA, espera o recibo assinado.
   const { data: ordem, error: erroOrdem } = await inserirOrdemVerificada({
       codigo: gerarCodigoProcesso(),
       tipo: "Compras",
-      descricao: nova.por_rpa
+      descricao: (nova.por_rpa
         ? `Compra direta — ${nova.produto} (prestador autônomo: o RPA assinado é o documento fiscal)`
-        : `Compra direta — ${nova.produto}`,
-      situacao: nova.por_rpa ? "Aguardando documento fiscal" : "Em autorização",
-      valor_inicial_cobranca: nova.valor,
+        : `Compra direta — ${nova.produto}`) +
+        (credito.abatido > 0 ? ` — ${formatarMoeda(nova.valor)}, ${descreverAbatimento(credito)}` : ""),
+      situacao: nova.por_rpa ? "Aguardando documento fiscal" : cobertaPeloCredito ? "Paga" : "Em autorização",
+      ...(cobertaPeloCredito ? { data_pagamento: nova.data_compra, valor_pago: 0 } : {}),
+      valor_inicial_cobranca: valorAPagar,
       forma_pagamento: nova.forma_pagamento,
       vencimento: nova.vencimento,
       beneficiario_fornecedor_id: nova.fornecedor_id,
@@ -1074,16 +1096,24 @@ export async function criarCompraDireta(
   // A ordem aponta para o fornecimento que paga (vários pagamentos; sem a
   // coluna do SQL compras-pagamentos-multiplos, o erro é ignorado).
   if (ordem) await admin.from("ordens_pagamento").update({ fornecimento_id: fornecimento.id }).eq("id", ordem.id)
+  if (ordem && credito.usos.length) {
+    await registrarUsosCredito(credito, {
+      ordemId: String(ordem.id),
+      processoId: String(processo.id),
+      codigoProcesso: codigo,
+      usuarioId: nova.comprador_id,
+    })
+  }
   // Onda 2 (U2): o que ainda vai chegar entra na fila de quem recebe.
   if (!nova.ja_recebido) avisarRecebimento(`Compra direta ${codigo} — ${nova.produto}`)
   if (!ordem) return { id: processo.id, fornecimentoId: String(fornecimento.id) }
 
   // Em dinheiro: a compra sai do caixa escolhido. Paga por RPA, o caixa
   // é debitado no pagamento da ordem (o valor ainda vira o líquido do recibo).
-  if (nova.detalhe?.caixa_conta_id && !nova.por_rpa) {
+  if (nova.detalhe?.caixa_conta_id && !nova.por_rpa && valorAPagar > 0.005) {
     const { erro } = await debitarCaixaCompra({
       contaId: nova.detalhe.caixa_conta_id,
-      valor: nova.valor,
+      valor: valorAPagar,
       descricao: `Compra direta ${codigo} — ${nova.produto}`.slice(0, 500),
       usuarioId: nova.comprador_id,
       ordemId: String(ordem.id),
@@ -1489,6 +1519,9 @@ export async function gerarOrdemFornecimento(
     observacao?: string | null
     /** O "para onde" da forma (cartão, caixa, chave/conta, código Pix, boleto). */
     detalhe?: DetalhePagamento | null
+    /** Abater o crédito em aberto do fornecedor neste pagamento. */
+    abater_credito?: boolean
+    usuarioId?: string
   },
   confirmacao?: Confirmacao
 ): Promise<{ erro?: string; apontamentos?: Apontamento[] }> {
@@ -1523,7 +1556,10 @@ export async function gerarOrdemFornecimento(
     if (principal && principal.excluido !== true) lista.push(principal)
   }
   const validas = lista.filter((o) => o.situacao !== "Cancelada")
-  const lancado = Math.round(validas.reduce((s, o) => s + Number(o.valor_inicial_cobranca ?? 0), 0) * 100) / 100
+  // Lançado = o cobrado nas ordens + o crédito já abatido nelas.
+  const abatidoAntes = await creditoAbatidoNasOrdens(validas.map((o) => String(o.id)))
+  const lancado =
+    Math.round((validas.reduce((s, o) => s + Number(o.valor_inicial_cobranca ?? 0), 0) + abatidoAntes) * 100) / 100
   const total = Number(f.valor ?? 0)
   const restante = Math.round((total - lancado) * 100) / 100
   const valor = dados.valor ?? (restante > 0 ? restante : 0)
@@ -1554,13 +1590,20 @@ export async function gerarOrdemFornecimento(
   // Sem nota própria, o pagamento leva a nota da compra (mesmo com o valor integral).
   const notaFiscal = dados.nota_fiscal_url ?? f.nota_fiscal_url
   const parcial = valor < total - 0.005 || numero > 1
+  // Crédito com o fornecedor (compra cancelada) abatido neste pagamento.
+  const credito = dados.abater_credito && f.fornecedor_id
+    ? await planejarAbatimento(String(f.fornecedor_id), valor)
+    : { abatido: 0, usos: [] as PlanoAbatimento["usos"] }
+  const valorAPagar = Math.round((valor - credito.abatido) * 100) / 100
+  const cobertaPeloCredito = credito.abatido > 0 && valorAPagar <= 0.005
 
   const { data: ordem, error: erroOrdem } = await inserirOrdemVerificada({
       codigo: gerarCodigoProcesso(),
       tipo: "Compras",
-      descricao: `Compra ${processo.codigo ?? ""} — ${processo.solicitacao_produto ?? "(sem descrição)"}${parcial ? ` (pagamento ${numero})` : ""}${dados.observacao ? ` — ${dados.observacao}` : ""}`,
-      situacao: "Em autorização",
-      valor_inicial_cobranca: valor,
+      descricao: `Compra ${processo.codigo ?? ""} — ${processo.solicitacao_produto ?? "(sem descrição)"}${parcial ? ` (pagamento ${numero})` : ""}${dados.observacao ? ` — ${dados.observacao}` : ""}${credito.abatido > 0 ? ` — ${formatarMoeda(valor)}, ${descreverAbatimento(credito)}` : ""}`,
+      situacao: cobertaPeloCredito ? "Paga" : "Em autorização",
+      ...(cobertaPeloCredito ? { data_pagamento: hojeSP(), valor_pago: 0 } : {}),
+      valor_inicial_cobranca: valorAPagar,
       forma_pagamento: dados.forma_pagamento ?? f.forma_pagamento,
       // Colunas de supabase/compras-pagamento.sql (o "para onde" da forma).
       ...(dados.detalhe ?? {}),
@@ -1611,6 +1654,14 @@ export async function gerarOrdemFornecimento(
       await admin.from("ordens_pagamento").delete().eq("id", ordem.id)
       return { erro: `Não foi possível vincular a ordem: ${erroVinculo.message}` }
     }
+  }
+  if (credito.usos.length && dados.usuarioId) {
+    await registrarUsosCredito(credito, {
+      ordemId: String(ordem.id),
+      processoId: String(processo.id),
+      codigoProcesso: processo.codigo ?? null,
+      usuarioId: dados.usuarioId,
+    })
   }
   return {}
 }

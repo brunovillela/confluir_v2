@@ -116,7 +116,10 @@ export type CreditoFornecedor = {
   codigo: string | null
   produto: string | null
   fornecedor: string
+  /** Saldo em aberto. */
   valor: number | null
+  /** Quanto já foi abatido em compras novas. */
+  usado: number
   data: string | null
   obs: string | null
 }
@@ -145,6 +148,7 @@ export async function creditosEmAberto(): Promise<{ disponivel: boolean; itens: 
     admin.from("compras_solicitacoes").select("id, codigo, solicitacao_produto").in("id", ids("processo_id")),
     admin.from("empresa").select("id, nome_fantasia, nome_razao").in("id", [...ids("fornecedor_id"), ...ids("vendedor_id")]),
   ])
+  const usado = await usadoPorCredito(linhas.map((l) => String(l.id)))
   const proc = new Map((procs.data ?? []).map((p) => [String(p.id), p]))
   const nome = new Map((empresas.data ?? []).map((e) => [String(e.id), texto(e.nome_fantasia) ?? texto(e.nome_razao)]))
   return {
@@ -159,7 +163,12 @@ export async function creditosEmAberto(): Promise<{ disponivel: boolean; itens: 
         codigo: texto(p?.codigo),
         produto: texto(p?.solicitacao_produto),
         fornecedor: vendedor && marketplace ? `${vendedor} (via ${marketplace})` : (vendedor ?? marketplace ?? "(fornecedor)"),
-        valor: l.cancelamento_valor === null ? null : Number(l.cancelamento_valor),
+        // Saldo: o valor do crédito menos o já abatido em compras novas.
+        valor:
+          l.cancelamento_valor === null
+            ? null
+            : Math.round((Number(l.cancelamento_valor) - (usado.get(String(l.id)) ?? 0)) * 100) / 100,
+        usado: usado.get(String(l.id)) ?? 0,
         data: texto(l.cancelamento_data),
         obs: texto(l.cancelamento_obs),
       }
@@ -181,4 +190,198 @@ export async function marcarCreditoUsado(fornecimentoId: string, obs: string, us
   if (error) return { erro: `Não foi possível marcar o crédito: ${error.message}` }
   if (!data?.length) return { erro: "Crédito não encontrado ou já usado." }
   return {}
+}
+
+// ── Abater o crédito na compra nova (14/11/2026) ─────────────────────────────
+
+export type CreditoDisponivel = {
+  fornecimentoId: string
+  processoId: string
+  codigo: string | null
+  saldo: number
+}
+
+export type PlanoAbatimento = {
+  abatido: number
+  usos: { creditoId: string; codigo: string | null; valor: number }[]
+}
+
+const centavos = (v: number) => Math.round(v * 100) / 100
+
+/** Soma dos usos ainda válidos de cada crédito. */
+async function usadoPorCredito(ids: string[]): Promise<Map<string, number>> {
+  const usado = new Map<string, number>()
+  if (!ids.length) return usado
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("compras_creditos_usos")
+    .select("credito_fornecimento_id, valor")
+    .in("credito_fornecimento_id", ids)
+    .is("desfeito_em", null)
+  for (const u of data ?? []) {
+    const k = String(u.credito_fornecimento_id)
+    usado.set(k, centavos((usado.get(k) ?? 0) + Number(u.valor ?? 0)))
+  }
+  return usado
+}
+
+/**
+ * Créditos em aberto de um fornecedor (como marketplace ou como vendedor),
+ * com o saldo de cada um, mais antigos primeiro.
+ */
+export async function creditosDoFornecedor(fornecedorId: string): Promise<CreditoDisponivel[]> {
+  if (!fornecedorId) return []
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("compras_fornecimentos")
+    .select("id, processo_id, cancelamento_valor, cancelamento_data")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("cancelamento_desfecho", "credito")
+    .is("credito_usado_em", null)
+    .or(`fornecedor_id.eq.${fornecedorId},vendedor_id.eq.${fornecedorId}`)
+    .order("cancelamento_data", { ascending: true })
+  if (error || !data?.length) return []
+  const usado = await usadoPorCredito(data.map((c) => String(c.id)))
+  const { data: procs } = await admin
+    .from("compras_solicitacoes")
+    .select("id, codigo")
+    .in("id", data.map((c) => String(c.processo_id)))
+  const codigo = new Map((procs ?? []).map((p) => [String(p.id), texto(p.codigo)]))
+  return data
+    .map((c) => ({
+      fornecimentoId: String(c.id),
+      processoId: String(c.processo_id),
+      codigo: codigo.get(String(c.processo_id)) ?? null,
+      saldo: centavos(Number(c.cancelamento_valor ?? 0) - (usado.get(String(c.id)) ?? 0)),
+    }))
+    .filter((c) => c.saldo > 0.005)
+}
+
+/** Quanto do crédito do fornecedor abate um valor (os mais antigos primeiro). */
+export async function planejarAbatimento(fornecedorId: string, valor: number): Promise<PlanoAbatimento> {
+  const usos: PlanoAbatimento["usos"] = []
+  let falta = centavos(valor)
+  for (const c of await creditosDoFornecedor(fornecedorId)) {
+    if (falta <= 0.005) break
+    const v = centavos(Math.min(c.saldo, falta))
+    usos.push({ creditoId: c.fornecimentoId, codigo: c.codigo, valor: v })
+    falta = centavos(falta - v)
+  }
+  return { abatido: centavos(usos.reduce((s, u) => s + u.valor, 0)), usos }
+}
+
+/** Texto para a descrição da ordem: "crédito de R$ X abatido (compra Y)". */
+export function descreverAbatimento(plano: PlanoAbatimento): string {
+  const origens = plano.usos.map((u) => u.codigo).filter(Boolean).join(", ")
+  return `crédito de ${formatarMoeda(plano.abatido)} abatido${origens ? ` (compra cancelada ${origens})` : ""}`
+}
+
+/**
+ * Grava os usos depois que a ordem existe e fecha os créditos que zeraram
+ * (saem de "Créditos com fornecedores").
+ */
+export async function registrarUsosCredito(
+  plano: PlanoAbatimento,
+  dados: { ordemId: string; processoId: string; codigoProcesso: string | null; usuarioId: string }
+): Promise<void> {
+  if (!plano.usos.length) return
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { error } = await admin.from("compras_creditos_usos").insert(
+    plano.usos.map((u) => ({
+      emp_proprietaria_id: emp,
+      credito_fornecimento_id: u.creditoId,
+      processo_id: dados.processoId,
+      ordem_id: dados.ordemId,
+      valor: u.valor,
+      criado_por_id: dados.usuarioId,
+    }))
+  )
+  if (error) {
+    console.error("registrarUsosCredito:", error.message)
+    return
+  }
+  await fecharCreditosZerados(plano.usos.map((u) => u.creditoId), dados.usuarioId, dados.codigoProcesso)
+  await registrarEvento(dados.ordemId, "corrigida", dados.usuarioId, `Valor com ${descreverAbatimento(plano)}.`, {
+    campo: "credito_abatido",
+    valor: plano.abatido,
+    creditos: plano.usos.map((u) => ({ credito: u.creditoId, valor: u.valor })),
+  })
+}
+
+async function fecharCreditosZerados(ids: string[], usuarioId: string, codigoProcesso: string | null) {
+  const admin = await createAdminClient()
+  const { data } = await admin.from("compras_fornecimentos").select("id, cancelamento_valor").in("id", ids)
+  const usado = await usadoPorCredito(ids)
+  for (const c of data ?? []) {
+    if (Number(c.cancelamento_valor ?? 0) - (usado.get(String(c.id)) ?? 0) > 0.005) continue
+    await admin
+      .from("compras_fornecimentos")
+      .update({
+        credito_usado_em: new Date().toISOString(),
+        credito_usado_por_id: usuarioId,
+        credito_usado_obs: `Abatido na compra ${codigoProcesso ?? ""}`.trim(),
+      })
+      .eq("id", String(c.id))
+      .is("credito_usado_em", null)
+  }
+}
+
+/**
+ * A ordem que usou crédito foi cancelada: o uso é desfeito e o valor volta ao
+ * saldo (o crédito reabre se tinha fechado pelo abatimento).
+ */
+export async function desfazerUsosDaOrdem(ordemId: string, motivo: string): Promise<void> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("compras_creditos_usos")
+    .update({ desfeito_em: new Date().toISOString(), desfeito_motivo: motivo.slice(0, 500) })
+    .eq("ordem_id", ordemId)
+    .is("desfeito_em", null)
+    .select("credito_fornecimento_id")
+  const ids = [...new Set((data ?? []).map((u) => String(u.credito_fornecimento_id)))]
+  if (!ids.length) return
+  await admin
+    .from("compras_fornecimentos")
+    .update({ credito_usado_em: null, credito_usado_por_id: null, credito_usado_obs: null })
+    .in("id", ids)
+    .like("credito_usado_obs", "Abatido na compra%")
+}
+
+/** Crédito já abatido nas ordens (para o "restante" do fornecimento). */
+export async function creditoAbatidoNasOrdens(ordemIds: string[]): Promise<number> {
+  if (!ordemIds.length) return 0
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("compras_creditos_usos")
+    .select("valor")
+    .in("ordem_id", ordemIds)
+    .is("desfeito_em", null)
+  return centavos((data ?? []).reduce((s, u) => s + Number(u.valor ?? 0), 0))
+}
+
+/**
+ * Saldo de crédito por fornecedor (marketplace e vendedor), para o formulário
+ * de compra nova mostrar "abater crédito" ao escolher o fornecedor.
+ */
+export async function saldosDeCreditoPorFornecedor(): Promise<Record<string, number>> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("compras_fornecimentos")
+    .select("id, fornecedor_id, vendedor_id, cancelamento_valor")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("cancelamento_desfecho", "credito")
+    .is("credito_usado_em", null)
+    .limit(500)
+  if (error || !data?.length) return {}
+  const usado = await usadoPorCredito(data.map((c) => String(c.id)))
+  const saldos: Record<string, number> = {}
+  for (const c of data) {
+    const saldo = centavos(Number(c.cancelamento_valor ?? 0) - (usado.get(String(c.id)) ?? 0))
+    if (saldo <= 0.005) continue
+    for (const id of new Set([texto(c.fornecedor_id), texto(c.vendedor_id)].filter((v): v is string => !!v))) {
+      saldos[id] = centavos((saldos[id] ?? 0) + saldo)
+    }
+  }
+  return saldos
 }

@@ -259,9 +259,12 @@ export function GerarOrdemForm({
   formaPadrao,
   cartoes,
   caixas,
+  creditoDisponivel = 0,
 }: {
   processoId: string
   fornecimentoId: string
+  /** Crédito em aberto com este fornecedor (compra cancelada): pode ser abatido. */
+  creditoDisponivel?: number
   /** O que falta lançar em ordens (valor do fornecimento − pagamentos). */
   valorRestante: number | null
   /** Já há pagamento lançado: o formulário é de um pagamento a mais. */
@@ -313,6 +316,18 @@ export function GerarOrdemForm({
             : "Valor todo lançado — um pagamento a mais passa pela confirmação da auditoria."}
         </p>
       </div>
+      {creditoDisponivel > 0.005 && (
+        <label className="border-info/40 bg-info/5 flex cursor-pointer items-start gap-2 rounded-md border p-3 text-sm">
+          <input type="checkbox" name="abater_credito" value="1" defaultChecked className="mt-0.5" />
+          <span>
+            <strong>
+              Abater crédito de {creditoDisponivel.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+            </strong>{" "}
+            com este fornecedor (compra cancelada). A ordem sai com o valor descontado; se o crédito cobrir
+            tudo, ela já fica paga.
+          </span>
+        </label>
+      )}
       <ConfirmacaoAuditoria estado={estado} formRef={formRef} pendente={pendente} />
       {estado.erro && (
         <Alert variant="destructive">

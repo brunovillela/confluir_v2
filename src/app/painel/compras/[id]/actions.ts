@@ -241,7 +241,7 @@ export async function gerarOrdemAction(
   _prev: EstadoComApontamentos,
   formData: FormData
 ): Promise<EstadoComApontamentos> {
-  await requireOperacao(formData)
+  const sessao = await requireOperacao(formData)
   const processoId = texto(formData, "processo_id")
   const pedido = texto(formData, "fornecimento_id")
   if (!processoId || !pedido) return { erro: "Fornecimento inválido." }
@@ -298,6 +298,8 @@ export async function gerarOrdemAction(
       forma_pagamento: forma,
       detalhe: pagamento.detalhe,
       observacao: texto(formData, "observacao").replace(/\s+/g, " ").slice(0, 200) || null,
+      abater_credito: texto(formData, "abater_credito") === "1",
+      usuarioId: sessao.usuario.id,
     },
     lerConfirmacao(formData)
   )

@@ -93,7 +93,10 @@ export function NovaCompraForm({
   rpasAvulsos = [],
   permiteViaCompras = true,
   permiteDireta = true,
+  creditos = {},
 }: {
+  /** Saldo de crédito (compra cancelada pelo vendedor) por fornecedor. */
+  creditos?: Record<string, number>
   /** "Aquisição — editar": solicitação para o setor de compras. */
   permiteViaCompras?: boolean
   /** "Aquisição — registrar aquisição direta". */
@@ -961,6 +964,21 @@ export function NovaCompraForm({
                 </div>
               </div>
             </div>
+            {/* Crédito com o fornecedor (compra cancelada pelo vendedor): abatido nesta compra. */}
+            {direta && !porRpa && (creditos[fornecedorId] ?? 0) > 0.005 && (
+              <label className="border-info/40 bg-info/5 flex cursor-pointer items-start gap-2 rounded-md border p-3 text-sm">
+                <input type="checkbox" name="abater_credito" value="1" defaultChecked className="mt-0.5 size-4" />
+                <span>
+                  <strong>Abater crédito de {moedaBR(creditos[fornecedorId])}</strong> com este fornecedor (compra
+                  cancelada).{" "}
+                  {valorDigitado && valorDigitado > 0
+                    ? valorDigitado <= creditos[fornecedorId] + 0.005
+                      ? "O crédito cobre a compra toda: a ordem já fica paga."
+                      : `A ordem sai com ${moedaBR(Math.round((valorDigitado - creditos[fornecedorId]) * 100) / 100)} a pagar.`
+                    : "A ordem sai com o valor já descontado; se o crédito cobrir tudo, ela já fica paga."}
+                </span>
+              </label>
+            )}
             {/* Abaixo do fornecedor: a opção só aparece com serviço de pessoa física. */}
             {rpaDisponivel && (
               <label className="flex items-start gap-2 rounded-md border p-3 text-sm">

@@ -299,6 +299,7 @@ export async function criarCompra(
     recebedor_id: sessao.usuario.id,
     detalhe,
     ...(marketplace && !caminho ? { nota_a_receber: true, vendedor_id: vendedorId } : {}),
+    abater_credito: String(formData.get("abater_credito") ?? "") === "1",
   })
   if (apontamentos) {
     // Nada foi gravado: os arquivos sobem de novo no reenvio.

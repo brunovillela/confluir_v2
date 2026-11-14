@@ -2,10 +2,11 @@
 
 # Compras, fornecedores e contratos
 
-22 tabelas. Diagrama: [er/compras.md](../er/compras.md).
+23 tabelas. Diagrama: [er/compras.md](../er/compras.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
+| [compras_creditos_usos](#compras_creditos_usos) | identificação | Cada uso do crédito de uma compra cancelada pelo vendedor: a ordem e o processo da compra nova em que foi abatido e quanto. Desfeito (desfei… |
 | [compras_departamentos_acesso](#compras_departamentos_acesso) | identificação | Quais departamentos cada usuário enxerga em Compras (acesso às compras por departamento), definido por um gestor. |
 | [compras_fornecimentos](#compras_fornecimentos) | identificação | Cada compra efetivada com um fornecedor dentro de um processo de compra: valor, forma de pagamento, nota fiscal, ordem de pagamento, recebim… |
 | [compras_itens](#compras_itens) | — | Itens de solicitação de compra migrados do Bubble (descrição, quantidade, unidade). Sem uso encontrado no código (possível legado do Bubble)… |
@@ -28,6 +29,31 @@
 | [fa_documentos_categorias](#fa_documentos_categorias) | — | Categorias dos documentos institucionais, migradas do Bubble. |
 | [fa_documentos_categorias_junction](#fa_documentos_categorias_junction) | — | Ligação muitos-para-muitos entre documentos institucionais e categorias. |
 | [fa_documentos_versao](#fa_documentos_versao) | — | Versões (arquivos) dos documentos institucionais com vigência. O vínculo real com o documento é documento_raw (bubble_id), pois documento_id… |
+
+## compras_creditos_usos
+
+Cada uso do crédito de uma compra cancelada pelo vendedor: a ordem e o processo da compra nova em que foi abatido e quanto. Desfeito (desfeito_em) quando a ordem que o usou é cancelada.
+
+- **LGPD:** identificação · titulares: usuários do sistema
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `credito_fornecimento_id` | uuid | não |  | → compras_fornecimentos (**cascade**) | nenhum | O crédito: o fornecimento cancelado com cancelamento_desfecho = credito. |
+| `processo_id` | uuid | sim |  | → compras_solicitacoes (set null) | nenhum | Processo de compra em que o crédito foi abatido. |
+| `ordem_id` | uuid | sim |  | → ordens_pagamento (set null) | nenhum | Ordem de pagamento que saiu com o valor descontado. |
+| `valor` | numeric(12,2) | não |  |  | financeiro | Valor do crédito abatido nesta compra. |
+| `criado_por_id` | uuid | sim |  | → usuarios (set null) | identificação | Quem abateu o crédito. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `desfeito_em` | timestamp with time zone | sim |  |  | nenhum | Quando o uso foi desfeito (ordem cancelada): o valor volta ao saldo do crédito. |
+| `desfeito_motivo` | text | sim |  |  | nenhum | Por que o uso foi desfeito. |
+
+Checks: `compras_creditos_usos_valor_check` `CHECK ((valor > (0)::numeric))`
+
+Índices: `compras_creditos_usos_credito`, `compras_creditos_usos_ordem`, `compras_creditos_usos_pkey`
 
 ## compras_departamentos_acesso
 

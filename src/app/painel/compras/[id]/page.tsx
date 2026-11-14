@@ -53,6 +53,7 @@ import { ComprovanteAcoes } from "./comprovante-envio"
 import { LinhaDoTempoProcesso, type EtapaProcesso } from "./linha-do-tempo"
 import { AnexarNotaMarketplace, VincularVendedor } from "./marketplace-nota"
 import { MarcarCreditoUsado, RegistrarCancelamentoCompra } from "./cancelamento-compra"
+import { creditoAbatidoNasOrdens, creditosDoFornecedor } from "@/lib/db/compras-cancelamento"
 import { hojeSP } from "@/lib/db/comum"
 import { AnexarRpaAssinadoBotao } from "../rpa/rpa-forms"
 
@@ -314,6 +315,28 @@ export default async function ProcessoCompraPage({
         ? { ...f.ordem, notaUrl: await urlArquivoCompras(f.ordem.notaFiscal ?? null) }
         : null,
     }))
+  )
+  // Crédito de compras canceladas: o já abatido conta como lançado; o em
+  // aberto com o fornecedor pode ser abatido no próximo pagamento.
+  const abatidoPorFornecimento = new Map(
+    await Promise.all(
+      fornecimentosBase.map(
+        async (f) =>
+          [
+            f.id,
+            await creditoAbatidoNasOrdens(f.pagamentos.filter((o) => o.situacao !== "Cancelada").map((o) => o.id)),
+          ] as const
+      )
+    )
+  )
+  const creditoPorFornecedor = new Map(
+    operavel
+      ? await Promise.all(
+          [...new Set(fornecimentosBase.map((f) => f.fornecedor_id).filter((v): v is string => !!v))].map(
+            async (id) => [id, (await creditosDoFornecedor(id)).reduce((s, c) => s + c.saldo, 0)] as const
+          )
+        )
+      : []
   )
   // Compra de serviço: o RPA paga o fornecimento de autônomo (pessoa física).
   // Os sem ordem mostram "Emitir RPA" quando o prestador permite; os pagos
@@ -744,9 +767,10 @@ export default async function ProcessoCompraPage({
             const rpa = rpaPorFornecimento.get(f.id)
             const custo = processo.cancelado ? undefined : custoRpa.get(f.id)
             // Vários pagamentos por fornecimento: o que falta lançar em ordens.
-            const lancado = f.pagamentos
-              .filter((o) => o.situacao !== "Cancelada")
-              .reduce((s, o) => s + (o.valor_inicial_cobranca ?? 0), 0)
+            const lancado =
+              f.pagamentos
+                .filter((o) => o.situacao !== "Cancelada")
+                .reduce((s, o) => s + (o.valor_inicial_cobranca ?? 0), 0) + (abatidoPorFornecimento.get(f.id) ?? 0)
             const restante = f.valor === null ? null : Math.round((f.valor - lancado) * 100) / 100
             const falta = restante === null || restante > 0.005
             const excedeu = restante !== null && restante < -0.005
@@ -1057,6 +1081,7 @@ export default async function ProcessoCompraPage({
                         formaPadrao={f.forma_pagamento}
                         cartoes={cartoes}
                         caixas={caixas}
+                        creditoDisponivel={creditoPorFornecedor.get(f.fornecedor_id ?? "") ?? 0}
                       />
                     ) : f.pagamentos.length === 0 ? (
                       <p className="text-muted-foreground text-sm">Ordem de pagamento ainda não gerada.</p>

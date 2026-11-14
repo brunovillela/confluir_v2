@@ -622,9 +622,21 @@ Ao registrar:
   aparecer) e a trilha registra o crédito ou a devolução para o Financeiro.
 
 **Créditos com fornecedores.** O crédito fica em aberto na página *Notas a
-receber*, com fornecedor, compra de origem e valor. Quando ele for usado numa
-compra nova, clique em **Marcar como usado** e diga em qual — ali ou na própria
-compra cancelada.
+receber*, com fornecedor, compra de origem e o **saldo**.
+
+**Abater o crédito na compra nova.** Ao registrar uma aquisição direta com esse
+fornecedor (o marketplace ou o vendedor), ou ao gerar a ordem de pagamento de
+um fornecimento dele, aparece marcado **Abater crédito de R$ X**:
+
+- a ordem sai com o **valor já descontado** e a descrição diz quanto foi abatido
+  e de qual compra cancelada; o valor da compra continua o cheio;
+- se o crédito **cobrir tudo**, a ordem já nasce **Paga** com R$ 0,00 — nada vai
+  para pagamento;
+- crédito maior que a compra: abate só o necessário e o **resto fica em aberto**;
+- se a ordem que usou o crédito for **cancelada**, o valor **volta** ao saldo.
+
+Desmarque a caixa para não usar o crédito naquela compra. Crédito usado fora do
+sistema: **Marcar como usado**, ali ou na própria compra cancelada.
 
 No marketplace o pedido é feito na própria plataforma: a **ordem de compra
 para o fornecedor** não aparece nesses fornecimentos.

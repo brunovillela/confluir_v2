@@ -20,6 +20,7 @@ import {
   listarProjetosAbertos,
 } from "@/lib/db/compras"
 
+import { saldosDeCreditoPorFornecedor } from "@/lib/db/compras-cancelamento"
 import { NovaCompraForm } from "./nova-compra-form"
 
 export const metadata: Metadata = { title: "Nova compra — Confluir" }
@@ -42,6 +43,8 @@ export default async function NovaCompraPage() {
     direta ? obterConfigRpa() : Promise.resolve(null),
     direta ? listarRpasAvulsos() : Promise.resolve([]),
   ])
+  // Crédito de compras canceladas pelo vendedor: abatido na compra nova.
+  const creditos = direta ? await saldosDeCreditoPorFornecedor().catch(() => ({})) : {}
   // Só os departamentos pelos quais a pessoa compra (sem restrição: todos).
   const departamentos = escopo.todos
     ? todosDepartamentos
@@ -71,6 +74,7 @@ export default async function NovaCompraPage() {
       )}
 
       <NovaCompraForm
+        creditos={creditos}
         permiteViaCompras={viaCompras}
         permiteDireta={direta}
         departamentos={departamentos}

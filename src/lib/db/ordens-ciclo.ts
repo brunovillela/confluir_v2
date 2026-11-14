@@ -560,6 +560,11 @@ export async function cancelarOrdem(
     situacao_anterior: ordem.situacao,
     ...(caixaEstornado ? { debito_do_caixa: "cancelado" } : {}),
   })
+  // Crédito de compra cancelada abatido nesta ordem volta ao saldo.
+  // Import dinâmico: compras-cancelamento.ts importa deste módulo.
+  await (await import("@/lib/db/compras-cancelamento"))
+    .desfazerUsosDaOrdem(ordemId, `Ordem cancelada: ${motivo}`)
+    .catch((e) => console.error("desfazerUsosDaOrdem:", e instanceof Error ? e.message : e))
   if (!opcoes.semRefletirNoCusteio) {
     // Import dinâmico: custeio.ts importa deste módulo.
     const { refletirOrdemNoCusteio } = await import("@/lib/db/custeio")
