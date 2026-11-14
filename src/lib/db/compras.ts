@@ -7,7 +7,7 @@ import {
 } from "@/lib/db/ordens-verificacao"
 import type { Apontamento } from "@/lib/auditoria-confirmacao"
 import type { Confirmacao } from "@/lib/db/ordens-verificacao"
-import { avisarQuemPode, depoisDaResposta } from "@/lib/db/avisos"
+import { avisar, avisarQuemPode, depoisDaResposta, usuariosComPermissao } from "@/lib/db/avisos"
 import { esquemaAusente, hojeSP, lerEmLotes, lerEmLotesPorIds, nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 import { filtroDoEscopo, type EscopoCompras } from "@/lib/db/compras-acesso"
@@ -24,6 +24,7 @@ import {
 } from "@/lib/db/compras-cancelamento"
 import { PERMISSOES_USUARIO_FK } from "@/lib/permissoes"
 import { resolverPermissoes } from "@/lib/permissoes-resolver"
+import type { Permissoes } from "@/lib/permissoes"
 import {
   debitarCaixaCompra,
   type DetalhePagamento,
@@ -187,6 +188,10 @@ export type ProcessoDetalhe = {
   situacao: SituacaoProcesso
   aquisicao_direta: boolean | null
   cancelado: boolean
+  cancelado_quando: string | null
+  canceladoPorNome: string | null
+  /** Por que foi cancelado (desde 14/11/2026; antes, null). */
+  cancelado_motivo: string | null
   produto: string | null
   /** true = bem/produto, false = serviço, null = não informado. */
   e_produto: boolean | null
@@ -661,6 +666,7 @@ export async function buscarProcesso(
   const usuarioIds = [
     p.cotacao_responsavel_id,
     p.comprado_por_id,
+    p.cancelado_por_id,
     p.recebimento_recebido_por_id,
     ...propostasBrutas.map((x) => x.escolhida_por_id),
     ...(fornecimentosBrutos ?? []).flatMap((x) => [
@@ -794,6 +800,9 @@ export async function buscarProcesso(
     situacao: derivarSituacao(p),
     aquisicao_direta: (p.aquisicao_direta as boolean | null) ?? null,
     cancelado: p.cancelado === true,
+    cancelado_quando: (p.cancelado_quando as string | null) ?? null,
+    canceladoPorNome: p.cancelado_por_id ? (usuarios.get(String(p.cancelado_por_id)) ?? null) : null,
+    cancelado_motivo: (p.cancelado_motivo as string | null) ?? null,
     produto: (p.solicitacao_produto as string | null) ?? null,
     e_produto: (p.solicitacao_e_produto as boolean | null) ?? null,
     observacao: (p.solicitacao_observacao as string | null) ?? null,
@@ -1128,11 +1137,18 @@ export async function criarCompraDireta(
   return { id: processo.id, ordemId: String(ordem.id), fornecimentoId: String(fornecimento.id) }
 }
 
-/** Cancela um processo ainda não comprado. */
+/**
+ * Cancela um processo ainda não comprado, com o motivo (obrigatório desde
+ * 14/11/2026). Avisa o outro lado: o solicitante, se foi outra pessoa que
+ * cancelou; os compradores, se o processo estava na fila deles (Via Aquisição).
+ */
 export async function cancelarProcesso(
   id: string,
-  usuarioId: string
+  usuarioId: string,
+  motivo: string
 ): Promise<{ erro?: string }> {
+  const motivoLimpo = motivo.replace(/\s+/g, " ").trim()
+  if (motivoLimpo.length < 10) return { erro: "Explique o motivo do cancelamento (pelo menos 10 caracteres)." }
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("compras_solicitacoes")
@@ -1140,18 +1156,54 @@ export async function cancelarProcesso(
       cancelado: true,
       cancelado_quando: new Date().toISOString(),
       cancelado_por_id: usuarioId,
+      cancelado_motivo: motivoLimpo.slice(0, 1000),
       em_cotacao: false,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
     .eq("cancelado", false)
     .eq("comprado", false)
-    .select("id")
-  if (error) return { erro: `Não foi possível cancelar: ${error.message}` }
-  if ((data ?? []).length === 0) {
+    .select("id, codigo, solicitacao_produto, solicitante_id, aquisicao_direta")
+  if (error) {
+    if (esquemaAusente(error)) return { erro: AVISO_SQL }
+    return { erro: `Não foi possível cancelar: ${error.message}` }
+  }
+  const linha = (data ?? [])[0] as Record<string, unknown> | undefined
+  if (!linha) {
     return { erro: "Processo não encontrado, já comprado ou já cancelado." }
   }
+  avisarCancelamento(linha, usuarioId, motivoLimpo)
   return {}
+}
+
+function avisarCancelamento(p: Record<string, unknown>, quemCancelou: string, motivo: string): void {
+  depoisDaResposta(async () => {
+    const admin = await createAdminClient()
+    const solicitanteId = p.solicitante_id ? String(p.solicitante_id) : null
+    const ids = [quemCancelou, ...(solicitanteId ? [solicitanteId] : [])]
+    const { data: us } = await admin.from("usuarios").select("id, nome_completo, nome_guerra, email").in("id", ids)
+    const porId = new Map((us ?? []).map((u) => [String(u.id), u]))
+    const quem = porId.get(quemCancelou)
+    const nomeQuem = (quem?.nome_guerra as string | null) ?? (quem?.nome_completo as string | null) ?? "alguém"
+    const destinatarios = p.aquisicao_direta === false ? await usuariosComPermissao("aquisicoes_comprador", []) : []
+    const sol = solicitanteId ? porId.get(solicitanteId) : undefined
+    if (sol) {
+      destinatarios.push({
+        id: String(sol.id),
+        nome: (sol.nome_completo as string | null) ?? null,
+        email: (sol.email as string | null) ?? null,
+        permissoes: {} as Permissoes,
+      })
+    }
+    const textoAviso = `Solicitação de compra cancelada: ${p.codigo ?? ""} — ${p.solicitacao_produto ?? "(sem descrição)"}. Cancelada por ${nomeQuem}: ${motivo}`
+    return avisar(destinatarios, {
+      texto: textoAviso.slice(0, 400),
+      link: `/painel/compras/${p.id}`,
+      evento: "compra_cancelada",
+      assunto: `Solicitação de compra cancelada: ${p.codigo ?? ""}`,
+      exceto: quemCancelou,
+    })
+  })
 }
 
 // ── Cotação ────────────────────────────────────────────────────────────────

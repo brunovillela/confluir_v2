@@ -415,6 +415,7 @@ Processo de compra: da solicitação (ou aquisição direta) à cotação, avali
 | `aquisicao_direta` | boolean | sim |  |  |  | Compra registrada sem passar por solicitação e cotação. |
 | `solicitante_id` | uuid | sim |  | → usuarios | identificação | Quem registrou a compra (solicitação ou aquisição direta). Vê a compra mesmo fora dos seus departamentos. |
 | `solicitacao_entrega_no_ato` | boolean | não | `false` |  |  | Item entregue no momento da compra. |
+| `cancelado_motivo` | text | sim |  |  | nenhum | Por que a solicitação de compra foi cancelada (texto de quem cancelou). |
 
 Únicas: `UNIQUE (bubble_id)`
 

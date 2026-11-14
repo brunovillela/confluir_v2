@@ -130,6 +130,7 @@ modulo,tabela,coluna,categoria,titulares,descricao
 "compras","compras_solicitacoes","comprado_por_id","identificacao","usuários do sistema, fornecedores PF",""
 "compras","compras_solicitacoes","recebimento_observacao","identificacao","usuários do sistema, fornecedores PF",""
 "compras","compras_solicitacoes","solicitante_id","identificacao","usuários do sistema, fornecedores PF","Quem registrou a compra (solicitação ou aquisição direta). Vê a compra mesmo fora dos seus departamentos."
+"compras","compras_solicitacoes","cancelado_motivo","nenhum","usuários do sistema, fornecedores PF","Por que a solicitação de compra foi cancelada (texto de quem cancelou)."
 "comunicacao","comunicacao_aniversario_config","","identificacao","funcionários","Configuração do envio automático de parabéns aos filiados aniversariantes, uma linha por tenant: texto do e-mail e do WhatsApp, hora de envio, antecedências e e-mails da equipe avisados."
 "comunicacao","comunicacao_aniversario_config","aviso_equipe_emails","identificacao","funcionários","E-mails da equipe que recebem o aviso prévio dos aniversariantes."
 "comunicacao","comunicacao_envios","","identificacao;sensivel_sindical","filiados","Cada destinatário de uma mensagem aos filiados: dados de contato copiados no envio, texto personalizado e situação do e-mail e do WhatsApp. Gravada pelo módulo Mensagens aos filiados e pelos parabéns de aniversário."

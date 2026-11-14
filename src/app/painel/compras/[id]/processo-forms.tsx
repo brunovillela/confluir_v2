@@ -9,6 +9,15 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   FORMAS_PAGAMENTO_COMPRAS,
   ROTULO_FORMA_CONTRATO,
@@ -56,7 +65,6 @@ type Estado = { erro?: string; ok?: string }
 type AcaoServidor = (prev: Estado, formData: FormData) => Promise<Estado>
 
 const ACOES: Record<string, AcaoServidor> = {
-  cancelar: cancelarProcessoAction,
   iniciarCotacao: iniciarCotacaoAction,
   encerrarCotacao: encerrarCotacaoAction,
   reabrirCotacao: reabrirCotacaoAction,
@@ -107,6 +115,63 @@ export function BotaoAcaoProcesso({
         </span>
       )}
     </form>
+  )
+}
+
+/**
+ * Cancelar a solicitação com o motivo (obrigatório): o solicitante, o
+ * comprador ou quem opera Aquisição. O motivo fica no processo e vai no aviso.
+ */
+export function CancelarProcessoBotao({ processoId }: { processoId: string }) {
+  const [aberto, setAberto] = useState(false)
+  const [estado, formAction, pendente] = useActionState(cancelarProcessoAction, {})
+  const envio = useEnvioFormulario(formAction, estado)
+  return (
+    <>
+      <Button type="button" variant="destructive" onClick={() => setAberto(true)}>
+        Cancelar solicitação
+      </Button>
+      <Dialog open={aberto} onOpenChange={setAberto}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancelar a solicitação de compra?</DialogTitle>
+            <DialogDescription>
+              O processo deixa a fila do comprador e não pode mais ser comprado. O motivo fica registrado no
+              processo e vai no aviso ao solicitante e ao comprador.
+            </DialogDescription>
+          </DialogHeader>
+          <form action={formAction} {...envio} className="grid gap-3">
+            <input type="hidden" name="processo_id" value={processoId} />
+            <div className="grid gap-1.5">
+              <Label htmlFor="cancelar-motivo">Motivo do cancelamento *</Label>
+              <Textarea
+                id="cancelar-motivo"
+                name="motivo"
+                required
+                minLength={10}
+                maxLength={1000}
+                rows={3}
+                placeholder="Ex.: compra não é mais necessária; o item foi doado pela federação."
+              />
+            </div>
+            {estado.erro && (
+              <Alert variant="destructive">
+                <AlertDescription>{estado.erro}</AlertDescription>
+              </Alert>
+            )}
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setAberto(false)} disabled={pendente}>
+                Voltar
+              </Button>
+              <Button type="submit" variant="destructive" disabled={pendente}>
+                {pendente && <Loader2 className="animate-spin" />}
+                Cancelar solicitação
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 

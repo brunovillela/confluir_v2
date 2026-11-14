@@ -41,6 +41,7 @@ import { podeAcessar } from "@/lib/permissoes"
 
 import {
   BotaoAcaoProcesso,
+  CancelarProcessoBotao,
   GerarOrdemForm,
   PropostaNovaForm,
   RecebimentoForm,
@@ -214,6 +215,13 @@ export default async function ProcessoCompraPage({
   ])
   // Desde a virada (01/10) o processo migrado do Bubble é operável como os demais.
   const operavel = podeOperar && !processo.cancelado
+  // Cancelar (com motivo): o solicitante, o comprador ou quem opera (14/11).
+  const podeCancelar =
+    !processo.cancelado &&
+    !processo.comprado &&
+    (podeOperar ||
+      podeAcessar(sessao.permissoes, "aquisicoes_comprador") ||
+      (!!processo.solicitante_id && processo.solicitante_id === sessao.usuario.id))
   // Pix expirado e nota que chega depois: quem opera a compra ajusta, mesmo
   // com o processo já comprado (a ordem pode estar até paga, no caso da nota).
   const podeAjustar =
@@ -463,16 +471,7 @@ export default async function ProcessoCompraPage({
                 </Link>
               </Button>
             )}
-            {operavel && !processo.comprado && (
-              <BotaoAcaoProcesso
-                acao="cancelar"
-                campos={{ processo_id: processo.id }}
-                confirmacao="Cancelar este processo de aquisição?"
-                variant="destructive"
-              >
-                Cancelar processo
-              </BotaoAcaoProcesso>
-            )}
+            {podeCancelar && <CancelarProcessoBotao processoId={processo.id} />}
           </div>
         </div>
         <p className="text-muted-foreground mt-1 text-xs">
@@ -480,6 +479,23 @@ export default async function ProcessoCompraPage({
         </p>
       </div>
 
+      {processo.cancelado && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            <span>
+              Solicitação cancelada
+              {processo.cancelado_quando ? ` em ${formatarData(processo.cancelado_quando)}` : ""}
+              {processo.canceladoPorNome ? ` por ${processo.canceladoPorNome}` : ""}.
+              {processo.cancelado_motivo ? (
+                <>
+                  {" "}
+                  Motivo: <strong>{processo.cancelado_motivo}</strong>
+                </>
+              ) : null}
+            </span>
+          </AlertDescription>
+        </Alert>
+      )}
       {criado === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Processo registrado.</AlertDescription>

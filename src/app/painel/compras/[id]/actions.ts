@@ -90,15 +90,32 @@ async function garantirEscopoDoProcesso(usuarioId: string, processoId: string) {
   }
 }
 
+/**
+ * Cancelar a solicitação: o solicitante (quem registrou), o comprador ou
+ * quem opera Aquisição nos departamentos que alcança — sempre com o motivo.
+ */
 export async function cancelarProcessoAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  // Cancelar é operação de edição — não basta a flag base (só leitura).
-  const sessao = await requireOperacao(formData)
+  const sessao = await requirePermissao("aquisicoes_compras", [
+    "aquisicoes_compras_edicao",
+    "aquisicoes_comprador",
+    "aquisicoes_compra_direta",
+  ])
   const id = texto(formData, "processo_id")
   if (!id) return { erro: "Processo inválido." }
-  const { erro } = await cancelarProcesso(id, sessao.usuario.id)
+  const processo = await buscarProcesso(id)
+  if (!processo) return { erro: "Processo não encontrado." }
+  const ehSolicitante = !!processo.solicitante_id && processo.solicitante_id === sessao.usuario.id
+  const ehComprador = podeAcessar(sessao.permissoes, "aquisicoes_comprador")
+  if (!ehSolicitante && !ehComprador) {
+    if (!podeAcessar(sessao.permissoes, "aquisicoes_compras_edicao")) {
+      return { erro: "Só o solicitante, o comprador ou quem opera Aquisição pode cancelar." }
+    }
+    await garantirEscopoDoProcesso(sessao.usuario.id, id)
+  }
+  const { erro } = await cancelarProcesso(id, sessao.usuario.id, texto(formData, "motivo"))
   if (erro) return { erro }
   revalidarProcesso(id)
   redirect(`/painel/compras/${id}?salvo=1`)
