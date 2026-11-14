@@ -103,6 +103,10 @@ export type GozoFerias = {
   abono_solicitado: boolean | null
   aviso_ferias_url: string | null
   created_at: string | null
+  /** Cancelado (14/11/2026): fica no histórico, fora do saldo e das partes. */
+  cancelado_em: string | null
+  cancelado_por: string | null
+  canceladoPorNome: string | null
 }
 
 export type PeriodoFerias = {
@@ -118,7 +122,10 @@ export type PeriodoFerias = {
   abono_pecuniario: boolean | null
   finalizado: boolean | null
   created_at: string | null
+  /** Gozos vigentes — os que contam no saldo e nas 3 partes. */
   gozos: GozoFerias[]
+  /** Gozos cancelados, só para o histórico (mais recente primeiro). */
+  cancelados: GozoFerias[]
 }
 
 /** Dias vendidos no abono (1/3 do direito) e saldo de descanso. */
@@ -141,10 +148,10 @@ export function resumoPeriodo(p: PeriodoFerias): {
   return { direito, abono, descanso, gozados, aguardando, saldo: descanso - gozados - aguardando }
 }
 
-type GozoBruto = Omit<GozoFerias, "autorizadorNome">
+type GozoBruto = Omit<GozoFerias, "autorizadorNome" | "canceladoPorNome">
 
 const SELECT_GOZO =
-  "id, funcionario_id, ferias_periodo_id, inicio, termino, dias, autorizado, data_autorizacao, autorizador_id, autorizador_observacoes, abono_solicitado, aviso_ferias_url, created_at"
+  "id, funcionario_id, ferias_periodo_id, inicio, termino, dias, autorizado, data_autorizacao, autorizador_id, autorizador_observacoes, abono_solicitado, aviso_ferias_url, created_at, cancelado_em, cancelado_por"
 
 /** Liga gozo ao período: FK quando existe; senão funcionário + início no concessivo (legado). */
 function gozoDoPeriodo(
@@ -157,12 +164,22 @@ function gozoDoPeriodo(
   return g.inicio >= p.concessivo_inicio && g.inicio <= p.concessivo_termino
 }
 
+/** Vigentes contam no saldo; cancelados ficam à parte, como histórico. */
+function separarGozos(lista: GozoFerias[]): { gozos: GozoFerias[]; cancelados: GozoFerias[] } {
+  return {
+    gozos: lista.filter((g) => !g.cancelado_em),
+    cancelados: lista
+      .filter((g) => g.cancelado_em)
+      .sort((a, b) => String(b.cancelado_em).localeCompare(String(a.cancelado_em))),
+  }
+}
+
 export async function listarPeriodosFerias(): Promise<PeriodoFerias[]> {
   const admin = await createAdminClient()
   // PostgREST corta em 1.000 linhas — períodos e gozos leem em lotes (os
   // gozos vêm por início crescente: sem lotes, os recentes sumiam).
   const [periodos, brutosGozos] = await Promise.all([
-    lerEmLotes<Omit<PeriodoFerias, "funcionarioNome" | "gozos">>((de, ate) =>
+    lerEmLotes<Omit<PeriodoFerias, "funcionarioNome" | "gozos" | "cancelados">>((de, ate) =>
       admin
         .from("pessoal_ferias")
         .select(
@@ -190,7 +207,7 @@ export async function listarPeriodosFerias(): Promise<PeriodoFerias[]> {
     ...new Set(
       [
         ...periodos.map((p) => p.trabalhador_id),
-        ...brutosGozos.map((g) => g.autorizador_id),
+        ...brutosGozos.flatMap((g) => [g.autorizador_id, g.cancelado_por]),
       ].filter((v): v is string => Boolean(v))
     ),
   ])
@@ -200,14 +217,17 @@ export async function listarPeriodosFerias(): Promise<PeriodoFerias[]> {
     funcionarioNome: p.trabalhador_id
       ? (nomes.get(p.trabalhador_id) ?? null)
       : null,
-    gozos: brutosGozos
-      .filter((g) => gozoDoPeriodo(g, p))
-      .map((g) => ({
-        ...g,
-        autorizadorNome: g.autorizador_id
-          ? (nomes.get(g.autorizador_id) ?? null)
-          : null,
-      })),
+    ...separarGozos(
+      brutosGozos
+        .filter((g) => gozoDoPeriodo(g, p))
+        .map((g) => ({
+          ...g,
+          autorizadorNome: g.autorizador_id
+            ? (nomes.get(g.autorizador_id) ?? null)
+            : null,
+          canceladoPorNome: g.cancelado_por ? (nomes.get(g.cancelado_por) ?? null) : null,
+        }))
+    ),
   }))
 }
 
@@ -305,6 +325,14 @@ export async function excluirPeriodoFerias(
     }
   }
   const admin = await createAdminClient()
+  // O histórico de cancelados vai junto com o período.
+  if (periodo.cancelados.length > 0) {
+    const { error: erroCanc } = await admin
+      .from("pessoal_ferias_gozo")
+      .delete()
+      .in("id", periodo.cancelados.map((g) => g.id))
+    if (erroCanc) return { erro: `Não foi possível excluir os gozos cancelados: ${erroCanc.message}` }
+  }
   const { error } = await admin.from("pessoal_ferias").delete().eq("id", id)
   if (error) return { erro: `Não foi possível excluir: ${error.message}` }
   return {}
@@ -420,7 +448,7 @@ async function sincronizarAusenciaDoGozo(
     const emp = await tenantAtual()
     const { data: g } = await admin
       .from("pessoal_ferias_gozo")
-      .select("id, funcionario_id, inicio, termino, autorizado")
+      .select("id, funcionario_id, inicio, termino, autorizado, cancelado_em")
       .eq("id", gozoId)
       .maybeSingle()
     const { data: ligadas } = await admin
@@ -430,7 +458,7 @@ async function sincronizarAusenciaDoGozo(
       .eq("emp_proprietaria_id", emp)
     const ids = (ligadas ?? []).map((a) => String(a.id))
 
-    if (!g || g.autorizado !== true || !g.inicio || !g.termino || !g.funcionario_id) {
+    if (!g || g.autorizado !== true || g.cancelado_em || !g.inicio || !g.termino || !g.funcionario_id) {
       if (ids.length) await admin.from("pessoal_ausencias").delete().in("id", ids)
       return
     }
@@ -629,7 +657,8 @@ async function notificarPessoalGestao(
  *  - o próprio funcionário, até o dia em que as férias começam (inclusive);
  *  - a gestão de pessoal (`pessoal_gestao`), a qualquer momento — depois do
  *    início, só ela.
- * Os dias do gozo voltam ao saldo do período (o saldo é a soma dos gozos), e
+ * O gozo não é apagado: ganha `cancelado_em`/`cancelado_por` e fica no
+ * histórico do período. Os dias voltam ao saldo (cancelado não conta), e
  * um período finalizado é reaberto para aceitar outra solicitação. A ausência
  * "Férias" e o aviso pendente de assinatura caem junto. Quem não cancelou fica
  * sabendo: a gestão (se o gozo já estava autorizado) ou o funcionário.
@@ -642,12 +671,13 @@ export async function cancelarGozo(
   const emp = await tenantAtual()
   const { data, error } = await admin
     .from("pessoal_ferias_gozo")
-    .select("id, funcionario_id, ferias_periodo_id, autorizado, inicio, termino, dias")
+    .select("id, funcionario_id, ferias_periodo_id, autorizado, inicio, termino, dias, cancelado_em")
     .eq("id", gozoId)
     .eq("emp_proprietaria_id", emp)
     .maybeSingle()
   if (error) return { erro: `Falha ao cancelar: ${error.message}` }
   if (!data) return { erro: "Gozo não encontrado." }
+  if (data.cancelado_em) return { erro: "Este gozo já foi cancelado." }
 
   const doProprio = data.funcionario_id === quem.usuarioId
   if (!quem.gestao) {
@@ -660,20 +690,23 @@ export async function cancelarGozo(
   }
 
   const eraAutorizado = data.autorizado === true
+  const { error: erroCanc, count } = await admin
+    .from("pessoal_ferias_gozo")
+    .update(
+      { cancelado_em: new Date().toISOString(), cancelado_por: quem.usuarioId, updated_at: new Date().toISOString() },
+      { count: "exact" }
+    )
+    .eq("id", gozoId)
+    .eq("emp_proprietaria_id", emp)
+    .is("cancelado_em", null)
+  if (erroCanc) return { erro: `Não foi possível cancelar: ${erroCanc.message}` }
+  if (count === 0) return { erro: "Este gozo já foi cancelado." }
   await removerAusenciasDoGozo(gozoId)
   await cancelarAvisoFerias(
     gozoId,
     quem.usuarioId,
     doProprio ? "Gozo cancelado pelo funcionário" : "Gozo cancelado pelo departamento de pessoal"
   )
-  const { error: erroDel, count } = await admin
-    .from("pessoal_ferias_gozo")
-    .delete({ count: "exact" })
-    .eq("id", gozoId)
-    .eq("emp_proprietaria_id", emp)
-  if (erroDel) return { erro: `Não foi possível cancelar: ${erroDel.message}` }
-  if (count === 0) return { erro: "Gozo não encontrado." }
-
   // Os dias voltam ao período: finalizado, ele reabre para a nova solicitação.
   if (data.ferias_periodo_id) {
     const { error: erroReabrir } = await admin
@@ -717,7 +750,11 @@ export async function atualizarGozo(
   if (!periodo) return { erro: "Período de férias não encontrado." }
 
   const atual = periodo.gozos.find((g) => g.id === gozoId)
-  if (!atual) return { erro: "Gozo não encontrado neste período." }
+  if (!atual) {
+    return periodo.cancelados.some((g) => g.id === gozoId)
+      ? { erro: "Este gozo foi cancelado e não pode mais ser alterado." }
+      : { erro: "Gozo não encontrado neste período." }
+  }
 
   const outros = periodo.gozos.filter((g) => g.id !== gozoId)
   const invalido = validarGozos(periodo, outros, dados)
@@ -734,6 +771,7 @@ export async function atualizarGozo(
       { count: "exact" }
     )
     .eq("id", gozoId)
+    .is("cancelado_em", null)
   if (error) return { erro: `Não foi possível salvar: ${error.message}` }
   if (count === 0) return { erro: "Gozo não encontrado." }
   await sincronizarAusenciaDoGozo(gozoId, { inicio: atual.inicio, termino: atual.termino })
@@ -761,11 +799,12 @@ export async function definirAutorizacaoGozo(
       updated_at: new Date().toISOString(),
     })
     .eq("id", gozoId)
+    .is("cancelado_em", null)
     .select(
       "funcionario_id, inicio, termino, dias, abono_solicitado, ferias_periodo_id"
     )
   if (error) return { erro: `Não foi possível salvar: ${error.message}` }
-  if ((data ?? []).length === 0) return { erro: "Gozo não encontrado." }
+  if ((data ?? []).length === 0) return { erro: "Gozo não encontrado ou já cancelado." }
   await sincronizarAusenciaDoGozo(gozoId)
 
   const g = data![0]

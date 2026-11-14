@@ -367,6 +367,7 @@ export async function buscarPerfilFuncionario(
         "id, inicio, termino, dias, autorizado, data_autorizacao, aviso_ferias_url"
       )
       .eq("funcionario_id", usuarioId)
+      .is("cancelado_em", null)
       .order("inicio", { ascending: false, nullsFirst: false }),
     admin
       .from("pessoal_ausencias")

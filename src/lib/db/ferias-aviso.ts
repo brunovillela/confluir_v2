@@ -141,6 +141,7 @@ export async function carregarAviso(gozoId: string): Promise<AvisoDoGozo | null>
     .select("id, funcionario_id, ferias_periodo_id, inicio, termino, dias, autorizado, abono_solicitado, aviso_ferias_url")
     .eq("id", gozoId)
     .eq("emp_proprietaria_id", emp)
+    .is("cancelado_em", null)
     .maybeSingle()
   if (!g || !g.funcionario_id || !g.inicio || !g.termino || !g.dias) return null
   const [{ data: p }, { data: u }, { data: vs }, regra] = await Promise.all([
@@ -507,6 +508,7 @@ export async function gozosSemAviso(): Promise<{ gozoId: string; periodoId: stri
     .select("id, ferias_periodo_id, funcionario_id, inicio")
     .eq("emp_proprietaria_id", emp)
     .eq("autorizado", true)
+    .is("cancelado_em", null)
     .gte("inicio", hoje)
   const lista = (gozos ?? []).filter((g) => g.funcionario_id && g.inicio)
   if (lista.length === 0) return []

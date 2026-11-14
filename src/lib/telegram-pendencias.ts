@@ -95,6 +95,7 @@ async function decidir(
         .select("funcionario_id, autorizado")
         .eq("id", id)
         .eq("emp_proprietaria_id", ctx.emp)
+        .is("cancelado_em", null)
         .maybeSingle()
       if (!g) return { erro: "Pedido de férias não encontrado." }
       if (g.autorizado === true) return { erro: "Estas férias já foram autorizadas." }
@@ -341,7 +342,7 @@ async function itensComBotao(ctx: Ctx, limite: number): Promise<ItemPendente[]> 
 
   if (pode("pessoal_gestao") || coordena) {
     for (const g of await linhas("pessoal_ferias_gozo", "id, funcionario_id, inicio, dias, ferias_periodo_id", (q) =>
-      q.not("autorizado", "is", true).is("data_autorizacao", null).not("inicio", "is", null).order("inicio").limit(10)
+      q.not("autorizado", "is", true).is("data_autorizacao", null).is("cancelado_em", null).not("inicio", "is", null).order("inicio").limit(10)
     )) {
       candidatos.push({ tipo: "fe", id: String(g.id), pessoa: texto(g.funcionario_id), resumo: `${g.dias ?? "?"} dia(s) de férias a partir de ${formatarData(texto(g.inicio))}`, link: `/painel/pessoal/ferias/${g.ferias_periodo_id}` })
     }

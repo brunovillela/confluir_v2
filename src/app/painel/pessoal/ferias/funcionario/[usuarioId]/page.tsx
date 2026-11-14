@@ -6,6 +6,7 @@ import { Plus, TreePalm } from "lucide-react"
 import { TileIndicador } from "@/components/graficos/tile"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { CabecalhoFuncionario } from "@/components/pessoal/cabecalho-funcionario"
+import { GozosCancelados } from "@/components/pessoal/gozos-cancelados"
 import { VoltarLista } from "@/components/voltar-lista"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -244,6 +245,7 @@ export default async function FeriasDoFuncionarioPage({
                 ) : (
                   <p className="text-muted-foreground px-4 py-3 text-xs">Nenhum gozo neste período.</p>
                 )}
+                <GozosCancelados cancelados={p.cancelados} funcionarioId={p.trabalhador_id} className="px-4 py-3" />
               </div>
             )
           })}

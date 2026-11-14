@@ -22,6 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
+import { GozosCancelados } from "@/components/pessoal/gozos-cancelados"
 import { VoltarPerfil } from "@/components/voltar-perfil"
 import { requireSessaoPainel } from "@/lib/auth"
 import { exigirFuncionario } from "@/lib/db/perfil"
@@ -243,6 +244,12 @@ export default async function MinhasFeriasPage({
                     </TableBody>
                   </Table>
                 )}
+                <GozosCancelados
+                  cancelados={p.cancelados}
+                  funcionarioId={p.trabalhador_id}
+                  doProprio
+                  className="mt-3"
+                />
               </div>
             )
           })}

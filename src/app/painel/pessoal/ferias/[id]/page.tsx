@@ -6,6 +6,7 @@ import { ArrowLeft, ExternalLink, Pencil } from "lucide-react"
 import { TileIndicador } from "@/components/graficos/tile"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { CabecalhoFuncionario } from "@/components/pessoal/cabecalho-funcionario"
+import { GozosCancelados } from "@/components/pessoal/gozos-cancelados"
 import { NavegacaoRegistro } from "@/components/pessoal/navegacao-registro"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -393,6 +394,11 @@ export default async function PeriodoFeriasPage({
                   </TableBody>
                 </Table>
               </div>
+              <GozosCancelados
+                cancelados={periodo.cancelados}
+                funcionarioId={periodo.trabalhador_id}
+                className="mt-3"
+              />
             </CardContent>
           </Card>
 

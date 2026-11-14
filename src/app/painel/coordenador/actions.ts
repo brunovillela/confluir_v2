@@ -39,6 +39,7 @@ export async function autorizarFeriasCoordenadorAction(
     .select("funcionario_id, autorizado")
     .eq("id", gozoId)
     .eq("emp_proprietaria_id", await tenantAtual())
+    .is("cancelado_em", null)
     .maybeSingle()
   if (!g) return { erro: "Pedido de férias não encontrado." }
   if (g.autorizado === true) return { erro: "Estas férias já foram autorizadas." }

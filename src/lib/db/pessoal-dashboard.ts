@@ -160,6 +160,7 @@ export async function resumoPessoal(): Promise<ResumoPessoal> {
         .from("pessoal_ferias_gozo")
         .select("id", { count: "exact", head: true })
         .not("autorizado", "is", true)
+        .is("cancelado_em", null)
         .gte("inicio", hoje)
     ),
     contar(() =>

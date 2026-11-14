@@ -144,7 +144,7 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
       tabela: "pessoal_ferias_gozo",
       // = gozoAguardandoAutorizacao (tela de Férias): sem decisão e com início.
       montar: (q) =>
-        head(q).not("autorizado", "is", true).is("data_autorizacao", null).not("inicio", "is", null),
+        head(q).not("autorizado", "is", true).is("data_autorizacao", null).is("cancelado_em", null).not("inicio", "is", null),
     })
   }
   // Reembolsos do ACT: Gestão de Pessoal ou a chave dedicada (17/10).
@@ -529,6 +529,7 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
             .in("funcionario_id", equipe)
             .not("autorizado", "is", true)
             .is("data_autorizacao", null)
+            .is("cancelado_em", null)
             .not("inicio", "is", null),
       })
     }

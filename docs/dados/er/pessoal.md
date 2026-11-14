@@ -206,6 +206,7 @@ erDiagram
     uuid autorizador_id FK
     uuid empregador_id FK
     uuid ferias_periodo_id FK
+    uuid cancelado_por FK
   }
   pessoal_folha_competencias {
     uuid id PK
@@ -436,6 +437,7 @@ erDiagram
   pessoal_ferias_gozo }o--o| empresa : "empregador_id"
   pessoal_ferias_gozo }o--o| pessoal_ferias : "ferias_periodo_id"
   pessoal_ferias_gozo }o--o| usuarios : "autorizador_id"
+  pessoal_ferias_gozo }o--o| usuarios : "cancelado_por"
   pessoal_ferias_gozo }o--o| usuarios : "funcionario_id"
   pessoal_folha_competencias }o--o| usuarios : "enviada_por"
   pessoal_folha_competencias }o--o| usuarios : "recebida_por"

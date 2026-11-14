@@ -549,7 +549,7 @@ export async function calcularMovimento(
   const faixas = await faixasHoraExtra()
   const [gozos, atestados, ausencias, faltas, anuenios, niveis, reembolsos, infracoes, ponto] = await Promise.all([
     admin.from("pessoal_ferias_gozo").select("id, funcionario_id, inicio, termino, dias, autorizado, abono_solicitado, data_autorizacao, created_at")
-      .gte("inicio", desde).lte("inicio", `${proximoMes}-02`).eq("autorizado", true),
+      .gte("inicio", desde).lte("inicio", `${proximoMes}-02`).eq("autorizado", true).is("cancelado_em", null),
     admin.from("pes_atestados_medicos").select("id, funcionario_id, inicio, termino, quantidade_dias, cid10, created_at")
       .lte("inicio", fimMes).gte("termino", desde),
     admin.from("pessoal_ausencias").select("id, funcionario_id, inicio, termino, motivo, observacao, created_at")

@@ -513,7 +513,8 @@ export async function resumoFeriasTelegram(
       .from("pessoal_ferias_gozo")
       .select("ferias_periodo_id, funcionario_id, inicio, dias")
       .eq("funcionario_id", usuarioId)
-      .eq("emp_proprietaria_id", empId),
+      .eq("emp_proprietaria_id", empId)
+      .is("cancelado_em", null),
   ])
   if (periodos.error) {
     return { disponivel: !esquemaAusente(periodos.error), periodos: [], saldoTotal: 0 }
