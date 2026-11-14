@@ -14,7 +14,8 @@ import { lerConfigFaltas, listarFaltas } from "@/lib/db/faltas"
 import { funcionarioDaArea } from "@/lib/db/pessoal-area"
 import { formatarData } from "@/lib/formato"
 
-import { DecisaoFalta } from "../faltas-forms"
+import { podeAcessar } from "@/lib/permissoes"
+import { DecisaoFalta, ExcluirFaltaBotao } from "../faltas-forms"
 import { BadgeFalta, LinkComprovacao } from "../faltas-ui"
 
 export const metadata: Metadata = { title: "Falta justificada — Confluir" }
@@ -43,6 +44,7 @@ export default async function FaltaPage({
   const sessao = await requirePermissao("pessoal_gestao", ["pessoal_faltas_justificadas"])
   const { id } = await params
   const { de } = await searchParams
+  const gestaoPessoal = podeAcessar(sessao.permissoes, "pessoal_gestao")
   const [{ faltas }, { config }] = await Promise.all([listarFaltas(), lerConfigFaltas()])
   const falta = faltas.find((f) => f.id === id)
   if (!falta) notFound()
@@ -143,6 +145,16 @@ export default async function FaltaPage({
             <div className="border-t pt-4">
               <p className="mb-2 text-sm font-medium">Decisão</p>
               <DecisaoFalta id={falta.id} />
+            </div>
+          )}
+          {falta.situacao === "autorizada" && (
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-4">
+              <p className="text-muted-foreground text-xs">
+                {gestaoPessoal
+                  ? "Autorizada: só a gestão de pessoal cancela — a ausência sai e o funcionário é avisado."
+                  : "Autorizada: só quem tem a permissão de Gestão de Pessoal pode cancelar."}
+              </p>
+              {gestaoPessoal && <ExcluirFaltaBotao id={falta.id} autorizada />}
             </div>
           )}
         </CardContent>

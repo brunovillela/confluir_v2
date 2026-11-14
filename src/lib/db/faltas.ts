@@ -9,6 +9,7 @@ import {
   CONFIG_FALTAS_PADRAO,
   excedeLimite,
   podeCancelar,
+  podeGestaoCancelar,
   MESES,
   situacaoDaFalta,
   usoNaData,
@@ -445,8 +446,9 @@ export async function ultimaAutorizadaSemComprovacao(
 }
 
 /**
- * Funcionário cancela a PRÓPRIA falta enquanto a data não chega — aguardando
- * ou já autorizada. Autorizada, a ausência sai e o departamento é avisado.
+ * Funcionário cancela a PRÓPRIA falta enquanto aguarda autorização, antes ou
+ * depois do dia (14/11/2026). Autorizada, só a gestão de pessoal cancela
+ * (`excluirFalta` com `gestaoPessoal`).
  */
 export async function cancelarMinhaFalta(id: string, usuarioId: string): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
@@ -458,10 +460,14 @@ export async function cancelarMinhaFalta(id: string, usuarioId: string): Promise
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
   if (!f) return { erro: "Pedido não encontrado." }
-  const data = texto(f.data_falta)?.slice(0, 10) ?? null
   const situacao = situacaoDaFalta(f)
-  if (!podeCancelar({ situacao, data }, hojeSP())) {
-    return { erro: "Só dá para cancelar antes do dia da falta (e se não foi recusada)." }
+  if (!podeCancelar({ situacao })) {
+    return {
+      erro:
+        situacao === "autorizada"
+          ? "Esta falta já foi autorizada: só o departamento de pessoal pode cancelar."
+          : "Falta recusada não pode ser cancelada.",
+    }
   }
   await admin.from("pessoal_ausencias").delete().eq("falta_id", id)
   const { error, count } = await admin
@@ -471,14 +477,6 @@ export async function cancelarMinhaFalta(id: string, usuarioId: string): Promise
     .eq("funcionario_id", usuarioId)
   if (error) return { erro: `Não foi possível cancelar: ${error.message}` }
   if (count === 0) return { erro: "Pedido não encontrado." }
-  if (situacao === "autorizada") {
-    const nomes = await nomesDosUsuarios([usuarioId])
-    await notificarGestao(
-      `${nomes.get(usuarioId) ?? "Um funcionário"} cancelou a falta justificada já autorizada de ${formatarData(data)}.`,
-      usuarioId,
-      false
-    )
-  }
   return {}
 }
 
@@ -503,9 +501,27 @@ export async function anexarComprovacaoMinhaFalta(
   return {}
 }
 
-/** Gestão exclui um registro (a ausência gerada sai junto). */
-export async function excluirFalta(id: string): Promise<{ erro?: string }> {
+/**
+ * Gestão exclui/cancela um registro (a ausência gerada sai junto). Falta já
+ * AUTORIZADA só com `pessoal_gestao` (14/11/2026), em qualquer data; o
+ * funcionário é avisado no sino.
+ */
+export async function excluirFalta(
+  id: string,
+  quem: { usuarioId: string; gestaoPessoal: boolean }
+): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
+  const { data: f } = await admin
+    .from("pessoal_faltas_justificadas")
+    .select("id, funcionario_id, data_falta, autorizado, recusado")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (!f) return { erro: "Falta não encontrada." }
+  const situacao = situacaoDaFalta(f)
+  if (!podeGestaoCancelar({ situacao }, quem.gestaoPessoal)) {
+    return { erro: "Falta já autorizada: só quem tem a permissão de Gestão de Pessoal pode cancelar." }
+  }
   await admin.from("pessoal_ausencias").delete().eq("falta_id", id)
   const { error, count } = await admin
     .from("pessoal_faltas_justificadas")
@@ -514,6 +530,18 @@ export async function excluirFalta(id: string): Promise<{ erro?: string }> {
     .eq("emp_proprietaria_id", await tenantAtual())
   if (error) return { erro: `Não foi possível excluir: ${error.message}` }
   if (count === 0) return { erro: "Falta não encontrada." }
+  const funcionarioId = texto(f.funcionario_id)
+  if (situacao === "autorizada" && funcionarioId && funcionarioId !== quem.usuarioId) {
+    const dia = texto(f.data_falta)?.slice(0, 10) ?? null
+    try {
+      await criarNotificacao({
+        usuarioId: funcionarioId,
+        texto: `O departamento de pessoal cancelou sua falta justificada de ${formatarData(dia)}; a ausência do dia foi retirada.`,
+      })
+    } catch (e) {
+      console.error("Falha ao avisar o cancelamento da falta:", e)
+    }
+  }
   return {}
 }
 

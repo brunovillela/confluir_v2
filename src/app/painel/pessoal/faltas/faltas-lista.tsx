@@ -12,6 +12,8 @@ import { formatarData } from "@/lib/formato"
 import { recorteDaLista, urlNaLista } from "@/lib/lista-estado"
 import { LembrarLista } from "@/components/voltar-lista"
 
+import { podeGestaoCancelar } from "@/lib/faltas-constantes"
+
 import { ExcluirFaltaBotao } from "./faltas-forms"
 import { BadgeFalta, LinkComprovacao } from "./faltas-ui"
 
@@ -22,7 +24,10 @@ export async function ListaFaltasAno({
   anos,
   brutos,
   funcionarios,
+  gestaoPessoal,
 }: {
+  /** Tem `pessoal_gestao`: só assim cancela falta já autorizada. */
+  gestaoPessoal: boolean
   doAno: FaltaJustificada[]
   ano: string
   anos: string[]
@@ -129,7 +134,9 @@ export async function ListaFaltasAno({
                     <LinkComprovacao caminho={f.comprovacao} />
                   </TableCell>
                   <TableCell className="text-right">
-                    <ExcluirFaltaBotao id={f.id} />
+                    {podeGestaoCancelar(f, gestaoPessoal) && (
+                      <ExcluirFaltaBotao id={f.id} autorizada={f.situacao === "autorizada"} />
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

@@ -151,11 +151,17 @@ export function DecisaoFalta({ id }: { id: string }) {
   )
 }
 
-export function ExcluirFaltaBotao({ id }: { id: string }) {
+export function ExcluirFaltaBotao({ id, autorizada = false }: { id: string; autorizada?: boolean }) {
   const [estado, acao, pendente] = useActionState(excluirFaltaAction, {})
   const envio4 = useEnvioFormulario(acao, estado, {
     antes: (e) => {
-      confirmarEnvio(e, "Excluir esta falta justificada? A ausência gerada por ela sai junto.")},
+      confirmarEnvio(
+        e,
+        autorizada
+          ? "Cancelar esta falta já autorizada? A ausência gerada por ela sai junto e o funcionário é avisado."
+          : "Excluir esta falta justificada? A ausência gerada por ela sai junto."
+      )
+    },
   })
   return (
     <form
@@ -169,7 +175,7 @@ export function ExcluirFaltaBotao({ id }: { id: string }) {
         variant="ghost"
         size="sm"
         disabled={pendente}
-        aria-label="Excluir falta"
+        aria-label={autorizada ? "Cancelar falta autorizada" : "Excluir falta"}
         className="text-destructive hover:text-destructive h-7 px-2"
       >
         {pendente ? <Loader2 className="animate-spin" /> : <Trash2 />}

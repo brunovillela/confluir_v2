@@ -15,6 +15,7 @@ import { SelectNativo } from "@/components/ui/select-nativo"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { LembrarLista } from "@/components/voltar-lista"
 import { requirePermissao } from "@/lib/auth"
+import { podeAcessar } from "@/lib/permissoes"
 import { hojeSP } from "@/lib/db/comum"
 import { AVISO_SQL_FALTAS, lerConfigFaltas, listarFaltas, type FaltaJustificada } from "@/lib/db/faltas"
 import { funcionariosParaSelecao } from "@/lib/db/pessoal"
@@ -42,7 +43,7 @@ export default async function FaltasPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>
 }) {
-  await requirePermissao("pessoal_gestao", ["pessoal_faltas_justificadas"])
+  const sessao = await requirePermissao("pessoal_gestao", ["pessoal_faltas_justificadas"])
   const sp = await searchParams
   const aba = sp.aba === "faltas" ? "faltas" : "funcionarios"
   const hoje = hojeSP()
@@ -189,7 +190,14 @@ export default async function FaltasPage({
       />
 
       {aba === "faltas" ? (
-        <ListaFaltasAno doAno={doAno} ano={ano} anos={anos} brutos={sp} funcionarios={paraSelecao} />
+        <ListaFaltasAno
+          doAno={doAno}
+          ano={ano}
+          anos={anos}
+          brutos={sp}
+          funcionarios={paraSelecao}
+          gestaoPessoal={podeAcessar(sessao.permissoes, "pessoal_gestao")}
+        />
       ) : (
         <AbaFuncionarios sp={sp} ano={ano} anos={anos} doAno={doAno} config={config} funcionarios={funcionarios} />
       )}

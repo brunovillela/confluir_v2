@@ -53,9 +53,21 @@ export function comprovacaoNoPedido(config: ConfigFaltas, dataISO: string, hojeI
   return config.exigeComprovacao && dataISO <= hojeISO
 }
 
-/** O funcionário cancela o próprio pedido enquanto a data não chega. */
-export function podeCancelar(f: { situacao: SituacaoFalta; data: string | null }, hojeISO: string): boolean {
-  return f.situacao !== "recusada" && !!f.data && f.data > hojeISO
+/**
+ * O funcionário cancela o próprio pedido enquanto aguarda autorização, em
+ * qualquer data (14/11/2026: antes era até a véspera). Autorizada, só a gestão
+ * de pessoal (`pessoal_gestao`) cancela — ver `podeGestaoCancelar`.
+ */
+export function podeCancelar(f: { situacao: SituacaoFalta }): boolean {
+  return f.situacao === "aguardando"
+}
+
+/**
+ * Pela área do Pessoal: a falta autorizada só sai com `pessoal_gestao`; quem
+ * tem apenas `pessoal_faltas_justificadas` exclui as aguardando e recusadas.
+ */
+export function podeGestaoCancelar(f: { situacao: SituacaoFalta }, temGestaoPessoal: boolean): boolean {
+  return f.situacao !== "autorizada" || temGestaoPessoal
 }
 
 export type SituacaoFalta = "aguardando" | "autorizada" | "recusada"

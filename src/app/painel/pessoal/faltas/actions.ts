@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
+import { podeAcessar } from "@/lib/permissoes"
 import { type EstadoForm } from "@/lib/contas"
 import {
   decidirFalta,
@@ -73,13 +74,16 @@ export async function decidirFaltaAction(_prev: EstadoForm, fd: FormData): Promi
 }
 
 export async function excluirFaltaAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
-  await exigirGestao()
+  const sessao = await exigirGestao()
   const id = texto(fd, "id")
   if (!id) return { erro: "Falta inválida." }
-  const { erro } = await excluirFalta(id)
+  const { erro } = await excluirFalta(id, {
+    usuarioId: sessao.usuario.id,
+    gestaoPessoal: podeAcessar(sessao.permissoes, "pessoal_gestao"),
+  })
   if (erro) return { erro }
   revalidar()
-  return { ok: "Falta excluída." }
+  return { ok: "Falta cancelada." }
 }
 
 /** Limite vazio = sem limite; zero é aceito (bloqueia a solicitação). */

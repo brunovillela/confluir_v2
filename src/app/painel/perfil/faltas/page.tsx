@@ -119,7 +119,8 @@ export default async function MinhasFaltasPage() {
           <CardTitle className="text-base">Histórico</CardTitle>
           <CardDescription>
             Contam para os limites as faltas aguardando e as autorizadas; a recusada não conta. Dá
-            para cancelar até a véspera da falta, mesmo já autorizada.
+            para cancelar o pedido enquanto aguarda autorização, mesmo depois do dia da falta; autorizada,
+            só o departamento de pessoal cancela.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -172,8 +173,11 @@ export default async function MinhasFaltasPage() {
                       <TableCell className="text-right">
                         <div className="flex flex-wrap items-center justify-end gap-1">
                           {anexavel(f) && <AnexarComprovacaoForm id={f.id} />}
-                          {podeCancelar(f, hoje) && (
-                            <CancelarFaltaBotao id={f.id} autorizada={f.situacao === "autorizada"} />
+                          {podeCancelar(f) && <CancelarFaltaBotao id={f.id} />}
+                          {f.situacao === "autorizada" && (
+                            <span className="text-muted-foreground text-xs">
+                              Autorizada: cancelar só pelo departamento de pessoal
+                            </span>
                           )}
                         </div>
                       </TableCell>
