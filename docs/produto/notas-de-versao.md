@@ -4,6 +4,10 @@
 
 O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga. É o mesmo conteúdo do aviso "O que há de novo" dentro do sistema. O detalhe técnico de cada entrega está no histórico do git; as decisões de arquitetura, em [`docs/arquitetura/adr/`](../arquitetura/adr/LEIA-ME.md).
 
+## 14/11/2026 — Ordens de pagamento: busca por quem recebe
+
+- Ordens de pagamento: a busca agora acha a ordem pelo nome ou CPF/CNPJ de quem recebe — funcionário, diretor, filiado, empresa ou convidado —, com as palavras em qualquer ordem e sem acento. O filtro Favorecido também passa a listar quem não tem cadastro (marcado como "Sem cadastro").
+
 ## 10/11/2026 — Congressos: inscrição pelo link e importação de listas
 
 - Aquisição: o comprador fica sabendo de cada solicitação nova. Aviso "Nova aquisição a cotar" (e-mail, Telegram ou celular, ligado em Meu perfil → Avisos), a fila na caixa de entrada do painel e no lembrete diário, o quadro "A cotar" na página de Aquisição e, na Área do comprador, há quantos dias cada solicitação espera.

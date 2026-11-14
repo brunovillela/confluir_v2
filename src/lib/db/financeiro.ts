@@ -7,6 +7,8 @@ import { favorecidosDasOrdens } from "@/lib/db/ordens-favorecido"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { descreverParecidas, ordensParecidas, type OrdemParecida } from "@/lib/db/ordens-duplicidade"
 import { rotuloCentroCusto } from "@/lib/centros-custo-rotulo"
+import { idsDaBusca, type IdsDaBusca } from "@/lib/db/ordens-busca"
+import { semAcento } from "@/lib/texto"
 import { ABERTAS_PAGAVEIS, idsDuplicadasAPagar, idsProcessandoParado, idsSemCentroComRateio } from "@/lib/db/ordens-pendencias"
 
 export const ORDENS_POR_PAGINA = 50
@@ -105,7 +107,8 @@ export type FiltrosOrdens = {
   tipo?: string
   /**
    * Favorecido: id da empresa (fornecedor), "u:<id>" (pessoa do quadro) ou
-   * "f:<id>" (filiado, pelos reembolsos e custeios dele).
+   * "f:<id>" (filiado, pelos reembolsos e custeios dele) ou "a:<nome>" (sem
+   * cadastro: o nome avulso gravado na ordem).
    */
   beneficiario?: string
   /** id do centro de custo (centro_custo_despesa_id). */
@@ -230,7 +233,9 @@ function aplicarFiltrosOrdens<T>(
   empId: string,
   /** Filtro por filiado: as ordens dele já resolvidas (reembolsos e custeios). */
   ordensDoFiliado: string[] = [],
-  idsPendencia: IdsPendencia = {}
+  idsPendencia: IdsPendencia = {},
+  /** A busca já traduzida em cadastros de favorecido (ordens-busca.ts). */
+  busca_: IdsDaBusca = { usuarios: [], empresas: [], ordens: [] }
 ): T {
   let q = (builder as unknown as BuilderFiltros)
     .eq("emp_proprietaria_id", empId)
@@ -241,6 +246,12 @@ function aplicarFiltrosOrdens<T>(
   if (tipo && tipo !== "todos") q = q.eq("tipo", tipo)
   if (beneficiario.startsWith("u:")) q = q.eq("beneficiario_usuario_id", beneficiario.slice(2))
   else if (beneficiario.startsWith("f:")) q = q.in("id", ordensDoFiliado.length ? ordensDoFiliado : [NENHUMA])
+  else if (beneficiario.startsWith("a:"))
+    q = q
+      .eq("beneficiario_nome_avulso", beneficiario.slice(2))
+      .is("beneficiario_usuario_id", null)
+      .is("beneficiario_fornecedor_id", null)
+      .is("fornecedor_id", null)
   else if (beneficiario) q = q.or(`beneficiario_fornecedor_id.eq.${beneficiario},fornecedor_id.eq.${beneficiario}`)
   if (centroCusto) q = q.eq("centro_custo_despesa_id", centroCusto)
   if (departamento) q = q.eq("departamento_id", departamento)
@@ -266,7 +277,22 @@ function aplicarFiltrosOrdens<T>(
   const termo = busca.trim()
   if (termo) {
     const escapado = escaparLike(termo)
-    q = q.or(`descricao.ilike.%${escapado}%,codigo.ilike.%${escapado}%,beneficiario_nome_avulso.ilike.%${escapado}%`)
+    // Também pelo favorecido de cadastro (pessoa do quadro, filiado, empresa).
+    const lista = (ids: string[]) => `(${ids.join(",")})`
+    const porCadastro = [
+      busca_.usuarios.length && `beneficiario_usuario_id.in.${lista(busca_.usuarios)}`,
+      busca_.empresas.length && `beneficiario_fornecedor_id.in.${lista(busca_.empresas)}`,
+      busca_.empresas.length && `fornecedor_id.in.${lista(busca_.empresas)}`,
+      busca_.ordens.length && `id.in.${lista(busca_.ordens)}`,
+    ].filter(Boolean)
+    q = q.or(
+      [
+        `descricao.ilike.%${escapado}%`,
+        `codigo.ilike.%${escapado}%`,
+        `beneficiario_nome_avulso.ilike.%${escapado}%`,
+        ...porCadastro,
+      ].join(",")
+    )
   }
   return q as unknown as T
 }
@@ -299,7 +325,8 @@ export async function listarOrdens(
     filtros,
     await tenantAtual(),
     beneficiario.startsWith("f:") ? await ordensDoFiliado(beneficiario.slice(2)) : [],
-    await idsDaPendencia(filtros.pendencia)
+    await idsDaPendencia(filtros.pendencia),
+    await idsDaBusca(filtros.busca ?? "")
   )
 
   const de = (pagina - 1) * porPagina
@@ -380,11 +407,11 @@ export async function extratoOrdens(
   const limiteFuturo = futurosDias === null ? null : somar(hoje, futurosDias)
   const beneficiario = filtros.beneficiario ?? ""
   const doFiliado = beneficiario.startsWith("f:") ? await ordensDoFiliado(beneficiario.slice(2)) : []
-  const idsPendencia = await idsDaPendencia(filtros.pendencia)
+  const [idsPendencia, idsBusca] = await Promise.all([idsDaPendencia(filtros.pendencia), idsDaBusca(filtros.busca ?? "")])
   const situacaoLivre = !filtros.situacao || filtros.situacao === "todas"
 
   const base = () => {
-    let q = aplicarFiltrosOrdens(admin.from("ordens_pagamento").select(SELECT_ORDEM), filtros, emp, doFiliado, idsPendencia)
+    let q = aplicarFiltrosOrdens(admin.from("ordens_pagamento").select(SELECT_ORDEM), filtros, emp, doFiliado, idsPendencia, idsBusca)
     if (situacaoLivre) q = q.not("situacao", "in", `(${FORA_DO_EXTRATO.map((s) => `"${s}"`).join(",")})`)
     return q
   }
@@ -601,7 +628,7 @@ async function pessoasFavorecidas(emp: string): Promise<OpcoesFiltrosOrdens["pes
       admin.from("filiacoes").select("id, nome_completo, cpf").in("id", fatia).order("id").range(de, ate)
     ),
   ])
-  return [
+  const cadastradas = [
     ...usuarios.map((u) => ({
       id: `u:${u.id}`,
       nome: texto(u.nome_completo) ?? texto(u.nome_guerra) ?? "",
@@ -609,9 +636,33 @@ async function pessoasFavorecidas(emp: string): Promise<OpcoesFiltrosOrdens["pes
       etiqueta: "Pessoal",
     })),
     ...filiados.map((f) => ({ id: `f:${f.id}`, nome: texto(f.nome_completo) ?? "", cnpj_cpf: texto(f.cpf), etiqueta: "Filiado" })),
-  ]
-    .filter((p) => p.nome)
-    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+  ].filter((p) => p.nome)
+
+  // Sem cadastro (convidado, avulso): o nome gravado na ordem. Quem já aparece
+  // como pessoa do quadro ou filiado não se repete.
+  const avulsos = await lerEmLotes((de, ate) =>
+    admin
+      .from("ordens_pagamento")
+      .select("beneficiario_nome_avulso, beneficiario_doc_avulso")
+      .eq("emp_proprietaria_id", emp)
+      .not("excluido", "is", true)
+      .is("beneficiario_usuario_id", null)
+      .is("beneficiario_fornecedor_id", null)
+      .is("fornecedor_id", null)
+      .not("beneficiario_nome_avulso", "is", null)
+      .order("id")
+      .range(de, ate)
+  ).catch(() => [] as Record<string, unknown>[])
+  const chaveNome = (n: string) => semAcento(n).toLowerCase().replace(/\s+/g, " ").trim()
+  const vistos = new Set(cadastradas.map((p) => chaveNome(p.nome)))
+  const deAvulso: typeof cadastradas = []
+  for (const o of avulsos) {
+    const nome = texto(o.beneficiario_nome_avulso)
+    if (!nome || vistos.has(chaveNome(nome))) continue
+    vistos.add(chaveNome(nome))
+    deAvulso.push({ id: `a:${nome}`, nome, cnpj_cpf: texto(o.beneficiario_doc_avulso), etiqueta: "Sem cadastro" })
+  }
+  return [...cadastradas, ...deAvulso].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
 }
 
 export type ResumoFinanceiro = {

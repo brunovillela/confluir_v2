@@ -13,6 +13,13 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-14",
+    titulo: "Ordens de pagamento: busca por quem recebe",
+    itens: [
+      "Ordens de pagamento: a busca agora acha a ordem pelo nome ou CPF/CNPJ de quem recebe — funcionário, diretor, filiado, empresa ou convidado —, com as palavras em qualquer ordem e sem acento. O filtro Favorecido também passa a listar quem não tem cadastro (marcado como \"Sem cadastro\").",
+    ],
+  },
+  {
     id: "2026-11-10",
     titulo: "Congressos: inscrição pelo link e importação de listas",
     itens: [
