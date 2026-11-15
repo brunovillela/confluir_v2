@@ -2,20 +2,20 @@
 
 # Dicionário de dados do Confluir
 
-Gerado a partir do banco de produção (catálogo do Postgres + comentários). **401 tabelas** no schema `public`, **231** com dado pessoal (1199 colunas etiquetadas).
+Gerado a partir do banco de produção (catálogo do Postgres + comentários). **408 tabelas** no schema `public`, **238** com dado pessoal (1256 colunas etiquetadas).
 
 - Etiquetas LGPD: cada tabela termina o comentário com `[lgpd:<categorias>|titulares:<quem>]` e cada coluna com dado pessoal com `[lgpd:<categoria>]` (Onda A4).
 - Para mudar uma descrição ou classificação: migração com `comment on …` (`npm run db:nova`), aplicar, e `npm run db:dicionario`.
 - [rls.md](rls.md): políticas de acesso por tabela e alertas.
-- [views-e-storage.md](views-e-storage.md): 6 views e 22 buckets de arquivos.
+- [views-e-storage.md](views-e-storage.md): 6 views e 23 buckets de arquivos.
 - [dados-pessoais.csv](dados-pessoais.csv): uma linha por tabela e por coluna com dado pessoal. É insumo do ROPA (Onda B).
 
 ## Tabelas com dado pessoal, por categoria
 
 | Categoria | Tabelas |
 |---|---|
-| identificação | 181 |
-| **sensível: sindical** | 57 |
+| identificação | 185 |
+| **sensível: sindical** | 60 |
 | trabalhista | 54 |
 | financeiro | 50 |
 | **credencial (nunca exportar)** | 20 |
@@ -25,16 +25,16 @@ Gerado a partir do banco de produção (catálogo do Postgres + comentários). *
 
 | Módulo | Tabelas | Com dado pessoal | Dicionário | Diagrama |
 |---|---|---|---|---|
-| Filiação e portal do associado | 57 | 37 | [dicionario/filiacao.md](dicionario/filiacao.md) | [er/filiacao.md](er/filiacao.md) |
+| Filiação e portal do associado | 60 | 40 | [dicionario/filiacao.md](dicionario/filiacao.md) | [er/filiacao.md](er/filiacao.md) |
 | Empregadores e grupos empresariais | 4 | 0 | [dicionario/empregadores.md](dicionario/empregadores.md) | [er/empregadores.md](er/empregadores.md) |
 | Votações e assembleias | 33 | 15 | [dicionario/votacao.md](dicionario/votacao.md) | [er/votacao.md](er/votacao.md) |
-| Representação, acordos e negociações | 27 | 11 | [dicionario/representacao.md](dicionario/representacao.md) | [er/representacao.md](er/representacao.md) |
+| Representação, acordos e negociações | 30 | 14 | [dicionario/representacao.md](dicionario/representacao.md) | [er/representacao.md](er/representacao.md) |
 | Diretoria e ofícios | 11 | 8 | [dicionario/diretoria.md](dicionario/diretoria.md) | [er/diretoria.md](er/diretoria.md) |
 | Pessoal (RH da entidade) | 61 | 40 | [dicionario/pessoal.md](dicionario/pessoal.md) | [er/pessoal.md](er/pessoal.md) |
 | Saúde do trabalhador | 13 | 11 | [dicionario/saude.md](dicionario/saude.md) | [er/saude.md](er/saude.md) |
 | Jurídico | 5 | 4 | [dicionario/juridico.md](dicionario/juridico.md) | [er/juridico.md](er/juridico.md) |
 | Financeiro | 31 | 22 | [dicionario/financeiro.md](dicionario/financeiro.md) | [er/financeiro.md](er/financeiro.md) |
-| Compras, fornecedores e contratos | 22 | 11 | [dicionario/compras.md](dicionario/compras.md) | [er/compras.md](er/compras.md) |
+| Compras, fornecedores e contratos | 23 | 12 | [dicionario/compras.md](dicionario/compras.md) | [er/compras.md](er/compras.md) |
 | Institucional, diárias, viagens e patrimônio | 16 | 10 | [dicionario/institucional.md](dicionario/institucional.md) | [er/institucional.md](er/institucional.md) |
 | Hospedagem | 18 | 10 | [dicionario/hospedagem.md](dicionario/hospedagem.md) | [er/hospedagem.md](er/hospedagem.md) |
 | Cessão de espaços | 10 | 2 | [dicionario/cessao.md](dicionario/cessao.md) | [er/cessao.md](er/cessao.md) |

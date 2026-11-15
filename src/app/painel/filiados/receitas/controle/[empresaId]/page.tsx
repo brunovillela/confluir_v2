@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requirePermissao } from "@/lib/auth"
 import { comunicacoesDaEmpresa, pendenciasDeDesconto } from "@/lib/db/desconto-comunicacoes"
 import { depositosNoExtrato, sugestoesParaTela } from "@/lib/db/repasse-extrato"
+import { confirmacoesDasComunicacoes, enviosDaEmpresa, linkDaEmpresa } from "@/lib/db/repasse-link"
 import {
   competenciaCorrente,
   contatosDaFolha,
@@ -40,6 +41,7 @@ import { cn } from "@/lib/utils"
 
 import { AcoesCompetencia, ComunicarDesconto, ContatosFolha, DesfazerEvento } from "../formularios"
 import { DepositosExtrato } from "../depositos-extrato"
+import { ArquivarEnvio, LinkRh } from "../link-rh"
 import { EncerrarSemValores, RegistrarSemValores } from "../sem-valores"
 import { CelulaSituacao, SeloSituacao } from "../situacao"
 
@@ -67,11 +69,15 @@ export default async function ControleEmpresaPage({
   const daEmpresa = regras.porEmpresa.get(unidade.id) ?? {}
   const tipos = TIPOS_CONTRIBUICAO.filter((t) => tiposControlados(regras).includes(t) || daEmpresa[t])
   const tipo: TipoContribuicao = ehTipoContribuicao(p.tipo) ? p.tipo : (tipos[0] ?? "Associativa")
-  const [quadro, comunicacoes, extrato] = await Promise.all([
+  const [quadro, comunicacoes, extrato, linkRh, envios] = await Promise.all([
     quadroRepasse({ tipo, empresaId: unidade.id }),
     comunicacoesDaEmpresa(unidade.id, unidade.fontes),
     depositosNoExtrato(unidade.id).catch(() => null),
+    linkDaEmpresa(unidade.id).catch(() => null),
+    enviosDaEmpresa(unidade.id).catch(() => []),
   ])
+  const confirmacoes = await confirmacoesDasComunicacoes(comunicacoes.map((c) => c.id)).catch(() => new Map<string, { em: string; por: string }>())
+  const hrefEnvio = (id: string) => `/painel/filiados/receitas/controle/${unidade.id}/envio/${id}`
   const linha = quadro.linhas[0]
   const regra = linha?.regra ?? regraEfetiva(tipo, regras.geral[tipo], daEmpresa[tipo])
   const celulas = linha?.celulas ?? []
@@ -247,6 +253,26 @@ export default async function ControleEmpresaPage({
                       Diferença de {formatarMoeda(selecionada.deposito - selecionada.valor)} entre o depósito e a relação.
                     </p>
                   )}
+                  {selecionada.envioRh && (
+                    <div className="border-info/30 bg-info/5 flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm">
+                      <span>
+                        {selecionada.envioRh.semDesconto ? "O RH informou pelo link que não houve desconto" : "O RH enviou a relação pelo link"}{" "}
+                        em {formatarDataHora(selecionada.envioRh.enviadoEm)} ({selecionada.envioRh.enviadoPor}).
+                        {!selecionada.envioRh.semDesconto && selecionada.lancamentos === 0 && " Baixe o arquivo e lance-o em Receitas."}
+                      </span>
+                      <span className="flex flex-wrap gap-1">
+                        {!selecionada.envioRh.semDesconto && (
+                          <Button variant="outline" size="sm" asChild>
+                            <a href={hrefEnvio(selecionada.envioRh.id)}>
+                              <FileDown />
+                              {selecionada.envioRh.nomeArquivo ?? "Baixar arquivo"}
+                            </a>
+                          </Button>
+                        )}
+                        <ArquivarEnvio envioId={selecionada.envioRh.id} empresaId={unidade.id} />
+                      </span>
+                    </div>
+                  )}
                   {selecionada.situacao !== "nao_se_aplica" && (
                     <AcoesCompetencia
                       key={`${tipo}-${selecionada.competencia}`}
@@ -318,6 +344,19 @@ export default async function ControleEmpresaPage({
         <div className="grid content-start gap-4">
           <Card>
             <CardHeader>
+              <CardTitle className="text-base">Link do RH</CardTitle>
+              <CardDescription>Por onde a empresa manda a relação e confirma as inclusões e exclusões.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <LinkRh
+                empresaId={unidade.id}
+                link={linkRh ? { url: linkRh.url, criadoEm: linkRh.criadoEm, criadoPor: linkRh.criadoPor, ultimoAcessoEm: linkRh.ultimoAcessoEm } : null}
+                contatos={contatos.map((c) => ({ id: c.id, nome: c.nome, email: c.email }))}
+              />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
               <CardTitle className="text-base">Contatos da folha</CardTitle>
               <CardDescription>Quem recebe as cobranças e as inclusões e exclusões.</CardDescription>
             </CardHeader>
@@ -386,6 +425,52 @@ export default async function ControleEmpresaPage({
         </div>
       </div>
 
+      {envios.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Enviados pelo RH</CardTitle>
+            <CardDescription>O que a empresa mandou pelo link, do mais recente ao mais antigo.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="grid gap-2">
+              {envios.map((e) => (
+                <li key={e.id} className={cn("flex flex-wrap items-start justify-between gap-2 rounded-md border p-2.5 text-sm", e.arquivadoEm && "opacity-60")}>
+                  <div className="min-w-0">
+                    <p>
+                      <span className="font-medium">
+                        {e.tipo} {rotuloCompetencia(e.competencia)}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {" "}
+                        · {e.semDesconto ? "sem desconto" : (e.nomeArquivo ?? "arquivo")}
+                        {e.valorInformado !== null && ` · total informado ${formatarMoeda(e.valorInformado)}`}
+                      </span>
+                    </p>
+                    <p className="text-muted-foreground text-xs">
+                      {formatarDataHora(e.enviadoEm)} · {e.enviadoPor}
+                      {e.enviadoEmail && ` (${e.enviadoEmail})`}
+                      {e.arquivadoEm && ` · arquivado em ${formatarData(e.arquivadoEm)}`}
+                    </p>
+                    {e.observacao && <p className="text-muted-foreground mt-0.5 text-xs italic">{e.observacao}</p>}
+                  </div>
+                  <span className="flex gap-1">
+                    {!e.semDesconto && (
+                      <Button variant="outline" size="sm" className="h-7 px-2 text-xs" asChild>
+                        <a href={hrefEnvio(e.id)}>
+                          <FileDown />
+                          Baixar
+                        </a>
+                      </Button>
+                    )}
+                    {!e.arquivadoEm && <ArquivarEnvio envioId={e.id} empresaId={unidade.id} />}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
       <Card id="inclusoes">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -433,6 +518,7 @@ export default async function ControleEmpresaPage({
                   acao: i.acao,
                 }))}
                 contatos={contatosCliente}
+                temLink={!!linkRh}
               />
             </>
           )}
@@ -449,6 +535,9 @@ export default async function ControleEmpresaPage({
                       · {rotuloMeio(c.meio)}
                       {c.destinatario && ` para ${c.destinatario}`} · {c.inclusoes} inclusão(ões), {c.exclusoes} exclusão(ões)
                       {c.usuarioNome && ` · ${c.usuarioNome}`}
+                    </span>
+                    <span className={cn("ml-2 text-xs font-medium", confirmacoes.has(c.id) ? "text-success-fg" : "text-muted-foreground")}>
+                      {confirmacoes.has(c.id) ? `· RH confirmou em ${formatarData(confirmacoes.get(c.id)!.em)} (${confirmacoes.get(c.id)!.por})` : "· sem confirmação do RH"}
                     </span>
                     {c.itens.some((i) => i.conferencia && !i.conferencia.ok) && (
                       <span className="text-warning-fg ml-2 text-xs font-medium">

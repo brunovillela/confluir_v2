@@ -413,17 +413,20 @@ export function ComunicarDesconto({
   empresaId,
   itens,
   contatos,
+  temLink = false,
 }: {
   empresaId: string
   itens: ItemDescontoCliente[]
   contatos: ContatoFolhaCliente[]
+  /** A empresa tem link do RH ativo: dá para disponibilizar lá, sem nomes no e-mail. */
+  temLink?: boolean
 }) {
   const [estado, acao, pendente] = useActionState<EstadoForm, FormData>(comunicarDescontoAction, {})
   const envio = useEnvioFormulario(acao, estado)
   const chaves = useMemo(() => itens.map((i) => `${i.vinculoId}|${i.acao}`), [itens])
   const [marcados, setMarcados] = useState<Set<string>>(() => new Set(chaves))
   const comEmail = contatos.filter((c) => c.email)
-  const [modo, setModo] = useState<"email" | "registrar">(comEmail.length ? "email" : "registrar")
+  const [modo, setModo] = useState<"link" | "email" | "registrar">(temLink ? "link" : comEmail.length ? "email" : "registrar")
   const todos = marcados.size === chaves.length
   const alternar = (k: string) =>
     setMarcados((m) => {
@@ -485,6 +488,12 @@ export function ComunicarDesconto({
 
       <div className="grid gap-3 rounded-lg border p-3">
         <div className="flex flex-wrap gap-4">
+          {temLink && (
+            <label className="flex items-center gap-2 text-sm">
+              <input type="radio" checked={modo === "link"} onChange={() => setModo("link")} className="accent-primary" />
+              Disponibilizar no link do RH
+            </label>
+          )}
           <label className="flex items-center gap-2 text-sm">
             <input type="radio" checked={modo === "email"} onChange={() => setModo("email")} disabled={!comEmail.length} className="accent-primary" />
             Enviar por e-mail ao contato da folha
@@ -494,7 +503,24 @@ export function ComunicarDesconto({
             Já enviei por outro meio: só registrar
           </label>
         </div>
-        {modo === "email" ? (
+        {modo === "link" ? (
+          <>
+            {comEmail.length > 0 && (
+              <fieldset className="grid gap-1.5">
+                <legend className="mb-1 text-sm font-medium">Avisar por e-mail (sem os nomes)</legend>
+                {comEmail.map((c) => (
+                  <label key={c.id} className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="contato" value={c.id} defaultChecked className="accent-primary size-4" />
+                    {c.nome} <span className="text-muted-foreground">({c.email})</span>
+                  </label>
+                ))}
+              </fieldset>
+            )}
+            <p className="text-muted-foreground text-xs">
+              A lista fica na página da empresa, onde o RH confirma o recebimento. O e-mail de aviso não leva nomes nem CPFs.
+            </p>
+          </>
+        ) : modo === "email" ? (
           <>
             <fieldset className="grid gap-1.5">
               <legend className="mb-1 text-sm font-medium">Para</legend>
@@ -534,8 +560,8 @@ export function ComunicarDesconto({
         )}
         <div className="flex flex-wrap gap-2">
           <Button type="submit" size="sm" disabled={pendente || marcados.size === 0}>
-            {pendente ? <Loader2 className="animate-spin" /> : modo === "email" ? <Send /> : <CheckCheck />}
-            {modo === "email" ? `Enviar ${marcados.size}` : `Registrar envio de ${marcados.size}`}
+            {pendente ? <Loader2 className="animate-spin" /> : modo === "registrar" ? <CheckCheck /> : <Send />}
+            {modo === "link" ? `Disponibilizar ${marcados.size}` : modo === "email" ? `Enviar ${marcados.size}` : `Registrar envio de ${marcados.size}`}
           </Button>
           <Button variant="outline" size="sm" asChild disabled={marcados.size === 0}>
             <a href={planilha}>Baixar planilha</a>

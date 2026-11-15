@@ -107,6 +107,12 @@ erDiagram
     uuid emp_proprietaria_id FK
     uuid empresa_id FK
   }
+  filiacao_desconto_confirmacoes {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid comunicacao_id FK
+    uuid link_id FK
+  }
   filiacao_duplicidades_ignoradas {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -162,7 +168,18 @@ erDiagram
     uuid sindicato_id FK
     uuid endereco_id FK
   }
+  filiacao_repasse_envios {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid empresa_id FK
+    uuid link_id FK
+  }
   filiacao_repasse_eventos {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid empresa_id FK
+  }
+  filiacao_repasse_links {
     uuid id PK
     uuid emp_proprietaria_id FK
     uuid empresa_id FK
@@ -366,6 +383,8 @@ erDiagram
   filiacao_desconto_comunicacao_itens }o--o| filiacoes : "filiado_id"
   filiacao_desconto_comunicacao_itens }o--|| filiacao_desconto_comunicacoes : "comunicacao_id"
   filiacao_desconto_comunicacoes }o--|| empresa : "empresa_id"
+  filiacao_desconto_confirmacoes }o--o| filiacao_repasse_links : "link_id"
+  filiacao_desconto_confirmacoes }o--|| filiacao_desconto_comunicacoes : "comunicacao_id"
   filiacao_duplicidades_ignoradas }o--o| usuarios : "criado_por"
   filiacao_inadimplencia_regras }o--o| usuarios : "atualizada_por"
   filiacao_prontuario }o--o| filiacoes : "filiacao_id"
@@ -390,7 +409,10 @@ erDiagram
   filiacao_reembolsos_config }o--o| usuarios : "atualizada_por"
   filiacao_registro }o--o| empresa : "sindicato_id"
   filiacao_registro }o--o| enderecos : "endereco_id"
+  filiacao_repasse_envios }o--o| filiacao_repasse_links : "link_id"
+  filiacao_repasse_envios }o--|| empresa : "empresa_id"
   filiacao_repasse_eventos }o--|| empresa : "empresa_id"
+  filiacao_repasse_links }o--|| empresa : "empresa_id"
   filiacao_repasse_regras }o--o| empresa : "empresa_id"
   filiacao_repasse_sem_valores }o--|| empresa : "empresa_id"
   filiacao_solicitacao_eventos }o--o| filiacao_solicitacoes : "solicitacao_id"

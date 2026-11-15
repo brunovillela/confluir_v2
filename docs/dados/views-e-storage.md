@@ -299,6 +299,7 @@ Arquivos (documentos pessoais, comprovantes, fotos) ficam aqui, fora das tabelas
 | `organizacao` | **sim** |  |  |
 | `patrimonio` | não |  |  |
 | `pessoal` | não | 5 MB | application/pdf, image/jpeg, image/png, image/webp |
+| `relacoes-desconto` | não | 25 MB | application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, application/vnd.oasis.opendocument.spreadsheet, text/csv, text/plain, application/pdf, image/jpeg, image/png, image/webp |
 | `representacao` | não |  |  |
 | `saude` | não | 5 MB | application/pdf, image/jpeg, image/png, image/webp |
 | `usuarios` | não |  |  |

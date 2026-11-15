@@ -65,6 +65,13 @@ erDiagram
     uuid congresso_id FK
     uuid autor_id FK
   }
+  congresso_crachas {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid participante_id FK
+    uuid emitido_por FK
+  }
   congresso_eixos {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -98,6 +105,15 @@ erDiagram
     uuid unidade_id FK
     uuid grupo_id FK
     uuid titular_id FK
+    uuid credenciado_por FK
+  }
+  congresso_presencas {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid sessao_id FK
+    uuid participante_id FK
+    uuid registrado_por FK
   }
   congresso_sessoes {
     uuid id PK
@@ -105,6 +121,15 @@ erDiagram
     uuid congresso_id FK
     uuid grupo_id FK
     uuid eixo_id FK
+  }
+  congresso_substituicoes {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid titular_id FK
+    uuid suplente_id FK
+    uuid registrado_por FK
+    uuid desfeita_por FK
   }
   congresso_unidades {
     uuid id PK
@@ -197,6 +222,9 @@ erDiagram
   ato_eventos_participantes }o--|| usuarios : "usuario_id"
   congresso_config_versoes }o--o| usuarios : "autor_id"
   congresso_config_versoes }o--|| congressos : "congresso_id"
+  congresso_crachas }o--o| usuarios : "emitido_por"
+  congresso_crachas }o--|| congresso_participantes : "participante_id"
+  congresso_crachas }o--|| congressos : "congresso_id"
   congresso_eixos }o--|| congressos : "congresso_id"
   congresso_grupos }o--o| congresso_eixos : "eixo_id"
   congresso_grupos }o--|| congressos : "congresso_id"
@@ -209,11 +237,21 @@ erDiagram
   congresso_participantes }o--o| congresso_participantes : "titular_id"
   congresso_participantes }o--o| congresso_unidades : "unidade_id"
   congresso_participantes }o--o| filiacoes : "filiacao_id"
+  congresso_participantes }o--o| usuarios : "credenciado_por"
   congresso_participantes }o--o| usuarios : "usuario_id"
   congresso_participantes }o--|| congressos : "congresso_id"
+  congresso_presencas }o--o| usuarios : "registrado_por"
+  congresso_presencas }o--|| congresso_participantes : "participante_id"
+  congresso_presencas }o--|| congresso_sessoes : "sessao_id"
+  congresso_presencas }o--|| congressos : "congresso_id"
   congresso_sessoes }o--o| congresso_eixos : "eixo_id"
   congresso_sessoes }o--o| congresso_grupos : "grupo_id"
   congresso_sessoes }o--|| congressos : "congresso_id"
+  congresso_substituicoes }o--o| usuarios : "desfeita_por"
+  congresso_substituicoes }o--o| usuarios : "registrado_por"
+  congresso_substituicoes }o--|| congresso_participantes : "suplente_id"
+  congresso_substituicoes }o--|| congresso_participantes : "titular_id"
+  congresso_substituicoes }o--|| congressos : "congresso_id"
   congresso_unidades }o--|| congressos : "congresso_id"
   congressos }o--o| congressos : "etapa_anterior_id"
   congressos }o--o| congressos : "etapa_seguinte_id"

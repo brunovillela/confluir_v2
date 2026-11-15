@@ -23,6 +23,7 @@ export const NOVIDADES: Novidade[] = [
       "Oposição: ao alterar o texto da carta, antes de salvar, a tela diz quem a mudança alcança — quantas pessoas já registraram na campanha e mantêm o texto anterior, ou quais campanhas seguem o texto da entidade.",
       "Controle de envio das relações: os depósitos das empresas são achados no extrato bancário importado na Conciliação (pelo CNPJ ou nome da empresa e pelo valor da relação) e confirmados com um clique, já conciliados.",
       "Financeiro → Conciliação: em cada crédito do extrato, a sugestão da empresa e do mês de que ele é o depósito da relação de desconto, com um botão que registra e concilia.",
+      "Link do RH: cada empresa ganha um endereço próprio, sem login, para mandar a relação de descontos do mês (ou informar que não houve desconto) e confirmar as inclusões e exclusões, que podem ficar só no link, sem nomes no e-mail.",
     ],
   },
   {

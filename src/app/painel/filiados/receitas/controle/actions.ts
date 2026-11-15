@@ -20,6 +20,7 @@ import {
   unidadeRepasse,
 } from "@/lib/db/repasse"
 import { confirmarDeposito } from "@/lib/db/repasse-extrato"
+import { arquivarEnvio, enviarLinkPorEmail, gerarLink, linkDaEmpresa, revogarLink } from "@/lib/db/repasse-link"
 import { enviarEmail } from "@/lib/email"
 import { escaparHtml, paragrafo, tituloEmail } from "@/lib/email-layout"
 import { formatarCnpjCpf, formatarMoeda } from "@/lib/formato"
@@ -194,7 +195,7 @@ export async function cobrarPorEmailAction(_: EstadoForm, f: FormData): Promise<
   const escolhidos = new Set(f.getAll("contato").map(String))
   const contatos = (await contatosDaFolha(empresaId)).filter((c) => escolhidos.has(c.id) && c.email)
   if (contatos.length === 0) return { erro: "Marque ao menos um contato da folha com e-mail." }
-  const [unidade, regras] = await Promise.all([unidadeRepasse(empresaId), regrasRepasse()])
+  const [unidade, regras, linkRh] = await Promise.all([unidadeRepasse(empresaId), regrasRepasse(), linkDaEmpresa(empresaId)])
   const regra = regraEfetiva(tipo, regras.geral[tipo], regras.porEmpresa.get(empresaId)?.[tipo])
   const falta = texto(f, "falta") === "deposito" ? "deposito" : "relacao"
   const prazo = prazoDaCompetencia(competencia, falta === "deposito" ? regra.diaDeposito : regra.diaEnvio)
@@ -219,6 +220,11 @@ export async function cobrarPorEmailAction(_: EstadoForm, f: FormData): Promise<
         : "Pedimos, por gentileza, que nos enviem a relação (nome, CPF ou matrícula e valor descontado de cada trabalhador), respondendo a este e-mail. Se não houve desconto nesta competência, basta nos avisar."
     ) +
     (extra ? paragrafo(escaparHtml(extra).replaceAll("\n", "<br>")) : "") +
+    (linkRh
+      ? paragrafo(
+          `Vocês também podem enviar ${falta === "deposito" ? "o recado" : "a relação"} pela página da empresa: <a href="${linkRh.url}">${escaparHtml(linkRh.url)}</a>.`
+        )
+      : "") +
     paragrafo("Obrigado(a).")
   const enviados: string[] = []
   for (const c of contatos) {
@@ -356,6 +362,45 @@ export async function comunicarDescontoAction(_: EstadoForm, f: FormData): Promi
     return { ok: `Enviado para ${enviados.join(", ")}: ${inc.length} inclusão(ões) e ${exc.length} exclusão(ões).` }
   }
 
+  if (modo === "link") {
+    const linkRh = await linkDaEmpresa(empresaId)
+    if (!linkRh) return { erro: "Gere o link do RH desta empresa antes." }
+    const escolhidos = new Set(f.getAll("contato").map(String))
+    const contatos = (await contatosDaFolha(empresaId)).filter((c) => escolhidos.has(c.id) && c.email)
+    const r = await registrarComunicacao({
+      empresaId,
+      vinculos,
+      meio: "link",
+      destinatario: contatos.map((c) => c.email).join(", ") || null,
+      referencia: null,
+      observacao: texto(f, "observacao"),
+      usuarioId: quem.id,
+      usuarioNome: quem.nome,
+    })
+    if (r.erro || !r.itens) return { erro: r.erro ?? "Não foi possível registrar." }
+    const unidade = await unidadeRepasse(empresaId)
+    const inc = r.itens.filter((i) => i.acao === "inclusao").length
+    const exc = r.itens.length - inc
+    const corpo =
+      tituloEmail("Inclusões e exclusões de desconto") +
+      paragrafo(`Prezados(as) da ${escaparHtml(unidade?.nome ?? "empresa")},`) +
+      paragrafo(
+        `Há ${inc} inclusão(ões) e ${exc} exclusão(ões) de desconto da contribuição associativa em folha disponíveis na página da empresa. Por segurança, os nomes não seguem por e-mail.`
+      ) +
+      `<p style="margin:20px 0"><a href="${linkRh.url}" style="display:inline-block;background:#ea580c;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">Ver e confirmar o recebimento</a></p>`
+    const enviados: string[] = []
+    for (const c of contatos) {
+      const ok = await enviarEmail({ email: c.email!, nome: c.nome, assunto: "Inclusões e exclusões de desconto — {ENTIDADE}", html: corpo })
+      if (ok) enviados.push(c.email!)
+    }
+    revalidar(empresaId)
+    return {
+      ok:
+        `Disponibilizado no link do RH: ${inc} inclusão(ões) e ${exc} exclusão(ões).` +
+        (contatos.length ? (enviados.length ? ` Aviso enviado para ${enviados.join(", ")}.` : " O aviso por e-mail não saiu.") : ""),
+    }
+  }
+
   const meio = texto(f, "meio")
   if (!meio || !MEIOS_COMUNICACAO.some((m) => m.valor === meio)) return { erro: "Escolha por onde foi enviado.", campo: "meio" }
   const r = await registrarComunicacao({
@@ -431,4 +476,49 @@ export async function confirmarDepositosAction(_: EstadoForm, f: FormData): Prom
   return {
     ok: `${ok} depósito(s) confirmado(s) e conciliado(s) com o extrato.` + (erros.length ? ` ${erros.length} não: ${erros[0]}` : ""),
   }
+}
+
+// ── Link do RH ──────────────────────────────────────────────────────────────
+
+export async function gerarLinkAction(_: EstadoForm, f: FormData): Promise<EstadoForm> {
+  const quem = await sessao()
+  const empresaId = texto(f, "empresa_id")
+  if (!empresaId) return { erro: "Empresa não informada." }
+  const { erro } = await gerarLink(empresaId, quem.nome)
+  if (erro) return { erro }
+  revalidar(empresaId)
+  return { ok: "Link gerado. O anterior, se havia, deixou de funcionar." }
+}
+
+export async function revogarLinkAction(_: EstadoForm, f: FormData): Promise<EstadoForm> {
+  const quem = await sessao()
+  const empresaId = texto(f, "empresa_id")
+  if (!empresaId) return { erro: "Empresa não informada." }
+  const { erro } = await revogarLink(empresaId, quem.nome)
+  if (erro) return { erro }
+  revalidar(empresaId)
+  return { ok: "Link desativado." }
+}
+
+export async function enviarLinkAction(_: EstadoForm, f: FormData): Promise<EstadoForm> {
+  await sessao()
+  const empresaId = texto(f, "empresa_id")
+  if (!empresaId) return { erro: "Empresa não informada." }
+  const escolhidos = new Set(f.getAll("contato").map(String))
+  const contatos = (await contatosDaFolha(empresaId)).filter((c) => escolhidos.has(c.id) && c.email)
+  if (contatos.length === 0) return { erro: "Marque ao menos um contato da folha com e-mail." }
+  const r = await enviarLinkPorEmail(empresaId, contatos.map((c) => ({ nome: c.nome, email: c.email! })))
+  if (r.erro) return { erro: r.erro }
+  return { ok: `Link enviado para ${r.enviados.join(", ")}.` }
+}
+
+export async function arquivarEnvioAction(_: EstadoForm, f: FormData): Promise<EstadoForm> {
+  const quem = await sessao()
+  const envioId = texto(f, "envio_id")
+  const empresaId = texto(f, "empresa_id")
+  if (!envioId) return { erro: "Envio não informado." }
+  const { erro } = await arquivarEnvio(envioId, quem.nome)
+  if (erro) return { erro }
+  revalidar(empresaId)
+  return { ok: "Envio arquivado." }
 }

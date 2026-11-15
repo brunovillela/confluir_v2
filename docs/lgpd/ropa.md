@@ -16,7 +16,7 @@
 | # | Processo | Tabelas | Categorias de dados | Transferência internacional |
 |---|---|---|---|---|
 | P01 | [Filiação e cadastro do associado](#p01) | 18 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
-| P02 | [Contribuições, receitas e cobranças](#p02) | 7 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista | sim |
+| P02 | [Contribuições, receitas e cobranças](#p02) | 10 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista | sim |
 | P03 | [Atendimento ao filiado no portal](#p03) | 6 | identificação, **sensível: filiação/posição sindical**, credencial (segredo de acesso, nunca exportar) | sim |
 | P04 | [Oposição à contribuição assistencial](#p04) | 5 | identificação, **sensível: filiação/posição sindical**, trabalhista | sim |
 | P05 | [Assembleias e votações](#p05) | 15 | identificação, **sensível: filiação/posição sindical**, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
@@ -25,13 +25,13 @@
 | P08 | [Saúde do trabalhador (CAT, atendimentos, CIPA)](#p08) | 11 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, trabalhista | sim |
 | P09 | [Jurídico](#p09) | 4 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista | sim |
 | P10 | [Pessoal: RH dos funcionários da entidade](#p10) | 41 | identificação, **sensível: saúde**, financeiro, trabalhista | sim |
-| P11 | [Financeiro, compras, fornecedores e contratos](#p11) | 35 | identificação, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
+| P11 | [Financeiro, compras, fornecedores e contratos](#p11) | 36 | identificação, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P12 | [Institucional: custeios, viagens, linhas e patrimônio](#p12) | 10 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P13 | [Hospedagem conveniada e cessão de espaços](#p13) | 12 | identificação, **sensível: filiação/posição sindical**, financeiro, credencial (segredo de acesso, nunca exportar) | sim |
 | P14 | [Frota: veículos e condutores](#p14) | 15 | identificação, financeiro | sim |
 | P15 | [Comunicação, eventos e avisos](#p15) | 9 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P16 | [Contas de acesso, segurança, auditoria e gestão interna](#p16) | 24 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
-| P17 | [Congressos e conferências](#p17) | 2 | identificação, **sensível: filiação/posição sindical** | sim |
+| P17 | [Congressos e conferências](#p17) | 5 | identificação, **sensível: filiação/posição sindical** | sim |
 
 <a id="p01"></a>
 ## P01. Filiação e cadastro do associado
@@ -111,21 +111,24 @@
 
 **Observações.** A `filiacao_recebe` tem ~795 mil linhas com CPF, nome e valor: maior volume de dado sindical do sistema.
 
-<details><summary>Tabelas (7) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (10) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
 | [filiacao_cobrancas](../dados/dicionario/filiacao.md#filiacao_cobrancas) | identificacao, sens. sindical, financeiro | `cpf` (identificacao), `valor` (financeiro), `situacao` (financeiro), `pago_em` (financeiro), `valor_pago` (financeiro) |
 | [filiacao_desconto_comunicacao_itens](../dados/dicionario/filiacao.md#filiacao_desconto_comunicacao_itens) | identificacao | `nome` (identificacao), `cpf` (identificacao), `matricula` (trabalhista), `data` (trabalhista) |
 | [filiacao_desconto_comunicacoes](../dados/dicionario/filiacao.md#filiacao_desconto_comunicacoes) | identificacao | `destinatario` (identificacao), `usuario_id` (identificacao), `usuario_nome` (identificacao) |
+| [filiacao_desconto_confirmacoes](../dados/dicionario/filiacao.md#filiacao_desconto_confirmacoes) | identificacao | `confirmado_por` (identificacao), `confirmado_email` (identificacao) |
 | [filiacao_recebe](../dados/dicionario/filiacao.md#filiacao_recebe) | identificacao, sens. sindical, financeiro, trabalhista | `cpf` (identificacao), `valor` (financeiro), `matricula_sindical` (sens. sindical), `fonte_pg_matricula` (trabalhista), `filiado_raw` (sens. sindical), `forma_recebimento` (financeiro), `nome` (identificacao) |
 | [filiacao_reembolsos](../dados/dicionario/filiacao.md#filiacao_reembolsos) | sens. sindical, financeiro | `justificativa` (sens. sindical), `valor` (financeiro), `tipo` (sens. sindical) |
+| [filiacao_repasse_envios](../dados/dicionario/filiacao.md#filiacao_repasse_envios) | identificacao | `arquivo` (trabalhista), `nome_arquivo` (nenhum), `observacao` (nenhum), `enviado_por` (identificacao), `enviado_email` (identificacao), `arquivado_por` (identificacao) |
 | [filiacao_repasse_eventos](../dados/dicionario/filiacao.md#filiacao_repasse_eventos) | identificacao | `observacao` (nenhum), `usuario_id` (identificacao), `usuario_nome` (identificacao) |
+| [filiacao_repasse_links](../dados/dicionario/filiacao.md#filiacao_repasse_links) | identificacao | `token` (nenhum), `criado_por` (identificacao), `revogado_por` (identificacao) |
 | [filiacao_repasse_sem_valores](../dados/dicionario/filiacao.md#filiacao_repasse_sem_valores) | identificacao | `motivo` (nenhum), `registrado_por_id` (identificacao), `registrado_por` (identificacao), `encerrado_por` (identificacao) |
 
 </details>
 
-<sub>Titulares registrados no banco para estas tabelas: contatos das empresas; filiados; usuários do sistema.</sub>
+<sub>Titulares registrados no banco para estas tabelas: contatos das empresas; filiados; filiados (no arquivo); usuários do sistema.</sub>
 
 <a id="p03"></a>
 ## P03. Atendimento ao filiado no portal
@@ -197,8 +200,8 @@
 |---|---|---|
 | [oposicao_envios_empregador](../dados/dicionario/filiacao.md#oposicao_envios_empregador) | identificacao | `usuario_id` (identificacao), `usuario_nome` (identificacao), `opositor_ids` (identificacao) |
 | [oposicao_eventos](../dados/dicionario/filiacao.md#oposicao_eventos) | identificacao, sens. sindical | `evento` (sens. sindical), `detalhe` (sens. sindical), `ip` (identificacao), `user_agent` (identificacao), `usuario_id` (identificacao) |
-| [oposicao_opositor](../dados/dicionario/filiacao.md#oposicao_opositor) | identificacao, sens. sindical, trabalhista | `cpf` (identificacao), `nome_completo` (identificacao), `nome_social` (identificacao), `sexo` (identificacao), `email` (identificacao), `telefone` (identificacao), `empresa` (trabalhista), `lotacao` (trabalhista), `matricula` (trabalhista), `nascimento` (identificacao), `carta` (sens. sindical), `avaliacao` (sens. sindical), `desistente` (sens. sindical), `situacao` (sens. sindical), `documento_assinado_url` (sens. sindical), `reprovacao_motivo` (sens. sindical), `ip` (identificacao), `user_agent` (identificacao), `assinatura_validacao` (identificacao), `cpf_digitos` (identificacao), `declaracao_aceita` (sens. sindical), `documento_enviado_em` (sens. sindical), `aviso_avaliacao_pendente_em` (nenhum), `ciencia_texto` (identificacao), `ciencia_hash` (nenhum), `ciencia_em` (identificacao) |
-| [oposicao_regras](../dados/dicionario/filiacao.md#oposicao_regras) | identificacao | `definido_por` (identificacao), `definido_por_nome` (identificacao), `aviso_privacidade` (nenhum) |
+| [oposicao_opositor](../dados/dicionario/filiacao.md#oposicao_opositor) | identificacao, sens. sindical, trabalhista | `cpf` (identificacao), `nome_completo` (identificacao), `nome_social` (identificacao), `sexo` (identificacao), `email` (identificacao), `telefone` (identificacao), `empresa` (trabalhista), `lotacao` (trabalhista), `matricula` (trabalhista), `nascimento` (identificacao), `carta` (sens. sindical), `avaliacao` (sens. sindical), `desistente` (sens. sindical), `situacao` (sens. sindical), `documento_assinado_url` (sens. sindical), `reprovacao_motivo` (sens. sindical), `ip` (identificacao), `user_agent` (identificacao), `assinatura_validacao` (identificacao), `cpf_digitos` (identificacao), `declaracao_aceita` (sens. sindical), `documento_enviado_em` (sens. sindical), `aviso_avaliacao_pendente_em` (nenhum), `ciencia_texto` (identificacao), `ciencia_hash` (nenhum), `ciencia_em` (identificacao), `carta_modelo` (nenhum) |
+| [oposicao_regras](../dados/dicionario/filiacao.md#oposicao_regras) | identificacao | `definido_por` (identificacao), `definido_por_nome` (identificacao), `aviso_privacidade` (nenhum), `carta_modelo` (nenhum), `carta_modelo_por_nome` (identificacao), `carta_modelo_em` (nenhum) |
 | [oposicao_resposta](../dados/dicionario/filiacao.md#oposicao_resposta) | sens. sindical | `resposta` (sens. sindical) |
 
 </details>
@@ -470,7 +473,7 @@
 | [pessoal_diarias_solicitacoes](../dados/dicionario/pessoal.md#pessoal_diarias_solicitacoes) | financeiro, trabalhista | `motivo` (trabalhista), `valor_unitario` (financeiro), `valor_total` (financeiro), `avaliacao_observacao` (financeiro), `valor_despesas` (financeiro), `valor_descontos` (financeiro) |
 | [pessoal_faltas_justificadas](../dados/dicionario/pessoal.md#pessoal_faltas_justificadas) | sens. saude, trabalhista | `data_falta` (trabalhista), `justificativa_tipo` (trabalhista), `comprovacao` (sens. saude), `motivo_recusa` (trabalhista), `observacao` (trabalhista) |
 | [pessoal_ferias](../dados/dicionario/pessoal.md#pessoal_ferias) | trabalhista | `concessivo_inicio` (trabalhista), `concessivo_termino` (trabalhista), `aquisitivo_inicio` (trabalhista), `aquisitivo_termino` (trabalhista), `dias_disponiveis` (trabalhista), `abono_pecuniario` (trabalhista) |
-| [pessoal_ferias_gozo](../dados/dicionario/pessoal.md#pessoal_ferias_gozo) | trabalhista | `dias` (trabalhista), `inicio` (trabalhista), `termino` (trabalhista), `aviso_ferias_url` (trabalhista), `autorizador_observacoes` (trabalhista), `abono_solicitado` (trabalhista) |
+| [pessoal_ferias_gozo](../dados/dicionario/pessoal.md#pessoal_ferias_gozo) | trabalhista | `dias` (trabalhista), `inicio` (trabalhista), `termino` (trabalhista), `aviso_ferias_url` (trabalhista), `autorizador_observacoes` (trabalhista), `abono_solicitado` (trabalhista), `cancelado_por` (identificacao) |
 | [pessoal_folha_competencias](../dados/dicionario/pessoal.md#pessoal_folha_competencias) | identificacao, financeiro, trabalhista | `observacao` (trabalhista), `snapshot` (financeiro) |
 | [pessoal_folha_config](../dados/dicionario/pessoal.md#pessoal_folha_config) | identificacao | `marco_definido_por` (identificacao) |
 | [pessoal_funcionario_funcao](../dados/dicionario/pessoal.md#pessoal_funcionario_funcao) | trabalhista | _pela existência do registro_ |
@@ -522,7 +525,7 @@
 
 **Observações.** Pendência: `financeiro_remessas.conteudo` guarda o arquivo CNAB inteiro (nome, CPF e conta de cada favorecido).
 
-<details><summary>Tabelas (35) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (36) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -532,8 +535,9 @@
 | [caixa_movimentacoes](../dados/dicionario/financeiro.md#caixa_movimentacoes) | identificacao, financeiro | `descricao` (identificacao), `reconhecimento_motivo` (identificacao) |
 | [caixa_ocorrencias](../dados/dicionario/financeiro.md#caixa_ocorrencias) | identificacao | `descricao` (identificacao), `resolucao` (identificacao) |
 | [caixa_prestacoes](../dados/dicionario/financeiro.md#caixa_prestacoes) | identificacao | `observacao` (identificacao), `observacao_financeiro` (identificacao) |
+| [compras_creditos_usos](../dados/dicionario/compras.md#compras_creditos_usos) | identificacao | `credito_fornecimento_id` (nenhum), `processo_id` (nenhum), `ordem_id` (nenhum), `valor` (financeiro), `criado_por_id` (identificacao), `desfeito_em` (nenhum), `desfeito_motivo` (nenhum) |
 | [compras_departamentos_acesso](../dados/dicionario/compras.md#compras_departamentos_acesso) | identificacao | `usuario_id` (identificacao) |
-| [compras_fornecimentos](../dados/dicionario/compras.md#compras_fornecimentos) | identificacao | `comprador_id` (identificacao), `recebimento_recebido_por_id` (identificacao), `recebimento_observacao` (identificacao), `oc_enviada_para` (identificacao) |
+| [compras_fornecimentos](../dados/dicionario/compras.md#compras_fornecimentos) | identificacao | `comprador_id` (identificacao), `recebimento_recebido_por_id` (identificacao), `recebimento_observacao` (identificacao), `oc_enviada_para` (identificacao), `cancelamento_desfecho` (nenhum), `cancelamento_valor` (financeiro), `cancelamento_data` (nenhum), `cancelamento_obs` (nenhum), `cancelamento_comprovante_url` (nenhum), `cancelado_em` (nenhum), `cancelado_por_id` (identificacao), `credito_usado_em` (nenhum), `credito_usado_por_id` (identificacao), `credito_usado_obs` (nenhum), `devolucao_recebida_em` (nenhum), `devolucao_recebida_por_id` (identificacao), `devolucao_recebida_obs` (nenhum), `devolucao_lancamento_id` (nenhum), `credito_validade` (nenhum) |
 | [compras_pedido](../dados/dicionario/compras.md#compras_pedido) | identificacao | `autorizador` (identificacao) |
 | [compras_propostas](../dados/dicionario/compras.md#compras_propostas) | identificacao | `proposta_arquivo_url` (identificacao), `escolhida_por_id` (identificacao) |
 | [compras_rpa](../dados/dicionario/compras.md#compras_rpa) | identificacao, financeiro | `fornecedor_id` (identificacao), `valor_informado` (financeiro), `valor_bruto` (financeiro), `inss` (financeiro), `irrf` (financeiro), `iss` (financeiro), `dependentes` (identificacao), `valor_liquido` (financeiro), `arquivo_assinado` (identificacao), `assinatura_validacao` (identificacao), `irrf_memoria` (financeiro) |
@@ -812,7 +816,7 @@
 <a id="p17"></a>
 ## P17. Congressos e conferências
 
-**Finalidade.** Organizar congressos, plenárias e conferências que a entidade promove ou de que participa: configuração do regimento, delegações, inscrição e lista de participantes (delegados, natos, suplentes, observadores, convidados), programa e grupos de trabalho. Inclui a inscrição pela página pública (com ciência do tratamento, IP e link pessoal guardado só como hash) e a importação de listas por planilha ou ata, que pode ser lida por IA.
+**Finalidade.** Organizar congressos, plenárias e conferências que a entidade promove ou de que participa: configuração do regimento, delegações, inscrição e lista de participantes (delegados, natos, suplentes, observadores, convidados), programa e grupos de trabalho. Inclui a inscrição pela página pública (com ciência do tratamento, IP e link pessoal guardado só como hash) e a importação de listas por planilha ou ata, que pode ser lida por IA. No dia do evento: credenciamento (com conferência de documento), crachás com código guardado só como hash, troca de titular por suplente com quem autorizou, e presença por sessão com o meio e o nível de prova de que a pessoa estava no local.
 
 **Titulares.** Delegados, observadores e convidados de congressos (filiados ou não), diretores natos.
 
@@ -833,16 +837,19 @@
 
 **Medidas de segurança.** RLS por tenant; permissões próprias (`congressos`, `congressos_gestao`); trilhas só com inserção (versões da configuração e histórico do participante); acessibilidade visível só a quem organiza.
 
-<details><summary>Tabelas (2) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (5) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
+| [congresso_crachas](../dados/dicionario/representacao.md#congresso_crachas) | sens. sindical | `codigo_hash` (credencial), `emitido_por` (identificacao), `motivo` (nenhum) |
 | [congresso_participante_historico](../dados/dicionario/representacao.md#congresso_participante_historico) | sens. sindical | `detalhe` (sens. sindical), `autor_id` (identificacao) |
-| [congresso_participantes](../dados/dicionario/representacao.md#congresso_participantes) | identificacao, sens. sindical | `nome` (identificacao), `nome_social` (identificacao), `cpf` (identificacao), `email` (identificacao), `telefone` (identificacao), `genero` (identificacao), `filiacao_id` (sens. sindical), `usuario_id` (identificacao), `papel_id` (sens. sindical), `unidade_id` (sens. sindical), `titular_id` (nenhum), `situacao` (nenhum), `origem` (nenhum), `inscrito_em` (nenhum), `acessibilidade` (sens. saude), `observacao` (identificacao), `token_hash` (credencial), `token_gerado_em` (nenhum), `aceite_em` (nenhum), `inscricao_ip` (identificacao) |
+| [congresso_participantes](../dados/dicionario/representacao.md#congresso_participantes) | identificacao, sens. sindical | `nome` (identificacao), `nome_social` (identificacao), `cpf` (identificacao), `email` (identificacao), `telefone` (identificacao), `genero` (identificacao), `filiacao_id` (sens. sindical), `usuario_id` (identificacao), `papel_id` (sens. sindical), `unidade_id` (sens. sindical), `titular_id` (nenhum), `situacao` (nenhum), `origem` (nenhum), `inscrito_em` (nenhum), `acessibilidade` (sens. saude), `observacao` (identificacao), `token_hash` (credencial), `token_gerado_em` (nenhum), `aceite_em` (nenhum), `inscricao_ip` (identificacao), `credenciado_em` (nenhum), `credenciado_por` (identificacao), `documento_conferido` (nenhum), `modalidade` (nenhum) |
+| [congresso_presencas](../dados/dicionario/representacao.md#congresso_presencas) | sens. sindical | `registrado_por` (identificacao) |
+| [congresso_substituicoes](../dados/dicionario/representacao.md#congresso_substituicoes) | sens. sindical | `autorizado_por` (identificacao), `registrado_por` (identificacao), `desfeita_por` (identificacao) |
 
 </details>
 
-<sub>Titulares registrados no banco para estas tabelas: convidados de congressos; delegados; observadores; participantes de congressos.</sub>
+<sub>Titulares registrados no banco para estas tabelas: convidados de congressos; delegados; observadores; participantes de congressos; suplentes de congressos.</sub>
 
 ## Fluxos transversais
 
@@ -871,4 +878,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 231 de 231 tabelas com dado pessoal atribuídas a 17 processos.
+Cobertura: 238 de 238 tabelas com dado pessoal atribuídas a 17 processos.

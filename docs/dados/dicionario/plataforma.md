@@ -770,6 +770,7 @@ ACL plana por usuário: uma coluna booleana por área/ação do sistema, mais al
 | `viagens_solicitar_terceiros` | boolean | sim | `false` |  | nenhum | Viagens: solicita passagem e hospedagem para outro diretor, funcionário ou convidado. |
 | `congressos` | boolean | sim | `false` |  | nenhum | Congressos e conferências: consultar congressos, configuração e participantes. |
 | `congressos_gestao` | boolean | sim | `false` |  | nenhum | Congressos e conferências: criar, configurar e gerir participantes, delegações e programa. |
+| `congressos_credenciamento` | boolean | sim | `false` |  | nenhum | Congressos e conferências: operar a mesa de credenciamento, a porta das sessões e o painel de quórum. |
 
 Únicas: `UNIQUE (bubble_id)`
 

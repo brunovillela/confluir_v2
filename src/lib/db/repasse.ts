@@ -203,6 +203,8 @@ export type CelulaRepasse = {
   /** Remessa da competência × tipo, se já criada (para abrir a fonte em Receitas). */
   remessaId: string | null
   ultimoEvento: { evento: string; data: string } | null
+  /** O envio mais recente do RH pelo link (não arquivado), se houver. */
+  envioRh: { id: string; enviadoEm: string; enviadoPor: string; semDesconto: boolean; nomeArquivo: string | null } | null
 }
 
 export type LinhaQuadro = UnidadeRepasse & {
@@ -224,6 +226,16 @@ export type QuadroRepasse = {
 }
 
 type ResumoRpc = { ordem: number; tipo: string; remessa_id: string; fonte_id: string; lancamentos: number; valor: number | string }
+
+type EnvioBruto = {
+  id: string
+  empresa_id: string
+  competencia: number
+  sem_desconto: boolean
+  nome_arquivo: string | null
+  enviado_por: string
+  enviado_em: string
+}
 
 type EventoBruto = {
   id: string
@@ -267,7 +279,7 @@ export async function quadroRepasse(opcoes: {
 
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  const [{ unidades, unidadeDaFonte }, resumo, remessasTodas, eventos, periodos] = await Promise.all([
+  const [{ unidades, unidadeDaFonte }, resumo, remessasTodas, eventos, periodos, envios] = await Promise.all([
     unidadesDeRepasse(),
     lerEmLotes<ResumoRpc>((a, b) =>
       admin
@@ -291,7 +303,22 @@ export async function quadroRepasse(opcoes: {
         .range(a, b)
     ),
     periodosSemValores(opcoes.empresaId),
+    lerEmLotes<EnvioBruto>((a, b) =>
+      admin
+        .from("filiacao_repasse_envios")
+        .select("id, empresa_id, competencia, sem_desconto, nome_arquivo, enviado_por, enviado_em")
+        .eq("emp_proprietaria_id", emp)
+        .eq("tipo", opcoes.tipo)
+        .is("arquivado_em", null)
+        .gte("competencia", de)
+        .lte("competencia", ate)
+        .order("enviado_em")
+        .order("id")
+        .range(a, b)
+    ).catch(() => [] as EnvioBruto[]),
   ])
+  const enviosPor = new Map<string, EnvioBruto>()
+  for (const e of envios) enviosPor.set(`${e.empresa_id}|${e.competencia}`, e)
 
   const remessasDaJanela = remessasTodas.filter(
     (r) => (r.tipo ?? "Associativa") === opcoes.tipo && r.ordem !== null && r.ordem >= de && r.ordem <= ate
@@ -354,6 +381,7 @@ export async function quadroRepasse(opcoes: {
       const prazoEnvio = prazoDaCompetencia(c, regra.diaEnvio)
       const prazoDeposito = prazoDaCompetencia(c, regra.diaDeposito)
       const ultimo = evs.at(-1)
+      const envio = enviosPor.get(`${u.id}|${c}`)
       return {
         competencia: c,
         situacao: situacaoEnvio({
@@ -362,8 +390,8 @@ export async function quadroRepasse(opcoes: {
           lancamentos: l?.lancamentos ?? 0,
           valor: l?.valor ?? 0,
           deposito: depositos.has(`${u.id}|${c}`) ? depositos.get(`${u.id}|${c}`)! : null,
-          recebidaFora: evs.some((e) => e.evento === "relacao_recebida"),
-          semDesconto: evs.some((e) => e.evento === "sem_desconto"),
+          recebidaFora: evs.some((e) => e.evento === "relacao_recebida") || (!!envio && !envio.sem_desconto),
+          semDesconto: evs.some((e) => e.evento === "sem_desconto") || !!envio?.sem_desconto,
           semRepasse: dentroDoPeriodo(c, periodos.get(u.id) ?? []),
           hoje,
           prazoEnvio,
@@ -376,6 +404,9 @@ export async function quadroRepasse(opcoes: {
         prazoDeposito,
         remessaId: base.remessas.get(c) ?? null,
         ultimoEvento: ultimo ? { evento: ultimo.evento, data: ultimo.data } : null,
+        envioRh: envio
+          ? { id: envio.id, enviadoEm: envio.enviado_em, enviadoPor: envio.enviado_por, semDesconto: envio.sem_desconto, nomeArquivo: envio.nome_arquivo }
+          : null,
       }
     })
     linhas.push({ ...u, regra, celulas, semValores: (periodos.get(u.id) ?? []).find((p) => p.ate === null) ?? null })
@@ -567,7 +598,7 @@ export { unidadesDeRepasse }
 /** Dias que um contato/cobrança registrado tira a empresa dos avisos. */
 export const DIAS_SILENCIO_COBRANCA = 3
 
-const cacheAvisos = new Map<string, { expira: number; valor: { atrasadas: number } }>()
+const cacheAvisos = new Map<string, { expira: number; valor: { atrasadas: number; doRh: number } | null }>()
 
 /**
  * Empresas com relação ou depósito atrasado nas 3 últimas competências da
@@ -576,17 +607,29 @@ const cacheAvisos = new Map<string, { expira: number; valor: { atrasadas: number
  * painel chama isto a cada carga. null = controle não ativado/indisponível.
  */
 export async function empresasParaCobrar(): Promise<number | null> {
+  return (await avisosRepasse())?.atrasadas ?? null
+}
+
+/** Relações mandadas pelo RH pelo link e ainda não lançadas em Receitas (12 meses). */
+export async function relacoesDoRhALancar(): Promise<number | null> {
+  return (await avisosRepasse())?.doRh ?? null
+}
+
+async function avisosRepasse(): Promise<{ atrasadas: number; doRh: number } | null> {
   const emp = await tenantAtual()
   const c = cacheAvisos.get(emp)
-  if (c && c.expira > Date.now()) return c.valor.atrasadas
+  if (c && c.expira > Date.now()) return c.valor
   const regras = await regrasRepasse()
-  if (!regras.disponivel || regras.desde === null) return null
+  if (!regras.disponivel) return null
   const limite = new Date(Date.now() - DIAS_SILENCIO_COBRANCA * 86_400_000).toISOString().slice(0, 10)
   const empresas = new Set<string>()
+  let doRh = 0
   for (const tipo of tiposControlados(regras)) {
-    const q = await quadroRepasse({ tipo, meses: 3 })
+    const q = await quadroRepasse({ tipo, meses: 12 })
     for (const l of q.linhas) {
-      const cobrar = l.celulas.some(
+      doRh += l.celulas.filter((cel) => cel.envioRh && !cel.envioRh.semDesconto && cel.lancamentos === 0).length
+      if (regras.desde === null) continue
+      const cobrar = l.celulas.slice(-3).some(
         (cel) =>
           (cel.situacao === "atrasada" || cel.situacao === "falta_deposito") &&
           !(cel.ultimoEvento && (cel.ultimoEvento.evento === "cobranca" || cel.ultimoEvento.evento === "contato") && cel.ultimoEvento.data >= limite)
@@ -594,8 +637,9 @@ export async function empresasParaCobrar(): Promise<number | null> {
       if (cobrar) empresas.add(l.id)
     }
   }
-  cacheAvisos.set(emp, { expira: Date.now() + 10 * 60_000, valor: { atrasadas: empresas.size } })
-  return empresas.size
+  const valor = { atrasadas: empresas.size, doRh }
+  cacheAvisos.set(emp, { expira: Date.now() + 10 * 60_000, valor })
+  return regras.desde === null ? { ...valor, atrasadas: 0 } : valor
 }
 
 export function invalidarAvisosRepasse() {

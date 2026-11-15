@@ -2,7 +2,7 @@
 
 # Filiação e portal do associado
 
-57 tabelas. Diagrama: [er/filiacao.md](../er/filiacao.md).
+60 tabelas. Diagrama: [er/filiacao.md](../er/filiacao.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -23,6 +23,7 @@
 | [filiacao_convenios_unidades](#filiacao_convenios_unidades) | — | Unidades de atendimento de cada convênio (endereço, telefones, e-mails, site, atendimento online/presencial), migradas do Bubble. |
 | [filiacao_desconto_comunicacao_itens](#filiacao_desconto_comunicacao_itens) | identificação | Os trabalhadores de cada comunicação de desconto, com o snapshot do que foi enviado (nome, CPF, matrícula na empresa, data). Só insere (08/1… |
 | [filiacao_desconto_comunicacoes](#filiacao_desconto_comunicacoes) | identificação | Cada envio a uma fonte pagadora das inclusões (novas filiações) e exclusões (desfiliações) de desconto em folha: quando, por qual meio, para… |
+| [filiacao_desconto_confirmacoes](#filiacao_desconto_confirmacoes) | identificação | Confirmação, pelo RH da fonte pagadora, de que recebeu uma comunicação de inclusões/exclusões de desconto (15/11/2026). |
 | [filiacao_duplicidades_ignoradas](#filiacao_duplicidades_ignoradas) | identificação | Grupos de cadastros de filiados conferidos e marcados como NÃO duplicidade, para não reaparecerem na tela de duplicidades. |
 | [filiacao_inadimplencia_regras](#filiacao_inadimplencia_regras) | — | Regras de inadimplência por entidade: quantas remessas sem contribuição (consecutivas ou numa janela) suspendem direitos do filiado. |
 | [filiacao_prontuario](#filiacao_prontuario) | **sensível: sindical**, **sensível: saúde** | Prontuário do filiado: registro cronológico dos eventos da pessoa no sindicato (atendimentos, homologações, hospedagens, assembleias, atuali… |
@@ -32,7 +33,9 @@
 | [filiacao_reembolsos](#filiacao_reembolsos) | financeiro, **sensível: sindical** | Reembolsos pagos ao filiado — desconto salarial de greve, cobrança indevida, despesa em atividade sindical —, com tipo, justificativa, proje… |
 | [filiacao_reembolsos_config](#filiacao_reembolsos_config) | — | Configuração dos reembolsos a filiados: valor padrão, centro de custo e orçamento mensal limite. |
 | [filiacao_registro](#filiacao_registro) | identificação, **sensível: sindical** | Registro de filiação com CPF, nome, sexo, matrícula e condição sindical. Sem uso encontrado no código (possível legado do Bubble, substituíd… |
+| [filiacao_repasse_envios](#filiacao_repasse_envios) | identificação | Relações de desconto (ou avisos de sem desconto) enviadas pelo RH da fonte pagadora pelo link próprio (15/11/2026). |
 | [filiacao_repasse_eventos](#filiacao_repasse_eventos) | identificação | Trilha do controle de envio de cada fonte pagadora por competência e tipo: relação recebida fora do sistema, sem desconto no mês, cobrança e… |
+| [filiacao_repasse_links](#filiacao_repasse_links) | identificação | Link próprio do RH de cada fonte pagadora para enviar a relação de descontos e confirmar inclusões/exclusões, sem login. Um ativo por empres… |
 | [filiacao_repasse_regras](#filiacao_repasse_regras) | — | Prazo para as fontes pagadoras enviarem a relação de descontos e depositarem, por tipo de contribuição. empresa_id null = regra geral da ent… |
 | [filiacao_repasse_sem_valores](#filiacao_repasse_sem_valores) | identificação | Períodos em que uma fonte pagadora não tem valores a repassar ao sindicato (ex.: todos os trabalhadores se desfiliaram): o controle de envio… |
 | [filiacao_solicitacao_eventos](#filiacao_solicitacao_eventos) | **sensível: sindical**, identificação | Trilha de eventos de cada solicitação de filiação pela ficha pública (criada, código enviado, e-mail verificado, assinada, avaliada...), com… |
@@ -542,9 +545,33 @@ Cada envio a uma fonte pagadora das inclusões (novas filiações) e exclusões 
 | `usuario_id` | uuid | sim |  |  | identificação | Quem registrou o envio. |
 | `usuario_nome` | text | sim |  |  | identificação | Nome de quem registrou, no momento do envio. |
 
-Checks: `filiacao_desconto_comunicacoes_exclusoes_check` `CHECK ((exclusoes >= 0))`; `filiacao_desconto_comunicacoes_inclusoes_check` `CHECK ((inclusoes >= 0))`; `filiacao_desconto_comunicacoes_meio_check` `CHECK ((meio = ANY (ARRAY['email'::text, 'sistema_rh'::text, 'oficio'::text, 'em_maos'::text, 'outro'::text])))`
+Checks: `filiacao_desconto_comunicacoes_exclusoes_check` `CHECK ((exclusoes >= 0))`; `filiacao_desconto_comunicacoes_inclusoes_check` `CHECK ((inclusoes >= 0))`; `filiacao_desconto_comunicacoes_meio_check` `CHECK ((meio = ANY (ARRAY['email'::text, 'sistema_rh'::text, 'oficio'::text, 'em_maos'::text, 'outro'::text, 'link'::text])))`
 
 Índices: `filiacao_desconto_comunicacoes_idx`, `filiacao_desconto_comunicacoes_pkey`
+
+## filiacao_desconto_confirmacoes
+
+Confirmação, pelo RH da fonte pagadora, de que recebeu uma comunicação de inclusões/exclusões de desconto (15/11/2026).
+
+- **LGPD:** identificação · titulares: contatos das empresas
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `comunicacao_id` | uuid | não |  | → filiacao_desconto_comunicacoes (**cascade**) |  |  |
+| `link_id` | uuid | sim |  | → filiacao_repasse_links (set null) |  |  |
+| `confirmado_em` | timestamp with time zone | não | `now()` |  |  |  |
+| `confirmado_por` | text | não |  |  | identificação | Nome informado por quem confirmou. |
+| `confirmado_email` | text | sim |  |  | identificação | E-mail informado por quem confirmou. |
+
+Únicas: `UNIQUE (comunicacao_id)`
+
+Checks: `filiacao_desconto_confirmacoes_confirmado_por_check` `CHECK ((length(TRIM(BOTH FROM confirmado_por)) > 0))`
+
+Índices: `filiacao_desconto_confirmacoes_comunicacao_id_key`, `filiacao_desconto_confirmacoes_pkey`
 
 ## filiacao_duplicidades_ignoradas
 
@@ -792,6 +819,38 @@ Registro de filiação com CPF, nome, sexo, matrícula e condição sindical. Se
 
 Índices: `filiacao_registro_bubble_id_key`, `filiacao_registro_pkey`
 
+## filiacao_repasse_envios
+
+Relações de desconto (ou avisos de sem desconto) enviadas pelo RH da fonte pagadora pelo link próprio (15/11/2026).
+
+- **LGPD:** identificação · titulares: contatos das empresas, filiados (no arquivo)
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `empresa_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `link_id` | uuid | sim |  | → filiacao_repasse_links (set null) |  |  |
+| `competencia` | integer | não |  |  |  |  |
+| `tipo` | text | não |  |  |  |  |
+| `sem_desconto` | boolean | não | `false` |  |  |  |
+| `arquivo` | text | sim |  |  | trabalhista | Caminho do arquivo no bucket privado relacoes-desconto (a relação traz nome, CPF e valor de cada trabalhador). |
+| `nome_arquivo` | text | sim |  |  | nenhum | Nome original do arquivo. |
+| `tamanho` | integer | sim |  |  |  |  |
+| `valor_informado` | numeric(14,2) | sim |  |  |  | Total da relação informado pelo RH (opcional), para conferir com a importação. |
+| `observacao` | text | sim |  |  | nenhum | Recado do RH. |
+| `enviado_por` | text | não |  |  | identificação | Nome informado por quem enviou. |
+| `enviado_email` | text | sim |  |  | identificação | E-mail informado por quem enviou. |
+| `enviado_em` | timestamp with time zone | não | `now()` |  |  |  |
+| `arquivado_em` | timestamp with time zone | sim |  |  |  | Quando a equipe deu o envio por tratado sem lançar (ex.: arquivo errado, reenviado). |
+| `arquivado_por` | text | sim |  |  | identificação | Nome de quem arquivou o envio. |
+
+Checks: `filiacao_repasse_envios_competencia_check` `CHECK ((((competencia >= 200001) AND (competencia <= 210012)) AND (((competencia % 100) >= 1) AND ((competencia % 100) <= 12))))`; `filiacao_repasse_envios_conteudo` `CHECK ((sem_desconto OR (arquivo IS NOT NULL)))`; `filiacao_repasse_envios_enviado_por_check` `CHECK ((length(TRIM(BOTH FROM enviado_por)) > 0))`; `filiacao_repasse_envios_tipo_check` `CHECK ((tipo = ANY (ARRAY['Associativa'::text, 'Assistencial'::text, 'Sindical'::text])))`
+
+Índices: `filiacao_repasse_envios_idx`, `filiacao_repasse_envios_pkey`
+
 ## filiacao_repasse_eventos
 
 Trilha do controle de envio de cada fonte pagadora por competência e tipo: relação recebida fora do sistema, sem desconto no mês, cobrança e contato com o RH (08/11/2026).
@@ -818,6 +877,32 @@ Trilha do controle de envio de cada fonte pagadora por competência e tipo: rela
 Checks: `filiacao_repasse_eventos_competencia_check` `CHECK ((((competencia >= 200001) AND (competencia <= 210012)) AND (((competencia % 100) >= 1) AND ((competencia % 100) <= 12))))`; `filiacao_repasse_eventos_evento_check` `CHECK ((evento = ANY (ARRAY['relacao_recebida'::text, 'sem_desconto'::text, 'cobranca'::text, 'contato'::text])))`; `filiacao_repasse_eventos_meio_check` `CHECK ((meio = ANY (ARRAY['email'::text, 'sistema_rh'::text, 'oficio'::text, 'em_maos'::text, 'whatsapp'::text, 'telefone'::text, 'outro'::text])))`; `filiacao_repasse_eventos_tipo_check` `CHECK ((tipo = ANY (ARRAY['Associativa'::text, 'Assistencial'::text, 'Sindical'::text])))`
 
 Índices: `filiacao_repasse_eventos_idx`, `filiacao_repasse_eventos_pkey`
+
+## filiacao_repasse_links
+
+Link próprio do RH de cada fonte pagadora para enviar a relação de descontos e confirmar inclusões/exclusões, sem login. Um ativo por empresa (15/11/2026).
+
+- **LGPD:** identificação · titulares: usuários do sistema
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `empresa_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `token` | text | não |  |  | nenhum | Segredo do link (/relacao/<token>). Quem tem o link envia relações da empresa. |
+| `criado_em` | timestamp with time zone | não | `now()` |  |  |  |
+| `criado_por` | text | sim |  |  | identificação | Nome de quem gerou o link. |
+| `revogado_em` | timestamp with time zone | sim |  |  |  |  |
+| `revogado_por` | text | sim |  |  | identificação | Nome de quem revogou o link. |
+| `ultimo_acesso_em` | timestamp with time zone | sim |  |  |  | Última vez que o link foi aberto. |
+
+Únicas: `UNIQUE (token)`
+
+Checks: `filiacao_repasse_links_token_check` `CHECK ((length(token) >= 32))`
+
+Índices: `filiacao_repasse_links_ativo`, `filiacao_repasse_links_pkey`, `filiacao_repasse_links_token_key`
 
 ## filiacao_repasse_regras
 

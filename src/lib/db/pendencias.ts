@@ -7,7 +7,7 @@ import { DIAS_PARADA as DIAS_FICHA_PARADA } from "@/lib/ficha-filiacao"
 import type { SessaoPainel } from "@/lib/auth"
 import { alcadaDoUsuario } from "@/lib/db/compras"
 import { contagemPendenciasDesconto } from "@/lib/db/desconto-comunicacoes"
-import { DIAS_SILENCIO_COBRANCA, empresasParaCobrar } from "@/lib/db/repasse"
+import { DIAS_SILENCIO_COBRANCA, empresasParaCobrar, relacoesDoRhALancar } from "@/lib/db/repasse"
 import { SITUACAO_EM_AUTORIZACAO } from "@/lib/db/ordens-ciclo"
 import { situacaoDosPlanos } from "@/lib/db/veiculos-manutencoes"
 import { rodadasComAptosSemLink, semLinkUrgente } from "@/lib/db/votacao-sem-link"
@@ -262,6 +262,15 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
       tabela: "filiacao_repasse_eventos",
       montar: (q) => head(q),
       contarCom: () => empresasParaCobrar().catch(() => null),
+    })
+    fontes.push({
+      chave: "repasse_rh_lancar",
+      titulo: "Relações enviadas pelo RH a lançar",
+      descricao: "Arquivos que as empresas mandaram pelo link e ainda não foram lançados em Receitas",
+      href: "/painel/filiados/receitas/controle?ver=pendentes",
+      tabela: "filiacao_repasse_envios",
+      montar: (q) => head(q),
+      contarCom: () => relacoesDoRhALancar().catch(() => null),
     })
     fontes.push({
       chave: "desconto_comunicar",

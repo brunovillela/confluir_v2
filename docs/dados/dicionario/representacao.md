@@ -2,7 +2,7 @@
 
 # Representação, acordos e negociações
 
-27 tabelas. Diagrama: [er/representacao.md](../er/representacao.md).
+30 tabelas. Diagrama: [er/representacao.md](../er/representacao.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -16,12 +16,15 @@
 | [ato_eventos](#ato_eventos) | identificação | Atos e mobilizações sindicais (nome, cidade, fotos, período). Sem uso encontrado no código (possível legado do Bubble), tabela vazia. |
 | [ato_eventos_participantes](#ato_eventos_participantes) | **sensível: sindical** | Junção ato x usuário participante. Sem uso encontrado no código (possível legado do Bubble), tabela vazia. |
 | [congresso_config_versoes](#congresso_config_versoes) | — | Histórico da configuração de cada congresso (só inserção): quem mudou, por quê e, depois da aprovação do regimento, a deliberação que autori… |
+| [congresso_crachas](#congresso_crachas) | **sensível: sindical** | Vias do crachá de cada participante. Só a via ativa vale; segunda via invalida a anterior. O QR leva um código cujo hash fica aqui. |
 | [congresso_eixos](#congresso_eixos) | — | Eixos temáticos do congresso. |
 | [congresso_grupos](#congresso_grupos) | — | Grupos de trabalho (GT) do congresso, com eixo e vagas. |
 | [congresso_papeis](#congresso_papeis) | — | Papéis do congresso (delegado, nato, suplente, observador, convidado…) com a matriz de direitos em jsonb (voz, voto, assinar moção, candidat… |
 | [congresso_participante_historico](#congresso_participante_historico) | **sensível: sindical** | Trilha de cada participante (só inserção): inscrição, troca de papel ou base, lista de espera, cancelamento. |
 | [congresso_participantes](#congresso_participantes) | identificação, **sensível: sindical** | Pessoas do congresso: delegados, natos, suplentes, observadores, convidados. Podem ser filiados ou não. A participação revela atuação sindic… |
+| [congresso_presencas](#congresso_presencas) | **sensível: sindical** | Presença por sessão: entrada, saída, meio (porta, código da sala, chamada, estação, virtual, papel) e nível de prova de que a pessoa estava … |
 | [congresso_sessoes](#congresso_sessoes) | — | Sessões do programa (plenária, mesa, grupo, setorial, atividade conjunta…), com horário. |
+| [congresso_substituicoes](#congresso_substituicoes) | **sensível: sindical** | Suplente que assume no lugar de um titular, com quem autorizou. Desfazer não apaga: marca desfeita_em. |
 | [congresso_unidades](#congresso_unidades) | — | Bases, entidades, segmentos ou ramos que formam as delegações, com limite de delegados e número de sócios para o cálculo de vagas. |
 | [congressos](#congressos) | — | Congressos, plenárias e conferências que a entidade promove ou de que participa. Cada um aponta para um evento do módulo Eventos e guarda a … |
 | [negociacao_empresas](#negociacao_empresas) | — | Junção negociação coletiva x empresa (fonte pagadora) envolvida. |
@@ -291,6 +294,32 @@ Checks: `congresso_config_versoes_versao_check` `CHECK ((versao > 0))`
 
 Índices: `congresso_config_versoes_pkey`, `congresso_config_versoes_um`
 
+## congresso_crachas
+
+Vias do crachá de cada participante. Só a via ativa vale; segunda via invalida a anterior. O QR leva um código cujo hash fica aqui.
+
+- **LGPD:** **sensível: sindical** · titulares: participantes de congressos
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
+| `participante_id` | uuid | não |  | → congresso_participantes (**cascade**) |  |  |
+| `via` | integer | não | `1` |  |  |  |
+| `codigo_hash` | text | não |  |  | **credencial (nunca exportar)** | SHA-256 do código impresso no QR do crachá. |
+| `ativo` | boolean | não | `true` |  |  |  |
+| `emitido_em` | timestamp with time zone | não | `now()` |  |  |  |
+| `emitido_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem emitiu a via. |
+| `invalidado_em` | timestamp with time zone | sim |  |  |  |  |
+| `motivo` | text | sim |  |  | nenhum | Motivo da segunda via ou da invalidação. |
+
+Checks: `congresso_crachas_via_check` `CHECK ((via > 0))`
+
+Índices: `congresso_crachas_ativo`, `congresso_crachas_codigo`, `congresso_crachas_pkey`
+
 ## congresso_eixos
 
 Eixos temáticos do congresso.
@@ -422,10 +451,41 @@ Pessoas do congresso: delegados, natos, suplentes, observadores, convidados. Pod
 | `token_gerado_em` | timestamp with time zone | sim |  |  | nenhum | Quando o link pessoal atual foi gerado; gerar outro invalida o anterior. |
 | `aceite_em` | timestamp with time zone | sim |  |  | nenhum | Ciência do tratamento de dados na inscrição pública. |
 | `inscricao_ip` | text | sim |  |  | identificação | IP da inscrição pública, para apurar abuso (ex.: inscrições em massa). |
+| `credenciado_em` | timestamp with time zone | sim |  |  | nenhum | Quando a pessoa foi credenciada (uma vez por congresso). Nulo = não credenciada. |
+| `credenciado_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem credenciou na mesa. |
+| `documento_conferido` | boolean | não | `false` |  | nenhum | A mesa conferiu documento com foto no credenciamento. |
+| `modalidade` | text | não | `'presencial'::text` |  | nenhum | presencial ou distancia: define que atos a pessoa pode fazer e com que prova (local da decisão). |
 
-Checks: `congresso_participantes_cpf_check` `CHECK (((cpf IS NULL) OR (cpf ~ '^[0-9]{11}$'::text)))`; `congresso_participantes_nome_check` `CHECK ((length(TRIM(BOTH FROM nome)) > 0))`; `congresso_participantes_origem_check` `CHECK ((origem = ANY (ARRAY['manual'::text, 'nato'::text, 'inscricao'::text, 'planilha'::text, 'indicacao'::text, 'ata'::text, 'copia'::text])))`; `congresso_participantes_situacao_check` `CHECK ((situacao = ANY (ARRAY['inscrito'::text, 'confirmado'::text, 'lista_espera'::text, 'recusado'::text, 'cancelado'::text])))`
+Checks: `congresso_participantes_cpf_check` `CHECK (((cpf IS NULL) OR (cpf ~ '^[0-9]{11}$'::text)))`; `congresso_participantes_modalidade` `CHECK ((modalidade = ANY (ARRAY['presencial'::text, 'distancia'::text])))`; `congresso_participantes_nome_check` `CHECK ((length(TRIM(BOTH FROM nome)) > 0))`; `congresso_participantes_origem_check` `CHECK ((origem = ANY (ARRAY['manual'::text, 'nato'::text, 'inscricao'::text, 'planilha'::text, 'indicacao'::text, 'ata'::text, 'copia'::text])))`; `congresso_participantes_situacao_check` `CHECK ((situacao = ANY (ARRAY['inscrito'::text, 'confirmado'::text, 'lista_espera'::text, 'recusado'::text, 'cancelado'::text])))`
 
 Índices: `congresso_participantes_cpf`, `congresso_participantes_filiacao`, `congresso_participantes_ordem`, `congresso_participantes_pkey`, `congresso_participantes_token`
+
+## congresso_presencas
+
+Presença por sessão: entrada, saída, meio (porta, código da sala, chamada, estação, virtual, papel) e nível de prova de que a pessoa estava no local.
+
+- **LGPD:** **sensível: sindical** · titulares: participantes de congressos
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
+| `sessao_id` | uuid | não |  | → congresso_sessoes (**cascade**) |  |  |
+| `participante_id` | uuid | não |  | → congresso_participantes (**cascade**) |  |  |
+| `entrada_em` | timestamp with time zone | não | `now()` |  |  |  |
+| `saida_em` | timestamp with time zone | sim |  |  |  |  |
+| `metodo` | text | não |  |  |  |  |
+| `nivel` | text | não |  |  |  |  |
+| `modalidade` | text | não | `'presencial'::text` |  |  |  |
+| `registrado_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem registrou (nulo quando a própria pessoa leu o código da sala). |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Checks: `congresso_presencas_metodo_check` `CHECK ((metodo = ANY (ARRAY['porta'::text, 'codigo_sala'::text, 'chamada'::text, 'estacao'::text, 'virtual'::text, 'papel'::text])))`; `congresso_presencas_modalidade_check` `CHECK ((modalidade = ANY (ARRAY['presencial'::text, 'distancia'::text])))`; `congresso_presencas_nivel_check` `CHECK ((nivel = ANY (ARRAY['A'::text, 'B'::text, 'C'::text, 'D'::text, 'E'::text])))`
+
+Índices: `congresso_presencas_congresso`, `congresso_presencas_pkey`, `congresso_presencas_um`
 
 ## congresso_sessoes
 
@@ -449,10 +509,37 @@ Sessões do programa (plenária, mesa, grupo, setorial, atividade conjunta…), 
 | `local` | text | sim |  |  |  |  |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `updated_at` | timestamp with time zone | sim |  |  |  |  |
+| `segredo` | text | sim |  |  | **credencial (nunca exportar)** | Semente do código da sala, que muda a cada poucos segundos (prova de presença nível C). Nunca sai do servidor. |
 
 Checks: `congresso_sessoes_horario` `CHECK (((fim IS NULL) OR (inicio IS NULL) OR (fim >= inicio)))`; `congresso_sessoes_tipo_check` `CHECK ((tipo = ANY (ARRAY['credenciamento'::text, 'plenaria'::text, 'mesa_debate'::text, 'grupo'::text, 'setorial'::text, 'atividade_conjunta'::text, 'cultural'::text, 'eleicao'::text, 'outra'::text])))`; `congresso_sessoes_titulo_check` `CHECK ((length(TRIM(BOTH FROM titulo)) > 0))`
 
 Índices: `congresso_sessoes_congresso`, `congresso_sessoes_pkey`
+
+## congresso_substituicoes
+
+Suplente que assume no lugar de um titular, com quem autorizou. Desfazer não apaga: marca desfeita_em.
+
+- **LGPD:** **sensível: sindical** · titulares: delegados e suplentes de congressos
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
+| `titular_id` | uuid | não |  | → congresso_participantes (**cascade**) |  |  |
+| `suplente_id` | uuid | não |  | → congresso_participantes (**cascade**) |  |  |
+| `motivo` | text | sim |  |  |  |  |
+| `autorizado_por` | text | sim |  |  | identificação | Nome de quem autorizou a troca (coordenação da base ou comissão), quando o regimento exige. |
+| `registrado_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem registrou na mesa. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `desfeita_em` | timestamp with time zone | sim |  |  |  |  |
+| `desfeita_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem desfez a troca. |
+
+Checks: `congresso_substituicoes_pessoas` `CHECK ((titular_id <> suplente_id))`
+
+Índices: `congresso_substituicoes_pkey`, `congresso_substituicoes_suplente`, `congresso_substituicoes_titular`
 
 ## congresso_unidades
 

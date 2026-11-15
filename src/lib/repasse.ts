@@ -217,6 +217,7 @@ export type MeioRepasse = (typeof MEIOS_REPASSE)[number]["valor"]
 export const MEIOS_COMUNICACAO = MEIOS_REPASSE.filter((m) => !["whatsapp", "telefone"].includes(m.valor))
 
 export function rotuloMeio(v: string | null | undefined): string {
+  if (v === "link") return "Link do RH"
   return MEIOS_REPASSE.find((m) => m.valor === v)?.rotulo ?? "—"
 }
 
