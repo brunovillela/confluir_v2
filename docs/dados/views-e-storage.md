@@ -298,7 +298,7 @@ Arquivos (documentos pessoais, comprovantes, fotos) ficam aqui, fora das tabelas
 | `oposicao` | não | 10 MB | application/pdf |
 | `organizacao` | **sim** |  |  |
 | `patrimonio` | não |  |  |
-| `pessoal` | não | 5 MB | application/pdf |
+| `pessoal` | não | 5 MB | application/pdf, image/jpeg, image/png, image/webp |
 | `representacao` | não |  |  |
 | `saude` | não | 5 MB | application/pdf, image/jpeg, image/png, image/webp |
 | `usuarios` | não |  |  |
