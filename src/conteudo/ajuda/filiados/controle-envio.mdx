@@ -28,7 +28,7 @@ Em **Prazos e tipos** fica a regra geral da entidade:
     Com **Criar sozinha a remessa de cada mês** marcado (o padrão), o Confluir
     cria a remessa de cada competência dos tipos controlados quando alguém abre
     Receitas, o controle ou o painel no começo do mês, sem esperar alguém criá-la
-    em **Nova remessa**. Olha até 3 meses para trás (nunca antes do início do
+    em **Nova remessa**. A tarefa diária das 7h também a cria. Olha até 3 meses para trás (nunca antes do início do
     controle) e só os meses com desconto previsto na regra geral ou na de alguma
     empresa. Nunca cria duas remessas do mesmo tipo no mesmo mês.
   </Passo>
@@ -127,6 +127,26 @@ quem vai o e-mail.
   avisos por 3 dias.
 - Vêm marcadas as empresas com contato da folha com e-mail que não foram
   cobradas nos últimos 3 dias. Um recado a mais vale para todas.
+
+## Cobrança automática
+
+Em **Prazos e tipos**, **Lembrar e cobrar as empresas sozinho** liga a cobrança
+automática (vem desligada). Todo dia, às 7h:
+
+- **Lembrete:** a relação vence nos próximos dias (3, por padrão; o número se
+  ajusta em **Lembrete quantos dias antes do prazo**, e 0 desliga) e ainda não
+  chegou → o contato da folha recebe um lembrete, uma vez por competência.
+- **Cobrança:** a relação ou o depósito atrasou → um e-mail por empresa com tudo
+  o que falta, no dia seguinte ao prazo, repetido a cada 7 dias, até 3 vezes por
+  competência. Se alguém registrou uma cobrança ou um contato nos últimos 7 dias,
+  a automática espera.
+- Tudo fica na trilha de cada empresa, como **Confluir (automático)**. O e-mail
+  leva o link do RH, se a empresa tiver.
+
+Ficam de fora as empresas sem contato da folha com e-mail e as tiradas da
+cobrança automática na página delas (**Tirar da cobrança automática**, no quadro
+de prazos). No mesmo horário, a remessa do mês nasce sozinha, se a opção estiver
+ligada.
 
 ## Contatos da folha
 

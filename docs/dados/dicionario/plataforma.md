@@ -332,10 +332,13 @@ Cadastro único de organizações: tenants (sindicatos), empregadores e fontes p
 | `comprovante_automatico` | boolean | não | `false` |  |  | Fornecedor: o comprovante anexado à ordem paga é enviado automaticamente aos contatos que recebem comprovantes. |
 | `filiacao_repasse_desde` | integer | sim |  |  | nenhum | Competência (AAAAMM) a partir da qual o controle de envio cobra atraso das fontes pagadoras e lista inclusões/exclusões de desconto a comunicar; null = controle ainda não ativado. |
 | `filiacao_remessa_automatica` | boolean | não | `true` |  | nenhum | O controle de envio cria sozinho a remessa das competências dos tipos controlados (só com o controle ativado). |
+| `filiacao_cobranca_automatica` | boolean | não | `false` |  | nenhum | Na entidade: a tarefa diária lembra o RH das fontes pagadoras antes do prazo da relação e cobra depois dele (15/11/2026). |
+| `filiacao_lembrete_dias` | smallint | não | `3` |  | nenhum | Na entidade: dias antes do prazo da relação em que sai o lembrete automático; 0 = sem lembrete. |
+| `repasse_cobranca_automatica` | boolean | não | `true` |  | nenhum | Na fonte pagadora: entra na cobrança automática da entidade (false = só cobrança manual). |
 
 Únicas: `UNIQUE (bubble_id)`
 
-Checks: `empresa_filiacao_repasse_desde_check` `CHECK (((filiacao_repasse_desde IS NULL) OR (((filiacao_repasse_desde >= 200001) AND (filiacao_repasse_desde <= 210012)) AND (((filiacao_repasse_desde % 100) >= 1) AND ((filiacao_repasse_desde % 100) <= 12)))))`
+Checks: `empresa_filiacao_lembrete_dias_check` `CHECK (((filiacao_lembrete_dias >= 0) AND (filiacao_lembrete_dias <= 15)))`; `empresa_filiacao_repasse_desde_check` `CHECK (((filiacao_repasse_desde IS NULL) OR (((filiacao_repasse_desde >= 200001) AND (filiacao_repasse_desde <= 210012)) AND (((filiacao_repasse_desde % 100) >= 1) AND ((filiacao_repasse_desde % 100) <= 12)))))`
 
 Índices: `fornecedores_bubble_id_key`, `fornecedores_pkey`, `idx_bub_fornecedores`, `idx_empresa_entidade_apoiada`, `idx_empresa_mesclado_em`
 

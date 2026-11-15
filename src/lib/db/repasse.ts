@@ -477,7 +477,7 @@ export async function registrarEventoRepasse(dados: {
   empresaId: string
   competencia: number
   tipo: TipoContribuicao
-  evento: "relacao_recebida" | "sem_desconto" | "cobranca" | "contato"
+  evento: "relacao_recebida" | "sem_desconto" | "cobranca" | "contato" | "lembrete"
   meio: string | null
   data: string
   observacao: string | null
@@ -785,10 +785,10 @@ const ultimaGarantia = new Map<string, number>()
  * minutos por entidade. O índice único (migração 20261115153331) impede
  * duplicar se duas telas rodarem ao mesmo tempo. Devolve quantas criou.
  */
-export async function garantirRemessas(): Promise<number> {
+export async function garantirRemessas(forcar = false): Promise<number> {
   const emp = await tenantAtual()
   const ultima = ultimaGarantia.get(emp)
-  if (ultima && Date.now() - ultima < 10 * 60_000) return 0
+  if (!forcar && ultima && Date.now() - ultima < 10 * 60_000) return 0
   ultimaGarantia.set(emp, Date.now())
   const regras = await regrasRepasse()
   if (!regras.disponivel || regras.desde === null || !regras.remessaAutomatica) return 0

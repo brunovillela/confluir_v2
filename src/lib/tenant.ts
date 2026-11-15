@@ -5,6 +5,7 @@ import { cache } from "react"
 
 import { EMP_PROPRIETARIA_ID } from "@/lib/env"
 import { conferirTenant } from "@/lib/tenant-assinatura"
+import { contextoFixado } from "@/lib/tenant-contexto"
 
 /**
  * Tenant (organização) da requisição atual.
@@ -20,8 +21,15 @@ import { conferirTenant } from "@/lib/tenant-assinatura"
  *
  * Fora de um contexto de requisição (scripts, etc.) `headers()` lança; nesse
  * caso caímos no tenant do `.env`.
+ *
+ * Uma tarefa agendada que percorre as entidades fixa uma de cada vez com
+ * `comTenant` (lib/tenant-contexto.ts): a fixada vale antes do cabeçalho.
  */
-export const tenantAtual = cache(async (): Promise<string> => {
+export async function tenantAtual(): Promise<string> {
+  return contextoFixado()?.tenantId ?? tenantDaRequisicao()
+}
+
+const tenantDaRequisicao = cache(async (): Promise<string> => {
   try {
     const h = await headers()
     const id = h.get("x-tenant-id")

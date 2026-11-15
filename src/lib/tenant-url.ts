@@ -3,6 +3,7 @@ import "server-only"
 import { headers } from "next/headers"
 
 import { APP_DOMAIN, SITE_URL } from "@/lib/env"
+import { contextoFixado } from "@/lib/tenant-contexto"
 
 /**
  * Origens (protocolo + host) por tenant. Em multi-tenant, cada organização é
@@ -23,6 +24,9 @@ function protocoloPara(dominio: string): string {
  * cai em SITE_URL.
  */
 export async function origemAtual(): Promise<string> {
+  // Tarefa agendada com a entidade fixada (lib/tenant-contexto.ts).
+  const fixado = contextoFixado()
+  if (fixado) return fixado.origem
   try {
     const host = (await headers()).get("host")
     if (host) return `${protocoloPara(host)}://${host}`

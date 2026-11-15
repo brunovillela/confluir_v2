@@ -22,6 +22,7 @@ import {
 } from "@/lib/db/repasse"
 import { confirmarDeposito } from "@/lib/db/repasse-extrato"
 import { cobrarEmLote, usarComoContatoDaFolha } from "@/lib/db/repasse-cobranca"
+import { marcarEmpresaNaCobrancaAutomatica, salvarConfigCobranca } from "@/lib/db/repasse-automatico"
 import { arquivarEnvio, enviarLinkPorEmail, gerarLink, linkDaEmpresa, revogarLink } from "@/lib/db/repasse-link"
 import { enviarEmail } from "@/lib/email"
 import { escaparHtml, paragrafo, tituloEmail } from "@/lib/email-layout"
@@ -103,6 +104,8 @@ export async function salvarRegrasGeraisAction(_: EstadoForm, f: FormData): Prom
   if (erro) return { erro }
   const auto = await salvarRemessaAutomatica(f.get("remessa_automatica") === "on")
   if (auto.erro) return { erro: auto.erro }
+  const cob = await salvarConfigCobranca(f.get("cobranca_automatica") === "on", Number(texto(f, "lembrete_dias") ?? 3))
+  if (cob.erro) return { erro: cob.erro, campo: "lembrete_dias" }
   revalidar()
   revalidatePath("/painel/filiados/receitas")
   return { ok: "Prazos salvos." }
@@ -560,4 +563,15 @@ export async function usarComoContatoAction(_: EstadoForm, f: FormData): Promise
   revalidar(empresaId)
   revalidatePath("/painel/filiados/receitas/controle/contatos")
   return { ok: "Contato da folha definido." }
+}
+
+export async function cobrancaAutomaticaEmpresaAction(_: EstadoForm, f: FormData): Promise<EstadoForm> {
+  await sessao()
+  const empresaId = texto(f, "empresa_id")
+  if (!empresaId) return { erro: "Empresa não informada." }
+  const incluida = f.get("incluida") === "sim"
+  const { erro } = await marcarEmpresaNaCobrancaAutomatica(empresaId, incluida)
+  if (erro) return { erro }
+  revalidar(empresaId)
+  return { ok: incluida ? "A empresa voltou para a cobrança automática." : "A empresa saiu da cobrança automática." }
 }

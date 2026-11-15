@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { regrasRepasse, AVISO_SQL_REPASSE } from "@/lib/db/repasse"
+import { configCobrancaAutomatica } from "@/lib/db/repasse-automatico"
 import { regraEfetiva, TIPOS_CONTRIBUICAO, type RegraEfetiva, type TipoContribuicao } from "@/lib/repasse"
 
 import { PrazosForm } from "./prazos-form"
@@ -15,7 +16,7 @@ export const metadata: Metadata = { title: "Prazos do controle de envio — Conf
 
 export default async function PrazosPage() {
   await requirePermissao("filiacao_receitas", ["filiacao_gestao"])
-  const regras = await regrasRepasse()
+  const [regras, cobranca] = await Promise.all([regrasRepasse(), configCobrancaAutomatica()])
   const efetivas = Object.fromEntries(
     TIPOS_CONTRIBUICAO.map((t) => [t, regraEfetiva(t, regras.geral[t])])
   ) as Record<TipoContribuicao, RegraEfetiva>
@@ -50,7 +51,7 @@ export default async function PrazosPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <PrazosForm desde={desde} regras={efetivas} remessaAutomatica={regras.remessaAutomatica} />
+            <PrazosForm desde={desde} regras={efetivas} remessaAutomatica={regras.remessaAutomatica} cobranca={cobranca} />
           </CardContent>
         </Card>
       )}

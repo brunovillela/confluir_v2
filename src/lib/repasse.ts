@@ -226,6 +226,7 @@ export const ROTULO_EVENTO: Record<string, string> = {
   sem_desconto: "Sem desconto no mês",
   cobranca: "Cobrança",
   contato: "Contato",
+  lembrete: "Lembrete do prazo",
 }
 
 /** "3, 9" a partir de [3, 9]; aceita "mar, set" e números separados por vírgula/espaço. */

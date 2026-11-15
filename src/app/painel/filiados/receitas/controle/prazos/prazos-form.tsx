@@ -26,11 +26,13 @@ export function PrazosForm({
   desde,
   regras,
   remessaAutomatica,
+  cobranca,
 }: {
   /** "2026-10" ou "". */
   desde: string
   regras: Record<TipoContribuicao, RegraEfetiva>
   remessaAutomatica: boolean
+  cobranca: { ligada: boolean; lembreteDias: number }
 }) {
   const [estado, acao, pendente] = useActionState<EstadoForm, FormData>(salvarRegrasGeraisAction, {})
   const envio = useEnvioFormulario(acao, estado, { manter: true })
@@ -56,6 +58,27 @@ export function PrazosForm({
           </span>
         </span>
       </label>
+
+      <fieldset className="grid gap-3 rounded-lg border p-4">
+        <legend className="px-1 text-sm font-medium">Cobrança automática</legend>
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" name="cobranca_automatica" defaultChecked={cobranca.ligada} className="accent-primary mt-0.5 size-4" />
+          <span>
+            Lembrar e cobrar as empresas sozinho
+            <span className="text-muted-foreground block text-xs">
+              Todo dia de manhã, o Confluir manda ao contato da folha de cada empresa um lembrete antes do prazo da relação
+              e, se a relação ou o depósito atrasar, uma cobrança no dia seguinte ao prazo, repetida a cada 7 dias (até 3
+              vezes por mês de competência). Tudo fica na trilha de cada empresa. Uma empresa pode ser tirada da cobrança
+              automática na página dela.
+            </span>
+          </span>
+        </label>
+        <div className="grid max-w-xs gap-1.5">
+          <Label htmlFor="lembrete_dias">Lembrete quantos dias antes do prazo</Label>
+          <Input id="lembrete_dias" name="lembrete_dias" type="number" min={0} max={15} defaultValue={cobranca.lembreteDias} />
+          <p className="text-muted-foreground text-xs">0 = sem lembrete, só a cobrança depois do prazo.</p>
+        </div>
+      </fieldset>
 
       {(Object.keys(regras) as TipoContribuicao[]).map((tipo) => {
         const r = regras[tipo]

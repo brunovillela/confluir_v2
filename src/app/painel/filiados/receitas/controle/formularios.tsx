@@ -15,6 +15,7 @@ import { formatarCnpjCpf, formatarData, formatarTelefone } from "@/lib/formato"
 import { MEIOS_COMUNICACAO, MEIOS_REPASSE, rotuloCompetencia, type RegraEfetiva, type TipoContribuicao } from "@/lib/repasse"
 
 import {
+  cobrancaAutomaticaEmpresaAction,
   cobrarPorEmailAction,
   comunicarDescontoAction,
   desfazerEventoAction,
@@ -569,6 +570,29 @@ export function ComunicarDesconto({
         </div>
         <Mensagem estado={estado} />
       </div>
+    </form>
+  )
+}
+
+/** Tira ou devolve a empresa da cobrança automática da entidade. */
+export function CobrancaAutomaticaEmpresa({ empresaId, incluida, ligadaNaEntidade }: { empresaId: string; incluida: boolean; ligadaNaEntidade: boolean }) {
+  const [estado, acao, pendente] = useActionState<EstadoForm, FormData>(cobrancaAutomaticaEmpresaAction, {})
+  return (
+    <form action={acao} className="grid gap-1.5">
+      <input type="hidden" name="empresa_id" value={empresaId} />
+      <input type="hidden" name="incluida" value={incluida ? "nao" : "sim"} />
+      <p className="text-sm">
+        {!ligadaNaEntidade
+          ? "A cobrança automática está desligada na entidade (Prazos e tipos)."
+          : incluida
+            ? "Esta empresa recebe os lembretes e as cobranças automáticas."
+            : "Esta empresa está fora da cobrança automática: só cobrança manual."}
+      </p>
+      <Button type="submit" size="sm" variant="outline" className="w-fit" disabled={pendente}>
+        {pendente && <Loader2 className="animate-spin" />}
+        {incluida ? "Tirar da cobrança automática" : "Incluir na cobrança automática"}
+      </Button>
+      <Mensagem estado={estado} />
     </form>
   )
 }

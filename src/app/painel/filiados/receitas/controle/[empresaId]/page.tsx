@@ -40,7 +40,8 @@ import {
 } from "@/lib/repasse"
 import { cn } from "@/lib/utils"
 
-import { AcoesCompetencia, ComunicarDesconto, ContatosFolha, DesfazerEvento } from "../formularios"
+import { AcoesCompetencia, CobrancaAutomaticaEmpresa, ComunicarDesconto, ContatosFolha, DesfazerEvento } from "../formularios"
+import { configCobrancaAutomatica, empresaNaCobrancaAutomatica } from "@/lib/db/repasse-automatico"
 import { DepositosExtrato } from "../depositos-extrato"
 import { ConferenciaRelacao } from "./conferencia"
 import { ArquivarEnvio, LinkRh } from "../link-rh"
@@ -72,12 +73,14 @@ export default async function ControleEmpresaPage({
   const daEmpresa = regras.porEmpresa.get(unidade.id) ?? {}
   const tipos = TIPOS_CONTRIBUICAO.filter((t) => tiposControlados(regras).includes(t) || daEmpresa[t])
   const tipo: TipoContribuicao = ehTipoContribuicao(p.tipo) ? p.tipo : (tipos[0] ?? "Associativa")
-  const [quadro, comunicacoes, extrato, linkRh, envios] = await Promise.all([
+  const [quadro, comunicacoes, extrato, linkRh, envios, cobrancaEntidade, naAutomatica] = await Promise.all([
     quadroRepasse({ tipo, empresaId: unidade.id }),
     comunicacoesDaEmpresa(unidade.id, unidade.fontes),
     depositosNoExtrato(unidade.id).catch(() => null),
     linkDaEmpresa(unidade.id).catch(() => null),
     enviosDaEmpresa(unidade.id).catch(() => []),
+    configCobrancaAutomatica().catch(() => ({ disponivel: false, ligada: false, lembreteDias: 3 })),
+    empresaNaCobrancaAutomatica(unidade.id).catch(() => true),
   ])
   const confirmacoes = await confirmacoesDasComunicacoes(comunicacoes.map((c) => c.id)).catch(() => new Map<string, { em: string; por: string }>())
   const hrefEnvio = (id: string) => `/painel/filiados/receitas/controle/${unidade.id}/envio/${id}`
@@ -431,6 +434,9 @@ export default async function ControleEmpresaPage({
               <Link href={`/painel/representacao/empregadores/${unidade.id}?aba=arrecadacao`} className="text-primary text-xs font-medium hover:underline">
                 Alterar na página do empregador
               </Link>
+              <div className="mt-2 border-t pt-3">
+                <CobrancaAutomaticaEmpresa empresaId={unidade.id} incluida={naAutomatica} ligadaNaEntidade={cobrancaEntidade.ligada} />
+              </div>
             </CardContent>
           </Card>
         </div>

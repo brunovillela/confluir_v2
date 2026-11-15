@@ -875,7 +875,7 @@ Trilha do controle de envio de cada fonte pagadora por competência e tipo: rela
 | `usuario_nome` | text | sim |  |  | identificação | Nome de quem registrou, no momento do registro. |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 
-Checks: `filiacao_repasse_eventos_competencia_check` `CHECK ((((competencia >= 200001) AND (competencia <= 210012)) AND (((competencia % 100) >= 1) AND ((competencia % 100) <= 12))))`; `filiacao_repasse_eventos_evento_check` `CHECK ((evento = ANY (ARRAY['relacao_recebida'::text, 'sem_desconto'::text, 'cobranca'::text, 'contato'::text])))`; `filiacao_repasse_eventos_meio_check` `CHECK ((meio = ANY (ARRAY['email'::text, 'sistema_rh'::text, 'oficio'::text, 'em_maos'::text, 'whatsapp'::text, 'telefone'::text, 'outro'::text])))`; `filiacao_repasse_eventos_tipo_check` `CHECK ((tipo = ANY (ARRAY['Associativa'::text, 'Assistencial'::text, 'Sindical'::text])))`
+Checks: `filiacao_repasse_eventos_competencia_check` `CHECK ((((competencia >= 200001) AND (competencia <= 210012)) AND (((competencia % 100) >= 1) AND ((competencia % 100) <= 12))))`; `filiacao_repasse_eventos_evento_check` `CHECK ((evento = ANY (ARRAY['relacao_recebida'::text, 'sem_desconto'::text, 'cobranca'::text, 'contato'::text, 'lembrete'::text])))`; `filiacao_repasse_eventos_meio_check` `CHECK ((meio = ANY (ARRAY['email'::text, 'sistema_rh'::text, 'oficio'::text, 'em_maos'::text, 'whatsapp'::text, 'telefone'::text, 'outro'::text])))`; `filiacao_repasse_eventos_tipo_check` `CHECK ((tipo = ANY (ARRAY['Associativa'::text, 'Assistencial'::text, 'Sindical'::text])))`
 
 Índices: `filiacao_repasse_eventos_idx`, `filiacao_repasse_eventos_pkey`
 

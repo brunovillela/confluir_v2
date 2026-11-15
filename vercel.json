@@ -66,6 +66,10 @@
       "schedule": "0 8 2 * *"
     },
     {
+      "path": "/api/repasse/tick",
+      "schedule": "0 10 * * *"
+    },
+    {
       "path": "/api/telegram/comandos",
       "schedule": "20 9 * * *"
     }
