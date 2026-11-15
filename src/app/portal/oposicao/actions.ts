@@ -1,6 +1,6 @@
 "use server"
 
-import { headers } from "next/headers"
+import { cookies, headers } from "next/headers"
 import { redirect } from "next/navigation"
 
 import type { User } from "@supabase/supabase-js"
@@ -39,6 +39,7 @@ import {
   vinculosAtivos,
 } from "@/lib/db/oposicao"
 import { estadoPrazo, exigeDocumentoComRegras, FOLGA_VIDEO_S, formatarTempoVideo } from "@/lib/oposicao-constantes"
+import { COOKIE_ORIGEM, origemValida } from "@/lib/oposicao-origem"
 import { diagnosticarCodigoRecusado, emailDoCodigo } from "@/lib/auth-diagnostico"
 import { textoValidade } from "@/lib/auth-email-constantes"
 import { createClient } from "@/lib/supabase/server"
@@ -334,6 +335,11 @@ async function campanhaNoPrazo(
   return { campanha }
 }
 
+/** O canal do link por onde a pessoa chegou (cookie do portal), ou null. */
+async function origemDoAcesso(): Promise<string | null> {
+  return origemValida((await cookies()).get(COOKIE_ORIGEM)?.value)
+}
+
 /**
  * "Li e quero prosseguir" (30/10/2026): a pessoa leu as instruções da
  * campanha e o aviso de privacidade. O hash do texto que a tela mostrou tem
@@ -355,7 +361,14 @@ export async function registrarCiencia(_prev: EstadoForm, fd: FormData): Promise
   await gravarCiencia(campanhaId, sessao.cpf, orientacoes.hash)
   // Funil da campanha (onda 3): quem leu, pela marca anônima — sem CPF na trilha.
   const r1 = await rastro()
-  await registrarEvento(null, "ciencia_registrada", `pessoa:${marcaDaPessoa(campanhaId, sessao.cpf)} perfil:${sessao.perfil}`, r1.ip, r1.ua, { campanhaId })
+  await registrarEvento(
+    null,
+    "ciencia_registrada",
+    `pessoa:${marcaDaPessoa(campanhaId, sessao.cpf)} perfil:${sessao.perfil} origem:${(await origemDoAcesso()) ?? "nenhuma"}`,
+    r1.ip,
+    r1.ua,
+    { campanhaId }
+  )
   redirect(`/portal/oposicao/${campanhaId}`)
 }
 
@@ -490,6 +503,10 @@ export async function confirmarOposicao(
     exigeDoc
   )
   if (erro || !id) return { erro: erro ?? "Falha ao registrar." }
+  // De onde veio quem registrou (15/11/2026), para o funil por origem.
+  await registrarEvento(id, "origem_registrada", `origem:${(await origemDoAcesso()) ?? "nenhuma"}`, ip, ua, {
+    campanhaId: campanha.id,
+  })
   // O vídeo na trilha da oposição: o que o navegador contou com o vídeo
   // tocando (informado pela página) e o que o servidor mediu desde o play.
   if (temVideo) {

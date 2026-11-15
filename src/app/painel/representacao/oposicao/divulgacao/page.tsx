@@ -12,6 +12,7 @@ import { nomeEntidade } from "@/lib/db/organizacao"
 import { formatarData } from "@/lib/formato"
 import { estadoPrazo } from "@/lib/oposicao-constantes"
 import { textosDivulgacaoGeral } from "@/lib/oposicao-orientacoes"
+import { linkComOrigem } from "@/lib/oposicao-origem"
 import { origemAtual } from "@/lib/tenant-url"
 
 import { CopiarTexto } from "../[id]/divulgacao/copiar-texto"
@@ -38,7 +39,7 @@ export default async function DivulgacaoGeralOposicaoPage() {
     return e === "aberto" || e === "antes"
   })
   const link = `${origem}/portal/oposicao`
-  const qr = await QRCode.toDataURL(link, { errorCorrectionLevel: "M", margin: 2, width: 768 })
+  const qr = await QRCode.toDataURL(linkComOrigem(link, "geral-qr"), { errorCorrectionLevel: "M", margin: 2, width: 768 })
   const textos = textosDivulgacaoGeral({ entidade, link, vigentes })
 
   return (
@@ -70,7 +71,11 @@ export default async function DivulgacaoGeralOposicaoPage() {
           {/* eslint-disable-next-line @next/next/no-img-element -- data URI gerado no servidor */}
           <img src={qr} alt={`QR code para ${link}`} className="w-48 rounded-lg border bg-white p-1" />
           <div className="grid gap-3">
-            <CopiarTexto id="link" rotulo="Link" texto={link} linhas={1} />
+            <CopiarTexto id="link" rotulo="Link" texto={linkComOrigem(link, "geral-link")} linhas={1} />
+            <p className="text-muted-foreground text-xs">
+              O QR code, o link e os textos levam a marca do canal (?origem=…): o Funil de cada campanha mostra de
+              onde veio quem leu e quem registrou.
+            </p>
             <div>
               <Button variant="outline" size="sm" asChild>
                 <a href={qr} download="oposicao-geral-qr-code.png">

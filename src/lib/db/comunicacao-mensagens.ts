@@ -1004,7 +1004,10 @@ async function pessoasDoRecorte(filtros: FiltrosMalaDireta): Promise<{ base: Bas
     inadimplente: filtros.inadimplente,
     idadeMin: filtros.idadeMin,
     idadeMax: filtros.idadeMax,
-  }).filter((l) => (l.condicao ? condicoes.has(l.condicao) : condicoes.has(CONDICAO_SEM_INFORMACAO)))
+  })
+    .filter((l) => (l.condicao ? condicoes.has(l.condicao) : condicoes.has(CONDICAO_SEM_INFORMACAO)))
+    // Várias fontes (mensagem da campanha de oposição): vínculo em qualquer uma.
+    .filter((l) => !filtros.fontes?.length || (l.fonteId !== null && filtros.fontes.includes(l.fonteId)))
   const porCpf = new Map<string, LinhaRelatorio>()
   for (const l of filtradas) {
     const chave = cpfConfiavel(l.cpf) ?? `id:${l.id}`
@@ -1019,6 +1022,9 @@ export function descreverFiltros(filtros: FiltrosMalaDireta, fontes: { id: strin
   const rotuloCondicao = (c: string) => (c === CONDICAO_SEM_INFORMACAO ? "Sem condição informada" : c)
   const partes = [`Condição: ${filtros.condicoes.map(rotuloCondicao).join(", ")}`]
   if (filtros.fonte) partes.push(`Fonte: ${fontes.find((f) => f.id === filtros.fonte)?.nome ?? filtros.fonte}`)
+  if (filtros.fontes?.length) {
+    partes.push(`Fontes: ${filtros.fontes.map((id) => fontes.find((f) => f.id === id)?.nome ?? id).join(", ")}`)
+  }
   if (filtros.condicaoFonte) partes.push(filtros.condicaoFonte)
   if (filtros.formaRecebimento) {
     partes.push(
@@ -1568,4 +1574,32 @@ async function tenantsComParabensAutomatico(db: Db): Promise<string[]> {
     .or("ativo.eq.true,aviso_equipe_emails.not.is.null")
   if (error) return []
   return (data ?? []).map((d) => String(d.emp_proprietaria_id))
+}
+
+/**
+ * Mala direta já preenchida (15/11/2026): a divulgação da campanha de
+ * oposição abre um rascunho com o texto, o WhatsApp e o recorte. Fica em
+ * rascunho: quem envia revisa, confere o recorte e libera.
+ */
+export async function criarMalaDiretaPronta(usuarioId: string, d: DadosMalaDireta): Promise<{ id?: string; erro?: string }> {
+  const db = await createAdminClient()
+  const { data, error } = await db
+    .from("comunicacao_mensagens")
+    .insert({
+      emp_proprietaria_id: await tenantAtual(),
+      tipo: "mala_direta",
+      titulo: d.titulo.trim() || "Nova mensagem",
+      assunto: d.assunto.trim(),
+      corpo: d.corpo,
+      texto_whatsapp: d.textoWhatsapp.trim(),
+      filtros: d.filtros,
+      situacao: "rascunho",
+      criado_por: usuarioId,
+      atualizado_por: usuarioId,
+      updated_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single()
+  if (error || !data) return { erro: esquemaAusente(error) ? AVISO_SQL_MENSAGENS : `Não foi possível criar: ${error?.message ?? "?"}` }
+  return { id: String(data.id) }
 }

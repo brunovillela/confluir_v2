@@ -14,7 +14,8 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import type { ItemDoFormulario } from "@/app/portal/primeiro-acesso/regras"
-import { getSessaoPortal, requireSessaoTrabalhador } from "@/lib/auth"
+import { getSessaoPortal, getSessaoTrabalhador, requireSessaoTrabalhador } from "@/lib/auth"
+import { origemValida } from "@/lib/oposicao-origem"
 import { hojeSP } from "@/lib/db/comum"
 import { listarTermos, type TermoVersao } from "@/lib/db/filiacao-termos"
 import { cadastroDoFiliado } from "@/lib/db/filiado-portal"
@@ -40,6 +41,7 @@ import { AceiteLgpdForm } from "../../lgpd/aceite-form"
 import { rotuloVersao } from "../../lgpd/consentimentos"
 import { CienciaForm, ConfirmarDadosForm, PerguntasFrequentes } from "../orientacoes"
 import { PrazoOposicao } from "../prazo-oposicao"
+import { GuardarOrigem } from "../guardar-origem"
 import { Etapas, OposicaoFlow } from "./oposicao-flow"
 
 export const metadata: Metadata = { title: "Registrar oposição" }
@@ -56,9 +58,11 @@ export default async function RegistrarOposicaoPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ feito?: string | string[] }>
+  searchParams: Promise<{ feito?: string | string[]; origem?: string }>
 }) {
-  const feitoBruto = (await searchParams).feito
+  const sp = await searchParams
+  const feitoBruto = sp.feito
+  const origem = origemValida(sp.origem)
   const feito = Array.isArray(feitoBruto) ? feitoBruto[0] : feitoBruto
   // Na visualização da gestão, a sessão de trabalhador seria a de QUEM ATENDE:
   // a tela mostraria o fluxo dele sob a faixa "Visualizando a área de…". A
@@ -66,8 +70,12 @@ export default async function RegistrarOposicaoPage({
   const vis = await getVisualizacaoPortal()
   if (vis?.preview) redirect("/portal/oposicao")
 
-  const sessao = await requireSessaoTrabalhador(`/portal/oposicao/${(await params).id}`)
   const { id } = await params
+  // Sem sessão, a entrada; a origem do link vai junto, para não se perder.
+  if (origem && !(await getSessaoTrabalhador())) {
+    redirect(`/portal/oposicao?voltar=${encodeURIComponent(`/portal/oposicao/${id}`)}&origem=${origem}`)
+  }
+  const sessao = await requireSessaoTrabalhador(`/portal/oposicao/${id}`)
   const campanha = await obterCampanhaPublica(id)
   if (!campanha) notFound()
 
@@ -224,6 +232,7 @@ export default async function RegistrarOposicaoPage({
   if (vis) {
     return (
       <div className="mx-auto grid w-full max-w-2xl gap-4">
+        {origem && <GuardarOrigem origem={origem} />}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Button variant="ghost" size="sm" asChild className="-ml-2">
             <Link href="/portal/oposicao">
@@ -247,6 +256,7 @@ export default async function RegistrarOposicaoPage({
   // Trabalhador não filiado: tela enxuta, com o <main> como landmark (A181).
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-6 px-4 py-8">
+      {origem && <GuardarOrigem origem={origem} />}
       <header className="flex items-center justify-between">
         <Marca tenant={entidade} />
         <Button variant="ghost" size="sm" asChild>

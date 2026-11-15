@@ -191,6 +191,21 @@ export function MalaDiretaForm({
               ))}
             </div>
           </fieldset>
+          {f.fontes?.length ? (
+            // Mensagem preparada pela campanha de oposição (15/11/2026): as
+            // fontes dela. Desmarcar todas tira o filtro.
+            <fieldset className="grid gap-2">
+              <legend className="mb-1 text-sm font-medium">Fontes pagadoras (qualquer uma)</legend>
+              <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+                {f.fontes.map((id) => (
+                  <label key={id} className="flex cursor-pointer items-center gap-2 text-sm">
+                    <input type="checkbox" name="fontes" value={id} defaultChecked className="accent-primary" />
+                    {fontes.find((x) => x.id === id)?.nome ?? "Fonte removida"}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          ) : null}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Selecao nome="fonte" rotulo="Fonte pagadora" valor={f.fonte} opcoes={fontes.map((x) => ({ valor: x.id, rotulo: x.nome }))} />
             <Selecao

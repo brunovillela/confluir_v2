@@ -10,6 +10,7 @@ import { obterCampanha } from "@/lib/db/oposicao"
 import { funilDaCampanha } from "@/lib/db/oposicao-funil"
 import { requireOposicao } from "@/lib/db/oposicao-regras"
 import { formatarData } from "@/lib/formato"
+import { rotuloOrigem } from "@/lib/oposicao-origem"
 
 export const metadata: Metadata = { title: "Funil — Oposição — Confluir" }
 
@@ -102,6 +103,41 @@ export default async function FunilOposicaoPage({ params }: { params: Promise<{ 
               </li>
             ))}
           </ol>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">De onde vieram</CardTitle>
+          <CardDescription>
+            Pelo link usado: cada canal da divulgação leva a sua marca (QR code, WhatsApp, boletim, e-mail, link
+            copiado, aviso na área do associado). Conta desde 15/11/2026; “Sem origem marcada” é quem chegou por um link
+            sem marca (antigo, digitado ou pelo menu do portal).
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {f.porOrigem.length === 0 ? (
+            <p className="text-muted-foreground text-sm">Ainda ninguém leu as instruções desde que a origem passou a ser registrada.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Origem</TableHead>
+                  <TableHead className="text-right">Leram as instruções</TableHead>
+                  <TableHead className="text-right">Registraram</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {f.porOrigem.map((o) => (
+                  <TableRow key={o.origem ?? "sem"}>
+                    <TableCell className="font-medium">{rotuloOrigem(o.origem)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{o.leram.toLocaleString("pt-BR")}</TableCell>
+                    <TableCell className="text-right tabular-nums">{o.registraram.toLocaleString("pt-BR")}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 

@@ -3,16 +3,22 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
-import { type SessaoPainel } from "@/lib/auth"
+import { requirePermissao, type SessaoPainel } from "@/lib/auth"
+import { normalizarFiltros } from "@/lib/comunicacao-mensagens-constantes"
+import { criarMalaDiretaPronta } from "@/lib/db/comunicacao-mensagens"
+import { nomeEntidade } from "@/lib/db/organizacao"
+import { formatarData } from "@/lib/formato"
+import { origemAtual } from "@/lib/tenant-url"
 import { type EstadoForm } from "@/lib/contas"
 import { salvarModeloCarta } from "@/lib/db/oposicao-carta"
 import {
   regrasDoFormulario,
+  requireOposicao,
   salvarAvisoPrivacidade,
   salvarRegrasDaEntidade,
   sessaoParaOposicao,
 } from "@/lib/db/oposicao-regras"
-import { normalizarPerguntasFrequentes, type PerguntaFrequente } from "@/lib/oposicao-orientacoes"
+import { corpoDoBoletim, normalizarPerguntasFrequentes, textosDivulgacao, type PerguntaFrequente } from "@/lib/oposicao-orientacoes"
 import {
   adicionarPergunta,
   atualizarCampanha,
@@ -20,6 +26,7 @@ import {
   criarCampanha,
   devolverCarta,
   excluirPergunta,
+  obterCampanhaPublica,
   reverificarAssinaturaOposicao,
   type DadosCampanha,
 } from "@/lib/db/oposicao"
@@ -364,3 +371,40 @@ export async function reverificarAssinaturaAction(_prev: EstadoForm, fd: FormDat
   revalidatePath(`/painel/representacao/oposicao/${campanhaId}/opositor/${id}`)
   return { ok: resumo }
 }
+
+/**
+ * "Preparar a mensagem aos filiados" (15/11/2026): abre na Mala direta um
+ * rascunho já preenchido com o texto do boletim (link marcado como e-mail), o
+ * texto do WhatsApp e o recorte da campanha — filiados ativos das fontes dela,
+ * ou todos, se ela não tem fonte marcada. Quem envia revisa e libera.
+ */
+export async function prepararMensagemAction(fd: FormData): Promise<void> {
+  const id = texto(fd, "campanha_id")
+  const sessao = await requirePermissao("comunicacao_mensagens")
+  await requireOposicao("consultar", id)
+  const [campanha, entidade, origem] = await Promise.all([
+    obterCampanhaPublica(id),
+    nomeEntidade(),
+    origemAtual().catch(() => ""),
+  ])
+  if (!campanha) throw new Error("Campanha não encontrada.")
+  const textos = textosDivulgacao({
+    entidade,
+    campanhaNome: campanha.nome,
+    detalheDesconto: campanha.detalhe_desconto,
+    campanha,
+    link: `${origem}/portal/oposicao/${id}`,
+    canais: { boletim: "email", whatsapp: "whatsapp" },
+  })
+  const nome = campanha.nome ?? "Contribuição assistencial"
+  const r = await criarMalaDiretaPronta(sessao.usuario.id as string, {
+    titulo: `Oposição — ${nome}`,
+    assunto: `Oposição à contribuição assistencial: prazo até ${formatarData(campanha.prazo_fim)}`,
+    corpo: corpoDoBoletim(textos.boletim),
+    textoWhatsapp: textos.whatsapp,
+    filtros: normalizarFiltros({ condicoes: ["Ativo"], fontes: campanha.fontes.map((f) => f.id) }),
+  })
+  if (!r.id) throw new Error(r.erro ?? "Não foi possível preparar a mensagem.")
+  redirect(`/painel/comunicacao/mensagens/${r.id}`)
+}
+

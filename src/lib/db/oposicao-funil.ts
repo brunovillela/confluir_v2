@@ -21,6 +21,9 @@ export type ContagemFonte = {
   reprovadas: number
 }
 
+/** Por origem do link (15/11/2026): quem leu e quem registrou, por canal. */
+export type ContagemOrigem = { origem: string | null; leram: number; registraram: number }
+
 export type FunilCampanha = {
   leram: { total: number; filiados: number; naoFiliados: number }
   conferiramDados: number
@@ -35,6 +38,7 @@ export type FunilCampanha = {
   aprovadas: number
   reprovadas: number
   porFonte: ContagemFonte[]
+  porOrigem: ContagemOrigem[]
 }
 
 export async function funilDaCampanha(campanhaId: string): Promise<FunilCampanha> {
@@ -44,10 +48,10 @@ export async function funilDaCampanha(campanhaId: string): Promise<FunilCampanha
     lerEmLotes((de, ate) =>
       admin
         .from("oposicao_eventos")
-        .select("id, evento, detalhe")
+        .select("id, evento, detalhe, opositor_id")
         .eq("emp_proprietaria_id", empId)
         .eq("campanha_id", campanhaId)
-        .in("evento", ["ciencia_registrada", "dados_conferidos"])
+        .in("evento", ["ciencia_registrada", "dados_conferidos", "origem_registrada"])
         .order("id")
         .range(de, ate)
     ),
@@ -64,10 +68,20 @@ export async function funilDaCampanha(campanhaId: string): Promise<FunilCampanha
 
   const leram = new Map<string, string>()
   const conferiram = new Set<string>()
+  // Origem do link (15/11/2026): a da última leitura de cada pessoa e a de
+  // cada registro. Só existe desde essa data.
+  const origemLeitura = new Map<string, string>()
+  const origemRegistro = new Map<string, string>()
   for (const e of eventos) {
     const d = texto(e.detalhe) ?? ""
+    const origem = /origem:(\S+)/.exec(d)?.[1]
+    if (e.evento === "origem_registrada") {
+      if (e.opositor_id && origem) origemRegistro.set(String(e.opositor_id), origem)
+      continue
+    }
     const pessoa = /pessoa:(\S+)/.exec(d)?.[1]
     if (!pessoa) continue
+    if (origem && e.evento === "ciencia_registrada") origemLeitura.set(pessoa, origem)
     if (e.evento === "ciencia_registrada") leram.set(pessoa, /perfil:(\S+)/.exec(d)?.[1] ?? "")
     else conferiram.add(pessoa)
   }
@@ -88,7 +102,17 @@ export async function funilDaCampanha(campanhaId: string): Promise<FunilCampanha
     aprovadas: 0,
     reprovadas: 0,
     porFonte: [],
+    porOrigem: [],
   }
+  const origens = new Map<string, ContagemOrigem>()
+  const conta = (o: string) => {
+    const chave = o === "nenhuma" ? "" : o
+    if (!origens.has(chave)) origens.set(chave, { origem: chave || null, leram: 0, registraram: 0 })
+    return origens.get(chave)!
+  }
+  for (const o of origemLeitura.values()) conta(o).leram++
+  for (const o of origemRegistro.values()) conta(o).registraram++
+  f.porOrigem = [...origens.values()].sort((a, b) => b.registraram - a.registraram || b.leram - a.leram)
   const fontes = new Map<string, ContagemFonte>()
   for (const o of ops) {
     const situacao = String(o.situacao ?? "")

@@ -139,6 +139,11 @@ export const CONDICOES_MALA_DIRETA = [
 export type FiltrosMalaDireta = {
   condicoes: string[]
   fonte?: string
+  /**
+   * Várias fontes pagadoras (15/11/2026): quem tem vínculo em qualquer uma.
+   * Vem da mensagem preparada pela campanha de oposição.
+   */
+  fontes?: string[]
   condicaoFonte?: string
   uf?: string
   cidade?: string
@@ -155,6 +160,13 @@ const inteiroTexto = (v: unknown) => {
   return t && /^\d{1,3}$/.test(t) ? t : undefined
 }
 
+/** Ids (uuid) distintos de uma lista; vazia = sem o filtro. */
+function listaDeIds(v: unknown): string[] | undefined {
+  if (!Array.isArray(v)) return undefined
+  const ids = [...new Set(v.filter((x): x is string => typeof x === "string" && /^[0-9a-f-]{36}$/i.test(x.trim())).map((x) => x.trim()))]
+  return ids.length ? ids.slice(0, 100) : undefined
+}
+
 /** Filtros vindos do banco (jsonb) ou do formulário, só com valores válidos. */
 export function normalizarFiltros(o: Record<string, unknown> | null | undefined): FiltrosMalaDireta {
   const validas = new Set(CONDICOES_MALA_DIRETA.map((c) => c.valor))
@@ -165,6 +177,7 @@ export function normalizarFiltros(o: Record<string, unknown> | null | undefined)
   return {
     condicoes: condicoes.length ? condicoes : ["Ativo"],
     fonte: umTexto(o?.fonte),
+    fontes: listaDeIds(o?.fontes),
     condicaoFonte: umTexto(o?.condicaoFonte),
     uf: umTexto(o?.uf),
     cidade: umTexto(o?.cidade),

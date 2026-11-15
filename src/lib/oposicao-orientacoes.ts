@@ -5,6 +5,7 @@ import {
   type ModoFormalizacao,
   type RegrasOposicao,
 } from "@/lib/oposicao-constantes"
+import { linkComOrigem } from "@/lib/oposicao-origem"
 
 /**
  * Oposição: o que a pessoa lê antes de se opor (pedido do Bruno, 30/10/2026)
@@ -303,8 +304,13 @@ export function textosDivulgacao(p: {
   detalheDesconto: string | null
   campanha: Pick<CampanhaParaOrientacao, "prazo_inicio" | "prazo_fim" | "modo_formalizacao" | "regras">
   link: string
+  /** A marca de cada texto (o boletim vira "email" na mala direta). */
+  canais?: { whatsapp?: string; boletim?: string }
 }): { whatsapp: string; boletim: string } {
   const { campanha: c } = p
+  // Cada texto leva a marca do seu canal (15/11/2026), para o funil por origem.
+  const linkWhatsapp = linkComOrigem(p.link, p.canais?.whatsapp ?? "whatsapp")
+  const linkBoletim = linkComOrigem(p.link, p.canais?.boletim ?? "boletim")
   const cartaFiliado = exigeDocumentoComRegras(c.modo_formalizacao, true, c.regras)
   const cartaNaoFiliado = exigeDocumentoComRegras(c.modo_formalizacao, false, c.regras)
   const assinatura =
@@ -325,7 +331,7 @@ export function textosDivulgacao(p: {
     p.detalheDesconto ? p.detalheDesconto : null,
     "",
     `Quem não quiser o desconto pode se opor de *${data(c.prazo_inicio)} a ${data(c.prazo_fim)}*, pelo link:`,
-    p.link,
+    linkWhatsapp,
     "",
     "Escolha *Sou filiado* ou *Não sou filiado* e entre com o código que chega no seu e-mail (prefira o pessoal; olhe também o Spam e as Promoções).",
     carta,
@@ -338,7 +344,7 @@ export function textosDivulgacao(p: {
   const boletim = [
     `Oposição à contribuição assistencial: ${nome}`,
     "",
-    `${p.detalheDesconto ? `${p.detalheDesconto} ` : ""}O trabalhador que não quiser o desconto pode registrar a oposição de ${data(c.prazo_inicio)} a ${data(c.prazo_fim)}, até as 23h59 do último dia, em ${p.link}.`,
+    `${p.detalheDesconto ? `${p.detalheDesconto} ` : ""}O trabalhador que não quiser o desconto pode registrar a oposição de ${data(c.prazo_inicio)} a ${data(c.prazo_fim)}, até as 23h59 do último dia, em ${linkBoletim}.`,
     "",
     "Como fazer: na página, escolha \"Sou filiado\" (o código vai para os e-mails do seu cadastro no sindicato) ou \"Não sou filiado\" (informe nome, CPF e um e-mail seu). Digite o código que chegar no e-mail, abra a campanha, leia as instruções e siga os passos até o comprovante, que chega também por e-mail." +
       (carta ? ` ${carta}` : ""),
@@ -361,13 +367,15 @@ export function textosDivulgacaoGeral(p: {
   link: string
   vigentes: { nome: string | null; prazo_inicio: string | null; prazo_fim: string | null }[]
 }): { whatsapp: string; boletim: string } {
+  const linkWhatsapp = linkComOrigem(p.link, "geral-whatsapp")
+  const linkBoletim = linkComOrigem(p.link, "geral-boletim")
   const linha = (c: (typeof p.vigentes)[number]) =>
     `${c.nome ?? "Contribuição assistencial"}: de ${data(c.prazo_inicio)} a ${data(c.prazo_fim)}`
   const whatsapp = [
     "*Oposição à contribuição assistencial*",
     "",
     "No link abaixo você registra a sua oposição nas campanhas abertas e acompanha as que já fez: o resultado, o comprovante e, se faltar, a carta assinada.",
-    p.link,
+    linkWhatsapp,
     ...(p.vigentes.length > 0 ? ["", "*Prazos:*", ...p.vigentes.map((c) => `• ${linha(c)}`)] : []),
     "",
     "Escolha *Sou filiado* ou *Não sou filiado* e entre com o código que chega no seu e-mail (prefira o pessoal; olhe também o Spam e as Promoções).",
@@ -378,7 +386,7 @@ export function textosDivulgacaoGeral(p: {
   const boletim = [
     "Oposição à contribuição assistencial: registre e acompanhe",
     "",
-    `Em ${p.link}, o trabalhador registra a oposição às contribuições assistenciais com prazo aberto e acompanha as oposições que já fez: se foi aceita, o comprovante para baixar e, quando a campanha pede, o envio da carta assinada.` +
+    `Em ${linkBoletim}, o trabalhador registra a oposição às contribuições assistenciais com prazo aberto e acompanha as oposições que já fez: se foi aceita, o comprovante para baixar e, quando a campanha pede, o envio da carta assinada.` +
       (p.vigentes.length > 0 ? ` Prazos: ${p.vigentes.map(linha).join("; ")}, até as 23h59 do último dia.` : ""),
     "",
     "Como entrar: escolha \"Sou filiado\" (o código vai para os e-mails do seu cadastro no sindicato) ou \"Não sou filiado\" (informe nome, CPF e um e-mail seu) e digite o código que chegar no e-mail. Só aparecem as suas oposições e as campanhas em que ainda dá para se opor.",
@@ -388,4 +396,15 @@ export function textosDivulgacaoGeral(p: {
     `A oposição é pessoal: ninguém registra por outra pessoa. Dúvidas: ${p.entidade}.`,
   ].join("\n")
   return { whatsapp, boletim }
+}
+
+/**
+ * O texto do boletim no formato do corpo da mala direta: saudação, o
+ * título em negrito e os links clicáveis. Colchetes do texto viram
+ * parênteses, para não serem lidos como marcação.
+ */
+export function corpoDoBoletim(boletim: string): string {
+  const [titulo, ...resto] = boletim.replace(/\[/g, "(").replace(/\]/g, ")").split("\n\n")
+  const comLinks = (t: string) => t.replace(/https?:\/\/[^\s]+?(?=[.,;)]?(\s|$))/g, (u) => `[url=${u}]${u}[/url]`)
+  return ["Olá, {primeiro_nome}!", `[b]${titulo}[/b]`, ...resto.map(comLinks)].join("\n\n")
 }

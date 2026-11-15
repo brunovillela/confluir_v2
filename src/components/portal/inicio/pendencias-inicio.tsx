@@ -174,7 +174,7 @@ export async function PendenciasInicio({
           href={
             o.pendenteDocumento && o.opositorId
               ? `/portal/oposicao/comprovante/${o.opositorId}`
-              : `/portal/oposicao/${o.campanhaId}`
+              : `/portal/oposicao/${o.campanhaId}?origem=banner`
           }
           className={DESTAQUE}
         >

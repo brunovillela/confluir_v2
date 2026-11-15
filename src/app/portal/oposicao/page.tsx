@@ -27,9 +27,11 @@ import { nomeEntidade } from "@/lib/db/organizacao"
 import { formatarData } from "@/lib/formato"
 import { estadoPrazo } from "@/lib/oposicao-constantes"
 import { perguntasDeAcesso } from "@/lib/oposicao-orientacoes"
+import { origemValida } from "@/lib/oposicao-origem"
 import { getVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 import { sairDaOposicao } from "./actions"
+import { GuardarOrigem } from "./guardar-origem"
 import { AcessoNaoFiliado } from "./oposicao-portal-forms"
 import { PerguntasFrequentes } from "./orientacoes"
 import { PrazoOposicao } from "./prazo-oposicao"
@@ -41,9 +43,9 @@ export const metadata: Metadata = { title: "Oposição à contribuição assiste
 export default async function OposicaoPortalPage({
   searchParams,
 }: {
-  searchParams: Promise<{ desistiu?: string; erro?: string; voltar?: string }>
+  searchParams: Promise<{ desistiu?: string; erro?: string; voltar?: string; origem?: string }>
 }) {
-  const [sessao, { desistiu, erro, voltar }, vis] = await Promise.all([
+  const [sessao, { desistiu, erro, voltar, origem: origemBruta }, vis] = await Promise.all([
     getSessaoTrabalhador(),
     searchParams,
     // "Ver como filiado": a visualização vem ANTES da sessão do trabalhador.
@@ -52,6 +54,8 @@ export default async function OposicaoPortalPage({
     getVisualizacaoPortal(),
   ])
   const preview = vis?.preview ? vis : null
+  // De onde veio o link (15/11/2026): o canal vai para um cookie, e dele à trilha.
+  const origem = preview ? null : origemValida(origemBruta)
   // Já com sessão e vindo de um link (comprovante): vai direto (M7).
   const destino = voltar ? destinoDaOposicao(voltar) : null
   if (sessao && !preview && destino && destino !== "/portal/oposicao") redirect(destino)
@@ -66,6 +70,7 @@ export default async function OposicaoPortalPage({
   const campanhaDestino = idDestino ? await obterCampanhaPublica(idDestino).catch(() => null) : null
   const conteudo = (
     <>
+      {origem && <GuardarOrigem origem={origem} />}
       <CabecalhoPagina
         secao="/portal/oposicao"
         titulo="Oposição à contribuição assistencial"

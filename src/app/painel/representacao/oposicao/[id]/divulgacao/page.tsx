@@ -11,8 +11,11 @@ import { obterCampanhaPublica } from "@/lib/db/oposicao"
 import { requireOposicao } from "@/lib/db/oposicao-regras"
 import { nomeEntidade } from "@/lib/db/organizacao"
 import { textosDivulgacao } from "@/lib/oposicao-orientacoes"
+import { linkComOrigem } from "@/lib/oposicao-origem"
+import { podeAcessar } from "@/lib/permissoes"
 import { origemAtual } from "@/lib/tenant-url"
 
+import { prepararMensagemAction } from "../../actions"
 import { CopiarTexto } from "./copiar-texto"
 
 export const metadata: Metadata = { title: "Divulgação — Oposição — Confluir" }
@@ -26,7 +29,8 @@ export const metadata: Metadata = { title: "Divulgação — Oposição — Conf
  */
 export default async function DivulgacaoOposicaoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  await requireOposicao("consultar", id)
+  const sessao = await requireOposicao("consultar", id)
+  const podeMensagem = podeAcessar(sessao.permissoes, "comunicacao_mensagens")
   const [campanha, entidade, origem] = await Promise.all([
     obterCampanhaPublica(id),
     nomeEntidade(),
@@ -34,7 +38,7 @@ export default async function DivulgacaoOposicaoPage({ params }: { params: Promi
   ])
   if (!campanha) notFound()
   const link = `${origem}/portal/oposicao/${id}`
-  const qr = await QRCode.toDataURL(link, { errorCorrectionLevel: "M", margin: 2, width: 768 })
+  const qr = await QRCode.toDataURL(linkComOrigem(link, "qr"), { errorCorrectionLevel: "M", margin: 2, width: 768 })
   const textos = textosDivulgacao({
     entidade,
     campanhaNome: campanha.nome,
@@ -83,7 +87,11 @@ export default async function DivulgacaoOposicaoPage({ params }: { params: Promi
           {/* eslint-disable-next-line @next/next/no-img-element -- data URI gerado no servidor */}
           <img src={qr} alt={`QR code para ${link}`} className="w-48 rounded-lg border bg-white p-1" />
           <div className="grid gap-3">
-            <CopiarTexto id="link" rotulo="Link" texto={link} linhas={1} />
+            <CopiarTexto id="link" rotulo="Link" texto={linkComOrigem(link, "link")} linhas={1} />
+            <p className="text-muted-foreground text-xs">
+              O QR code, o link e os textos levam a marca do canal (?origem=…): o Funil mostra de onde veio quem leu e
+              quem registrou.
+            </p>
             <div>
               <Button variant="outline" size="sm" asChild>
                 <a href={qr} download="oposicao-campanha-qr-code.png">
@@ -129,17 +137,27 @@ export default async function DivulgacaoOposicaoPage({ params }: { params: Promi
         <CardHeader>
           <CardTitle className="text-base">Avisar os filiados pelo sistema</CardTitle>
           <CardDescription>
-            Os filiados alcançados pela campanha (das empresas marcadas, ou todos, se nenhuma foi marcada) já veem o aviso com contagem regressiva na área do associado. Para
-            mandar também por e-mail, use uma mala direta com o texto do boletim.
+            Os filiados alcançados pela campanha (das empresas marcadas, ou todos, se nenhuma foi marcada) já veem o
+            aviso com contagem regressiva na área do associado. Para mandar também por e-mail, prepare a mensagem: abre
+            na Mala direta um rascunho com o texto do boletim, o texto do WhatsApp e o recorte (filiados ativos
+            {campanha.fontes.length > 0 ? ` de ${campanha.fontes.map((f) => f.nome).join(", ")}` : " de todas as fontes"}).
+            Nada é enviado antes de você revisar e liberar.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button variant="outline" asChild>
-            <Link href="/painel/comunicacao/mensagens">
-              <Send />
-              Mensagens aos filiados
-            </Link>
-          </Button>
+          {podeMensagem ? (
+            <form action={prepararMensagemAction}>
+              <input type="hidden" name="campanha_id" value={id} />
+              <Button type="submit" variant="outline">
+                <Send />
+                Preparar a mensagem aos filiados
+              </Button>
+            </form>
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              Preparar a mensagem pede a permissão de Mensagens aos filiados (Comunicação).
+            </p>
+          )}
         </CardContent>
       </Card>
     </>

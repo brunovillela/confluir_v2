@@ -53,6 +53,7 @@ function lerFormulario(fd: FormData) {
     filtros: normalizarFiltros({
       condicoes: fd.getAll("cond"),
       fonte: fd.get("fonte"),
+      fontes: fd.getAll("fontes"),
       condicaoFonte: fd.get("condicaoFonte"),
       uf: fd.get("uf"),
       cidade: fd.get("cidade"),

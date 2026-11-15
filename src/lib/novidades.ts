@@ -16,6 +16,8 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-11-15",
     titulo: "Oposição: a carta registrada à vista",
     itens: [
+      "Oposição: o Funil da campanha mostra de onde as pessoas vieram — QR code, WhatsApp, boletim, e-mail, link copiado ou o aviso na área do associado — com quantos leram as instruções e quantos registraram por canal. Os links da divulgação já saem com a marca de cada canal.",
+      "Oposição: na Divulgação da campanha, \"Preparar a mensagem aos filiados\" abre na Mala direta um rascunho pronto, com o texto do boletim, o do WhatsApp e os filiados ativos das fontes da campanha. É só revisar e liberar.",
       "Oposição: a ficha de cada oposição mostra a carta como ficou no registro, com o texto que valia para aquela pessoa, e avisa quando o texto atual da campanha é outro. \"Ver como o trabalhador\" também mostra a carta, com dados de exemplo e o texto que vale hoje.",
       "Oposição: ao alterar o texto da carta, antes de salvar, a tela diz quem a mudança alcança — quantas pessoas já registraram na campanha e mantêm o texto anterior, ou quais campanhas seguem o texto da entidade.",
     ],
