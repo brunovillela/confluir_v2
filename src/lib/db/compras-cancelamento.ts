@@ -1,7 +1,7 @@
 import "server-only"
 
 import { esquemaAusente, hojeSP, texto } from "@/lib/db/comum"
-import { cancelarOrdem, registrarEvento } from "@/lib/db/ordens-ciclo"
+import { alterarSituacaoOrdem, cancelarOrdem, registrarEvento } from "@/lib/db/ordens-ciclo"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -608,4 +608,107 @@ export async function reabrirDevolucaoDoLancamento(lancamentoId: string): Promis
 /** Crédito vencido sem uso: sai da lista (fica a observação). */
 export async function darCreditoComoPerdido(fornecimentoId: string, usuarioId: string): Promise<{ erro?: string }> {
   return marcarCreditoUsado(fornecimentoId, "Vencido sem uso — crédito perdido.", usuarioId)
+}
+
+// ── Desfazer o cancelamento (15/11/2026) ─────────────────────────────────────
+
+/** Prefixo do motivo que registrarCancelamentoCompra grava nas ordens que cancela. */
+const PREFIXO_MOTIVO = "Compra cancelada pelo vendedor em"
+
+/**
+ * Cancelamento registrado por engano: a compra volta a ser uma compra normal.
+ * Recusa se o crédito já foi usado (abatido ou marcado) ou se a devolução já
+ * chegou — esses passos se desfazem primeiro. As ordens canceladas por ele
+ * voltam para "Em autorização" (a autorização é pedida de novo); nas pagas, o
+ * comprovante do cancelamento sai do lugar da nota.
+ */
+export async function desfazerCancelamentoCompra(dados: {
+  processoId: string
+  fornecimentoId: string
+  motivo: string
+  usuarioId: string
+}): Promise<{ erro?: string; avisos?: string[] }> {
+  if (!dados.motivo.trim()) return { erro: "Informe por que o cancelamento está sendo desfeito." }
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: f } = await admin
+    .from("compras_fornecimentos")
+    .select(
+      "id, processo_id, fornecedor_id, nota_fiscal_url, ordem_pagamento_id, cancelamento_desfecho, cancelamento_comprovante_url, credito_usado_em, credito_usado_obs, devolucao_recebida_em, devolucao_recebida_obs"
+    )
+    .eq("id", dados.fornecimentoId)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  if (!f || f.processo_id !== dados.processoId) return { erro: "Fornecimento não encontrado neste processo." }
+  if (!f.cancelamento_desfecho) return { erro: "Esta compra não está cancelada." }
+
+  if (f.cancelamento_desfecho === "credito") {
+    const usado = (await usadoPorCredito([String(f.id)])).get(String(f.id)) ?? 0
+    if (usado > 0.005) {
+      return { erro: `O crédito já foi abatido em compra nova (${formatarMoeda(usado)}). Cancele antes a ordem que o usou.` }
+    }
+    if (f.credito_usado_em) {
+      return { erro: `O crédito já foi dado como usado (${texto(f.credito_usado_obs) ?? "sem observação"}).` }
+    }
+  }
+  if (f.cancelamento_desfecho === "devolucao" && f.devolucao_recebida_em && !String(f.devolucao_recebida_obs ?? "").startsWith("Nada a devolver")) {
+    return { erro: "A devolução já foi recebida. Desfaça antes a conciliação (ou a marcação) da devolução no Financeiro." }
+  }
+
+  const { data: emp_ } = f.fornecedor_id
+    ? await admin.from("empresa").select("marketplace").eq("id", String(f.fornecedor_id)).maybeSingle()
+    : { data: null }
+  const { error } = await admin
+    .from("compras_fornecimentos")
+    .update({
+      cancelamento_desfecho: null,
+      cancelamento_valor: null,
+      cancelamento_data: null,
+      cancelamento_obs: null,
+      cancelamento_comprovante_url: null,
+      cancelado_em: null,
+      cancelado_por_id: null,
+      credito_validade: null,
+      credito_usado_em: null,
+      credito_usado_por_id: null,
+      credito_usado_obs: null,
+      devolucao_recebida_em: null,
+      devolucao_recebida_por_id: null,
+      devolucao_recebida_obs: null,
+      devolucao_lancamento_id: null,
+      // Marketplace sem nota volta a esperar a nota do vendedor.
+      nota_a_receber: emp_?.marketplace === true && !texto(f.nota_fiscal_url),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", dados.fornecimentoId)
+  if (error) return { erro: `Não foi possível desfazer o cancelamento: ${error.message}` }
+
+  const comprovante = texto(f.cancelamento_comprovante_url)
+  const { data: ordens } = await admin
+    .from("ordens_pagamento")
+    .select("id, codigo, situacao, arquivo_nota_fiscal, fornecimento_id, cancelamento_motivo")
+    .eq("emp_proprietaria_id", emp)
+    .eq("processo_compra_id", dados.processoId)
+    .not("excluido", "is", true)
+  const doFornecimento = (ordens ?? []).filter(
+    (o) => o.fornecimento_id === dados.fornecimentoId || (f.ordem_pagamento_id && o.id === f.ordem_pagamento_id)
+  )
+  const avisos: string[] = []
+  const texto_ = `Cancelamento da compra pelo vendedor desfeito: ${dados.motivo.trim()}`
+  for (const o of doFornecimento) {
+    if (o.situacao === "Cancelada" && String(o.cancelamento_motivo ?? "").startsWith(PREFIXO_MOTIVO)) {
+      const r = await alterarSituacaoOrdem(String(o.id), dados.usuarioId, "Em autorização", texto_)
+      if (r.erro) avisos.push(`Ordem ${texto(o.codigo) ?? ""}: ${r.erro}`)
+      continue
+    }
+    if (comprovante && o.arquivo_nota_fiscal === comprovante) {
+      await admin.from("ordens_pagamento").update({ arquivo_nota_fiscal: null }).eq("id", String(o.id))
+    }
+    await registrarEvento(String(o.id), "corrigida", dados.usuarioId, texto_, {
+      campo: "cancelamento_compra_desfeito",
+      ...(comprovante && o.arquivo_nota_fiscal === comprovante ? { antes: comprovante, depois: null } : {}),
+    })
+  }
+  if (comprovante) await admin.storage.from("compras").remove([comprovante]).catch(() => null)
+  return avisos.length ? { avisos } : {}
 }

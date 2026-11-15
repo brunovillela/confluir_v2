@@ -656,6 +656,14 @@ de quem compra mostra *Créditos com fornecedor perto de vencer*). Vencido, o
 crédito **deixa de ser abatido** nas compras novas; na lista aparece **Dar como
 perdido**, que o tira dali.
 
+**Registrado por engano?** Na compra cancelada, **Desfazer cancelamento** (com o
+motivo) devolve a compra ao normal — no marketplace, ela volta a esperar a nota.
+As ordens que o registro cancelou voltam para **Em autorização** (a autorização
+é pedida de novo) e, nas pagas, o comprovante do cancelamento sai do lugar da
+nota. Não dá para desfazer se o crédito já foi abatido ou dado como usado (cancele
+antes a ordem que o usou) nem se a devolução já chegou (desfaça antes a
+conciliação dela).
+
 **Devolução.** Quando o dinheiro foi devolvido, a compra mostra *Devolução a
 receber* até o Financeiro confirmar que ele voltou — pela **conciliação do
 extrato**, que sugere o crédito de mesmo valor, ou marcando à mão (estorno na

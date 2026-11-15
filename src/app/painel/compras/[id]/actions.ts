@@ -528,6 +528,30 @@ export async function registrarCancelamentoCompraAction(
   }
 }
 
+/** Cancelamento registrado por engano: a compra volta a ser normal. */
+export async function desfazerCancelamentoCompraAction(
+  _prev: EstadoForm & { avisos?: string[] },
+  formData: FormData
+): Promise<EstadoForm & { avisos?: string[] }> {
+  const sessao = await requireAjustePagamento(formData)
+  const processoId = texto(formData, "processo_id")
+  const fornecimentoId = texto(formData, "fornecimento_id")
+  if (!processoId || !fornecimentoId) return { erro: "Pedido inválido." }
+  const { desfazerCancelamentoCompra } = await import("@/lib/db/compras-cancelamento")
+  const r = await desfazerCancelamentoCompra({
+    processoId,
+    fornecimentoId,
+    motivo: texto(formData, "motivo"),
+    usuarioId: sessao.usuario.id,
+  })
+  if (r.erro) return { erro: r.erro }
+  revalidarProcesso(processoId)
+  revalidatePath("/painel/compras/notas-a-receber")
+  revalidatePath("/painel/financeiro/ordens")
+  revalidatePath("/painel/financeiro/conciliacao")
+  return { ok: "Cancelamento desfeito.", avisos: r.avisos }
+}
+
 /** Crédito vencido sem uso: dado como perdido (sai da lista). */
 export async function darCreditoComoPerdidoAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
   const sessao = await requireAjustePagamento(formData)

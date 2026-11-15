@@ -53,7 +53,7 @@ import { CustoDoRpa } from "./custo-rpa"
 import { ComprovanteAcoes } from "./comprovante-envio"
 import { LinhaDoTempoProcesso, type EtapaProcesso } from "./linha-do-tempo"
 import { AnexarNotaMarketplace, VincularVendedor } from "./marketplace-nota"
-import { MarcarCreditoUsado, RegistrarCancelamentoCompra } from "./cancelamento-compra"
+import { DesfazerCancelamentoCompra, MarcarCreditoUsado, RegistrarCancelamentoCompra } from "./cancelamento-compra"
 import { creditoAbatidoNasOrdens, creditosDoFornecedor } from "@/lib/db/compras-cancelamento"
 import { hojeSP } from "@/lib/db/comum"
 import { AnexarRpaAssinadoBotao } from "../rpa/rpa-forms"
@@ -938,6 +938,7 @@ export default async function ProcessoCompraPage({
                             ) : (
                               <Badge variant="warning">Devolução a receber (Financeiro › Conciliação)</Badge>
                             ))}
+                          {podeAjustar && <DesfazerCancelamentoCompra processoId={processo.id} fornecimentoId={f.id} />}
                         </p>
                       </div>
                     ) : (

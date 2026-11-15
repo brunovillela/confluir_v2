@@ -1,7 +1,7 @@
 "use client"
 
 import { useActionState, useState } from "react"
-import { Ban, CheckCircle2, Loader2 } from "lucide-react"
+import { Ban, CheckCircle2, Loader2, Undo2 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -20,7 +20,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 import { ACEITA_NOTA, prepararArquivo } from "@/lib/arquivo-envio"
 
-import { darCreditoComoPerdidoAction, marcarCreditoUsadoAction, registrarCancelamentoCompraAction } from "./actions"
+import {
+  darCreditoComoPerdidoAction,
+  desfazerCancelamentoCompraAction,
+  marcarCreditoUsadoAction,
+  registrarCancelamentoCompraAction,
+} from "./actions"
 
 type Estado = { erro?: string; ok?: string; avisos?: string[] }
 
@@ -239,5 +244,68 @@ export function DarCreditoComoPerdido({ processoId, fornecimentoId }: { processo
       </Button>
       {estado.erro && <p className="text-destructive text-xs">{estado.erro}</p>}
     </form>
+  )
+}
+
+/**
+ * Cancelamento registrado por engano: a compra volta a ser normal. As ordens
+ * canceladas por ele voltam para autorização.
+ */
+export function DesfazerCancelamentoCompra({ processoId, fornecimentoId }: { processoId: string; fornecimentoId: string }) {
+  const [aberto, setAberto] = useState(false)
+  const [estado, acao, pendente] = useActionState(async (prev: Estado, fd: FormData) => {
+    const r = await desfazerCancelamentoCompraAction(prev, fd)
+    if (r.ok && !r.avisos?.length) setAberto(false)
+    return r
+  }, {})
+  const envio = useEnvioFormulario(acao, estado)
+  return (
+    <Dialog open={aberto} onOpenChange={setAberto}>
+      <DialogTrigger asChild>
+        <Button type="button" variant="ghost" size="sm" className="h-7">
+          <Undo2 />
+          Desfazer cancelamento
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Desfazer o cancelamento da compra</DialogTitle>
+          <DialogDescription>
+            A compra volta a ser normal (no marketplace, volta a esperar a nota). As ordens canceladas pelo
+            registro voltam para autorização; nas pagas, o comprovante do cancelamento sai do lugar da nota. Não
+            dá para desfazer se o crédito já foi usado ou se a devolução já chegou.
+          </DialogDescription>
+        </DialogHeader>
+        <form action={acao} {...envio} className="grid gap-3">
+          <input type="hidden" name="processo_id" value={processoId} />
+          <input type="hidden" name="fornecimento_id" value={fornecimentoId} />
+          <div className="grid gap-1.5">
+            <Label htmlFor={`dc-motivo-${fornecimentoId}`}>Motivo *</Label>
+            <Textarea id={`dc-motivo-${fornecimentoId}`} name="motivo" rows={2} required placeholder="Ex.: registrado na compra errada" />
+          </div>
+          {estado.erro && (
+            <Alert variant="destructive">
+              <AlertDescription>{estado.erro}</AlertDescription>
+            </Alert>
+          )}
+          {estado.ok && estado.avisos?.length ? (
+            <Alert variant="warning">
+              <AlertDescription>
+                {estado.ok} Mas: {estado.avisos.join(" · ")}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => setAberto(false)}>
+              Fechar
+            </Button>
+            <Button type="submit" disabled={pendente}>
+              {pendente ? <Loader2 className="animate-spin" /> : <Undo2 />}
+              Desfazer cancelamento
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
