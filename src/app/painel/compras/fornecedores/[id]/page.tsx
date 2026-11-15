@@ -49,6 +49,7 @@ import { formatarData, formatarMoeda } from "@/lib/formato"
 import { formatarNitPis } from "@/lib/cpf"
 import { mascaraTelefone } from "@/lib/mascaras"
 import { comprasViaMarketplace } from "@/lib/db/compras-marketplace"
+import { cancelamentosDoFornecedor } from "@/lib/db/compras-cancelamento"
 import { formatarCnpjCpf } from "@/lib/mascaras"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { ContasOutrosCadastros } from "@/components/contas-outros-cadastros"
@@ -162,14 +163,17 @@ export default async function FornecedorPage({
   const { fornecedor: f, enderecos, contas, ordens } = detalhe
   const contasAtivas = contas.filter((c) => !c.arquivada_em)
   const contasArquivadas = contas.filter((c) => c.arquivada_em)
-  const [incorporados, destinoMescla, viaMarketplace, contatos, pedidoBancario, enviaComprovante] = await Promise.all([
+  const [incorporados, destinoMescla, viaMarketplace, contatos, pedidoBancario, enviaComprovante, cancelamentos] = await Promise.all([
     incorporadosPor(f.id),
     mescladoEm(f.id),
     comprasViaMarketplace(f.id, f.marketplace),
     listarContatos(f.id),
     pedidoPendente({ tipo: "fornecedor", id: f.id }),
     comprovanteAutomatico(f.id),
+    cancelamentosDoFornecedor(f.id).catch(() => []),
   ])
+  const saldoCredito = cancelamentos.reduce((s, c) => s + c.saldo, 0)
+  const devolucoesAbertas = cancelamentos.filter((c) => c.situacao === "Devolução a receber").length
 
   const editando = brutos.editar === "1" && podeEditar
   // Formulários de endereço e conta só abrem para quem edita.
@@ -842,6 +846,75 @@ export default async function FornecedorPage({
           )}
         </CardContent>
       </Card>
+
+      {cancelamentos.length > 0 && (
+        <Card id="creditos">
+          <CardHeader>
+            <CardTitle className="text-base">Créditos e devoluções</CardTitle>
+            <CardDescription className="text-xs">
+              Compras com este fornecedor canceladas pelo vendedor.
+              {saldoCredito > 0.005 ? ` Crédito em aberto: ${formatarMoeda(saldoCredito)} — abatido sozinho na próxima compra.` : ""}
+              {devolucoesAbertas > 0 ? ` ${devolucoesAbertas} devolução(ões) a receber.` : ""}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="divide-y text-sm">
+              {cancelamentos.map((c) => (
+                <li key={c.fornecimentoId} className="grid gap-1 py-2.5">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <span className="min-w-0">
+                      <Link href={`/painel/compras/${c.processoId}`} className="text-primary font-medium hover:underline">
+                        {c.codigo ?? "(sem código)"}
+                      </Link>
+                      <span className="text-muted-foreground text-xs">
+                        {c.produto ? ` · ${c.produto}` : ""}
+                        {c.data ? ` · cancelada em ${formatarData(c.data)}` : ""}
+                        {c.validade ? ` · válido até ${formatarData(c.validade)}` : ""}
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <span className="tabular-nums">{formatarMoeda(c.valor)}</span>
+                      <Badge
+                        variant={
+                          c.situacao === "Crédito em aberto"
+                            ? "info"
+                            : c.situacao === "Devolução a receber" || c.situacao === "Crédito vencido"
+                              ? "warning"
+                              : "outline"
+                        }
+                      >
+                        {c.situacao}
+                        {c.situacao === "Crédito em aberto" && c.valor !== null && c.saldo < c.valor - 0.005
+                          ? ` · saldo ${formatarMoeda(c.saldo)}`
+                          : ""}
+                      </Badge>
+                    </span>
+                  </div>
+                  {c.usos.length > 0 && (
+                    <ul className="text-muted-foreground grid gap-0.5 pl-3 text-xs">
+                      {c.usos.map((u, i) => (
+                        <li key={i} className={u.desfeito ? "line-through" : undefined}>
+                          {formatarMoeda(u.valor)} abatido em {formatarData(u.data)} na compra{" "}
+                          {u.processoId ? (
+                            <Link href={`/painel/compras/${u.processoId}`} className="text-primary hover:underline">
+                              {u.codigo ?? "(sem código)"}
+                            </Link>
+                          ) : (
+                            "—"
+                          )}
+                          {u.ordemCodigo ? ` (ordem ${u.ordemCodigo})` : ""}
+                          {u.desfeito ? " — desfeito (ordem cancelada)" : ""}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {c.devolucaoObs && <p className="text-muted-foreground pl-3 text-xs">{c.devolucaoObs}</p>}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       {viaMarketplace.length > 0 && (
         <Card>

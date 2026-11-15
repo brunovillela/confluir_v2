@@ -712,3 +712,103 @@ export async function desfazerCancelamentoCompra(dados: {
   if (comprovante) await admin.storage.from("compras").remove([comprovante]).catch(() => null)
   return avisos.length ? { avisos } : {}
 }
+
+// ── Na ficha do fornecedor (15/11/2026) ──────────────────────────────────────
+
+export type CancelamentoNaFicha = {
+  fornecimentoId: string
+  processoId: string
+  codigo: string | null
+  produto: string | null
+  desfecho: DesfechoCancelamento
+  valor: number | null
+  data: string | null
+  /** Crédito: saldo em aberto (0 quando usado, perdido ou vencido). */
+  saldo: number
+  validade: string | null
+  /** Rótulo da situação: em aberto, usado, perdido, vencido; a receber, recebida. */
+  situacao: string
+  /** Crédito: onde foi abatido. */
+  usos: { processoId: string | null; codigo: string | null; ordemId: string | null; ordemCodigo: string | null; valor: number; data: string; desfeito: boolean }[]
+  devolucaoRecebidaEm: string | null
+  devolucaoObs: string | null
+}
+
+/** Compras deste fornecedor (marketplace ou vendedor) canceladas pelo vendedor, com o crédito e os usos. */
+export async function cancelamentosDoFornecedor(fornecedorId: string): Promise<CancelamentoNaFicha[]> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("compras_fornecimentos")
+    .select(
+      "id, processo_id, cancelamento_desfecho, cancelamento_valor, cancelamento_data, credito_validade, credito_usado_em, credito_usado_obs, devolucao_recebida_em, devolucao_recebida_obs"
+    )
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .not("cancelamento_desfecho", "is", null)
+    .or(`fornecedor_id.eq.${fornecedorId},vendedor_id.eq.${fornecedorId}`)
+    .order("cancelamento_data", { ascending: false })
+    .limit(200)
+  if (error || !data?.length) return []
+  const ids = data.map((c) => String(c.id))
+  const { data: usosBrutos } = await admin
+    .from("compras_creditos_usos")
+    .select("credito_fornecimento_id, processo_id, ordem_id, valor, created_at, desfeito_em")
+    .in("credito_fornecimento_id", ids)
+    .order("created_at", { ascending: true })
+  const usos = usosBrutos ?? []
+  const procIds = [...new Set([...data.map((c) => String(c.processo_id)), ...usos.map((u) => texto(u.processo_id)).filter((v): v is string => !!v)])]
+  const ordemIds = [...new Set(usos.map((u) => texto(u.ordem_id)).filter((v): v is string => !!v))]
+  const [procs, ordens] = await Promise.all([
+    admin.from("compras_solicitacoes").select("id, codigo, solicitacao_produto").in("id", procIds),
+    ordemIds.length ? admin.from("ordens_pagamento").select("id, codigo").in("id", ordemIds) : Promise.resolve({ data: [] as { id: string; codigo: string | null }[] }),
+  ])
+  const proc = new Map((procs.data ?? []).map((p) => [String(p.id), p]))
+  const ordem = new Map((ordens.data ?? []).map((o) => [String(o.id), texto(o.codigo)]))
+  const hoje = hojeSP()
+  return data.map((c) => {
+    const p = proc.get(String(c.processo_id))
+    const meus = usos.filter((u) => String(u.credito_fornecimento_id) === String(c.id))
+    const usado = centavos(meus.filter((u) => !u.desfeito_em).reduce((s, u) => s + Number(u.valor ?? 0), 0))
+    const valor = c.cancelamento_valor === null ? null : Number(c.cancelamento_valor)
+    const desfecho = c.cancelamento_desfecho as DesfechoCancelamento
+    const validade = texto(c.credito_validade)
+    const vencido = Boolean(validade && validade < hoje)
+    const perdido = String(c.credito_usado_obs ?? "").startsWith("Vencido sem uso")
+    const saldoBruto = centavos((valor ?? 0) - usado)
+    const fechado = Boolean(c.credito_usado_em)
+    const situacao =
+      desfecho === "devolucao"
+        ? c.devolucao_recebida_em
+          ? "Devolução recebida"
+          : "Devolução a receber"
+        : perdido
+          ? "Crédito perdido"
+          : fechado
+            ? "Crédito usado"
+            : vencido
+              ? "Crédito vencido"
+              : "Crédito em aberto"
+    return {
+      fornecimentoId: String(c.id),
+      processoId: String(c.processo_id),
+      codigo: texto(p?.codigo),
+      produto: texto(p?.solicitacao_produto),
+      desfecho,
+      valor,
+      data: texto(c.cancelamento_data),
+      saldo: desfecho === "credito" && !fechado && !vencido ? Math.max(0, saldoBruto) : 0,
+      validade,
+      situacao,
+      usos: meus.map((u) => ({
+        processoId: texto(u.processo_id),
+        codigo: u.processo_id ? texto(proc.get(String(u.processo_id))?.codigo) : null,
+        ordemId: texto(u.ordem_id),
+        ordemCodigo: u.ordem_id ? (ordem.get(String(u.ordem_id)) ?? null) : null,
+        valor: Number(u.valor ?? 0),
+        data: String(u.created_at).slice(0, 10),
+        desfeito: Boolean(u.desfeito_em),
+      })),
+      devolucaoRecebidaEm: texto(c.devolucao_recebida_em),
+      devolucaoObs: texto(c.devolucao_recebida_obs) ?? (fechado && !perdido ? texto(c.credito_usado_obs) : null),
+    }
+  })
+}
