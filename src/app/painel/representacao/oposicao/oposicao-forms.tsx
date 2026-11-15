@@ -244,18 +244,6 @@ export function CampanhaForm({
         </div>
       </fieldset>
 
-      <div className="grid gap-1.5">
-        <Label htmlFor="documento_modelo">
-          Documento-modelo p/ assinatura gov.br (PDF, opcional)
-        </Label>
-        <Input
-          id="documento_modelo"
-          name="documento_modelo"
-          type="file"
-          accept="application/pdf"
-        />
-      </div>
-
       <div className="flex gap-2">
         <Button type="submit" disabled={pendente}>
           {pendente && <Loader2 className="animate-spin" />}

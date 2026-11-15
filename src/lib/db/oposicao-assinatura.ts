@@ -122,12 +122,18 @@ export async function dadosDaCarta(c: Comprovante): Promise<{ dados: DadosCartaO
       declaracao: c.texto_declaracao,
       protocolo: c.protocolo,
       data: c.confirmado_em,
+      modelo: c.carta_modelo,
     },
     logo: await logoDataUri(org?.logoUrl ?? null),
   }
 }
 
-/** SHA-256 do conteúdo da carta (a ordem dos campos é fixa). */
+/**
+ * SHA-256 do conteúdo da carta (a ordem dos campos é fixa). O modelo do texto
+ * (14/11/2026) entra no fim só quando gravado na oposição: as cartas de antes
+ * (modelo nulo = texto fixo de então) mantêm o mesmo resumo e seguem
+ * conferindo na verificação pública.
+ */
 export function hashDaCarta(d: DadosCartaOposicao): string {
   return hashTexto(
     JSON.stringify([
@@ -142,6 +148,7 @@ export function hashDaCarta(d: DadosCartaOposicao): string {
       d.declaracao,
       d.protocolo,
       d.data,
+      ...(d.modelo != null ? [d.modelo] : []),
     ])
   )
 }

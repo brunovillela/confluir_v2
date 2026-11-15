@@ -1238,7 +1238,7 @@ Campanhas de oposição à contribuição assistencial: empresa, prazo, vídeos 
 | `video_agradecimento_url` | text | sim |  |  |  |  |
 | `modo_formalizacao` | text | não | `'tela'::text` |  |  | Como o opositor formaliza (declaração, documento assinado...). |
 | `texto_declaracao` | text | sim |  |  |  |  |
-| `documento_modelo_url` | text | sim |  |  |  |  |
+| `documento_modelo_url` | text | sim |  |  | nenhum | DESCONTINUADA em 14/11/2026: PDF-modelo em branco que era oferecido ao trabalhador; a carta gerada pelo sistema o substitui. Mantida pelos dados antigos. |
 | `situacao` | text | não | `'rascunho'::text` |  |  |  |
 | `emp_proprietaria_id` | uuid | sim |  | → empresa |  |  |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
@@ -1248,6 +1248,9 @@ Campanhas de oposição à contribuição assistencial: empresa, prazo, vídeos 
 | `regra_prova_nao_filiado` | text | sim |  |  | nenhum | Prova exigida do não filiado; nula = padrão da entidade. |
 | `regra_segregacao` | text | sim |  |  | nenhum | Segregação de permissões da campanha; nula = padrão da entidade. |
 | `perguntas_frequentes` | jsonb | não | `'[]'::jsonb` |  | nenhum | Perguntas frequentes próprias da campanha, escritas por quem a cadastrou: lista de {pergunta, resposta}. As gerais vêm do sistema (lib/oposicao-orientacoes.ts). |
+| `carta_modelo` | text | sim |  |  | nenhum | Modelo da carta próprio da campanha; nulo = segue o da entidade (oposicao_regras.carta_modelo). |
+| `carta_modelo_por_nome` | text | sim |  |  | identificação | Quem alterou por último o modelo da carta da campanha. |
+| `carta_modelo_em` | timestamp with time zone | sim |  |  | nenhum | Quando o modelo da carta da campanha foi alterado por último. |
 
 Checks: `oposicao_campanha_modo_formalizacao_check` `CHECK ((modo_formalizacao = ANY (ARRAY['tela'::text, 'assinatura'::text, 'hibrido'::text])))`; `oposicao_campanha_regra_assinaturas_aceitas_check` `CHECK ((regra_assinaturas_aceitas = ANY (ARRAY['confluir'::text, 'confluir_ou_carta'::text, 'govbr'::text, 'govbr_icp'::text])))`; `oposicao_campanha_regra_carta_fora_prazo_check` `CHECK ((regra_carta_fora_prazo = ANY (ARRAY['aceitar'::text, 'recusar'::text])))`; `oposicao_campanha_regra_prova_nao_filiado_check` `CHECK ((regra_prova_nao_filiado = ANY (ARRAY['nenhuma'::text, 'matricula'::text, 'carta_govbr'::text])))`; `oposicao_campanha_regra_segregacao_check` `CHECK ((regra_segregacao = ANY (ARRAY['unica'::text, 'separada'::text])))`; `oposicao_campanha_regra_video_minimo_check` `CHECK ((regra_video_minimo = ANY (ARRAY['exigir'::text, 'dispensar'::text])))`; `oposicao_campanha_situacao_check` `CHECK ((situacao = ANY (ARRAY['rascunho'::text, 'aberta'::text, 'encerrada'::text])))`
 
@@ -1375,6 +1378,7 @@ Cada trabalhador que se opôs à contribuição assistencial numa campanha: dado
 | `ciencia_texto` | text | sim |  |  | identificação | Instruções da campanha e aviso de privacidade como a pessoa os leu antes de se opor (texto inteiro). |
 | `ciencia_hash` | text | sim |  |  | nenhum | sha256 do ciencia_texto. |
 | `ciencia_em` | timestamp with time zone | sim |  |  | identificação | Quando a pessoa clicou em "Li e quero prosseguir". |
+| `carta_modelo` | text | sim |  |  | nenhum | Modelo da carta em vigor quando a oposição foi registrada (a carta e o hash da assinatura usam este); nulo = texto padrão do sistema. |
 
 Únicas: `UNIQUE (bubble_id)`
 
@@ -1439,6 +1443,9 @@ Decisões jurídicas padrão da entidade para as campanhas de oposição (carta 
 | `definido_por_nome` | text | sim |  |  | identificação | Nome de quem salvou, no momento. |
 | `atualizado_em` | timestamp with time zone | não | `now()` |  |  |  |
 | `aviso_privacidade` | text | sim |  |  | nenhum | Aviso de privacidade da oposição (o que é coletado, para quê, com quem é compartilhado, por quanto tempo); nulo = o texto padrão do sistema. |
+| `carta_modelo` | text | sim |  |  | nenhum | Modelo da carta de oposição da entidade, com referências [NOME_COMPLETO] etc. (src/lib/oposicao-carta.ts); nulo = texto padrão do sistema. |
+| `carta_modelo_por_nome` | text | sim |  |  | identificação | Quem alterou por último o modelo da carta. |
+| `carta_modelo_em` | timestamp with time zone | sim |  |  | nenhum | Quando o modelo da carta foi alterado por último. |
 
 Checks: `oposicao_regras_assinaturas_aceitas_check` `CHECK ((assinaturas_aceitas = ANY (ARRAY['confluir'::text, 'confluir_ou_carta'::text, 'govbr'::text, 'govbr_icp'::text])))`; `oposicao_regras_carta_fora_prazo_check` `CHECK ((carta_fora_prazo = ANY (ARRAY['aceitar'::text, 'recusar'::text])))`; `oposicao_regras_prova_nao_filiado_check` `CHECK ((prova_nao_filiado = ANY (ARRAY['nenhuma'::text, 'matricula'::text, 'carta_govbr'::text])))`; `oposicao_regras_segregacao_check` `CHECK ((segregacao = ANY (ARRAY['unica'::text, 'separada'::text])))`; `oposicao_regras_video_minimo_check` `CHECK ((video_minimo = ANY (ARRAY['exigir'::text, 'dispensar'::text])))`
 

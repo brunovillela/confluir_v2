@@ -20,6 +20,7 @@ import { formatarData } from "@/lib/formato"
 import { somarDiasISO } from "@/lib/periodo-dias"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { normalizarPerguntasFrequentes, type PerguntaFrequente } from "@/lib/oposicao-orientacoes"
+import { modeloDaCartaEmVigor } from "@/lib/db/oposicao-carta"
 import { colunasDasRegras, regrasDaCampanha, regrasDaEntidade, regrasDaLinhaCampanha } from "@/lib/db/oposicao-regras"
 import {
   CHAVES_DECISAO,
@@ -644,23 +645,6 @@ export async function atualizarCampanha(
   return fontes.erro ? { erro: fontes.erro } : {}
 }
 
-/** Sobe o documento-modelo (gov.br) no bucket privado; devolve o caminho. */
-export async function subirDocumentoModelo(
-  arquivo: File
-): Promise<{ caminho?: string; erro?: string }> {
-  const bytes = new Uint8Array(await arquivo.arrayBuffer())
-  if (!ehPdf(bytes)) {
-    return { erro: "O modelo deve ser um PDF." }
-  }
-  const admin = await createAdminClient()
-  const caminho = `modelos/${randomUUID()}.pdf`
-  const { error } = await admin.storage
-    .from("oposicao")
-    .upload(caminho, bytes, { contentType: "application/pdf", upsert: false })
-  if (error) return { erro: `Falha ao subir o modelo: ${error.message}` }
-  return { caminho }
-}
-
 // ── Perguntas do questionário ────────────────────────────────────────────────
 
 export async function adicionarPergunta(
@@ -767,41 +751,56 @@ export async function campanhasAbertas(): Promise<CampanhaAberta[]> {
 }
 
 /**
- * As campanhas da lista do trabalhador (M6): as abertas e, mesmo depois de
- * encerradas, aquelas em que ele tem registro — o comprovante não some
- * quando a entidade encerra a campanha.
+ * As campanhas do hub do trabalhador (/portal/oposicao, 14/11/2026): só as
+ * que dizem respeito a ele —
+ * - as abertas com prazo EM CURSO ou FUTURO (onde ainda pode se opor);
+ * - as que ele registrou oposição (desistência não conta), mesmo encerradas
+ *   ou com o prazo vencido: o comprovante não some (M6).
+ * Campanha passada em que ele não se opôs não aparece. Ordem: em curso,
+ * depois as futuras, depois as passadas, cada grupo da mais recente.
  */
 export async function campanhasDoTrabalhador(cpf: string): Promise<CampanhaAberta[]> {
-  const abertas = await campanhasAbertas()
+  const hoje = hojeSP()
+  const vigentes = (await campanhasAbertas()).filter((c) => {
+    const e = estadoPrazo(c.prazo_inicio, c.prazo_fim, hoje)
+    return e === "aberto" || e === "antes"
+  })
   const cpfLimpo = cpfConfiavel(cpf)
-  if (!cpfLimpo) return abertas
-  const admin = await createAdminClient()
-  const emp = await tenantAtual()
-  const { data: minhas } = await admin
-    .from("oposicao_opositor")
-    .select("campanha_id")
-    .eq("emp_proprietaria_id", emp)
-    .in("cpf", grafiasDoCpf(cpfLimpo))
-    .neq("situacao", "desistente")
-  const faltam = [
-    ...new Set((minhas ?? []).map((m) => texto(m.campanha_id)).filter((v): v is string => Boolean(v))),
-  ].filter((id) => !abertas.some((c) => c.id === id))
-  if (faltam.length === 0) return abertas
-  const { data: outras } = await admin
-    .from("oposicao_campanha")
-    .select("id, nome, detalhe_desconto, prazo_inicio, prazo_fim")
-    .eq("emp_proprietaria_id", emp)
-    .in("id", faltam)
-  return [
-    ...abertas,
-    ...(outras ?? []).map((c) => ({
-      id: String(c.id),
-      nome: texto(c.nome),
-      detalhe_desconto: texto(c.detalhe_desconto),
-      prazo_inicio: texto(c.prazo_inicio),
-      prazo_fim: texto(c.prazo_fim),
-    })),
-  ].sort((a, b) => (b.prazo_inicio ?? "").localeCompare(a.prazo_inicio ?? ""))
+  let minhas: CampanhaAberta[] = []
+  if (cpfLimpo) {
+    const admin = await createAdminClient()
+    const emp = await tenantAtual()
+    const { data: registros } = await admin
+      .from("oposicao_opositor")
+      .select("campanha_id")
+      .eq("emp_proprietaria_id", emp)
+      .in("cpf", grafiasDoCpf(cpfLimpo))
+      .neq("situacao", "desistente")
+    const faltam = [
+      ...new Set((registros ?? []).map((m) => texto(m.campanha_id)).filter((v): v is string => Boolean(v))),
+    ].filter((id) => !vigentes.some((c) => c.id === id))
+    if (faltam.length > 0) {
+      const { data: outras } = await admin
+        .from("oposicao_campanha")
+        .select("id, nome, detalhe_desconto, prazo_inicio, prazo_fim")
+        .eq("emp_proprietaria_id", emp)
+        .in("id", faltam)
+      minhas = (outras ?? []).map((c) => ({
+        id: String(c.id),
+        nome: texto(c.nome),
+        detalhe_desconto: texto(c.detalhe_desconto),
+        prazo_inicio: texto(c.prazo_inicio),
+        prazo_fim: texto(c.prazo_fim),
+      }))
+    }
+  }
+  const grupo = (c: CampanhaAberta) => {
+    const e = estadoPrazo(c.prazo_inicio, c.prazo_fim, hoje)
+    return e === "aberto" ? 0 : e === "antes" ? 1 : 2
+  }
+  return [...vigentes, ...minhas].sort(
+    (a, b) => grupo(a) - grupo(b) || (b.prazo_inicio ?? "").localeCompare(a.prazo_inicio ?? "")
+  )
 }
 
 /**
@@ -1264,6 +1263,9 @@ export async function registrarOposicao(
     .maybeSingle()
   if (!campanha) return { erro: "Campanha indisponível." }
   const declaracao = texto(campanha.texto_declaracao) ?? DECLARACAO_PADRAO
+  // O texto da carta também fica como estava agora (14/11/2026): mudar o
+  // modelo depois não muda a carta desta pessoa nem a já assinada.
+  const cartaModelo = await modeloDaCartaEmVigor(dados.campanhaId)
 
   let protocolo: number
   try {
@@ -1285,6 +1287,7 @@ export async function registrarOposicao(
     user_agent: dados.userAgent,
     declaracao_aceita: declaracao,
     declaracao_hash: hashTexto(declaracao),
+    carta_modelo: cartaModelo,
     modo_formalizacao_ato: texto(campanha.modo_formalizacao),
     prazo_fim_ato: texto(campanha.prazo_fim),
     ciencia_texto: dados.ciencia?.texto ?? null,
@@ -1597,7 +1600,8 @@ export type Comprovante = {
   prazo_inicio: string | null
   prazo_fim: string | null
   /** URL assinada do documento-modelo (quando situação = aguardando_documento). */
-  modeloUrl: string | null
+  /** O modelo da carta gravado no registro; null = o padrão do sistema (oposições antigas). */
+  carta_modelo: string | null
   /** Resultado da avaliação (A15): dia (AAAA-MM-DD) e, se não aceita, o motivo. */
   avaliacao_data: string | null
   reprovacao_motivo: string | null
@@ -1612,7 +1616,7 @@ export type Comprovante = {
 }
 
 const COLUNAS_COMPROVANTE =
-  "id, protocolo, campanha_id, nome_completo, cpf, matricula, empregador_id, situacao, confirmado_em, avaliacao_data, reprovacao_motivo, documento_assinado_url, declaracao_aceita"
+  "id, protocolo, campanha_id, nome_completo, cpf, matricula, empregador_id, situacao, confirmado_em, avaliacao_data, reprovacao_motivo, documento_assinado_url, declaracao_aceita, carta_modelo"
 
 /** Comprovante da oposição — só para o próprio CPF (segurança). */
 export async function obterComprovante(
@@ -1642,7 +1646,7 @@ export async function obterComprovante(
       ? admin
           .from("oposicao_campanha")
           .select(
-            "nome, detalhe_desconto, texto_declaracao, documento_modelo_url, situacao, prazo_inicio, prazo_fim, video_agradecimento_url"
+            "nome, detalhe_desconto, texto_declaracao, situacao, prazo_inicio, prazo_fim, video_agradecimento_url"
           )
           .eq("id", String(o.campanha_id))
           .eq("emp_proprietaria_id", empId)
@@ -1673,15 +1677,6 @@ export async function obterComprovante(
   const e = emp.data as Record<string, unknown> | null
   const validacao = (o.assinatura_validacao ?? null) as ValidacaoAssinatura | null
 
-  let modeloUrl: string | null = null
-  const modeloPath = c ? texto(c.documento_modelo_url) : null
-  if (modeloPath && o.situacao === "aguardando_documento") {
-    const { data: assinada } = await admin.storage
-      .from("oposicao")
-      .createSignedUrl(modeloPath, 3600)
-    modeloUrl = assinada?.signedUrl ?? null
-  }
-
   return {
     id: String(o.id),
     campanhaId: texto(o.campanha_id),
@@ -1703,7 +1698,7 @@ export async function obterComprovante(
     campanhaAberta: c?.situacao === "aberta",
     prazo_inicio: c ? texto(c.prazo_inicio) : null,
     prazo_fim: c ? texto(c.prazo_fim) : null,
-    modeloUrl,
+    carta_modelo: texto(o.carta_modelo),
     avaliacao_data: texto(o.avaliacao_data)?.slice(0, 10) ?? null,
     reprovacao_motivo: texto(o.reprovacao_motivo),
     temDocumento: Boolean(caminhoDocumento),

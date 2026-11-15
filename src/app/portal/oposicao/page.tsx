@@ -22,7 +22,7 @@ import {
 import { destinoDaOposicao, getSessaoTrabalhador } from "@/lib/auth"
 import { mensagemLinkRecusado } from "@/lib/auth-email-constantes"
 import { hojeSP } from "@/lib/db/comum"
-import { campanhasDoTrabalhador, minhaOposicao, type MinhaOposicao } from "@/lib/db/oposicao"
+import { campanhasDoTrabalhador, minhaOposicao, obterCampanhaPublica, type MinhaOposicao } from "@/lib/db/oposicao"
 import { nomeEntidade } from "@/lib/db/organizacao"
 import { formatarData } from "@/lib/formato"
 import { estadoPrazo } from "@/lib/oposicao-constantes"
@@ -60,6 +60,10 @@ export default async function OposicaoPortalPage({
 
   // A tela de acesso traz as perguntas da entrada (código, filiado ou não).
   const perguntasEntrada = !sessao && !preview ? perguntasDeAcesso(await nomeEntidade()) : []
+  // Chegou pelo link de UMA campanha (divulgação específica, 14/11/2026): a
+  // entrada diz qual campanha abre depois do código.
+  const idDestino = !sessao && !preview ? destino?.match(/^\/portal\/oposicao\/([0-9a-f-]{36})$/i)?.[1] : undefined
+  const campanhaDestino = idDestino ? await obterCampanhaPublica(idDestino).catch(() => null) : null
   const conteudo = (
     <>
       <CabecalhoPagina
@@ -118,6 +122,14 @@ export default async function OposicaoPortalPage({
         </>
       ) : !sessao ? (
         <>
+          {campanhaDestino && (
+            <Alert variant="info">
+              <AlertDescription>
+                Depois de entrar, você vai direto para a campanha{" "}
+                <strong>{campanhaDestino.nome ?? "de oposição"}</strong>.
+              </AlertDescription>
+            </Alert>
+          )}
           <Card>
             <CardHeader>
               <CardTitle role="heading" aria-level={2}>
@@ -282,12 +294,19 @@ async function ListaCampanhas({
           {perfil === "filiado" ? "Filiado" : "Não filiado"}
         </Badge>
       </p>
+      {/* O hub (14/11/2026): só o que é da pessoa — as oposições dela e as
+          campanhas em que ainda dá para se opor (em curso ou futuras). */}
+      {itens.length > 0 && (
+        <p className="text-muted-foreground text-sm">
+          Aqui ficam as suas oposições, com o resultado e o comprovante, e as campanhas em que ainda dá para se opor.
+        </p>
+      )}
 
       {itens.length === 0 ? (
         <EstadoVazio
           cartao
           icone={ScrollText}
-          titulo="Nenhuma campanha de oposição aberta no momento."
+          titulo="Nenhuma campanha de oposição aberta ou prevista, e nenhuma oposição sua registrada."
           // Quem paga pode ler "oposição" como parar de pagar a mensalidade (A125).
           descricao={
             perfil === "filiado"

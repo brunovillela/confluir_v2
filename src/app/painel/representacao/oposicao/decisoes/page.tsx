@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, ScrollText } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -75,6 +75,24 @@ export default async function DecisoesJuridicasPage() {
               ))}
             </dl>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Carta de oposição</CardTitle>
+          <CardDescription>
+            O texto que o trabalhador assina, com referências como [NOME_COMPLETO] trocadas pelos dados dele. Altere só
+            com a recomendação do jurídico.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" asChild>
+            <Link href="/painel/representacao/oposicao/carta">
+              <ScrollText />
+              Ver e editar a carta
+            </Link>
+          </Button>
         </CardContent>
       </Card>
 

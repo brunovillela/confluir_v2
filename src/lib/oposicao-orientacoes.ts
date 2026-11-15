@@ -349,3 +349,43 @@ export function textosDivulgacao(p: {
   ].join("\n")
   return { whatsapp, boletim }
 }
+
+/**
+ * Divulgação GERAL (14/11/2026): o link do hub (/portal/oposicao), sem uma
+ * campanha específica. A pessoa entra com o código e vê as oposições que fez
+ * (resultado, comprovante, carta que falta) e as campanhas em curso ou
+ * futuras. As vigentes, se houver, vão listadas com o prazo.
+ */
+export function textosDivulgacaoGeral(p: {
+  entidade: string
+  link: string
+  vigentes: { nome: string | null; prazo_inicio: string | null; prazo_fim: string | null }[]
+}): { whatsapp: string; boletim: string } {
+  const linha = (c: (typeof p.vigentes)[number]) =>
+    `${c.nome ?? "Contribuição assistencial"}: de ${data(c.prazo_inicio)} a ${data(c.prazo_fim)}`
+  const whatsapp = [
+    "*Oposição à contribuição assistencial*",
+    "",
+    "No link abaixo você registra a sua oposição nas campanhas abertas e acompanha as que já fez: o resultado, o comprovante e, se faltar, a carta assinada.",
+    p.link,
+    ...(p.vigentes.length > 0 ? ["", "*Prazos:*", ...p.vigentes.map((c) => `• ${linha(c)}`)] : []),
+    "",
+    "Escolha *Sou filiado* ou *Não sou filiado* e entre com o código que chega no seu e-mail (prefira o pessoal; olhe também o Spam e as Promoções).",
+    "",
+    "A oposição é pessoal: cada um registra a sua.",
+    p.entidade,
+  ].join("\n")
+  const boletim = [
+    "Oposição à contribuição assistencial: registre e acompanhe",
+    "",
+    `Em ${p.link}, o trabalhador registra a oposição às contribuições assistenciais com prazo aberto e acompanha as oposições que já fez: se foi aceita, o comprovante para baixar e, quando a campanha pede, o envio da carta assinada.` +
+      (p.vigentes.length > 0 ? ` Prazos: ${p.vigentes.map(linha).join("; ")}, até as 23h59 do último dia.` : ""),
+    "",
+    "Como entrar: escolha \"Sou filiado\" (o código vai para os e-mails do seu cadastro no sindicato) ou \"Não sou filiado\" (informe nome, CPF e um e-mail seu) e digite o código que chegar no e-mail. Só aparecem as suas oposições e as campanhas em que ainda dá para se opor.",
+    "",
+    "O código não chegou? Procure no Spam, no Lixo eletrônico e, no Gmail, em Promoções e Atualizações. E-mails de empresa costumam barrar as mensagens: prefira um e-mail pessoal.",
+    "",
+    `A oposição é pessoal: ninguém registra por outra pessoa. Dúvidas: ${p.entidade}.`,
+  ].join("\n")
+  return { whatsapp, boletim }
+}

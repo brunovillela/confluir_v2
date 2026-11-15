@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import QRCode from "qrcode"
-import { ArrowLeft, Download, Send } from "lucide-react"
+import { ArrowLeft, Download, Megaphone, Send } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -18,10 +18,11 @@ import { CopiarTexto } from "./copiar-texto"
 export const metadata: Metadata = { title: "Divulgação — Oposição — Confluir" }
 
 /**
- * Kit de divulgação (onda 3 das melhorias, 07/11/2026): o link público da
- * oposição, o QR code para cartaz e os textos prontos (WhatsApp e boletim)
+ * Kit de divulgação (onda 3 das melhorias, 07/11/2026): o link DESTA campanha
+ * (14/11/2026: abre direto a campanha, depois do código por e-mail), o QR code para cartaz e os textos prontos (WhatsApp e boletim)
  * montados com o prazo e o que a campanha pede. A divulgação aos filiados
- * pelo sistema segue em Comunicação › Mensagens aos filiados.
+ * pelo sistema segue em Comunicação › Mensagens aos filiados. O link geral
+ * (o hub com as oposições de cada um) fica em /painel/representacao/oposicao/divulgacao.
  */
 export default async function DivulgacaoOposicaoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -32,7 +33,7 @@ export default async function DivulgacaoOposicaoPage({ params }: { params: Promi
     origemAtual().catch(() => ""),
   ])
   if (!campanha) notFound()
-  const link = `${origem}/portal/oposicao`
+  const link = `${origem}/portal/oposicao/${id}`
   const qr = await QRCode.toDataURL(link, { errorCorrectionLevel: "M", margin: 2, width: 768 })
   const textos = textosDivulgacao({
     entidade,
@@ -52,7 +53,7 @@ export default async function DivulgacaoOposicaoPage({ params }: { params: Promi
             Campanha
           </Link>
         </Button>
-        <h1 className="text-2xl font-semibold tracking-tight text-balance">Divulgação</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-balance">Divulgação da campanha</h1>
         <p className="text-muted-foreground mt-1 text-sm">
           {campanha.nome ?? "Campanha"}: o link, o QR code e os textos prontos. Os textos saem do prazo e das decisões
           da campanha — revise antes de mandar.
@@ -73,7 +74,9 @@ export default async function DivulgacaoOposicaoPage({ params }: { params: Promi
         <CardHeader>
           <CardTitle className="text-base">Link e QR code</CardTitle>
           <CardDescription>
-            A mesma página para filiados e não filiados. O QR code serve para cartaz e boletim impresso.
+            Abre direto esta campanha, para filiados e não filiados, depois do código por e-mail. Quem já se opôs cai
+            no comprovante; com a campanha encerrada, o link leva às oposições da pessoa. O QR code serve para cartaz
+            e boletim impresso.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-[12rem_1fr] sm:items-start">
@@ -83,7 +86,7 @@ export default async function DivulgacaoOposicaoPage({ params }: { params: Promi
             <CopiarTexto id="link" rotulo="Link" texto={link} linhas={1} />
             <div>
               <Button variant="outline" size="sm" asChild>
-                <a href={qr} download="oposicao-qr-code.png">
+                <a href={qr} download="oposicao-campanha-qr-code.png">
                   <Download />
                   Baixar o QR code (PNG)
                 </a>
@@ -101,6 +104,24 @@ export default async function DivulgacaoOposicaoPage({ params }: { params: Promi
         <CardContent className="grid gap-6">
           <CopiarTexto id="whatsapp" rotulo="WhatsApp" texto={textos.whatsapp} linhas={12} />
           <CopiarTexto id="boletim" rotulo="Boletim e site" texto={textos.boletim} linhas={12} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Divulgação geral</CardTitle>
+          <CardDescription>
+            Para um link que não muda de uma campanha para outra (site, rodapé de boletim, cartaz fixo): o trabalhador
+            entra e vê as oposições que fez e as campanhas em que ainda pode se opor.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" asChild>
+            <Link href="/painel/representacao/oposicao/divulgacao">
+              <Megaphone />
+              Divulgação geral
+            </Link>
+          </Button>
         </CardContent>
       </Card>
 

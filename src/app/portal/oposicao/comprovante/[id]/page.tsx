@@ -34,6 +34,7 @@ import { nomeEntidade, obterOrganizacao } from "@/lib/db/organizacao"
 import { configDoPortal } from "@/lib/db/portal-partes"
 import { formatarCnpjCpf, formatarData, formatarDataHora } from "@/lib/formato"
 import { mascaraCpf } from "@/lib/mascaras"
+import { CARTA_PADRAO, montarCarta, valoresDaCarta } from "@/lib/oposicao-carta"
 import { aceitaCartaEnviada, assinaPeloConfluir, estadoPrazo } from "@/lib/oposicao-constantes"
 import { origemAtual } from "@/lib/tenant-url"
 import { regrasDaCampanha } from "@/lib/db/oposicao-regras"
@@ -168,23 +169,6 @@ export default async function ComprovantePage({
               Baixar carta (PDF)
             </a>
           </Button>
-          {/* O modelo que a gestão cadastrou na campanha chega ao
-              trabalhador, como alternativa à carta gerada — um
-              documento só é assinado e enviado. */}
-          {c.modeloUrl && (
-            <p className="text-muted-foreground text-xs">
-              A entidade também oferece um modelo próprio:{" "}
-              <a
-                href={c.modeloUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-primary underline underline-offset-4"
-              >
-                baixar o modelo da entidade (PDF)
-              </a>
-              . Assine e envie só um dos dois documentos.
-            </p>
-          )}
         </div>
       </li>
       <li>
@@ -587,34 +571,22 @@ function AssinarPeloConfluir({
   )
 }
 
-/** O texto da carta na tela — o mesmo do PDF (lib/pdf/carta-oposicao). */
+/** O texto da carta na tela — o mesmo do PDF, do mesmo modelo (lib/oposicao-carta). */
 function CartaParaLer({ d }: { d: DadosCartaOposicao }) {
-  const alvo = d.detalhe || "contribuição assistencial"
+  const corpo = montarCarta(d.modelo ?? CARTA_PADRAO, valoresDaCarta(d, mascaraCpf))
   return (
     <div className="bg-muted/40 grid gap-3 rounded-md border p-4 text-sm">
       <p className="text-center text-xs font-semibold tracking-wide uppercase">
         Carta de oposição à contribuição assistencial
       </p>
-      <p>
-        Eu, <strong>{d.nome ?? "—"}</strong>, inscrito(a) no CPF sob o nº{" "}
-        <strong className="tabular-nums">{d.cpf ? mascaraCpf(d.cpf) : "—"}</strong>
-        {d.matricula ? `, matrícula ${d.matricula}` : ""}, trabalhador(a)
-        {d.empregador ? (
-          <>
-            {" "}
-            vinculado(a) à fonte pagadora <strong>{d.empregador}</strong>
-            {d.empregadorCnpj ? `, CNPJ ${d.empregadorCnpj}` : ""}
-          </>
-        ) : null}
-        , venho, pela presente, manifestar de forma livre e expressa a minha <strong>OPOSIÇÃO</strong> ao desconto{" "}
-        {d.detalhe ? `de ${alvo}` : `da ${alvo}`}
-        {d.campanha ? ` (${d.campanha})` : ""}, nos termos da legislação vigente.
-      </p>
-      {d.declaracao && <p className="bg-background rounded border p-3 text-xs whitespace-pre-wrap">{d.declaracao}</p>}
-      <p>
-        Declaro estar ciente de que esta manifestação será encaminhada à entidade sindical e submetida à avaliação
-        cabível.
-      </p>
+      {corpo.map((p, i) => (
+        <p
+          key={i}
+          className={p.destaque ? "bg-background rounded border p-3 text-xs whitespace-pre-wrap" : "whitespace-pre-line"}
+        >
+          {p.trechos.map((t, j) => (t.negrito ? <strong key={j}>{t.texto}</strong> : <span key={j}>{t.texto}</span>))}
+        </p>
+      ))}
       {d.protocolo != null && <p className="text-muted-foreground text-xs">Protocolo: {d.protocolo}</p>}
     </div>
   )

@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, ArrowRight, Gavel, LifeBuoy, Plus, Scale } from "lucide-react"
+import { ArrowLeft, ArrowRight, Gavel, LifeBuoy, Megaphone, Plus, Scale, ScrollText } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -47,10 +47,23 @@ export default async function OposicaoPage() {
             Oposição à contribuição assistencial
           </h1>
           <div className="flex flex-wrap gap-2">
+            {/* O link geral (o hub de cada trabalhador), 14/11/2026. */}
+            <Button variant="outline" asChild>
+              <Link href="/painel/representacao/oposicao/divulgacao">
+                <Megaphone />
+                Divulgação geral
+              </Link>
+            </Button>
             <Button variant="outline" asChild>
               <Link href="/painel/representacao/oposicao/atendimento">
                 <LifeBuoy />
                 Atendimento
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/painel/representacao/oposicao/carta">
+                <ScrollText />
+                Carta de oposição
               </Link>
             </Button>
             <Button variant="outline" asChild>

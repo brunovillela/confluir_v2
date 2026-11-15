@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 
 import { type SessaoPainel } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
+import { salvarModeloCarta } from "@/lib/db/oposicao-carta"
 import {
   regrasDoFormulario,
   salvarAvisoPrivacidade,
@@ -20,7 +21,6 @@ import {
   devolverCarta,
   excluirPergunta,
   reverificarAssinaturaOposicao,
-  subirDocumentoModelo,
   type DadosCampanha,
 } from "@/lib/db/oposicao"
 import {
@@ -78,18 +78,7 @@ function lerSituacao(fd: FormData): SituacaoCampanha {
     : "rascunho"
 }
 
-/** Sobe o PDF-modelo se enviado; devolve caminho, `undefined` (não mexer) ou erro. */
-async function lerModelo(
-  fd: FormData
-): Promise<{ caminho?: string | null; erro?: string }> {
-  const arq = fd.get("documento_modelo")
-  if (!(arq instanceof File) || arq.size === 0) return { caminho: undefined }
-  const { caminho, erro } = await subirDocumentoModelo(arq)
-  if (erro) return { erro }
-  return { caminho }
-}
-
-function lerDados(fd: FormData): Omit<DadosCampanha, "documento_modelo_url"> {
+function lerDados(fd: FormData): DadosCampanha {
   return {
     nome: texto(fd, "nome"),
     detalhe_desconto: ouNull(texto(fd, "detalhe_desconto")),
@@ -150,6 +139,33 @@ export async function salvarAvisoPrivacidadeAction(_prev: EstadoForm, fd: FormDa
   }
 }
 
+/**
+ * O texto da carta (14/11/2026): o padrão da entidade (sem campanha_id) ou o
+ * da campanha. "restaurar" volta ao nível de cima (campanha → entidade →
+ * sistema). Só com a permissão de configurar.
+ */
+export async function salvarCartaAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  const campanhaId = texto(fd, "campanha_id") || null
+  const permissao = await exigirNaOposicao("configurar", campanhaId)
+  if ("erro" in permissao) return { erro: permissao.erro }
+  const { sessao } = permissao
+  const restaurar = texto(fd, "restaurar") === "1"
+  const { erro, restaurado } = await salvarModeloCarta(campanhaId, restaurar ? null : String(fd.get("carta_modelo") ?? ""), {
+    id: sessao.usuario.id,
+    nome: sessao.usuario.nome_completo ?? sessao.usuario.nome_guerra ?? null,
+  })
+  if (erro) return { erro }
+  revalidatePath("/painel/representacao/oposicao/carta")
+  if (campanhaId) revalidatePath(`/painel/representacao/oposicao/${campanhaId}/carta`)
+  return {
+    ok: restaurado
+      ? campanhaId
+        ? "A campanha voltou a usar o texto da entidade."
+        : "A carta voltou ao texto padrão do sistema."
+      : "Texto da carta salvo. Vale para as próximas oposições; quem já se opôs mantém a carta que registrou.",
+  }
+}
+
 export async function criarCampanhaAction(
   _prev: EstadoForm,
   fd: FormData
@@ -157,10 +173,8 @@ export async function criarCampanhaAction(
   const permissao = await exigirNaOposicao("configurar", texto(fd, "campanha_id") || null)
   if ("erro" in permissao) return { erro: permissao.erro }
   const { sessao } = permissao
-  const { caminho, erro: erroArq } = await lerModelo(fd)
-  if (erroArq) return { erro: erroArq }
   const { id, erro } = await criarCampanha(
-    { ...lerDados(fd), documento_modelo_url: caminho ?? null },
+    lerDados(fd),
     sessao.usuario.id
   )
   if (erro || !id) return { erro: erro ?? "Falha ao criar." }
@@ -177,11 +191,9 @@ export async function atualizarCampanhaAction(
   const { sessao } = permissao
   const id = texto(fd, "campanha_id")
   if (!id) return { erro: "Campanha inválida." }
-  const { caminho, erro: erroArq } = await lerModelo(fd)
-  if (erroArq) return { erro: erroArq }
   const { erro } = await atualizarCampanha(
     id,
-    { ...lerDados(fd), documento_modelo_url: caminho },
+    lerDados(fd),
     sessao.usuario.id
   )
   if (erro) return { erro }

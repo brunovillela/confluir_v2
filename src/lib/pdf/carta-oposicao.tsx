@@ -8,6 +8,7 @@ import {
 } from "@react-pdf/renderer"
 
 import type { CertificacaoPDF } from "@/lib/db/minuta-assinatura"
+import { CARTA_PADRAO, dataPorExtensoSP, montarCarta, valoresDaCarta, type DadosParaCarta } from "@/lib/oposicao-carta"
 
 /**
  * Carta PERSONALIZADA de oposição à contribuição assistencial, gerada com os
@@ -19,37 +20,17 @@ import type { CertificacaoPDF } from "@/lib/db/minuta-assinatura"
  * resumo SHA-256, a trilha e o QR code da verificação pública.
  */
 
-export type DadosCartaOposicao = {
-  organizacao: string | null
-  nome: string | null
-  cpf: string | null
-  matricula: string | null
-  empregador: string | null
-  /** "12.345.678/0001-90", já formatado. */
-  empregadorCnpj?: string | null
-  campanha: string | null
-  detalhe: string | null
-  declaracao: string | null
-  protocolo: number | null
-  data: string | null
+export type DadosCartaOposicao = DadosParaCarta & {
+  /**
+   * O modelo do texto gravado na oposição (14/11/2026, lib/oposicao-carta);
+   * null = o padrão do sistema, o texto de antes.
+   */
+  modelo: string | null
 }
+
+export { dataPorExtensoSP }
 
 const CM = 28.35
-
-/**
- * "31 de outubro de 2026" no fuso de São Paulo (A109). `confirmado_em` é ISO
- * em UTC e o servidor roda em UTC: sem o fuso, uma oposição das 22h de 31/10
- * saía datada de 1º de novembro — fora do prazo, num documento assinado.
- */
-export function dataPorExtensoSP(iso: string | null): string {
-  const d = iso ? new Date(iso) : new Date()
-  return new Intl.DateTimeFormat("pt-BR", {
-    timeZone: "America/Sao_Paulo",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(Number.isNaN(d.getTime()) ? new Date() : d)
-}
 
 function fmtCpf(cpf: string | null): string {
   if (!cpf) return "—"
@@ -127,9 +108,8 @@ export function CartaOposicaoPDF({
   provaIdentidade?: string | null
 }) {
   const assinado = certificacao?.concluida ? certificacao.assinantes[0] : null
-  // Sem o detalhe do desconto, a frase não repete o nome da campanha
-  // ("ao desconto de X (X)"): fica "da contribuição assistencial (X)".
-  const alvo = dados.detalhe || "contribuição assistencial"
+  // O corpo sai do modelo gravado na oposição (14/11/2026).
+  const corpo = montarCarta(dados.modelo ?? CARTA_PADRAO, valoresDaCarta(dados, fmtCpf))
   return (
     <Document>
       <Page size="A4" style={s.page}>
@@ -145,34 +125,19 @@ export function CartaOposicaoPDF({
           CARTA DE OPOSIÇÃO À CONTRIBUIÇÃO ASSISTENCIAL
         </Text>
 
-        <Text style={s.corpo}>
-          Eu, <Text style={s.rotulo}>{dados.nome ?? "—"}</Text>, inscrito(a) no
-          CPF sob o nº <Text style={s.rotulo}>{fmtCpf(dados.cpf)}</Text>
-          {dados.matricula ? `, matrícula ${dados.matricula}` : ""}, trabalhador(a)
-          {/* Sem fonte informada, a frase não leva um "—" no lugar do nome
-              (A103): o documento vai ser assinado no gov.br. */}
-          {dados.empregador ? (
-            <>
-              {" "}vinculado(a) à fonte pagadora{" "}
-              <Text style={s.rotulo}>{dados.empregador}</Text>
-              {dados.empregadorCnpj ? `, CNPJ ${dados.empregadorCnpj}` : ""}
-            </>
-          ) : null}
-          , venho, pela
-          presente, manifestar de forma livre e expressa a minha{" "}
-          <Text style={s.rotulo}>OPOSIÇÃO</Text> ao desconto {dados.detalhe ? `de ${alvo}` : `da ${alvo}`}
-          {dados.campanha ? ` (${dados.campanha})` : ""}, nos termos da legislação
-          vigente.
-        </Text>
-
-        {dados.declaracao ? (
-          <Text style={s.declaracao}>{dados.declaracao}</Text>
-        ) : null}
-
-        <Text style={s.corpo}>
-          Declaro estar ciente de que esta manifestação será encaminhada à
-          entidade sindical e submetida à avaliação cabível.
-        </Text>
+        {corpo.map((p, i) => (
+          <Text key={i} style={p.destaque ? s.declaracao : s.corpo}>
+            {p.trechos.map((t, j) =>
+              t.negrito ? (
+                <Text key={j} style={s.rotulo}>
+                  {t.texto}
+                </Text>
+              ) : (
+                t.texto
+              )
+            )}
+          </Text>
+        ))}
 
         {dados.protocolo != null ? (
           <Text style={s.protocolo}>Protocolo: {dados.protocolo}</Text>
