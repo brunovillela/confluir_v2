@@ -6,7 +6,7 @@ import { DIAS_PARADA as DIAS_FICHA_PARADA } from "@/lib/ficha-filiacao"
 
 import type { SessaoPainel } from "@/lib/auth"
 import { alcadaDoUsuario } from "@/lib/db/compras"
-import { contagemPendenciasDesconto } from "@/lib/db/desconto-comunicacoes"
+import { contagemPendenciasDesconto, exclusoesNaoCumpridas } from "@/lib/db/desconto-comunicacoes"
 import { DIAS_SILENCIO_COBRANCA, empresasParaCobrar, relacoesDoRhALancar } from "@/lib/db/repasse"
 import { SITUACAO_EM_AUTORIZACAO } from "@/lib/db/ordens-ciclo"
 import { situacaoDosPlanos } from "@/lib/db/veiculos-manutencoes"
@@ -271,6 +271,18 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
       tabela: "filiacao_repasse_envios",
       montar: (q) => head(q),
       contarCom: () => relacoesDoRhALancar().catch(() => null),
+    })
+    fontes.push({
+      chave: "desconto_exclusao_nao_cumprida",
+      titulo: "Exclusões de desconto não cumpridas",
+      descricao: "Pessoas comunicadas como excluir o desconto que continuam sendo descontadas pela empresa",
+      href: "/painel/filiados/receitas/controle",
+      tabela: "filiacao_desconto_comunicacoes",
+      montar: (q) => head(q),
+      contarCom: () =>
+        exclusoesNaoCumpridas()
+          .then((l) => l.length)
+          .catch(() => null),
     })
     fontes.push({
       chave: "desconto_comunicar",

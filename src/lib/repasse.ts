@@ -250,3 +250,58 @@ export function rotuloMeses(meses: number[] | null): string {
 export function dentroDoPeriodo(competencia: number, periodos: { desde: number; ate: number | null }[]): boolean {
   return periodos.some((p) => competencia >= p.desde && (p.ate === null || competencia <= p.ate))
 }
+
+// ── Conferência do conteúdo da relação ──────────────────────────────────────
+
+/** Abaixo destas frações da média dos meses anteriores, a relação pede conferência. */
+export const QUEDA_DESCONTOS = 0.85
+export const QUEDA_VALOR = 0.8
+
+/**
+ * A relação veio bem menor que a dos meses anteriores? Compara com a média
+ * das até 3 relações lançadas antes (precisa de pelo menos 2). Devolve o
+ * motivo, ou null.
+ */
+export function quedaNaRelacao(
+  atual: { lancamentos: number; valor: number },
+  anteriores: { lancamentos: number; valor: number }[]
+): string | null {
+  const base = anteriores.filter((a) => a.lancamentos > 0).slice(-3)
+  if (base.length < 2 || atual.lancamentos === 0) return null
+  const mediaQtd = base.reduce((s, a) => s + a.lancamentos, 0) / base.length
+  const mediaValor = base.reduce((s, a) => s + a.valor, 0) / base.length
+  const pct = (x: number, m: number) => Math.round((1 - x / m) * 100)
+  if (atual.lancamentos < mediaQtd * QUEDA_DESCONTOS) {
+    return `${atual.lancamentos} descontos, ${pct(atual.lancamentos, mediaQtd)}% abaixo da média dos meses anteriores (${Math.round(mediaQtd)})`
+  }
+  if (mediaValor > 0 && atual.valor < mediaValor * QUEDA_VALOR) {
+    return `Total ${pct(atual.valor, mediaValor)}% abaixo da média dos meses anteriores`
+  }
+  return null
+}
+
+/**
+ * A empresa cumpriu a inclusão/exclusão comunicada? `descontos` = competências
+ * em que a pessoa aparece nas relações da empresa; `ultima` = a competência
+ * mais recente que a empresa mandou; `mesEnvio` = AAAAMM do envio. A folha
+ * do próprio mês do envio pode já ter fechado: só se cobra a partir da
+ * relação do mês seguinte. null = ainda não dá para dizer.
+ */
+export function conferirComunicado(
+  acao: "inclusao" | "exclusao",
+  descontos: number[],
+  ultima: number,
+  mesEnvio: number
+): { ok: boolean; texto: string } | null {
+  const depois = descontos.filter((c) => c >= mesEnvio)
+  if (acao === "inclusao") {
+    if (depois.length) return { ok: true, texto: `Descontado em ${rotuloCompetencia(Math.min(...depois))}` }
+    if (ultima > mesEnvio) return { ok: false, texto: `Ainda sem desconto (relação de ${rotuloCompetencia(ultima)})` }
+    return null
+  }
+  if (ultima < mesEnvio) return null
+  const descontado = depois.includes(ultima)
+  if (!descontado) return { ok: true, texto: `Sem desconto em ${rotuloCompetencia(ultima)}` }
+  if (ultima > mesEnvio) return { ok: false, texto: `Ainda descontado em ${rotuloCompetencia(ultima)}` }
+  return null
+}

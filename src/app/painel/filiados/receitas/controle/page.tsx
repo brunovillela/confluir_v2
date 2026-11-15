@@ -6,7 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
-import { contagemPendenciasDesconto } from "@/lib/db/desconto-comunicacoes"
+import { contagemPendenciasDesconto, exclusoesNaoCumpridas } from "@/lib/db/desconto-comunicacoes"
 import { depositosNoExtrato, sugestoesParaTela } from "@/lib/db/repasse-extrato"
 import { competenciaCorrente, garantirRemessas, quadroRepasse, regrasRepasse, tiposControlados, AVISO_SQL_REPASSE } from "@/lib/db/repasse"
 import { formatarData } from "@/lib/formato"
@@ -44,10 +44,11 @@ export default async function ControleEnvioPage({ searchParams }: { searchParams
   const ate = competenciaValida(ateLido) && ateLido <= somarMeses(corrente, 1) ? ateLido : corrente
   const ver = p.ver === "todas" ? "todas" : "pendentes"
 
-  const [quadro, pendencias, extrato] = await Promise.all([
+  const [quadro, pendencias, extrato, naoCumpridas] = await Promise.all([
     quadroRepasse({ tipo, ate, meses: 12 }),
     contagemPendenciasDesconto().catch(() => new Map<string, { inclusoes: number; exclusoes: number }>()),
     depositosNoExtrato().catch(() => null),
+    exclusoesNaoCumpridas().catch(() => []),
   ])
 
   const link = (mudar: Partial<Busca>) => {
@@ -70,8 +71,11 @@ export default async function ControleEnvioPage({ searchParams }: { searchParams
     const c = l.celulas.at(-1)!
     ultimaPorSituacao.set(c.situacao, (ultimaPorSituacao.get(c.situacao) ?? 0) + 1)
   }
+  const comAlerta = quadro.linhas.reduce((s, l) => s + l.celulas.filter((c) => c.alerta).length, 0)
   const linhas =
-    ver === "todas" ? quadro.linhas : quadro.linhas.filter((l) => l.celulas.some((c) => pede(c.situacao)) || pendencias.has(l.id))
+    ver === "todas"
+      ? quadro.linhas
+      : quadro.linhas.filter((l) => l.celulas.some((c) => pede(c.situacao) || c.alerta) || pendencias.has(l.id))
   const totalInc = [...pendencias.values()].reduce((s, c) => s + c.inclusoes, 0)
   const totalExc = [...pendencias.values()].reduce((s, c) => s + c.exclusoes, 0)
 
@@ -90,9 +94,11 @@ export default async function ControleEnvioPage({ searchParams }: { searchParams
     },
     {
       rotulo: "Para conferir",
-      valor: SITUACOES_CONFERIR.reduce((s, x) => s + (contagem.get(x) ?? 0), 0),
+      valor: SITUACOES_CONFERIR.reduce((s, x) => s + (contagem.get(x) ?? 0), 0) + comAlerta,
       tom: "alerta",
-      detalhe: "valor diferente, sem relação ou falta lançar",
+      detalhe: comAlerta
+        ? `valor diferente, falta lançar ou relação menor (${comAlerta} com !)`
+        : "valor diferente, sem relação ou falta lançar",
     },
     {
       rotulo: `Em dia em ${rotuloCompetencia(ultima)}`,
@@ -177,6 +183,27 @@ export default async function ControleEnvioPage({ searchParams }: { searchParams
             ))}
           </div>
 
+          {naoCumpridas.length > 0 && (
+            <Alert className="border-warning/50">
+              <AlertDescription className="grid gap-1">
+                <span className="font-medium">
+                  {naoCumpridas.length} pessoa(s) comunicadas como &quot;excluir o desconto&quot; continuam sendo descontadas:
+                </span>
+                {[...new Map(naoCumpridas.map((n) => [n.empresaId, n.empresa])).entries()].map(([id, nome]) => {
+                  const daEmpresa = naoCumpridas.filter((n) => n.empresaId === id)
+                  return (
+                    <span key={id} className="text-sm">
+                      <Link href={`/painel/filiados/receitas/controle/${id}#inclusoes`} className="font-medium underline">
+                        {nome}
+                      </Link>
+                      : {daEmpresa.map((n) => n.nome).slice(0, 5).join(", ")}
+                      {daEmpresa.length > 5 && ` e mais ${daEmpresa.length - 5}`} (na relação de {rotuloCompetencia(daEmpresa[0].ultima)})
+                    </span>
+                  )
+                })}
+              </AlertDescription>
+            </Alert>
+          )}
           {extrato && extrato.sugestoes.length > 0 && (
             <Card>
               <CardHeader>

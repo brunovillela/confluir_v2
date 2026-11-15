@@ -4,7 +4,7 @@ import { esquemaAusente, lerEmLotes, lerEmLotesPorIds } from "@/lib/db/comum"
 import { listarRemessas } from "@/lib/db/receitas"
 import { regrasRepasse, unidadesDeRepasse, AVISO_SQL_REPASSE } from "@/lib/db/repasse"
 import { formatarCnpjCpf } from "@/lib/formato"
-import { regraEfetiva } from "@/lib/repasse"
+import { conferirComunicado, regraEfetiva } from "@/lib/repasse"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -322,7 +322,6 @@ export async function comunicacoesDaEmpresa(empresaId: string, fontes: string[],
       }
     }
   }
-  const rot = (c: number) => `${String(c % 100).padStart(2, "0")}/${Math.floor(c / 100)}`
 
   return cabs.map((c) => {
     const mesEnvio = Number(c.enviado_em.slice(0, 4)) * 100 + Number(c.enviado_em.slice(5, 7))
@@ -339,20 +338,12 @@ export async function comunicacoesDaEmpresa(empresaId: string, fontes: string[],
       itens: itens
         .filter((i) => i.comunicacao_id === c.id)
         .map((i) => {
-          const depois = (i.filiado_id ? (vistos.get(i.filiado_id) ?? []) : []).filter((o) => o >= mesEnvio)
-          const ultima = ultimaCompetenciaDaEmpresa.valor
-          let conferencia: { ok: boolean; texto: string } | null = null
-          if (ultima >= mesEnvio) {
-            if (i.acao === "inclusao") {
-              conferencia = depois.length
-                ? { ok: true, texto: `Descontado em ${rot(Math.min(...depois))}` }
-                : { ok: false, texto: `Ainda sem desconto (relação de ${rot(ultima)})` }
-            } else {
-              conferencia = depois.includes(ultima)
-                ? { ok: false, texto: `Ainda descontado em ${rot(ultima)}` }
-                : { ok: true, texto: `Sem desconto em ${rot(ultima)}` }
-            }
-          }
+          const conferencia = conferirComunicado(
+            i.acao,
+            i.filiado_id ? (vistos.get(i.filiado_id) ?? []) : [],
+            ultimaCompetenciaDaEmpresa.valor,
+            mesEnvio
+          )
           return {
             vinculoId: i.vinculo_id,
             filiadoId: i.filiado_id,
@@ -389,3 +380,99 @@ export function csvDesconto(itens: Pick<ItemDesconto, "acao" | "nome" | "cpf" | 
 }
 
 export { dataBr }
+
+// ── Exclusões não cumpridas (aviso do painel e do quadro) ───────────────────
+
+export type ExclusaoNaoCumprida = { empresaId: string; empresa: string; nome: string; desde: number; ultima: number }
+
+const cacheExclusoes = new Map<string, { expira: number; valor: ExclusaoNaoCumprida[] }>()
+
+export function invalidarExclusoesNaoCumpridas() {
+  cacheExclusoes.clear()
+}
+
+/**
+ * Quem foi comunicado como "excluir o desconto" nos últimos 6 meses e
+ * continua aparecendo na relação mais recente da empresa (a partir da relação
+ * do mês seguinte ao envio). Cache de 10 minutos por entidade.
+ */
+export async function exclusoesNaoCumpridas(): Promise<ExclusaoNaoCumprida[]> {
+  const emp = await tenantAtual()
+  const c = cacheExclusoes.get(emp)
+  if (c && c.expira > Date.now()) return c.valor
+  const admin = await createAdminClient()
+  const desde = new Date(Date.now() - 183 * 86_400_000).toISOString()
+  const { data: cabs, error } = await admin
+    .from("filiacao_desconto_comunicacoes")
+    .select("id, empresa_id, enviado_em")
+    .eq("emp_proprietaria_id", emp)
+    .gt("exclusoes", 0)
+    .gte("enviado_em", desde)
+  if (error || !cabs?.length) {
+    cacheExclusoes.set(emp, { expira: Date.now() + 10 * 60_000, valor: [] })
+    return []
+  }
+  const itens = await lerEmLotesPorIds<{ id: string; comunicacao_id: string; filiado_id: string | null; nome: string | null }>(
+    cabs.map((x) => x.id),
+    (fatia, a, b) =>
+      admin
+        .from("filiacao_desconto_comunicacao_itens")
+        .select("id, comunicacao_id, filiado_id, nome")
+        .eq("emp_proprietaria_id", emp)
+        .eq("acao", "exclusao")
+        .in("comunicacao_id", fatia)
+        .order("comunicacao_id")
+        .order("id")
+        .range(a, b)
+  )
+  const filiados = [...new Set(itens.flatMap((i) => (i.filiado_id ? [i.filiado_id] : [])))]
+  if (filiados.length === 0) {
+    cacheExclusoes.set(emp, { expira: Date.now() + 10 * 60_000, valor: [] })
+    return []
+  }
+  const { unidades, unidadeDaFonte } = await unidadesDeRepasse()
+  const nomeUnidade = new Map(unidades.map((u) => [u.id, u.nome]))
+  const mesMin = Math.min(...cabs.map((x) => Number(x.enviado_em.slice(0, 4)) * 100 + Number(x.enviado_em.slice(5, 7))))
+  // Relações das empresas desde o primeiro envio: a última competência de cada unidade.
+  const { data: resumo } = await admin.rpc("filiacao_repasse_resumo", { p_emp: emp, p_de: mesMin, p_ate: 210012 })
+  const ultimaDa = new Map<string, number>()
+  for (const r of (resumo ?? []) as { ordem: number; tipo: string; fonte_id: string }[]) {
+    if (r.tipo !== "Associativa") continue
+    const u = unidadeDaFonte.get(r.fonte_id) ?? r.fonte_id
+    if (r.ordem > (ultimaDa.get(u) ?? 0)) ultimaDa.set(u, r.ordem)
+  }
+  const remessas = new Map((await listarRemessas()).map((r) => [r.id, r]))
+  const linhas = await lerEmLotesPorIds<{ id: string; filiado_id: string; remessa_id: string; fonte_pg_id: string | null }>(
+    filiados,
+    (fatia, a, b) =>
+      admin
+        .from("filiacao_recebe")
+        .select("id, filiado_id, remessa_id, fonte_pg_id")
+        .eq("emp_proprietaria_id", emp)
+        .in("filiado_id", fatia)
+        .order("filiado_id")
+        .order("id")
+        .range(a, b)
+  )
+  const descontos = new Map<string, number[]>()
+  for (const l of linhas) {
+    const r = remessas.get(l.remessa_id)
+    if (!r?.ordem || (r.tipo ?? "Associativa") !== "Associativa" || !l.fonte_pg_id) continue
+    const chave = `${unidadeDaFonte.get(l.fonte_pg_id) ?? l.fonte_pg_id}|${l.filiado_id}`
+    descontos.set(chave, [...(descontos.get(chave) ?? []), r.ordem])
+  }
+  const cab = new Map(cabs.map((x) => [x.id, x]))
+  const saida: ExclusaoNaoCumprida[] = []
+  for (const i of itens) {
+    const cabeca = cab.get(i.comunicacao_id)
+    if (!cabeca || !i.filiado_id) continue
+    const mesEnvio = Number(cabeca.enviado_em.slice(0, 4)) * 100 + Number(cabeca.enviado_em.slice(5, 7))
+    const ultima = ultimaDa.get(cabeca.empresa_id) ?? 0
+    const r = conferirComunicado("exclusao", descontos.get(`${cabeca.empresa_id}|${i.filiado_id}`) ?? [], ultima, mesEnvio)
+    if (r && !r.ok) {
+      saida.push({ empresaId: cabeca.empresa_id, empresa: nomeUnidade.get(cabeca.empresa_id) ?? "(empresa)", nome: i.nome ?? "(sem nome)", desde: mesEnvio, ultima })
+    }
+  }
+  cacheExclusoes.set(emp, { expira: Date.now() + 10 * 60_000, valor: saida })
+  return saida
+}

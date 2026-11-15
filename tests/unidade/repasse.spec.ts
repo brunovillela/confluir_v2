@@ -2,11 +2,13 @@ import { expect, test } from "playwright/test"
 
 import {
   competenciaAplica,
+  conferirComunicado,
   dentroDoPeriodo,
   diasDeAtraso,
   janelaCompetencias,
   lerMeses,
   prazoDaCompetencia,
+  quedaNaRelacao,
   regraEfetiva,
   situacaoEnvio,
   somarMeses,
@@ -136,5 +138,40 @@ test.describe("situação da célula", () => {
     expect(dentroDoPeriodo(202609, periodos)).toBe(false)
     expect(dentroDoPeriodo(202602, periodos)).toBe(true)
     expect(dentroDoPeriodo(202604, periodos)).toBe(false)
+  })
+})
+
+test.describe("queda na relação", () => {
+  const meses = [
+    { lancamentos: 100, valor: 5000 },
+    { lancamentos: 102, valor: 5100 },
+    { lancamentos: 98, valor: 4900 },
+  ]
+  test("normal não alerta", () => {
+    expect(quedaNaRelacao({ lancamentos: 95, valor: 4800 }, meses)).toBeNull()
+  })
+  test("menos descontos alerta", () => {
+    expect(quedaNaRelacao({ lancamentos: 70, valor: 3500 }, meses)).toMatch(/70 descontos, 30% abaixo/)
+  })
+  test("mesma quantidade, valor bem menor alerta", () => {
+    expect(quedaNaRelacao({ lancamentos: 100, valor: 3000 }, meses)).toMatch(/Total 40% abaixo/)
+  })
+  test("sem histórico suficiente não alerta", () => {
+    expect(quedaNaRelacao({ lancamentos: 10, valor: 100 }, meses.slice(0, 1))).toBeNull()
+  })
+})
+
+test.describe("conferência das inclusões e exclusões", () => {
+  test("inclusão: descontado, aguardando e ainda sem desconto", () => {
+    expect(conferirComunicado("inclusao", [202611], 202611, 202611)?.ok).toBe(true)
+    expect(conferirComunicado("inclusao", [], 202611, 202611)).toBeNull()
+    expect(conferirComunicado("inclusao", [], 202612, 202611)).toMatchObject({ ok: false })
+  })
+  test("exclusão: só cobra a partir do mês seguinte ao envio", () => {
+    expect(conferirComunicado("exclusao", [202611], 202611, 202611)).toBeNull()
+    expect(conferirComunicado("exclusao", [], 202611, 202611)?.ok).toBe(true)
+    expect(conferirComunicado("exclusao", [202611, 202612], 202612, 202611)).toMatchObject({ ok: false, texto: "Ainda descontado em 12/2026" })
+    expect(conferirComunicado("exclusao", [202611], 202612, 202611)?.ok).toBe(true)
+    expect(conferirComunicado("exclusao", [202610], 202610, 202611)).toBeNull()
   })
 })

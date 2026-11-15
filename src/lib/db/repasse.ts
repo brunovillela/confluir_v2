@@ -11,6 +11,7 @@ import {
   competenciaValida,
   janelaCompetencias,
   prazoDaCompetencia,
+  quedaNaRelacao,
   regraEfetiva,
   situacaoEnvio,
   somarMeses,
@@ -206,6 +207,8 @@ export type CelulaRepasse = {
   /** Remessa da competência × tipo, se já criada (para abrir a fonte em Receitas). */
   remessaId: string | null
   ultimoEvento: { evento: string; data: string } | null
+  /** A relação lançada veio bem menor que as anteriores (lib/repasse.ts quedaNaRelacao). */
+  alerta: string | null
   /** O envio mais recente do RH pelo link (não arquivado), se houver. */
   envioRh: { id: string; enviadoEm: string; enviadoPor: string; semDesconto: boolean; nomeArquivo: string | null } | null
 }
@@ -407,11 +410,15 @@ export async function quadroRepasse(opcoes: {
         prazoDeposito,
         remessaId: base.remessas.get(c) ?? null,
         ultimoEvento: ultimo ? { evento: ultimo.evento, data: ultimo.data } : null,
+        alerta: null,
         envioRh: envio
           ? { id: envio.id, enviadoEm: envio.enviado_em, enviadoPor: envio.enviado_por, semDesconto: envio.sem_desconto, nomeArquivo: envio.nome_arquivo }
           : null,
       }
     })
+    for (let i = 0; i < celulas.length; i++) {
+      if (celulas[i].lancamentos > 0) celulas[i].alerta = quedaNaRelacao(celulas[i], celulas.slice(0, i))
+    }
     linhas.push({ ...u, regra, celulas, semValores: (periodos.get(u.id) ?? []).find((p) => p.ate === null) ?? null })
   }
   linhas.sort((a, b) => b.filiadosAtivos - a.filiadosAtivos || a.nome.localeCompare(b.nome, "pt-BR"))

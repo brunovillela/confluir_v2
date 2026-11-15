@@ -42,6 +42,7 @@ import { cn } from "@/lib/utils"
 
 import { AcoesCompetencia, ComunicarDesconto, ContatosFolha, DesfazerEvento } from "../formularios"
 import { DepositosExtrato } from "../depositos-extrato"
+import { ConferenciaRelacao } from "./conferencia"
 import { ArquivarEnvio, LinkRh } from "../link-rh"
 import { EncerrarSemValores, RegistrarSemValores } from "../sem-valores"
 import { CelulaSituacao, SeloSituacao } from "../situacao"
@@ -254,6 +255,14 @@ export default async function ControleEmpresaPage({
                     <p className="text-warning-fg text-sm font-medium">
                       Diferença de {formatarMoeda(selecionada.deposito - selecionada.valor)} entre o depósito e a relação.
                     </p>
+                  )}
+                  {selecionada.lancamentos > 0 && selecionada.remessaId && (
+                    <ConferenciaRelacao
+                      remessaId={selecionada.remessaId}
+                      fontes={unidade.fontes}
+                      hrefReceitas={hrefReceitas(selecionada.remessaId)}
+                      alerta={selecionada.alerta}
+                    />
                   )}
                   {selecionada.envioRh && (
                     <div className="border-info/30 bg-info/5 flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm">

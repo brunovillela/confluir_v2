@@ -20,6 +20,7 @@ export function dicaCelula(c: CelulaRepasse): string {
   if (c.lancamentos > 0) partes.push(`${c.lancamentos} desconto(s), ${formatarMoeda(c.valor)}`)
   if (c.deposito !== null) partes.push(`Depósito: ${formatarMoeda(c.deposito)}`)
   if (c.situacao !== "nao_se_aplica") partes.push(`Prazo da relação: ${formatarData(c.prazoEnvio)}`)
+  if (c.alerta) partes.push(`Atenção: ${c.alerta}`)
   return partes.join(" · ")
 }
 
@@ -31,12 +32,17 @@ export function CelulaSituacao({ celula, href, selecionada }: { celula: CelulaRe
       href={href}
       title={dicaCelula(celula)}
       className={cn(
-        "flex h-10 min-w-14 items-center justify-center rounded-md border px-1 text-center text-[11px] leading-tight font-medium transition-opacity hover:opacity-80",
+        "relative flex h-10 min-w-14 items-center justify-center rounded-md border px-1 text-center text-[11px] leading-tight font-medium transition-opacity hover:opacity-80",
         CLASSE_TOM[s.tom],
         selecionada && "ring-ring ring-2 ring-offset-1"
       )}
     >
       {s.curto}
+      {celula.alerta && (
+        <span className="bg-warning absolute text-white -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full text-[10px] font-bold" aria-label="Conferir: relação menor que nos meses anteriores">
+          !
+        </span>
+      )}
     </Link>
   )
 }

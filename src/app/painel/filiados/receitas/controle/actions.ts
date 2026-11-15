@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { hojeSP } from "@/lib/db/comum"
-import { csvDesconto, dataBr, invalidarContagemDesconto, registrarComunicacao, type AcaoDesconto } from "@/lib/db/desconto-comunicacoes"
+import { csvDesconto, dataBr, invalidarContagemDesconto, invalidarExclusoesNaoCumpridas, registrarComunicacao, type AcaoDesconto } from "@/lib/db/desconto-comunicacoes"
 import {
   contatosDaFolha,
   excluirEventoRepasse,
@@ -53,6 +53,7 @@ async function sessao() {
 function revalidar(empresaId?: string | null) {
   invalidarAvisosRepasse()
   invalidarContagemDesconto()
+  invalidarExclusoesNaoCumpridas()
   revalidatePath("/painel/filiados/receitas/controle")
   revalidatePath("/painel/filiados/receitas/controle/contatos")
   revalidatePath("/painel/filiados/receitas/controle/cobrar")

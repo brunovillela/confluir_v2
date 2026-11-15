@@ -17,6 +17,7 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 - Link do RH: cada empresa ganha um endereço próprio, sem login, para mandar a relação de descontos do mês (ou informar que não houve desconto) e confirmar as inclusões e exclusões, que podem ficar só no link, sem nomes no e-mail.
 - Controle de envio: Cobrar atrasadas manda um e-mail por empresa com todas as pendências dela, e Contatos da folha mostra quem ainda não tem contato, sugerindo os contatos que a empresa já tem cadastrados.
 - Receitas: com o controle de envio ativado, a remessa de cada mês dos tipos controlados é criada sozinha (opção em Prazos e tipos).
+- Controle de envio: conferência do conteúdo da relação (filiados ativos que não vieram, descontados que não são filiados ou não estão como Ativo), alerta de relação bem menor que nos meses anteriores e aviso de exclusões de desconto que a empresa não cumpriu.
 
 ## 14/11/2026 — Ordens de pagamento: busca por quem recebe
 
