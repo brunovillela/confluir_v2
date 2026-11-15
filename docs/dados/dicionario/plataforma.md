@@ -331,6 +331,7 @@ Cadastro único de organizações: tenants (sindicatos), empregadores e fontes p
 | `nit_pis` | text | sim |  |  | identificação | NIT/PIS/PASEP do fornecedor pessoa física (autônomo pago por RPA), só os 11 dígitos — vai para o relatório de RPAs da contabilidade (eSocial/DCTFWeb). |
 | `comprovante_automatico` | boolean | não | `false` |  |  | Fornecedor: o comprovante anexado à ordem paga é enviado automaticamente aos contatos que recebem comprovantes. |
 | `filiacao_repasse_desde` | integer | sim |  |  | nenhum | Competência (AAAAMM) a partir da qual o controle de envio cobra atraso das fontes pagadoras e lista inclusões/exclusões de desconto a comunicar; null = controle ainda não ativado. |
+| `filiacao_remessa_automatica` | boolean | não | `true` |  | nenhum | O controle de envio cria sozinho a remessa das competências dos tipos controlados (só com o controle ativado). |
 
 Únicas: `UNIQUE (bubble_id)`
 

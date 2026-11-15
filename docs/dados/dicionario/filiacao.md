@@ -738,10 +738,11 @@ Remessas de contribuições por fonte pagadora e competência (ano/mês), agrupa
 | `emp_proprietaria_id` | uuid | sim | `'c763cb99-edfd-4840-8453-ed3fcb66d4a1'::uuid` |  |  |  |
 | `created_at` | timestamp with time zone | sim |  |  |  |  |
 | `modified_at` | timestamp with time zone | sim |  |  |  |  |
+| `criada_automaticamente` | boolean | não | `false` |  | nenhum | Remessa criada sozinha pelo controle de envio das relações (15/11/2026), não por uma pessoa. |
 
 Únicas: `UNIQUE (bubble_id)`
 
-Índices: `filiacao_recebe_remessa_bubble_id_key`, `filiacao_recebe_remessa_pkey`
+Índices: `filiacao_recebe_remessa_bubble_id_key`, `filiacao_recebe_remessa_competencia_tipo`, `filiacao_recebe_remessa_pkey`
 
 ## filiacao_reembolsos
 

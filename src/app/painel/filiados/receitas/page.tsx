@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { indicadoresAnuais, listarRemessas } from "@/lib/db/receitas"
+import { garantirRemessas } from "@/lib/db/repasse"
 import { formatarMoeda } from "@/lib/formato"
 
 export const metadata: Metadata = { title: "Receitas — Confluir" }
@@ -29,6 +30,7 @@ export default async function ReceitasPage({
   await requirePermissao("filiacao_receitas", ["filiacao_gestao"])
 
   const { excluida, ano } = await searchParams
+  await garantirRemessas().catch(() => 0)
   const remessas = await listarRemessas()
 
   const anoDe = (r: (typeof remessas)[number]) =>

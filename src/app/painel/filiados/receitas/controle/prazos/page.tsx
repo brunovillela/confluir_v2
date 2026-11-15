@@ -50,7 +50,7 @@ export default async function PrazosPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <PrazosForm desde={desde} regras={efetivas} />
+            <PrazosForm desde={desde} regras={efetivas} remessaAutomatica={regras.remessaAutomatica} />
           </CardContent>
         </Card>
       )}

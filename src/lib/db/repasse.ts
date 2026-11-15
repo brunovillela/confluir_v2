@@ -58,6 +58,8 @@ export type RegrasRepasse = {
   disponivel: boolean
   /** Competência (AAAAMM) de início do controle; null = não ativado. */
   desde: number | null
+  /** Criar sozinho a remessa das competências (migração 20261115153331). */
+  remessaAutomatica: boolean
   geral: Partial<Record<TipoContribuicao, RegraRepasse>>
   porEmpresa: Map<string, Partial<Record<TipoContribuicao, RegraRepasse>>>
 }
@@ -70,9 +72,9 @@ export async function regrasRepasse(): Promise<RegrasRepasse> {
       .from("filiacao_repasse_regras")
       .select("id, empresa_id, tipo, controla, meses, dia_envio, dia_deposito, observacao")
       .eq("emp_proprietaria_id", emp),
-    admin.from("empresa").select("filiacao_repasse_desde").eq("id", emp).maybeSingle(),
+    admin.from("empresa").select("filiacao_repasse_desde, filiacao_remessa_automatica").eq("id", emp).maybeSingle(),
   ])
-  const vazio: RegrasRepasse = { disponivel: false, desde: null, geral: {}, porEmpresa: new Map() }
+  const vazio: RegrasRepasse = { disponivel: false, desde: null, remessaAutomatica: false, geral: {}, porEmpresa: new Map() }
   if (error) {
     if (esquemaAusente(error)) return vazio
     throw new Error(`Falha ao ler as regras do controle de envio: ${error.message}`)
@@ -85,7 +87,8 @@ export async function regrasRepasse(): Promise<RegrasRepasse> {
     else porEmpresa.set(l.empresa_id, { ...(porEmpresa.get(l.empresa_id) ?? {}), [tipo]: paraRegra(l) })
   }
   const desde = (org as { filiacao_repasse_desde?: number | null } | null)?.filiacao_repasse_desde ?? null
-  return { disponivel: true, desde, geral, porEmpresa }
+  const remessaAutomatica = (org as { filiacao_remessa_automatica?: boolean | null } | null)?.filiacao_remessa_automatica !== false
+  return { disponivel: true, desde, remessaAutomatica, geral, porEmpresa }
 }
 
 /** Grava (ou apaga, com `regra` null) a regra geral ou a exceção de uma empresa. */
@@ -619,6 +622,8 @@ async function avisosRepasse(): Promise<{ atrasadas: number; doRh: number } | nu
   const emp = await tenantAtual()
   const c = cacheAvisos.get(emp)
   if (c && c.expira > Date.now()) return c.valor
+  // O painel é a primeira tela do dia: a remessa do mês nasce aqui se faltar.
+  await garantirRemessas().catch(() => 0)
   const regras = await regrasRepasse()
   if (!regras.disponivel) return null
   const limite = new Date(Date.now() - DIAS_SILENCIO_COBRANCA * 86_400_000).toISOString().slice(0, 10)
@@ -754,5 +759,71 @@ export async function encerrarSemValores(dados: {
           .update({ ate: somarMeses(dados.retomada, -1), encerrado_em: new Date().toISOString(), encerrado_por: dados.usuarioNome })
           .eq("id", aberto.id)
   if (error) return { erro: `Não foi possível encerrar: ${error.message}` }
+  return {}
+}
+
+// ── Remessa do mês criada sozinha ───────────────────────────────────────────
+
+const NOMES_MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+/** Quantas competências para trás a criação automática olha (além do início do controle). */
+const MESES_AUTOMATICOS = 3
+const ultimaGarantia = new Map<string, number>()
+
+/**
+ * Cria as remessas que já deveriam existir: para cada tipo controlado, as
+ * competências até a corrente (o mês anterior), desde o início do controle e
+ * no máximo MESES_AUTOMATICOS para trás, em que a regra geral ou a de alguma
+ * empresa prevê desconto. Roda ao abrir Receitas, o controle de envio ou o
+ * painel (não há tarefa agendada por entidade): no máximo uma vez a cada 10
+ * minutos por entidade. O índice único (migração 20261115153331) impede
+ * duplicar se duas telas rodarem ao mesmo tempo. Devolve quantas criou.
+ */
+export async function garantirRemessas(): Promise<number> {
+  const emp = await tenantAtual()
+  const ultima = ultimaGarantia.get(emp)
+  if (ultima && Date.now() - ultima < 10 * 60_000) return 0
+  ultimaGarantia.set(emp, Date.now())
+  const regras = await regrasRepasse()
+  if (!regras.disponivel || regras.desde === null || !regras.remessaAutomatica) return 0
+  const corrente = competenciaCorrente()
+  const inicio = Math.max(regras.desde, somarMeses(corrente, -(MESES_AUTOMATICOS - 1)))
+  if (inicio > corrente) return 0
+  const existentes = new Set((await listarRemessas()).map((r) => `${r.ordem}|${r.tipo ?? "Associativa"}`))
+  const admin = await createAdminClient()
+  let criadas = 0
+  for (const tipo of tiposControlados(regras)) {
+    for (let c = inicio; c <= corrente; c = somarMeses(c, 1)) {
+      if (existentes.has(`${c}|${tipo}`)) continue
+      const geral = regraEfetiva(tipo, regras.geral[tipo])
+      const algumaAplica =
+        competenciaAplica(geral, c) ||
+        [...regras.porEmpresa.values()].some((r) => r[tipo] && competenciaAplica(regraEfetiva(tipo, regras.geral[tipo], r[tipo]), c))
+      if (!algumaAplica) continue
+      const { error } = await admin.from("filiacao_recebe_remessa").insert({
+        emp_proprietaria_id: emp,
+        ano: String(Math.floor(c / 100)),
+        mes: NOMES_MESES[(c % 100) - 1],
+        tipo,
+        aberto: true,
+        ordem: c,
+        criada_automaticamente: true,
+      })
+      if (!error) criadas++
+      else if (error.code !== "23505") console.error(`[repasse] remessa automática ${tipo} ${c}: ${error.message}`)
+    }
+  }
+  if (criadas) invalidarAvisosRepasse()
+  return criadas
+}
+
+export async function salvarRemessaAutomatica(ligada: boolean): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { error } = await admin
+    .from("empresa")
+    .update({ filiacao_remessa_automatica: ligada, updated_at: new Date().toISOString() })
+    .eq("id", emp)
+  if (error) return { erro: esquemaAusente(error) ? AVISO_SQL_REPASSE : error.message }
+  ultimaGarantia.delete(emp)
   return {}
 }

@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requirePermissao } from "@/lib/auth"
 import { contagemPendenciasDesconto } from "@/lib/db/desconto-comunicacoes"
 import { depositosNoExtrato, sugestoesParaTela } from "@/lib/db/repasse-extrato"
-import { competenciaCorrente, quadroRepasse, regrasRepasse, tiposControlados, AVISO_SQL_REPASSE } from "@/lib/db/repasse"
+import { competenciaCorrente, garantirRemessas, quadroRepasse, regrasRepasse, tiposControlados, AVISO_SQL_REPASSE } from "@/lib/db/repasse"
 import { formatarData } from "@/lib/formato"
 import {
   competenciaValida,
@@ -35,6 +35,7 @@ type Busca = { tipo?: string; ate?: string; ver?: string }
 export default async function ControleEnvioPage({ searchParams }: { searchParams: Promise<Busca> }) {
   await requirePermissao("filiacao_receitas", ["filiacao_gestao"])
   const p = await searchParams
+  await garantirRemessas().catch(() => 0)
   const regras = await regrasRepasse()
   const tipos = regras.disponivel ? tiposControlados(regras) : []
   const tipo: TipoContribuicao = ehTipoContribuicao(p.tipo) && tipos.includes(p.tipo) ? p.tipo : (tipos[0] ?? "Associativa")

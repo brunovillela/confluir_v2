@@ -25,10 +25,12 @@ const nomeMes = (m: number) =>
 export function PrazosForm({
   desde,
   regras,
+  remessaAutomatica,
 }: {
   /** "2026-10" ou "". */
   desde: string
   regras: Record<TipoContribuicao, RegraEfetiva>
+  remessaAutomatica: boolean
 }) {
   const [estado, acao, pendente] = useActionState<EstadoForm, FormData>(salvarRegrasGeraisAction, {})
   const envio = useEnvioFormulario(acao, estado, { manter: true })
@@ -43,6 +45,17 @@ export function PrazosForm({
           comunicar às empresas. Deixe em branco para não cobrar ninguém ainda.
         </p>
       </div>
+
+      <label className="flex items-start gap-2 text-sm">
+        <input type="checkbox" name="remessa_automatica" defaultChecked={remessaAutomatica} className="accent-primary mt-0.5 size-4" />
+        <span>
+          Criar sozinha a remessa de cada mês
+          <span className="text-muted-foreground block text-xs">
+            Com o controle ativado, a remessa das competências dos tipos controlados é criada ao abrir Receitas, o controle
+            ou o painel no começo do mês, em vez de alguém criá-la em Receitas → Nova remessa.
+          </span>
+        </span>
+      </label>
 
       {(Object.keys(regras) as TipoContribuicao[]).map((tipo) => {
         const r = regras[tipo]

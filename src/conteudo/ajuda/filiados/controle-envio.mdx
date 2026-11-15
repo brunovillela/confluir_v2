@@ -24,6 +24,14 @@ Em **Prazos e tipos** fica a regra geral da entidade:
     chegar e o depósito ser feito. Na assistencial e na sindical, informe também os
     meses com desconto (por exemplo, `mar` ou `3, 9`). Em branco vale todo mês.
   </Passo>
+  <Passo titulo="Remessa criada sozinha">
+    Com **Criar sozinha a remessa de cada mês** marcado (o padrão), o Confluir
+    cria a remessa de cada competência dos tipos controlados quando alguém abre
+    Receitas, o controle ou o painel no começo do mês, sem esperar alguém criá-la
+    em **Nova remessa**. Olha até 3 meses para trás (nunca antes do início do
+    controle) e só os meses com desconto previsto na regra geral ou na de alguma
+    empresa. Nunca cria duas remessas do mesmo tipo no mesmo mês.
+  </Passo>
 </PassoAPasso>
 
 Uma empresa com prazo diferente, ou que não desconta algum tipo, ganha uma **regra

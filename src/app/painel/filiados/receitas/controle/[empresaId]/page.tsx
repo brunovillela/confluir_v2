@@ -13,6 +13,7 @@ import { confirmacoesDasComunicacoes, enviosDaEmpresa, linkDaEmpresa } from "@/l
 import {
   competenciaCorrente,
   contatosDaFolha,
+  garantirRemessas,
   periodosSemValores,
   eventosDaEmpresa,
   quadroRepasse,
@@ -57,6 +58,7 @@ export default async function ControleEmpresaPage({
   await requirePermissao("filiacao_receitas", ["filiacao_gestao"])
   const { empresaId } = await params
   const p = await searchParams
+  await garantirRemessas().catch(() => 0)
   const unidade = await unidadeRepasse(empresaId)
   if (!unidade) notFound()
   const [regras, contatos, eventos, pendencias, periodosMapa] = await Promise.all([

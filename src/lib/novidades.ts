@@ -25,6 +25,7 @@ export const NOVIDADES: Novidade[] = [
       "Financeiro → Conciliação: em cada crédito do extrato, a sugestão da empresa e do mês de que ele é o depósito da relação de desconto, com um botão que registra e concilia.",
       "Link do RH: cada empresa ganha um endereço próprio, sem login, para mandar a relação de descontos do mês (ou informar que não houve desconto) e confirmar as inclusões e exclusões, que podem ficar só no link, sem nomes no e-mail.",
       "Controle de envio: Cobrar atrasadas manda um e-mail por empresa com todas as pendências dela, e Contatos da folha mostra quem ainda não tem contato, sugerindo os contatos que a empresa já tem cadastrados.",
+      "Receitas: com o controle de envio ativado, a remessa de cada mês dos tipos controlados é criada sozinha (opção em Prazos e tipos).",
     ],
   },
   {

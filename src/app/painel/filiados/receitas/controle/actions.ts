@@ -14,6 +14,7 @@ import {
   removerContatoFolha,
   salvarContatoFolha,
   salvarInicioControle,
+  salvarRemessaAutomatica,
   encerrarSemValores,
   registrarSemValores,
   salvarRegraRepasse,
@@ -99,7 +100,10 @@ export async function salvarRegrasGeraisAction(_: EstadoForm, f: FormData): Prom
   }
   const { erro } = await salvarInicioControle(desde)
   if (erro) return { erro }
+  const auto = await salvarRemessaAutomatica(f.get("remessa_automatica") === "on")
+  if (auto.erro) return { erro: auto.erro }
   revalidar()
+  revalidatePath("/painel/filiados/receitas")
   return { ok: "Prazos salvos." }
 }
 
