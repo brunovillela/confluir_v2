@@ -13,6 +13,7 @@ const ESTILOS: Record<SituacaoProcesso, string> = {
   comprada: "border-info/40 text-info-fg",
   recebida: "border-success/40 text-success-fg",
   cancelada: "border-destructive/40 text-destructive",
+  cancelada_vendedor: "border-warning/40 text-warning-fg",
 }
 
 export function SituacaoProcessoBadge({

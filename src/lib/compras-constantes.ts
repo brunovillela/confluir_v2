@@ -10,6 +10,7 @@ export const SITUACOES_PROCESSO = [
   "comprada",
   "recebida",
   "cancelada",
+  "cancelada_vendedor",
 ] as const
 
 export type SituacaoProcesso = (typeof SITUACOES_PROCESSO)[number]
@@ -21,6 +22,7 @@ export const ROTULOS_SITUACAO_PROCESSO: Record<SituacaoProcesso, string> = {
   comprada: "Comprada",
   recebida: "Recebida",
   cancelada: "Cancelada",
+  cancelada_vendedor: "Cancelada pelo vendedor",
 }
 
 /** Data de hoje no relógio LOCAL (AAAA-MM-DD) — default de inputs date; toISOString daria o dia UTC, que vira à frente de SP a partir das 21h. */

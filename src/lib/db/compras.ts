@@ -72,8 +72,13 @@ type FlagsProcesso = {
 }
 
 /** A situação não é coluna: deriva das flags legadas (compatível com as 6,5k linhas migradas). */
-export function derivarSituacao(p: FlagsProcesso): SituacaoProcesso {
+/**
+ * Situação do processo pelas marcas dele. canceladaPeloVendedor: comprado e
+ * TODOS os fornecimentos cancelados pelo vendedor (crédito ou devolução).
+ */
+export function derivarSituacao(p: FlagsProcesso, canceladaPeloVendedor = false): SituacaoProcesso {
   if (p.cancelado === true) return "cancelada"
+  if (canceladaPeloVendedor && p.comprado === true) return "cancelada_vendedor"
   if (p.recebido === true) return "recebida"
   if (p.comprado === true) return "comprada"
   if (p.em_cotacao === true) return "em_cotacao"
@@ -325,6 +330,29 @@ export async function normalizarOrdens(
 
 export const PROCESSOS_POR_PAGINA = 10
 
+/**
+ * Processos em que todos os fornecimentos foram cancelados pelo vendedor
+ * (situação "Cancelada pelo vendedor").
+ */
+async function processosCanceladosPeloVendedor(emp: string): Promise<string[]> {
+  const admin = await createAdminClient()
+  const { data: cancelados } = await admin
+    .from("compras_fornecimentos")
+    .select("processo_id")
+    .eq("emp_proprietaria_id", emp)
+    .not("cancelamento_desfecho", "is", null)
+    .limit(1000)
+  const ids = [...new Set((cancelados ?? []).map((f) => String(f.processo_id)))]
+  if (!ids.length) return []
+  const { data: ativos } = await admin
+    .from("compras_fornecimentos")
+    .select("processo_id")
+    .in("processo_id", ids)
+    .is("cancelamento_desfecho", null)
+  const comAtivo = new Set((ativos ?? []).map((f) => String(f.processo_id)))
+  return ids.filter((id) => !comAtivo.has(id))
+}
+
 export type FiltrosProcessos = {
   busca?: string
   situacao?: SituacaoProcesso | "todas"
@@ -381,15 +409,25 @@ export async function listarProcessos(
     )
   }
 
+  // Cancelada pelo vendedor sai de Comprada/Recebida e tem filtro próprio.
+  const doVendedor =
+    filtros.situacao === "cancelada_vendedor" || filtros.situacao === "comprada" || filtros.situacao === "recebida"
+      ? await processosCanceladosPeloVendedor(await tenantAtual()).catch(() => [] as string[])
+      : []
+  const semDoVendedor = <T extends { not: (c: string, o: string, v: string) => T }>(b: T): T =>
+    doVendedor.length ? b.not("id", "in", `(${doVendedor.join(",")})`) : b
   switch (filtros.situacao) {
     case "cancelada":
       q = q.eq("cancelado", true)
       break
+    case "cancelada_vendedor":
+      q = q.eq("cancelado", false).eq("comprado", true).in("id", doVendedor.length ? doVendedor : ["00000000-0000-0000-0000-000000000000"])
+      break
     case "recebida":
-      q = q.eq("cancelado", false).eq("recebido", true)
+      q = semDoVendedor(q.eq("cancelado", false).eq("recebido", true))
       break
     case "comprada":
-      q = q.eq("cancelado", false).eq("recebido", false).eq("comprado", true)
+      q = semDoVendedor(q.eq("cancelado", false).eq("recebido", false).eq("comprado", true))
       break
     case "em_cotacao":
       q = q.eq("cancelado", false).eq("comprado", false).eq("em_cotacao", true)
@@ -461,10 +499,17 @@ export async function listarProcessos(
   const { data: fornecimentosDaPagina } = linhas.length
     ? await admin
         .from("compras_fornecimentos")
-        .select("processo_id, fornecedor_id")
+        .select("processo_id, fornecedor_id, cancelamento_desfecho")
         .in("processo_id", linhas.map((p) => String(p.id)))
     : { data: [] }
   const fornecedoresPorProcesso = new Map<string, string[]>()
+  // Processo cujos fornecimentos foram todos cancelados pelo vendedor.
+  const estadoCancelamento = new Map<string, boolean>()
+  for (const f of fornecimentosDaPagina ?? []) {
+    const pid = String(f.processo_id)
+    const cancelado = Boolean((f as { cancelamento_desfecho?: string | null }).cancelamento_desfecho)
+    estadoCancelamento.set(pid, (estadoCancelamento.get(pid) ?? true) && cancelado)
+  }
   for (const f of fornecimentosDaPagina ?? []) {
     if (!f.fornecedor_id) continue
     const lista = fornecedoresPorProcesso.get(String(f.processo_id)) ?? []
@@ -524,7 +569,7 @@ export async function listarProcessos(
           .map((id) => nomesFornecedores.get(id)?.nome)
           .filter(Boolean)
           .join(", ") || null,
-      situacao: derivarSituacao(p),
+      situacao: derivarSituacao(p, estadoCancelamento.get(String(p.id)) === true),
       created_at: (p.created_at as string | null) ?? null,
     })),
     total,
@@ -593,7 +638,8 @@ export async function resumoCompras(escopo?: EscopoCompras): Promise<ResumoCompr
         .from("compras_fornecimentos")
         .select("id", { count: "exact", head: true })
         .eq("emp_proprietaria_id", await tenantAtual())
-        .eq("recebido", false),
+        .eq("recebido", false)
+        .is("cancelamento_desfecho", null),
       aCotarQ,
     ])
 
@@ -805,7 +851,10 @@ export async function buscarProcesso(
   return {
     id: String(p.id),
     codigo: (p.codigo as string | null) ?? null,
-    situacao: derivarSituacao(p),
+    situacao: derivarSituacao(
+      p,
+      (fornecimentosBrutos ?? []).length > 0 && (fornecimentosBrutos ?? []).every((x) => Boolean(x.cancelamento_desfecho))
+    ),
     aquisicao_direta: (p.aquisicao_direta as boolean | null) ?? null,
     cancelado: p.cancelado === true,
     cancelado_quando: (p.cancelado_quando as string | null) ?? null,
@@ -1764,6 +1813,7 @@ export async function registrarRecebimento(
     .select("id", { count: "exact", head: true })
     .eq("processo_id", linha.processo_id)
     .eq("recebido", false)
+    .is("cancelamento_desfecho", null)
   if (count === 0) {
     await admin
       .from("compras_solicitacoes")
@@ -1805,6 +1855,7 @@ export async function listarRecebimentosPendentes(): Promise<{
         .from("compras_fornecimentos")
         .select("*")
         .eq("recebido", false)
+        .is("cancelamento_desfecho", null)
         .order("previsao_entrega", { ascending: true, nullsFirst: false })
         .order("created_at", { ascending: true })
         .order("id")

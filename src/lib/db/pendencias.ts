@@ -335,7 +335,8 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
       descricao: "Compras entregues ou a entregar sem recebimento",
       href: "/painel/compras/recebimentos",
       tabela: "compras_fornecimentos",
-      montar: (q) => head(q).eq("recebido", false),
+      // Compra cancelada pelo vendedor não tem o que receber.
+      montar: (q) => head(q).eq("recebido", false).is("cancelamento_desfecho", null),
     })
   }
 
