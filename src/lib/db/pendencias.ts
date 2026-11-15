@@ -349,7 +349,14 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
       descricao: "Suas compras em marketplace sem a nota do vendedor",
       href: "/painel/compras/notas-a-receber",
       tabela: "compras_fornecimentos",
-      montar: (q) => head(q).eq("nota_a_receber", true).eq("comprador_id", usuarioId),
+      // Como a página Notas a receber: processo cancelado não conta.
+      montar: (q) =>
+        q
+          .select("id, compras_solicitacoes!inner(cancelado)", { count: "exact", head: true })
+          .eq("emp_proprietaria_id", emp)
+          .eq("nota_a_receber", true)
+          .eq("comprador_id", usuarioId)
+          .not("compras_solicitacoes.cancelado", "is", true),
     })
   }
 
