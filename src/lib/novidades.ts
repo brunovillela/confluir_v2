@@ -20,6 +20,7 @@ export const NOVIDADES: Novidade[] = [
       "Oposição: na Divulgação da campanha, \"Preparar a mensagem aos filiados\" abre na Mala direta um rascunho pronto, com o texto do boletim, o do WhatsApp e os filiados ativos das fontes da campanha. É só revisar e liberar.",
       "Oposição: a ficha de cada oposição mostra a carta como ficou no registro, com o texto que valia para aquela pessoa, e avisa quando o texto atual da campanha é outro. \"Ver como o trabalhador\" também mostra a carta, com dados de exemplo e o texto que vale hoje.",
       "Oposição: ao alterar o texto da carta, antes de salvar, a tela diz quem a mudança alcança — quantas pessoas já registraram na campanha e mantêm o texto anterior, ou quais campanhas seguem o texto da entidade.",
+      "Controle de envio das relações: os depósitos das empresas são achados no extrato bancário importado na Conciliação (pelo CNPJ ou nome da empresa e pelo valor da relação) e confirmados com um clique, já conciliados.",
     ],
   },
   {

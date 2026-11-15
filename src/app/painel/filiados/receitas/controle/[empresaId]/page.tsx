@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { comunicacoesDaEmpresa, pendenciasDeDesconto } from "@/lib/db/desconto-comunicacoes"
+import { depositosNoExtrato, sugestoesParaTela } from "@/lib/db/repasse-extrato"
 import {
   competenciaCorrente,
   contatosDaFolha,
@@ -38,6 +39,7 @@ import {
 import { cn } from "@/lib/utils"
 
 import { AcoesCompetencia, ComunicarDesconto, ContatosFolha, DesfazerEvento } from "../formularios"
+import { DepositosExtrato } from "../depositos-extrato"
 import { EncerrarSemValores, RegistrarSemValores } from "../sem-valores"
 import { CelulaSituacao, SeloSituacao } from "../situacao"
 
@@ -65,9 +67,10 @@ export default async function ControleEmpresaPage({
   const daEmpresa = regras.porEmpresa.get(unidade.id) ?? {}
   const tipos = TIPOS_CONTRIBUICAO.filter((t) => tiposControlados(regras).includes(t) || daEmpresa[t])
   const tipo: TipoContribuicao = ehTipoContribuicao(p.tipo) ? p.tipo : (tipos[0] ?? "Associativa")
-  const [quadro, comunicacoes] = await Promise.all([
+  const [quadro, comunicacoes, extrato] = await Promise.all([
     quadroRepasse({ tipo, empresaId: unidade.id }),
     comunicacoesDaEmpresa(unidade.id, unidade.fontes),
+    depositosNoExtrato(unidade.id).catch(() => null),
   ])
   const linha = quadro.linhas[0]
   const regra = linha?.regra ?? regraEfetiva(tipo, regras.geral[tipo], daEmpresa[tipo])
@@ -263,6 +266,21 @@ export default async function ControleEmpresaPage({
               )}
             </CardContent>
           </Card>
+
+          {extrato && extrato.sugestoes.length > 0 && (
+            <Card className="border-success/40">
+              <CardHeader>
+                <CardTitle className="text-base">Depósitos achados no extrato</CardTitle>
+                <CardDescription>Créditos do extrato bancário que parecem ser o depósito de uma relação lançada desta empresa.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <DepositosExtrato
+                  sugestoes={sugestoesParaTela(extrato.sugestoes)}
+                  mostrarEmpresa={false}
+                />
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>

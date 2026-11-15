@@ -19,6 +19,7 @@ import {
   salvarRegraRepasse,
   unidadeRepasse,
 } from "@/lib/db/repasse"
+import { confirmarDeposito } from "@/lib/db/repasse-extrato"
 import { enviarEmail } from "@/lib/email"
 import { escaparHtml, paragrafo, tituloEmail } from "@/lib/email-layout"
 import { formatarCnpjCpf, formatarMoeda } from "@/lib/formato"
@@ -398,4 +399,36 @@ export async function encerrarSemValoresAction(_: EstadoForm, f: FormData): Prom
   if (erro) return { erro }
   revalidar(empresaId)
   return { ok: `O controle volta a cobrar a relação a partir de ${rotuloCompetencia(retomada)}.` }
+}
+
+// ── Depósitos achados no extrato ────────────────────────────────────────────
+
+/**
+ * Confirma um ou mais créditos do extrato como depósito da empresa
+ * (`deposito` = "lancamentoId|remessaId|fonteId", repetível).
+ */
+export async function confirmarDepositosAction(_: EstadoForm, f: FormData): Promise<EstadoForm> {
+  const quem = await sessao()
+  const pares = [...new Set(f.getAll("deposito").map(String))].flatMap((v) => {
+    const [lancamentoId, remessaId, fonteId] = v.split("|")
+    return lancamentoId && remessaId && fonteId ? [{ lancamentoId, remessaId, fonteId }] : []
+  })
+  if (pares.length === 0) return { erro: "Marque ao menos um depósito." }
+  if (new Set(pares.map((x) => x.lancamentoId)).size !== pares.length) {
+    return { erro: "O mesmo crédito do extrato foi marcado para mais de uma relação. Deixe só um." }
+  }
+  const erros: string[] = []
+  let ok = 0
+  for (const x of pares) {
+    const r = await confirmarDeposito({ ...x, usuarioId: quem.id })
+    if (r.erro) erros.push(r.erro)
+    else ok++
+  }
+  revalidar()
+  for (const x of pares) revalidatePath(`/painel/filiados/receitas/controle/${x.fonteId}`)
+  revalidatePath("/painel/financeiro/conciliacao")
+  if (ok === 0) return { erro: erros[0] ?? "Nada foi confirmado." }
+  return {
+    ok: `${ok} depósito(s) confirmado(s) e conciliado(s) com o extrato.` + (erros.length ? ` ${erros.length} não: ${erros[0]}` : ""),
+  }
 }

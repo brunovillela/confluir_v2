@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { contagemPendenciasDesconto } from "@/lib/db/desconto-comunicacoes"
+import { depositosNoExtrato, sugestoesParaTela } from "@/lib/db/repasse-extrato"
 import { competenciaCorrente, quadroRepasse, regrasRepasse, tiposControlados, AVISO_SQL_REPASSE } from "@/lib/db/repasse"
 import { formatarData } from "@/lib/formato"
 import {
@@ -24,6 +25,7 @@ import {
 } from "@/lib/repasse"
 import { cn } from "@/lib/utils"
 
+import { DepositosExtrato } from "./depositos-extrato"
 import { CelulaSituacao, CLASSE_TOM } from "./situacao"
 
 export const metadata: Metadata = { title: "Controle de envio — Confluir" }
@@ -41,9 +43,10 @@ export default async function ControleEnvioPage({ searchParams }: { searchParams
   const ate = competenciaValida(ateLido) && ateLido <= somarMeses(corrente, 1) ? ateLido : corrente
   const ver = p.ver === "todas" ? "todas" : "pendentes"
 
-  const [quadro, pendencias] = await Promise.all([
+  const [quadro, pendencias, extrato] = await Promise.all([
     quadroRepasse({ tipo, ate, meses: 12 }),
     contagemPendenciasDesconto().catch(() => new Map<string, { inclusoes: number; exclusoes: number }>()),
+    depositosNoExtrato().catch(() => null),
   ])
 
   const link = (mudar: Partial<Busca>) => {
@@ -157,6 +160,27 @@ export default async function ControleEnvioPage({ searchParams }: { searchParams
             ))}
           </div>
 
+          {extrato && extrato.sugestoes.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Depósitos achados no extrato</CardTitle>
+                <CardDescription>
+                  Créditos do extrato bancário que parecem ser o depósito de uma relação lançada sem comprovante. Os
+                  marcados são os muito prováveis, sem disputa com outra relação. Confira e confirme.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <DepositosExtrato sugestoes={sugestoesParaTela(extrato.sugestoes)} />
+              </CardContent>
+            </Card>
+          )}
+          {extrato?.disponivel && (contagem.get("falta_deposito") ?? 0) > 0 && extrato.sugestoes.length === 0 && (
+            <p className="text-muted-foreground text-xs">
+              {extrato.ultimoExtrato
+                ? `Nenhum crédito do extrato bancário casou com as relações sem depósito. Último extrato importado até ${formatarData(extrato.ultimoExtrato)}.`
+                : "Nenhum extrato bancário importado. Com o extrato da conta que recebe as contribuições em Financeiro → Conciliação, o Confluir sugere aqui os depósitos de cada empresa."}
+            </p>
+          )}
           {quadro.desde !== null && (totalInc > 0 || totalExc > 0) && (
             <Alert>
               <AlertDescription className="flex flex-wrap items-center gap-x-4 gap-y-1">

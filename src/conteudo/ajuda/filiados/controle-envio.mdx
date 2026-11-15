@@ -89,6 +89,36 @@ os prazos. Os botões:
 A **Trilha** guarda tudo o que foi registrado. **Chegou, falta lançar** e **Sem
 desconto no mês** podem ser desfeitos ali, se foram marcados por engano.
 
+## Depósitos achados no extrato
+
+Quando o Financeiro importa o extrato da conta que recebe as contribuições (em
+**Financeiro → Conciliação**), o Confluir procura nele o depósito de cada relação
+lançada sem comprovante e mostra o quadro **Depósitos achados no extrato**, no
+controle e na página da empresa.
+
+Cada sugestão traz o crédito (valor, data e histórico do banco), o motivo e um
+grau de certeza:
+
+- **Muito provável**: o histórico traz o CNPJ ou o nome da empresa e o valor é o
+  mesmo da relação;
+- **Provável**: só o valor é o mesmo, ou a empresa aparece e o valor é próximo;
+- **Possível**: a empresa aparece, mas o valor é diferente (a diferença é
+  mostrada).
+
+Os muito prováveis, sem disputa com outra relação, já vêm marcados. Confira e use
+**Confirmar**: o depósito é registrado na remessa (como se fosse lançado à mão em
+Receitas) e o crédito fica conciliado no extrato do Financeiro.
+
+<Aviso tipo="nota" titulo="Mensalidade igual todo mês">
+  Quando o valor se repete mês a mês, um mesmo crédito poderia ser de mais de uma
+  competência. O Confluir o sugere na competência cujo prazo de depósito está mais
+  perto da data do crédito. Créditos de antes do dia 20 do mês da competência não
+  são considerados.
+</Aviso>
+
+Sem extrato importado, o controle avisa que nenhum extrato foi importado e as
+sugestões não aparecem.
+
 ## Empresa sem valores a repassar
 
 Quando uma empresa deixa de ter o que repassar (por exemplo, todos os
@@ -178,6 +208,11 @@ Os avisos só aparecem com o controle ativado.
   Cadastre-o na página da empresa.
 - **"A empresa não tem mais filiados e continua atrasada."** Registre **Sem
   valores a repassar** na página dela.
+- **"O depósito está no extrato mas não aparece em Depósitos achados."** O
+  crédito precisa estar **pendente** na conciliação (não conciliado nem
+  ignorado), cair entre o dia 20 do mês da competência e alguns meses depois do
+  prazo, e trazer a empresa no histórico ou o mesmo valor da relação. Fora disso,
+  registre o depósito em Receitas ou na Conciliação.
 - **"Valor diferente."** Confira em Receitas o total da relação e o comprovante
   do depósito: um lançamento a mais ou a menos, ou um depósito de outra
   competência, explica a diferença.
