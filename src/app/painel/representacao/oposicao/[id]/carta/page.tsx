@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { obterCampanhaPublica } from "@/lib/db/oposicao"
-import { cartaDaCampanha } from "@/lib/db/oposicao-carta"
+import { cartaDaCampanha, oposicoesRegistradas } from "@/lib/db/oposicao-carta"
 import { podeNaOposicao, requireOposicao } from "@/lib/db/oposicao-regras"
 import { nomeEntidade } from "@/lib/db/organizacao"
 import { formatarDataHora } from "@/lib/formato"
@@ -22,7 +22,12 @@ export const metadata: Metadata = { title: "Carta da campanha — Oposição —
 export default async function CartaDaCampanhaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const sessao = await requireOposicao("consultar", id)
-  const [campanha, carta, nome] = await Promise.all([obterCampanhaPublica(id), cartaDaCampanha(id), nomeEntidade()])
+  const [campanha, carta, nome, registradas] = await Promise.all([
+    obterCampanhaPublica(id),
+    cartaDaCampanha(id),
+    nomeEntidade(),
+    oposicoesRegistradas(id),
+  ])
   if (!campanha || !carta) notFound()
   const podeEditar = podeNaOposicao(sessao.permissoes, "configurar", campanha.regras.segregacao)
   const aqui = `/painel/representacao/oposicao/${id}`
@@ -65,6 +70,11 @@ export default async function CartaDaCampanhaPage({ params }: { params: Promise<
           DECLARACAO: campanha.texto_declaracao ?? DECLARACAO_PADRAO,
         }}
         pdfHref={`/painel/representacao/oposicao/carta/exemplo?campanha=${id}`}
+        avisoAoSalvar={
+          registradas > 0
+            ? `${registradas.toLocaleString("pt-BR")} ${registradas === 1 ? "pessoa já registrou" : "pessoas já registraram"} oposição nesta campanha e ${registradas === 1 ? "mantém" : "mantêm"} a carta com o texto anterior. O novo texto vale só para quem registrar daqui em diante.`
+            : "Ninguém registrou oposição nesta campanha ainda: o novo texto vale para todos."
+        }
       />
     </>
   )

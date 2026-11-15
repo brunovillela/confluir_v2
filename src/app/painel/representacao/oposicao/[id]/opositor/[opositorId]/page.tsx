@@ -15,8 +15,11 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { podeNaOposicao, regrasDaCampanha, requireOposicao } from "@/lib/db/oposicao-regras"
-import { obterOpositorDetalhe } from "@/lib/db/oposicao"
-import { formatarData, formatarDataHora } from "@/lib/formato"
+import { obterComprovante, obterOpositorDetalhe } from "@/lib/db/oposicao"
+import { dadosDaCarta } from "@/lib/db/oposicao-assinatura"
+import { cartaDaCampanha } from "@/lib/db/oposicao-carta"
+import { CartaTexto } from "@/components/oposicao/carta-texto"
+import { formatarCnpjCpf, formatarData, formatarDataHora } from "@/lib/formato"
 import { mascaraCpf } from "@/lib/mascaras"
 import { ROTULO_SITUACAO_OPOSITOR } from "@/lib/oposicao-constantes"
 
@@ -38,6 +41,14 @@ export default async function OpositorPage({
   const { avaliado } = await searchParams
   const o = await obterOpositorDetalhe(opositorId)
   if (!o || o.campanhaId !== id) notFound()
+
+  // A carta como a pessoa registrou (15/11/2026): o texto gravado no
+  // registro, não o atual da campanha, que pode ter mudado depois.
+  const comprovante = o.situacao !== "desistente" && o.cpf ? await obterComprovante(o.id, o.cpf) : null
+  const [carta, cartaAtual] = comprovante
+    ? await Promise.all([dadosDaCarta(comprovante).then((d) => d.dados), cartaDaCampanha(id)])
+    : [null, null]
+  const textoMudou = Boolean(carta && cartaAtual && (carta.modelo ?? null) !== null && carta.modelo !== cartaAtual.vigente)
 
   const avaliavel = podeAvaliar && ["nao_avaliada", "aprovada", "reprovada"].includes(o.situacao)
   const q = o.requisitos
@@ -124,6 +135,23 @@ export default async function OpositorPage({
                 </dd>
               </div>
             ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {carta && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Carta registrada</CardTitle>
+            <CardDescription>
+              O texto como ficou no registro da oposição
+              {carta.modelo ? "" : " (texto padrão do sistema, de antes da carta editável)"}.
+              {textoMudou && " O texto atual da campanha é outro: esta pessoa mantém o que registrou."}
+              {o.documentoAssinadoUrl && " Confira se o PDF assinado tem este mesmo conteúdo."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <CartaTexto dados={carta} modelo={carta.modelo} formatarCpf={formatarCnpjCpf} />
           </CardContent>
         </Card>
       )}

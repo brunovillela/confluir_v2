@@ -34,7 +34,7 @@ import { nomeEntidade, obterOrganizacao } from "@/lib/db/organizacao"
 import { configDoPortal } from "@/lib/db/portal-partes"
 import { formatarCnpjCpf, formatarData, formatarDataHora } from "@/lib/formato"
 import { mascaraCpf } from "@/lib/mascaras"
-import { CARTA_PADRAO, montarCarta, valoresDaCarta } from "@/lib/oposicao-carta"
+import { CartaTexto } from "@/components/oposicao/carta-texto"
 import { aceitaCartaEnviada, assinaPeloConfluir, estadoPrazo } from "@/lib/oposicao-constantes"
 import { origemAtual } from "@/lib/tenant-url"
 import { regrasDaCampanha } from "@/lib/db/oposicao-regras"
@@ -553,7 +553,7 @@ function AssinarPeloConfluir({
           um certificado que qualquer pessoa pode conferir.
         </p>
       </div>
-      {dadosCarta && <CartaParaLer d={dadosCarta} />}
+      {dadosCarta && <CartaTexto dados={dadosCarta} modelo={dadosCarta.modelo} formatarCpf={mascaraCpf} />}
       {bloqueada ? (
         <Alert variant="warning">
           <AlertDescription>O prazo para assinar a carta terminou. Fale com a entidade.</AlertDescription>
@@ -568,27 +568,6 @@ function AssinarPeloConfluir({
         />
       )}
     </section>
-  )
-}
-
-/** O texto da carta na tela — o mesmo do PDF, do mesmo modelo (lib/oposicao-carta). */
-function CartaParaLer({ d }: { d: DadosCartaOposicao }) {
-  const corpo = montarCarta(d.modelo ?? CARTA_PADRAO, valoresDaCarta(d, mascaraCpf))
-  return (
-    <div className="bg-muted/40 grid gap-3 rounded-md border p-4 text-sm">
-      <p className="text-center text-xs font-semibold tracking-wide uppercase">
-        Carta de oposição à contribuição assistencial
-      </p>
-      {corpo.map((p, i) => (
-        <p
-          key={i}
-          className={p.destaque ? "bg-background rounded border p-3 text-xs whitespace-pre-wrap" : "whitespace-pre-line"}
-        >
-          {p.trechos.map((t, j) => (t.negrito ? <strong key={j}>{t.texto}</strong> : <span key={j}>{t.texto}</span>))}
-        </p>
-      ))}
-      {d.protocolo != null && <p className="text-muted-foreground text-xs">Protocolo: {d.protocolo}</p>}
-    </div>
   )
 }
 

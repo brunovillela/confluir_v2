@@ -6,12 +6,15 @@ import { ArrowLeft } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { CartaTexto } from "@/components/oposicao/carta-texto"
 import { obterCampanhaPublica } from "@/lib/db/oposicao"
+import { cartaDaCampanha } from "@/lib/db/oposicao-carta"
 import { orientacoesDaCampanha, paraOrientacao } from "@/lib/db/oposicao-ciencia"
 import { requireOposicao } from "@/lib/db/oposicao-regras"
 import { nomeEntidade } from "@/lib/db/organizacao"
-import { formatarData } from "@/lib/formato"
-import { DECLARACAO_PADRAO, exigeDocumentoComRegras } from "@/lib/oposicao-constantes"
+import { formatarCnpjCpf, formatarData } from "@/lib/formato"
+import { assinaPeloConfluir, DECLARACAO_PADRAO, exigeDocumentoComRegras } from "@/lib/oposicao-constantes"
+import { valoresDeExemplo } from "@/lib/oposicao-carta"
 import { nomesDasEtapas } from "@/lib/oposicao-orientacoes"
 import { cn } from "@/lib/utils"
 
@@ -37,13 +40,16 @@ export default async function PreviaOposicaoPage({
   const { id } = await params
   await requireOposicao("consultar", id)
   const filiado = (await searchParams).perfil !== "nao_filiado"
-  const [campanha, entidade] = await Promise.all([obterCampanhaPublica(id), nomeEntidade()])
+  const [campanha, entidade, carta] = await Promise.all([obterCampanhaPublica(id), nomeEntidade(), cartaDaCampanha(id)])
   if (!campanha) notFound()
 
   const orientacoes = orientacoesDaCampanha(campanha, filiado, entidade)
   const base = paraOrientacao(campanha, filiado)
   const exigeCarta = exigeDocumentoComRegras(campanha.modo_formalizacao, filiado, campanha.regras)
   const aqui = `/painel/representacao/oposicao/${id}`
+  // A carta com dados de exemplo e o texto que vale hoje na campanha (15/11/2026).
+  const ex = valoresDeExemplo()
+  const pelaConfluir = assinaPeloConfluir(campanha.regras.assinaturas_aceitas)
 
   return (
     <>
@@ -159,11 +165,45 @@ export default async function PreviaOposicaoPage({
         <CardHeader>
           <CardTitle className="text-base">{filiado ? "4" : "3"}. Comprovante</CardTitle>
           <CardDescription>
-            {exigeCarta
-              ? "Com protocolo. A oposição fica “aguardando a carta”: a pessoa baixa a carta em PDF, assina e envia pelo comprovante."
-              : "Com protocolo. A oposição vai direto para a avaliação; não há carta."}
+            {!exigeCarta
+              ? "Com protocolo. A oposição vai direto para a avaliação; não há carta."
+              : pelaConfluir
+                ? "Com protocolo. A oposição fica “aguardando a carta”: a pessoa lê a carta abaixo, já com os dados dela, e assina ali mesmo pelo Confluir."
+                : "Com protocolo. A oposição fica “aguardando a carta”: a pessoa baixa a carta abaixo em PDF, já com os dados dela, assina e envia pelo comprovante."}
           </CardDescription>
         </CardHeader>
+        {exigeCarta && carta && (
+          <CardContent className="grid gap-2">
+            <CartaTexto
+              modelo={carta.vigente}
+              formatarCpf={formatarCnpjCpf}
+              dados={{
+                organizacao: entidade,
+                nome: ex.NOME_COMPLETO ?? null,
+                cpf: "12345678909",
+                matricula: ex.MATRICULA ?? null,
+                empregador: campanha.fontes[0]?.nome ?? ex.EMPRESA ?? null,
+                empregadorCnpj: null,
+                campanha: campanha.nome,
+                detalhe: campanha.detalhe_desconto,
+                declaracao: campanha.texto_declaracao ?? DECLARACAO_PADRAO,
+                protocolo: 1234,
+                data: null,
+              }}
+            />
+            <p className="text-muted-foreground text-xs">
+              Dados de exemplo; a carta de cada pessoa sai com os dela.{" "}
+              {carta.origem === "campanha"
+                ? "Texto próprio da campanha."
+                : carta.origem === "entidade"
+                  ? "Texto da entidade."
+                  : "Texto padrão do sistema."}{" "}
+              <Link href={`${aqui}/carta`} className="text-primary underline underline-offset-4">
+                Ver ou editar a carta
+              </Link>
+            </p>
+          </CardContent>
+        )}
       </Card>
     </>
   )

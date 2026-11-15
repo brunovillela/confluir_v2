@@ -4,6 +4,11 @@
 
 O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga. É o mesmo conteúdo do aviso "O que há de novo" dentro do sistema. O detalhe técnico de cada entrega está no histórico do git; as decisões de arquitetura, em [`docs/arquitetura/adr/`](../arquitetura/adr/LEIA-ME.md).
 
+## 15/11/2026 — Oposição: a carta registrada à vista
+
+- Oposição: a ficha de cada oposição mostra a carta como ficou no registro, com o texto que valia para aquela pessoa, e avisa quando o texto atual da campanha é outro. "Ver como o trabalhador" também mostra a carta, com dados de exemplo e o texto que vale hoje.
+- Oposição: ao alterar o texto da carta, antes de salvar, a tela diz quem a mudança alcança — quantas pessoas já registraram na campanha e mantêm o texto anterior, ou quais campanhas seguem o texto da entidade.
+
 ## 14/11/2026 — Ordens de pagamento: busca por quem recebe
 
 - Oposição: o texto da carta de oposição agora pode ser alterado, com a recomendação do jurídico, em Oposição → Carta de oposição (padrão da entidade) ou na campanha → Carta. O texto usa referências como [NOME_COMPLETO] e [CPF], que viram os dados de cada pessoa, e mostra a prévia com dados de exemplo e um PDF de exemplo. Quem já se opôs mantém a carta que registrou. O documento-modelo em PDF da campanha deixou de existir: a carta gerada já sai preenchida.

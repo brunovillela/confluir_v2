@@ -386,8 +386,6 @@ export type DadosCampanha = {
   video_nao_filiado_url: string | null
   video_nao_filiado_tempo: number | null
   video_agradecimento_url: string | null
-  /** Caminho já gravável (upload feito na action); undefined = não mexer. */
-  documento_modelo_url?: string | null
   fonteIds: string[]
   /** Decisões jurídicas da campanha (nulo = padrão da entidade); undefined = não mexer. */
   regras?: RegrasOposicao
@@ -413,9 +411,6 @@ function normalizar(dados: DadosCampanha): Record<string, unknown> {
     video_nao_filiado_url: dados.video_nao_filiado_url,
     video_nao_filiado_tempo: dados.video_nao_filiado_tempo,
     video_agradecimento_url: dados.video_agradecimento_url,
-  }
-  if (dados.documento_modelo_url !== undefined) {
-    p.documento_modelo_url = dados.documento_modelo_url
   }
   if (dados.regras) Object.assign(p, colunasDasRegras(dados.regras))
   if (dados.perguntasFrequentes) p.perguntas_frequentes = normalizarPerguntasFrequentes(dados.perguntasFrequentes)
@@ -517,7 +512,6 @@ const ROTULOS_CAMPO_CAMPANHA: Record<string, string> = {
   video_nao_filiado_url: "vídeo do não filiado",
   video_nao_filiado_tempo: "tempo do vídeo do não filiado",
   video_agradecimento_url: "vídeo de agradecimento",
-  documento_modelo_url: "documento-modelo",
   ...Object.fromEntries(DECISOES_JURIDICAS.map((d) => [`regra_${d.chave}`, d.rotulo.toLowerCase()])),
 }
 
@@ -920,7 +914,6 @@ export type CampanhaPublica = {
   situacao: SituacaoCampanha
   modo_formalizacao: ModoFormalizacao
   texto_declaracao: string | null
-  documento_modelo_url: string | null
   video_filiado_url: string | null
   video_filiado_tempo: number | null
   video_nao_filiado_url: string | null
@@ -992,7 +985,6 @@ export async function obterCampanhaPublica(
     situacao: (c.situacao ?? "rascunho") as SituacaoCampanha,
     modo_formalizacao: (c.modo_formalizacao ?? "tela") as ModoFormalizacao,
     texto_declaracao: texto(c.texto_declaracao),
-    documento_modelo_url: texto(c.documento_modelo_url),
     video_filiado_url: texto(c.video_filiado_url),
     video_filiado_tempo:
       c.video_filiado_tempo == null ? null : Number(c.video_filiado_tempo),

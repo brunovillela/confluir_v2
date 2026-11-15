@@ -3,7 +3,7 @@ import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { cartaDaEntidade } from "@/lib/db/oposicao-carta"
+import { campanhasQueSeguemAEntidade, cartaDaEntidade } from "@/lib/db/oposicao-carta"
 import { podeNaOposicao, regrasDaEntidade, requireOposicao } from "@/lib/db/oposicao-regras"
 import { nomeEntidade } from "@/lib/db/organizacao"
 import { formatarDataHora } from "@/lib/formato"
@@ -21,7 +21,19 @@ export const metadata: Metadata = { title: "Carta de oposição — Oposição �
  */
 export default async function CartaOposicaoPage() {
   const sessao = await requireOposicao("consultar")
-  const [carta, entidade, nome] = await Promise.all([cartaDaEntidade(), regrasDaEntidade(), nomeEntidade()])
+  const [carta, entidade, nome, seguem] = await Promise.all([
+    cartaDaEntidade(),
+    regrasDaEntidade(),
+    nomeEntidade(),
+    campanhasQueSeguemAEntidade(),
+  ])
+  const abertas = seguem.filter((c) => c.situacao === "aberta")
+  const avisoAoSalvar =
+    seguem.length === 0
+      ? "Nenhuma campanha em andamento segue o texto da entidade agora: o novo texto vale para as próximas campanhas sem texto próprio."
+      : `Vale para ${seguem.length === 1 ? "a campanha" : `as ${seguem.length} campanhas`} sem texto próprio (${seguem
+          .map((c) => c.nome ?? "sem nome")
+          .join(", ")})${abertas.length > 0 ? `, ${abertas.length === 1 ? "uma delas aberta" : `${abertas.length} delas abertas`}` : ""}. Quem já registrou oposição mantém a carta com o texto anterior.`
   const podeEditar = podeNaOposicao(sessao.permissoes, "configurar", entidade.regras.segregacao)
   const situacao = carta.modelo
     ? `Texto da entidade${carta.em ? `, alterado em ${formatarDataHora(carta.em)}` : ""}${carta.porNome ? ` por ${carta.porNome}` : ""}.`
@@ -51,6 +63,7 @@ export default async function CartaOposicaoPage() {
         rotuloRestaurar="Voltar ao texto padrão do sistema"
         exemplo={{ ENTIDADE: nome, DECLARACAO: DECLARACAO_PADRAO }}
         pdfHref="/painel/representacao/oposicao/carta/exemplo"
+        avisoAoSalvar={avisoAoSalvar}
       />
     </>
   )

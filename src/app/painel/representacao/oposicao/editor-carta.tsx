@@ -34,6 +34,7 @@ export function EditorCarta({
   rotuloRestaurar,
   exemplo,
   pdfHref,
+  avisoAoSalvar = null,
 }: {
   campanhaId?: string | null
   /** O texto que vale agora neste nível (o próprio ou o herdado). */
@@ -47,6 +48,8 @@ export function EditorCarta({
   exemplo: ValoresCarta
   /** O PDF de exemplo da versão salva. */
   pdfHref: string
+  /** Quem a mudança alcança (e quem não), mostrado antes de salvar (15/11/2026). */
+  avisoAoSalvar?: string | null
 }) {
   const [estado, acao, pendente] = useActionState(salvarCartaAction, {})
   const envio = useEnvioFormulario(acao, estado)
@@ -129,6 +132,11 @@ export function EditorCarta({
                   ))}
                 </ul>
               </AlertDescription>
+            </Alert>
+          )}
+          {podeEditar && alterado && avisoAoSalvar && (
+            <Alert variant="info">
+              <AlertDescription>{avisoAoSalvar}</AlertDescription>
             </Alert>
           )}
           {estado.erro && (

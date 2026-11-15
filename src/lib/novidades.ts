@@ -13,6 +13,14 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-15",
+    titulo: "Oposição: a carta registrada à vista",
+    itens: [
+      "Oposição: a ficha de cada oposição mostra a carta como ficou no registro, com o texto que valia para aquela pessoa, e avisa quando o texto atual da campanha é outro. \"Ver como o trabalhador\" também mostra a carta, com dados de exemplo e o texto que vale hoje.",
+      "Oposição: ao alterar o texto da carta, antes de salvar, a tela diz quem a mudança alcança — quantas pessoas já registraram na campanha e mantêm o texto anterior, ou quais campanhas seguem o texto da entidade.",
+    ],
+  },
+  {
     id: "2026-11-14",
     titulo: "Ordens de pagamento: busca por quem recebe",
     itens: [

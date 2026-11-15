@@ -119,3 +119,31 @@ export async function salvarModeloCarta(
   if (erroTrilha) console.error("[oposicao] trilha da carta não gravada:", erroTrilha.message)
   return { restaurado: modelo === null }
 }
+
+/**
+ * Para o aviso ao editar (15/11/2026): quantas oposições já registradas na
+ * campanha (desistência não conta) — elas mantêm o texto com que registraram.
+ */
+export async function oposicoesRegistradas(campanhaId: string): Promise<number> {
+  const admin = await createAdminClient()
+  const { count } = await admin
+    .from("oposicao_opositor")
+    .select("id", { count: "exact", head: true })
+    .eq("campanha_id", campanhaId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .neq("situacao", "desistente")
+  return count ?? 0
+}
+
+/** As campanhas não encerradas que seguem o texto da entidade (sem texto próprio). */
+export async function campanhasQueSeguemAEntidade(): Promise<{ id: string; nome: string | null; situacao: string }[]> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("oposicao_campanha")
+    .select("id, nome, situacao")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .is("carta_modelo", null)
+    .neq("situacao", "encerrada")
+    .order("prazo_inicio", { ascending: false, nullsFirst: false })
+  return (data ?? []).map((c) => ({ id: String(c.id), nome: texto(c.nome), situacao: String(c.situacao ?? "") }))
+}
