@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
+import { invalidarAvisosRepasse } from "@/lib/db/repasse"
 import {
   conciliarComCobranca,
   conciliarComComprovacao,
@@ -28,6 +29,9 @@ async function sessaoEscrita() {
 function revalidar() {
   revalidatePath(ROTA)
   revalidatePath("/painel/financeiro")
+  // Depósito de fonte criado ou conciliado aqui muda o controle de envio das relações.
+  revalidatePath("/painel/filiados/receitas/controle", "layout")
+  invalidarAvisosRepasse()
 }
 
 export async function importarExtratoAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {

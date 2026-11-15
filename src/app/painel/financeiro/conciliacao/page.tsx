@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requirePermissao } from "@/lib/auth"
 import { listarExtratos, listarLancamentos, opcoesParaComprovacao, resumoConciliacao } from "@/lib/db/conciliacao"
 import { pagamentosDoExtrato } from "@/lib/db/conciliacao-pagar"
+import { sugestoesPorCredito, type SugestaoDoCredito } from "@/lib/db/repasse-extrato"
 import { listarCentrosDeDebito } from "@/lib/db/financeiro"
 import { formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
@@ -44,6 +45,11 @@ export default async function ConciliacaoPage({ searchParams }: { searchParams: 
   const [lancamentos, extratos, opcoes] = resumo.disponivel
     ? await Promise.all([listarLancamentos({ situacao, extratoId: sp.extrato, ...periodo }), listarExtratos(), situacao === "pendente" ? opcoesParaComprovacao() : Promise.resolve({ remessas: [], fontes: [] })])
     : [[], [], { remessas: [], fontes: [] }]
+  // Créditos que parecem ser o depósito de uma relação de desconto lançada sem comprovante.
+  const sugestoesFonte =
+    resumo.disponivel && situacao === "pendente"
+      ? await sugestoesPorCredito().catch(() => new Map<string, SugestaoDoCredito[]>())
+      : new Map<string, SugestaoDoCredito[]>()
   // Débitos que pagam ordens ainda a pagar (o Financeiro paga no banco e registra depois).
   // Compras canceladas pelo vendedor com o dinheiro ainda por voltar.
   const devolucoes = situacao === "pendente" ? await devolucoesAReceber().catch(() => null) : null
@@ -191,16 +197,16 @@ export default async function ConciliacaoPage({ searchParams }: { searchParams: 
                       </div>
                       <div>
                         {l.situacao === "pendente" ? (
-                          l.ordens.length === 0 && l.comprovacoes.length === 0 && l.cobrancas.lista.length === 0 && !podeEscrever ? (
+                          l.ordens.length === 0 && l.comprovacoes.length === 0 && l.cobrancas.lista.length === 0 && !sugestoesFonte.has(l.id) && !podeEscrever ? (
                             <span className="text-muted-foreground text-xs">Sem candidata</span>
                           ) : (
                             <>
-                              {l.ordens.length === 0 && l.comprovacoes.length === 0 && l.cobrancas.lista.length === 0 && (
+                              {l.ordens.length === 0 && l.comprovacoes.length === 0 && l.cobrancas.lista.length === 0 && !sugestoesFonte.has(l.id) && (
                                 <p className="text-muted-foreground mb-1 text-xs">
                                   {l.valor < 0 ? "Nenhuma ordem paga com este valor até 3 dias de distância." : "Nenhum depósito registrado com este valor até 5 dias de distância."}
                                 </p>
                               )}
-                              <AcoesLancamento lancamentoId={l.id} valor={l.valor} ordens={l.ordens} comprovacoes={l.comprovacoes} cobrancas={l.cobrancas} remessas={opcoes.remessas} fontes={opcoes.fontes} podeEscrever={podeEscrever} />
+                              <AcoesLancamento lancamentoId={l.id} valor={l.valor} ordens={l.ordens} comprovacoes={l.comprovacoes} cobrancas={l.cobrancas} remessas={opcoes.remessas} fontes={opcoes.fontes} sugestoesFonte={sugestoesFonte.get(l.id) ?? []} podeEscrever={podeEscrever} />
                             </>
                           )
                         ) : podeEscrever ? (

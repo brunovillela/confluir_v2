@@ -153,3 +153,61 @@ export function sugestoesParaTela(lista: SugestaoDeposito[]) {
     })),
   }))
 }
+
+export type SugestaoDoCredito = {
+  remessaId: string
+  fonteId: string
+  empresaNome: string
+  tipo: TipoContribuicao
+  competencia: number
+  valorRelacao: number
+  confianca: "alta" | "media" | "baixa"
+  motivos: string[]
+}
+
+/**
+ * O mesmo casamento visto pelo lado do extrato (tela de Conciliação): para
+ * cada crédito pendente, as relações sem depósito de que ele pode ser o
+ * depósito, a mais provável primeiro.
+ */
+export async function sugestoesPorCredito(): Promise<Map<string, SugestaoDoCredito[]>> {
+  const { sugestoes } = await depositosNoExtrato()
+  const porCredito = new Map<string, (SugestaoDoCredito & { pontos: number })[]>()
+  for (const s of sugestoes) {
+    for (const c of s.candidatos) {
+      const lista = porCredito.get(c.credito.id) ?? []
+      lista.push({
+        remessaId: s.remessaId,
+        fonteId: s.fonteId,
+        empresaNome: s.relacao.nome,
+        tipo: s.tipo,
+        competencia: s.relacao.competencia,
+        valorRelacao: s.relacao.valorRelacao,
+        confianca: c.confianca,
+        motivos: c.motivos,
+        pontos: c.pontos,
+      })
+      porCredito.set(c.credito.id, lista)
+    }
+  }
+  const saida = new Map<string, SugestaoDoCredito[]>()
+  for (const [id, lista] of porCredito) {
+    saida.set(
+      id,
+      lista
+        .sort((a, b) => b.pontos - a.pontos || b.competencia - a.competencia)
+        .slice(0, 3)
+        .map((x) => ({
+          remessaId: x.remessaId,
+          fonteId: x.fonteId,
+          empresaNome: x.empresaNome,
+          tipo: x.tipo,
+          competencia: x.competencia,
+          valorRelacao: x.valorRelacao,
+          confianca: x.confianca,
+          motivos: x.motivos,
+        }))
+    )
+  }
+  return saida
+}

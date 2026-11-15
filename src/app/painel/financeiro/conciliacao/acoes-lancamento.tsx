@@ -9,7 +9,9 @@ import { Input } from "@/components/ui/input"
 import { type EstadoForm } from "@/lib/contas"
 import type { Cobranca } from "@/lib/db/cobrancas"
 import type { CandidataComprovacao, CandidataOrdem } from "@/lib/db/conciliacao"
+import type { SugestaoDoCredito } from "@/lib/db/repasse-extrato"
 import { formatarData, formatarMoeda } from "@/lib/formato"
+import { rotuloCompetencia } from "@/lib/repasse"
 
 import {
   conciliarCobrancaAction,
@@ -40,6 +42,7 @@ export function AcoesLancamento({
   cobrancas,
   remessas,
   fontes,
+  sugestoesFonte = [],
   podeEscrever,
 }: {
   lancamentoId: string
@@ -49,6 +52,8 @@ export function AcoesLancamento({
   cobrancas: { porTxid: boolean; lista: Cobranca[] }
   remessas: { id: string; rotulo: string }[]
   fontes: { id: string; nome: string }[]
+  /** Relações de desconto sem depósito de que este crédito pode ser o depósito (controle de envio). */
+  sugestoesFonte?: SugestaoDoCredito[]
   podeEscrever: boolean
 }) {
   const [eOrdem, aOrdem, pOrdem] = useActionState(conciliarOrdemAction, {})
@@ -110,6 +115,23 @@ export function AcoesLancamento({
         </form>
       ))}
       <Recado estado={eCob} />
+      {sugestoesFonte.map((sg) => (
+        <form key={`${sg.remessaId}|${sg.fonteId}`} action={aCriar} {...envio4} className="flex flex-wrap items-center gap-2">
+          <input type="hidden" name="lancamento_id" value={lancamentoId} />
+          <input type="hidden" name="remessa_id" value={sg.remessaId} />
+          <input type="hidden" name="fonte_id" value={sg.fonteId} />
+          <Button type="submit" size="sm" variant={sg.confianca === "alta" ? "default" : "outline"} disabled={pCriar}>
+            {pCriar ? <Loader2 className="animate-spin" /> : <PlusCircle />}
+            Depósito {sg.empresaNome} · {rotuloCompetencia(sg.competencia)}
+          </Button>
+          <span className="text-muted-foreground min-w-0 flex-1 truncate text-xs" title={sg.motivos.join(" · ")}>
+            {sg.confianca === "alta" ? "Muito provável" : sg.confianca === "media" ? "Provável" : "Possível"} · {sg.tipo} · relação de{" "}
+            {formatarMoeda(sg.valorRelacao)}
+            {Math.abs(sg.valorRelacao - valor) > 0.01 ? ` (diferença de ${formatarMoeda(valor - sg.valorRelacao)})` : ""} · {sg.motivos.join(", ")}
+          </span>
+        </form>
+      ))}
+      {sugestoesFonte.length > 0 && !criando && <Recado estado={eCriar} />}
 
       <div className="flex flex-wrap items-center gap-2">
         {valor > 0 && !criando && (
