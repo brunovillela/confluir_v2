@@ -46,7 +46,9 @@ export default async function DecisoesJuridicasPage() {
           O padrão da entidade para as campanhas de oposição. Cada campanha pode decidir diferente (em Editar, na
           campanha). Sem todas decididas, a campanha não abre e o portal não recebe oposições.
         </p>
-        {entidade.atualizadoEm && (
+        {/* Só quando alguém salvou as decisões ou o aviso (15/11/2026): o
+            registro também nasce quando só o texto da carta é salvo. */}
+        {entidade.atualizadoEm && (entidade.definidoPorNome || Object.values(entidade.regras).some(Boolean)) && (
           <p className="text-muted-foreground mt-1 text-xs">
             Salvas em {formatarDataHora(entidade.atualizadoEm)}
             {entidade.definidoPorNome ? ` por ${entidade.definidoPorNome}` : ""}. Cada mudança fica na trilha.

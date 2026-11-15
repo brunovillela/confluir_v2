@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
   conferirModeloCarta,
+  dataPorExtensoSP,
   MAX_CARTA_MODELO,
   montarCarta,
   REFERENCIAS_CARTA,
@@ -182,6 +183,7 @@ export function EditorCarta({
                     onClick={() => inserir(r.chave)}
                     className="bg-muted hover:bg-accent rounded px-1.5 py-0.5 font-mono"
                     title="Inserir no cursor"
+                    aria-label={`Inserir [${r.chave}] no texto: ${r.descricao}`}
                   >
                     [{r.chave}]
                   </button>
@@ -200,11 +202,19 @@ export function EditorCarta({
           <p className="text-sm font-medium">Prévia com dados de exemplo{alterado ? " (ainda não salva)" : ""}</p>
           <div className="flex flex-wrap items-center gap-4 text-sm">
             <label className="flex items-center gap-2">
-              <Checkbox checked={semMatricula} onCheckedChange={(v) => setSemMatricula(v === true)} />
+              <Checkbox
+                aria-label="Prévia sem matrícula"
+                checked={semMatricula}
+                onCheckedChange={(v) => setSemMatricula(v === true)}
+              />
               Sem matrícula
             </label>
             <label className="flex items-center gap-2">
-              <Checkbox checked={semEmpresa} onCheckedChange={(v) => setSemEmpresa(v === true)} />
+              <Checkbox
+                aria-label="Prévia sem empresa"
+                checked={semEmpresa}
+                onCheckedChange={(v) => setSemEmpresa(v === true)}
+              />
               Sem empresa
             </label>
             <Button variant="outline" size="sm" asChild>
@@ -228,7 +238,7 @@ export function EditorCarta({
             </p>
           ))}
           <p className="text-muted-foreground text-xs">Protocolo: 1234</p>
-          <p>14 de novembro de 2026.</p>
+          <p>{dataPorExtensoSP(null)}.</p>
         </div>
       </div>
     </div>
