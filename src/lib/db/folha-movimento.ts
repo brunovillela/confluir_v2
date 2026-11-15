@@ -4,6 +4,16 @@ import { esquemaAusente, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { faixasHoraExtra } from "@/lib/db/ponto-config"
 import { hhmm } from "@/lib/horas"
 import { createAdminClient } from "@/lib/supabase/admin"
+import {
+  TIPOS_CORRIGIVEIS,
+  chaveAlteracao,
+  chaveExclusao,
+  competenciaTexto,
+  mudou,
+  periodoTexto,
+  ultimosInformados,
+  type TipoCorrigivel,
+} from "@/lib/movimento-alteracoes"
 import { tenantAtual } from "@/lib/tenant"
 
 /**
@@ -737,6 +747,90 @@ export async function calcularMovimento(
       retroativo: true,
       origem: "/painel/pessoal/faltas",
     })
+  }
+
+  // 7c. Alterações e exclusões DEPOIS do envio (15/11/2026): férias, atestado
+  // ou ausência já entregues que mudaram de datas/dias, ou foram excluídos,
+  // voltam numa linha de correção, retroativa. A referência é o último estado
+  // informado (a correção já entregue vira a nova referência).
+  const informados = ultimosInformados(
+    enviadas.map((l) => ({ competencia: String(l.competencia), snapshot: l.snapshot }))
+  )
+  const TABELA_CORRIGIVEL: Record<TipoCorrigivel, { tabela: string; colunas: string; dias?: string }> = {
+    ferias: { tabela: "pessoal_ferias_gozo", colunas: "inicio, termino, dias, cancelado_em", dias: "dias" },
+    atestado: { tabela: "pes_atestados_medicos", colunas: "inicio, termino, quantidade_dias", dias: "quantidade_dias" },
+    ausencia: { tabela: "pessoal_ausencias", colunas: "inicio, termino, motivo" },
+  }
+  const ROTULO_CORRECAO: Record<TipoCorrigivel, { nome: string; alterado: string; excluido: string; informado: string }> = {
+    ferias: { nome: "Férias", alterado: "ALTERADAS", excluido: "EXCLUÍDAS", informado: "informadas" },
+    atestado: { nome: "Atestado médico", alterado: "ALTERADO", excluido: "EXCLUÍDO", informado: "informado" },
+    ausencia: { nome: "Ausência", alterado: "ALTERADA", excluido: "EXCLUÍDA", informado: "informada" },
+  }
+  for (const tipo of TIPOS_CORRIGIVEIS) {
+    const deste = [...informados.values()].filter((i) => i.tipo === tipo)
+    if (!deste.length) continue
+    const cfg = TABELA_CORRIGIVEL[tipo]
+    const atuais = new Map<string, Record<string, unknown>>()
+    let leu = true
+    for (let i = 0; i < deste.length && leu; i += 100) {
+      const { data, error } = await admin
+        .from(cfg.tabela)
+        .select(`id, ${cfg.colunas}`)
+        .in("id", deste.slice(i, i + 100).map((x) => x.id))
+      if (error) {
+        // Sem conseguir ler, não acusa exclusão de ninguém nem derruba a página.
+        console.error(`Movimento: falha ao conferir ${cfg.tabela}:`, error.message)
+        leu = false
+        break
+      }
+      for (const r of (data ?? []) as unknown as Record<string, unknown>[]) atuais.set(String(r.id).toLowerCase(), r)
+    }
+    if (!leu) continue
+    const rot = ROTULO_CORRECAO[tipo]
+    for (const inf of deste) {
+      const funcionarioId = inf.funcionarioId
+      if (!funcionarioId || !funcionarios.has(funcionarioId)) continue
+      const r = atuais.get(inf.id)
+      const secao = (SECOES.some((x) => x.id === inf.secao) ? inf.secao : tipo === "ferias" ? "ferias" : "afastamento") as SecaoMovimento
+      if (!r) {
+        add({
+          chave: chaveExclusao(tipo, inf.id),
+          registradoEm: new Date().toISOString(),
+          secao,
+          funcionarioId,
+          descricao: `${rot.nome} ${rot.excluido} — ${periodoTexto(inf)}; ${rot.informado === "informadas" ? "tinham sido" : "tinha sido"} ${rot.informado} na competência ${competenciaTexto(inf.competencia)}`,
+          inicio: inf.inicio,
+          fim: inf.fim,
+          quantidade: inf.quantidade,
+          valor: null,
+          retroativo: true,
+          origem: tipo === "ferias" ? `/painel/pessoal/ferias/funcionario/${funcionarioId}` : "/painel/pessoal/atestados",
+        })
+        continue
+      }
+      // Gozo cancelado já sai como "Férias CANCELADAS" (7b).
+      if (tipo === "ferias" && r.cancelado_em) continue
+      const atual = {
+        inicio: texto(r.inicio)?.slice(0, 10) ?? null,
+        fim: texto(r.termino)?.slice(0, 10) ?? null,
+        quantidade: cfg.dias ? Number(r[cfg.dias] ?? 0) || null : null,
+      }
+      if (!mudou(inf, atual)) continue
+      const nome = tipo === "ausencia" ? (texto(r.motivo) ?? rot.nome) : rot.nome
+      add({
+        chave: chaveAlteracao(tipo, inf.id, atual),
+        registradoEm: new Date().toISOString(),
+        secao,
+        funcionarioId,
+        descricao: `${nome} ${rot.alterado} — era ${periodoTexto(inf)}, agora ${periodoTexto(atual)}; ${rot.informado} na competência ${competenciaTexto(inf.competencia)}`,
+        inicio: atual.inicio,
+        fim: atual.fim,
+        quantidade: atual.quantidade,
+        valor: null,
+        retroativo: true,
+        origem: tipo === "ferias" ? `/painel/pessoal/ferias/funcionario/${funcionarioId}` : "/painel/pessoal/atestados",
+      })
+    }
   }
 
   // 8. Variáveis: anuênios, progressões, reembolsos do ACT e horas extras.
