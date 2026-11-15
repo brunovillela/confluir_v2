@@ -19,8 +19,10 @@ marca *em cima da hora*. Os filtros combinam entre si:
 - **Evento**, **agência** e o **período** da viagem.
 
 O botão **CSV** baixa o que está filtrado, **uma linha por item** — bilhete ou
-estadia —, com agência, localizador, valor e se já foi faturado. É o arquivo
-para conferir com a agência.
+estadia —, com agência, localizador, valor e se já foi faturado. Nas
+hospedagens, traz também o **Quarto pedido** (Individual ou Coletivo) e com quem
+a pessoa **prefere dividir**. É o arquivo para conferir com a agência e para
+montar os quartos coletivos.
 
 <Print src="viagens/lista.png" alt="Passagens e hospedagens: o botão Faturas com três itens a faturar, o botão Lançar viagem, os filtros de pessoa, serviço, situação, quem viaja, evento, agência e período, os botões Limpar, CSV e Filtrar, e a lista com seis viagens em situações diferentes." legenda="A lista da equipe, com os filtros e a exportação." />
 
@@ -32,6 +34,11 @@ convidado, informe o nome como está no documento, CPF, nascimento, telefone e o
 **e-mail** — obrigatório, porque é por ele que vão as reservas.
 
 Ao escolher um diretor, o departamento que banca vem do cadastro dele.
+
+Quando quem vai viajar tem conta no sistema, ele é avisado na hora de que a
+equipe pediu a viagem por ele: no sino, no Telegram (se ligado) e, se ligou o
+e-mail de Viagens em *Meu perfil → Avisos*, por e-mail, com os itens para
+conferir datas e horários. Convidado sem conta só recebe o e-mail da reserva.
 
 <Print src="viagens/lancar.png" alt="Formulário Lançar viagem com Convidado(a) escolhido: nome completo, CPF, data de nascimento, e-mail com a nota Recebe o aviso com as reservas, telefone, motivo, departamento, evento e o primeiro item de passagem." legenda="Lançar por um convidado: os dados que a companhia aérea pede." />
 
@@ -46,6 +53,9 @@ e os itens.
     mais sozinho — a reserva pode já ter custo.
   </Passo>
   <Passo titulo="Registrar a reserva de cada item">
+    Na hospedagem, o item mostra o **Quarto pedido** e, no coletivo, com quem a
+    pessoa **prefere dividir** (ou *Sem preferência*). É só uma indicação: quem
+    monta os quartos é a equipe.
     No item, **Registrar reserva** abre o formulário com o pedido à vista:
     agência ou operadora, **localizador**, **detalhes da reserva** (voo,
     horários, hotel, endereço), valor e o PDF do bilhete ou voucher. O

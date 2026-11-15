@@ -222,6 +222,28 @@ importada errada. Antes de remover, o sistema pede confirmação.
 
 <Print src="representacao/aptos-importar.png" alt="Página da rodada com o painel de importação de aptos aberto e o link para baixar a planilha modelo." legenda="Importação de aptos com a planilha modelo." />
 
+### Extrair a relação dos aptos (planilha e PDF)
+
+Na aba **Aptos** da rodada, com a lista já carregada, os botões **Planilha** e
+**PDF** extraem a relação com os **mesmos filtros da tela**: a busca, **já
+votou** ou **não votou** e a situação do **Link pessoal** (sem link, sem e-mail,
+falha no envio, e-mail repetido). Saem **todas** as linhas filtradas, não só a
+página que está na tela.
+
+- A **planilha** traz nome, CPF, matrícula, e-mail corporativo, e-mail
+  confirmado, telefone, se votou, data e hora do voto, o canal e a situação do
+  link pessoal.
+- O **PDF** é a "Relação dos aptos a votar": campanha, rodada e fonte no
+  cabeçalho, os totais (na relação, votaram, não votaram), o filtro usado e,
+  por linha, nome, CPF, matrícula, quando votou (ou "Não votou") e o canal.
+
+<Aviso tipo="nota" titulo="Participação, nunca o voto">
+  A relação mostra se a pessoa votou, quando e por qual canal, nunca em quem
+  ou no quê: o voto é secreto. Cada extração fica registrada com quem baixou, o
+  formato e o filtro. A relação tem CPF e contatos: trate o arquivo como
+  sigiloso.
+</Aviso>
+
 ### Avisar os aptos por e-mail
 
 Com a lista pronta e ao menos uma assembleia cadastrada, o cartão **Aviso por
@@ -257,7 +279,7 @@ recebe o link também por lá.
   </Passo>
 </PassoAPasso>
 
-<Print src="representacao/aviso-aptos.png" alt="Cartão de aviso por e-mail com os números de avisados, pendentes, sem e-mail, e-mail repetido e falhas, e os botões de envio." legenda="O cartão de aviso na página da rodada." />
+<Print src="representacao/aviso-aptos.png" alt="Cartão Aviso por e-mail aos aptos com os números de avisados, pendentes, sem e-mail, e-mail repetido e falhas, o último envio, o Envio automático e os botões Avisar pendentes, Enviar teste para mim e os de reenvio." legenda="O cartão de aviso na página da rodada." />
 
 <Print src="representacao/aviso-email.png" alt="E-mail 'Você está habilitado a votar' com o período, as assembleias, o botão Ir para a votação e o passo a passo." legenda="O e-mail que o apto recebe (versão de quem entra pelo e-mail corporativo)." />
 
@@ -426,7 +448,7 @@ assembleias**. Ela abre a assembleia do apto ou, se ele está só na rodada, a
 assembleia online dela. Se a tela disser que o apto não está habilitado, confira
 a lista, o período da rodada e se a votação é online.
 
-<Print src="representacao/campanha.png" alt="Página de uma campanha: a trilha Votações › fonte › campanha, os indicadores de rodadas, aptos, votaram e resultado, a Linha do tempo das rodadas com situação, participação e assembleias de cada uma, o botão Nova rodada e o cartão Campanha com Editar campanha." legenda="A página da campanha: a linha do tempo das rodadas e, ao lado, os dados da campanha." />
+<Print src="representacao/campanha.png" alt="Página de uma campanha: a trilha Votações › fonte › campanha, os indicadores de rodadas, aptos, votaram e resultado, os alertas do que falta apurar, a Linha do tempo das rodadas com situação, participação e assembleias de cada uma, o botão Nova rodada e o cartão Campanha com Editar campanha." legenda="A página da campanha: a linha do tempo das rodadas e, ao lado, os dados da campanha." />
 
 ## Como circular entre os níveis
 
@@ -799,6 +821,8 @@ Depois do encerramento, o cartão **Integridade do resultado** mostra:
 - **Livro da apuração** — encerramentos, reaberturas, prorrogações e ressalvas de
   lacre, com quem fez, quando e o motivo. O sistema só acrescenta linhas: não há
   como alterar nem apagar.
+
+<Print src="representacao/apuracao-integridade.png" alt="Cartão Integridade do resultado: hash SHA-256 com o selo confere com o resultado congelado, Conferência no encerramento com tudo OK e as verificações C1 a C6, e o Livro da apuração com a reabertura, o motivo dela e o novo encerramento." />
 
 <Aviso tipo="atencao" titulo="Selo 'não confere' ou conferência com falha">
   A tela mostra qual verificação falhou. Apure a causa com quem administra o

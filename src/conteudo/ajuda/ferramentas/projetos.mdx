@@ -46,8 +46,10 @@ da página do projeto:
 Na primeira tarefa, o projeto **cria sozinho uma demanda**, com o nome "Projeto:" e o
 título. As tarefas do projeto ficam nela e seguem a rotina de qualquer demanda: o
 responsável é avisado e elas aparecem em **Tarefas**. O link **Ver a demanda do
-projeto** leva até ela. Finalizar o projeto finaliza as tarefas e passa a demanda dele
-para **Feito**.
+projeto** leva até ela, e a página da demanda avisa que ela é a demanda do projeto, com
+link de volta. Finalizar o projeto finaliza as tarefas e passa a demanda dele
+para **Feito**. Com o projeto finalizado, **Adicionar** e **Vincular** somem; as
+tarefas que já estão nele continuam podendo ser editadas.
 
 Mexe nas tarefas do projeto quem tem **Projetos — editar**, **Tarefas** ou **Demandas**.
 
@@ -128,9 +130,9 @@ tratado. Ela tem cartão próprio em Ferramentas.
 | Permissão | O que libera |
 |---|---|
 | **Demandas** | Criar, editar, mudar a situação e excluir demandas; e tudo o que Tarefas libera |
-| **Tarefas** | Ver as demandas (sem editá-las) e trabalhar nas tarefas: criar, concluir, vincular e desvincular, avulsas, de demandas ou de projetos |
-| **Projetos — editar** | Além do projeto, as tarefas dele: criar, concluir, vincular e desvincular |
-| **Anomalias** | Ver, registrar e tratar anomalias: o fato, a causa raiz e as providências |
+| **Tarefas** | Ver as demandas (sem editá-las) e trabalhar nas tarefas: criar, editar, concluir, excluir, vincular e desvincular, avulsas, de demandas ou de projetos |
+| **Projetos — editar** | Além do projeto, as tarefas dele: criar, editar, concluir, excluir, vincular e desvincular |
+| **Anomalias** | Ver, registrar e tratar anomalias: o fato, a causa raiz e as providências, que são tarefas (criar, editar, concluir e excluir) |
 
 O **conteúdo das anomalias** só aparece para quem tem a permissão **Anomalias**. Quem
 tem Demandas ou Tarefas vê e executa as **tarefas** ligadas a uma anomalia (na lista,
@@ -152,6 +154,9 @@ Quem só tem Anomalias não vê as demandas.
   demanda antiga, sem criador registrado, é do responsável por ela.
 - **"Não consigo marcar a demanda como Feito."** Ela veio do portal: use **Responder
   e concluir**.
+- **"Sem permissão para esta tarefa."** Quem só tem **Anomalias** mexe apenas nas
+  tarefas das anomalias; quem só tem **Projetos — editar**, apenas nas dos projetos.
+  As demais pedem **Tarefas** ou **Demandas**.
 - **"Esta tarefa já tem vínculo."** Só tarefas avulsas entram numa demanda ou num
   projeto. Desvincule a tarefa de onde ela está antes.
 - **"O responsável não recebeu o aviso por e-mail."** O sino sempre recebe; e-mail,

@@ -313,6 +313,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "Campanha, rodada, assembleias, perguntas, aptos e o voto",
       },
       {
+        slug: "congressos",
+        titulo: "Congressos e conferências",
+        resumo: "Configuração, delegações, participantes, programa, inscrição pública e importação de listas",
+      },
+      {
         slug: "votacao-presencial",
         titulo: "Montar uma votação presencial",
         resumo: "Guia operacional: materiais, urnas, lacres, mesários, apuradores e o dia da votação (inclusive offline)",
@@ -764,6 +769,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         titulo: "LGPD: retenção e descarte",
         resumo: "Prazos de guarda, simulação do descarte, bloqueios por litígio, encarregado e política de privacidade",
       },
+      {
+        slug: "controle-acesso",
+        titulo: "Controle de acesso",
+        resumo: "Agente da recepção que liga o Confluir às catracas: cadastro, código de pareamento e verificação da conexão",
+      },
     ],
   },
   {
@@ -876,7 +886,7 @@ export const AREAS_AJUDA: AreaAjuda[] = [
   {
     slug: "fluxos-publicos",
     titulo: "Fluxos públicos",
-    descricao: "As telas que o trabalhador usa sem login: filiação, oposição, votação, eventos e assinatura",
+    descricao: "As telas que o trabalhador usa sem login: filiação, oposição, votação, eventos, congressos e assinatura",
     icone: "Globe",
     // Referência transversal (filiados + representação) — visível a toda a equipe.
     chave: null,
@@ -913,6 +923,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         slug: "assinatura",
         titulo: "Assinatura eletrônica",
         resumo: "O que o assinante vê no link: documento, código, assinatura e recusa",
+      },
+      {
+        slug: "congresso",
+        titulo: "Inscrição em congresso",
+        resumo: "A página pública de inscrição, o link pessoal do inscrito e o que ele acompanha por ali",
       },
     ],
   },

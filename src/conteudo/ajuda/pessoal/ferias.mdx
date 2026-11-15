@@ -153,6 +153,11 @@ quando o aviso não pode ser enviado (cadastro sem e-mail ou sem CPF).
   Sem prazo informado, o aviso não mostra data de pagamento. Ao salvar as
   regras, os avisos que aguardam assinatura são refeitos e reenviados com o
   texto novo; os já assinados não mudam.
+- Em **Regras de férias**, preencha **Prazo: dias antes do início do gozo**
+  (vazio = não informado), a **Contagem** (*Dias úteis* ou *Dias corridos*),
+  **O que é pago** e o **Fundamento** (os dois opcionais). O quadro **Como fica
+  no aviso** mostra a frase do pagamento num exemplo antes de **Salvar
+  regras**. Só quem tem *Gestão de Pessoal* abre essa tela.
 - Gozos autorizados antes deste recurso, que ainda vão começar, aparecem num
   aviso no alto da área de Férias, com o botão **Enviar avisos para
   assinatura**.
@@ -208,8 +213,11 @@ quando o aviso não pode ser enviado (cadastro sem e-mail ou sem CPF).
 - Gozos aguardando autorização aparecem como pendência na tela inicial do
   Pessoal.
 - **Excluir período** só aparece quando o período **não tem nenhum gozo**
-  registrado (na página do período, na do funcionário e em Todos os períodos).
-  Com gozo, cancele os gozos antes.
+  em vigor (na página do período, na do funcionário e em Todos os períodos).
+  Com gozo, cancele os gozos antes. Os gozos cancelados não impedem a
+  exclusão: o histórico deles sai junto com o período.
+- Gozo cancelado não se edita nem se autoriza: para refazer, registre um gozo
+  novo.
 
 ### Situação do funcionário
 
@@ -238,6 +246,11 @@ quando o aviso não pode ser enviado (cadastro sem e-mail ou sem CPF).
   confirmação no formulário do gozo.
 - **O funcionário não recebeu o aviso para assinar.** Veja a coluna **Aviso** do
   gozo: sem e-mail ou sem CPF válido, complete a ficha e use **Enviar aviso**.
+- **O funcionário não consegue cancelar as férias.** Depois do dia do início,
+  só o departamento de pessoal cancela, pelo botão **Cancelar** na linha do
+  gozo.
+- **O aviso de férias não mostra a data de pagamento.** As **Regras de
+  férias** estão sem prazo: informe os dias e a contagem e salve.
 
 <VejaTambem
   links={[

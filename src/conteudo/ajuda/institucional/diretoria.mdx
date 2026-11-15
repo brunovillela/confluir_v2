@@ -152,6 +152,8 @@ listas, na página da ata, na tela Deliberações e nas planilhas.
 Duas permissões separam quem lê de quem escreve: **Atas de reunião —
 consultar** abre a lista, as atas e o PDF, sem os botões de Nova ata, Editar e
 Excluir; **Atas de reunião — criar e editar** faz tudo, inclusive consultar.
+Sem nenhuma das duas, a página do mandato não mostra o cartão **Atas de
+reunião** nem a lista das atas dele.
 
 ### Deliberações
 
@@ -167,8 +169,11 @@ quem mudou o quê e quando — campo a campo, com o valor de antes e o de depois
 (situação, prazo, responsável, sigilo, teor…). Fica em **Histórico**, logo
 abaixo do item; as excluídas aparecem em **Deliberações excluídas desta ata**,
 com quem excluiu. O histórico segue o sigilo: só vê quem alcança o grau da
-deliberação (numa mudança de sigilo, vale o mais restrito dos dois). Ninguém
-edita nem apaga o histórico pela tela.
+deliberação (numa mudança de sigilo, vale o mais restrito dos dois). Quando o
+sigilo de uma deliberação sobe, todo o histórico anterior sobe junto: quem tinha
+o nível antigo deixa de ler também o teor de antes, inclusive depois de a
+deliberação ser excluída. Baixar o sigilo não libera o histórico do tempo em que
+ele era maior. Ninguém edita nem apaga o histórico pela tela.
 
 Em **Institucional → Deliberações** ficam todas elas, da reunião mais recente
 para a mais antiga, com filtros por período (a data da reunião), assunto
@@ -228,7 +233,9 @@ visíveis a quem consulta atas. O padrão é *restrito*, e as atas
 antigas ficaram restritas; quem registra a ata pode baixar o sigilo quando
 não houver nada sensível (só até o próprio nível). Quem edita uma ata cujo
 sigilo está acima do próprio nível não vê nem altera esses textos, nem troca o
-PDF ou exclui a ata.
+PDF (o campo do arquivo dá lugar a um aviso) ou exclui a ata. Excluir leva o PDF
+e todas as deliberações, por isso o botão **Excluir** só aparece para quem
+alcança o sigilo da ata **e** o de todas as deliberações dela.
 
 **Planilha.** O botão **Exportar XLSX** da lista de atas baixa as atas do
 filtro, com uma aba para as atas e outra para as deliberações delas; o da tela
@@ -348,6 +355,13 @@ aprovado no ano.
 - **"Não acho onde aprovar a diária do diretor."** A avaliação é da remessa:
   botão **Remessas**, nesta aba, ou **Abrir a remessa para avaliar** na tela da
   diária. Na lista, as diárias têm só **Ver**.
+- **"Esta ata tem conteúdo acima do seu acesso às deliberações."** A ata ou
+  alguma deliberação dela tem sigilo acima do seu nível: só quem alcança esse
+  sigilo pode excluí-la.
+- **"O PDF desta ata está acima do seu acesso às deliberações."** Quem não lê o
+  PDF não pode trocá-lo. Peça a quem tem o nível do sigilo da ata.
+- **"O número da ata mudou."** Foi lançada uma ata mais antiga do mesmo tipo no
+  mesmo ano: a numeração segue a data da reunião e se ajusta sozinha.
 
 <VejaTambem
   links={[

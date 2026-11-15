@@ -66,6 +66,7 @@ Comece pelas funções. Elas são a base do comparativo com o contrato.
     cargos dos funcionários**. O sistema cria uma função para cada cargo dos
     vínculos (unindo grafias parecidas) e já vincula cada funcionário à sua —
     sem digitar nada. Pode rodar de novo depois de admitir alguém com cargo novo.
+    Para criar uma função à mão, use **Nova função**.
   </Passo>
   <Passo titulo="Monte o plano de cargos">
     Abra uma função. Em **Plano de cargos**, liste as atividades esperadas de quem
@@ -107,8 +108,12 @@ mudança geral de horário se faz num lugar só.
     jornada e clique em **Incluir nesta jornada**. Cada funcionário tem uma
     jornada só: incluir numa tira da anterior. Em **Funcionários nesta
     jornada**, marque e use **Mover** para levar alguém a outra jornada (ou a
-    **Sem jornada**). A lista de Jornadas de trabalho também vincula vários
-    de uma vez.
+    **Sem jornada**). Na tela **Jornadas de trabalho**, abaixo das jornadas da
+    entidade, o quadro **Funcionários** mostra a jornada de cada ativo e
+    quantos estão sem jornada: marque vários (a caixa do cabeçalho marca
+    todos), escolha a jornada (ou **Sem jornada**) e clique em **Vincular**.
+    Na ficha de SST da pessoa, **Abrir jornada** leva à jornada dela, ou
+    **Vincular jornada**, se ainda não tiver.
   </Passo>
   <Passo titulo="Altere quando mudar">
     Na página da jornada, **Editar jornada** abre o formulário ali mesmo.
@@ -289,8 +294,8 @@ mesmos perigos, tempos comparáveis.
 - **Sugestões automáticas** — o sistema sugere grupos de funcionários que
   compartilham exatamente o mesmo conjunto de atividades. Revise antes de criar:
   homogeneidade também depende de os tempos serem comparáveis.
-- **Criação manual** — crie o grupo, descreva o critério e adicione os
-  membros.
+- **Criação manual** — clique em **Criar GHE**, descreva o critério e adicione
+  os membros. Na página do grupo, **Editar** abre o formulário dos dados dele.
 - **Perfil do grupo** — a página do GHE consolida, por membro, o tempo nas
   atividades, o % da jornada e os riscos avaliados, e destaca o pior risco de
   cada categoria no grupo.
@@ -364,6 +369,12 @@ vencidas) aparecem tanto no hub de **Atribuições e SST** quanto no painel do
 - **"O alerta de fora do horário não aparece (ou aparece sempre)."** Ele segue
   a jornada cadastrada, no fuso de Brasília. Confira os dias e horários em
   **Jornadas de trabalho**.
+- **"O 2º turno começa depois do fim do 1º."** O 2º turno precisa começar
+  depois da saída do 1º (o intervalo fica entre eles), e cada turno precisa
+  da entrada e da saída, ou das duas em branco.
+- **"Há funcionários nesta jornada."** Para excluir a jornada, mova antes quem
+  está nela para outra (ou para **Sem jornada**).
+- **"Já existe uma jornada chamada …"** Cada jornada tem um nome diferente.
 - **"O que acontece se eu excluir a função?"** Excluir a função remove o plano e os
   vínculos de funcionários — as atividades do catálogo não são apagadas.
 

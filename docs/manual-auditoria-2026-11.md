@@ -27,6 +27,8 @@ Dos 40 prints P1, estes 12 têm maior risco de erro caro, sem volta ou com pesso
 
 Os artigos só devem receber `<Print>` depois da captura: sem imagem, o usuário vê "Captura pendente".
 
+**Situação (04/11/2026):** os 12 foram capturados, conferidos e ligados nos artigos. Para refazer: `node scripts/manual-prints-cenarios-p1.mjs montar`, `RODADA=p1 SEGUIR=1 node scripts/manual-prints.mjs` e `node scripts/manual-prints-cenarios-p1.mjs desfazer`. Faltam 28 dos 40 P1.
+
 ## Resumo por frente
 
 | Frente | Errado | Falta | Raso | Navegação |
@@ -159,6 +161,8 @@ Os artigos só devem receber `<Print>` depois da captura: sem imagem, o usuário
 | votacoes › Excluir vários aptos | /painel/representacao/votacoes/rodadas/[id]?aba=aptos | Linhas marcadas, botões de exclusão | Bom ter; remoção em massa | representacao/aptos-exclusao.png |
 
 ## Prints existentes para refazer ou conferir (34)
+
+**Situação (05/11/2026):** refeitos 23 prints: portal (inicio, cadastro, convenios, hospedagem, lgpd, noticias, saude, eventos, agenda, votacao), filiados/acompanhamento, perfil-reembolsos e perfil-dados-bancarios, financeiro/cartoes e painel, institucional/painel, saude/painel, cat, painel-analitico e painel-analitico-filtro, pessoal/painel-visao-geral, representacao/aviso-aptos e campanha. Conferidos e mantidos, só com o texto ajustado: filiados/relatorios, direitos e solicitacao-avaliacao, compras/contrato e avaliacoes, representacao/empregador. ferramentas/documentos.png foi apagado. Seguem abertos: saude/atendimentos, veiculos/infracao (dados de demonstração), introducao/alternador, viagens/solicitar, os órfãos representacao/votacoes-lista, fluxos-publicos/oposicao e institucional/conselho-fiscal-patrimonio. Para refazer: `node scripts/manual-prints-cenarios-defasados.mjs montar`, `RODADA=defasados SEGUIR=1 node scripts/manual-prints.mjs` e `node scripts/manual-prints-cenarios-defasados.mjs desfazer`.
 
 | Arquivo | O que mudou | Evidência |
 |---|---|---|

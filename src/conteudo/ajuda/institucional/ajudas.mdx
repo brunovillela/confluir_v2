@@ -19,9 +19,18 @@ lógica dos fornecedores (dados, endereços e dados bancários). A busca da ajud
 também mostra os **fornecedores comuns**, com a etiqueta *Fornecedor*. Ao salvar a
 ajuda, o fornecedor escolhido passa a constar também como entidade apoiada.
 
-Conta bancária que não se usa mais pode ser **arquivada**, como no fornecedor: sai das
-escolhas de pagamento, as ordens que já a usam continuam com ela, e as arquivadas
-ficam em **Contas arquivadas**, com **Desarquivar**.
+As contas bancárias da entidade apoiada funcionam como as do fornecedor (ver
+[Fornecedores](/painel/ajuda/compras/fornecedores)):
+
+- a chave Pix vai com o **Tipo da chave Pix** (CNPJ / CPF, Telefone, E-mail ou
+  Chave aleatória), conferido ao salvar;
+- conta já usada em ordens de pagamento não pode ser excluída (a mensagem lista
+  as ordens), a não ser que seja **duplicada** de outra conta da mesma entidade
+  (mesma chave Pix, ou mesma agência e conta): nesse caso as ordens passam para
+  a outra conta e a duplicada sai;
+- conta que não se usa mais pode ser **arquivada**: sai das escolhas de
+  pagamento, as ordens que já a usam continuam com ela, e as arquivadas ficam em
+  **Contas arquivadas**, com **Desarquivar**.
 
 <PassoAPasso>
   <Passo titulo="Cadastre a entidade">

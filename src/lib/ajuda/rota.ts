@@ -33,6 +33,8 @@ const EXTRAS: Record<string, string> = {
   "/painel/novidades": "/painel/ajuda/introducao/suporte",
   "/painel/solicitar-veiculo": "/painel/ajuda/veiculos/agendamentos",
   "/painel/institucional/lgpd": "/painel/ajuda/institucional/lgpd",
+  "/painel/institucional/controle-acesso": "/painel/ajuda/institucional/controle-acesso",
+  "/painel/representacao/congressos": "/painel/ajuda/representacao/congressos",
   "/painel/institucional/auditoria": "/painel/ajuda/institucional/auditoria",
   "/painel/hospedagem/mapa": "/painel/ajuda/hospedagem/demanda-garantida",
   "/painel/hospedagem/nao-comparecimentos": "/painel/ajuda/hospedagem/demanda-garantida",

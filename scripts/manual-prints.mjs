@@ -209,6 +209,55 @@ const SHOTS = process.env.SHOT_UNICO
       ["/painel/pessoal/ferias", "pessoal/ferias-area.png", { esperar: "Distribuição por mês", altura: 1100 }],
       ["/painel/pessoal/ferias/funcionario/33333333-3333-4333-8333-000000000001", "pessoal/ferias-funcionario.png", { esperar: "Dias autorizados", altura: 1000 }],
     ]
+  : process.env.RODADA === "p1"
+  ? [
+      // Rodada de 04/11: os 12 primeiros prints de docs/manual-auditoria-2026-11.md.
+      // ANTES: node scripts/manual-prints-cenarios-p1.mjs montar
+      // DEPOIS (sempre): node scripts/manual-prints-cenarios-p1.mjs desfazer
+      // Nenhum passo envia formulário que grave, exceto o pedido de código: no portal,
+      // com um CPF fora do cadastro, nada é enviado; na assinatura, EMAIL_SANDBOX descarta.
+      ["/portal/primeiro-acesso", "portal/primeiro-acesso.png", { mobile: true, esperar: "Antes de começar", semBarraFixa: true, fullPage: true }],
+      ["/portal", "portal/entrada-codigo.png", { anon: true, mobile: true, esperar: "Código por e-mail", passos: [{ clicar: "Código por e-mail" }, { preencher: ["#cpf-codigo", "111.444.777-35"] }, { clicar: "Receber código por e-mail" }, { aguardar: "Não chegou em 1 ou 2 minutos?" }], fullPage: true }],
+      ["/votar", "fluxos-publicos/votar-precadastro.png", { anon: true, mobile: true, esperar: "Onde receber o seu link de voto", fullPage: true }],
+      ["/mesario/urna/7f32e026-7e34-402b-a990-b489bc305599", "representacao/mesario-abertura-dia.png", { mobile: true, esperar: "Abertura do dia", passos: [{ preencher: ["#abre-eleitor", "Mariana Souza"] }, { preencher: ["#abre-lacre", "004512"] }, { clicar: 'css=input[name="atesta_lacre"]' }], fullPage: true }],
+      ["/painel/representacao/votacoes/assembleias/ea000000-0000-4000-8000-000000000004?aba=apuracao", "representacao/apuracao-integridade.png", { esperar: "Integridade do resultado", scrollTo: "Integridade do resultado", altura: 1200 }],
+      ["/assinar/e57c0000-0000-4000-8000-000000000001", "fluxos-publicos/assinar-oficio.png", { anon: true, mobile: true, esperar: "Aguardando sua assinatura", passos: [{ clicar: 'css=[role="checkbox"]' }, { clicar: "Enviar código para" }, { aguardar: "Enviamos um código" }], fullPage: true }],
+      ["/painel/institucional/lgpd", "institucional/lgpd-regra.png", { esperar: "RT02", scrollTo: "RT02 ·", altura: 800 }],
+      ["/painel/saude/profissionais?editar=ad200000-0000-4000-8000-000000000001", "saude/profissionais-tipos.png", { esperar: "Tipos de atendimento", altura: 1070 }],
+      ["/painel/financeiro/ordens/ee000000-0000-4000-8000-000000000001", "financeiro/ordem-trocar-situacao.png", { esperar: "Trocar situação", passos: [{ clicar: "Trocar situação" }, { selecionar: ["#sit_nova", "A pagar"] }], scrollTo: "Situação atual", altura: 800 }],
+      ["/painel/financeiro/caixas/31bdab32-b80e-46ed-89e8-1019a396a87f", "financeiro/caixa-prestacao-decisao.png", { esperar: "Aprovar e fechar a conta", altura: 1000 }],
+      ["/painel/financeiro/cartoes/faturas/e5780000-0000-4000-8000-000000000001", "financeiro/fatura-fechamento.png", { esperar: "Fechar a fatura e gerar a ordem", passos: [{ preencher: ["#fat_valor", "651,60"] }, { selecionar: ["#fat_centro", "1.1 - Despesas Administrativas"] }, { clicar: "css=h1" }], altura: 1300 }],
+      ["/painel/filiados/termos", "filiados/termos-historico.png", { esperar: "Histórico", abrir: ["Editar este texto"], scrollTo: "Nova versão do termo", altura: 1200 }],
+    ]
+  : process.env.RODADA === "defasados"
+  ? [
+      // Rodada de 04/11: prints antigos de docs/manual-auditoria-2026-11.md.
+      // ANTES: node scripts/manual-prints-cenarios-defasados.mjs montar
+      // DEPOIS (sempre): node scripts/manual-prints-cenarios-defasados.mjs desfazer
+      ["/portal/inicio", "portal/inicio.png", { esperar: "Para você resolver", altura: 1845 }],
+      ["/portal/cadastro", "portal/cadastro.png", { esperar: "Contatos de emergência", altura: 1750 }],
+      ["/portal/convenios", "portal/convenios.png", { esperar: "Ótica Visão Clara", altura: 1125 }],
+      ["/portal/hospedagem", "portal/hospedagem.png", { esperar: "Meus cupons", altura: 1100 }],
+      ["/portal/lgpd", "portal/lgpd.png", { esperar: "Seus direitos como titular", altura: 1140 }],
+      ["/portal/noticias", "portal/noticias.png", { esperar: "Por página", altura: 900 }],
+      ["/portal/saude", "portal/saude.png", { esperar: "Consulta de rotina", altura: 900 }],
+      ["/portal/eventos", "portal/eventos.png", { esperar: "Seminário de Saúde do Trabalhador", altura: 1000 }],
+      ["/portal/eventos", "portal/agenda.png", { esperar: "Agenda de atividades", altura: 1300 }],
+      ["/portal/votacao", "portal/votacao.png", { esperar: "VT-7K2P-9QXM", altura: 900 }],
+      ["/painel/filiados/acompanhamento", "filiados/acompanhamento.png", { esperar: "Helena Prado Castro", altura: 1024 }],
+      ["/painel/filiados/77777777-7777-4777-8777-000000000005", "filiados/perfil-reembolsos.png", { esperar: "Lançar reembolso", scrollTo: "Histórico de filiação" }],
+      ["/painel/filiados/77777777-7777-4777-8777-000000000002", "filiados/perfil-dados-bancarios.png", { esperar: "Pedir dados bancários", scrollTo: "Dados bancários", altura: 460 }],
+      ["/painel/financeiro/cartoes", "financeiro/cartoes.png", { esperar: "Cartão da Tesouraria", altura: 900 }],
+      ["/painel/financeiro", "financeiro/painel.png", { fullPage: true }],
+      ["/painel/institucional", "institucional/painel.png", { fullPage: true }],
+      ["/painel/saude", "saude/painel.png", { fullPage: true }],
+      ["/painel/saude/cat", "saude/cat.png", { esperar: "Conferir em fila", altura: 1100 }],
+      ["/painel/representacao/votacoes/rodadas/e5800000-0000-4000-8000-000000000001?aba=divulgacao", "representacao/aviso-aptos.png", { esperar: "Aviso por e-mail aos aptos", scrollTo: "Aviso por e-mail aos aptos", altura: 900 }],
+      ["/painel/representacao/votacoes/campanhas/ea000000-0000-4000-8000-000000000001", "representacao/campanha.png", { esperar: "Linha do tempo", altura: 1100 }],
+      ["/painel/saude/indicadores", "saude/painel-analitico.png", { esperar: "CATs por ano", altura: 2560 }],
+      ["/painel/saude/indicadores", "saude/painel-analitico-filtro.png", { esperar: "CATs por ano", passos: [{ clicar: 'css=button:has-text("Trajeto") >> nth=0' }, { pausa: 400 }, { clicar: 'css=button[title^="2026:"]' }, { aguardar: "CATs por mês" }, { pausa: 600 }], altura: 1500 }],
+      ["/painel/pessoal", "pessoal/painel-visao-geral.png", { esperar: "Movimento da folha", fullPage: true }],
+    ]
   : process.env.RODADA === "associado"
   ? [
       // Rodada de 18/10 (30): Filiados › Área do associado. Fica representativo
@@ -827,6 +876,20 @@ async function mobilePage() {
 
 // Contexto SEM sessão (cookies próprios), para telas públicas anônimas.
 let pageAnon = null
+// Celular SEM sessão: página pública vista por quem não entrou (anon + mobile).
+let pageAnonMobile = null
+async function anonMobilePage() {
+  if (!pageAnonMobile) {
+    const ctxAnonMobile = await browser.newContext({
+      viewport: { width: 414, height: 896 },
+      deviceScaleFactor: 3,
+      isMobile: true,
+      hasTouch: true,
+    })
+    pageAnonMobile = await ctxAnonMobile.newPage()
+  }
+  return pageAnonMobile
+}
 async function anonPage() {
   if (!pageAnon) {
     const ctxAnon = await browser.newContext({
@@ -843,7 +906,9 @@ for (const [route, file, opts] of SHOTS) {
   try {
   const dir = `public/ajuda/${file.split("/").slice(0, -1).join("/")}`
   mkdirSync(dir, { recursive: true })
-  const p = opts?.anon
+  const p = opts?.anon && opts?.mobile
+    ? await anonMobilePage()
+    : opts?.anon
     ? await anonPage()
     : opts?.mobile
       ? await mobilePage()
@@ -967,6 +1032,16 @@ for (const [route, file, opts] of SHOTS) {
       const el = [...document.querySelectorAll("[data-slot=card]")].find((c) => c.textContent?.includes(t))
       if (el) el.style.display = "none"
     }, texto)
+    await p.waitForTimeout(300)
+  }
+  // opts.semBarraFixa: tira os elementos fixos (a barra inferior do celular), que
+  // numa foto de página inteira ficam parados no meio da imagem, sobre os campos.
+  if (opts?.semBarraFixa) {
+    await p.evaluate(() => {
+      document.querySelectorAll("body *").forEach((el) => {
+        if (getComputedStyle(el).position === "fixed") el.style.display = "none"
+      })
+    })
     await p.waitForTimeout(300)
   }
   // opts.scrollTo: rola até o texto (foca uma seção abaixo da dobra).

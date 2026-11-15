@@ -38,9 +38,14 @@ vê só os cartões das permissões que tem.
     [Auditoria](/painel/ajuda/institucional/auditoria) e
     [API](/painel/ajuda/institucional/api).
   </Passo>
+  <Passo titulo="Controle de acesso">
+    O computador da recepção de cada sede, com o agente que liga o Confluir às
+    catracas, e a lista de verificação da conexão. Exige a permissão de
+    Organização. Ver [Controle de acesso](/painel/ajuda/institucional/controle-acesso).
+  </Passo>
 </PassoAPasso>
 
-<Print src="institucional/painel.png" alt="Hub do módulo Institucional com os cartões de cada área." legenda="As áreas do Institucional." />
+<Print src="institucional/painel.png" alt="Hub do módulo Institucional com os cartões de cada área, entre eles Atas de reunião, Deliberações, Usuários e permissões, LGPD: retenção e descarte e Auditoria." legenda="As áreas do Institucional." />
 
 ## Dados da organização
 
@@ -166,9 +171,9 @@ um registro: criar ou apagar a caixa de e-mail continua sendo no provedor.
 ## Ramais e telefones diretos
 
 As linhas **fixas** da entidade: o **ramal**, o **telefone direto** (com DDD) ou
-os dois, o **local** (sala, setor) e **quem atende** — um funcionário ativo ou um
-diretor do mandato vigente; sem pessoa, o ramal é de **uso geral** (recepção,
-sala de reunião).
+os dois, o **local** (sala, setor) e **quem atende**, escolhido nos mesmos grupos
+das linhas: diretoria, funcionários, prestadores e outros com acesso ao painel;
+sem pessoa, o ramal é de **uso geral** (recepção, sala de reunião).
 
 <RequerPermissao>Linhas institucionais</RequerPermissao>
 
@@ -195,6 +200,10 @@ que estão com ela. O perfil só espelha: a correção é feita aqui.
 - **"Vejo uma área e não as outras."** Cada uma tem **permissão própria**
   (Organização, Mandatos e integrantes, Atas, Deliberações, Ajudas, Custeio, Usuários,
   Auditoria). **API e webhooks** e **LGPD** exigem a de Organização.
+- **"O diretor não aparece entre os responsáveis (linha, e-mail, ramal) ou entre
+  as pessoas do departamento."** O diretor entra pela conta de usuário ligada a
+  ele no mandato (o lápis do integrante, em Diretoria) ou, sem essa ligação, pela
+  conta com o mesmo CPF. Diretor sem conta de usuário não pode ser escolhido.
 - **"O coordenador que quero não aparece."** Ele precisa estar entre as
   **pessoas marcadas** do departamento — marque-o na lista primeiro.
 - **"Excluir (tornar legado) está bloqueado."** Ainda há pessoas ou coordenador

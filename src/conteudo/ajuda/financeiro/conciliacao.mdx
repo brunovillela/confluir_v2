@@ -57,7 +57,14 @@ pagar uma ordem ainda **A pagar** ou **Processando**:
   duas ordens iguais da mesma pessoa), você escolhe na lista;
 - a **conta de onde o dinheiro saiu** vem da conta bancária cadastrada com o
   número da conta do extrato (em **Contas bancárias**); dá para trocar;
-- **Pagar e conciliar** faz todas as marcadas; **Pagar este** faz só uma.
+- **Pagar e conciliar** faz todas as marcadas; **Pagar este** faz só uma. Os
+  dois botões só se habilitam depois de escolhida a conta de débito.
+
+O bloco aparece na aba **Pendentes**, para quem tem **Ordens de pagamento**.
+Entram como candidatas as ordens com vencimento até 60 dias antes ou depois das
+datas do extrato. Se a mesma ordem for escolhida para duas saídas, a linha avisa
+"Esta ordem foi escolhida para outro lançamento também" e nenhuma das duas é
+paga até você trocar uma delas.
 
 A ordem fica **Paga** com a data e o valor do extrato, pelas mesmas travas do
 pagamento da ordem (mês fechado, caixa, possível duplicidade — a ordem com
@@ -76,6 +83,9 @@ extrato confirmou ainda) e o último extrato importado.
 As abas **Pendentes**, **Conciliados** e **Ignorados** mostram até os 300
 lançamentos mais recentes. Em **Extratos importados**, clique num arquivo para ver
 só os lançamentos dele.
+
+Vindo das pendências do **fechamento do mês**, a tela abre só com os lançamentos
+daquele mês; a etiqueta **Lançamentos de MM/AAAA**, no topo, tira o filtro.
 
 ## Desfazer e excluir
 
@@ -99,6 +109,11 @@ antes: a exclusão é recusada.
 - **"A ordem paga não aparece como candidata."** A candidata precisa ter o mesmo
   valor e o pagamento até 3 dias de distância do lançamento. Confira o valor e a
   data registrados na ordem.
+- **"A ordem a pagar não aparece em Pagamentos a registrar."** Ela precisa estar
+  *A pagar* ou *Processando* e vencer até 60 dias antes ou depois da saída do
+  extrato. Fora disso, registre o pagamento pela ordem e concilie depois.
+- **"Paga, mas não conciliada."** O pagamento foi registrado, mas o vínculo com o
+  lançamento falhou: concilie esse lançamento à mão, na lista de pendentes.
 
 <VejaTambem
   links={[

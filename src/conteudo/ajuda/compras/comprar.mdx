@@ -641,6 +641,10 @@ um fornecimento dele, aparece marcado **Abater crédito de R$ X**:
 - crédito maior que a compra: abate só o necessário e o **resto fica em aberto**;
 - se a ordem que usou o crédito for **cancelada**, o valor **volta** ao saldo.
 
+O registro do cancelamento vale uma vez por fornecimento e a tela não tem como
+desfazê-lo; confira o desfecho e o valor antes de salvar. Na compra que não é de
+marketplace, o botão aparece depois que a compra foi efetivada.
+
 Desmarque a caixa para não usar o crédito naquela compra. Crédito usado fora do
 sistema: **Marcar como usado**, ali ou na própria compra cancelada.
 
@@ -685,8 +689,11 @@ informações*. Ver [Ordens de pagamento](/painel/ajuda/financeiro/ordens).
 
 Quando o item chega, a baixa é feita em **Aquisição → Recebimentos pendentes**.
 Aparecem ali a aquisição direta marcada como **não recebida** e os
-fornecimentos **via Aquisição já comprados**. A recepção abre o item, confere e
-registra a chegada: **Recebido em** (obrigatório), a chave **Fornecimento adequado
+fornecimentos **via Aquisição já comprados**, da previsão de entrega mais
+próxima para a mais distante. Cada item mostra o código, o fornecedor, a
+descrição, o departamento, a data da compra, o valor e a previsão; previsão já
+passada aparece com o selo **Atrasado**. A recepção clica em **Registrar
+chegada**, confere e registra: **Recebido em** (obrigatório), a chave **Fornecimento adequado
 à solicitação** (já vem ligada; desligue se veio diferente) e a **Observação**.
 <RequerPermissao>Recebimentos ou Aquisição — editar</RequerPermissao>
 
@@ -746,6 +753,16 @@ com a data de pagamento informada, porque o dinheiro sai do caixa só quando ela
 - **O item não aparece em Recebimentos.** Só entra o que está **por receber**:
   compra direta com **Entregue no ato da compra** desligada, ou via Aquisição já
   comprado. O que já foi recebido não aparece.
+- **"Explique o motivo do cancelamento (pelo menos 10 caracteres)."** O motivo
+  é obrigatório ao cancelar a solicitação e vai no aviso ao solicitante e aos
+  compradores.
+- **"Só o solicitante, o comprador ou quem opera Aquisição pode cancelar."** Quem
+  só consulta Aquisição não cancela a solicitação de outra pessoa.
+- **"O cancelamento desta compra já foi registrado."** A compra cancelada pelo
+  vendedor só se registra uma vez. O crédito usado fora do sistema se baixa com
+  **Marcar como usado**.
+- **"Informe o valor do crédito."** Quando o dinheiro virou crédito, o valor é
+  obrigatório: é ele que fica de saldo para abater nas próximas compras.
 
 <VejaTambem
   links={[

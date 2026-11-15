@@ -6,7 +6,7 @@ mostra o que essa pessoa vê, para a equipe conseguir orientá-la.
 
 | Documento | Quem assina | O que pede para assinar | Se a pessoa não vai assinar |
 | --- | --- | --- | --- |
-| **Ofício** | O assinante indicado | Aceite e código, por e-mail ou Telegram | **Recusar assinatura**: o ofício volta para correção |
+| **Ofício** | Cada assinante indicado, todos ao mesmo tempo | Aceite e código, por e-mail ou Telegram | **Recusar assinatura**: o ofício volta para correção |
 | **Contrato** (minuta) | Cada parte, na ordem mostrada na página | Código, nome completo, CPF e aceites | **Não vou assinar**: a entidade é avisada |
 | **Termo de cessão de espaço** | As duas partes, cada uma na sua vez | Código e aceite | **Não vou assinar**: a entidade é avisada |
 | **Recibo de autônomo (RPA)** | O prestador | Código, nome completo, CPF e aceites | **Não vou assinar**: o contratante vê o motivo |
@@ -36,6 +36,8 @@ mostra o que essa pessoa vê, para a equipe conseguir orientá-la.
   </Passo>
 </PassoAPasso>
 
+<Print src="fluxos-publicos/assinar-oficio.png" alt="Página de assinatura de um ofício no celular, aguardando assinatura: dados do documento, aceite marcado, aviso de que o código de 6 dígitos foi enviado e vale por 10 minutos, campo Código recebido, botão Assinar o ofício e, abaixo, Recusar assinatura." />
+
 <Aviso tipo="atencao" titulo="O link é pessoal">
   Cada passo — envio, abertura, código e assinatura — fica registrado com data e
   hora. Não peça o código à pessoa, e não encaminhe o link a outra.
@@ -47,6 +49,16 @@ mostra o que essa pessoa vê, para a equipe conseguir orientá-la.
 - **Assinado** — já foi assinado, com a data e a hora. Se o ofício foi cancelado
   depois, a página avisa que ele não está mais em vigor.
 - **Recusado** ou **Não assinado** — a página mostra o motivo.
+- **Ofício com mais de um assinante** — todos recebem o convite ao mesmo tempo e
+  assinam em qualquer ordem. A página lista, em **Também assinam**, quem já
+  assinou e quem ainda não; depois de assinar, avisa que o ofício só é emitido
+  quando todos assinarem e diz quem falta. Se outro assinante recusar, o envio é
+  encerrado e a página diz quem recusou: quando a entidade enviar de novo, todos
+  assinam outra vez.
+- **Na verificação pelo QR Code**, com vários assinantes, aparecem os
+  **Assinantes do ofício**. Uma assinatura dada num envio que não se concluiu
+  (outro recusou ou a entidade cancelou) aparece como autêntica, mas sem valer
+  para o ofício.
 - **Envio cancelado** ou **Link cancelado** — o link não vale mais. Se ainda houver
   algo a assinar, chega um novo e-mail.
 - **Recibo já entregue** — no RPA, a entidade anexou o recibo assinado por outro
