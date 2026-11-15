@@ -412,6 +412,9 @@ export async function assinarCartaPeloConfluir(
     await db.from("documento_assinaturas").update({ situacao: "cancelado", updated_at: new Date().toISOString() }).eq("id", assinaturaId)
   }
   let caminho: string
+  // O PDF fica também para o e-mail (15/11/2026): a pessoa recebe a carta
+  // assinada anexa, com a prova em mãos sem precisar entrar no sistema.
+  let pdfAssinado: Buffer | null = null
   try {
     const certificacao = await certificacaoDaCarta(opositorId, hash)
     const elemento = createElement(CartaOposicaoPDF, {
@@ -421,6 +424,7 @@ export async function assinarCartaPeloConfluir(
       provaIdentidade: provaTexto,
     }) as Parameters<typeof renderToBuffer>[0]
     const pdf = await renderToBuffer(elemento)
+    pdfAssinado = Buffer.from(pdf)
     caminho = `${PASTA}/confluir-${opositorId}-${certificado}.pdf`
     const up = await db.storage.from("oposicao").upload(caminho, new Uint8Array(pdf), { contentType: "application/pdf", upsert: true })
     if (up.error) throw new Error(up.error.message)
@@ -478,8 +482,12 @@ export async function assinarCartaPeloConfluir(
         paragrafo(
           `Sua carta de oposição${c.campanhaNome ? ` (${escaparHtml(c.campanhaNome)})` : ""} foi assinada em ${escaparHtml(formatarMomentoAssinatura(agora))} (horário de Brasília). A entidade agora analisa a sua oposição.`
         ) +
+        (pdfAssinado ? paragrafo("A carta assinada, com a página do certificado, vai anexa a este e-mail: guarde-a.") : "") +
         botaoEmail(`${origem}/portal/oposicao/comprovante/${opositorId}`, "Ver o comprovante e baixar a carta") +
         caixaAviso(`Certificado da assinatura: ${certificado}. Qualquer pessoa pode conferir em ${origem}/verificar/${certificado}.`),
+      anexos: pdfAssinado
+        ? [{ nome: `carta-oposicao-${dados.protocolo ?? opositorId.slice(0, 8)}.pdf`, base64: pdfAssinado.toString("base64") }]
+        : undefined,
     }).catch((e) => console.error("[oposicao] e-mail da carta assinada:", e))
   }
   return {}
