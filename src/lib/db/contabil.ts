@@ -32,6 +32,12 @@ export type LancamentoDespesa = {
   valorPago: number
   valorCobrado: number | null
   notaFiscal: boolean
+  /** Crédito de compra cancelada abatido nesta ordem (a compra valeu valorCobrado + isto). */
+  creditoAbatido: number
+  /** De quais compras canceladas veio o crédito. */
+  creditoOrigem: string | null
+  /** Ex.: o pagamento é de compra depois cancelada pelo vendedor (virou crédito/devolução). */
+  observacao: string | null
 }
 
 export type LancamentoReceita = { mes: string; tipo: string; fonte: string | null; valor: number; lancamentos: number; pagantes: number }
@@ -60,7 +66,7 @@ export async function lancamentosContabeis(de: string, ate: string): Promise<Lan
     admin
       .from("ordens_pagamento")
       .select(
-        "id, codigo, descricao, tipo, forma_pagamento, valor_inicial_cobranca, valor_pago, vencimento, data_pagamento, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso, beneficiario_doc_avulso, custeio_id, centro_custo_despesa_id, departamento_id, nota_fiscal"
+        "id, codigo, descricao, tipo, forma_pagamento, valor_inicial_cobranca, valor_pago, vencimento, data_pagamento, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso, beneficiario_doc_avulso, custeio_id, centro_custo_despesa_id, departamento_id, nota_fiscal, processo_compra_id, fornecimento_id"
       )
       .eq("emp_proprietaria_id", emp)
       .eq("situacao", "Paga")
@@ -76,7 +82,7 @@ export async function lancamentosContabeis(de: string, ate: string): Promise<Lan
       admin
         .from("ordens_pagamento")
         .select(
-          "id, codigo, descricao, tipo, forma_pagamento, valor_inicial_cobranca, valor_pago, vencimento, data_pagamento, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso, beneficiario_doc_avulso, custeio_id, centro_custo_despesa_id"
+          "id, codigo, descricao, tipo, forma_pagamento, valor_inicial_cobranca, valor_pago, vencimento, data_pagamento, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso, beneficiario_doc_avulso, custeio_id, centro_custo_despesa_id, processo_compra_id, fornecimento_id"
         )
         .eq("emp_proprietaria_id", emp)
         .eq("situacao", "Paga")
@@ -117,6 +123,61 @@ export async function lancamentosContabeis(de: string, ate: string): Promise<Lan
     lote<{ id: string; departamento: string | null }>("empresa_departamentos", "id, departamento", deptoIds),
   ])
   const centroPorId = new Map(centros.map((c) => [c.id, c]))
+
+  // Compras canceladas pelo vendedor (14–15/11/2026): o crédito abatido nesta
+  // ordem e, no pagamento da compra cancelada, o que virou crédito/devolução.
+  const ordemIds = brutas.map((o) => String(o.id))
+  type Uso = { ordem_id: string; valor: number; credito_fornecimento_id: string; desfeito_em: string | null }
+  const usos = (await lote<Uso>("compras_creditos_usos", "ordem_id, valor, credito_fornecimento_id, desfeito_em", ordemIds, "ordem_id").catch(
+    () => [] as Uso[]
+  )).filter((u) => !u.desfeito_em)
+  type FornCancelado = {
+    id: string
+    processo_id: string
+    ordem_pagamento_id: string | null
+    cancelamento_desfecho: string | null
+    cancelamento_valor: number | null
+    cancelamento_parcial: boolean | null
+    devolucao_recebida_em: string | null
+  }
+  const processosCompra = ids("processo_compra_id")
+  const fornecimentos = await lote<FornCancelado>(
+    "compras_fornecimentos",
+    "id, processo_id, ordem_pagamento_id, cancelamento_desfecho, cancelamento_valor, cancelamento_parcial, devolucao_recebida_em",
+    processosCompra,
+    "processo_id"
+  ).catch(() => [] as FornCancelado[])
+  const creditosOrigem = await lote<FornCancelado>(
+    "compras_fornecimentos",
+    "id, processo_id, ordem_pagamento_id, cancelamento_desfecho, cancelamento_valor, cancelamento_parcial, devolucao_recebida_em",
+    [...new Set(usos.map((u) => u.credito_fornecimento_id))]
+  ).catch(() => [] as FornCancelado[])
+  const codigoProcesso = new Map(
+    (
+      await lote<{ id: string; codigo: string | null }>(
+        "compras_solicitacoes",
+        "id, codigo",
+        [...new Set(creditosOrigem.map((f) => f.processo_id))]
+      ).catch(() => [] as { id: string; codigo: string | null }[])
+    ).map((p) => [p.id, p.codigo])
+  )
+  const origemDoCredito = new Map(creditosOrigem.map((f) => [f.id, codigoProcesso.get(f.processo_id) ?? null]))
+  const usosPorOrdem = new Map<string, Uso[]>()
+  for (const u of usos) usosPorOrdem.set(u.ordem_id, [...(usosPorOrdem.get(u.ordem_id) ?? []), u])
+  const canceladoDaOrdem = (o: Record<string, unknown>): FornCancelado | undefined =>
+    fornecimentos.find(
+      (f) => f.cancelamento_desfecho && (f.id === texto(o.fornecimento_id) || (f.ordem_pagamento_id && f.ordem_pagamento_id === String(o.id)))
+    )
+  const moeda = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+  const observacaoDe = (o: Record<string, unknown>): string | null => {
+    const f = canceladoDaOrdem(o)
+    if (!f) return null
+    const quanto = f.cancelamento_valor !== null ? ` (${moeda(Number(f.cancelamento_valor))})` : ""
+    const parte = f.cancelamento_parcial ? `Parte da compra cancelada pelo vendedor${quanto}` : `Compra cancelada pelo vendedor${quanto}`
+    return f.cancelamento_desfecho === "credito"
+      ? `${parte}: virou crédito com o fornecedor.`
+      : `${parte}: devolução ${f.devolucao_recebida_em ? `recebida em ${String(f.devolucao_recebida_em).slice(0, 10).split("-").reverse().join("/")}` : "a receber"}.`
+  }
   const deptoPorId = new Map(departamentos.map((d) => [d.id, d]))
 
   const despesas: LancamentoDespesa[] = brutas.flatMap((o) => {
@@ -138,6 +199,12 @@ export async function lancamentosContabeis(de: string, ate: string): Promise<Lan
       valorPago: Number(o.valor_pago ?? o.valor_inicial_cobranca ?? 0),
       valorCobrado: o.valor_inicial_cobranca === null || o.valor_inicial_cobranca === undefined ? null : Number(o.valor_inicial_cobranca),
       notaFiscal: Boolean(texto(o.nota_fiscal)),
+      creditoAbatido:
+        Math.round((usosPorOrdem.get(String(o.id)) ?? []).reduce((s, u) => s + Number(u.valor ?? 0), 0) * 100) / 100,
+      creditoOrigem:
+        [...new Set((usosPorOrdem.get(String(o.id)) ?? []).map((u) => origemDoCredito.get(u.credito_fornecimento_id)).filter(Boolean))].join(", ") ||
+        null,
+      observacao: observacaoDe(o),
     }
     const rateio = rateioPorOrdem.get(String(o.id)) ?? []
     if (rateio.length < 2) return [base]
@@ -161,6 +228,8 @@ export async function lancamentosContabeis(de: string, ate: string): Promise<Lan
         departamento: texto(deptoPorId.get(r.departamento_id ?? "")?.departamento),
         valorPago: pago,
         valorCobrado: Number(r.valor),
+        // O crédito abatido fica só na 1ª linha do rateio (não se repete).
+        creditoAbatido: i === 0 ? base.creditoAbatido : 0,
       }
     })
   })

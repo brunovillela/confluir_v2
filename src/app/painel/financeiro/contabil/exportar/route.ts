@@ -40,6 +40,10 @@ export async function GET(request: NextRequest): Promise<Response> {
     { titulo: "Valor pago", valor: (d) => d.valorPago, largura: 14 },
     { titulo: "Valor cobrado", valor: (d) => d.valorCobrado, largura: 14 },
     { titulo: "Nota fiscal", valor: (d) => (d.notaFiscal ? "Sim" : "Não"), largura: 10 },
+    // Compra paga com crédito de compra cancelada: o valor da compra é o pago + o crédito.
+    { titulo: "Crédito abatido", valor: (d) => (d.creditoAbatido > 0 ? d.creditoAbatido : null), largura: 14 },
+    { titulo: "Crédito de (compra cancelada)", valor: (d) => d.creditoOrigem, largura: 22 },
+    { titulo: "Observação", valor: (d) => d.observacao, largura: 50 },
   ]
   const receitas: ColunaXlsx<LancamentoReceita>[] = [
     { titulo: "Competência", valor: (r) => r.mes, largura: 12 },
