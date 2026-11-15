@@ -812,7 +812,7 @@ export default async function ProcessoCompraPage({
                   </p>
                   <div className="flex items-center gap-2">
                     <span className="text-base font-semibold tabular-nums">{formatarMoeda(f.valor)}</span>
-                    {f.cancelamento ? (
+                    {f.cancelamento && !f.cancelamento.parcial ? (
                       <Badge variant="warning">Cancelada pelo vendedor</Badge>
                     ) : f.recebido ? (
                       <Badge variant="success">Recebido</Badge>
@@ -881,12 +881,14 @@ export default async function ProcessoCompraPage({
                         </span>
                         {podeAjustar && (
                           <span className="flex flex-wrap gap-2">
+                          {!f.cancelamento && (
                           <RegistrarCancelamentoCompra
                             processoId={processo.id}
                             fornecimentoId={f.id}
                             valor={f.valor}
                             hoje={hojeSP()}
                           />
+                          )}
                           <AnexarNotaMarketplace
                             processoId={processo.id}
                             fornecimentoId={f.id}
@@ -901,10 +903,17 @@ export default async function ProcessoCompraPage({
                     {f.cancelamento ? (
                       <div className="border-warning/40 bg-warning/5 grid gap-1 rounded-md border p-3 text-sm">
                         <p>
-                          <strong>Compra cancelada pelo vendedor</strong>
+                          <strong>{f.cancelamento.parcial ? "Parte da compra cancelada pelo vendedor" : "Compra cancelada pelo vendedor"}</strong>
                           {f.cancelamento.data ? ` em ${formatarData(f.cancelamento.data)}` : ""} —{" "}
-                          {f.cancelamento.desfecho === "credito" ? "virou crédito para compras futuras" : "o dinheiro foi devolvido"}
-                          {f.cancelamento.valor !== null ? ` (${formatarMoeda(f.cancelamento.valor)})` : ""}.
+                          {f.cancelamento.parcial && f.cancelamento.valor !== null ? `${formatarMoeda(f.cancelamento.valor)} cancelados; ` : ""}
+                          {f.cancelamento.parcial &&
+                          [f.cancelamento.creditoUsadoObs, f.cancelamento.devolucaoRecebidaObs].some((o) => o?.includes("Abatido na ordem"))
+                            ? "descontados da ordem ainda não paga"
+                            : f.cancelamento.desfecho === "credito"
+                              ? "virou crédito para compras futuras"
+                              : "o dinheiro foi devolvido"}
+                          {!f.cancelamento.parcial && f.cancelamento.valor !== null ? ` (${formatarMoeda(f.cancelamento.valor)})` : ""}.
+                          {f.cancelamento.parcial && " O restante da compra segue normalmente."}
                         </p>
                         {f.cancelamento.obs && <p className="text-muted-foreground text-xs">{f.cancelamento.obs}</p>}
                         <p className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
@@ -983,7 +992,7 @@ export default async function ProcessoCompraPage({
                       </p>
                     ) : (
                       podeReceber &&
-                      !f.cancelamento && (
+                      !(f.cancelamento && !f.cancelamento.parcial) && (
                         <>
                           <Separator />
                           <RecebimentoForm processoId={processo.id} fornecimentoId={f.id} />

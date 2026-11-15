@@ -493,6 +493,8 @@ export async function registrarCancelamentoCompraAction(
   const valor = valorTexto ? parseValorBR(valorTexto) : null
   if (valorTexto && (valor === null || !Number.isFinite(valor) || valor <= 0)) return { erro: "Valor inválido." }
   if (desfecho === "credito" && valor === null) return { erro: "Informe o valor do crédito." }
+  const parcial = texto(formData, "alcance") === "parcial"
+  if (parcial && valor === null) return { erro: "Informe o valor da parte cancelada." }
   const obs = texto(formData, "obs") || null
   const creditoValidade = desfecho === "credito" ? dataISO(texto(formData, "credito_validade")) : null
   if (creditoValidade && creditoValidade < data) return { erro: "A validade do crédito é anterior à data do cancelamento." }
@@ -514,6 +516,7 @@ export async function registrarCancelamentoCompraAction(
     comprovante: caminho,
     usuarioId: sessao.usuario.id,
     creditoValidade,
+    parcial,
   })
   if (r.erro) {
     if (caminho) await (await createAdminClient()).storage.from("compras").remove([caminho])
@@ -523,7 +526,11 @@ export async function registrarCancelamentoCompraAction(
   revalidatePath("/painel/compras/notas-a-receber")
   revalidatePath("/painel/financeiro/ordens")
   return {
-    ok: desfecho === "credito" ? "Cancelamento registrado; o crédito ficou em aberto." : "Cancelamento registrado.",
+    ok: parcial
+      ? "Cancelamento parcial registrado."
+      : desfecho === "credito"
+        ? "Cancelamento registrado; o crédito ficou em aberto."
+        : "Cancelamento registrado.",
     avisos: r.avisos,
   }
 }

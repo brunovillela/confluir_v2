@@ -109,6 +109,8 @@ modulo,tabela,coluna,categoria,titulares,descricao
 "compras","compras_fornecimentos","devolucao_recebida_obs","nenhum","fornecedores PF, usuários do sistema","Como a devolução chegou (crédito no extrato, estorno na fatura do cartão…)."
 "compras","compras_fornecimentos","devolucao_lancamento_id","nenhum","fornecedores PF, usuários do sistema","Lançamento do extrato bancário que trouxe a devolução, quando conciliado."
 "compras","compras_fornecimentos","credito_validade","nenhum","fornecedores PF, usuários do sistema","Até quando o crédito do cancelamento pode ser usado. Vencido, não é mais abatido."
+"compras","compras_fornecimentos","cancelamento_parcial","nenhum","fornecedores PF, usuários do sistema","O vendedor cancelou só parte da compra (cancelamento_valor): a compra segue ativa. false = cancelamento da compra toda."
+"compras","compras_fornecimentos","cancelamento_ordem_reduzida_id","nenhum","fornecedores PF, usuários do sistema","Cancelamento parcial: ordem ainda não paga que teve o valor reduzido no valor cancelado (desfazer devolve o valor)."
 "compras","compras_pedido","","identificacao","usuários do sistema","Pedido de compra do modelo antigo do Bubble (frete, preço, autorizador). Sem uso encontrado no código (possível legado do Bubble), vazia."
 "compras","compras_pedido","autorizador","identificacao","usuários do sistema","Nome ou id Bubble de quem autorizou."
 "compras","compras_propostas","","identificacao","fornecedores PF, usuários do sistema","Propostas (cotações) de fornecedores num processo de compra, com valor, prazo e arquivo; a escolhida vira fornecimento. Boa parte migrada do Bubble."

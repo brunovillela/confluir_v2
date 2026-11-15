@@ -156,6 +156,8 @@ export type Fornecimento = {
 
 export type CancelamentoFornecimento = {
   desfecho: "credito" | "devolucao"
+  /** Só parte da compra (valor) foi cancelada: a compra segue ativa. */
+  parcial: boolean
   valor: number | null
   data: string | null
   obs: string | null
@@ -341,6 +343,7 @@ async function processosCanceladosPeloVendedor(emp: string): Promise<string[]> {
     .select("processo_id")
     .eq("emp_proprietaria_id", emp)
     .not("cancelamento_desfecho", "is", null)
+    .eq("cancelamento_parcial", false)
     .limit(1000)
   const ids = [...new Set((cancelados ?? []).map((f) => String(f.processo_id)))]
   if (!ids.length) return []
@@ -348,7 +351,7 @@ async function processosCanceladosPeloVendedor(emp: string): Promise<string[]> {
     .from("compras_fornecimentos")
     .select("processo_id")
     .in("processo_id", ids)
-    .is("cancelamento_desfecho", null)
+    .or("cancelamento_desfecho.is.null,cancelamento_parcial.eq.true")
   const comAtivo = new Set((ativos ?? []).map((f) => String(f.processo_id)))
   return ids.filter((id) => !comAtivo.has(id))
 }
@@ -499,7 +502,7 @@ export async function listarProcessos(
   const { data: fornecimentosDaPagina } = linhas.length
     ? await admin
         .from("compras_fornecimentos")
-        .select("processo_id, fornecedor_id, cancelamento_desfecho")
+        .select("processo_id, fornecedor_id, cancelamento_desfecho, cancelamento_parcial")
         .in("processo_id", linhas.map((p) => String(p.id)))
     : { data: [] }
   const fornecedoresPorProcesso = new Map<string, string[]>()
@@ -507,7 +510,8 @@ export async function listarProcessos(
   const estadoCancelamento = new Map<string, boolean>()
   for (const f of fornecimentosDaPagina ?? []) {
     const pid = String(f.processo_id)
-    const cancelado = Boolean((f as { cancelamento_desfecho?: string | null }).cancelamento_desfecho)
+    const ff = f as { cancelamento_desfecho?: string | null; cancelamento_parcial?: boolean | null }
+    const cancelado = Boolean(ff.cancelamento_desfecho) && ff.cancelamento_parcial !== true
     estadoCancelamento.set(pid, (estadoCancelamento.get(pid) ?? true) && cancelado)
   }
   for (const f of fornecimentosDaPagina ?? []) {
@@ -639,7 +643,7 @@ export async function resumoCompras(escopo?: EscopoCompras): Promise<ResumoCompr
         .select("id", { count: "exact", head: true })
         .eq("emp_proprietaria_id", await tenantAtual())
         .eq("recebido", false)
-        .is("cancelamento_desfecho", null),
+        .or("cancelamento_desfecho.is.null,cancelamento_parcial.eq.true"),
       aCotarQ,
     ])
 
@@ -830,6 +834,7 @@ export async function buscarProcesso(
             x.cancelamento_desfecho === "credito" || x.cancelamento_desfecho === "devolucao"
               ? {
                   desfecho: x.cancelamento_desfecho,
+                  parcial: x.cancelamento_parcial === true,
                   valor: x.cancelamento_valor === null || x.cancelamento_valor === undefined ? null : Number(x.cancelamento_valor),
                   data: (x.cancelamento_data as string | null) ?? null,
                   obs: (x.cancelamento_obs as string | null) ?? null,
@@ -853,7 +858,7 @@ export async function buscarProcesso(
     codigo: (p.codigo as string | null) ?? null,
     situacao: derivarSituacao(
       p,
-      (fornecimentosBrutos ?? []).length > 0 && (fornecimentosBrutos ?? []).every((x) => Boolean(x.cancelamento_desfecho))
+      (fornecimentosBrutos ?? []).length > 0 && (fornecimentosBrutos ?? []).every((x) => Boolean(x.cancelamento_desfecho) && x.cancelamento_parcial !== true)
     ),
     aquisicao_direta: (p.aquisicao_direta as boolean | null) ?? null,
     cancelado: p.cancelado === true,
@@ -1813,7 +1818,7 @@ export async function registrarRecebimento(
     .select("id", { count: "exact", head: true })
     .eq("processo_id", linha.processo_id)
     .eq("recebido", false)
-    .is("cancelamento_desfecho", null)
+    .or("cancelamento_desfecho.is.null,cancelamento_parcial.eq.true")
   if (count === 0) {
     await admin
       .from("compras_solicitacoes")
@@ -1855,7 +1860,7 @@ export async function listarRecebimentosPendentes(): Promise<{
         .from("compras_fornecimentos")
         .select("*")
         .eq("recebido", false)
-        .is("cancelamento_desfecho", null)
+        .or("cancelamento_desfecho.is.null,cancelamento_parcial.eq.true")
         .order("previsao_entrega", { ascending: true, nullsFirst: false })
         .order("created_at", { ascending: true })
         .order("id")

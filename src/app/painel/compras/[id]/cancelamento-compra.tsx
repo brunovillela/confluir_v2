@@ -49,6 +49,7 @@ export function RegistrarCancelamentoCompra({
 }) {
   const [aberto, setAberto] = useState(false)
   const [desfecho, setDesfecho] = useState<"credito" | "devolucao">("credito")
+  const [parcial, setParcial] = useState(false)
   const [arquivoErro, setArquivoErro] = useState<string | null>(null)
   const [estado, acao, pendente] = useActionState(async (prev: Estado, fd: FormData) => {
     const r = await registrarCancelamentoCompraAction(prev, fd)
@@ -65,7 +66,7 @@ export function RegistrarCancelamentoCompra({
           Compra cancelada pelo vendedor
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Compra cancelada pelo vendedor</DialogTitle>
           <DialogDescription>
@@ -76,6 +77,28 @@ export function RegistrarCancelamentoCompra({
         <form action={acao} {...envio} className="grid gap-3">
           <input type="hidden" name="processo_id" value={processoId} />
           <input type="hidden" name="fornecimento_id" value={fornecimentoId} />
+          <fieldset className="grid gap-2">
+            <legend className="mb-1 text-sm font-medium">O que foi cancelado?</legend>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  [false, "Toda a compra"],
+                  [true, "Parte da compra"],
+                ] as const
+              ).map(([v, rotulo]) => (
+                <label key={rotulo} className="hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm">
+                  <input type="radio" name="alcance" value={v ? "parcial" : "total"} checked={parcial === v} onChange={() => setParcial(v)} />
+                  {rotulo}
+                </label>
+              ))}
+            </div>
+            {parcial && (
+              <p className="text-muted-foreground text-xs">
+                A compra segue ativa (recebimento e nota do que ficou). Se uma ordem ainda não paga comportar o valor,
+                ela é reduzida nele e não sobra crédito nem devolução; se já foi paga, o valor vira crédito ou devolução.
+              </p>
+            )}
+          </fieldset>
           <fieldset className="grid gap-2">
             <legend className="mb-1 text-sm font-medium">O que aconteceu com o dinheiro?</legend>
             {(
@@ -103,14 +126,15 @@ export function RegistrarCancelamentoCompra({
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid gap-1.5">
               <Label htmlFor={`cc-valor-${fornecimentoId}`}>
-                Valor {desfecho === "credito" ? "do crédito" : "devolvido"}
+                {parcial ? "Valor da parte cancelada" : `Valor ${desfecho === "credito" ? "do crédito" : "devolvido"}`}
               </Label>
               <Input
                 id={`cc-valor-${fornecimentoId}`}
                 name="valor"
                 inputMode="decimal"
-                defaultValue={valorBR(valor)}
-                required={desfecho === "credito"}
+                key={parcial ? "parcial" : "total"}
+                defaultValue={parcial ? "" : valorBR(valor)}
+                required={desfecho === "credito" || parcial}
                 placeholder="0,00"
               />
             </div>

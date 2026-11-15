@@ -46,9 +46,12 @@ export async function registrarCancelamentoCompra(dados: {
   usuarioId: string
   /** Crédito: até quando vale (opcional). */
   creditoValidade?: string | null
+  /** Só parte da compra (o valor) foi cancelada: a compra segue ativa. */
+  parcial?: boolean
 }): Promise<{ erro?: string; avisos?: string[] }> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
+  const parcial = dados.parcial === true
   const { data: f } = await admin
     .from("compras_fornecimentos")
     .select("id, processo_id, valor, nota_fiscal_url, ordem_pagamento_id, cancelamento_desfecho")
@@ -57,6 +60,12 @@ export async function registrarCancelamentoCompra(dados: {
     .maybeSingle()
   if (!f || f.processo_id !== dados.processoId) return { erro: "Fornecimento não encontrado neste processo." }
   if (f.cancelamento_desfecho) return { erro: "O cancelamento desta compra já foi registrado." }
+  if (parcial) {
+    if (dados.valor === null || !(dados.valor > 0)) return { erro: "Informe o valor da parte cancelada." }
+    if (f.valor !== null && dados.valor >= Number(f.valor) - 0.005) {
+      return { erro: "O valor cancelado é a compra toda — escolha \"Toda a compra\"." }
+    }
+  }
 
   const { error } = await admin
     .from("compras_fornecimentos")
@@ -69,7 +78,9 @@ export async function registrarCancelamentoCompra(dados: {
       credito_validade: dados.desfecho === "credito" ? (dados.creditoValidade ?? null) : null,
       cancelado_em: new Date().toISOString(),
       cancelado_por_id: dados.usuarioId,
-      nota_a_receber: false,
+      cancelamento_parcial: parcial,
+      // Parcial: a compra segue esperando a nota do que ficou.
+      ...(parcial ? {} : { nota_a_receber: false }),
       updated_at: new Date().toISOString(),
     })
     .eq("id", dados.fornecimentoId)
@@ -79,8 +90,9 @@ export async function registrarCancelamentoCompra(dados: {
   }
 
   const valorTxt = dados.valor !== null ? formatarMoeda(dados.valor) : "valor não informado"
-  const resumo =
-    dados.desfecho === "credito"
+  const resumo = parcial
+    ? `Parte da compra (${valorTxt}) cancelada pelo vendedor em ${formatarData(dados.data)}.`
+    : dados.desfecho === "credito"
       ? `Compra cancelada pelo vendedor em ${formatarData(dados.data)} — virou crédito para compras futuras (${valorTxt}).`
       : `Compra cancelada pelo vendedor em ${formatarData(dados.data)} — dinheiro devolvido (${valorTxt}).`
   const motivo = [resumo, dados.obs].filter(Boolean).join(" ")
@@ -88,7 +100,7 @@ export async function registrarCancelamentoCompra(dados: {
   // Ordens do fornecimento: as com fornecimento_id e a principal.
   const { data: ordens } = await admin
     .from("ordens_pagamento")
-    .select("id, codigo, situacao, arquivo_nota_fiscal, fornecimento_id")
+    .select("id, codigo, situacao, arquivo_nota_fiscal, fornecimento_id, valor_inicial_cobranca")
     .eq("emp_proprietaria_id", emp)
     .eq("processo_compra_id", dados.processoId)
     .not("excluido", "is", true)
@@ -96,6 +108,7 @@ export async function registrarCancelamentoCompra(dados: {
     (o) => o.fornecimento_id === dados.fornecimentoId || (f.ordem_pagamento_id && o.id === f.ordem_pagamento_id)
   )
   const avisos: string[] = []
+  if (parcial) return cancelamentoParcialNasOrdens(doFornecimento, f.id as string, dados, motivo)
   let algumaPaga = false
   for (const o of doFornecimento) {
     const situacao = texto(o.situacao) ?? ""
@@ -131,6 +144,70 @@ export async function registrarCancelamentoCompra(dados: {
       .eq("id", dados.fornecimentoId)
   }
   return avisos.length ? { avisos } : {}
+}
+
+/**
+ * Cancelamento parcial: a ordem ainda não paga que comporta o valor é
+ * reduzida nele — aí não há crédito nem devolução (paga-se menos). Sem ordem
+ * em aberto que comporte, o valor vira crédito ou devolução como no total.
+ */
+async function cancelamentoParcialNasOrdens(
+  ordens: Record<string, unknown>[],
+  fornecimentoId: string,
+  dados: { desfecho: DesfechoCancelamento; valor: number | null; usuarioId: string },
+  motivo: string
+): Promise<{ avisos?: string[] }> {
+  const admin = await createAdminClient()
+  const valor = dados.valor ?? 0
+  const aberta = ordens
+    .filter((o) => !ENCERRADAS.includes(texto(o.situacao) ?? "") && texto(o.situacao) !== "Na fatura")
+    .filter((o) => Number(o.valor_inicial_cobranca ?? 0) - valor >= 0.01)
+    .sort((a, b) => Number(b.valor_inicial_cobranca ?? 0) - Number(a.valor_inicial_cobranca ?? 0))[0]
+  if (aberta) {
+    const antes = Number(aberta.valor_inicial_cobranca)
+    const depois = centavos(antes - valor)
+    await admin.from("ordens_pagamento").update({ valor_inicial_cobranca: depois }).eq("id", String(aberta.id))
+    await registrarEvento(String(aberta.id), "corrigida", dados.usuarioId, `${motivo} Valor da ordem reduzido de ${formatarMoeda(antes)} para ${formatarMoeda(depois)}.`, {
+      campo: "valor_inicial_cobranca",
+      antes,
+      depois,
+      cancelamento_parcial: true,
+    })
+    const obs = `Abatido na ordem ${texto(aberta.codigo) ?? ""} ainda não paga.`
+    await admin
+      .from("compras_fornecimentos")
+      .update({
+        cancelamento_ordem_reduzida_id: String(aberta.id),
+        ...(dados.desfecho === "credito"
+          ? { credito_usado_em: new Date().toISOString(), credito_usado_por_id: dados.usuarioId, credito_usado_obs: obs }
+          : { devolucao_recebida_em: new Date().toISOString(), devolucao_recebida_por_id: dados.usuarioId, devolucao_recebida_obs: `Nada a devolver: ${obs}` }),
+      })
+      .eq("id", fornecimentoId)
+    return {}
+  }
+  // Tudo pago (ou em fatura): o valor cancelado vira crédito/devolução; a trilha avisa nas pagas.
+  const pagas = ordens.filter((o) => texto(o.situacao) === "Paga")
+  if (pagas.length) {
+    await registrarEvento(pagas.map((o) => String(o.id)), "corrigida", dados.usuarioId, motivo, {
+      campo: "cancelamento_compra",
+      parcial: true,
+      desfecho: dados.desfecho,
+      valor: dados.valor,
+    })
+  } else if (dados.desfecho === "devolucao") {
+    await admin
+      .from("compras_fornecimentos")
+      .update({
+        devolucao_recebida_em: new Date().toISOString(),
+        devolucao_recebida_por_id: dados.usuarioId,
+        devolucao_recebida_obs: "Nada a devolver: nenhuma ordem da compra tinha sido paga.",
+      })
+      .eq("id", fornecimentoId)
+  }
+  const semOrdemQueComporte = ordens.some((o) => !ENCERRADAS.includes(texto(o.situacao) ?? ""))
+  return semOrdemQueComporte
+    ? { avisos: ["Nenhuma ordem em aberto comporta o valor cancelado: ajuste o valor da ordem pelo Financeiro, se for o caso."] }
+    : {}
 }
 
 export type CreditoFornecedor = {
@@ -634,7 +711,7 @@ export async function desfazerCancelamentoCompra(dados: {
   const { data: f } = await admin
     .from("compras_fornecimentos")
     .select(
-      "id, processo_id, fornecedor_id, nota_fiscal_url, ordem_pagamento_id, cancelamento_desfecho, cancelamento_comprovante_url, credito_usado_em, credito_usado_obs, devolucao_recebida_em, devolucao_recebida_obs"
+      "id, processo_id, fornecedor_id, nota_fiscal_url, nota_a_receber, ordem_pagamento_id, cancelamento_desfecho, cancelamento_valor, cancelamento_parcial, cancelamento_ordem_reduzida_id, cancelamento_comprovante_url, credito_usado_em, credito_usado_obs, devolucao_recebida_em, devolucao_recebida_obs"
     )
     .eq("id", dados.fornecimentoId)
     .eq("emp_proprietaria_id", emp)
@@ -647,7 +724,7 @@ export async function desfazerCancelamentoCompra(dados: {
     if (usado > 0.005) {
       return { erro: `O crédito já foi abatido em compra nova (${formatarMoeda(usado)}). Cancele antes a ordem que o usou.` }
     }
-    if (f.credito_usado_em) {
+    if (f.credito_usado_em && !String(f.credito_usado_obs ?? "").startsWith("Abatido na ordem")) {
       return { erro: `O crédito já foi dado como usado (${texto(f.credito_usado_obs) ?? "sem observação"}).` }
     }
   }
@@ -676,12 +753,36 @@ export async function desfazerCancelamentoCompra(dados: {
       devolucao_recebida_por_id: null,
       devolucao_recebida_obs: null,
       devolucao_lancamento_id: null,
-      // Marketplace sem nota volta a esperar a nota do vendedor.
-      nota_a_receber: emp_?.marketplace === true && !texto(f.nota_fiscal_url),
+      cancelamento_parcial: false,
+      cancelamento_ordem_reduzida_id: null,
+      // Marketplace sem nota volta a esperar a nota do vendedor (a parcial não mexeu nisso).
+      nota_a_receber: f.cancelamento_parcial === true ? f.nota_a_receber === true : emp_?.marketplace === true && !texto(f.nota_fiscal_url),
       updated_at: new Date().toISOString(),
     })
     .eq("id", dados.fornecimentoId)
   if (error) return { erro: `Não foi possível desfazer o cancelamento: ${error.message}` }
+
+  // Parcial que reduziu uma ordem em aberto: o valor volta para ela.
+  const avisosParcial: string[] = []
+  if (f.cancelamento_parcial === true && f.cancelamento_ordem_reduzida_id) {
+    const { data: o } = await admin
+      .from("ordens_pagamento")
+      .select("id, codigo, situacao, valor_inicial_cobranca")
+      .eq("id", String(f.cancelamento_ordem_reduzida_id))
+      .maybeSingle()
+    if (o && !ENCERRADAS.includes(String(o.situacao))) {
+      const antes = Number(o.valor_inicial_cobranca ?? 0)
+      const depois = centavos(antes + Number(f.cancelamento_valor ?? 0))
+      await admin.from("ordens_pagamento").update({ valor_inicial_cobranca: depois }).eq("id", String(o.id))
+      await registrarEvento(String(o.id), "corrigida", dados.usuarioId, `Cancelamento parcial da compra desfeito: ${dados.motivo.trim()} Valor da ordem volta de ${formatarMoeda(antes)} para ${formatarMoeda(depois)}.`, {
+        campo: "valor_inicial_cobranca",
+        antes,
+        depois,
+      })
+    } else if (o) {
+      avisosParcial.push(`A ordem ${texto(o.codigo) ?? ""} já está ${String(o.situacao)}: o valor cancelado não voltou para ela — ajuste pelo Financeiro.`)
+    }
+  }
 
   const comprovante = texto(f.cancelamento_comprovante_url)
   const { data: ordens } = await admin
@@ -693,7 +794,7 @@ export async function desfazerCancelamentoCompra(dados: {
   const doFornecimento = (ordens ?? []).filter(
     (o) => o.fornecimento_id === dados.fornecimentoId || (f.ordem_pagamento_id && o.id === f.ordem_pagamento_id)
   )
-  const avisos: string[] = []
+  const avisos: string[] = [...avisosParcial]
   const texto_ = `Cancelamento da compra pelo vendedor desfeito: ${dados.motivo.trim()}`
   for (const o of doFornecimento) {
     if (o.situacao === "Cancelada" && String(o.cancelamento_motivo ?? "").startsWith(PREFIXO_MOTIVO)) {

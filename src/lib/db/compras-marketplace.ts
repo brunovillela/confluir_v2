@@ -441,7 +441,7 @@ export async function listarComprasSemNota(escopo: EscopoCompras | null): Promis
     .eq("emp_proprietaria_id", emp)
     .is("nota_fiscal_url", null)
     .not("nota_a_receber", "is", true)
-    .is("cancelamento_desfecho", null)
+    .or("cancelamento_desfecho.is.null,cancelamento_parcial.eq.true")
     .gte("created_at", DESDE_SEM_NOTA)
     .limit(500)
   if (error || !data?.length) return []

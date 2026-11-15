@@ -124,6 +124,8 @@ Cada compra efetivada com um fornecedor dentro de um processo de compra: valor, 
 | `devolucao_recebida_obs` | text | sim |  |  | nenhum | Como a devolução chegou (crédito no extrato, estorno na fatura do cartão…). |
 | `devolucao_lancamento_id` | uuid | sim |  | → banco_lancamentos (set null) | nenhum | Lançamento do extrato bancário que trouxe a devolução, quando conciliado. |
 | `credito_validade` | date | sim |  |  | nenhum | Até quando o crédito do cancelamento pode ser usado. Vencido, não é mais abatido. |
+| `cancelamento_parcial` | boolean | não | `false` |  | nenhum | O vendedor cancelou só parte da compra (cancelamento_valor): a compra segue ativa. false = cancelamento da compra toda. |
+| `cancelamento_ordem_reduzida_id` | uuid | sim |  | → ordens_pagamento (set null) | nenhum | Cancelamento parcial: ordem ainda não paga que teve o valor reduzido no valor cancelado (desfazer devolve o valor). |
 
 Checks: `compras_fornecimentos_cancelamento_desfecho_check` `CHECK (((cancelamento_desfecho IS NULL) OR (cancelamento_desfecho = ANY (ARRAY['credito'::text, 'devolucao'::text]))))`; `compras_fornecimentos_valor_check` `CHECK ((valor >= (0)::numeric))`
 
