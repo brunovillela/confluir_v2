@@ -130,16 +130,20 @@ insert into oposicao_perguntas (id, emp_proprietaria_id, campanha_id, pergunta, 
   ('bb000000-0000-4000-8000-000000000001','11111111-1111-4111-8111-111111111111','ba000000-0000-4000-8000-000000000001','Confirma que se opõe ao desconto da contribuição assistencial?', 1),
   ('bb000000-0000-4000-8000-000000000002','11111111-1111-4111-8111-111111111111','ba000000-0000-4000-8000-000000000001','Qual o motivo da oposição?', 2);
 
+-- CPFs VÁLIDOS (dígitos verificadores certos), fictícios e conferidos como
+-- ausentes de todas as tabelas (15/11/2026): o portal só reconhece CPF válido,
+-- então é com eles que o teste na tela vê "minhas oposições", o comprovante e a
+-- carta. Os de antes (12312312301…) eram inválidos e nunca casavam com uma sessão.
 insert into oposicao_opositor (
   id, emp_proprietaria_id, campanha_id, cpf, nome_completo, email, telefone,
   matricula, lotacao, empregador_id, situacao, protocolo, created_at
 ) values
-  ('bc000000-0000-4000-8000-000000000001','11111111-1111-4111-8111-111111111111','ba000000-0000-4000-8000-000000000001','12312312301','Paulo Ricardo Menezes','paulo.demo@exemplo.com','(21) 98800-0001','3001','Refinaria','f0f0f0f0-0000-4000-8000-000000000003','nao_avaliada', 501, now() - interval '5 days'),
-  ('bc000000-0000-4000-8000-000000000002','11111111-1111-4111-8111-111111111111','ba000000-0000-4000-8000-000000000001','23423423402','Renata Aparecida Vasconcelos','renata.demo@exemplo.com','(21) 98800-0002','3002','Administrativo','f0f0f0f0-0000-4000-8000-000000000003','nao_avaliada', 502, now() - interval '4 days'),
-  ('bc000000-0000-4000-8000-000000000003','11111111-1111-4111-8111-111111111111','ba000000-0000-4000-8000-000000000001','34534534503','Sérgio Luiz Fontoura','sergio.demo@exemplo.com','(21) 98800-0003','3003','Operação','f0f0f0f0-0000-4000-8000-000000000003','aprovada', 498, now() - interval '8 days'),
-  ('bc000000-0000-4000-8000-000000000004','11111111-1111-4111-8111-111111111111','ba000000-0000-4000-8000-000000000001','45645645604','Tânia Regina Barcelos','tania.demo@exemplo.com','(21) 98800-0004','3004','Laboratório','f0f0f0f0-0000-4000-8000-000000000003','reprovada', 495, now() - interval '9 days'),
-  ('bc000000-0000-4000-8000-000000000005','11111111-1111-4111-8111-111111111111','ba000000-0000-4000-8000-000000000001','56756756705','Wagner Souza Lima','wagner.demo@exemplo.com','(21) 98800-0005','3005','Manutenção','f0f0f0f0-0000-4000-8000-000000000003','aguardando_documento', 503, now() - interval '2 days'),
-  ('bc000000-0000-4000-8000-000000000006','11111111-1111-4111-8111-111111111111','ba000000-0000-4000-8000-000000000001','67867867806','Cláudia Marques Teles','claudia.demo@exemplo.com','(21) 98800-0006','3006','Segurança','f0f0f0f0-0000-4000-8000-000000000003','desistente', 490, now() - interval '12 days');
+  ('bc000000-0000-4000-8000-000000000001','11111111-1111-4111-8111-111111111111','ba000000-0000-4000-8000-000000000001','12312312387','Paulo Ricardo Menezes','paulo.demo@exemplo.com','(21) 98800-0001','3001','Refinaria','f0f0f0f0-0000-4000-8000-000000000003','nao_avaliada', 501, now() - interval '5 days'),
+  ('bc000000-0000-4000-8000-000000000002','11111111-1111-4111-8111-111111111111','ba000000-0000-4000-8000-000000000001','23423423498','Renata Aparecida Vasconcelos','renata.demo@exemplo.com','(21) 98800-0002','3002','Administrativo','f0f0f0f0-0000-4000-8000-000000000003','nao_avaliada', 502, now() - interval '4 days'),
+  ('bc000000-0000-4000-8000-000000000003','11111111-1111-4111-8111-111111111111','ba000000-0000-4000-8000-000000000001','34534534507','Sérgio Luiz Fontoura','sergio.demo@exemplo.com','(21) 98800-0003','3003','Operação','f0f0f0f0-0000-4000-8000-000000000003','aprovada', 498, now() - interval '8 days'),
+  ('bc000000-0000-4000-8000-000000000004','11111111-1111-4111-8111-111111111111','ba000000-0000-4000-8000-000000000001','45645645600','Tânia Regina Barcelos','tania.demo@exemplo.com','(21) 98800-0004','3004','Laboratório','f0f0f0f0-0000-4000-8000-000000000003','reprovada', 495, now() - interval '9 days'),
+  ('bc000000-0000-4000-8000-000000000005','11111111-1111-4111-8111-111111111111','ba000000-0000-4000-8000-000000000001','56756756710','Wagner Souza Lima','wagner.demo@exemplo.com','(21) 98800-0005','3005','Manutenção','f0f0f0f0-0000-4000-8000-000000000003','aguardando_documento', 503, now() - interval '2 days'),
+  ('bc000000-0000-4000-8000-000000000006','11111111-1111-4111-8111-111111111111','ba000000-0000-4000-8000-000000000001','67867867821','Cláudia Marques Teles','claudia.demo@exemplo.com','(21) 98800-0006','3006','Segurança','f0f0f0f0-0000-4000-8000-000000000003','desistente', 490, now() - interval '12 days');
 
 -- ===========================================================================
 -- Depois de rodar: capture os prints com scripts/manual-prints.mjs.
