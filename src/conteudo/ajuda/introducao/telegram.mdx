@@ -84,8 +84,10 @@ documentos:
 
 <PassoAPasso>
   <Passo titulo="1. Leitura">
-    A IA lê o arquivo. O bot pergunta o que faltar: o tipo do reembolso, o veículo
-    e o km, de quem é o atestado.
+    A IA lê o arquivo. O bot pergunta o que faltar: o tipo do reembolso e a data
+    da despesa (lida do comprovante quando aparece), o veículo e o km, de quem é o
+    atestado. Reembolso com a despesa fora do prazo da entidade não é confirmado —
+    o bot pede para corrigir a data.
   </Passo>
   <Passo titulo="2. Conferência">
     O bot mostra o lançamento com **Confirmar**, **Corrigir** e **Cancelar**.

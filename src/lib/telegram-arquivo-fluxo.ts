@@ -16,6 +16,7 @@
  */
 
 import { formatarMoeda } from "@/lib/formato"
+import { conferirDataDespesa } from "@/lib/reembolsos-calculo"
 import { ultimoDiaDoPeriodo } from "@/lib/periodo-dias"
 import { parseValorBR } from "@/lib/valores"
 import { chavePlaca, parseHodometro } from "@/lib/veiculos-constantes"
@@ -217,6 +218,7 @@ export type PassoArquivo =
 /** Campos digitados (os de botão têm passo próprio). */
 export type CampoDigitado =
   | "valor"
+  | "data_despesa"
   | "descricao"
   | "hodometro"
   | "litros"
@@ -243,6 +245,8 @@ export type DadosArquivoBot = {
   // Reembolso do ACT
   tipoReembolsoId?: string
   valor?: number
+  /** Data da despesa do reembolso (aaaa-mm-dd), obrigatória desde 14/11/2026. */
+  dataDespesa?: string
   descricao?: string
   // Abastecimento (o condutor é quem mandou)
   veiculoId?: string
@@ -277,6 +281,8 @@ export type ContextoArquivo = {
   hoje: string
   usuario: Pessoa
   tiposReembolso: { id: string; nome: string }[]
+  /** Prazo do reembolso em dias depois da despesa (null/ausente = sem limite). */
+  prazoReembolsoDias?: number | null
   veiculos: { id: string; placa: string; rotulo: string }[]
 }
 
@@ -374,6 +380,8 @@ function aplicarTipo(d0: DadosArquivoBot, tipo: TipoArquivo, ctx: ContextoArquiv
   const d: DadosArquivoBot = { ...d0, tipo, alertas: undefined, duplicado: undefined }
   if (tipo === "reembolso") {
     d.valor = l.valor ?? undefined
+    // A data lida do comprovante vira a da despesa (futura não vale: pergunta).
+    d.dataDespesa = l.data && l.data <= ctx.hoje ? l.data : undefined
     const desc = [l.descricao, l.emitente ? `(${l.emitente})` : null].filter(Boolean).join(" ")
     d.descricao = desc ? desc.slice(0, 300) : undefined
     if (ctx.tiposReembolso.length === 1) d.tipoReembolsoId = ctx.tiposReembolso[0].id
@@ -411,6 +419,7 @@ function seguir(d: DadosArquivoBot): EstadoArquivoBot {
     case "reembolso":
       if (!d.tipoReembolsoId) return ir("tipo_reembolso")
       if (!d.valor) return ir("editar", "valor")
+      if (!d.dataDespesa) return ir("editar", "data_despesa")
       if (!d.descricao) return ir("editar", "descricao")
       return ir("confirmar")
     case "abastecimento":
@@ -434,6 +443,7 @@ function seguir(d: DadosArquivoBot): EstadoArquivoBot {
 
 const PERGUNTA_CAMPO: Record<CampoDigitado, string> = {
   valor: "Qual o valor total pago? <i>Ex.: 185,90</i>",
+  data_despesa: "Qual a data da despesa (a do comprovante)? <i>Ex.: 30/10 ou 30/10/2026</i>",
   descricao: "Descreva a despesa em poucas palavras. <i>Ex.: mensalidade da creche de outubro</i>",
   hodometro: "Qual o km do hodômetro na hora do abastecimento? <i>Ex.: 48.350</i>",
   litros: "Quantos litros? <i>Ex.: 38,52</i>",
@@ -509,6 +519,13 @@ export function perguntaDoPassoArquivo(e: EstadoArquivoBot, ctx: ContextoArquivo
     case "corrigir":
       return { texto: "O que você quer corrigir?", botoes: [...botoesCorrigir(d), [b("↩️ Voltar", "vo")], CANCELAR] }
     case "confirmar": {
+      const foraDoPrazo = erroPrazoReembolso(d, ctx)
+      if (foraDoPrazo) {
+        return {
+          texto: [resumoArquivoBot(d, ctx), "", `⚠️ ${escaparHtml(foraDoPrazo)}`].join("\n"),
+          botoes: [[b("✏️ Corrigir a data", "c:data_despesa")], CANCELAR],
+        }
+      }
       const linhas: BotaoArquivo[][] = d.duplicado
         ? [[b("✏️ Corrigir", "c")], CANCELAR]
         : [[b("✅ Confirmar", "ok"), b("✏️ Corrigir", "c")], CANCELAR]
@@ -524,7 +541,7 @@ function botoesCorrigir(d: DadosArquivoBot): BotaoArquivo[][] {
   const campos: [string, string][] = []
   if (d.permitidos.length > 1) campos.push(["Não é isso (mudar o tipo)", "c:tipo"])
   if (d.tipo === "reembolso") {
-    campos.push(["Tipo do reembolso", "c:tr"], ["Valor", "c:valor"], ["Descrição", "c:descricao"])
+    campos.push(["Tipo do reembolso", "c:tr"], ["Valor", "c:valor"], ["Data da despesa", "c:data_despesa"], ["Descrição", "c:descricao"])
   } else if (d.tipo === "abastecimento") {
     campos.push(
       ["Veículo", "c:v"],
@@ -554,7 +571,7 @@ export function resumoArquivoBot(d: DadosArquivoBot, ctx: ContextoArquivo): stri
     linhas.push(`• Tipo: ${tipo ? escaparHtml(tipo.nome) : "—"}`)
     linhas.push(`• Valor da despesa: ${d.valor ? formatarMoeda(d.valor) : "—"}`)
     linhas.push(`• Descrição: ${d.descricao ? escaparHtml(d.descricao) : "—"}`)
-    if (d.lido.data) linhas.push(`• Data do comprovante: ${dataCurta(d.lido.data)}`)
+    linhas.push(`• Data da despesa: ${d.dataDespesa ? dataCurta(d.dataDespesa) : "—"}`)
     linhas.push("", "<i>Vai para a avaliação da gestão de pessoal, com o arquivo como comprovante.</i>")
   } else if (d.tipo === "abastecimento") {
     const v = ctx.veiculos.find((x) => x.id === d.veiculoId)
@@ -619,6 +636,13 @@ function lerCampo(
         ? { aplicar: (d) => void (d.dias = n) }
         : { erro: "Escreva a quantidade de dias como número inteiro (1 a 365)." }
     }
+    case "data_despesa": {
+      const data = lerDataDoDocumento(t, ctx.hoje)
+      if (!data) return { erro: "Não entendi a data. Escreva como 30/10 ou 30/10/2026." }
+      const erro = conferirDataDespesa(data, ctx.hoje, ctx.prazoReembolsoDias ?? null)
+      if (erro) return { erro }
+      return { aplicar: (d) => void (d.dataDespesa = data) }
+    }
     case "inicio": {
       const data = lerDataDoDocumento(t, ctx.hoje, 30)
       if (!data) return { erro: "Não entendi a data. Escreva como 30/10 ou 30/10/2026." }
@@ -650,6 +674,12 @@ function lerCampo(
     case "nome_funcionario":
       return { erro: "" }
   }
+}
+
+/** Reembolso com a data lida do comprovante fora do prazo da entidade: o erro (ou null). */
+function erroPrazoReembolso(d: DadosArquivoBot, ctx: ContextoArquivo): string | null {
+  if (d.tipo !== "reembolso" || !d.dataDespesa) return null
+  return conferirDataDespesa(d.dataDespesa, ctx.hoje, ctx.prazoReembolsoDias ?? null)
 }
 
 /** Uma resposta da pessoa no passo atual → o próximo passo (ou o erro). */
@@ -729,8 +759,11 @@ export function responderArquivoBot(
       return { erro: "Toque no que quer corrigir." }
     }
     case "confirmar": {
-      if (botao === "ok" && !e.dados.duplicado) return { confirmar: true }
+      if (botao === "ok" && !e.dados.duplicado && !erroPrazoReembolso(e.dados, ctx)) return { confirmar: true }
       if (botao === "c") return { estado: { passo: "corrigir", dados: d } }
+      if (botao === "c:data_despesa" && d.tipo === "reembolso") {
+        return { estado: { passo: "editar", dados: { ...d, campo: "data_despesa" } } }
+      }
       return { erro: "Toque em Confirmar, Corrigir ou Cancelar." }
     }
   }
@@ -747,7 +780,7 @@ function nomeParaBuscar(texto: string, d: DadosArquivoBot): ResultadoArquivo {
 
 /** O lançamento pronto para as funções do painel (ou o que falta). */
 export type LancamentoArquivo =
-  | { tipo: "reembolso"; tipoReembolsoId: string; valor: number; descricao: string }
+  | { tipo: "reembolso"; tipoReembolsoId: string; valor: number; dataDespesa: string; descricao: string }
   | {
       tipo: "abastecimento"
       veiculoId: string
@@ -772,8 +805,14 @@ export type LancamentoArquivo =
     }
 
 export function lancamentoDoArquivo(d: DadosArquivoBot): LancamentoArquivo | null {
-  if (d.tipo === "reembolso" && d.tipoReembolsoId && d.valor && d.descricao) {
-    return { tipo: "reembolso", tipoReembolsoId: d.tipoReembolsoId, valor: d.valor, descricao: d.descricao }
+  if (d.tipo === "reembolso" && d.tipoReembolsoId && d.valor && d.dataDespesa && d.descricao) {
+    return {
+      tipo: "reembolso",
+      tipoReembolsoId: d.tipoReembolsoId,
+      valor: d.valor,
+      dataDespesa: d.dataDespesa,
+      descricao: d.descricao,
+    }
   }
   if (
     d.tipo === "abastecimento" &&

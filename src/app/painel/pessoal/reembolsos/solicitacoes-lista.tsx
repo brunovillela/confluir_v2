@@ -175,6 +175,7 @@ export async function ListaSolicitacoesReembolso({ brutos }: { brutos: ParamsLis
                   </TableCell>
                   <TableCell className="text-muted-foreground hidden whitespace-nowrap md:table-cell">
                     {formatarData(r.created_at)}
+                    {r.despesa_paga_em && <span className="block text-xs">despesa {formatarData(r.despesa_paga_em)}</span>}
                   </TableCell>
                   <TableCell>
                     <SituacaoReembolsoBadge situacao={r.situacao} />

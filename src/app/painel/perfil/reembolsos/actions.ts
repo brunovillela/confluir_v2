@@ -6,7 +6,9 @@ import { redirect } from "next/navigation"
 import { requireSessaoPainel } from "@/lib/auth"
 import { vinculoComSindicato } from "@/lib/db/perfil"
 import { type EstadoForm } from "@/lib/contas"
-import { cancelarReembolso, criarReembolso } from "@/lib/db/reembolsos"
+import { hojeSP } from "@/lib/db/comum"
+import { cancelarReembolso, criarReembolso, prazoReembolsoDias } from "@/lib/db/reembolsos"
+import { conferirDataDespesa } from "@/lib/reembolsos-calculo"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 function revalidar() {
@@ -59,6 +61,7 @@ export async function solicitarReembolso(
     .replace(/\./g, "")
     .replace(",", ".")
   const descricao = String(formData.get("descricao") ?? "").trim()
+  const despesaPagaEm = String(formData.get("despesa_paga_em") ?? "").trim()
 
   if (!tipoId) return { erro: "Escolha o tipo de reembolso.", campo: "tipo_id" }
   const valor = Number(valorBruto)
@@ -68,6 +71,9 @@ export async function solicitarReembolso(
   if (!descricao) {
     return { erro: "Descreva a despesa (ex.: mensalidade da creche de junho).", campo: "descricao" }
   }
+  // Antes de subir o arquivo: data fora do prazo nem chega ao storage.
+  const erroData = conferirDataDespesa(despesaPagaEm, hojeSP(), await prazoReembolsoDias())
+  if (erroData) return { erro: erroData, campo: "despesa_paga_em" }
 
   const comprovante = await subirComprovante(
     formData,
@@ -81,6 +87,7 @@ export async function solicitarReembolso(
     valor_solicitado: valor,
     descricao,
     comprovante_url: comprovante.caminho,
+    despesa_paga_em: despesaPagaEm,
   })
   if (erro) return { erro }
 

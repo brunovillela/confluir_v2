@@ -25,11 +25,14 @@ import { VoltarPerfil } from "@/components/voltar-perfil"
 import { requireSessaoPainel } from "@/lib/auth"
 import { exigirFuncionario } from "@/lib/db/perfil"
 import { urlArquivoPessoal } from "@/lib/db/pessoal"
+import { hojeSP } from "@/lib/db/comum"
 import {
   listarTiposReembolso,
   meusReembolsos,
+  prazoReembolsoDias,
 } from "@/lib/db/reembolsos"
 import { formatarData, formatarMoeda } from "@/lib/formato"
+import { primeiraDataDespesaAceita } from "@/lib/reembolsos-calculo"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { MESES } from "@/lib/faltas-constantes"
 
@@ -48,10 +51,12 @@ export default async function MeusReembolsosPage({
   await exigirFuncionario(sessao.usuario.id as string, { ativo: true })
   const sp = await searchParams
   const { salvo } = sp
-  const [{ disponivel, reembolsos }, { tipos }] = await Promise.all([
+  const [{ disponivel, reembolsos }, { tipos }, prazoDias] = await Promise.all([
     meusReembolsos(sessao.usuario.id as string),
     listarTiposReembolso(),
+    prazoReembolsoDias(),
   ])
+  const hoje = hojeSP()
 
   const ativos = tipos.filter((t) => t.ativa)
   // Minhas solicitações: ordenação e paginação pela URL (padrão: mais recentes primeiro).
@@ -138,6 +143,9 @@ export default async function MeusReembolsosPage({
             proporcao: t.proporcao,
             valor_limite: t.valor_limite,
           }))}
+          hoje={hoje}
+          prazoDias={prazoDias}
+          dataMinima={primeiraDataDespesaAceita(hoje, prazoDias)}
         />
       )}
 
@@ -186,6 +194,9 @@ export default async function MeusReembolsosPage({
                     <TableRow key={r.id}>
                       <TableCell className="text-muted-foreground whitespace-nowrap tabular-nums">
                         {r.created_at ? formatarData(r.created_at) : "—"}
+                        {r.despesa_paga_em && (
+                          <span className="block text-xs">despesa {formatarData(r.despesa_paga_em)}</span>
+                        )}
                       </TableCell>
                       <TableCell className="max-w-44 truncate font-medium">
                         {r.tipoNome ?? "—"}

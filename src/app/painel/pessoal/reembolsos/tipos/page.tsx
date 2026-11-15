@@ -21,12 +21,13 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
-import { listarTiposReembolso } from "@/lib/db/reembolsos"
+import { listarTiposReembolso, prazoReembolsoDias } from "@/lib/db/reembolsos"
+import { podeAcessar } from "@/lib/permissoes"
 import { formatarMoeda } from "@/lib/formato"
 import { recorteDaLista, urlNaLista } from "@/lib/lista-estado"
 import { porcentagemTexto } from "@/lib/reembolsos-calculo"
 
-import { ExcluirTipoReembolsoBotao, TipoReembolsoForm } from "./tipos-form"
+import { ExcluirTipoReembolsoBotao, PrazoReembolsoForm, TipoReembolsoForm } from "./tipos-form"
 
 export const metadata: Metadata = {
   title: "Tipos de reembolso do ACT — Confluir",
@@ -45,11 +46,12 @@ export default async function TiposReembolsoPage({
 }: {
   searchParams: Promise<{ salvo?: string; editar?: string; linha?: string }>
 }) {
-  await requirePermissao("pessoal_gestao", ["pessoal_reembolsos"])
+  const sessao = await requirePermissao("pessoal_gestao", ["pessoal_reembolsos"])
+  const gestaoPessoal = podeAcessar(sessao.permissoes, "pessoal_gestao")
 
   const paramsBusca = await searchParams
   const { salvo, editar, linha } = paramsBusca
-  const { disponivel, tipos } = await listarTiposReembolso()
+  const [{ disponivel, tipos }, prazoDias] = await Promise.all([listarTiposReembolso(), prazoReembolsoDias()])
   const emEdicao = editar ? (tipos.find((t) => t.id === editar) ?? null) : null
   // Editar leva ao formulário e Cancelar/Salvar voltam na linha, não no topo.
   const naLista = (extras: Record<string, string> = {}, ancora?: string) =>
@@ -87,6 +89,26 @@ export default async function TiposReembolsoPage({
           <AlertDescription>Tipo salvo.</AlertDescription>
         </Alert>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Prazo para pedir reembolso</CardTitle>
+          <CardDescription>
+            O funcionário informa a data da despesa no pedido; despesas mais antigas que o prazo são recusadas
+            na hora.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {gestaoPessoal ? (
+            <PrazoReembolsoForm prazoDias={prazoDias} />
+          ) : (
+            <p className="text-sm">
+              {prazoDias ? `Até ${prazoDias} dias depois da data da despesa.` : "Sem limite de tempo."}{" "}
+              <span className="text-muted-foreground text-xs">Só a Gestão de Pessoal altera.</span>
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <Card>

@@ -1018,8 +1018,9 @@ Configuração do movimento da folha para a contabilidade, uma linha por entidad
 | `ferias_pagamento_dias_uteis` | boolean | não | `false` |  |  | Se o prazo do pagamento das férias conta dias úteis (pula sábado, domingo e feriados nacionais) ou corridos. |
 | `ferias_pagamento_descricao` | text | sim |  |  |  | O que é pago nas férias, como aparece no aviso (ex.: gratificação de férias de 100% da remuneração). |
 | `ferias_pagamento_fundamento` | text | sim |  |  |  | Fundamento da regra de pagamento citado no aviso (ex.: cláusula 3ª do ACT). Opcional. |
+| `reembolso_prazo_dias` | integer | sim |  |  |  | Reembolso do ACT: até quantos dias depois da data da despesa o pedido é aceito (null = sem limite). Vale para o pedido do funcionário (Meu perfil e Telegram). |
 
-Checks: `ck_folha_config_ferias_pagamento_dias` `CHECK (((ferias_pagamento_dias IS NULL) OR ((ferias_pagamento_dias >= 0) AND (ferias_pagamento_dias <= 60))))`; `pessoal_folha_config_he_mes_sem_batidas_check` `CHECK ((he_mes_sem_batidas = ANY (ARRAY['alertar'::text, 'lancar'::text])))`; `pessoal_folha_config_he_negativas_check` `CHECK ((he_negativas = ANY (ARRAY['faixa1'::text, 'faixa1_depois_faixa2'::text])))`; `pessoal_folha_config_he_tolerancia_check` `CHECK (((he_tolerancia_diaria_min >= 0) AND (he_tolerancia_diaria_min <= 60)))`
+Checks: `ck_folha_config_ferias_pagamento_dias` `CHECK (((ferias_pagamento_dias IS NULL) OR ((ferias_pagamento_dias >= 0) AND (ferias_pagamento_dias <= 60))))`; `pessoal_folha_config_he_mes_sem_batidas_check` `CHECK ((he_mes_sem_batidas = ANY (ARRAY['alertar'::text, 'lancar'::text])))`; `pessoal_folha_config_he_negativas_check` `CHECK ((he_negativas = ANY (ARRAY['faixa1'::text, 'faixa1_depois_faixa2'::text])))`; `pessoal_folha_config_he_tolerancia_check` `CHECK (((he_tolerancia_diaria_min >= 0) AND (he_tolerancia_diaria_min <= 60)))`; `pessoal_folha_config_reembolso_prazo_dias_check` `CHECK (((reembolso_prazo_dias IS NULL) OR ((reembolso_prazo_dias >= 1) AND (reembolso_prazo_dias <= 3650))))`
 
 Índices: `pessoal_folha_config_pkey`
 
@@ -1450,7 +1451,7 @@ Pedido de reembolso previsto no ACT feito por um funcionário (tipo, valores, co
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `updated_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `bubble_id` | text | sim |  |  |  |  |
-| `despesa_paga_em` | date | sim |  |  |  | Quando o funcionário pagou a despesa (o pagamento pela entidade é pago_em). |
+| `despesa_paga_em` | date | sim |  |  |  | Data da despesa (quando o funcionário pagou), obrigatória no pedido desde 14/11/2026; o pagamento pela entidade é pago_em. |
 
 Checks: `pessoal_reembolsos_act_situacao_check` `CHECK ((situacao = ANY (ARRAY['aguardando'::text, 'aprovado'::text, 'reprovado'::text, 'cancelado'::text, 'pago'::text])))`; `pessoal_reembolsos_act_valor_aprovado_check` `CHECK (((valor_aprovado IS NULL) OR (valor_aprovado > (0)::numeric)))`; `pessoal_reembolsos_act_valor_solicitado_check` `CHECK ((valor_solicitado > (0)::numeric))`
 

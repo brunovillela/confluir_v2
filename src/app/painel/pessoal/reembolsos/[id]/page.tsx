@@ -190,6 +190,9 @@ export default async function ReembolsoPage({
                 </span>
               )}
             </Campo>
+            <Campo rotulo="Data da despesa">
+              {reembolso.despesa_paga_em ? formatarData(reembolso.despesa_paga_em) : "—"}
+            </Campo>
             <Campo rotulo="Valor da despesa">
               <span className="font-medium">
                 {formatarMoeda(reembolso.valor_solicitado)}

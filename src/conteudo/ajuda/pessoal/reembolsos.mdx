@@ -43,13 +43,23 @@ despesa, **limitada ao teto**.
 Porcentagem em branco é 100%; teto em branco é sem teto. O teto vale sobre o que
 se **reembolsa**, não sobre a despesa — a despesa pode passar dele.
 
+## Prazo para pedir
+
+Ainda em **Tipos do ACT**, o quadro **Prazo para pedir reembolso** define até
+quantos dias depois da **data da despesa** o pedido é aceito — por exemplo, com
+90, uma despesa de 01/03 pode ser pedida até 30/05. Em branco, não há limite. Só
+quem tem a permissão **Gestão de Pessoal** altera o prazo; quem tem só a de
+reembolsos vê o valor em vigor. O prazo vale para todos os tipos e para os pedidos
+feitos no Meu perfil e pelo Telegram.
+
 ## O ciclo do reembolso
 
 <PassoAPasso>
   <Passo titulo="Solicitar">
     O funcionário pede em **Meu perfil → Reembolsos**: a área do Pessoal avalia, mas
     não abre pedido pelo funcionário. A solicitação traz o tipo, o **valor da
-    despesa** e a descrição. Ao escolher o tipo e digitar o valor, o formulário já mostra o
+    despesa**, a **data da despesa** (obrigatória, não pode ser futura nem mais
+    antiga que o prazo) e a descrição. Ao escolher o tipo e digitar o valor, o formulário já mostra o
     **reembolso previsto**.
   </Passo>
   <Passo titulo="Avaliar">
@@ -92,6 +102,9 @@ se **reembolsa**, não sobre a despesa — a despesa pode passar dele.
   antes de 20/10/2026 podem estar sem mês/ano de pagamento e não entram no
   movimento: marque à mão com **Marcar como pago**.
 - **"O tipo de reembolso não aparece."** Confira se está **ativo** em Tipos do ACT.
+- **"A despesa passou do prazo."** A data da despesa é mais antiga que o prazo
+  definido em Tipos do ACT → Prazo para pedir reembolso. A mensagem diz a data mais
+  antiga aceita hoje.
 
 <VejaTambem
   links={[

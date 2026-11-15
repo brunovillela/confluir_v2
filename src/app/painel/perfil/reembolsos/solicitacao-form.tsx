@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label"
 import { cancelarMeuReembolso, solicitarReembolso } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { ErroNoCampo } from "@/components/ui/erro-no-campo"
-import { formatarMoeda } from "@/lib/formato"
+import { formatarData, formatarMoeda } from "@/lib/formato"
 import { porcentagemTexto, valorReembolsavel } from "@/lib/reembolsos-calculo"
 
 const SELECT =
@@ -26,8 +26,17 @@ const SELECT =
 
 export function SolicitarReembolsoForm({
   tipos,
+  hoje,
+  prazoDias,
+  dataMinima,
 }: {
   tipos: { id: string; rotulo: string; proporcao: number; valor_limite: number | null }[]
+  /** aaaa-mm-dd de hoje (São Paulo): a despesa não pode ser futura. */
+  hoje: string
+  /** Prazo da entidade em dias depois da despesa (null = sem limite). */
+  prazoDias: number | null
+  /** Data de despesa mais antiga aceita hoje (null = sem limite). */
+  dataMinima: string | null
 }) {
   // O formulário só aparece quando a pessoa pede (botão "Solicitar reembolso").
   const [aberto, setAberto] = useState(false)
@@ -35,7 +44,7 @@ export function SolicitarReembolsoForm({
   const [tipoId, setTipoId] = useState("")
   const [valor, setValor] = useState("")
   const tipo = tipos.find((t) => t.id === tipoId)
-  const despesa = Number(valor.replace(/./g, "").replace(",", "."))
+  const despesa = Number(valor.replace(/\./g, "").replace(",", "."))
   const recebe = tipo && valor && Number.isFinite(despesa) && despesa > 0 ? valorReembolsavel(despesa, tipo) : null
 
   if (!aberto) {
@@ -114,6 +123,22 @@ export function SolicitarReembolsoForm({
                 )}
               </p>
             )}
+            <div className="grid gap-1.5">
+              <Label htmlFor="despesa_paga_em">Data da despesa *</Label>
+              <Input
+                id="despesa_paga_em"
+                name="despesa_paga_em"
+                type="date"
+                required
+                max={hoje}
+                min={dataMinima ?? undefined}
+              />
+              <p className="text-muted-foreground text-xs">
+                {prazoDias
+                  ? `Aceita até ${prazoDias} dias depois da despesa — hoje, despesas a partir de ${formatarData(dataMinima)}.`
+                  : "O dia em que você pagou a despesa (a data do comprovante)."}
+              </p>
+            </div>
             <div className="grid gap-1.5">
               <Label htmlFor="comprovante">
                 Comprovante (PDF/JPG/PNG) *

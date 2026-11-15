@@ -10,6 +10,7 @@ import { type EstadoForm } from "@/lib/contas"
 import {
   avaliarReembolso,
   marcarReembolsoPago,
+  salvarPrazoReembolso,
   tipoReembolsoEmUso,
 } from "@/lib/db/reembolsos"
 import { voltarNaLista } from "@/lib/lista-estado-servidor"
@@ -190,4 +191,21 @@ export async function excluirTipoReembolso(
 
   revalidar()
   return { ok: "Tipo excluído." }
+}
+
+/**
+ * Prazo do pedido de reembolso (14/11/2026): até quantos dias depois da data
+ * da despesa o funcionário pode pedir. Só a Gestão de Pessoal define.
+ */
+export async function salvarPrazoReembolsoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("pessoal_gestao")
+  const bruto = String(formData.get("prazo_dias") ?? "").trim()
+  const dias = bruto ? Number(bruto) : null
+  const { erro } = await salvarPrazoReembolso(dias)
+  if (erro) return { erro, campo: "prazo_dias" }
+  revalidar()
+  return { ok: dias ? `Prazo salvo: ${dias} dias depois da despesa.` : "Prazo removido: pedidos aceitos sem limite de tempo." }
 }

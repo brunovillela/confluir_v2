@@ -15,6 +15,7 @@ import {
   atualizarTipoReembolso,
   criarTipoReembolso,
   excluirTipoReembolso,
+  salvarPrazoReembolsoAction,
 } from "../actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
@@ -158,6 +159,51 @@ export function ExcluirTipoReembolsoBotao({ id }: { id: string }) {
       >
         {pendente ? <Loader2 className="animate-spin" /> : <Trash2 />}
       </Button>
+    </form>
+  )
+}
+
+/** Prazo do pedido: dias depois da data da despesa (vazio = sem limite). */
+export function PrazoReembolsoForm({ prazoDias }: { prazoDias: number | null }) {
+  const [estado, formAction, pendente] = useActionState(salvarPrazoReembolsoAction, {})
+  const envio = useEnvioFormulario(formAction, estado)
+  return (
+    <form action={formAction} {...envio} className="grid gap-3">
+      {estado.erro && (
+        <Alert variant="destructive">
+          <AlertDescription>{estado.erro}</AlertDescription>
+        </Alert>
+      )}
+      {estado.ok && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>{estado.ok}</AlertDescription>
+        </Alert>
+      )}
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="grid gap-1.5">
+          <Label htmlFor="prazo_dias">Aceitar despesas de até (dias)</Label>
+          <Input
+            id="prazo_dias"
+            name="prazo_dias"
+            type="number"
+            min={1}
+            max={3650}
+            step={1}
+            inputMode="numeric"
+            placeholder="Sem limite"
+            defaultValue={prazoDias ?? ""}
+            className="w-40"
+          />
+        </div>
+        <Button type="submit" disabled={pendente}>
+          {pendente && <Loader2 className="animate-spin" />}
+          Salvar prazo
+        </Button>
+      </div>
+      <p className="text-muted-foreground text-xs">
+        Contados a partir da data da despesa: com 90, uma despesa de 01/03 pode ser pedida até 30/05. Em
+        branco, não há limite. Vale para os pedidos feitos no Meu perfil e pelo Telegram.
+      </p>
     </form>
   )
 }

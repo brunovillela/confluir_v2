@@ -155,8 +155,37 @@ test.describe("reembolso do ACT", () => {
       tipo: "reembolso",
       tipoReembolsoId: TIPO_CRECHE,
       valor: 480,
+      dataDespesa: "2026-10-05",
       descricao: "Mensalidade de outubro (Creche Pequeno Príncipe)",
     })
+    expect(resumo).toContain("Data da despesa: 05/10")
+  })
+
+  test("sem data no comprovante: pergunta a data da despesa", () => {
+    const semData = { ...lido, data: null }
+    const e0 = iniciarArquivoBot(ARQ, semData, TODOS, false, { ...ctx, tiposReembolso: [ctx.tiposReembolso[0]] })
+    expect(e0.passo).toBe("editar")
+    expect(e0.dados.campo).toBe("data_despesa")
+    const futura = responderArquivoBot(e0, { texto: "05/11/2026" }, ctx)
+    expect(futura).toEqual({ erro: "A data da despesa não pode ser futura." })
+    const ok = responderArquivoBot(e0, { texto: "05/10/2026" }, ctx)
+    expect("estado" in ok && ok.estado.passo).toBe("confirmar")
+  })
+
+  test("data fora do prazo da entidade: não deixa confirmar", () => {
+    const comPrazo = { ...ctx, tiposReembolso: [ctx.tiposReembolso[0]], prazoReembolsoDias: 20 }
+    const e0 = iniciarArquivoBot(ARQ, lido, TODOS, false, comPrazo)
+    expect(e0.passo).toBe("confirmar")
+    const p = perguntaDoPassoArquivo(e0, comPrazo)
+    expect(p.texto).toContain("passou do prazo")
+    expect(textos(p)).not.toContain("ar:ok")
+    expect(responderArquivoBot(e0, { botao: "ok" }, comPrazo)).toHaveProperty("erro")
+    const corrigir = responderArquivoBot(e0, { botao: "c:data_despesa" }, comPrazo)
+    expect("estado" in corrigir && corrigir.estado.dados.campo).toBe("data_despesa")
+    if (!("estado" in corrigir)) return
+    expect(responderArquivoBot(corrigir.estado, { texto: "01/09/2026" }, comPrazo)).toHaveProperty("erro")
+    const nova = responderArquivoBot(corrigir.estado, { texto: "20/10/2026" }, comPrazo)
+    expect("estado" in nova && nova.estado.passo).toBe("confirmar")
   })
 
   test("um tipo só: nem pergunta", () => {

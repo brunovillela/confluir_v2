@@ -144,6 +144,11 @@ export default async function ReembolsosFuncionarioPage({
                           <Link href={`/painel/pessoal/reembolsos/${r.id}`} className="hover:underline">
                             {formatarData(r.created_at)}
                           </Link>
+                          {r.despesa_paga_em && (
+                            <span className="text-muted-foreground block text-xs font-normal">
+                              despesa {formatarData(r.despesa_paga_em)}
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell className="text-muted-foreground">{r.tipoNome ?? "—"}</TableCell>
                         <TableCell className="text-right tabular-nums">{formatarMoeda(r.valor_solicitado)}</TableCell>

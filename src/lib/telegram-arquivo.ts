@@ -6,7 +6,7 @@ import { quadroParaDiaria } from "@/lib/db/diarias-diretoria"
 import { vinculoComSindicato } from "@/lib/db/perfil"
 import { listarFuncionarios } from "@/lib/db/pessoal"
 import { criarAtestado } from "@/lib/db/pessoal-saude"
-import { criarReembolso, listarTiposReembolso } from "@/lib/db/reembolsos"
+import { criarReembolso, listarTiposReembolso, prazoReembolsoDias } from "@/lib/db/reembolsos"
 import { permissoesPorUsuario, type UsuarioTelegram } from "@/lib/db/telegram"
 import { criarAbastecimento, subirArquivoVeiculos } from "@/lib/db/veiculos"
 import { casarCondutor, resolverAbastecimentos } from "@/lib/db/veiculos-abastecimentos-ia"
@@ -151,14 +151,16 @@ async function contexto(u: UsuarioTelegram, c?: EstadoArquivoBot): Promise<Conte
   const tipo = c?.dados.tipo
   const precisaTipos = !c || tipo === "reembolso"
   const precisaVeiculos = !c || tipo === "abastecimento"
-  const [tipos, veiculos] = await Promise.all([
+  const [tipos, veiculos, prazoReembolso] = await Promise.all([
     precisaTipos ? listarTiposReembolso().catch(() => ({ tipos: [] })) : Promise.resolve({ tipos: [] }),
     precisaVeiculos ? veiculosAtivos().catch(() => []) : Promise.resolve([]),
+    precisaTipos ? prazoReembolsoDias().catch(() => null) : Promise.resolve(null),
   ])
   return {
     hoje: hojeSP(),
     usuario: { id: u.id, nome: u.nome ?? "você" },
     tiposReembolso: tipos.tipos.filter((t) => t.ativa).map((t) => ({ id: t.id, nome: t.nome })),
+    prazoReembolsoDias: prazoReembolso,
     veiculos,
   }
 }
@@ -434,6 +436,7 @@ async function concluir(chatId: string, u: UsuarioTelegram, c: EstadoArquivoBot,
       funcionario_id: u.id,
       tipo_id: l.tipoReembolsoId,
       valor_solicitado: l.valor,
+      despesa_paga_em: l.dataDespesa,
       descricao: l.descricao,
       comprovante_url: up.caminho,
     })

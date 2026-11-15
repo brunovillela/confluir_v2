@@ -1,15 +1,15 @@
 import "server-only"
 import { avisarQuemPode, depoisDaResposta, querEmail } from "@/lib/db/avisos"
 import { botoesPendencia } from "@/lib/telegram-pendencias-fluxo"
-import { esquemaAusente, nomesDosUsuarios } from "@/lib/db/comum"
+import { esquemaAusente, hojeSP, nomesDosUsuarios } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
 import { criarNotificacao } from "@/lib/db/notificacoes"
 import { enviarPushTelegram } from "@/lib/db/telegram"
 import { enviarEmail } from "@/lib/email"
 import { SITE_URL } from "@/lib/env"
-import { formatarMoeda } from "@/lib/formato"
-import { porcentagemTexto, valorReembolsavel } from "@/lib/reembolsos-calculo"
+import { formatarData, formatarMoeda } from "@/lib/formato"
+import { conferirDataDespesa, porcentagemTexto, valorReembolsavel } from "@/lib/reembolsos-calculo"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
@@ -87,13 +87,15 @@ export type ReembolsoAct = {
   pagamento_mes: string | null
   pagamento_ano: string | null
   pago_em: string | null
+  /** Data da despesa (quando o funcionário pagou); obrigatória desde 14/11/2026. */
+  despesa_paga_em: string | null
   /** Quanto o ACT reembolsa desta despesa: porcentagem do tipo, limitada ao teto. */
   valorReembolsavel: number | null
   created_at: string | null
 }
 
 const SELECT_REEMBOLSO =
-  "id, funcionario_id, tipo_id, valor_solicitado, valor_aprovado, descricao, comprovante_url, situacao, avaliador_id, avaliacao_data, avaliacao_observacao, pagamento_mes, pagamento_ano, pago_em, created_at"
+  "id, funcionario_id, tipo_id, valor_solicitado, valor_aprovado, descricao, comprovante_url, situacao, avaliador_id, avaliacao_data, avaliacao_observacao, pagamento_mes, pagamento_ano, pago_em, despesa_paga_em, created_at"
 
 async function normalizar(
   brutos: Record<string, unknown>[]
@@ -135,6 +137,7 @@ async function normalizar(
     pagamento_mes: (r.pagamento_mes as string | null) ?? null,
     pagamento_ano: (r.pagamento_ano as string | null) ?? null,
     pago_em: (r.pago_em as string | null) ?? null,
+    despesa_paga_em: (r.despesa_paga_em as string | null)?.slice(0, 10) ?? null,
     valorReembolsavel: valorReembolsavel(
       (r.valor_solicitado as number | null) ?? null,
       r.tipo_id ? tipoPorId.get(String(r.tipo_id)) : null
@@ -208,6 +211,39 @@ export type NovoReembolso = {
   valor_solicitado: number
   descricao: string
   comprovante_url: string | null
+  /** Data da despesa (aaaa-mm-dd): obrigatória e dentro do prazo da entidade. */
+  despesa_paga_em: string
+}
+
+/**
+ * Prazo do pedido de reembolso (14/11/2026): até quantos dias depois da data
+ * da despesa o pedido é aceito. Null = sem limite (pessoal_folha_config).
+ */
+export async function prazoReembolsoDias(): Promise<number | null> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("pessoal_folha_config")
+    .select("reembolso_prazo_dias")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (error) {
+    if (esquemaAusente(error)) return null
+    throw new Error(`Falha ao ler o prazo dos reembolsos: ${error.message}`)
+  }
+  const n = data?.reembolso_prazo_dias
+  return n == null ? null : Number(n)
+}
+
+export async function salvarPrazoReembolso(dias: number | null): Promise<{ erro?: string }> {
+  if (dias !== null && (!Number.isInteger(dias) || dias < 1 || dias > 3650)) {
+    return { erro: "Informe o prazo em dias (1 a 3650), ou deixe em branco para não limitar." }
+  }
+  const admin = await createAdminClient()
+  const { error } = await admin
+    .from("pessoal_folha_config")
+    .upsert({ emp_proprietaria_id: await tenantAtual(), reembolso_prazo_dias: dias }, { onConflict: "emp_proprietaria_id" })
+  if (error) return { erro: `Não foi possível salvar: ${error.message}` }
+  return {}
 }
 
 export async function criarReembolso(
@@ -223,6 +259,8 @@ export async function criarReembolso(
   if (!tipo || !tipo.ativa) return { erro: "Escolha um tipo de reembolso válido." }
   // 08/10: o teto vale sobre o que se REEMBOLSA (porcentagem da despesa,
   // limitada a ele) — a despesa em si pode passar do teto.
+  const erroData = conferirDataDespesa(novo.despesa_paga_em, hojeSP(), await prazoReembolsoDias())
+  if (erroData) return { erro: erroData }
 
   const admin = await createAdminClient()
   const { data: criado, error } = await admin
@@ -233,6 +271,7 @@ export async function criarReembolso(
       valor_solicitado: novo.valor_solicitado,
       descricao: novo.descricao,
       comprovante_url: novo.comprovante_url,
+      despesa_paga_em: novo.despesa_paga_em,
       situacao: "aguardando",
       emp_proprietaria_id: await tenantAtual(),
     })
@@ -252,7 +291,7 @@ export async function criarReembolso(
   const reembolsoId = criado ? String(criado.id) : null
   depoisDaResposta(() =>
     avisarQuemPode("pessoal_gestao", ["pessoal_reembolsos"], {
-      texto: `${nomes.get(novo.funcionario_id) ?? "Um funcionário"} pediu reembolso de ${formatarMoeda(novo.valor_solicitado)} (${tipo.nome}): ${novo.descricao}`.slice(0, 300),
+      texto: `${nomes.get(novo.funcionario_id) ?? "Um funcionário"} pediu reembolso de ${formatarMoeda(novo.valor_solicitado)} (${tipo.nome}, despesa de ${formatarData(novo.despesa_paga_em)}): ${novo.descricao}`.slice(0, 300),
       link: reembolsoId ? `/painel/pessoal/reembolsos/${reembolsoId}` : "/painel/pessoal/reembolsos",
       evento: "pendencia_pessoal",
       assunto: "Reembolso do ACT a avaliar",
