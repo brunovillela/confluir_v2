@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, ChevronLeft, ChevronRight, Settings2, UserMinus, UserPlus } from "lucide-react"
+import { ArrowLeft, ChevronLeft, ChevronRight, Contact, Send, Settings2, UserMinus, UserPlus } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -118,12 +118,28 @@ export default async function ControleEnvioPage({ searchParams }: { searchParams
               elas sobre quem entrou e quem saiu.
             </p>
           </div>
-          <Button variant="outline" asChild>
-            <Link href="/painel/filiados/receitas/controle/prazos">
-              <Settings2 />
-              Prazos e tipos
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {quadro.desde !== null && (contagem.get("atrasada") ?? 0) + (contagem.get("falta_deposito") ?? 0) > 0 && (
+              <Button asChild>
+                <Link href="/painel/filiados/receitas/controle/cobrar">
+                  <Send />
+                  Cobrar atrasadas
+                </Link>
+              </Button>
+            )}
+            <Button variant="outline" asChild>
+              <Link href="/painel/filiados/receitas/controle/contatos">
+                <Contact />
+                Contatos da folha
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/painel/filiados/receitas/controle/prazos">
+                <Settings2 />
+                Prazos e tipos
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
 

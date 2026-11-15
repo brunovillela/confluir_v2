@@ -20,6 +20,7 @@ import {
   unidadeRepasse,
 } from "@/lib/db/repasse"
 import { confirmarDeposito } from "@/lib/db/repasse-extrato"
+import { cobrarEmLote, usarComoContatoDaFolha } from "@/lib/db/repasse-cobranca"
 import { arquivarEnvio, enviarLinkPorEmail, gerarLink, linkDaEmpresa, revogarLink } from "@/lib/db/repasse-link"
 import { enviarEmail } from "@/lib/email"
 import { escaparHtml, paragrafo, tituloEmail } from "@/lib/email-layout"
@@ -52,6 +53,8 @@ function revalidar(empresaId?: string | null) {
   invalidarAvisosRepasse()
   invalidarContagemDesconto()
   revalidatePath("/painel/filiados/receitas/controle")
+  revalidatePath("/painel/filiados/receitas/controle/contatos")
+  revalidatePath("/painel/filiados/receitas/controle/cobrar")
   if (empresaId) {
     revalidatePath(`/painel/filiados/receitas/controle/${empresaId}`)
     revalidatePath(`/painel/representacao/empregadores/${empresaId}`)
@@ -521,4 +524,35 @@ export async function arquivarEnvioAction(_: EstadoForm, f: FormData): Promise<E
   if (erro) return { erro }
   revalidar(empresaId)
   return { ok: "Envio arquivado." }
+}
+
+// ── Cobrança em lote e contatos sugeridos ───────────────────────────────────
+
+export async function cobrarEmLoteAction(_: EstadoForm, f: FormData): Promise<EstadoForm> {
+  const quem = await sessao()
+  const ids = [...new Set(f.getAll("empresa").map(String).filter(Boolean))]
+  if (ids.length === 0) return { erro: "Marque ao menos uma empresa." }
+  const resultados = await cobrarEmLote(ids, texto(f, "mensagem"), quem)
+  revalidar()
+  for (const id of ids) revalidatePath(`/painel/filiados/receitas/controle/${id}`)
+  const ok = resultados.filter((r) => !r.erro)
+  const falhas = resultados.filter((r) => r.erro)
+  if (ok.length === 0) return { erro: falhas.length ? `Nada enviado: ${falhas.map((r) => `${r.empresa} (${r.erro})`).join("; ")}.` : "Nada enviado." }
+  return {
+    ok:
+      `Cobrança enviada a ${ok.length} empresa(s) e registrada na trilha de cada uma.` +
+      (falhas.length ? ` Não foi: ${falhas.map((r) => `${r.empresa} (${r.erro})`).join("; ")}.` : ""),
+  }
+}
+
+export async function usarComoContatoAction(_: EstadoForm, f: FormData): Promise<EstadoForm> {
+  await sessao()
+  const empresaId = texto(f, "empresa_id")
+  const contatoId = texto(f, "contato_id")
+  if (!empresaId || !contatoId) return { erro: "Dados incompletos." }
+  const { erro } = await usarComoContatoDaFolha(empresaId, contatoId)
+  if (erro) return { erro }
+  revalidar(empresaId)
+  revalidatePath("/painel/filiados/receitas/controle/contatos")
+  return { ok: "Contato da folha definido." }
 }

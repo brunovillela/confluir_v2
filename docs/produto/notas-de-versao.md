@@ -14,6 +14,7 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 - Controle de envio das relações: os depósitos das empresas são achados no extrato bancário importado na Conciliação (pelo CNPJ ou nome da empresa e pelo valor da relação) e confirmados com um clique, já conciliados.
 - Financeiro → Conciliação: em cada crédito do extrato, a sugestão da empresa e do mês de que ele é o depósito da relação de desconto, com um botão que registra e concilia.
 - Link do RH: cada empresa ganha um endereço próprio, sem login, para mandar a relação de descontos do mês (ou informar que não houve desconto) e confirmar as inclusões e exclusões, que podem ficar só no link, sem nomes no e-mail.
+- Controle de envio: Cobrar atrasadas manda um e-mail por empresa com todas as pendências dela, e Contatos da folha mostra quem ainda não tem contato, sugerindo os contatos que a empresa já tem cadastrados.
 
 ## 14/11/2026 — Ordens de pagamento: busca por quem recebe
 
