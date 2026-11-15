@@ -33,7 +33,7 @@ import { funcionarioDaArea } from "@/lib/db/pessoal-area"
 import { situacaoDosAvisos } from "@/lib/db/ferias-aviso"
 import { formatarMomentoAssinatura } from "@/lib/db/assinatura-comum"
 import { hojeSP } from "@/lib/db/comum"
-import { podeCancelarSemGestao } from "@/lib/ferias-painel"
+import { abonoSoDesteGozo, podeCancelarSemGestao } from "@/lib/ferias-painel"
 import { formatarData } from "@/lib/formato"
 import { recorteDaLista, urlNaLista } from "@/lib/lista-estado"
 import { VoltarLista } from "@/components/voltar-lista"
@@ -386,6 +386,7 @@ export default async function PeriodoFeriasPage({
                               gozoId={g.id}
                               dias={g.dias}
                               comecou={!podeCancelarSemGestao(g.inicio, hoje)}
+                              abonoConfirmado={abonoSoDesteGozo(periodo, g.id)}
                             />
                           </div>
                         </TableCell>

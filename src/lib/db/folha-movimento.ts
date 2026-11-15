@@ -682,9 +682,19 @@ export async function calcularMovimento(
   const mesAno = (c: string | undefined) => (c ? `${c.slice(5, 7)}/${c.slice(0, 4)}` : "anterior")
   const dataBR = (d: string | null) => (d ? `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}` : "—")
   const [feriasCanceladas, faltasCanceladas] = await Promise.all([
-    canceladosEntregues("pessoal_ferias_gozo", "inicio, termino, dias", idsEntregues("ferias:")),
+    canceladosEntregues("pessoal_ferias_gozo", "inicio, termino, dias, abono_solicitado, ferias_periodo_id", idsEntregues("ferias:")),
     canceladosEntregues("pessoal_faltas_justificadas", "data_falta, justificativa_tipo", idsEntregues("falta:")),
   ])
+  // Abono (venda de 1/3) que veio com o gozo: o período diz se continua.
+  const periodosComAbono = feriasCanceladas.filter((g) => g.abono_solicitado === true && texto(g.ferias_periodo_id))
+  const abonoDoPeriodo = new Map<string, boolean>()
+  if (periodosComAbono.length) {
+    const { data: ps } = await admin
+      .from("pessoal_ferias")
+      .select("id, abono_pecuniario")
+      .in("id", [...new Set(periodosComAbono.map((g) => String(g.ferias_periodo_id)))])
+    for (const p of ps ?? []) abonoDoPeriodo.set(String(p.id), p.abono_pecuniario === true)
+  }
   for (const g of feriasCanceladas) {
     const f = texto(g.funcionario_id)
     if (!f || !funcionarios.has(f)) continue
@@ -695,7 +705,13 @@ export async function calcularMovimento(
       registradoEm: g.cancelado_em,
       secao: "ferias",
       funcionarioId: f,
-      descricao: `Férias CANCELADAS — ${g.dias ?? "?"} dia(s), de ${dataBR(inicio)} a ${dataBR(fim)}; tinham sido informadas na competência ${mesAno(entregueEm.get(`ferias:${g.id}`))}`,
+      descricao: `Férias CANCELADAS — ${g.dias ?? "?"} dia(s), de ${dataBR(inicio)} a ${dataBR(fim)}; tinham sido informadas na competência ${mesAno(entregueEm.get(`ferias:${g.id}`))}${
+        g.abono_solicitado === true && texto(g.ferias_periodo_id)
+          ? abonoDoPeriodo.get(String(g.ferias_periodo_id))
+            ? " · o abono pecuniário continua"
+            : " · o abono pecuniário também foi desfeito"
+          : ""
+      }`,
       inicio,
       fim,
       quantidade: Number(g.dias ?? 0) || null,

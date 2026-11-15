@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useRef } from "react"
 import Link from "next/link"
 import { Check, Loader2, Undo2, X } from "lucide-react"
 
@@ -25,7 +25,7 @@ import {
   enviarAvisoFeriasAction,
   cancelarGozoAction,
 } from "../actions"
-import { confirmarEnvio } from "@/components/ui/confirmacao"
+import { confirmar, confirmarEnvio } from "@/components/ui/confirmacao"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 export type GozoFormDados = {
@@ -205,23 +205,46 @@ export function CancelarGozoBotao({
   gozoId,
   dias,
   comecou,
+  abonoConfirmado = false,
 }: {
   periodoId: string
   gozoId: string
   dias: number | null
   /** As férias já começaram (o funcionário não pode mais cancelar sozinho). */
   comecou: boolean
+  /** O abono (venda de 1/3) do período veio só deste gozo: pergunta se cai junto. */
+  abonoConfirmado?: boolean
 }) {
   const [estado, formAction, pendente] = useActionState(cancelarGozoAction, {})
+  const desfazerAbono = useRef<HTMLInputElement>(null)
   const envio4 = useEnvioFormulario(formAction, estado, {
     antes: (e) => {
       const volta = dias ? `Os ${dias} dias voltam ao saldo do período` : "Os dias voltam ao saldo do período"
-      confirmarEnvio(
-        e,
-        comecou
-          ? `Estas férias já começaram. Cancelar o gozo assim mesmo? ${volta} e o funcionário é avisado.`
-          : `Cancelar este gozo de férias? ${volta} e o funcionário é avisado.`
-      )
+      const pergunta = comecou
+        ? `Estas férias já começaram. Cancelar o gozo assim mesmo? ${volta} e o funcionário é avisado.`
+        : `Cancelar este gozo de férias? ${volta} e o funcionário é avisado.`
+      if (!abonoConfirmado) return confirmarEnvio(e, pergunta)
+      // Com abono: duas perguntas. A segunda passagem (o reenvio) segue direto.
+      const form = e.currentTarget
+      if (form.dataset.confirmado === "1") {
+        delete form.dataset.confirmado
+        return
+      }
+      e.preventDefault()
+      void (async () => {
+        if (!(await confirmar(pergunta))) return
+        const desfazer = await confirmar({
+          titulo: "Desfazer também a venda de 1/3 (abono pecuniário)?",
+          descricao:
+            "O abono foi confirmado com este gozo. Desfeito, o período volta a ter os 30 dias de descanso; mantido, continua vendido.",
+          confirmar: "Desfazer o abono",
+          cancelar: "Manter o abono",
+          destrutivo: false,
+        })
+        if (desfazerAbono.current) desfazerAbono.current.value = desfazer ? "1" : ""
+        form.dataset.confirmado = "1"
+        form.requestSubmit()
+      })()
     },
   })
 
@@ -232,6 +255,7 @@ export function CancelarGozoBotao({
     >
       <input type="hidden" name="periodo_id" value={periodoId} />
       <input type="hidden" name="id" value={gozoId} />
+      <input ref={desfazerAbono} type="hidden" name="desfazer_abono" defaultValue="" />
       {estado.erro && (
         <span className="text-destructive mr-1 text-xs">{estado.erro}</span>
       )}

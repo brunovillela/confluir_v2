@@ -242,11 +242,16 @@ export async function cancelarGozoAction(
   if (!gozoId) return { erro: "Gozo inválido." }
 
   // Gestão de pessoal cancela a qualquer momento, inclusive depois do início.
-  const { erro, dias } = await cancelarGozo(gozoId, { usuarioId: sessao.usuario.id, gestao: true })
+  const { erro, dias, abonoDesfeito } = await cancelarGozo(
+    gozoId,
+    { usuarioId: sessao.usuario.id, gestao: true },
+    { desfazerAbono: formData.get("desfazer_abono") === "1" }
+  )
   if (erro) return { erro }
 
   revalidar(periodoId)
-  return { ok: dias ? `Gozo cancelado. Os ${dias} dias voltaram ao período.` : "Gozo cancelado." }
+  const base = dias ? `Gozo cancelado. Os ${dias} dias voltaram ao período.` : "Gozo cancelado."
+  return { ok: abonoDesfeito ? `${base} O abono também foi desfeito.` : base }
 }
 
 export async function alternarAutorizacaoGozo(

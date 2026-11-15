@@ -39,6 +39,25 @@ export function podeCancelarSemGestao(inicio: string | null, hojeISO: string): b
   return !inicio || hojeISO <= inicio
 }
 
+/**
+ * O abono (venda de 1/3) do período veio SÓ deste gozo: o período está com
+ * abono, o gozo estava autorizado com abono pedido e nenhum outro gozo vigente
+ * autorizado também o pediu. Só aí cancelar o gozo pergunta se o abono cai
+ * junto (15/11/2026). Abono marcado à mão no período não entra.
+ */
+export function abonoSoDesteGozo(
+  periodo: {
+    abono_pecuniario: boolean | null
+    gozos: { id: string; autorizado: boolean | null; abono_solicitado?: boolean | null }[]
+  },
+  gozoId: string
+): boolean {
+  if (periodo.abono_pecuniario !== true) return false
+  const g = periodo.gozos.find((x) => x.id === gozoId)
+  if (!g || g.autorizado !== true || g.abono_solicitado !== true) return false
+  return !periodo.gozos.some((x) => x.id !== gozoId && x.autorizado === true && x.abono_solicitado === true)
+}
+
 /** Alerta de prazo: mesmo corte do painel inicial do Pessoal. */
 export const DIAS_ALERTA_CONCESSIVO = 120
 

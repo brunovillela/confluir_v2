@@ -665,13 +665,15 @@ async function notificarPessoalGestao(
  */
 export async function cancelarGozo(
   gozoId: string,
-  quem: { usuarioId: string; gestao: boolean }
-): Promise<{ erro?: string; dias?: number }> {
+  quem: { usuarioId: string; gestao: boolean },
+  /** Gestão: desfazer também o abono (venda de 1/3) que veio com este gozo. */
+  opcoes: { desfazerAbono?: boolean } = {}
+): Promise<{ erro?: string; dias?: number; abonoDesfeito?: boolean }> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
   const { data, error } = await admin
     .from("pessoal_ferias_gozo")
-    .select("id, funcionario_id, ferias_periodo_id, autorizado, inicio, termino, dias, cancelado_em")
+    .select("id, funcionario_id, ferias_periodo_id, autorizado, inicio, termino, dias, cancelado_em, abono_solicitado")
     .eq("id", gozoId)
     .eq("emp_proprietaria_id", emp)
     .maybeSingle()
@@ -718,19 +720,43 @@ export async function cancelarGozo(
     if (erroReabrir) console.error("Falha ao reabrir o período do gozo cancelado:", erroReabrir.message)
   }
 
+  // Abono que veio só com este gozo: a gestão escolhe se cai junto. Confere de
+  // novo no servidor (o gozo já está cancelado, então só sobram os vigentes).
+  let abonoDesfeito = false
+  if (opcoes.desfazerAbono && quem.gestao && eraAutorizado && data.abono_solicitado === true && data.ferias_periodo_id) {
+    const { data: outros } = await admin
+      .from("pessoal_ferias_gozo")
+      .select("id")
+      .eq("ferias_periodo_id", data.ferias_periodo_id)
+      .eq("autorizado", true)
+      .eq("abono_solicitado", true)
+      .is("cancelado_em", null)
+      .limit(1)
+    if (!(outros ?? []).length) {
+      const { error: erroAbono } = await admin
+        .from("pessoal_ferias")
+        .update({ abono_pecuniario: false, updated_at: new Date().toISOString() })
+        .eq("id", data.ferias_periodo_id)
+        .eq("emp_proprietaria_id", emp)
+      if (erroAbono) console.error("Falha ao desfazer o abono do gozo cancelado:", erroAbono.message)
+      else abonoDesfeito = true
+    }
+  }
+  const abonoFicou = eraAutorizado && data.abono_solicitado === true && !abonoDesfeito
+
   const dias = data.dias ?? 0
   const trecho = `${data.dias ?? "?"} dias, de ${formatarData(data.inicio)} a ${formatarData(data.termino)}`
   if (doProprio && eraAutorizado) {
     const nomes = await nomesDosUsuarios([quem.usuarioId])
     const nome = nomes.get(quem.usuarioId) ?? "Um funcionário"
-    const mensagem = `${nome} cancelou férias que já estavam autorizadas (${trecho}). Os dias voltaram ao período. Verifique a necessidade de troca.`
+    const mensagem = `${nome} cancelou férias que já estavam autorizadas (${trecho}). Os dias voltaram ao período. Verifique a necessidade de troca.${abonoFicou ? " O abono pecuniário (venda de 1/3) confirmado com elas continua no período — se não vale mais, desmarque em Editar período." : ""}`
     try {
       await notificarPessoalGestao(mensagem, quem.usuarioId)
     } catch (e) {
       console.error("Falha ao notificar pessoal do cancelamento:", e)
     }
   } else if (!doProprio && data.funcionario_id) {
-    const mensagem = `O departamento de pessoal cancelou ${eraAutorizado ? "suas férias" : "seu pedido de férias"} (${trecho}). Os ${data.dias ?? ""} dias voltaram ao período e podem ser pedidos de novo em Meu perfil › Férias.`
+    const mensagem = `O departamento de pessoal cancelou ${eraAutorizado ? "suas férias" : "seu pedido de férias"} (${trecho}). Os ${data.dias ?? ""} dias voltaram ao período e podem ser pedidos de novo em Meu perfil › Férias.${abonoDesfeito ? " A venda de 1/3 (abono pecuniário) também foi desfeita." : ""}`
     try {
       await criarNotificacao({ usuarioId: data.funcionario_id, texto: mensagem })
     } catch (e) {
@@ -738,7 +764,7 @@ export async function cancelarGozo(
     }
     await enviarPushTelegram(data.funcionario_id, mensagem, "ferias")
   }
-  return { dias }
+  return { dias, abonoDesfeito }
 }
 
 export async function atualizarGozo(
