@@ -1,6 +1,6 @@
 import "server-only"
 
-import { esquemaAusente, texto } from "@/lib/db/comum"
+import { esquemaAusente, hojeSP, texto } from "@/lib/db/comum"
 import { cancelarOrdem, registrarEvento } from "@/lib/db/ordens-ciclo"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -28,6 +28,13 @@ export const ROTULO_DESFECHO: Record<DesfechoCancelamento, string> = {
 
 const ENCERRADAS = ["Paga", "Cancelada", "Estornado"]
 
+/** Aviso de crédito perto de vencer (dias). */
+export const DIAS_AVISO_VALIDADE = 30
+
+function diasEntre(de: string, ate: string): number {
+  return Math.round((Date.parse(`${ate.slice(0, 10)}T12:00:00Z`) - Date.parse(`${de.slice(0, 10)}T12:00:00Z`)) / 86_400_000)
+}
+
 export async function registrarCancelamentoCompra(dados: {
   processoId: string
   fornecimentoId: string
@@ -37,6 +44,8 @@ export async function registrarCancelamentoCompra(dados: {
   obs: string | null
   comprovante: string | null
   usuarioId: string
+  /** Crédito: até quando vale (opcional). */
+  creditoValidade?: string | null
 }): Promise<{ erro?: string; avisos?: string[] }> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
@@ -57,6 +66,7 @@ export async function registrarCancelamentoCompra(dados: {
       cancelamento_data: dados.data,
       cancelamento_obs: dados.obs,
       cancelamento_comprovante_url: dados.comprovante,
+      credito_validade: dados.desfecho === "credito" ? (dados.creditoValidade ?? null) : null,
       cancelado_em: new Date().toISOString(),
       cancelado_por_id: dados.usuarioId,
       nota_a_receber: false,
@@ -86,6 +96,7 @@ export async function registrarCancelamentoCompra(dados: {
     (o) => o.fornecimento_id === dados.fornecimentoId || (f.ordem_pagamento_id && o.id === f.ordem_pagamento_id)
   )
   const avisos: string[] = []
+  let algumaPaga = false
   for (const o of doFornecimento) {
     const situacao = texto(o.situacao) ?? ""
     if (situacao === "Cancelada" || situacao === "Estornado") continue
@@ -95,6 +106,7 @@ export async function registrarCancelamentoCompra(dados: {
       continue
     }
     // Paga: o comprovante do cancelamento é o documento da despesa.
+    if (situacao === "Paga") algumaPaga = true
     const semNota = !texto(o.arquivo_nota_fiscal)
     if (semNota && dados.comprovante) {
       await admin.from("ordens_pagamento").update({ arquivo_nota_fiscal: dados.comprovante }).eq("id", String(o.id))
@@ -106,6 +118,17 @@ export async function registrarCancelamentoCompra(dados: {
       data: dados.data,
       ...(semNota && dados.comprovante ? { antes: null, depois: dados.comprovante } : {}),
     })
+  }
+  // Devolução sem nada pago (as ordens foram canceladas): não há dinheiro a voltar.
+  if (dados.desfecho === "devolucao" && !algumaPaga) {
+    await admin
+      .from("compras_fornecimentos")
+      .update({
+        devolucao_recebida_em: new Date().toISOString(),
+        devolucao_recebida_por_id: dados.usuarioId,
+        devolucao_recebida_obs: "Nada a devolver: nenhuma ordem da compra tinha sido paga.",
+      })
+      .eq("id", dados.fornecimentoId)
   }
   return avisos.length ? { avisos } : {}
 }
@@ -120,6 +143,10 @@ export type CreditoFornecedor = {
   valor: number | null
   /** Quanto já foi abatido em compras novas. */
   usado: number
+  /** Até quando vale; null = sem validade. */
+  validade: string | null
+  /** Dias até vencer (negativo = vencido). */
+  diasParaVencer: number | null
   data: string | null
   obs: string | null
 }
@@ -130,7 +157,7 @@ export async function creditosEmAberto(): Promise<{ disponivel: boolean; itens: 
   const emp = await tenantAtual()
   const { data, error } = await admin
     .from("compras_fornecimentos")
-    .select("id, processo_id, fornecedor_id, vendedor_id, cancelamento_valor, cancelamento_data, cancelamento_obs")
+    .select("id, processo_id, fornecedor_id, vendedor_id, cancelamento_valor, cancelamento_data, cancelamento_obs, credito_validade")
     .eq("emp_proprietaria_id", emp)
     .eq("cancelamento_desfecho", "credito")
     .is("credito_usado_em", null)
@@ -171,6 +198,8 @@ export async function creditosEmAberto(): Promise<{ disponivel: boolean; itens: 
         usado: usado.get(String(l.id)) ?? 0,
         data: texto(l.cancelamento_data),
         obs: texto(l.cancelamento_obs),
+        validade: texto(l.credito_validade),
+        diasParaVencer: l.credito_validade ? diasEntre(hojeSP(), String(l.credito_validade)) : null,
       }
     }),
   }
@@ -238,6 +267,7 @@ export async function creditosDoFornecedor(fornecedorId: string): Promise<Credit
     .eq("emp_proprietaria_id", await tenantAtual())
     .eq("cancelamento_desfecho", "credito")
     .is("credito_usado_em", null)
+    .or(`credito_validade.is.null,credito_validade.gte.${hojeSP()}`)
     .or(`fornecedor_id.eq.${fornecedorId},vendedor_id.eq.${fornecedorId}`)
     .order("cancelamento_data", { ascending: true })
   if (error || !data?.length) return []
@@ -372,6 +402,7 @@ export async function saldosDeCreditoPorFornecedor(): Promise<Record<string, num
     .eq("emp_proprietaria_id", await tenantAtual())
     .eq("cancelamento_desfecho", "credito")
     .is("credito_usado_em", null)
+    .or(`credito_validade.is.null,credito_validade.gte.${hojeSP()}`)
     .limit(500)
   if (error || !data?.length) return {}
   const usado = await usadoPorCredito(data.map((c) => String(c.id)))
@@ -384,4 +415,197 @@ export async function saldosDeCreditoPorFornecedor(): Promise<Record<string, num
     }
   }
   return saldos
+}
+
+// ── Devolução a receber (15/11/2026) ─────────────────────────────────────────
+
+export type DevolucaoAReceber = {
+  fornecimentoId: string
+  processoId: string
+  codigo: string | null
+  produto: string | null
+  fornecedor: string
+  valor: number | null
+  /** Data do cancelamento. */
+  data: string | null
+  dias: number
+  /** Créditos pendentes do extrato com o mesmo valor (sugestão de conciliação). */
+  sugestoes: { lancamentoId: string; data: string; descricao: string | null; valor: number }[]
+}
+
+function somarDiasIso(iso: string, dias: number): string {
+  const d = new Date(`${iso.slice(0, 10)}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + dias)
+  return d.toISOString().slice(0, 10)
+}
+
+/**
+ * Compras canceladas com devolução do dinheiro que ainda não voltou, com os
+ * créditos do extrato que parecem ser ela (mesmo valor, a partir de 3 dias
+ * antes do cancelamento).
+ */
+export async function devolucoesAReceber(): Promise<{ disponivel: boolean; itens: DevolucaoAReceber[] }> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data, error } = await admin
+    .from("compras_fornecimentos")
+    .select("id, processo_id, fornecedor_id, vendedor_id, cancelamento_valor, cancelamento_data")
+    .eq("emp_proprietaria_id", emp)
+    .eq("cancelamento_desfecho", "devolucao")
+    .is("devolucao_recebida_em", null)
+    .order("cancelamento_data", { ascending: true })
+    .limit(300)
+  if (error) {
+    if (esquemaAusente(error)) return { disponivel: false, itens: [] }
+    throw new Error(`Falha ao listar as devoluções: ${error.message}`)
+  }
+  const linhas = data ?? []
+  if (!linhas.length) return { disponivel: true, itens: [] }
+  const ids = (k: "processo_id" | "fornecedor_id" | "vendedor_id") =>
+    [...new Set(linhas.map((l) => texto(l[k])).filter((v): v is string => !!v))]
+  const hoje = hojeSP()
+  const maisAntiga = linhas.map((l) => texto(l.cancelamento_data) ?? hoje).sort()[0]
+  const [procs, empresas, creditos] = await Promise.all([
+    admin.from("compras_solicitacoes").select("id, codigo, solicitacao_produto").in("id", ids("processo_id")),
+    admin.from("empresa").select("id, nome_fantasia, nome_razao").in("id", [...ids("fornecedor_id"), ...ids("vendedor_id")]),
+    admin
+      .from("banco_lancamentos")
+      .select("id, data, valor, descricao")
+      .eq("emp_proprietaria_id", emp)
+      .eq("situacao", "pendente")
+      .gt("valor", 0)
+      .gte("data", somarDiasIso(maisAntiga, -3))
+      .order("data", { ascending: true })
+      .limit(1000),
+  ])
+  const proc = new Map((procs.data ?? []).map((p) => [String(p.id), p]))
+  const nome = new Map((empresas.data ?? []).map((e) => [String(e.id), texto(e.nome_fantasia) ?? texto(e.nome_razao)]))
+  return {
+    disponivel: true,
+    itens: linhas.map((l) => {
+      const p = proc.get(String(l.processo_id))
+      const marketplace = nome.get(String(l.fornecedor_id)) ?? null
+      const vendedor = l.vendedor_id ? (nome.get(String(l.vendedor_id)) ?? null) : null
+      const valor = l.cancelamento_valor === null ? null : Number(l.cancelamento_valor)
+      const data = texto(l.cancelamento_data)
+      const desde = somarDiasIso(data ?? hoje, -3)
+      return {
+        fornecimentoId: String(l.id),
+        processoId: String(l.processo_id),
+        codigo: texto(p?.codigo),
+        produto: texto(p?.solicitacao_produto),
+        fornecedor: vendedor && marketplace ? `${vendedor} (via ${marketplace})` : (vendedor ?? marketplace ?? "(fornecedor)"),
+        valor,
+        data,
+        dias: data ? Math.max(0, diasEntre(data, hoje)) : 0,
+        sugestoes:
+          valor === null
+            ? []
+            : (creditos.data ?? [])
+                .filter((c) => Math.abs(Number(c.valor) - valor) < 0.005 && String(c.data) >= desde)
+                .slice(0, 3)
+                .map((c) => ({
+                  lancamentoId: String(c.id),
+                  data: String(c.data).slice(0, 10),
+                  descricao: texto(c.descricao),
+                  valor: Number(c.valor),
+                })),
+      }
+    }),
+  }
+}
+
+/**
+ * O dinheiro voltou. Com lancamentoId, o crédito do extrato fica conciliado
+ * com a devolução; sem ele (estorno na fatura do cartão, outro caminho), só a
+ * marcação com a observação.
+ */
+export async function receberDevolucao(dados: {
+  fornecimentoId: string
+  usuarioId: string
+  obs: string | null
+  lancamentoId?: string | null
+}): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: f } = await admin
+    .from("compras_fornecimentos")
+    .select("id, processo_id, cancelamento_valor, devolucao_recebida_em, cancelamento_desfecho")
+    .eq("id", dados.fornecimentoId)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  if (!f || f.cancelamento_desfecho !== "devolucao") return { erro: "Devolução não encontrada." }
+  if (f.devolucao_recebida_em) return { erro: "Esta devolução já foi recebida." }
+  const { data: proc } = await admin.from("compras_solicitacoes").select("codigo").eq("id", String(f.processo_id)).maybeSingle()
+  const codigo = texto(proc?.codigo) ?? ""
+
+  if (dados.lancamentoId) {
+    const { data: l, error } = await admin
+      .from("banco_lancamentos")
+      .update({
+        situacao: "conciliado",
+        automatico: false,
+        observacao: `Devolução da compra cancelada ${codigo}`.trim(),
+        conciliado_em: new Date().toISOString(),
+        conciliado_por: dados.usuarioId,
+      })
+      .eq("id", dados.lancamentoId)
+      .eq("emp_proprietaria_id", emp)
+      .eq("situacao", "pendente")
+      .gt("valor", 0)
+      .select("id")
+    if (error) return { erro: `Não foi possível conciliar o lançamento: ${error.message}` }
+    if (!l?.length) return { erro: "Lançamento do extrato não encontrado ou já conciliado." }
+  }
+  const { error } = await admin
+    .from("compras_fornecimentos")
+    .update({
+      devolucao_recebida_em: new Date().toISOString(),
+      devolucao_recebida_por_id: dados.usuarioId,
+      devolucao_recebida_obs: dados.obs ?? (dados.lancamentoId ? "Crédito conciliado no extrato." : null),
+      devolucao_lancamento_id: dados.lancamentoId ?? null,
+    })
+    .eq("id", dados.fornecimentoId)
+  if (error) return { erro: `Não foi possível marcar a devolução: ${error.message}` }
+
+  // Trilha nas ordens pagas da compra.
+  const { data: ordens } = await admin
+    .from("ordens_pagamento")
+    .select("id, fornecimento_id")
+    .eq("emp_proprietaria_id", emp)
+    .eq("processo_compra_id", String(f.processo_id))
+    .eq("situacao", "Paga")
+  const ids = (ordens ?? [])
+    .filter((o) => !o.fornecimento_id || o.fornecimento_id === dados.fornecimentoId)
+    .map((o) => String(o.id))
+  if (ids.length) {
+    const valor = f.cancelamento_valor !== null ? formatarMoeda(Number(f.cancelamento_valor)) : "valor não informado"
+    await registrarEvento(
+      ids,
+      "corrigida",
+      dados.usuarioId,
+      `Devolução da compra cancelada recebida (${valor})${dados.lancamentoId ? " — conciliada no extrato" : ""}${dados.obs ? `: ${dados.obs}` : "."}`,
+      { campo: "devolucao_recebida", lancamento: dados.lancamentoId ?? null }
+    )
+  }
+  return {}
+}
+
+/** A conciliação do lançamento foi desfeita: a devolução volta a ser esperada. */
+export async function reabrirDevolucaoDoLancamento(lancamentoId: string): Promise<void> {
+  const admin = await createAdminClient()
+  await admin
+    .from("compras_fornecimentos")
+    .update({
+      devolucao_recebida_em: null,
+      devolucao_recebida_por_id: null,
+      devolucao_recebida_obs: null,
+      devolucao_lancamento_id: null,
+    })
+    .eq("devolucao_lancamento_id", lancamentoId)
+}
+
+/** Crédito vencido sem uso: sai da lista (fica a observação). */
+export async function darCreditoComoPerdido(fornecimentoId: string, usuarioId: string): Promise<{ erro?: string }> {
+  return marcarCreditoUsado(fornecimentoId, "Vencido sem uso — crédito perdido.", usuarioId)
 }

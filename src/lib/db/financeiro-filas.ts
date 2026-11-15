@@ -41,7 +41,7 @@ export async function filasDoFinanceiro({ veAvaliacoes }: { veAvaliacoes: boolea
   const ordens = () => admin.from("ordens_pagamento").select("id", { count: "exact", head: true }).eq("emp_proprietaria_id", emp).not("excluido", "is", true)
   const n = (r: { count: number | null }) => r.count ?? 0
 
-  const [venceHoje, vencidas, aguardandoInfo, emAutorizacao, semComprovante, extrato, estornos, parados, duplicadas] = await Promise.all([
+  const [venceHoje, vencidas, aguardandoInfo, emAutorizacao, semComprovante, extrato, estornos, parados, duplicadas, devolucoes] = await Promise.all([
     ordens().in("situacao", ABERTAS_PAGAVEIS).eq("vencimento", hoje),
     ordens().in("situacao", ABERTAS_PAGAVEIS).lt("vencimento", hoje),
     ordens().eq("situacao", "Aguardando informações"),
@@ -55,6 +55,13 @@ export async function filasDoFinanceiro({ veAvaliacoes }: { veAvaliacoes: boolea
     admin.from("ordens_pagamento_estornos").select("id", { count: "exact", head: true }).eq("emp_proprietaria_id", emp).is("resolvido_em", null),
     idsProcessandoParado().catch(() => []),
     idsDuplicadasAPagar().catch(() => []),
+    // Compras canceladas pelo vendedor com o dinheiro ainda por voltar.
+    admin
+      .from("compras_fornecimentos")
+      .select("id", { count: "exact", head: true })
+      .eq("emp_proprietaria_id", emp)
+      .eq("cancelamento_desfecho", "devolucao")
+      .is("devolucao_recebida_em", null),
   ])
 
   const filas: FilaFinanceiro[] = [
@@ -66,6 +73,7 @@ export async function filasDoFinanceiro({ veAvaliacoes }: { veAvaliacoes: boolea
     { codigo: "autorizacao", rotulo: "em autorização", quantidade: n(emAutorizacao), href: lista({ situacao: "Em autorização" }), urgente: false },
     { codigo: "informacoes", rotulo: "aguardando informações", quantidade: n(aguardandoInfo), href: lista({ situacao: "Aguardando informações" }), urgente: false },
     { codigo: "comprovante", rotulo: `pagas sem comprovante (${DIAS_COMPROVANTE} dias)`, quantidade: n(semComprovante), href: `${ORDENS}/comprovantes?dias=${DIAS_COMPROVANTE}`, urgente: false },
+    { codigo: "devolucoes", rotulo: "devoluções de compras canceladas a receber", quantidade: devolucoes.error ? 0 : n(devolucoes), href: "/painel/financeiro/conciliacao?situacao=pendente#devolucoes", urgente: false },
     { codigo: "extrato", rotulo: "lançamentos do extrato a conciliar", quantidade: n(extrato), href: "/painel/financeiro/conciliacao?situacao=pendente", urgente: false },
   ]
   return filas.filter((f) => f.quantidade > 0)

@@ -20,7 +20,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 import { ACEITA_NOTA, prepararArquivo } from "@/lib/arquivo-envio"
 
-import { marcarCreditoUsadoAction, registrarCancelamentoCompraAction } from "./actions"
+import { darCreditoComoPerdidoAction, marcarCreditoUsadoAction, registrarCancelamentoCompraAction } from "./actions"
 
 type Estado = { erro?: string; ok?: string; avisos?: string[] }
 
@@ -114,6 +114,15 @@ export function RegistrarCancelamentoCompra({
               <Input id={`cc-data-${fornecimentoId}`} name="data" type="date" defaultValue={hoje} max={hoje} required />
             </div>
           </div>
+          {desfecho === "credito" && (
+            <div className="grid gap-1.5">
+              <Label htmlFor={`cc-validade-${fornecimentoId}`}>Crédito válido até (opcional)</Label>
+              <Input id={`cc-validade-${fornecimentoId}`} name="credito_validade" type="date" min={hoje} className="max-w-48" />
+              <p className="text-muted-foreground text-xs">
+                Avisamos 30 dias antes de vencer; vencido, o crédito deixa de ser abatido nas compras novas.
+              </p>
+            </div>
+          )}
           <div className="grid gap-1.5">
             <Label htmlFor={`cc-obs-${fornecimentoId}`}>Observação</Label>
             <Textarea
@@ -208,5 +217,27 @@ export function MarcarCreditoUsado({ processoId, fornecimentoId }: { processoId:
         </form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/** Crédito vencido sem uso: dá como perdido (sai da lista). */
+export function DarCreditoComoPerdido({ processoId, fornecimentoId }: { processoId: string; fornecimentoId: string }) {
+  const [estado, acao, pendente] = useActionState(darCreditoComoPerdidoAction, {} as Estado)
+  return (
+    <form
+      action={acao}
+      onSubmit={(e) => {
+        if (!confirm("Dar este crédito vencido como perdido? Ele sai da lista de créditos.")) e.preventDefault()
+      }}
+      className="grid justify-items-end gap-1"
+    >
+      <input type="hidden" name="processo_id" value={processoId} />
+      <input type="hidden" name="fornecimento_id" value={fornecimentoId} />
+      <Button type="submit" variant="outline" size="sm" className="h-7" disabled={pendente}>
+        {pendente ? <Loader2 className="animate-spin" /> : <Ban />}
+        Dar como perdido
+      </Button>
+      {estado.erro && <p className="text-destructive text-xs">{estado.erro}</p>}
+    </form>
   )
 }

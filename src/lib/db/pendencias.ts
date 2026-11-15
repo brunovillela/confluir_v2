@@ -358,6 +358,22 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
           .eq("comprador_id", usuarioId)
           .not("compras_solicitacoes.cancelado", "is", true),
     })
+    // Crédito de compra cancelada vencendo nos próximos 30 dias sem uso.
+    const hoje = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" })
+    const limite = new Date(Date.now() + 30 * 86_400_000).toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" })
+    fontes.push({
+      chave: "creditos_vencendo",
+      titulo: "Créditos com fornecedor perto de vencer",
+      descricao: "Compras canceladas que viraram crédito e vencem em até 30 dias",
+      href: "/painel/compras/notas-a-receber#creditos",
+      tabela: "compras_fornecimentos",
+      montar: (q) =>
+        head(q)
+          .eq("cancelamento_desfecho", "credito")
+          .is("credito_usado_em", null)
+          .gte("credito_validade", hoje)
+          .lte("credito_validade", limite),
+    })
   }
 
   // Minhas assinaturas pendentes (ofícios, termos, minutas) — o signatário é

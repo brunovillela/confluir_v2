@@ -159,6 +159,11 @@ export type CancelamentoFornecimento = {
   /** Crédito: quando foi usado (null = em aberto). */
   creditoUsadoEm: string | null
   creditoUsadoObs: string | null
+  /** Crédito: até quando vale. */
+  creditoValidade: string | null
+  /** Devolução: quando o dinheiro voltou (null = a receber). */
+  devolucaoRecebidaEm: string | null
+  devolucaoRecebidaObs: string | null
 }
 
 export type OrdemDoProcesso = {
@@ -786,6 +791,9 @@ export async function buscarProcesso(
                   registradoPorNome: x.cancelado_por_id ? (usuarios.get(String(x.cancelado_por_id)) ?? null) : null,
                   creditoUsadoEm: (x.credito_usado_em as string | null) ?? null,
                   creditoUsadoObs: (x.credito_usado_obs as string | null) ?? null,
+                  creditoValidade: (x.credito_validade as string | null) ?? null,
+                  devolucaoRecebidaEm: (x.devolucao_recebida_em as string | null) ?? null,
+                  devolucaoRecebidaObs: (x.devolucao_recebida_obs as string | null) ?? null,
                 }
               : null,
         }))

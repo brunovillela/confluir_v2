@@ -619,7 +619,10 @@ export async function desfazerConciliacao(lancamentoId: string): Promise<{ erro?
     .eq("id", lancamentoId)
     .eq("emp_proprietaria_id", await tenantAtual())
     .neq("situacao", "pendente")
-  return error ? { erro: error.message } : {}
+  if (error) return { erro: error.message }
+  // Era a devolução de uma compra cancelada: ela volta a ser esperada.
+  await (await import("@/lib/db/compras-cancelamento")).reabrirDevolucaoDoLancamento(lancamentoId).catch(() => {})
+  return {}
 }
 
 export async function excluirExtrato(extratoId: string): Promise<{ erro?: string }> {

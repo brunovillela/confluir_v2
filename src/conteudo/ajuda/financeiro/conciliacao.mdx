@@ -72,6 +72,24 @@ aviso de duplicidade é recusada aqui e deve ser paga pela própria ordem), e o
 lançamento já sai **conciliado** com ela. O comprovante pode ser anexado depois
 pela ordem ou pela **Distribuição de comprovantes**.
 
+## Devoluções de compras canceladas
+
+Quando o vendedor cancela uma compra e devolve o dinheiro (registrado na compra,
+em Aquisição), a devolução passa a ser **esperada** e aparece no card
+**Devoluções de compras canceladas**, na aba Pendentes, com fornecedor, compra,
+valor e há quantos dias espera. Ela também conta no **O que fazer hoje** do
+Financeiro.
+
+- Se o extrato tem um **crédito com o mesmo valor** (a partir de 3 dias antes do
+  cancelamento), ele vem sugerido: **Conciliar com o crédito de …** deixa o
+  lançamento conciliado com a devolução, e a compra mostra *Devolução recebida*.
+- Estorno na **fatura do cartão** ou outro caminho que não passa pelo extrato:
+  **Marcar como recebida**, com uma observação.
+- **Desfazer** a conciliação desse lançamento volta a devolução para a lista.
+
+Se nenhuma ordem da compra tinha sido paga, não há dinheiro a voltar e a
+devolução não entra na lista.
+
 ## Indicadores
 
 **Pendentes** (quantos e quanto em débitos e créditos), **Conciliados**,

@@ -923,8 +923,20 @@ export default async function ProcessoCompraPage({
                             ) : (
                               <>
                                 <Badge variant="info">Crédito em aberto</Badge>
+                                {f.cancelamento.creditoValidade && (
+                                  <span>válido até {formatarData(f.cancelamento.creditoValidade)}</span>
+                                )}
                                 {podeAjustar && <MarcarCreditoUsado processoId={processo.id} fornecimentoId={f.id} />}
                               </>
+                            ))}
+                          {f.cancelamento.desfecho === "devolucao" &&
+                            (f.cancelamento.devolucaoRecebidaEm ? (
+                              <span>
+                                Devolução recebida em {formatarData(f.cancelamento.devolucaoRecebidaEm.slice(0, 10))}
+                                {f.cancelamento.devolucaoRecebidaObs ? ` — ${f.cancelamento.devolucaoRecebidaObs}` : ""}
+                              </span>
+                            ) : (
+                              <Badge variant="warning">Devolução a receber (Financeiro › Conciliação)</Badge>
                             ))}
                         </p>
                       </div>

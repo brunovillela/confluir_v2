@@ -9,8 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requirePermissao } from "@/lib/auth"
 import { escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
 import { DIAS_AVISO_NOTA, listarNotasAReceber } from "@/lib/db/compras-marketplace"
-import { creditosEmAberto } from "@/lib/db/compras-cancelamento"
-import { MarcarCreditoUsado } from "../[id]/cancelamento-compra"
+import { creditosEmAberto, DIAS_AVISO_VALIDADE } from "@/lib/db/compras-cancelamento"
+import { DarCreditoComoPerdido, MarcarCreditoUsado } from "../[id]/cancelamento-compra"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
@@ -138,7 +138,8 @@ export default async function NotasAReceberPage() {
               Créditos com fornecedores ({creditos.itens.length} · {formatarMoeda(totalCreditos)})
             </CardTitle>
             <CardDescription>
-              Compras canceladas pelo vendedor que viraram crédito. Ao usar numa compra nova, marque aqui.
+              Compras canceladas pelo vendedor que viraram crédito, com o saldo. Ele é abatido sozinho na compra
+              nova com o mesmo fornecedor; vencido, deixa de ser abatido e pode ser dado como perdido.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -156,8 +157,28 @@ export default async function NotasAReceberPage() {
                       {c.obs ? ` · ${c.obs}` : ""}
                     </p>
                   </div>
-                  <span className="text-right font-medium tabular-nums">{formatarMoeda(c.valor)}</span>
-                  {podeMarcar ? <MarcarCreditoUsado processoId={c.processoId} fornecimentoId={c.fornecimentoId} /> : <span />}
+                  <span className="grid justify-items-end gap-0.5">
+                    <span className="font-medium tabular-nums">{formatarMoeda(c.valor)}</span>
+                    {c.validade &&
+                      (c.diasParaVencer !== null && c.diasParaVencer < 0 ? (
+                        <Badge variant="destructive">venceu em {formatarData(c.validade)}</Badge>
+                      ) : c.diasParaVencer !== null && c.diasParaVencer <= DIAS_AVISO_VALIDADE ? (
+                        <Badge variant="warning">
+                          vence {c.diasParaVencer === 0 ? "hoje" : `em ${c.diasParaVencer} dia${c.diasParaVencer === 1 ? "" : "s"}`}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">válido até {formatarData(c.validade)}</span>
+                      ))}
+                  </span>
+                  {podeMarcar ? (
+                    c.diasParaVencer !== null && c.diasParaVencer < 0 ? (
+                      <DarCreditoComoPerdido processoId={c.processoId} fornecimentoId={c.fornecimentoId} />
+                    ) : (
+                      <MarcarCreditoUsado processoId={c.processoId} fornecimentoId={c.fornecimentoId} />
+                    )
+                  ) : (
+                    <span />
+                  )}
                 </li>
               ))}
             </ul>

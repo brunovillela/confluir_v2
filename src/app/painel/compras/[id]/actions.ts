@@ -494,6 +494,8 @@ export async function registrarCancelamentoCompraAction(
   if (valorTexto && (valor === null || !Number.isFinite(valor) || valor <= 0)) return { erro: "Valor inválido." }
   if (desfecho === "credito" && valor === null) return { erro: "Informe o valor do crédito." }
   const obs = texto(formData, "obs") || null
+  const creditoValidade = desfecho === "credito" ? dataISO(texto(formData, "credito_validade")) : null
+  if (creditoValidade && creditoValidade < data) return { erro: "A validade do crédito é anterior à data do cancelamento." }
 
   let caminho: string | null = null
   const arquivo = formData.get("comprovante")
@@ -511,6 +513,7 @@ export async function registrarCancelamentoCompraAction(
     obs,
     comprovante: caminho,
     usuarioId: sessao.usuario.id,
+    creditoValidade,
   })
   if (r.erro) {
     if (caminho) await (await createAdminClient()).storage.from("compras").remove([caminho])
@@ -523,6 +526,20 @@ export async function registrarCancelamentoCompraAction(
     ok: desfecho === "credito" ? "Cancelamento registrado; o crédito ficou em aberto." : "Cancelamento registrado.",
     avisos: r.avisos,
   }
+}
+
+/** Crédito vencido sem uso: dado como perdido (sai da lista). */
+export async function darCreditoComoPerdidoAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const sessao = await requireAjustePagamento(formData)
+  const fornecimentoId = texto(formData, "fornecimento_id")
+  if (!fornecimentoId) return { erro: "Pedido inválido." }
+  const { darCreditoComoPerdido } = await import("@/lib/db/compras-cancelamento")
+  const r = await darCreditoComoPerdido(fornecimentoId, sessao.usuario.id)
+  if (r.erro) return { erro: r.erro }
+  revalidatePath("/painel/compras/notas-a-receber")
+  const processoId = texto(formData, "processo_id")
+  if (processoId) revalidarProcesso(processoId)
+  return { ok: "Crédito dado como perdido." }
 }
 
 /** Crédito de compra cancelada usado numa compra nova. */

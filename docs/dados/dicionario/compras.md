@@ -119,10 +119,15 @@ Cada compra efetivada com um fornecedor dentro de um processo de compra: valor, 
 | `credito_usado_em` | timestamp with time zone | sim |  |  | nenhum | Quando o crédito do cancelamento foi marcado como usado. Nulo com desfecho credito = crédito em aberto. |
 | `credito_usado_por_id` | uuid | sim |  | → usuarios (set null) | identificação | Quem marcou o crédito como usado. |
 | `credito_usado_obs` | text | sim |  |  | nenhum | Em que compra o crédito foi usado (código do processo ou observação). |
+| `devolucao_recebida_em` | timestamp with time zone | sim |  |  | nenhum | Quando o dinheiro da compra cancelada voltou (devolução recebida). Nulo com desfecho devolucao = devolução a receber. |
+| `devolucao_recebida_por_id` | uuid | sim |  | → usuarios (set null) | identificação | Quem confirmou que a devolução chegou. |
+| `devolucao_recebida_obs` | text | sim |  |  | nenhum | Como a devolução chegou (crédito no extrato, estorno na fatura do cartão…). |
+| `devolucao_lancamento_id` | uuid | sim |  | → banco_lancamentos (set null) | nenhum | Lançamento do extrato bancário que trouxe a devolução, quando conciliado. |
+| `credito_validade` | date | sim |  |  | nenhum | Até quando o crédito do cancelamento pode ser usado. Vencido, não é mais abatido. |
 
 Checks: `compras_fornecimentos_cancelamento_desfecho_check` `CHECK (((cancelamento_desfecho IS NULL) OR (cancelamento_desfecho = ANY (ARRAY['credito'::text, 'devolucao'::text]))))`; `compras_fornecimentos_valor_check` `CHECK ((valor >= (0)::numeric))`
 
-Índices: `compras_fornecimentos_credito_aberto_idx`, `compras_fornecimentos_nota_a_receber_idx`, `compras_fornecimentos_pkey`, `compras_fornecimentos_vendedor_idx`, `idx_compras_fornecimentos_pendentes`, `idx_compras_fornecimentos_processo`
+Índices: `compras_fornecimentos_credito_aberto_idx`, `compras_fornecimentos_devolucao_aberta_idx`, `compras_fornecimentos_nota_a_receber_idx`, `compras_fornecimentos_pkey`, `compras_fornecimentos_vendedor_idx`, `idx_compras_fornecimentos_pendentes`, `idx_compras_fornecimentos_processo`
 
 ## compras_itens
 

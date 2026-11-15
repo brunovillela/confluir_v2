@@ -129,3 +129,27 @@ export async function pagarPeloExtratoAction(
   revalidatePath("/painel/financeiro/ordens")
   return saida
 }
+
+/**
+ * Devolução de compra cancelada pelo vendedor recebida: com lancamento_id, o
+ * crédito do extrato fica conciliado com ela; sem, só a marcação (ex.: estorno
+ * na fatura do cartão).
+ */
+export async function receberDevolucaoAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  const sessao = await sessaoEscrita()
+  const fornecimentoId = campo(fd, "fornecimento_id")
+  if (!fornecimentoId) return { erro: "Pedido inválido." }
+  const { receberDevolucao } = await import("@/lib/db/compras-cancelamento")
+  const lancamentoId = campo(fd, "lancamento_id") || null
+  const r = await receberDevolucao({
+    fornecimentoId,
+    usuarioId: sessao.usuario.id as string,
+    obs: campo(fd, "obs") || null,
+    lancamentoId,
+  })
+  if (r.erro) return { erro: r.erro }
+  revalidar()
+  revalidatePath("/painel/financeiro")
+  revalidatePath("/painel/compras/notas-a-receber")
+  return { ok: lancamentoId ? "Devolução conciliada com o extrato." : "Devolução marcada como recebida." }
+}

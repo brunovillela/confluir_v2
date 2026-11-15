@@ -18,6 +18,8 @@ import { podeAcessar } from "@/lib/permissoes"
 import { AcoesLancamento, DesfazerBotao, ExcluirExtratoBotao } from "./acoes-lancamento"
 import { ImportarExtratoForm } from "./importar-form"
 import { PagarDoExtrato } from "./pagar-do-extrato"
+import { DevolucoesAReceber } from "./devolucoes-a-receber"
+import { devolucoesAReceber } from "@/lib/db/compras-cancelamento"
 
 export const metadata: Metadata = { title: "Conciliação bancária — Confluir" }
 
@@ -43,6 +45,8 @@ export default async function ConciliacaoPage({ searchParams }: { searchParams: 
     ? await Promise.all([listarLancamentos({ situacao, extratoId: sp.extrato, ...periodo }), listarExtratos(), situacao === "pendente" ? opcoesParaComprovacao() : Promise.resolve({ remessas: [], fontes: [] })])
     : [[], [], { remessas: [], fontes: [] }]
   // Débitos que pagam ordens ainda a pagar (o Financeiro paga no banco e registra depois).
+  // Compras canceladas pelo vendedor com o dinheiro ainda por voltar.
+  const devolucoes = situacao === "pendente" ? await devolucoesAReceber().catch(() => null) : null
   const [aPagar, debitos] =
     resumo.disponivel && podeEscrever && situacao === "pendente"
       ? await Promise.all([
@@ -125,6 +129,22 @@ export default async function ConciliacaoPage({ searchParams }: { searchParams: 
               </Button>
             )}
           </div>
+
+          {devolucoes && devolucoes.itens.length > 0 && (
+            <Card id="devolucoes">
+              <CardHeader>
+                <CardTitle className="text-base">Devoluções de compras canceladas ({devolucoes.itens.length})</CardTitle>
+                <CardDescription className="text-xs">
+                  O vendedor cancelou a compra e vai devolver o dinheiro. Quando o crédito aparecer no extrato com o
+                  mesmo valor, ele vem sugerido: confirme e o lançamento fica conciliado com a devolução. Estorno na
+                  fatura do cartão ou outro caminho: Marcar como recebida.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <DevolucoesAReceber itens={devolucoes.itens} podeEscrever={podeEscrever} />
+              </CardContent>
+            </Card>
+          )}
 
           {aPagar && aPagar.itens.length > 0 && (
             <Card>
