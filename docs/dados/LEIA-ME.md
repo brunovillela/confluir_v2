@@ -2,7 +2,7 @@
 
 # Dicionário de dados do Confluir
 
-Gerado a partir do banco de produção (catálogo do Postgres + comentários). **408 tabelas** no schema `public`, **238** com dado pessoal (1256 colunas etiquetadas).
+Gerado a partir do banco de produção (catálogo do Postgres + comentários). **410 tabelas** no schema `public`, **240** com dado pessoal (1279 colunas etiquetadas).
 
 - Etiquetas LGPD: cada tabela termina o comentário com `[lgpd:<categorias>|titulares:<quem>]` e cada coluna com dado pessoal com `[lgpd:<categoria>]` (Onda A4).
 - Para mudar uma descrição ou classificação: migração com `comment on …` (`npm run db:nova`), aplicar, e `npm run db:dicionario`.
@@ -14,7 +14,7 @@ Gerado a partir do banco de produção (catálogo do Postgres + comentários). *
 
 | Categoria | Tabelas |
 |---|---|
-| identificação | 185 |
+| identificação | 187 |
 | **sensível: sindical** | 60 |
 | trabalhista | 54 |
 | financeiro | 50 |
@@ -34,7 +34,7 @@ Gerado a partir do banco de produção (catálogo do Postgres + comentários). *
 | Saúde do trabalhador | 13 | 11 | [dicionario/saude.md](dicionario/saude.md) | [er/saude.md](er/saude.md) |
 | Jurídico | 5 | 4 | [dicionario/juridico.md](dicionario/juridico.md) | [er/juridico.md](er/juridico.md) |
 | Financeiro | 31 | 22 | [dicionario/financeiro.md](dicionario/financeiro.md) | [er/financeiro.md](er/financeiro.md) |
-| Compras, fornecedores e contratos | 23 | 12 | [dicionario/compras.md](dicionario/compras.md) | [er/compras.md](er/compras.md) |
+| Compras, fornecedores e contratos | 24 | 13 | [dicionario/compras.md](dicionario/compras.md) | [er/compras.md](er/compras.md) |
 | Institucional, diárias, viagens e patrimônio | 16 | 10 | [dicionario/institucional.md](dicionario/institucional.md) | [er/institucional.md](er/institucional.md) |
 | Hospedagem | 18 | 10 | [dicionario/hospedagem.md](dicionario/hospedagem.md) | [er/hospedagem.md](er/hospedagem.md) |
 | Cessão de espaços | 10 | 2 | [dicionario/cessao.md](dicionario/cessao.md) | [er/cessao.md](er/cessao.md) |

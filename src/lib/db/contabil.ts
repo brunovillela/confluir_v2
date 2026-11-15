@@ -139,17 +139,18 @@ export async function lancamentosContabeis(de: string, ate: string): Promise<Lan
     cancelamento_valor: number | null
     cancelamento_parcial: boolean | null
     devolucao_recebida_em: string | null
+    devolucao_perda_valor: number | null
   }
   const processosCompra = ids("processo_compra_id")
   const fornecimentos = await lote<FornCancelado>(
     "compras_fornecimentos",
-    "id, processo_id, ordem_pagamento_id, cancelamento_desfecho, cancelamento_valor, cancelamento_parcial, devolucao_recebida_em",
+    "id, processo_id, ordem_pagamento_id, cancelamento_desfecho, cancelamento_valor, cancelamento_parcial, devolucao_recebida_em, devolucao_perda_valor",
     processosCompra,
     "processo_id"
   ).catch(() => [] as FornCancelado[])
   const creditosOrigem = await lote<FornCancelado>(
     "compras_fornecimentos",
-    "id, processo_id, ordem_pagamento_id, cancelamento_desfecho, cancelamento_valor, cancelamento_parcial, devolucao_recebida_em",
+    "id, processo_id, ordem_pagamento_id, cancelamento_desfecho, cancelamento_valor, cancelamento_parcial, devolucao_recebida_em, devolucao_perda_valor",
     [...new Set(usos.map((u) => u.credito_fornecimento_id))]
   ).catch(() => [] as FornCancelado[])
   const codigoProcesso = new Map(
@@ -176,7 +177,7 @@ export async function lancamentosContabeis(de: string, ate: string): Promise<Lan
     const parte = f.cancelamento_parcial ? `Parte da compra cancelada pelo vendedor${quanto}` : `Compra cancelada pelo vendedor${quanto}`
     return f.cancelamento_desfecho === "credito"
       ? `${parte}: virou crédito com o fornecedor.`
-      : `${parte}: devolução ${f.devolucao_recebida_em ? `recebida em ${String(f.devolucao_recebida_em).slice(0, 10).split("-").reverse().join("/")}` : "a receber"}.`
+      : `${parte}: devolução ${f.devolucao_recebida_em ? `${Number(f.devolucao_perda_valor ?? 0) > 0 ? "encerrada" : "recebida"} em ${String(f.devolucao_recebida_em).slice(0, 10).split("-").reverse().join("/")}` : "a receber"}${Number(f.devolucao_perda_valor ?? 0) > 0 ? `, com ${moeda(Number(f.devolucao_perda_valor))} que não voltaram (perda)` : ""}.`
   }
   const deptoPorId = new Map(departamentos.map((d) => [d.id, d]))
 

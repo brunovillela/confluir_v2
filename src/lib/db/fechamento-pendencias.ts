@@ -48,7 +48,10 @@ export async function pendenciasDoMes(mes: string): Promise<ResumoFechamento> {
   const ordens = () => admin.from("ordens_pagamento").select("id", { count: "exact", head: true }).eq("emp_proprietaria_id", emp).not("excluido", "is", true)
   const pagasNoMes = () => ordens().eq("situacao", "Paga").gte("data_pagamento", de).lte("data_pagamento", ate)
 
-  const [semComprovante, semDebito, processando, aPagarVencidas, semCentro, extrato] = await Promise.all([
+  const fornecimentos = () =>
+    admin.from("compras_fornecimentos").select("id", { count: "exact", head: true }).eq("emp_proprietaria_id", emp)
+
+  const [semComprovante, semDebito, processando, aPagarVencidas, semCentro, extrato, devolucoes, creditosVencidos] = await Promise.all([
     // Pagamento por banco sem o comprovante (Dinheiro é pago no caixa).
     pagasNoMes().is("arquivo_pagamento", null).in("forma_pagamento", FORMAS_COM_COMPROVANTE),
     pagasNoMes().is("centro_custo_receita_id", null),
@@ -79,9 +82,13 @@ export async function pendenciasDoMes(mes: string): Promise<ResumoFechamento> {
       return ids.filter((o) => !comRateio.has(o.id)).length
     })(),
     admin.from("banco_lancamentos").select("id", { count: "exact", head: true }).eq("emp_proprietaria_id", emp).eq("situacao", "pendente").gte("data", de).lte("data", ate),
+    // Compra cancelada pelo vendedor até o fim do mês com o dinheiro ainda por voltar: um valor a receber.
+    fornecimentos().eq("cancelamento_desfecho", "devolucao").is("devolucao_recebida_em", null).lte("cancelamento_data", ate),
+    // Crédito com fornecedor que venceu no mês sem ser usado: dar como perdido (ou negociar).
+    fornecimentos().eq("cancelamento_desfecho", "credito").is("credito_usado_em", null).gte("credito_validade", de).lte("credito_validade", ate),
   ])
 
-  const n = (r: { count: number | null } | number) => (typeof r === "number" ? r : (r.count ?? 0))
+  const n = (r: { count: number | null; error?: unknown } | number) => (typeof r === "number" ? r : r.error ? 0 : (r.count ?? 0))
   const lista: PendenciaFechamento[] = [
     {
       codigo: "processando",
@@ -124,6 +131,20 @@ export async function pendenciasDoMes(mes: string): Promise<ResumoFechamento> {
       explicacao: "Saídas e entradas do banco no mês que ainda não casaram com nada.",
       quantidade: n(extrato),
       href: `/painel/financeiro/conciliacao?situacao=pendente&mes=${mes}`,
+    },
+    {
+      codigo: "devolucoes",
+      rotulo: "Devoluções de compras canceladas a receber",
+      explicacao: "O vendedor cancelou e o dinheiro ainda não voltou: concilie com o extrato, registre o recebimento ou dê a diferença como perda.",
+      quantidade: n(devolucoes),
+      href: "/painel/financeiro/conciliacao?situacao=pendente#devolucoes",
+    },
+    {
+      codigo: "creditos_vencidos",
+      rotulo: "Créditos com fornecedor vencidos no mês sem uso",
+      explicacao: "Não podem mais ser abatidos: dê como perdido (a contabilidade baixa o valor) ou negocie a prorrogação com o fornecedor.",
+      quantidade: n(creditosVencidos),
+      href: "/painel/compras/notas-a-receber#creditos",
     },
   ]
   const pendencias = lista.filter((p) => p.quantidade > 0)

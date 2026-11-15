@@ -144,16 +144,51 @@ export async function receberDevolucaoAction(_prev: EstadoForm, fd: FormData): P
   const fornecimentoId = campo(fd, "fornecimento_id")
   if (!fornecimentoId) return { erro: "Pedido inválido." }
   const { receberDevolucao } = await import("@/lib/db/compras-cancelamento")
+  const { lerValor } = await import("@/lib/reembolsos-lote")
   const lancamentoId = campo(fd, "lancamento_id") || null
+  const valorBruto = campo(fd, "valor")
+  const valor = valorBruto ? lerValor(valorBruto) : null
+  if (valorBruto && (valor === null || valor <= 0)) return { erro: "Valor inválido." }
   const r = await receberDevolucao({
     fornecimentoId,
     usuarioId: sessao.usuario.id as string,
     obs: campo(fd, "obs") || null,
     lancamentoId,
+    valor,
+    data: campo(fd, "data") || null,
   })
   if (r.erro) return { erro: r.erro }
-  revalidar()
-  revalidatePath("/painel/financeiro")
-  revalidatePath("/painel/compras/notas-a-receber")
+  revalidarDevolucao()
+  const { formatarMoeda } = await import("@/lib/formato")
+  if (!r.encerrada) return { ok: `Recebimento registrado. Faltam ${formatarMoeda(r.saldo ?? 0)}.` }
   return { ok: lancamentoId ? "Devolução conciliada com o extrato." : "Devolução marcada como recebida." }
+}
+
+function revalidarDevolucao() {
+  revalidar()
+  revalidatePath("/painel/compras/notas-a-receber")
+  revalidatePath("/painel/financeiro/contabil")
+}
+
+export async function encerrarDevolucaoComPerdaAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  const sessao = await sessaoEscrita()
+  const fornecimentoId = campo(fd, "fornecimento_id")
+  if (!fornecimentoId) return { erro: "Pedido inválido." }
+  const { encerrarDevolucaoComPerda } = await import("@/lib/db/compras-cancelamento")
+  const r = await encerrarDevolucaoComPerda({ fornecimentoId, motivo: campo(fd, "motivo"), usuarioId: sessao.usuario.id as string })
+  if (r.erro) return { erro: r.erro }
+  revalidarDevolucao()
+  const { formatarMoeda } = await import("@/lib/formato")
+  return { ok: `Devolução encerrada; ${formatarMoeda(r.perda ?? 0)} dados como perda.` }
+}
+
+export async function registrarCobrancaDevolucaoAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  await sessaoEscrita()
+  const fornecimentoId = campo(fd, "fornecimento_id")
+  if (!fornecimentoId) return { erro: "Pedido inválido." }
+  const { registrarCobrancaDevolucao } = await import("@/lib/db/compras-cancelamento")
+  const r = await registrarCobrancaDevolucao({ fornecimentoId, data: campo(fd, "data"), obs: campo(fd, "obs") || null })
+  if (r.erro) return { erro: r.erro }
+  revalidarDevolucao()
+  return { ok: "Cobrança registrada." }
 }

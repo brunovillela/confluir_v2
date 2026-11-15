@@ -84,12 +84,25 @@ em Aquisição), a devolução passa a ser **esperada** e aparece no card
 valor e há quantos dias espera. Ela também conta no **O que fazer hoje** do
 Financeiro.
 
-- Se o extrato tem um **crédito com o mesmo valor** (a partir de 3 dias antes do
-  cancelamento), ele vem sugerido: **Conciliar com o crédito de …** deixa o
-  lançamento conciliado com a devolução, e a compra mostra *Devolução recebida*.
+- Se o extrato tem um **crédito com o valor que falta** (a partir de 3 dias
+  antes do cancelamento), ele vem sugerido: **Conciliar com o crédito de …**
+  deixa o lançamento conciliado com a devolução, e a compra mostra *Devolução
+  recebida*. Um crédito **um pouco menor** (de metade do que falta para cima,
+  como quando a loja desconta uma taxa) também vem sugerido, com *R$ … a menos*.
 - Estorno na **fatura do cartão** ou outro caminho que não passa pelo extrato:
-  **Marcar como recebida**, com uma observação.
-- **Desfazer** a conciliação desse lançamento volta a devolução para a lista.
+  **Registrar recebimento**, com quanto voltou, a data e como voltou.
+- **Voltou menos?** A devolução continua na lista com o que falta (*faltam R$ …
+  de R$ …*) e cada recebimento fica listado embaixo. Se o resto não vai voltar,
+  **Dar o que falta como perda**, com o motivo (*taxa retida pelo
+  marketplace*): a devolução se encerra e a exportação contábil mostra o valor
+  perdido no pagamento da compra. Sem nada recebido, o botão é **Dar como
+  perda**.
+- **Parada há mais de 30 dias** (desde o cancelamento ou a última cobrança): o
+  selo vermelho *cobrar o fornecedor* aparece, ela sobe para o topo da lista e
+  vira uma fila em destaque no O que fazer hoje. Cobrou? **Registrar cobrança**,
+  com a data e o canal ou protocolo: a contagem recomeça daquela data.
+- **Desfazer** a conciliação de um lançamento tira o recebimento dele e volta
+  a devolução para a lista (sem a perda, se ela tinha sido dada).
 
 Se nenhuma ordem da compra tinha sido paga, não há dinheiro a voltar e a
 devolução não entra na lista.

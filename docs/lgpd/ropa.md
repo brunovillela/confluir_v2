@@ -25,7 +25,7 @@
 | P08 | [Saúde do trabalhador (CAT, atendimentos, CIPA)](#p08) | 11 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, trabalhista | sim |
 | P09 | [Jurídico](#p09) | 4 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista | sim |
 | P10 | [Pessoal: RH dos funcionários da entidade](#p10) | 41 | identificação, **sensível: saúde**, financeiro, trabalhista | sim |
-| P11 | [Financeiro, compras, fornecedores e contratos](#p11) | 36 | identificação, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
+| P11 | [Financeiro, compras, fornecedores e contratos](#p11) | 37 | identificação, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P12 | [Institucional: custeios, viagens, linhas e patrimônio](#p12) | 10 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P13 | [Hospedagem conveniada e cessão de espaços](#p13) | 12 | identificação, **sensível: filiação/posição sindical**, financeiro, credencial (segredo de acesso, nunca exportar) | sim |
 | P14 | [Frota: veículos e condutores](#p14) | 15 | identificação, financeiro | sim |
@@ -472,7 +472,7 @@
 | [pessoal_diarias_remessas](../dados/dicionario/pessoal.md#pessoal_diarias_remessas) | financeiro | `valor_total` (financeiro), `avaliacao_observacao` (financeiro), `forma_pagamento` (financeiro), `devolucao_observacao` (financeiro), `historico` (financeiro) |
 | [pessoal_diarias_solicitacao_despesas](../dados/dicionario/pessoal.md#pessoal_diarias_solicitacao_despesas) | financeiro | `descricao` (financeiro), `valor` (financeiro), `comprovante` (financeiro) |
 | [pessoal_diarias_solicitacoes](../dados/dicionario/pessoal.md#pessoal_diarias_solicitacoes) | financeiro, trabalhista | `motivo` (trabalhista), `valor_unitario` (financeiro), `valor_total` (financeiro), `avaliacao_observacao` (financeiro), `valor_despesas` (financeiro), `valor_descontos` (financeiro) |
-| [pessoal_faltas_justificadas](../dados/dicionario/pessoal.md#pessoal_faltas_justificadas) | sens. saude, trabalhista | `data_falta` (trabalhista), `justificativa_tipo` (trabalhista), `comprovacao` (sens. saude), `motivo_recusa` (trabalhista), `observacao` (trabalhista) |
+| [pessoal_faltas_justificadas](../dados/dicionario/pessoal.md#pessoal_faltas_justificadas) | sens. saude, trabalhista | `data_falta` (trabalhista), `justificativa_tipo` (trabalhista), `comprovacao` (sens. saude), `motivo_recusa` (trabalhista), `observacao` (trabalhista), `cancelado_por` (identificacao) |
 | [pessoal_ferias](../dados/dicionario/pessoal.md#pessoal_ferias) | trabalhista | `concessivo_inicio` (trabalhista), `concessivo_termino` (trabalhista), `aquisitivo_inicio` (trabalhista), `aquisitivo_termino` (trabalhista), `dias_disponiveis` (trabalhista), `abono_pecuniario` (trabalhista) |
 | [pessoal_ferias_gozo](../dados/dicionario/pessoal.md#pessoal_ferias_gozo) | trabalhista | `dias` (trabalhista), `inicio` (trabalhista), `termino` (trabalhista), `aviso_ferias_url` (trabalhista), `autorizador_observacoes` (trabalhista), `abono_solicitado` (trabalhista), `cancelado_por` (identificacao) |
 | [pessoal_folha_competencias](../dados/dicionario/pessoal.md#pessoal_folha_competencias) | identificacao, financeiro, trabalhista | `observacao` (trabalhista), `snapshot` (financeiro) |
@@ -526,7 +526,7 @@
 
 **Observações.** Pendência: `financeiro_remessas.conteudo` guarda o arquivo CNAB inteiro (nome, CPF e conta de cada favorecido).
 
-<details><summary>Tabelas (36) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (37) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -538,7 +538,8 @@
 | [caixa_prestacoes](../dados/dicionario/financeiro.md#caixa_prestacoes) | identificacao | `observacao` (identificacao), `observacao_financeiro` (identificacao) |
 | [compras_creditos_usos](../dados/dicionario/compras.md#compras_creditos_usos) | identificacao | `credito_fornecimento_id` (nenhum), `processo_id` (nenhum), `ordem_id` (nenhum), `valor` (financeiro), `criado_por_id` (identificacao), `desfeito_em` (nenhum), `desfeito_motivo` (nenhum) |
 | [compras_departamentos_acesso](../dados/dicionario/compras.md#compras_departamentos_acesso) | identificacao | `usuario_id` (identificacao) |
-| [compras_fornecimentos](../dados/dicionario/compras.md#compras_fornecimentos) | identificacao | `comprador_id` (identificacao), `recebimento_recebido_por_id` (identificacao), `recebimento_observacao` (identificacao), `oc_enviada_para` (identificacao), `cancelamento_desfecho` (nenhum), `cancelamento_valor` (financeiro), `cancelamento_data` (nenhum), `cancelamento_obs` (nenhum), `cancelamento_comprovante_url` (nenhum), `cancelado_em` (nenhum), `cancelado_por_id` (identificacao), `credito_usado_em` (nenhum), `credito_usado_por_id` (identificacao), `credito_usado_obs` (nenhum), `devolucao_recebida_em` (nenhum), `devolucao_recebida_por_id` (identificacao), `devolucao_recebida_obs` (nenhum), `devolucao_lancamento_id` (nenhum), `credito_validade` (nenhum) |
+| [compras_devolucoes_recebimentos](../dados/dicionario/compras.md#compras_devolucoes_recebimentos) | identificacao | `fornecimento_id` (nenhum), `valor` (financeiro), `data` (nenhum), `lancamento_id` (nenhum), `obs` (nenhum), `registrado_por_id` (identificacao) |
+| [compras_fornecimentos](../dados/dicionario/compras.md#compras_fornecimentos) | identificacao | `comprador_id` (identificacao), `recebimento_recebido_por_id` (identificacao), `recebimento_observacao` (identificacao), `oc_enviada_para` (identificacao), `cancelamento_desfecho` (nenhum), `cancelamento_valor` (financeiro), `cancelamento_data` (nenhum), `cancelamento_obs` (nenhum), `cancelamento_comprovante_url` (nenhum), `cancelado_em` (nenhum), `cancelado_por_id` (identificacao), `credito_usado_em` (nenhum), `credito_usado_por_id` (identificacao), `credito_usado_obs` (nenhum), `devolucao_recebida_em` (nenhum), `devolucao_recebida_por_id` (identificacao), `devolucao_recebida_obs` (nenhum), `devolucao_lancamento_id` (nenhum), `credito_validade` (nenhum), `cancelamento_parcial` (nenhum), `cancelamento_ordem_reduzida_id` (nenhum), `devolucao_perda_valor` (financeiro), `devolucao_perda_obs` (nenhum), `devolucao_cobrada_em` (nenhum), `devolucao_cobranca_obs` (nenhum) |
 | [compras_pedido](../dados/dicionario/compras.md#compras_pedido) | identificacao | `autorizador` (identificacao) |
 | [compras_propostas](../dados/dicionario/compras.md#compras_propostas) | identificacao | `proposta_arquivo_url` (identificacao), `escolhida_por_id` (identificacao) |
 | [compras_rpa](../dados/dicionario/compras.md#compras_rpa) | identificacao, financeiro | `fornecedor_id` (identificacao), `valor_informado` (financeiro), `valor_bruto` (financeiro), `inss` (financeiro), `irrf` (financeiro), `iss` (financeiro), `dependentes` (identificacao), `valor_liquido` (financeiro), `arquivo_assinado` (identificacao), `assinatura_validacao` (identificacao), `irrf_memoria` (financeiro) |
@@ -550,7 +551,7 @@
 | [despesas](../dados/dicionario/financeiro.md#despesas) | identificacao, financeiro | `valor` (financeiro), `favorecido` (identificacao), `comprovante_pagamento_url` (financeiro) |
 | [documento_assinatura_eventos](../dados/dicionario/compras.md#documento_assinatura_eventos) | identificacao | `detalhe` (identificacao), `ip` (identificacao), `user_agent` (identificacao) |
 | [documento_assinaturas](../dados/dicionario/compras.md#documento_assinaturas) | identificacao, trabalhista, credencial | `nome` (identificacao), `cargo` (trabalhista), `email` (identificacao), `token` (credencial), `certificado` (identificacao), `codigo_hash` (credencial), `motivo_recusa` (identificacao), `ip` (identificacao), `user_agent` (identificacao), `telegram_chat_id` (identificacao), `telegram_telefone` (identificacao), `cpf` (identificacao), `nome_declarado` (identificacao), `rodada` (nenhum) |
-| [empresa](../dados/dicionario/plataforma.md#empresa) | identificacao | `cnpj_cpf` (identificacao), `nome_fantasia` (identificacao), `nome_razao` (identificacao), `foto` (identificacao), `email_contato` (identificacao), `lgpd_encarregado_nome` (identificacao), `lgpd_encarregado_email` (identificacao), `nit_pis` (identificacao), `filiacao_repasse_desde` (nenhum) |
+| [empresa](../dados/dicionario/plataforma.md#empresa) | identificacao | `cnpj_cpf` (identificacao), `nome_fantasia` (identificacao), `nome_razao` (identificacao), `foto` (identificacao), `email_contato` (identificacao), `lgpd_encarregado_nome` (identificacao), `lgpd_encarregado_email` (identificacao), `nit_pis` (identificacao), `filiacao_repasse_desde` (nenhum), `filiacao_remessa_automatica` (nenhum), `filiacao_cobranca_automatica` (nenhum), `filiacao_lembrete_dias` (nenhum), `repasse_cobranca_automatica` (nenhum) |
 | [empresa_contatos](../dados/dicionario/plataforma.md#empresa_contatos) | identificacao, trabalhista | `nome` (identificacao), `cargo` (trabalhista), `telefone` (identificacao), `email` (identificacao), `observacao` (identificacao), `contato_folha` (nenhum) |
 | [financeiro_caixa](../dados/dicionario/financeiro.md#financeiro_caixa) | identificacao, financeiro | `dono_conta_id` (identificacao), `transf_aportador_id` (identificacao), `transf_recebedor_id` (identificacao) |
 | [financeiro_cartao_faturas](../dados/dicionario/financeiro.md#financeiro_cartao_faturas) | identificacao | `fechada_por_usuario_id` (identificacao) |
@@ -879,4 +880,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 239 de 239 tabelas com dado pessoal atribuídas a 17 processos.
+Cobertura: 240 de 240 tabelas com dado pessoal atribuídas a 17 processos.

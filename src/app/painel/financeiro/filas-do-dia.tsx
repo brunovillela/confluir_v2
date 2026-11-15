@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils"
  */
 
 /** Pendências do fechamento que já aparecem como fila do dia. */
-const JA_SAO_FILAS = new Set(["processando", "a_pagar", "sem_comprovante", "extrato"])
+const JA_SAO_FILAS = new Set(["processando", "a_pagar", "sem_comprovante", "extrato", "devolucoes"])
 
 export async function FilasDoDia({
   veAvaliacoes,

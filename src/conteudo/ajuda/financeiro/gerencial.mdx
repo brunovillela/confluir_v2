@@ -68,6 +68,7 @@ antes de mandar para a contabilidade.
 - **Observação** — no pagamento de uma compra depois cancelada pelo vendedor,
   diz se o valor (todo ou a parte cancelada) virou **crédito** com o fornecedor
   ou **devolução** (recebida ou a receber), para a contabilidade reclassificar.
+  Devolução encerrada com perda diz quanto não voltou.
 
 ### Relatório mensal dos RPAs
 
@@ -123,7 +124,12 @@ continua igual ao que foi escriturado:
 - pagas por **Pix, Pix QR Code ou TED** **sem comprovante** (dinheiro, cartão e boleto não entram);
 - pagas **sem centro de custo** (e sem rateio);
 - pagas **sem a conta de débito**;
-- lançamentos do **extrato** do mês ainda sem conciliar.
+- lançamentos do **extrato** do mês ainda sem conciliar;
+- **devoluções de compras canceladas** até o fim do mês com o dinheiro ainda a
+  receber (é um valor a receber da entidade: concilie, registre o recebimento ou
+  dê a diferença como perda);
+- **créditos com fornecedor** que venceram no mês sem uso (dê como perdido, em
+  Notas a receber, ou negocie a prorrogação).
 
 Cada pendência leva direto às ordens dela: *pagas sem comprovante* abre a
 Distribuição de comprovantes já no mês; *pagas sem centro de custo* e *pagas
@@ -140,7 +146,7 @@ aberto, o quadro **O que fazer hoje**, no topo do Financeiro, ganha a parte
 **Fechar &lt;mês&gt; para a contabilidade**, com o atalho para o fechamento (para
 quem tem a permissão de ordens de pagamento). Para não repetir, ali só aparecem
 as pendências que não são filas do dia (sem centro de custo, sem conta de
-débito); as demais já estão contadas nas filas logo acima. A lista completa do
+débito, créditos com fornecedor vencidos); as demais já estão contadas nas filas logo acima. A lista completa do
 mês continua aqui, na Exportação contábil.
 
 Precisou corrigir depois? **Reabrir**, com o motivo (obrigatório), libera o mês de novo; o

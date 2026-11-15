@@ -188,6 +188,7 @@ erDiagram
     uuid emp_proprietaria_id FK
     uuid periodo_id FK
     uuid solicitado_por_id FK
+    uuid cancelado_por FK
   }
   pessoal_faltas_justificadas_periodo {
     uuid id PK
@@ -430,6 +431,7 @@ erDiagram
   pessoal_faltas_config }o--o| usuarios : "atualizado_por_id"
   pessoal_faltas_justificadas }o--o| pessoal_faltas_justificadas_periodo : "periodo_id"
   pessoal_faltas_justificadas }o--o| usuarios : "autorizador_id"
+  pessoal_faltas_justificadas }o--o| usuarios : "cancelado_por"
   pessoal_faltas_justificadas }o--o| usuarios : "funcionario_id"
   pessoal_faltas_justificadas }o--o| usuarios : "solicitado_por_id"
   pessoal_ferias }o--o| empresa : "empregador_id"

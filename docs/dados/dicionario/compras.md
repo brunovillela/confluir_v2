@@ -2,12 +2,13 @@
 
 # Compras, fornecedores e contratos
 
-23 tabelas. Diagrama: [er/compras.md](../er/compras.md).
+24 tabelas. Diagrama: [er/compras.md](../er/compras.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
 | [compras_creditos_usos](#compras_creditos_usos) | identificação | Cada uso do crédito de uma compra cancelada pelo vendedor: a ordem e o processo da compra nova em que foi abatido e quanto. Desfeito (desfei… |
 | [compras_departamentos_acesso](#compras_departamentos_acesso) | identificação | Quais departamentos cada usuário enxerga em Compras (acesso às compras por departamento), definido por um gestor. |
+| [compras_devolucoes_recebimentos](#compras_devolucoes_recebimentos) | identificação | Cada valor que voltou da devolução de uma compra cancelada pelo vendedor (pode vir em partes ou menor que o cancelado). |
 | [compras_fornecimentos](#compras_fornecimentos) | identificação | Cada compra efetivada com um fornecedor dentro de um processo de compra: valor, forma de pagamento, nota fiscal, ordem de pagamento, recebim… |
 | [compras_itens](#compras_itens) | — | Itens de solicitação de compra migrados do Bubble (descrição, quantidade, unidade). Sem uso encontrado no código (possível legado do Bubble)… |
 | [compras_ordem_compra](#compras_ordem_compra) | — | Ordem de compra do modelo antigo do Bubble, com preços e quantidades por item em arrays. Sem uso encontrado no código (possível legado do Bu… |
@@ -74,6 +75,30 @@ Quais departamentos cada usuário enxerga em Compras (acesso às compras por dep
 
 Índices: `compras_departamentos_acesso_pkey`, `idx_compras_deptos_acesso_emp`, `ux_compras_deptos_acesso`
 
+## compras_devolucoes_recebimentos
+
+Cada valor que voltou da devolução de uma compra cancelada pelo vendedor (pode vir em partes ou menor que o cancelado).
+
+- **LGPD:** identificação · titulares: usuários do sistema
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `fornecimento_id` | uuid | não |  | → compras_fornecimentos (**cascade**) | nenhum | O fornecimento cancelado com cancelamento_desfecho = devolucao. |
+| `valor` | numeric(12,2) | não |  |  | financeiro | Quanto voltou neste recebimento. |
+| `data` | date | não |  |  | nenhum | Data em que o dinheiro voltou. |
+| `lancamento_id` | uuid | sim |  | → banco_lancamentos (set null) | nenhum | Crédito do extrato bancário conciliado com este recebimento. |
+| `obs` | text | sim |  |  | nenhum | Como o dinheiro voltou (extrato, estorno na fatura do cartão…). |
+| `registrado_por_id` | uuid | sim |  | → usuarios (set null) | identificação | Quem registrou o recebimento. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Checks: `compras_devolucoes_recebimentos_valor_check` `CHECK ((valor > (0)::numeric))`
+
+Índices: `compras_devolucoes_recebimentos_fornecimento`, `compras_devolucoes_recebimentos_lancamento`, `compras_devolucoes_recebimentos_pkey`
+
 ## compras_fornecimentos
 
 Cada compra efetivada com um fornecedor dentro de um processo de compra: valor, forma de pagamento, nota fiscal, ordem de pagamento, recebimento e envio da ordem de compra por e-mail.
@@ -126,6 +151,10 @@ Cada compra efetivada com um fornecedor dentro de um processo de compra: valor, 
 | `credito_validade` | date | sim |  |  | nenhum | Até quando o crédito do cancelamento pode ser usado. Vencido, não é mais abatido. |
 | `cancelamento_parcial` | boolean | não | `false` |  | nenhum | O vendedor cancelou só parte da compra (cancelamento_valor): a compra segue ativa. false = cancelamento da compra toda. |
 | `cancelamento_ordem_reduzida_id` | uuid | sim |  | → ordens_pagamento (set null) | nenhum | Cancelamento parcial: ordem ainda não paga que teve o valor reduzido no valor cancelado (desfazer devolve o valor). |
+| `devolucao_perda_valor` | numeric(12,2) | sim |  |  | financeiro | Parte da devolução que não vai voltar, dada como perda ao encerrar a devolução. |
+| `devolucao_perda_obs` | text | sim |  |  | nenhum | Motivo da diferença dada como perda (taxa retida, fornecedor não devolveu…). |
+| `devolucao_cobrada_em` | date | sim |  |  | nenhum | Última vez que o fornecedor foi cobrado pela devolução; o aviso de devolução parada conta desta data. |
+| `devolucao_cobranca_obs` | text | sim |  |  | nenhum | Como foi a última cobrança (protocolo, canal, resposta). |
 
 Checks: `compras_fornecimentos_cancelamento_desfecho_check` `CHECK (((cancelamento_desfecho IS NULL) OR (cancelamento_desfecho = ANY (ARRAY['credito'::text, 'devolucao'::text]))))`; `compras_fornecimentos_valor_check` `CHECK ((valor >= (0)::numeric))`
 

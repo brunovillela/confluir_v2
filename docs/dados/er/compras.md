@@ -21,6 +21,13 @@ erDiagram
     uuid departamento_id FK
     uuid definido_por FK
   }
+  compras_devolucoes_recebimentos {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid fornecimento_id FK
+    uuid lancamento_id FK
+    uuid registrado_por_id FK
+  }
   compras_fornecimentos {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -36,6 +43,7 @@ erDiagram
     uuid credito_usado_por_id FK
     uuid devolucao_recebida_por_id FK
     uuid devolucao_lancamento_id FK
+    uuid cancelamento_ordem_reduzida_id FK
   }
   compras_itens {
     uuid id PK
@@ -166,9 +174,13 @@ erDiagram
   compras_departamentos_acesso }o--o| empresa_departamentos : "departamento_id"
   compras_departamentos_acesso }o--o| usuarios : "definido_por"
   compras_departamentos_acesso }o--o| usuarios : "usuario_id"
+  compras_devolucoes_recebimentos }o--o| banco_lancamentos : "lancamento_id"
+  compras_devolucoes_recebimentos }o--o| usuarios : "registrado_por_id"
+  compras_devolucoes_recebimentos }o--|| compras_fornecimentos : "fornecimento_id"
   compras_fornecimentos }o--o| banco_lancamentos : "devolucao_lancamento_id"
   compras_fornecimentos }o--o| compras_propostas : "proposta_id"
   compras_fornecimentos }o--o| empresa : "vendedor_id"
+  compras_fornecimentos }o--o| ordens_pagamento : "cancelamento_ordem_reduzida_id"
   compras_fornecimentos }o--o| ordens_pagamento : "ordem_pagamento_id"
   compras_fornecimentos }o--o| usuarios : "cancelado_por_id"
   compras_fornecimentos }o--o| usuarios : "comprador_id"

@@ -20,7 +20,7 @@ import { AcoesLancamento, DesfazerBotao, ExcluirExtratoBotao } from "./acoes-lan
 import { ImportarExtratoForm } from "./importar-form"
 import { PagarDoExtrato } from "./pagar-do-extrato"
 import { DevolucoesAReceber } from "./devolucoes-a-receber"
-import { devolucoesAReceber } from "@/lib/db/compras-cancelamento"
+import { DIAS_COBRAR_DEVOLUCAO, devolucoesAReceber } from "@/lib/db/compras-cancelamento"
 
 export const metadata: Metadata = { title: "Conciliação bancária — Confluir" }
 
@@ -139,11 +139,21 @@ export default async function ConciliacaoPage({ searchParams }: { searchParams: 
           {devolucoes && devolucoes.itens.length > 0 && (
             <Card id="devolucoes">
               <CardHeader>
-                <CardTitle className="text-base">Devoluções de compras canceladas ({devolucoes.itens.length})</CardTitle>
+                <CardTitle className="text-base">
+                  Devoluções de compras canceladas ({devolucoes.itens.length})
+                  {devolucoes.itens.some((d) => d.parada) && (
+                    <span className="text-destructive ml-2 text-sm font-normal">
+                      {devolucoes.itens.filter((d) => d.parada).length} parada(s) há mais de {DIAS_COBRAR_DEVOLUCAO} dias
+                    </span>
+                  )}
+                </CardTitle>
                 <CardDescription className="text-xs">
                   O vendedor cancelou a compra e vai devolver o dinheiro. Quando o crédito aparecer no extrato com o
-                  mesmo valor, ele vem sugerido: confirme e o lançamento fica conciliado com a devolução. Estorno na
-                  fatura do cartão ou outro caminho: Marcar como recebida.
+                  valor que falta (ou um pouco menos, com taxa descontada), ele vem sugerido: confirme e o lançamento
+                  fica conciliado com a devolução. Estorno na fatura do cartão ou outro caminho: Registrar recebimento.
+                  Voltou menos? A devolução fica aberta com o saldo, e o que não vier se dá como perda. Sem notícia há
+                  mais de {DIAS_COBRAR_DEVOLUCAO} dias (desde o cancelamento ou a última cobrança), cobre o fornecedor
+                  e registre a cobrança.
                 </CardDescription>
               </CardHeader>
               <CardContent>
