@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { FaltasCanceladas } from "@/components/pessoal/faltas-canceladas"
 import { requireSessaoPainel } from "@/lib/auth"
 import { hojeSP } from "@/lib/db/comum"
 import {
@@ -60,7 +61,7 @@ export default async function MinhasFaltasPage() {
   const sessao = await requireSessaoPainel()
   await exigirFuncionario(sessao.usuario.id as string)
   const hoje = hojeSP()
-  const [{ disponivel, faltas, uso, periodo }, { config }] = await Promise.all([
+  const [{ disponivel, faltas, canceladas, uso, periodo }, { config }] = await Promise.all([
     minhasFaltas(sessao.usuario.id),
     lerConfigFaltas(),
   ])
@@ -187,6 +188,12 @@ export default async function MinhasFaltasPage() {
               </Table>
             </div>
           )}
+          <FaltasCanceladas
+            canceladas={canceladas}
+            funcionarioId={sessao.usuario.id as string}
+            doProprio
+            className="mt-3"
+          />
         </CardContent>
       </Card>
     </>

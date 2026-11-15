@@ -555,7 +555,7 @@ export async function calcularMovimento(
     admin.from("pessoal_ausencias").select("id, funcionario_id, inicio, termino, motivo, observacao, created_at")
       .in("motivo", ["Falta injustificada", "Licença"]).lte("inicio", fimMes).gte("termino", desde),
     admin.from("pessoal_faltas_justificadas").select("id, funcionario_id, data_falta, justificativa_tipo, autorizado, data_autorizacao, created_at")
-      .eq("autorizado", true).gte("data_falta", desde).lte("data_falta", fimMes),
+      .eq("autorizado", true).is("cancelado_em", null).gte("data_falta", desde).lte("data_falta", fimMes),
     admin.from("pessoal_anuenio").select("id, funcionario_id, nivel_atual_id, nivel_atual_data, created_at")
       .eq("emp_proprietaria_id", emp).gte("nivel_atual_data", desde).lte("nivel_atual_data", fimMes),
     admin.from("pessoal_nivel_salarial").select("id, funcionario_id, nivel_atual_id, nivel_atual_data, tipo_avanco, created_at")
@@ -651,6 +651,74 @@ export async function calcularMovimento(
       fim: null,
       quantidade: 1,
       valor: null,
+      origem: "/painel/pessoal/faltas",
+    })
+  }
+
+  // 7b. Cancelamentos do que a contabilidade JÁ recebeu (15/11/2026): férias e
+  // faltas abonadas canceladas depois de entregues voltam numa linha própria,
+  // retroativa, dizendo em que competência tinham ido. Cancelado antes de ir
+  // não aparece (as leituras acima já ignoram o cancelado).
+  const entregueEm = new Map<string, string>()
+  for (const l of enviadas) {
+    for (const x of Array.isArray(l.snapshot) ? (l.snapshot as LinhaMovimento[]) : []) {
+      if (!entregueEm.has(x.chave)) entregueEm.set(x.chave, String(l.competencia))
+    }
+  }
+  const idsEntregues = (prefixo: string) =>
+    [...entregueEm.keys()].filter((k) => k.startsWith(prefixo)).map((k) => k.slice(prefixo.length))
+  const canceladosEntregues = async (tabela: string, colunas: string, ids: string[]) => {
+    const saida: Record<string, unknown>[] = []
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data } = await admin
+        .from(tabela)
+        .select(`id, funcionario_id, cancelado_em, ${colunas}`)
+        .in("id", ids.slice(i, i + 100))
+        .not("cancelado_em", "is", null)
+      saida.push(...((data ?? []) as unknown as Record<string, unknown>[]))
+    }
+    return saida
+  }
+  const mesAno = (c: string | undefined) => (c ? `${c.slice(5, 7)}/${c.slice(0, 4)}` : "anterior")
+  const dataBR = (d: string | null) => (d ? `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}` : "—")
+  const [feriasCanceladas, faltasCanceladas] = await Promise.all([
+    canceladosEntregues("pessoal_ferias_gozo", "inicio, termino, dias", idsEntregues("ferias:")),
+    canceladosEntregues("pessoal_faltas_justificadas", "data_falta, justificativa_tipo", idsEntregues("falta:")),
+  ])
+  for (const g of feriasCanceladas) {
+    const f = texto(g.funcionario_id)
+    if (!f || !funcionarios.has(f)) continue
+    const inicio = texto(g.inicio)?.slice(0, 10) ?? null
+    const fim = texto(g.termino)?.slice(0, 10) ?? null
+    add({
+      chave: `ferias-cancelada:${g.id}`,
+      registradoEm: g.cancelado_em,
+      secao: "ferias",
+      funcionarioId: f,
+      descricao: `Férias CANCELADAS — ${g.dias ?? "?"} dia(s), de ${dataBR(inicio)} a ${dataBR(fim)}; tinham sido informadas na competência ${mesAno(entregueEm.get(`ferias:${g.id}`))}`,
+      inicio,
+      fim,
+      quantidade: Number(g.dias ?? 0) || null,
+      valor: null,
+      retroativo: true,
+      origem: `/painel/pessoal/ferias/funcionario/${f}`,
+    })
+  }
+  for (const fj of faltasCanceladas) {
+    const f = texto(fj.funcionario_id)
+    if (!f || !funcionarios.has(f)) continue
+    const dia = texto(fj.data_falta)?.slice(0, 10) ?? null
+    add({
+      chave: `falta-cancelada:${fj.id}`,
+      registradoEm: fj.cancelado_em,
+      secao: "faltas",
+      funcionarioId: f,
+      descricao: `Falta justificada CANCELADA (deixa de ser abonada) — ${dataBR(dia)}${texto(fj.justificativa_tipo) ? ` (${fj.justificativa_tipo})` : ""}; tinha sido informada na competência ${mesAno(entregueEm.get(`falta:${fj.id}`))}`,
+      inicio: dia,
+      fim: null,
+      quantidade: 1,
+      valor: null,
+      retroativo: true,
       origem: "/painel/pessoal/faltas",
     })
   }

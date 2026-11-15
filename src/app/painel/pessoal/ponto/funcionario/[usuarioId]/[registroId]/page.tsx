@@ -67,7 +67,7 @@ export default async function RegistroPontoPage({
     admin.from("pessoal_ausencias").select("id, inicio, termino, motivo, observacao").eq("funcionario_id", usuarioId)
       .lte("inicio", fimMes).gte("termino", inicioMes),
     admin.from("pessoal_faltas_justificadas").select("id, data_falta, autorizado, recusado").eq("funcionario_id", usuarioId)
-      .gte("data_falta", inicioMes).lte("data_falta", fimMes),
+      .is("cancelado_em", null).gte("data_falta", inicioMes).lte("data_falta", fimMes),
   ])
   const ausencias = [
     ...((ats.data ?? []) as Record<string, unknown>[]).map((a) => ({

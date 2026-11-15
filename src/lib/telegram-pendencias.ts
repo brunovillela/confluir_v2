@@ -177,6 +177,7 @@ async function decidir(
         .select("funcionario_id")
         .eq("id", id)
         .eq("emp_proprietaria_id", ctx.emp)
+        .is("cancelado_em", null)
         .maybeSingle()
       if (!f) return { erro: "Falta não encontrada." }
       const func = texto(f.funcionario_id)
@@ -367,7 +368,7 @@ async function itensComBotao(ctx: Ctx, limite: number): Promise<ItemPendente[]> 
   }
   if (pode("pessoal_gestao", ["pessoal_faltas_justificadas"]) || coordena) {
     for (const f of await linhas("pessoal_faltas_justificadas", "id, funcionario_id, data_falta, justificativa_tipo", (q) =>
-      q.not("autorizado", "is", true).not("recusado", "is", true).limit(10)
+      q.not("autorizado", "is", true).not("recusado", "is", true).is("cancelado_em", null).limit(10)
     )) {
       candidatos.push({ tipo: "fa", id: String(f.id), pessoa: texto(f.funcionario_id), resumo: `falta justificada em ${formatarData(texto(f.data_falta))} (${f.justificativa_tipo ?? "—"})`, link: `/painel/pessoal/faltas/${f.id}` })
     }

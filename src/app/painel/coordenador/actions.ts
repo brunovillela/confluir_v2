@@ -67,6 +67,7 @@ export async function decidirFaltaCoordenadorAction(
     .select("funcionario_id")
     .eq("id", id)
     .eq("emp_proprietaria_id", await tenantAtual())
+    .is("cancelado_em", null)
     .maybeSingle()
   if (!f) return { erro: "Falta não encontrada." }
   if (!(await coordenaFuncionario(String(sessao.usuario.id), (f.funcionario_id as string | null) ?? null))) {

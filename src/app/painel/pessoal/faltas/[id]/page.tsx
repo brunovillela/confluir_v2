@@ -12,7 +12,7 @@ import { VoltarLista } from "@/components/voltar-lista"
 import { requirePermissao } from "@/lib/auth"
 import { lerConfigFaltas, listarFaltas } from "@/lib/db/faltas"
 import { funcionarioDaArea } from "@/lib/db/pessoal-area"
-import { formatarData } from "@/lib/formato"
+import { formatarData, formatarDataHora } from "@/lib/formato"
 
 import { podeAcessar } from "@/lib/permissoes"
 import { DecisaoFalta, ExcluirFaltaBotao } from "../faltas-forms"
@@ -45,8 +45,8 @@ export default async function FaltaPage({
   const { id } = await params
   const { de } = await searchParams
   const gestaoPessoal = podeAcessar(sessao.permissoes, "pessoal_gestao")
-  const [{ faltas }, { config }] = await Promise.all([listarFaltas(), lerConfigFaltas()])
-  const falta = faltas.find((f) => f.id === id)
+  const [{ faltas, canceladas }, { config }] = await Promise.all([listarFaltas(), lerConfigFaltas()])
+  const falta = faltas.find((f) => f.id === id) ?? canceladas.find((f) => f.id === id)
   if (!falta) notFound()
   const fid = falta.funcionarioId
   const funcionario = fid ? await funcionarioDaArea(fid) : null
@@ -96,7 +96,7 @@ export default async function FaltaPage({
         <h1 className="text-2xl font-semibold tracking-tight">Falta de {formatarData(falta.data)}</h1>
       )}
 
-      {daPessoa.length > 1 && (
+      {daPessoa.length > 1 && iP >= 0 && (
         <NavegacaoRegistro
           eixos={[
             {
@@ -141,13 +141,19 @@ export default async function FaltaPage({
               </Campo>
             )}
           </dl>
-          {falta.situacao === "aguardando" && (
+          {falta.canceladaEm && (
+            <p className="border-t pt-4 text-sm">
+              <span className="text-destructive font-medium">Cancelada</span> em {formatarDataHora(falta.canceladaEm)}
+              {falta.canceladaPorNome ? ` por ${falta.canceladaPorNome}` : ""}. Não conta no limite, no ponto nem na folha.
+            </p>
+          )}
+          {!falta.canceladaEm && falta.situacao === "aguardando" && (
             <div className="border-t pt-4">
               <p className="mb-2 text-sm font-medium">Decisão</p>
               <DecisaoFalta id={falta.id} />
             </div>
           )}
-          {falta.situacao === "autorizada" && (
+          {!falta.canceladaEm && falta.situacao === "autorizada" && (
             <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-4">
               <p className="text-muted-foreground text-xs">
                 {gestaoPessoal

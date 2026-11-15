@@ -8,6 +8,7 @@ import { CabecalhoFuncionario } from "@/components/pessoal/cabecalho-funcionario
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { VoltarLista } from "@/components/voltar-lista"
+import { FaltasCanceladas } from "@/components/pessoal/faltas-canceladas"
 import { requirePermissao } from "@/lib/auth"
 import { hojeSP } from "@/lib/db/comum"
 import { lerConfigFaltas, listarFaltas } from "@/lib/db/faltas"
@@ -29,7 +30,7 @@ export default async function FaltasFuncionarioPage({
   const sessao = await requirePermissao("pessoal_gestao", ["pessoal_faltas_justificadas"])
   const { usuarioId } = await params
   const sp = await searchParams
-  const [funcionario, { faltas }, { config }] = await Promise.all([
+  const [funcionario, { faltas, canceladas }, { config }] = await Promise.all([
     funcionarioDaArea(usuarioId),
     listarFaltas({ funcionarioId: usuarioId }),
     lerConfigFaltas(),
@@ -124,6 +125,7 @@ export default async function FaltasFuncionarioPage({
             </div>
           </CardContent>
         )}
+        <FaltasCanceladas canceladas={canceladas} funcionarioId={usuarioId} className="px-6 pb-4" />
       </Card>
     </>
   )

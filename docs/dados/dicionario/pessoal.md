@@ -866,6 +866,8 @@ Pedido de falta justificada de um funcionário (data, tipo, comprovante, autoriz
 | `observacao` | text | sim |  |  | trabalhista |  |
 | `solicitado_por_id` | uuid | sim |  | → usuarios |  |  |
 | `updated_at` | timestamp with time zone | sim |  |  |  |  |
+| `cancelado_em` | timestamp with time zone | sim |  |  |  | Quando a falta foi cancelada (null = vigente). Cancelada não conta no limite, no ponto nem na folha; fica só como histórico. |
+| `cancelado_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem cancelou: o próprio funcionário (enquanto aguardava) ou a gestão de pessoal (já autorizada). |
 
 Únicas: `UNIQUE (bubble_id)`
 

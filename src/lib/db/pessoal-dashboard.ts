@@ -252,6 +252,7 @@ export async function resumoPessoal(): Promise<ResumoPessoal> {
     .eq("emp_proprietaria_id", empId)
     .eq("autorizado", false)
     .not("recusado", "is", true)
+    .is("cancelado_em", null)
   const faltasAguardando = faltasRes.error ? null : (faltasRes.count ?? 0)
 
   return {

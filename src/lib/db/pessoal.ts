@@ -382,6 +382,7 @@ export async function buscarPerfilFuncionario(
         { count: "exact" }
       )
       .eq("funcionario_id", usuarioId)
+      .is("cancelado_em", null)
       .order("data_falta", { ascending: false, nullsFirst: false })
       .limit(20),
     admin

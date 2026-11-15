@@ -221,7 +221,7 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
       href: "/painel/pessoal/faltas",
       tabela: "pessoal_faltas_justificadas",
       // Aguardando = nem autorizada nem recusada (falso conta como sem decisão).
-      montar: (q) => head(q).not("autorizado", "is", true).not("recusado", "is", true),
+      montar: (q) => head(q).not("autorizado", "is", true).not("recusado", "is", true).is("cancelado_em", null),
     })
   }
 
@@ -585,7 +585,8 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
         descricao: "Pedidos dos funcionários que você coordena",
         href: "/painel?aba=coordenacao#pedidos",
         tabela: "pessoal_faltas_justificadas",
-        montar: (q) => head(q).in("funcionario_id", equipe).not("autorizado", "is", true).not("recusado", "is", true),
+        montar: (q) =>
+          head(q).in("funcionario_id", equipe).not("autorizado", "is", true).not("recusado", "is", true).is("cancelado_em", null),
       })
     }
     if (!pode("pessoal_gestao", ["pessoal_diarias"])) {

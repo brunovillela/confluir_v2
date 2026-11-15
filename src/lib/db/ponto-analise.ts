@@ -338,7 +338,7 @@ export async function carregarBasePonto(): Promise<BasePonto> {
       ),
       lerEmLotesPorIds(ids, (fatia, a, b) =>
         admin.from("pessoal_faltas_justificadas").select("id, funcionario_id, data_falta").in("funcionario_id", fatia)
-          .eq("autorizado", true).gte("data_falta", de).lte("data_falta", ate).order("id").range(a, b)
+          .eq("autorizado", true).is("cancelado_em", null).gte("data_falta", de).lte("data_falta", ate).order("id").range(a, b)
       ).catch(() => []),
       lerEmLotesPorIds(ids, (fatia, a, b) =>
         admin.from("pessoal_ausencias").select("id, funcionario_id, inicio").in("funcionario_id", fatia)

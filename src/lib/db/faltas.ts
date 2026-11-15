@@ -147,6 +147,7 @@ async function datasQueContam(
     .select("id, data_falta, recusado")
     .eq("emp_proprietaria_id", await tenantAtual())
     .eq("funcionario_id", funcionarioId)
+    .is("cancelado_em", null)
     .gte("data_falta", periodo.inicio)
     .lte("data_falta", periodo.termino)
   return (data ?? [])
@@ -173,11 +174,15 @@ export type FaltaJustificada = {
   createdAt: string | null
   /** Veio do Bubble (não entra na trava de comprovação). */
   doSistemaAnterior: boolean
+  /** Cancelada (15/11/2026): fica no histórico, fora do limite, do ponto e da folha. */
+  canceladaEm: string | null
+  canceladaPorId: string | null
+  canceladaPorNome: string | null
 }
 
 const SELECT_FALTA_BASE =
   "id, funcionario_id, data_falta, justificativa_tipo, comprovacao, autorizado, data_autorizacao, autorizador_id, periodo_id, falta_numero, created_at, bubble_id"
-const SELECT_FALTA_NOVO = `${SELECT_FALTA_BASE}, recusado, motivo_recusa, observacao`
+const SELECT_FALTA_NOVO = `${SELECT_FALTA_BASE}, recusado, motivo_recusa, observacao, cancelado_em, cancelado_por`
 
 /** Lê com as colunas novas; sem o SQL, cai no select antigo. */
 async function lerFaltas(filtro: {
@@ -204,7 +209,9 @@ async function montar(linhas: Record<string, unknown>[]): Promise<FaltaJustifica
   const admin = await createAdminClient()
   const [nomes, periodos] = await Promise.all([
     nomesDosUsuarios(
-      linhas.flatMap((l) => [texto(l.funcionario_id), texto(l.autorizador_id)]).filter((v): v is string => !!v)
+      linhas
+        .flatMap((l) => [texto(l.funcionario_id), texto(l.autorizador_id), texto(l.cancelado_por)])
+        .filter((v): v is string => !!v)
     ),
     admin
       .from("pessoal_faltas_justificadas_periodo")
@@ -233,26 +240,39 @@ async function montar(linhas: Record<string, unknown>[]): Promise<FaltaJustifica
       numero: l.falta_numero === null || l.falta_numero === undefined ? null : Number(l.falta_numero),
       createdAt: texto(l.created_at),
       doSistemaAnterior: Boolean(l.bubble_id),
+      canceladaEm: texto(l.cancelado_em),
+      canceladaPorId: texto(l.cancelado_por),
+      canceladaPorNome: texto(l.cancelado_por) ? (nomes.get(String(l.cancelado_por)) ?? null) : null,
     }
   })
 }
 
+/** `faltas` são as vigentes (contam no limite); `canceladas`, o histórico. */
 export async function listarFaltas(filtro: { ano?: string; funcionarioId?: string } = {}): Promise<{
   disponivel: boolean
   faltas: FaltaJustificada[]
+  canceladas: FaltaJustificada[]
 }> {
   const { disponivel, linhas } = await lerFaltas(filtro)
-  return { disponivel, faltas: await montar(linhas) }
+  const todas = await montar(linhas)
+  return {
+    disponivel,
+    faltas: todas.filter((x) => !x.canceladaEm),
+    canceladas: todas
+      .filter((x) => x.canceladaEm)
+      .sort((a, b) => String(b.canceladaEm).localeCompare(String(a.canceladaEm))),
+  }
 }
 
 /** Faltas do próprio funcionário + o uso dos limites hoje. */
 export async function minhasFaltas(usuarioId: string): Promise<{
   disponivel: boolean
   faltas: FaltaJustificada[]
+  canceladas: FaltaJustificada[]
   uso: UsoFaltas | null
   periodo: string | null
 }> {
-  const { disponivel, faltas } = await listarFaltas({ funcionarioId: usuarioId })
+  const { disponivel, faltas, canceladas } = await listarFaltas({ funcionarioId: usuarioId })
   const hoje = hojeSP()
   const admin = await createAdminClient()
   const { data } = await admin
@@ -271,6 +291,7 @@ export async function minhasFaltas(usuarioId: string): Promise<{
   return {
     disponivel,
     faltas,
+    canceladas,
     uso: usoNaData(datas, hoje),
     periodo: p ? (texto(p.act_inicio_fim) ?? inicio.slice(0, 4)) : hoje.slice(0, 4),
   }
@@ -384,8 +405,9 @@ export async function decidirFalta(
     .select("id, funcionario_id, data_falta, justificativa_tipo, autorizado, recusado")
     .eq("id", id)
     .eq("emp_proprietaria_id", await tenantAtual())
+    .is("cancelado_em", null)
     .maybeSingle()
-  if (!f) return { erro: "Falta não encontrada." }
+  if (!f) return { erro: "Falta não encontrada (ou já cancelada)." }
   if (situacaoDaFalta(f) !== "aguardando") return { erro: "Esta falta já foi decidida." }
   if (!autorizar && (!motivo || motivo.trim().length < 5)) return { erro: "Diga o motivo da recusa." }
 
@@ -437,6 +459,7 @@ export async function ultimaAutorizadaSemComprovacao(
     .eq("emp_proprietaria_id", await tenantAtual())
     .eq("funcionario_id", funcionarioId)
     .eq("autorizado", true)
+    .is("cancelado_em", null)
     .is("bubble_id", null)
     .lte("data_falta", hojeISO)
     .order("data_falta", { ascending: false })
@@ -458,6 +481,7 @@ export async function cancelarMinhaFalta(id: string, usuarioId: string): Promise
     .eq("id", id)
     .eq("funcionario_id", usuarioId)
     .eq("emp_proprietaria_id", await tenantAtual())
+    .is("cancelado_em", null)
     .maybeSingle()
   if (!f) return { erro: "Pedido não encontrado." }
   const situacao = situacaoDaFalta(f)
@@ -469,14 +493,19 @@ export async function cancelarMinhaFalta(id: string, usuarioId: string): Promise
           : "Falta recusada não pode ser cancelada.",
     }
   }
-  await admin.from("pessoal_ausencias").delete().eq("falta_id", id)
+  // Não apaga: fica no histórico (15/11/2026).
   const { error, count } = await admin
     .from("pessoal_faltas_justificadas")
-    .delete({ count: "exact" })
+    .update(
+      { cancelado_em: new Date().toISOString(), cancelado_por: usuarioId, updated_at: new Date().toISOString() },
+      { count: "exact" }
+    )
     .eq("id", id)
     .eq("funcionario_id", usuarioId)
+    .is("cancelado_em", null)
   if (error) return { erro: `Não foi possível cancelar: ${error.message}` }
   if (count === 0) return { erro: "Pedido não encontrado." }
+  await admin.from("pessoal_ausencias").delete().eq("falta_id", id)
   return {}
 }
 
@@ -494,6 +523,7 @@ export async function anexarComprovacaoMinhaFalta(
     .eq("funcionario_id", usuarioId)
     .eq("emp_proprietaria_id", await tenantAtual())
     .neq("recusado", true)
+    .is("cancelado_em", null)
     .is("comprovacao", null)
     .select("id")
   if (error) return { erro: `Não foi possível anexar: ${error.message}` }
@@ -513,23 +543,39 @@ export async function excluirFalta(
   const admin = await createAdminClient()
   const { data: f } = await admin
     .from("pessoal_faltas_justificadas")
-    .select("id, funcionario_id, data_falta, autorizado, recusado")
+    .select("id, funcionario_id, data_falta, autorizado, recusado, cancelado_em")
     .eq("id", id)
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
   if (!f) return { erro: "Falta não encontrada." }
+  if (f.cancelado_em) return { erro: "Esta falta já foi cancelada." }
   const situacao = situacaoDaFalta(f)
   if (!podeGestaoCancelar({ situacao }, quem.gestaoPessoal)) {
     return { erro: "Falta já autorizada: só quem tem a permissão de Gestão de Pessoal pode cancelar." }
   }
-  await admin.from("pessoal_ausencias").delete().eq("falta_id", id)
-  const { error, count } = await admin
-    .from("pessoal_faltas_justificadas")
-    .delete({ count: "exact" })
-    .eq("id", id)
-    .eq("emp_proprietaria_id", await tenantAtual())
-  if (error) return { erro: `Não foi possível excluir: ${error.message}` }
+  // Autorizada: CANCELA (carimbo; fica no histórico e o movimento da folha
+  // avisa a contabilidade se ela já recebeu). Aguardando ou recusada:
+  // exclusão de lançamento, como antes.
+  const emp = await tenantAtual()
+  const { error, count } =
+    situacao === "autorizada"
+      ? await admin
+          .from("pessoal_faltas_justificadas")
+          .update(
+            { cancelado_em: new Date().toISOString(), cancelado_por: quem.usuarioId, updated_at: new Date().toISOString() },
+            { count: "exact" }
+          )
+          .eq("id", id)
+          .eq("emp_proprietaria_id", emp)
+          .is("cancelado_em", null)
+      : await admin
+          .from("pessoal_faltas_justificadas")
+          .delete({ count: "exact" })
+          .eq("id", id)
+          .eq("emp_proprietaria_id", emp)
+  if (error) return { erro: `Não foi possível ${situacao === "autorizada" ? "cancelar" : "excluir"}: ${error.message}` }
   if (count === 0) return { erro: "Falta não encontrada." }
+  await admin.from("pessoal_ausencias").delete().eq("falta_id", id)
   const funcionarioId = texto(f.funcionario_id)
   if (situacao === "autorizada" && funcionarioId && funcionarioId !== quem.usuarioId) {
     const dia = texto(f.data_falta)?.slice(0, 10) ?? null
