@@ -407,3 +407,105 @@ export async function avisarNotasAReceber(
   }
   return { avisados, erros }
 }
+
+// ── Compra comum sem nota (15/11/2026) ───────────────────────────────────────
+
+/** Desde a virada: o que veio do Bubble antes não é cobrado aqui. */
+const DESDE_SEM_NOTA = "2026-09-14"
+
+export type CompraSemNota = {
+  fornecimentoId: string
+  processoId: string
+  codigo: string | null
+  produto: string | null
+  departamentoNome: string | null
+  fornecedor: string
+  valor: number | null
+  dataCompra: string | null
+  dias: number
+  comprador: string | null
+}
+
+/**
+ * Compras comuns (fora do marketplace) sem nota fiscal: nem no fornecimento
+ * nem em nenhuma ordem não cancelada dele, e sem RPA (que é o documento do
+ * autônomo). Canceladas pelo vendedor ficam de fora. A aquisição direta já
+ * exige a nota no ato; a lacuna costuma vir da compra via Aquisição.
+ */
+export async function listarComprasSemNota(escopo: EscopoCompras | null): Promise<CompraSemNota[]> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data, error } = await admin
+    .from("compras_fornecimentos")
+    .select("id, processo_id, fornecedor_id, valor, data_compra, created_at, comprador_id, ordem_pagamento_id")
+    .eq("emp_proprietaria_id", emp)
+    .is("nota_fiscal_url", null)
+    .not("nota_a_receber", "is", true)
+    .is("cancelamento_desfecho", null)
+    .gte("created_at", DESDE_SEM_NOTA)
+    .limit(500)
+  if (error || !data?.length) return []
+  const forns = data as Linha[]
+  const ids = (k: string) => [...new Set(forns.map((f) => t(f[k])).filter((v): v is string => !!v))]
+  const [procs, empresas, ordens, rpas, usuarios] = await Promise.all([
+    admin
+      .from("compras_solicitacoes")
+      .select("id, codigo, solicitacao_produto, solicitacao_departamento_id, solicitante_id, cancelado, comprado")
+      .in("id", ids("processo_id")),
+    admin.from("empresa").select("id, nome_fantasia, nome_razao, marketplace").in("id", ids("fornecedor_id")),
+    admin
+      .from("ordens_pagamento")
+      .select("id, fornecimento_id, arquivo_nota_fiscal, situacao")
+      .eq("emp_proprietaria_id", emp)
+      .in("processo_compra_id", ids("processo_id"))
+      .not("excluido", "is", true),
+    admin.from("compras_rpa").select("fornecimento_id").in("fornecimento_id", forns.map((f) => String(f.id))),
+    admin.from("usuarios").select("id, nome_completo, nome_guerra").in("id", ids("comprador_id")),
+  ])
+  const procPorId = new Map(((procs.data ?? []) as Linha[]).map((p) => [String(p.id), p]))
+  const empPorId = new Map(((empresas.data ?? []) as Linha[]).map((e) => [String(e.id), e]))
+  const usuPorId = new Map(((usuarios.data ?? []) as Linha[]).map((u) => [String(u.id), u]))
+  const comRpa = new Set(((rpas.data ?? []) as Linha[]).map((r) => String(r.fornecimento_id)))
+  const ordensValidas = ((ordens.data ?? []) as Linha[]).filter((o) => o.situacao !== "Cancelada")
+  const temNotaNaOrdem = (f: Linha) =>
+    ordensValidas.some(
+      (o) => t(o.arquivo_nota_fiscal) && (o.fornecimento_id === f.id || (f.ordem_pagamento_id && o.id === f.ordem_pagamento_id))
+    )
+  const deptos = [...new Set([...procPorId.values()].map((p) => t(p.solicitacao_departamento_id)).filter((v): v is string => !!v))]
+  const { data: dps } = deptos.length
+    ? await admin.from("empresa_departamentos").select("id, departamento").in("id", deptos)
+    : { data: [] as Linha[] }
+  const deptoPorId = new Map(((dps ?? []) as Linha[]).map((d) => [String(d.id), t(d.departamento)]))
+
+  const itens: CompraSemNota[] = []
+  for (const f of forns) {
+    const p = procPorId.get(String(f.processo_id))
+    if (!p || p.cancelado === true || p.comprado !== true) continue
+    const e = empPorId.get(String(f.fornecedor_id))
+    if (e?.marketplace === true || comRpa.has(String(f.id)) || temNotaNaOrdem(f)) continue
+    const comprador = t(f.comprador_id)
+    if (
+      escopo &&
+      comprador !== escopo.usuarioId &&
+      !compraNoEscopo(escopo, { departamentoId: t(p.solicitacao_departamento_id), solicitanteId: t(p.solicitante_id) })
+    ) {
+      continue
+    }
+    const data = t(f.data_compra) ?? t(f.created_at)?.slice(0, 10) ?? null
+    const u = comprador ? usuPorId.get(comprador) : undefined
+    itens.push({
+      fornecimentoId: String(f.id),
+      processoId: String(p.id),
+      codigo: t(p.codigo),
+      produto: t(p.solicitacao_produto),
+      departamentoNome: deptoPorId.get(String(p.solicitacao_departamento_id)) ?? null,
+      fornecedor: nomeEmpresa(e) ?? "(fornecedor)",
+      valor: f.valor === null || f.valor === undefined ? null : Number(f.valor),
+      dataCompra: data,
+      dias: diasDesde(data),
+      comprador: u ? (t(u.nome_completo) ?? t(u.nome_guerra)) : null,
+    })
+  }
+  itens.sort((a, b) => b.dias - a.dias)
+  return itens
+}

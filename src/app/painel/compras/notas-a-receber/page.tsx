@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
-import { DIAS_AVISO_NOTA, listarNotasAReceber } from "@/lib/db/compras-marketplace"
+import { DIAS_AVISO_NOTA, listarComprasSemNota, listarNotasAReceber } from "@/lib/db/compras-marketplace"
 import { creditosEmAberto, DIAS_AVISO_VALIDADE } from "@/lib/db/compras-cancelamento"
 import { DarCreditoComoPerdido, MarcarCreditoUsado } from "../[id]/cancelamento-compra"
 import { formatarData, formatarMoeda } from "@/lib/formato"
@@ -30,9 +30,10 @@ export default async function NotasAReceberPage() {
   const escopo = podeAcessar(sessao.permissoes, "aquisicoes_comprador")
     ? null
     : await escopoComprasDoUsuario(sessao.usuario.id)
-  const [{ disponivel, itens }, creditos] = await Promise.all([
+  const [{ disponivel, itens }, creditos, semNota] = await Promise.all([
     listarNotasAReceber(escopo),
     creditosEmAberto().catch(() => ({ disponivel: false, itens: [] })),
+    listarComprasSemNota(escopo).catch(() => []),
   ])
   // Quem ajusta o pagamento da compra (a action confere o escopo do processo).
   const podeMarcar = podeAcessar(sessao.permissoes, "aquisicoes_compras_edicao", [
@@ -129,6 +130,45 @@ export default async function NotasAReceberPage() {
           )}
         </CardContent>
       </Card>
+
+      {semNota.length > 0 && (
+        <Card id="sem-nota">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileClock className="size-4" />
+              {semNota.length} compra{semNota.length === 1 ? "" : "s"} sem nota fiscal
+            </CardTitle>
+            <CardDescription>
+              Compras comuns (fora do marketplace) sem nota na compra nem em nenhuma ordem dela, e sem RPA. Abra a
+              compra e anexe a nota no ícone do documento fiscal. Se o vendedor cancelou, use{" "}
+              <strong>Compra cancelada pelo vendedor</strong>.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="divide-y text-sm">
+              {semNota.map((c) => (
+                <li key={c.fornecimentoId} className="grid items-center gap-2 py-2.5 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+                  <div className="min-w-0">
+                    <p className="font-medium">{c.fornecedor}</p>
+                    <p className="text-muted-foreground truncate text-xs">
+                      <Link href={`/painel/compras/${c.processoId}`} className="text-primary hover:underline">
+                        {c.codigo ?? "(sem código)"}
+                      </Link>
+                      {c.produto ? ` · ${c.produto}` : ""}
+                      {c.departamentoNome ? ` · ${c.departamentoNome}` : ""}
+                      {c.comprador ? ` · ${c.comprador}` : ""}
+                    </p>
+                  </div>
+                  <span className="text-right tabular-nums">{formatarMoeda(c.valor)}</span>
+                  <Badge variant={c.dias >= DIAS_AVISO_NOTA ? "warning" : "outline"}>
+                    {c.dias} dia{c.dias === 1 ? "" : "s"}
+                  </Badge>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       {creditos.itens.length > 0 && (
         <Card id="creditos">
