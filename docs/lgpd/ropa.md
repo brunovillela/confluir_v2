@@ -18,7 +18,7 @@
 | P01 | [Filiação e cadastro do associado](#p01) | 18 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P02 | [Contribuições, receitas e cobranças](#p02) | 10 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista | sim |
 | P03 | [Atendimento ao filiado no portal](#p03) | 6 | identificação, **sensível: filiação/posição sindical**, credencial (segredo de acesso, nunca exportar) | sim |
-| P04 | [Oposição à contribuição assistencial](#p04) | 5 | identificação, **sensível: filiação/posição sindical**, trabalhista | sim |
+| P04 | [Oposição à contribuição assistencial](#p04) | 6 | identificação, **sensível: filiação/posição sindical**, trabalhista | sim |
 | P05 | [Assembleias e votações](#p05) | 15 | identificação, **sensível: filiação/posição sindical**, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P06 | [Representação, reuniões e agenda](#p06) | 9 | identificação, **sensível: filiação/posição sindical**, trabalhista | sim |
 | P07 | [Diretoria, mandatos e ofícios](#p07) | 8 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
@@ -194,10 +194,11 @@
 
 **Observações.** Revela posição do trabalhador sobre a contribuição: tratado como sensível sindical.
 
-<details><summary>Tabelas (5) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (6) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
+| [oposicao_carta_versoes](../dados/dicionario/filiacao.md#oposicao_carta_versoes) | identificacao | `campanha_id` (nenhum), `modelo` (nenhum), `por_id` (identificacao), `por_nome` (identificacao), `criado_em` (nenhum) |
 | [oposicao_envios_empregador](../dados/dicionario/filiacao.md#oposicao_envios_empregador) | identificacao | `usuario_id` (identificacao), `usuario_nome` (identificacao), `opositor_ids` (identificacao) |
 | [oposicao_eventos](../dados/dicionario/filiacao.md#oposicao_eventos) | identificacao, sens. sindical | `evento` (sens. sindical), `detalhe` (sens. sindical), `ip` (identificacao), `user_agent` (identificacao), `usuario_id` (identificacao) |
 | [oposicao_opositor](../dados/dicionario/filiacao.md#oposicao_opositor) | identificacao, sens. sindical, trabalhista | `cpf` (identificacao), `nome_completo` (identificacao), `nome_social` (identificacao), `sexo` (identificacao), `email` (identificacao), `telefone` (identificacao), `empresa` (trabalhista), `lotacao` (trabalhista), `matricula` (trabalhista), `nascimento` (identificacao), `carta` (sens. sindical), `avaliacao` (sens. sindical), `desistente` (sens. sindical), `situacao` (sens. sindical), `documento_assinado_url` (sens. sindical), `reprovacao_motivo` (sens. sindical), `ip` (identificacao), `user_agent` (identificacao), `assinatura_validacao` (identificacao), `cpf_digitos` (identificacao), `declaracao_aceita` (sens. sindical), `documento_enviado_em` (sens. sindical), `aviso_avaliacao_pendente_em` (nenhum), `ciencia_texto` (identificacao), `ciencia_hash` (nenhum), `ciencia_em` (identificacao), `carta_modelo` (nenhum) |
@@ -878,4 +879,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 238 de 238 tabelas com dado pessoal atribuídas a 17 processos.
+Cobertura: 239 de 239 tabelas com dado pessoal atribuídas a 17 processos.

@@ -42,6 +42,7 @@ const ROTULOS_SEGMENTO: Record<string, string> = {
   asos: "ASOs",
   anuenios: "Anuênios",
   historico: "Histórico",
+  versoes: "Versões",
   atribuicoes: "Atribuições",
   perfil: "Meu perfil",
   "dados-bancarios": "Dados bancários",

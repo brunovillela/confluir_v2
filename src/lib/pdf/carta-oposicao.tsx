@@ -8,7 +8,7 @@ import {
 } from "@react-pdf/renderer"
 
 import type { CertificacaoPDF } from "@/lib/db/minuta-assinatura"
-import { CARTA_PADRAO, dataPorExtensoSP, montarCarta, valoresDaCarta, type DadosParaCarta } from "@/lib/oposicao-carta"
+import { CARTA_PADRAO, dataPorExtensoSP, montarCarta, montarTitulo, valoresDaCarta, type DadosParaCarta } from "@/lib/oposicao-carta"
 
 /**
  * Carta PERSONALIZADA de oposição à contribuição assistencial, gerada com os
@@ -109,7 +109,9 @@ export function CartaOposicaoPDF({
 }) {
   const assinado = certificacao?.concluida ? certificacao.assinantes[0] : null
   // O corpo sai do modelo gravado na oposição (14/11/2026).
-  const corpo = montarCarta(dados.modelo ?? CARTA_PADRAO, valoresDaCarta(dados, fmtCpf))
+  const valores = valoresDaCarta(dados, fmtCpf)
+  const corpo = montarCarta(dados.modelo ?? CARTA_PADRAO, valores)
+  const titulo = montarTitulo(dados.modelo ?? CARTA_PADRAO, valores)
   return (
     <Document>
       <Page size="A4" style={s.page}>
@@ -121,9 +123,7 @@ export function CartaOposicaoPDF({
         ) : null}
         {dados.organizacao ? <Text style={s.org}>{dados.organizacao}</Text> : null}
 
-        <Text style={s.titulo}>
-          CARTA DE OPOSIÇÃO À CONTRIBUIÇÃO ASSISTENCIAL
-        </Text>
+        <Text style={s.titulo}>{titulo}</Text>
 
         {corpo.map((p, i) => (
           <Text key={i} style={p.destaque ? s.declaracao : s.corpo}>

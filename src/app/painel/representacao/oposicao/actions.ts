@@ -162,8 +162,8 @@ export async function salvarCartaAction(_prev: EstadoForm, fd: FormData): Promis
     nome: sessao.usuario.nome_completo ?? sessao.usuario.nome_guerra ?? null,
   })
   if (erro) return { erro }
-  revalidatePath("/painel/representacao/oposicao/carta")
-  if (campanhaId) revalidatePath(`/painel/representacao/oposicao/${campanhaId}/carta`)
+  revalidatePath("/painel/representacao/oposicao/carta", "layout")
+  if (campanhaId) revalidatePath(`/painel/representacao/oposicao/${campanhaId}/carta`, "layout")
   return {
     ok: restaurado
       ? campanhaId

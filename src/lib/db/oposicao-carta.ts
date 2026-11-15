@@ -117,7 +117,44 @@ export async function salvarModeloCarta(
     emp_proprietaria_id: emp,
   })
   if (erroTrilha) console.error("[oposicao] trilha da carta não gravada:", erroTrilha.message)
+  // O texto inteiro de cada versão, para ver e comparar (15/11/2026).
+  const { error: erroVersao } = await admin.from("oposicao_carta_versoes").insert({
+    emp_proprietaria_id: emp,
+    campanha_id: campanhaId,
+    modelo,
+    por_id: usuario.id,
+    por_nome: usuario.nome,
+    criado_em: campos.carta_modelo_em,
+  })
+  if (erroVersao) console.error("[oposicao] versão da carta não gravada:", erroVersao.message)
   return { restaurado: modelo === null }
+}
+
+export type VersaoCarta = {
+  id: string
+  /** O texto salvo; null = voltou ao padrão do nível de cima. */
+  modelo: string | null
+  porNome: string | null
+  em: string
+}
+
+/** As versões salvas do texto (entidade: campanhaId nulo), da mais nova à mais antiga. */
+export async function versoesDaCarta(campanhaId: string | null): Promise<VersaoCarta[]> {
+  const admin = await createAdminClient()
+  let consulta = admin
+    .from("oposicao_carta_versoes")
+    .select("id, modelo, por_nome, criado_em")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .order("criado_em", { ascending: false })
+    .limit(200)
+  consulta = campanhaId ? consulta.eq("campanha_id", campanhaId) : consulta.is("campanha_id", null)
+  const { data } = await consulta
+  return (data ?? []).map((v) => ({
+    id: String(v.id),
+    modelo: texto(v.modelo),
+    porNome: texto(v.por_nome),
+    em: String(v.criado_em),
+  }))
 }
 
 /**

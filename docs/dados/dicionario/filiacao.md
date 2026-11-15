@@ -2,7 +2,7 @@
 
 # Filiação e portal do associado
 
-60 tabelas. Diagrama: [er/filiacao.md](../er/filiacao.md).
+61 tabelas. Diagrama: [er/filiacao.md](../er/filiacao.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -49,6 +49,7 @@
 | [fonte_categorias](#fonte_categorias) | — | Categorias de fonte pagadora criadas pela entidade além de Empregador e Fundo de pensão; usadas na configuração da saúde dos cadastros. |
 | [oposicao_campanha](#oposicao_campanha) | — | Campanhas de oposição à contribuição assistencial: empresa, prazo, vídeos obrigatórios, modo de formalização e texto da declaração. Migrado … |
 | [oposicao_campanha_fontes](#oposicao_campanha_fontes) | — | Empresas (fontes pagadoras) abrangidas por cada campanha de oposição. |
+| [oposicao_carta_versoes](#oposicao_carta_versoes) | identificação | Cada texto salvo da carta de oposição (padrão da entidade ou de uma campanha), com autor e data, para ver e comparar versões. Só insere (15/… |
 | [oposicao_envios_empregador](#oposicao_envios_empregador) | identificação | Cada envio, a um empregador, da relação de oposições aprovadas de uma campanha: quem enviou, quando, por qual meio e quais oposições foram (… |
 | [oposicao_eventos](#oposicao_eventos) | **sensível: sindical**, identificação | Trilha de eventos de cada carta de oposição (enviada, confirmada, avaliada, desistência...), com IP e navegador. |
 | [oposicao_opositor](#oposicao_opositor) | **sensível: sindical**, identificação, trabalhista | Cada trabalhador que se opôs à contribuição assistencial numa campanha: dados pessoais, vínculo, carta/documento assinado, avaliação e desis… |
@@ -1361,6 +1362,26 @@ Empresas (fontes pagadoras) abrangidas por cada campanha de oposição.
 Únicas: `UNIQUE (campanha_id, empresa_id)`
 
 Índices: `idx_oposicao_campanha_fontes_campanha`, `oposicao_campanha_fontes_campanha_id_empresa_id_key`, `oposicao_campanha_fontes_pkey`
+
+## oposicao_carta_versoes
+
+Cada texto salvo da carta de oposição (padrão da entidade ou de uma campanha), com autor e data, para ver e comparar versões. Só insere (15/11/2026).
+
+- **LGPD:** identificação · titulares: usuários do sistema
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `oposicao_carta_versoes_imutavel` → `oposicao_carta_versoes_imutavel`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `campanha_id` | uuid | sim |  | → oposicao_campanha (**cascade**) | nenhum | Campanha do texto; nulo = padrão da entidade. |
+| `modelo` | text | sim |  |  | nenhum | O texto salvo, com as referências; nulo = voltou ao padrão (do sistema, na entidade; da entidade, na campanha). |
+| `por_id` | uuid | sim |  |  | identificação | Quem salvou. |
+| `por_nome` | text | sim |  |  | identificação | Nome de quem salvou, no momento. |
+| `criado_em` | timestamp with time zone | não | `now()` |  | nenhum | Quando salvou. |
+
+Índices: `oposicao_carta_versoes_nivel_idx`, `oposicao_carta_versoes_pkey`
 
 ## oposicao_envios_empregador
 

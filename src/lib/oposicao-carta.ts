@@ -11,7 +11,10 @@
  * - {trecho} é OPCIONAL: some inteiro se alguma referência dentro dele estiver
  *   vazia (ex.: "{, matrícula [MATRICULA]}" para quem não tem matrícula);
  * - **texto** sai em negrito;
- * - um parágrafo só com [DECLARACAO] sai em destaque (caixa cinza), como antes.
+ * - um parágrafo só com [DECLARACAO] sai em destaque (caixa cinza), como antes;
+ * - um primeiro parágrafo "# Título" troca o título da carta (15/11/2026); sem
+ *   ele, vale TITULO_PADRAO. O título vai no próprio modelo para ficar
+ *   congelado na oposição junto com o texto (e entrar no resumo da assinatura).
  *
  * Cada oposição guarda o modelo que valia quando foi registrada
  * (oposicao_opositor.carta_modelo): mudar o texto depois não muda carta já
@@ -54,6 +57,35 @@ export const CARTA_PADRAO = [
 
 export const MAX_CARTA_MODELO = 8000
 
+export const TITULO_PADRAO = "CARTA DE OPOSIÇÃO À CONTRIBUIÇÃO ASSISTENCIAL"
+export const MAX_TITULO_CARTA = 200
+
+/**
+ * Separa o título ("# …" no primeiro parágrafo) do corpo. Sem título no
+ * modelo, `titulo` é nulo (vale TITULO_PADRAO).
+ */
+export function separarTitulo(modelo: string): { titulo: string | null; corpo: string } {
+  const texto = normalizarModeloCarta(modelo)
+  const m = /^#[ \t]*([^\n]*)(?:\n|$)/.exec(texto)
+  if (!m) return { titulo: null, corpo: texto }
+  return { titulo: m[1].trim() || null, corpo: texto.slice(m[0].length).trim() }
+}
+
+/** Junta título e corpo no modelo; o título padrão não é gravado (segue o do sistema). */
+export function juntarTitulo(titulo: string | null | undefined, corpo: string): string {
+  const t = (titulo ?? "").replace(/\s+/g, " ").trim()
+  const c = normalizarModeloCarta(corpo)
+  return !t || t === TITULO_PADRAO ? c : `# ${t}\n\n${c}`
+}
+
+/** O título da carta com as referências trocadas (trecho opcional vale também). */
+export function montarTitulo(modelo: string, valores: ValoresCarta): string {
+  const { titulo } = separarTitulo(modelo)
+  if (!titulo) return TITULO_PADRAO
+  const montado = cartaEmTexto(montarCorpo(titulo, valores)).replace(/\s+/g, " ").trim()
+  return montado || TITULO_PADRAO
+}
+
 export type ValoresCarta = Partial<Record<string, string | null>>
 
 export type TrechoCarta = { texto: string; negrito: boolean }
@@ -95,7 +127,11 @@ export function conferirModeloCarta(modelo: string): string[] {
       break
     }
   }
-  const foraDosOpcionais = texto.replace(/\{[^{}]*\}/g, "")
+  const { titulo, corpo } = separarTitulo(texto)
+  if (titulo && titulo.length > MAX_TITULO_CARTA) erros.push(`O título passa de ${MAX_TITULO_CARTA} caracteres.`)
+  if (titulo?.includes("**")) erros.push("O título já sai em negrito: tire os ** dele.")
+  if (!corpo) erros.push("A carta só tem título: falta o texto.")
+  const foraDosOpcionais = corpo.replace(/\{[^{}]*\}/g, "")
   for (const obrigatoria of ["NOME_COMPLETO", "CPF"]) {
     if (!foraDosOpcionais.includes(`[${obrigatoria}]`)) {
       erros.push(`A carta precisa de [${obrigatoria}] fora de trecho opcional, para identificar quem se opõe.`)
@@ -116,8 +152,12 @@ function trocar(texto: string, valores: ValoresCarta): string {
  * referência vazia some; parágrafo que fica vazio some.
  */
 export function montarCarta(modelo: string, valores: ValoresCarta): ParagrafoCarta[] {
+  return montarCorpo(separarTitulo(modelo).corpo, valores)
+}
+
+function montarCorpo(corpo: string, valores: ValoresCarta): ParagrafoCarta[] {
   const paragrafos: ParagrafoCarta[] = []
-  for (const bruto of normalizarModeloCarta(modelo).split(/\n\s*\n/)) {
+  for (const bruto of normalizarModeloCarta(corpo).split(/\n\s*\n/)) {
     const soDeclaracao = bruto.trim() === "[DECLARACAO]"
     // {trecho}: some se alguma referência dentro dele estiver vazia.
     const semOpcionais = bruto.replace(/\{([^{}]*)\}/g, (_m, dentro: string) => {

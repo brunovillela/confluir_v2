@@ -1,4 +1,4 @@
-import { CARTA_PADRAO, montarCarta, valoresDaCarta, type DadosParaCarta } from "@/lib/oposicao-carta"
+import { CARTA_PADRAO, montarCarta, montarTitulo, valoresDaCarta, type DadosParaCarta } from "@/lib/oposicao-carta"
 
 /**
  * O texto da carta de oposição na tela — o mesmo do PDF, montado do mesmo
@@ -15,11 +15,13 @@ export function CartaTexto({
   modelo: string | null
   formatarCpf: (cpf: string) => string
 }) {
-  const corpo = montarCarta(modelo ?? CARTA_PADRAO, valoresDaCarta(dados, formatarCpf))
+  const valores = valoresDaCarta(dados, formatarCpf)
+  const corpo = montarCarta(modelo ?? CARTA_PADRAO, valores)
+  const titulo = montarTitulo(modelo ?? CARTA_PADRAO, valores)
   return (
     <div className="bg-muted/40 grid gap-3 rounded-md border p-4 text-sm">
-      <p className="text-center text-xs font-semibold tracking-wide uppercase">
-        Carta de oposição à contribuição assistencial
+      <p className="text-center text-xs font-semibold tracking-wide">
+        {titulo}
       </p>
       {corpo.map((p, i) => (
         <p

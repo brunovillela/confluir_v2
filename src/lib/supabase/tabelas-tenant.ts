@@ -170,6 +170,7 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "oficios",
   "oposicao_campanha",
   "oposicao_campanha_fontes",
+  "oposicao_carta_versoes",
   "oposicao_envios_empregador",
   "filiacao_repasse_regras",
   "filiacao_repasse_eventos",

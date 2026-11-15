@@ -25,7 +25,7 @@ Gerado a partir do banco de produção (catálogo do Postgres + comentários). *
 
 | Módulo | Tabelas | Com dado pessoal | Dicionário | Diagrama |
 |---|---|---|---|---|
-| Filiação e portal do associado | 60 | 40 | [dicionario/filiacao.md](dicionario/filiacao.md) | [er/filiacao.md](er/filiacao.md) |
+| Filiação e portal do associado | 61 | 41 | [dicionario/filiacao.md](dicionario/filiacao.md) | [er/filiacao.md](er/filiacao.md) |
 | Empregadores e grupos empresariais | 4 | 0 | [dicionario/empregadores.md](dicionario/empregadores.md) | [er/empregadores.md](er/empregadores.md) |
 | Votações e assembleias | 33 | 15 | [dicionario/votacao.md](dicionario/votacao.md) | [er/votacao.md](er/votacao.md) |
 | Representação, acordos e negociações | 30 | 14 | [dicionario/representacao.md](dicionario/representacao.md) | [er/representacao.md](er/representacao.md) |

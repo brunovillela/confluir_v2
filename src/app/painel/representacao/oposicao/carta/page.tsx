@@ -3,7 +3,7 @@ import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { campanhasQueSeguemAEntidade, cartaDaEntidade } from "@/lib/db/oposicao-carta"
+import { campanhasQueSeguemAEntidade, cartaDaEntidade, versoesDaCarta } from "@/lib/db/oposicao-carta"
 import { podeNaOposicao, regrasDaEntidade, requireOposicao } from "@/lib/db/oposicao-regras"
 import { nomeEntidade } from "@/lib/db/organizacao"
 import { formatarDataHora } from "@/lib/formato"
@@ -11,6 +11,7 @@ import { DECLARACAO_PADRAO } from "@/lib/oposicao-constantes"
 import { CARTA_PADRAO } from "@/lib/oposicao-carta"
 
 import { EditorCarta } from "../editor-carta"
+import { opcoesDeVersao } from "../versoes-carta"
 
 export const metadata: Metadata = { title: "Carta de oposição — Oposição — Confluir" }
 
@@ -19,14 +20,22 @@ export const metadata: Metadata = { title: "Carta de oposição — Oposição �
  * referências que viram os dados de cada pessoa. Vale para as campanhas sem
  * texto próprio.
  */
-export default async function CartaOposicaoPage() {
+export default async function CartaOposicaoPage({ searchParams }: { searchParams: Promise<{ versao?: string }> }) {
   const sessao = await requireOposicao("consultar")
-  const [carta, entidade, nome, seguem] = await Promise.all([
+  const [{ versao }, carta, entidade, nome, seguem, versoes] = await Promise.all([
+    searchParams,
     cartaDaEntidade(),
     regrasDaEntidade(),
     nomeEntidade(),
     campanhasQueSeguemAEntidade(),
+    versoesDaCarta(null),
   ])
+  // "Abrir no editor" numa versão antiga (15/11/2026): o texto dela, ainda não salvo.
+  const aberta = versao
+    ? opcoesDeVersao({ campanha: false, versoes, versoesEntidade: versoes, entidadeAtual: carta.modelo }).find(
+        (o) => o.id === versao && o.versao
+      )
+    : undefined
   const abertas = seguem.filter((c) => c.situacao === "aberta")
   const avisoAoSalvar =
     seguem.length === 0
@@ -64,6 +73,13 @@ export default async function CartaOposicaoPage() {
         exemplo={{ ENTIDADE: nome, DECLARACAO: DECLARACAO_PADRAO }}
         pdfHref="/painel/representacao/oposicao/carta/exemplo"
         avisoAoSalvar={avisoAoSalvar}
+        versoesHref="/painel/representacao/oposicao/carta/versoes"
+        rascunho={aberta?.texto ?? null}
+        aviso={
+          aberta
+            ? `Aberta a versão de ${aberta.rotulo}. Nada mudou ainda: revise e salve para ela voltar a valer.`
+            : null
+        }
       />
     </>
   )

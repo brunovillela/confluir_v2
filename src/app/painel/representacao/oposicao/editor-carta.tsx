@@ -1,20 +1,28 @@
 "use client"
 
 import { useActionState, useMemo, useRef, useState } from "react"
-import { FileText, Loader2, RotateCw, Scale } from "lucide-react"
+import Link from "next/link"
+import { FileText, History, Loader2, RotateCw, Scale } from "lucide-react"
 
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
   conferirModeloCarta,
   dataPorExtensoSP,
+  juntarTitulo,
   MAX_CARTA_MODELO,
+  MAX_TITULO_CARTA,
   montarCarta,
+  montarTitulo,
+  normalizarModeloCarta,
   REFERENCIAS_CARTA,
+  separarTitulo,
+  TITULO_PADRAO,
   valoresDeExemplo,
   type ValoresCarta,
 } from "@/lib/oposicao-carta"
@@ -36,7 +44,16 @@ export function EditorCarta({
   exemplo,
   pdfHref,
   avisoAoSalvar = null,
+  rascunho = null,
+  versoesHref,
+  aviso = null,
 }: {
+  /** Texto para abrir no editor no lugar do salvo (ex.: uma versão antiga), ainda não salvo. */
+  rascunho?: string | null
+  /** A página das versões salvas, para ver e comparar (15/11/2026). */
+  versoesHref: string
+  /** Aviso acima do editor (ex.: "abriu a versão de …"). */
+  aviso?: string | null
   campanhaId?: string | null
   /** O texto que vale agora neste nível (o próprio ou o herdado). */
   inicial: string
@@ -54,31 +71,43 @@ export function EditorCarta({
 }) {
   const [estado, acao, pendente] = useActionState(salvarCartaAction, {})
   const envio = useEnvioFormulario(acao, estado)
-  const [modelo, setModelo] = useState(inicial)
+  // O título fica num campo à parte; no modelo, vai como "# Título" (15/11/2026).
+  const partida = separarTitulo(rascunho ?? inicial)
+  const [titulo, setTitulo] = useState(partida.titulo ?? TITULO_PADRAO)
+  const [corpo, setCorpo] = useState(partida.corpo)
   const [semMatricula, setSemMatricula] = useState(false)
   const [semEmpresa, setSemEmpresa] = useState(false)
   const campo = useRef<HTMLTextAreaElement>(null)
+  const modelo = juntarTitulo(titulo, corpo)
 
   const erros = useMemo(() => conferirModeloCarta(modelo), [modelo])
-  const previa = useMemo(() => {
+  const valoresPrevia = useMemo(() => {
     const v = { ...valoresDeExemplo({ matricula: semMatricula, empresa: semEmpresa }) }
     for (const [k, val] of Object.entries(exemplo)) if (val) v[k] = val
     if (exemplo.DETALHE_DESCONTO) v.DESCONTO = `de ${exemplo.DETALHE_DESCONTO}`
-    return montarCarta(modelo, v)
-  }, [modelo, semMatricula, semEmpresa, exemplo])
-  const alterado = modelo.trim() !== inicial.trim()
+    return v
+  }, [semMatricula, semEmpresa, exemplo])
+  const previa = useMemo(() => montarCarta(modelo, valoresPrevia), [modelo, valoresPrevia])
+  const tituloPrevia = useMemo(() => montarTitulo(modelo, valoresPrevia), [modelo, valoresPrevia])
+  const alterado = modelo !== normalizarModeloCarta(inicial)
+
+  function desfazer() {
+    const p = separarTitulo(inicial)
+    setTitulo(p.titulo ?? TITULO_PADRAO)
+    setCorpo(p.corpo)
+  }
 
   function inserir(chave: string) {
     const el = campo.current
     const ref = `[${chave}]`
     if (!el) {
-      setModelo((m) => m + ref)
+      setCorpo((m) => m + ref)
       return
     }
-    const ini = el.selectionStart ?? modelo.length
-    const fim = el.selectionEnd ?? modelo.length
-    const novo = modelo.slice(0, ini) + ref + modelo.slice(fim)
-    setModelo(novo)
+    const ini = el.selectionStart ?? corpo.length
+    const fim = el.selectionEnd ?? corpo.length
+    const novo = corpo.slice(0, ini) + ref + corpo.slice(fim)
+    setCorpo(novo)
     requestAnimationFrame(() => {
       el.focus()
       el.setSelectionRange(ini + ref.length, ini + ref.length)
@@ -94,19 +123,36 @@ export function EditorCarta({
           Cada alteração fica registrada com o autor e a data; quem já se opôs mantém a carta que registrou.
         </AlertDescription>
       </Alert>
+      {aviso && (
+        <Alert variant="info">
+          <History />
+          <AlertDescription>{aviso}</AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <form action={acao} {...envio} className="grid content-start gap-3">
           {campanhaId && <input type="hidden" name="campanha_id" value={campanhaId} />}
-          <Label htmlFor="carta_modelo">Texto da carta (modelo)</Label>
+          <input type="hidden" name="carta_modelo" value={modelo} />
+          <Label htmlFor="carta_titulo">Título da carta</Label>
+          <Input
+            id="carta_titulo"
+            value={titulo}
+            maxLength={MAX_TITULO_CARTA}
+            onChange={(e) => setTitulo(e.target.value)}
+            onBlur={() => {
+              if (!titulo.trim()) setTitulo(TITULO_PADRAO)
+            }}
+            readOnly={!podeEditar}
+          />
+          <Label htmlFor="carta_corpo">Texto da carta (modelo)</Label>
           <Textarea
             ref={campo}
-            id="carta_modelo"
-            name="carta_modelo"
+            id="carta_corpo"
             rows={16}
             maxLength={MAX_CARTA_MODELO}
-            value={modelo}
-            onChange={(e) => setModelo(e.target.value)}
+            value={corpo}
+            onChange={(e) => setCorpo(e.target.value)}
             readOnly={!podeEditar}
             className="font-mono text-xs leading-relaxed"
           />
@@ -121,7 +167,10 @@ export function EditorCarta({
             <li>
               <code>**OPOSIÇÃO**</code> sai em negrito. Um parágrafo só com <code>[DECLARACAO]</code> sai em destaque.
             </li>
-            <li>O título, o protocolo, a data e a assinatura ficam fora do texto e sempre saem.</li>
+            <li>
+              O título aceita as referências (ex.: <code>[CAMPANHA]</code>). O protocolo, a data e a assinatura ficam
+              fora do texto e sempre saem.
+            </li>
           </ul>
 
           {erros.length > 0 && (
@@ -151,25 +200,33 @@ export function EditorCarta({
             </Alert>
           )}
 
-          {podeEditar && (
-            <div className="flex flex-wrap gap-2">
-              <Button type="submit" disabled={pendente || erros.length > 0 || !alterado}>
-                {pendente && <Loader2 className="animate-spin" />}
-                Salvar texto
-              </Button>
-              {alterado && (
-                <Button type="button" variant="ghost" onClick={() => setModelo(inicial)} disabled={pendente}>
-                  Desfazer as mudanças
+          <div className="flex flex-wrap gap-2">
+            {podeEditar && (
+              <>
+                <Button type="submit" disabled={pendente || erros.length > 0 || !alterado}>
+                  {pendente && <Loader2 className="animate-spin" />}
+                  Salvar texto
                 </Button>
-              )}
-              {proprio && !alterado && (
-                <Button type="submit" variant="outline" name="restaurar" value="1" disabled={pendente}>
-                  <RotateCw />
-                  {rotuloRestaurar}
-                </Button>
-              )}
-            </div>
-          )}
+                {alterado && (
+                  <Button type="button" variant="ghost" onClick={desfazer} disabled={pendente}>
+                    Desfazer as mudanças
+                  </Button>
+                )}
+                {proprio && !alterado && (
+                  <Button type="submit" variant="outline" name="restaurar" value="1" disabled={pendente}>
+                    <RotateCw />
+                    {rotuloRestaurar}
+                  </Button>
+                )}
+              </>
+            )}
+            <Button type="button" variant="ghost" asChild>
+              <Link href={versoesHref}>
+                <History />
+                Versões e comparação
+              </Link>
+            </Button>
+          </div>
         </form>
 
         <div className="grid content-start gap-3">
@@ -226,7 +283,7 @@ export function EditorCarta({
           </div>
         </div>
         <div className="bg-background mx-auto grid w-full max-w-2xl gap-3 rounded-md border p-6 text-sm leading-relaxed shadow-sm">
-          <p className="text-center font-semibold">CARTA DE OPOSIÇÃO À CONTRIBUIÇÃO ASSISTENCIAL</p>
+          <p className="text-center font-semibold">{tituloPrevia}</p>
           {previa.map((p, i) => (
             <p
               key={i}
