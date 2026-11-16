@@ -610,3 +610,113 @@ export function indicadoresDe(
 export function anosDaBase(base: BasePonto): string[] {
   return [...new Set(base.remessas.map((r) => r.competencia.slice(0, 4)))].sort().reverse()
 }
+
+// ── Comparação entre anos (16/11/2026) ───────────────────────────────────────
+
+export type AnoComparado = {
+  ano: string
+  /** Meses com remessa no ano (para o funcionário: meses com registro). */
+  meses: number
+  /** Último mês (1..12) com remessa/registro no ano. */
+  ultimoMes: number
+  funcionarios: number
+  comHE: number
+  he: number
+  he100: number
+  /** Horas extras por mês com remessa — compara anos incompletos. */
+  heMediaMes: number
+  heMediaFuncionario: number
+  /** Banco de horas na última remessa do ano de cada um. */
+  saldo: number
+  atestados: number
+  diasAtestado: number
+  faltasInjustificadas: number
+  ocorrencias: number
+  emAtencao: number
+  alertas: string[]
+  /** Horas extras de cada mês (jan..dez); null = sem remessa/registro no mês. */
+  mensal: (number | null)[]
+}
+
+export type ComparacaoAnos = {
+  /** Do mais recente ao mais antigo. */
+  anos: AnoComparado[]
+  /** Ano mais recente × o anterior nos mesmos meses (jan até o último mês do mais recente). */
+  mesmoPeriodo: {
+    ate: number
+    atual: { ano: string; he: number; he100: number; meses: number }
+    anterior: { ano: string; he: number; he100: number; meses: number }
+  } | null
+}
+
+/**
+ * Os indicadores de cada ano lado a lado, para a entidade, um departamento
+ * (o de hoje, como no resto da tela) ou um funcionário.
+ */
+export function comparacaoAnos(base: BasePonto, recorte: { departamento?: string; funcionarioId?: string } = {}): ComparacaoAnos {
+  const noRecorte = (r: RegistroAnalise) =>
+    (!recorte.departamento || r.departamento.chave === recorte.departamento) &&
+    (!recorte.funcionarioId || r.funcionarioId === recorte.funcionarioId)
+  const regs = base.registros.filter(noRecorte)
+  const anos = [...new Set(regs.map((r) => r.competencia.slice(0, 4)))].sort().reverse()
+
+  const linhas: AnoComparado[] = []
+  for (const ano of anos) {
+    const ind = recorte.departamento
+      ? indicadoresDe(base, { escopo: "departamento", ano, departamento: recorte.departamento })
+      : indicadoresDe(base, { escopo: "ano", ano })
+    const pessoas = recorte.funcionarioId ? ind.pessoas.filter((p) => p.id === recorte.funcionarioId) : ind.pessoas
+    const doAno = regs.filter((r) => r.competencia.startsWith(ano))
+    const meses = [...new Set(doAno.map((r) => r.competencia))]
+    const mensal: (number | null)[] = Array.from({ length: 12 }, () => null)
+    for (const r of doAno) {
+      const i = Number(r.competencia.slice(5, 7)) - 1
+      mensal[i] = r2((mensal[i] ?? 0) + r.he)
+    }
+    // Mês com remessa e sem ninguém do recorte conta como zero, não como vazio.
+    if (!recorte.funcionarioId) {
+      for (const rem of base.remessas) {
+        if (rem.competencia.startsWith(ano)) mensal[Number(rem.competencia.slice(5, 7)) - 1] ??= 0
+      }
+    }
+    const nMeses = recorte.funcionarioId ? meses.length : mensal.filter((v) => v !== null).length
+    const he = doAno.reduce((s, r) => s + r.he, 0)
+    const soma = (f: (p: FuncionarioAnalise) => number) => pessoas.reduce((s, p) => s + f(p), 0)
+    linhas.push({
+      ano,
+      meses: nMeses,
+      ultimoMes: Math.max(0, ...mensal.map((v, i) => (v === null ? 0 : i + 1))),
+      funcionarios: pessoas.length,
+      comHE: pessoas.filter((p) => p.he > 0).length,
+      he: r2(he),
+      he100: r2(doAno.reduce((s, r) => s + r.he100, 0)),
+      heMediaMes: r2(he / Math.max(1, nMeses)),
+      heMediaFuncionario: r2(he / Math.max(1, pessoas.length)),
+      saldo: r2(soma((p) => p.saldo)),
+      atestados: soma((p) => p.atestados),
+      diasAtestado: soma((p) => p.diasAtestado),
+      faltasInjustificadas: soma((p) => p.faltasInjustificadas),
+      ocorrencias: soma((p) => Object.values(p.ocorrencias).reduce((s, x) => s + x, 0)),
+      emAtencao: pessoas.filter((p) => p.alertas.length > 0).length,
+      alertas: recorte.funcionarioId ? (pessoas[0]?.alertas ?? []) : [],
+      mensal,
+    })
+  }
+
+  let mesmoPeriodo: ComparacaoAnos["mesmoPeriodo"] = null
+  const [atual, anterior] = linhas
+  if (atual && anterior && Number(anterior.ano) === Number(atual.ano) - 1 && atual.ultimoMes > 0 && atual.ultimoMes < 12) {
+    const ate = atual.ultimoMes
+    const recortar = (l: AnoComparado) => {
+      const doPeriodo = regs.filter((r) => r.competencia.startsWith(l.ano) && Number(r.competencia.slice(5, 7)) <= ate)
+      return {
+        ano: l.ano,
+        he: r2(doPeriodo.reduce((s, r) => s + r.he, 0)),
+        he100: r2(doPeriodo.reduce((s, r) => s + r.he100, 0)),
+        meses: l.mensal.slice(0, ate).filter((v) => v !== null).length,
+      }
+    }
+    mesmoPeriodo = { ate, atual: recortar(atual), anterior: recortar(anterior) }
+  }
+  return { anos: linhas, mesmoPeriodo }
+}

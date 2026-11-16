@@ -5,10 +5,10 @@ import { ArrowLeft } from "lucide-react"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Button } from "@/components/ui/button"
 import { requirePermissao } from "@/lib/auth"
-import { anosDaBase, carregarBasePonto, indicadoresDe, rotuloCompetenciaPonto } from "@/lib/db/ponto-analise"
+import { anosDaBase, carregarBasePonto, comparacaoAnos, indicadoresDe, rotuloCompetenciaPonto } from "@/lib/db/ponto-analise"
 import { obterResenha } from "@/lib/db/ponto-resenha"
 
-import { CartaoResenha, PainelIndicadores } from "./componentes"
+import { CartaoResenha, ComparacaoAnosCard, PainelIndicadores } from "./componentes"
 
 export const metadata: Metadata = { title: "Indicadores do ponto — Confluir" }
 // A resenha da IA pode levar perto de um minuto.
@@ -79,6 +79,12 @@ export default async function AnalisePontoPage({
       </nav>
 
       <PainelIndicadores ind={ind} hrefDepartamento={departamento ? undefined : (d) => href(ano, d)} />
+
+      <ComparacaoAnosCard
+        comp={comparacaoAnos(base, { departamento: departamento ?? undefined })}
+        faixa100={base.faixas["100"]}
+        hrefAno={(a) => href(a, departamento)}
+      />
 
       <CartaoResenha
         disponivel={disponivel}

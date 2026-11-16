@@ -235,6 +235,59 @@ problema. Há três recortes, cada um com os seus indicadores e a sua resenha:
   </Passo>
 </PassoAPasso>
 
+### Ajustar as marcações lidas pela IA
+
+A leitura do espelho pode errar um horário ou pular um dia. Na página do
+funcionário no mês (**Ponto → funcionário → o mês**), cada linha de
+**Marcações dia a dia** tem o lápis para ajustar: digite as batidas na ordem
+(entrada, saída, entrada, saída… — "08:00 12:00 13:00 17:00"; "8h", "0800" e
+"8:00-12:00" também valem), a ocorrência quando não houve trabalho (Folga,
+Feriado, Atestado…) e, se quiser, o motivo. **Retirar o dia** tira um dia que
+não deveria estar lá. **Incluir dia** acrescenta um dia que faltou — também
+serve para registrar as marcações de um mês sem espelho ou com espelho
+escaneado, que a IA não lê.
+
+O dia corrigido ganha o selo **Ajustado** (ou **Incluído**), e os alertas e
+indicadores passam a usar o que foi digitado. A seta circular volta o dia ao
+que o espelho trazia. O quadro **Ajustes nas marcações**, no fim da página,
+guarda cada mudança com o que era antes, o motivo, quem fez e quando; o dia
+retirado volta por ali, em **Voltar ao espelho**. Ler o espelho de novo não
+desfaz o que foi ajustado à mão.
+
+As horas lançadas no registro (realizadas, pagas, banco) não mudam com o
+ajuste — para elas, use **Editar** no alto da página.
+
+<Print src="pessoal/ponto-marcacoes-ajuste.png" alt="Marcações dia a dia de março com o dia 03/03 aberto para ajuste: a linha lida com 07:05 12:05 12:35 19:35 e os alertas de jornada acima de 10 h e intervalo menor que 1 h; abaixo, o formulário com as batidas corrigidas para 07:05 12:05 13:05 19:35, a ocorrência vazia, o motivo e os botões Salvar, Retirar o dia e Cancelar; no alto, Incluir dia." legenda="Ajustar um dia: as batidas na ordem, a ocorrência e o motivo." />
+
+<Print src="pessoal/ponto-marcacoes-ajustes.png" alt="Marcações dia a dia depois do ajuste: o dia 03/03 com 07:05 12:05 13:05 19:35, o selo Ajustado, intervalo de 1h00 e só o alerta de jornada acima de 10 h, com o lápis e a seta circular para voltar ao espelho." legenda="O dia ajustado: o alerta de intervalo saiu, e a seta volta ao que o espelho trazia." />
+
+### Comparação entre anos
+
+Com mais de um ano de remessas, os indicadores do ano (e os do departamento)
+trazem o quadro **Comparação entre anos**: horas extras, média por mês, média
+por funcionário no mês, horas na faixa 2, banco de horas no fim do ano,
+atestados, faltas injustificadas, ocorrências das marcações e funcionários em
+atenção, um ano em cada coluna (até cinco). Abaixo de cada número vem a
+variação sobre o ano anterior, calculada pela **média por mês com remessa**,
+porque o ano corrente ainda está pela metade. Em laranja, piorou; em verde,
+melhorou.
+
+Acima da tabela, o **mesmo período** compara as horas extras de janeiro até o
+último mês com remessa do ano corrente com os mesmos meses do ano anterior. O
+gráfico põe as horas extras de cada mês lado a lado, ano a ano.
+
+A página do funcionário no Ponto tem o mesmo quadro, com os números só dele.
+
+<Print src="pessoal/ponto-comparacao-anos.png" alt="Quadro Comparação entre anos nos indicadores do ponto: o mesmo período de janeiro a março com as horas extras de 2026 contra as de 2025 e a variação; a tabela com 2026 e 2025 lado a lado (meses com remessa, funcionários, horas extras, média por mês com a variação, banco de horas, atestados, ocorrências e em atenção) e o gráfico das horas extras por mês de cada ano." legenda="Anos lado a lado: a variação vem pela média mensal e o mesmo período compara meses iguais." />
+
+### Relatório do ponto por funcionário
+
+Na página do funcionário no Ponto, **Relatório do ponto (PDF)** gera um
+documento para arquivar ou levar a uma conversa. Ele traz a ficha (matrícula,
+cargo, departamento, admissão), a comparação entre anos, os alertas de cada
+ano, o mês a mês (horas extras e pagas, banco nas duas faixas, atestados,
+faltas e ocorrências das marcações) e as isenções de registro.
+
 <Print src="pessoal/ponto-indicadores.png" alt="Aba Indicadores e resenha da remessa, com os totais de horas extras, as ocorrências tiradas das marcações e os funcionários em atenção." legenda="Indicadores da remessa: horas, ocorrências nas marcações e quem merece atenção." />
 
 <Print src="pessoal/ponto-resenha.png" alt="Resenha da IA com o panorama, os riscos trabalhistas classificados por gravidade e os funcionários a acompanhar." legenda="A resenha da IA: riscos com o fundamento legal e quem acompanhar de perto." />

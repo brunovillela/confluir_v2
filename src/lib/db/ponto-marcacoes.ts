@@ -4,6 +4,7 @@ import { extractText, getDocumentProxy } from "unpdf"
 
 import { esquemaAusente, texto } from "@/lib/db/comum"
 import { gerarJsonIADePdf, type EsquemaJsonIA } from "@/lib/ia"
+import { mesclarLeitura, type MarcacoesEspelho } from "@/lib/ponto-marcacoes-ajuste"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
@@ -16,20 +17,8 @@ import { createAdminClient } from "@/lib/supabase/admin"
  * pelo custo), e a análise deles usa só os números de horas extras.
  */
 
-export type DiaMarcado = {
-  /** AAAA-MM-DD */
-  data: string
-  /** Texto da ocorrência do dia (Feriado, Férias, Falta, Atestado, Folga…) ou null. */
-  ocorrencia: string | null
-  /** Batidas em ordem: entrada, saída, entrada, saída… (HH:MM). */
-  marcacoes: string[]
-}
-
-export type MarcacoesEspelho = {
-  departamento: string | null
-  carga_diaria: string | null
-  dias: DiaMarcado[]
-}
+// Tipos na parte pura (o ajuste à mão também os usa — lib/ponto-marcacoes-ajuste).
+export type { DiaMarcado, MarcacoesEspelho } from "@/lib/ponto-marcacoes-ajuste"
 
 export type OcorrenciasJornada = {
   diasTrabalhados: number
@@ -88,7 +77,7 @@ Não invente horários: dia sem batida tem "marcacoes": [].`
 /** Lê o espelho de um registro e guarda as marcações. */
 export async function lerEspelhoDoRegistro(registroId: string): Promise<{ erro?: string; pulado?: string }> {
   const admin = await createAdminClient()
-  const { data: reg } = await admin.from("pessoal_registro_ponto").select("id, arquivo").eq("id", registroId).maybeSingle()
+  const { data: reg } = await admin.from("pessoal_registro_ponto").select("id, arquivo, marcacoes").eq("id", registroId).maybeSingle()
   const caminho = texto(reg?.arquivo)
   if (!reg || !caminho) return { pulado: "Registro sem espelho." }
   const gravar = (campos: Record<string, unknown>) =>
@@ -124,7 +113,8 @@ export async function lerEspelhoDoRegistro(registroId: string): Promise<{ erro?:
     await gravar({ marcacoes_erro: erro ?? "A IA não devolveu as marcações.", marcacoes_lidas_em: new Date().toISOString() })
     return { erro: erro ?? "A IA não devolveu as marcações." }
   }
-  const lidas = normalizar(dados as unknown as MarcacoesEspelho)
+  // Os dias ajustados à mão continuam valendo sobre a nova leitura.
+  const lidas = mesclarLeitura(normalizar(dados as unknown as MarcacoesEspelho), (reg.marcacoes ?? null) as MarcacoesEspelho | null)
   await gravar({ marcacoes: lidas, marcacoes_erro: null, marcacoes_lidas_em: new Date().toISOString() })
   return {}
 }
@@ -293,6 +283,8 @@ export type DiaDetalhado = {
   trabalhadoMin: number
   intervaloMin: number | null
   alertas: string[]
+  /** Corrigido ou incluído à mão pela gestão de pessoal. */
+  ajustado: boolean
 }
 
 const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
@@ -320,6 +312,7 @@ export function detalharDias(m: MarcacoesEspelho | null): DiaDetalhado[] {
       trabalhadoMin: ps.reduce((s, p) => s + (p.fim - p.ini), 0),
       intervaloMin: ps.length > 1 ? ps[1].ini - ps[0].fim : null,
       alertas,
+      ajustado: d.ajustado === true,
     }
   })
 }

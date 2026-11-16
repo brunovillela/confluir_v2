@@ -7,10 +7,17 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { OCORRENCIAS, rotuloCompetenciaPonto, type Indicadores } from "@/lib/db/ponto-analise"
+import {
+  OCORRENCIAS,
+  rotuloCompetenciaPonto,
+  type AnoComparado,
+  type ComparacaoAnos,
+  type Indicadores,
+} from "@/lib/db/ponto-analise"
 import type { ResenhaGuardada } from "@/lib/db/ponto-resenha"
 import { formatarDataHora } from "@/lib/formato"
 import { hhmm } from "@/lib/horas"
+import { MESES_CURTOS, rotuloAteMes, textoVariacao, variacaoPct } from "@/lib/ponto-comparacao"
 
 import { GerarResenhaBotao } from "./botoes"
 
@@ -318,6 +325,136 @@ export function CartaoResenha({
         {disponivel && (
           <GerarResenhaBotao escopo={escopo} remessaId={remessaId} ano={ano} departamento={departamento} jaExiste={Boolean(resenha)} />
         )}
+      </CardContent>
+    </Card>
+  )
+}
+
+/**
+ * Comparação entre anos: os indicadores de cada ano lado a lado, a variação
+ * da média mensal sobre o ano anterior, o mesmo período do ano anterior e as
+ * horas extras mês a mês de cada ano.
+ */
+export function ComparacaoAnosCard({
+  comp,
+  faixa100,
+  porFuncionario = false,
+  hrefAno,
+}: {
+  comp: ComparacaoAnos
+  faixa100: string
+  porFuncionario?: boolean
+  hrefAno?: (ano: string) => string
+}) {
+  const anos = comp.anos.slice(0, 5)
+  if (anos.length < 2) return null
+  const anterior = (i: number) => anos[i + 1]
+  const variacao = (i: number, campo: (a: AnoComparado) => number, maisEhPior = true) => {
+    const ant = anterior(i)
+    if (!ant) return null
+    const p = variacaoPct(campo(anos[i]), campo(ant))
+    if (p === null) return null
+    const cor = p === 0 ? "text-muted-foreground" : (p > 0) === maisEhPior ? "text-warning-fg" : "text-success-fg"
+    return <span className={`block text-xs ${cor}`}>{textoVariacao(p)}</span>
+  }
+  type Linha = { rotulo: string; valor: (a: AnoComparado) => string; campo?: (a: AnoComparado) => number; maisEhPior?: boolean }
+  const linhas: Linha[] = [
+    { rotulo: porFuncionario ? "Meses com registro" : "Meses com remessa", valor: (a) => String(a.meses) },
+    ...(porFuncionario
+      ? []
+      : [
+          { rotulo: "Funcionários", valor: (a: AnoComparado) => `${a.funcionarios}` },
+          { rotulo: "Com horas extras", valor: (a: AnoComparado) => `${a.comHE} de ${a.funcionarios}` },
+        ]),
+    { rotulo: "Horas extras no ano", valor: (a) => horas(a.he) },
+    { rotulo: "Média por mês", valor: (a) => horas(a.heMediaMes), campo: (a) => a.heMediaMes },
+    ...(porFuncionario
+      ? []
+      : [
+          {
+            rotulo: "Média por funcionário no mês",
+            valor: (a: AnoComparado) => horas(a.heMediaFuncionario / Math.max(1, a.meses)),
+            campo: (a: AnoComparado) => a.heMediaFuncionario / Math.max(1, a.meses),
+          },
+        ]),
+    { rotulo: `A ${faixa100}`, valor: (a) => horas(a.he100), campo: (a) => a.he100 / Math.max(1, a.meses) },
+    { rotulo: "Banco de horas no fim", valor: (a) => horas(a.saldo), campo: (a) => a.saldo },
+    { rotulo: "Atestados (dias)", valor: (a) => `${a.atestados} (${a.diasAtestado})`, campo: (a) => a.diasAtestado / Math.max(1, a.meses) },
+    { rotulo: "Faltas injustificadas", valor: (a) => String(a.faltasInjustificadas), campo: (a) => a.faltasInjustificadas / Math.max(1, a.meses) },
+    { rotulo: "Ocorrências nas marcações", valor: (a) => String(a.ocorrencias) },
+    ...(porFuncionario
+      ? [{ rotulo: "Alertas", valor: (a: AnoComparado) => String(a.alertas.length) }]
+      : [{ rotulo: "Em atenção", valor: (a: AnoComparado) => String(a.emAtencao) }]),
+  ]
+  const mp = comp.mesmoPeriodo
+  const pMesmo = mp ? variacaoPct(mp.atual.he, mp.anterior.he) : null
+  const noGrafico = [...anos.slice(0, 4)].reverse()
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Comparação entre anos</CardTitle>
+        <CardDescription>
+          A variação compara cada ano com o anterior pela média por mês com remessa — o ano corrente ainda está
+          incompleto. Banco de horas e faltas: mais é pior.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-5">
+        {mp && (
+          <p className="rounded-md border px-3 py-2 text-sm">
+            <span className="font-medium">Mesmo período ({rotuloAteMes(mp.ate)}):</span> {horas(mp.atual.he)} de horas extras em{" "}
+            {mp.atual.ano} contra {horas(mp.anterior.he)} em {mp.anterior.ano}
+            {pMesmo !== null && (
+              <span className={pMesmo > 0 ? "text-warning-fg" : pMesmo < 0 ? "text-success-fg" : ""}> ({textoVariacao(pMesmo)})</span>
+            )}
+            {" · "}a {faixa100}: {horas(mp.atual.he100)} contra {horas(mp.anterior.he100)}.
+            {mp.anterior.meses !== mp.atual.meses && (
+              <span className="text-muted-foreground block text-xs">
+                Remessas no período: {mp.atual.meses} em {mp.atual.ano}, {mp.anterior.meses} em {mp.anterior.ano}.
+              </span>
+            )}
+          </p>
+        )}
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Indicador</TableHead>
+                {anos.map((a) => (
+                  <TableHead key={a.ano} className="text-right">
+                    {hrefAno ? (
+                      <Link href={hrefAno(a.ano)} className="hover:underline">
+                        {a.ano}
+                      </Link>
+                    ) : (
+                      a.ano
+                    )}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {linhas.map((l) => (
+                <TableRow key={l.rotulo}>
+                  <TableCell className="font-medium">{l.rotulo}</TableCell>
+                  {anos.map((a, i) => (
+                    <TableCell key={a.ano} className="text-right align-top tabular-nums">
+                      {l.valor(a)}
+                      {l.campo && variacao(i, l.campo, l.maisEhPior ?? true)}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        <div>
+          <p className="mb-2 text-sm font-medium">Horas extras por mês, ano a ano</p>
+          <GraficoColunas
+            titulo="Horas extras por mês, ano a ano"
+            categorias={MESES_CURTOS}
+            series={noGrafico.map((a) => ({ nome: a.ano, valores: a.mensal.map((v) => v ?? 0) }))}
+          />
+        </div>
       </CardContent>
     </Card>
   )

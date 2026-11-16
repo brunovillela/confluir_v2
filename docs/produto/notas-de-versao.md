@@ -4,6 +4,12 @@
 
 O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga. É o mesmo conteúdo do aviso "O que há de novo" dentro do sistema. O detalhe técnico de cada entrega está no histórico do git; as decisões de arquitetura, em [`docs/arquitetura/adr/`](../arquitetura/adr/LEIA-ME.md).
 
+## 16/11/2026 — Ponto: comparação entre anos, relatório por funcionário e ajuste das marcações
+
+- Controle de ponto → Indicadores: com mais de um ano de remessas, o quadro Comparação entre anos põe cada ano lado a lado — horas extras, média por mês, banco de horas, atestados, faltas, ocorrências e funcionários em atenção —, com a variação sobre o ano anterior pela média mensal, o mesmo período do ano anterior e o gráfico mês a mês de cada ano. Vale também para o departamento e para a página do funcionário no Ponto.
+- Controle de ponto: as marcações dia a dia lidas do espelho pela IA podem ser corrigidas — horário errado, dia que faltou ou que não deveria estar lá —, com o motivo. O dia ganha o selo Ajustado, os alertas e indicadores passam a usar o que foi digitado, cada mudança fica no histórico com quem fez, e a seta volta ao que o espelho trazia. Dá também para incluir as marcações de um mês sem espelho ou com espelho escaneado.
+- Controle de ponto: na página do funcionário, Relatório do ponto (PDF) reúne a ficha, a comparação entre anos, os alertas de cada ano, o mês a mês e as isenções de registro, para arquivar ou levar a uma conversa.
+
 ## 15/11/2026 — Oposição: a carta registrada à vista
 
 - Financeiro gerencial: o fluxo projetado passa a contar as parcelas de contrato que aguardam a nota fiscal — compromisso de caixa que ficava de fora —, e o cartão de cada mês diz quanto delas há no valor. O que vence depois do quarto mês sai da última coluna do gráfico (que antes somava todo o resto) e aparece num total logo abaixo.

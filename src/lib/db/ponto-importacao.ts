@@ -8,6 +8,7 @@ import { duasCasas } from "@/lib/horas"
 import { lerCartaoPdf } from "@/lib/db/ponto-cartao-ia"
 import { guardarPartes, separarPorFuncionario, textoDasPaginas } from "@/lib/db/pdf-por-funcionario"
 import { apurarMes, type Apuracao, type LeituraCartao, type RegrasApuracao } from "@/lib/ponto-apuracao"
+import { mesclarLeitura, type MarcacoesEspelho } from "@/lib/ponto-marcacoes-ajuste"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -343,7 +344,7 @@ export async function aplicarItens(
   ])
   const { data: existentes } = await admin
     .from("pessoal_registro_ponto")
-    .select("id, funcionario_id, horas_pagas_70, horas_pagas_100, saldo_remessa_anterior_70, saldo_remessa_anterior_100")
+    .select("id, funcionario_id, horas_pagas_70, horas_pagas_100, saldo_remessa_anterior_70, saldo_remessa_anterior_100, marcacoes")
     .eq("remessa_id", imp.remessaId)
   const porFuncionario = new Map((existentes ?? []).map((r) => [String(r.funcionario_id), r]))
 
@@ -372,11 +373,15 @@ export async function aplicarItens(
     const ant100 = atual ? num(atual.saldo_remessa_anterior_100) : (saldosAnt[item.funcionarioId]?.saldo100 ?? null)
     const pag70 = atual ? num(atual.horas_pagas_70) : null
     const pag100 = atual ? num(atual.horas_pagas_100) : null
-    const marcacoes = {
-      departamento: item.leitura?.departamento ?? null,
-      carga_diaria: item.leitura?.jornada[1]?.length ? item.leitura.jornada[1].join(" ") : null,
-      dias: item.leitura?.dias ?? [],
-    }
+    // Os dias ajustados à mão no registro que já existia continuam valendo.
+    const marcacoes = mesclarLeitura(
+      {
+        departamento: item.leitura?.departamento ?? null,
+        carga_diaria: item.leitura?.jornada[1]?.length ? item.leitura.jornada[1].join(" ") : null,
+        dias: item.leitura?.dias ?? [],
+      },
+      (atual?.marcacoes ?? null) as MarcacoesEspelho | null
+    )
     const campos = {
       horas_realizadas_70: real70,
       horas_realizadas_100: real100,

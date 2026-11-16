@@ -7,24 +7,26 @@ import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { CabecalhoFuncionario } from "@/components/pessoal/cabecalho-funcionario"
 import { NavegacaoRegistro } from "@/components/pessoal/navegacao-registro"
 import { VoltarLista } from "@/components/voltar-lista"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
 import { texto } from "@/lib/db/comum"
 import { urlArquivoPessoal } from "@/lib/db/pessoal"
 import { funcionarioDaArea } from "@/lib/db/pessoal-area"
 import { carregarBasePonto, rotuloCompetenciaPonto } from "@/lib/db/ponto-analise"
 import { detalharDias, type MarcacoesEspelho } from "@/lib/db/ponto-marcacoes"
-import { formatarData } from "@/lib/formato"
+import { formatarData, formatarDataHora } from "@/lib/formato"
+import { lidoOriginal } from "@/lib/ponto-marcacoes-ajuste"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 import { horas } from "../../../analise/componentes"
+import { DesfazerBotao, MarcacoesEdicao } from "./marcacoes-edicao"
 
 export const metadata: Metadata = { title: "Registro de ponto — Confluir" }
 
-const hm = (min: number) => `${Math.floor(min / 60)}h${String(min % 60).padStart(2, "0")}`
+/** "08:00 12:00 13:00 17:00 (Feriado)" — como o dia aparece no histórico de ajustes. */
+const textoDia = (d: { ocorrencia: string | null; marcacoes: string[] }) =>
+  [d.marcacoes.join(" "), d.ocorrencia ? (d.marcacoes.length ? `(${d.ocorrencia})` : d.ocorrencia) : ""].filter(Boolean).join(" ") || "sem batidas"
 
 /**
  * Nível 3 do Ponto: o funcionário naquele mês — horas, espelho, marcações dia
@@ -87,7 +89,19 @@ export default async function RegistroPontoPage({
     })),
   ]
 
-  const dias = detalharDias((reg.marcacoes ?? null) as MarcacoesEspelho | null)
+  const marcacoes = (reg.marcacoes ?? null) as MarcacoesEspelho | null
+  const dias = detalharDias(marcacoes)
+  const ajustes = [...(marcacoes?.ajustes ?? [])].reverse()
+  // Dia retirado à mão: some da tabela, então o "voltar ao espelho" fica no histórico (no ajuste mais recente).
+  const retirados = new Set(
+    ajustes
+      .map((a) => a.data)
+      .filter((d) => !dias.some((x) => x.data === d) && lidoOriginal(marcacoes, d))
+  )
+  const ultimoDoDia = new Map<string, number>()
+  ajustes.forEach((a, i) => {
+    if (!ultimoDoDia.has(a.data)) ultimoDoDia.set(a.data, i)
+  })
   const comAlerta = dias.filter((d) => d.alertas.length).length
 
   // Navegação: na remessa (por nome) e na pessoa (por mês).
@@ -226,52 +240,54 @@ export default async function RegistroPontoPage({
                 : analise.espelhoErro
                   ? analise.espelhoErro
                   : "Marcações ainda não lidas — use “Ler marcações dos espelhos” na aba Indicadores e resenha da remessa."}
+            {dias.length === 0 && " Dá para incluir os dias à mão."}
           </CardDescription>
         </CardHeader>
-        {dias.length > 0 && (
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Dia</TableHead>
-                    <TableHead>Batidas</TableHead>
-                    <TableHead className="text-right">Trabalhado</TableHead>
-                    <TableHead className="text-right">Intervalo</TableHead>
-                    <TableHead>Alertas</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {dias.map((d) => (
-                    <TableRow key={d.data} className={d.alertas.length ? "bg-warning/5" : d.marcacoes.length ? "" : "text-muted-foreground"}>
-                      <TableCell className="whitespace-nowrap tabular-nums">
-                        {formatarData(d.data).slice(0, 5)} {d.diaSemana}
-                      </TableCell>
-                      <TableCell className="tabular-nums">
-                        {d.marcacoes.length ? d.marcacoes.join("  ") : (d.ocorrencia ?? "—")}
-                        {d.marcacoes.length > 0 && d.ocorrencia && (
-                          <span className="text-muted-foreground ml-2 text-xs">{d.ocorrencia}</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">{d.trabalhadoMin ? hm(d.trabalhadoMin) : "—"}</TableCell>
-                      <TableCell className="text-right tabular-nums">{d.intervaloMin !== null ? hm(d.intervaloMin) : "—"}</TableCell>
-                      <TableCell className="whitespace-normal">
-                        <div className="flex flex-wrap gap-1">
-                          {d.alertas.map((a) => (
-                            <Badge key={a} variant="warning">
-                              {a}
-                            </Badge>
-                          ))}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        )}
+        <CardContent>
+          <MarcacoesEdicao
+            registroId={registroId}
+            competencia={comp}
+            dias={dias.map((d) => {
+              const original = d.ajustado ? lidoOriginal(marcacoes, d.data) : undefined
+              return { ...d, original: original ? textoDia(original) : null }
+            })}
+          />
+        </CardContent>
       </Card>
+
+      {ajustes.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Ajustes nas marcações</CardTitle>
+            <CardDescription>O que foi corrigido, incluído ou retirado à mão, com o que era antes. Mais recente primeiro.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="grid gap-2 text-sm">
+              {ajustes.map((a, i) => (
+                <li key={i} className="rounded-md border px-3 py-2">
+                  <span className="font-medium tabular-nums">{formatarData(a.data).slice(0, 5)}</span>
+                  {" · "}
+                  {a.tipo === "desfeito"
+                    ? `voltou ao que o espelho trazia (${a.depois ? textoDia(a.depois) : "sem o dia"})`
+                    : !a.depois
+                      ? `retirado (era ${a.antes ? textoDia(a.antes) : "—"})`
+                      : !a.antes
+                        ? `incluído: ${textoDia(a.depois)}`
+                        : `era ${textoDia(a.antes)}, ficou ${textoDia(a.depois)}`}
+                  {a.motivo && <span className="block text-xs">Motivo: {a.motivo}</span>}
+                  {retirados.has(a.data) && ultimoDoDia.get(a.data) === i && (
+                    <DesfazerBotao registroId={registroId} data={a.data} incluido={false} rotulo="Voltar ao espelho" />
+                  )}
+                  <span className="text-muted-foreground block text-xs">
+                    {formatarDataHora(a.em)}
+                    {a.porNome ? ` · ${a.porNome}` : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
     </>
   )
 }

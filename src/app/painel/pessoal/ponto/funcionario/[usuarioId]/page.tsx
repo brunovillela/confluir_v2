@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { UserX } from "lucide-react"
+import { FileText, UserX } from "lucide-react"
 
 import { GraficoColunas } from "@/components/graficos/colunas"
 import { TileIndicador } from "@/components/graficos/tile"
@@ -14,11 +14,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { VoltarLista } from "@/components/voltar-lista"
 import { requirePermissao } from "@/lib/auth"
 import { funcionarioDaArea } from "@/lib/db/pessoal-area"
-import { carregarBasePonto, indicadoresDe, OCORRENCIAS, rotuloCompetenciaPonto } from "@/lib/db/ponto-analise"
+import { carregarBasePonto, comparacaoAnos, indicadoresDe, OCORRENCIAS, rotuloCompetenciaPonto } from "@/lib/db/ponto-analise"
 import { faixasHoraExtra } from "@/lib/db/ponto-config"
 import { listarIsencoesPonto } from "@/lib/db/ponto-isencoes"
 
-import { horas } from "../../analise/componentes"
+import { ComparacaoAnosCard, horas } from "../../analise/componentes"
 import { IsencaoPontoForm } from "../../isencoes-form"
 import { TabelaIsencoes } from "../../isencoes-tabela"
 
@@ -62,6 +62,7 @@ export default async function PontoFuncionarioPage({
         <p className="text-muted-foreground text-sm">Nenhum registro de ponto deste funcionário.</p>
       ) : (
         <>
+          <div className="flex flex-wrap items-center justify-between gap-3">
           <nav className="flex flex-wrap gap-2 text-sm" aria-label="Ano">
             {anos.map((a) => (
               <Link
@@ -73,6 +74,13 @@ export default async function PontoFuncionarioPage({
               </Link>
             ))}
           </nav>
+            <Button variant="outline" size="sm" asChild>
+              <a href={`/painel/pessoal/ponto/funcionario/${usuarioId}/relatorio`} target="_blank" rel="noreferrer">
+                <FileText />
+                Relatório do ponto (PDF)
+              </a>
+            </Button>
+          </div>
 
           {pessoa && (
             <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -122,6 +130,13 @@ export default async function PontoFuncionarioPage({
               </CardContent>
             </Card>
           )}
+
+          <ComparacaoAnosCard
+            comp={comparacaoAnos(base, { funcionarioId: usuarioId })}
+            faixa100={faixas["100"]}
+            porFuncionario
+            hrefAno={(a) => `/painel/pessoal/ponto/funcionario/${usuarioId}?ano=${a}`}
+          />
 
           <Card>
             <CardHeader>
