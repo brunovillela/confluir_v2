@@ -92,7 +92,7 @@ export default async function FinanceiroGerencialPage({ searchParams }: { search
             key={m.mes}
             rotulo={`A pagar em ${rotuloMes(m.mes)}`}
             valor={compacto(m.aPagar, true)}
-            nota={`${m.ordens} ${m.ordens === 1 ? "ordem" : "ordens"}${m.receitaPrevista ? ` · receita prevista ${compacto(m.receitaPrevista, true)}` : ""}`}
+            nota={`${m.ordens} ${m.ordens === 1 ? "ordem" : "ordens"}${m.aguardandoDocumento ? ` (${compacto(m.aguardandoDocumento, true)} em parcelas de contrato aguardando a nota)` : ""}${m.receitaPrevista ? ` · receita prevista ${compacto(m.receitaPrevista, true)}` : ""}`}
             href={`/painel/financeiro/ordens?situacao=abertas&ordem=vencimento&dir=asc`}
           />
         ))}
@@ -102,7 +102,7 @@ export default async function FinanceiroGerencialPage({ searchParams }: { search
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Fluxo projetado</CardTitle>
           <CardDescription>
-            Ordens abertas pelo mês de vencimento × receita prevista
+            Ordens abertas (inclusive as parcelas de contrato que aguardam a nota) pelo mês de vencimento × receita prevista
             {fluxo.receitaBase.mesesBase.length
               ? ` (média de ${fluxo.receitaBase.mesesBase.map(rotuloMes).join(", ")}: ${moeda(fluxo.receitaBase.media)}/mês).`
               : " (sem remessas recentes para estimar a receita)."}
@@ -118,6 +118,12 @@ export default async function FinanceiroGerencialPage({ searchParams }: { search
             emMoeda
             titulo="Fluxo projetado por mês"
           />
+          {fluxo.depois.quantidade > 0 && (
+            <p className="text-muted-foreground mt-2 text-xs">
+              Depois de {rotuloMes(fluxo.meses[fluxo.meses.length - 1].mes)}: {moeda(fluxo.depois.valor)} em {fluxo.depois.quantidade}{" "}
+              {fluxo.depois.quantidade === 1 ? "ordem" : "ordens"} (parcelas futuras de contrato, sobretudo) — fora do gráfico.
+            </p>
+          )}
         </CardContent>
       </Card>
 

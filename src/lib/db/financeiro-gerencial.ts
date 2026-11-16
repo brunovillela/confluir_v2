@@ -31,10 +31,27 @@ function mesesDesde(primeiro: string, quantidade: number): string[] {
 
 // ── Fluxo projetado ──────────────────────────────────────────────────────────
 
-export type FluxoMes = { mes: string; aPagar: number; ordens: number; receitaPrevista: number }
+/**
+ * Parcela de contrato gerada à frente espera a nota do mês para virar A pagar,
+ * mas já é compromisso de caixa (15/11/2026: ficavam fora da projeção —
+ * em produção, R$ 3,4 mi em 183 parcelas).
+ */
+export const AGUARDANDO_DOCUMENTO = "Aguardando documento fiscal"
+const SITUACOES_PROJECAO = [...SITUACOES_ABERTAS, AGUARDANDO_DOCUMENTO]
+
+export type FluxoMes = {
+  mes: string
+  aPagar: number
+  ordens: number
+  /** Parte do aPagar em parcelas de contrato que aguardam a nota. */
+  aguardandoDocumento: number
+  receitaPrevista: number
+}
 export type FluxoProjetado = {
   meses: FluxoMes[]
   vencidas: { quantidade: number; valor: number }
+  /** Vencem depois do último mês mostrado (não entram no gráfico). */
+  depois: { quantidade: number; valor: number }
   /** Média mensal da arrecadação nos últimos meses com remessa (base da receita prevista). */
   receitaBase: { media: number; mesesBase: string[] }
 }
@@ -44,16 +61,23 @@ export async function fluxoProjetado(mesesAFrente = 4): Promise<FluxoProjetado> 
   const emp = await tenantAtual()
   const hoje = hojeSP()
   const meses = mesesDesde(mesDe(hoje), mesesAFrente)
-  const porMes = new Map(meses.map((m) => [m, { mes: m, aPagar: 0, ordens: 0, receitaPrevista: 0 }]))
+  const porMes = new Map(meses.map((m) => [m, { mes: m, aPagar: 0, ordens: 0, aguardandoDocumento: 0, receitaPrevista: 0 }]))
   const vencidas = { quantidade: 0, valor: 0 }
+  const depois = { quantidade: 0, valor: 0 }
 
-  const abertas = await lerEmLotes<{ vencimento: string | null; valor_inicial_cobranca: number | null; valor_pago: number | null; forma_pagamento: string | null }>((de, ate) =>
+  const abertas = await lerEmLotes<{
+    vencimento: string | null
+    valor_inicial_cobranca: number | null
+    valor_pago: number | null
+    forma_pagamento: string | null
+    situacao: string | null
+  }>((de, ate) =>
     admin
       .from("ordens_pagamento")
-      .select("vencimento, valor_inicial_cobranca, valor_pago, forma_pagamento")
+      .select("vencimento, valor_inicial_cobranca, valor_pago, forma_pagamento, situacao")
       .eq("emp_proprietaria_id", emp)
       .not("excluido", "is", true)
-      .in("situacao", [...SITUACOES_ABERTAS])
+      .in("situacao", SITUACOES_PROJECAO)
       .not("vencimento", "is", null)
       .order("id")
       .range(de, ate)
@@ -68,9 +92,16 @@ export async function fluxoProjetado(mesesAFrente = 4): Promise<FluxoProjetado> 
       vencidas.valor += v
       continue
     }
-    const bucket = porMes.get(mesDe(venc)) ?? porMes.get(meses[meses.length - 1])!
+    // Depois do horizonte não vai para o último mês (inflava a última coluna com o resto do contrato).
+    const bucket = porMes.get(mesDe(venc))
+    if (!bucket) {
+      depois.quantidade++
+      depois.valor += v
+      continue
+    }
     bucket.aPagar += v
     bucket.ordens++
+    if (o.situacao === AGUARDANDO_DOCUMENTO) bucket.aguardandoDocumento += v
   }
 
   // Receita prevista = média dos últimos 3 meses fechados com remessa.
@@ -85,7 +116,7 @@ export async function fluxoProjetado(mesesAFrente = 4): Promise<FluxoProjetado> 
   const media = mesesBase.length ? mesesBase.reduce((s, m) => s + (totalPorMes.get(m) ?? 0), 0) / mesesBase.length : 0
   for (const b of porMes.values()) b.receitaPrevista = media
 
-  return { meses: [...porMes.values()], vencidas, receitaBase: { media, mesesBase } }
+  return { meses: [...porMes.values()], vencidas, depois, receitaBase: { media, mesesBase } }
 }
 
 // ── Despesa por dimensão ─────────────────────────────────────────────────────
@@ -241,7 +272,7 @@ export async function ordensVencidas(limite = 60): Promise<{ linhas: OrdemVencid
       .select("id, codigo, descricao, situacao, valor_inicial_cobranca, valor_pago, vencimento, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso, beneficiario_doc_avulso, custeio_id")
       .eq("emp_proprietaria_id", emp)
       .not("excluido", "is", true)
-      .in("situacao", [...SITUACOES_ABERTAS])
+      .in("situacao", SITUACOES_PROJECAO)
       .lt("vencimento", hoje)
       .or(FILTRO_NAO_PAGA_NO_ATO)
       .order("vencimento", { ascending: true })
