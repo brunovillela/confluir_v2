@@ -1,5 +1,16 @@
 import "server-only"
 
+import {
+  centavos,
+  diasEntre,
+  noticiaDaDevolucao,
+  ordemParaReduzir,
+  planejarUsos,
+  saldoDaDevolucao,
+  saldoNaData,
+  somarDiasIso,
+  sugerirCreditosDoExtrato,
+} from "@/lib/compras-cancelamento-regras"
 import { esquemaAusente, hojeSP, texto } from "@/lib/db/comum"
 import { alterarSituacaoOrdem, cancelarOrdem, registrarEvento } from "@/lib/db/ordens-ciclo"
 import { formatarData, formatarMoeda } from "@/lib/formato"
@@ -31,9 +42,6 @@ const ENCERRADAS = ["Paga", "Cancelada", "Estornado"]
 /** Aviso de crédito perto de vencer (dias). */
 export const DIAS_AVISO_VALIDADE = 30
 
-function diasEntre(de: string, ate: string): number {
-  return Math.round((Date.parse(`${ate.slice(0, 10)}T12:00:00Z`) - Date.parse(`${de.slice(0, 10)}T12:00:00Z`)) / 86_400_000)
-}
 
 export async function registrarCancelamentoCompra(dados: {
   processoId: string
@@ -159,10 +167,7 @@ async function cancelamentoParcialNasOrdens(
 ): Promise<{ avisos?: string[] }> {
   const admin = await createAdminClient()
   const valor = dados.valor ?? 0
-  const aberta = ordens
-    .filter((o) => !ENCERRADAS.includes(texto(o.situacao) ?? "") && texto(o.situacao) !== "Na fatura")
-    .filter((o) => Number(o.valor_inicial_cobranca ?? 0) - valor >= 0.01)
-    .sort((a, b) => Number(b.valor_inicial_cobranca ?? 0) - Number(a.valor_inicial_cobranca ?? 0))[0]
+  const aberta = ordemParaReduzir(ordens, valor)
   if (aberta) {
     const antes = Number(aberta.valor_inicial_cobranca)
     const depois = centavos(antes - valor)
@@ -312,7 +317,6 @@ export type PlanoAbatimento = {
   usos: { creditoId: string; codigo: string | null; valor: number }[]
 }
 
-const centavos = (v: number) => Math.round(v * 100) / 100
 
 /** Soma dos usos ainda válidos de cada crédito. */
 async function usadoPorCredito(ids: string[]): Promise<Map<string, number>> {
@@ -366,15 +370,8 @@ export async function creditosDoFornecedor(fornecedorId: string): Promise<Credit
 
 /** Quanto do crédito do fornecedor abate um valor (os mais antigos primeiro). */
 export async function planejarAbatimento(fornecedorId: string, valor: number): Promise<PlanoAbatimento> {
-  const usos: PlanoAbatimento["usos"] = []
-  let falta = centavos(valor)
-  for (const c of await creditosDoFornecedor(fornecedorId)) {
-    if (falta <= 0.005) break
-    const v = centavos(Math.min(c.saldo, falta))
-    usos.push({ creditoId: c.fornecimentoId, codigo: c.codigo, valor: v })
-    falta = centavos(falta - v)
-  }
-  return { abatido: centavos(usos.reduce((s, u) => s + u.valor, 0)), usos }
+  const creditos = await creditosDoFornecedor(fornecedorId)
+  return planejarUsos(creditos.map((c) => ({ id: c.fornecimentoId, codigo: c.codigo, saldo: c.saldo })), valor)
 }
 
 /** Texto para a descrição da ordem: "crédito de R$ X abatido (compra Y)". */
@@ -496,11 +493,7 @@ export async function saldosDeCreditoPorFornecedor(): Promise<Record<string, num
 
 // ── Devolução a receber (15/11/2026) ─────────────────────────────────────────
 
-/**
- * Devolução sem notícia há este tanto de dias (desde o cancelamento ou a
- * última cobrança): "cobrar o fornecedor".
- */
-export const DIAS_COBRAR_DEVOLUCAO = 30
+export { DIAS_COBRAR_DEVOLUCAO } from "@/lib/compras-cancelamento-regras"
 
 export type DevolucaoAReceber = {
   fornecimentoId: string
@@ -532,11 +525,6 @@ export type DevolucaoAReceber = {
   sugestoes: { lancamentoId: string; data: string; descricao: string | null; valor: number; exato: boolean }[]
 }
 
-function somarDiasIso(iso: string, dias: number): string {
-  const d = new Date(`${iso.slice(0, 10)}T12:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + dias)
-  return d.toISOString().slice(0, 10)
-}
 
 /** Soma do que já voltou de cada devolução. */
 async function recebidoPorDevolucao(ids: string[]): Promise<Map<string, number>> {
@@ -604,12 +592,10 @@ export async function devolucoesAReceber(): Promise<{ disponivel: boolean; itens
     const valor = l.cancelamento_valor === null ? null : Number(l.cancelamento_valor)
     const meus = (recs.data ?? []).filter((r) => String(r.fornecimento_id) === String(l.id))
     const recebido = centavos(meus.reduce((s, r) => s + Number(r.valor ?? 0), 0))
-    const saldo = valor === null ? null : Math.max(0, centavos(valor - recebido))
+    const saldo = valor === null ? null : saldoDaDevolucao(valor, recebido).saldo
     const data = texto(l.cancelamento_data)
     const cobradaEm = texto(l.devolucao_cobrada_em)
-    const referencia = [data, cobradaEm].filter((v): v is string => !!v).sort().pop() ?? hoje
-    const diasSemNoticia = Math.max(0, diasEntre(referencia, hoje))
-    const desde = somarDiasIso(data ?? hoje, -3)
+    const noticia = noticiaDaDevolucao(data, cobradaEm, hoje)
     return {
       fornecimentoId: String(l.id),
       processoId: String(l.processo_id),
@@ -624,25 +610,14 @@ export async function devolucoesAReceber(): Promise<{ disponivel: boolean; itens
       dias: data ? Math.max(0, diasEntre(data, hoje)) : 0,
       cobradaEm,
       cobrancaObs: texto(l.devolucao_cobranca_obs),
-      diasSemNoticia,
-      parada: diasSemNoticia >= DIAS_COBRAR_DEVOLUCAO,
-      sugestoes:
-        saldo === null || saldo <= 0
-          ? []
-          : (creditos.data ?? [])
-              .filter((c) => String(c.data) >= desde)
-              .map((c) => ({ c, v: Number(c.valor) }))
-              // O que falta, ou entre metade e o que falta (taxa retida, devolução em partes).
-              .filter(({ v }) => Math.abs(v - saldo) < 0.005 || (v < saldo && v >= saldo / 2))
-              .sort((a, b) => Math.abs(a.v - saldo) - Math.abs(b.v - saldo))
-              .slice(0, 3)
-              .map(({ c, v }) => ({
-                lancamentoId: String(c.id),
-                data: String(c.data).slice(0, 10),
-                descricao: texto(c.descricao),
-                valor: v,
-                exato: Math.abs(v - saldo) < 0.005,
-              })),
+      diasSemNoticia: noticia.dias,
+      parada: noticia.parada,
+      sugestoes: sugerirCreditosDoExtrato(
+        (creditos.data ?? []).map((c) => ({ id: String(c.id), data: String(c.data), valor: Number(c.valor), descricao: texto(c.descricao) })),
+        saldo,
+        data,
+        hoje
+      ).map((c) => ({ lancamentoId: c.id, data: c.data, descricao: c.descricao, valor: c.valor, exato: c.exato })),
     }
   })
   // Paradas primeiro (as mais antigas no topo); depois por data do cancelamento.
@@ -748,8 +723,7 @@ export async function receberDevolucao(dados: {
   }
 
   const totalRecebido = centavos(jaRecebido + valor)
-  const saldo = cancelado === null ? 0 : Math.max(0, centavos(cancelado - totalRecebido))
-  const encerrada = cancelado === null || saldo <= 0.005
+  const { saldo, encerra: encerrada } = saldoDaDevolucao(cancelado, totalRecebido)
   if (encerrada) {
     const obsPadrao = dados.lancamentoId ? "Crédito conciliado no extrato." : null
     const { error } = await admin
@@ -1127,11 +1101,6 @@ export type SaldoComFornecedor = {
   situacao: string
 }
 
-/** Data (São Paulo) de um timestamptz. */
-function dataSP(ts: string | null | undefined): string | null {
-  if (!ts) return null
-  return new Date(ts).toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" })
-}
 
 /**
  * Créditos com fornecedores e devoluções a receber de compras canceladas pelo
@@ -1156,11 +1125,7 @@ export async function saldosComFornecedoresEm(ate: string): Promise<SaldoComForn
     if (esquemaAusente(error)) return []
     throw new Error(`Falha ao ler os créditos e devoluções: ${error.message}`)
   }
-  // Fechados na própria compra (parte abatida numa ordem ainda não paga, nada a devolver) não são um valor a receber.
-  const linhas = (data ?? []).filter((f) => {
-    const obs = String((f.cancelamento_desfecho === "credito" ? f.credito_usado_obs : f.devolucao_recebida_obs) ?? "")
-    return !obs.startsWith("Abatido na ordem") && !obs.startsWith("Nada a devolver")
-  })
+  const linhas = data ?? []
   if (!linhas.length) return []
   const ids = linhas.map((f) => String(f.id))
   const idsDe = (k: "processo_id" | "fornecedor_id" | "vendedor_id") => [...new Set(linhas.map((l) => texto(l[k])).filter((v): v is string => !!v))]
@@ -1178,33 +1143,25 @@ export async function saldosComFornecedoresEm(ate: string): Promise<SaldoComForn
   }
   const saida: SaldoComFornecedor[] = []
   for (const f of linhas) {
-    const valor = Number(f.cancelamento_valor ?? 0)
-    if (!(valor > 0)) continue
     const credito = f.cancelamento_desfecho === "credito"
-    let movimentado: number
-    let situacao: string
-    if (credito) {
-      // Marcado como usado ou dado como perdido até a data: não há mais saldo.
-      const fechadoEm = dataSP(texto(f.credito_usado_em))
-      if (fechadoEm && fechadoEm <= ate) continue
-      movimentado = centavos(
-        (usos.data ?? [])
-          .filter((u) => String(u.credito_fornecimento_id) === String(f.id))
-          .filter((u) => (dataSP(texto(u.created_at)) ?? "") <= ate && (!u.desfeito_em || (dataSP(texto(u.desfeito_em)) ?? "") > ate))
-          .reduce((s, u) => s + Number(u.valor ?? 0), 0)
-      )
-      const validade = texto(f.credito_validade)
-      situacao = validade && validade < ate ? `Vencido em ${formatarData(validade)}, sem uso` : movimentado > 0 ? "Usado em parte" : "Em aberto"
-    } else {
-      const encerradaEm = dataSP(texto(f.devolucao_recebida_em))
-      if (encerradaEm && encerradaEm <= ate) continue
-      movimentado = centavos(
-        (recs.data ?? []).filter((r) => String(r.fornecimento_id) === String(f.id)).reduce((s, r) => s + Number(r.valor ?? 0), 0)
-      )
-      situacao = movimentado > 0 ? "Recebida em parte" : "A receber"
-    }
-    const saldo = centavos(valor - movimentado)
-    if (saldo <= 0.005) continue
+    const r = saldoNaData(
+      {
+        desfecho: credito ? "credito" : "devolucao",
+        valor: Number(f.cancelamento_valor ?? 0),
+        creditoFechadoEm: texto(f.credito_usado_em),
+        creditoObs: texto(f.credito_usado_obs),
+        validade: texto(f.credito_validade),
+        devolucaoEncerradaEm: texto(f.devolucao_recebida_em),
+        devolucaoObs: texto(f.devolucao_recebida_obs),
+      },
+      (usos.data ?? [])
+        .filter((u) => String(u.credito_fornecimento_id) === String(f.id))
+        .map((u) => ({ valor: Number(u.valor ?? 0), criadoEm: String(u.created_at), desfeitoEm: texto(u.desfeito_em) })),
+      (recs.data ?? []).filter((x) => String(x.fornecimento_id) === String(f.id)).map((x) => ({ valor: Number(x.valor ?? 0), data: String(x.data) })),
+      ate
+    )
+    if (!r) continue
+    const { movimentado, saldo, situacao } = r
     const marketplace = nomeDe(f.fornecedor_id)
     const vendedor = nomeDe(f.vendedor_id)
     const doc = f.vendedor_id ? empresa.get(String(f.vendedor_id)) : empresa.get(String(f.fornecedor_id))
@@ -1216,7 +1173,7 @@ export async function saldosComFornecedoresEm(ate: string): Promise<SaldoComForn
       codigo: texto(p?.codigo),
       produto: texto(p?.solicitacao_produto),
       data: texto(f.cancelamento_data),
-      valorCancelado: valor,
+      valorCancelado: Number(f.cancelamento_valor ?? 0),
       movimentado,
       saldo,
       validade: credito ? texto(f.credito_validade) : null,
