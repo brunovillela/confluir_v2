@@ -1,5 +1,7 @@
 import "server-only"
 
+import { colunasDoNascimento } from "@/lib/nascimento"
+
 import { cpfConfiavel, grafiasDoCpf } from "@/lib/cpf"
 import { texto } from "@/lib/db/comum"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -280,7 +282,8 @@ export async function atualizarDadosCadastrais(
       nome_completo: nome,
       nome_guerra: dados.nomeGuerra?.trim() || null,
       cpf,
-      data_nascimento: data(dados.dataNascimento),
+      // Dia e mês juntos: é o que os aniversariantes do dia consultam.
+      ...colunasDoNascimento(data(dados.dataNascimento)),
       whatsapp: dados.whatsapp?.trim() || null,
       updated_at: new Date().toISOString(),
     })

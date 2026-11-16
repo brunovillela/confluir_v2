@@ -4,6 +4,7 @@ import { cpfConfiavel, grafiasDoCpf } from "@/lib/cpf"
 import { lerEmLotes } from "@/lib/db/comum"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
+import { nascimentoDe } from "@/lib/nascimento"
 import { VINCULOS_INSTITUICAO } from "@/lib/vinculos-instituicao"
 
 /**
@@ -70,6 +71,14 @@ export async function aniversariantesDoMes(ano: number, mes: number): Promise<An
 
   // Sem data no usuário: a da ficha de filiação do mesmo CPF (qualquer situação).
   // O CPF pode estar com ou sem pontuação em cada tabela: busca nas duas formas.
+  // Sem dia/mês, a data inteira do cadastro (o Pessoal gravava só ela).
+  for (const u of quadro) {
+    const n = nascimentoDe(u)
+    if (n) {
+      u.nascimento_dia = n.dia
+      u.nascimento_mes = n.mes
+    }
+  }
   const semData = [
     ...new Set(
       quadro

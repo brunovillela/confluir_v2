@@ -13,12 +13,13 @@ import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { listarQuadro, type PessoaQuadro } from "@/lib/db/quadro"
 import { VINCULOS_INSTITUICAO } from "@/lib/vinculos-instituicao"
 
-import { ClassificarForm } from "./classificar-form"
+import { ClassificarForm, NascimentoQuadroForm } from "./classificar-form"
 
 export const metadata: Metadata = { title: "Quadro da entidade — Confluir" }
 
 const SEM = "sem"
 const CONFERIR = "conferir"
+const SEM_NASCIMENTO = "nascimento"
 
 const semAcento = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
 
@@ -34,7 +35,9 @@ export default async function QuadroPage({
   const conferir = pessoas.filter((p) => p.alertas.length > 0)
   const filtro = filtroBruto ?? (conferir.length > 0 ? CONFERIR : "todos")
   const contagem = (f: string) =>
-    f === CONFERIR
+    f === SEM_NASCIMENTO
+      ? pessoas.filter((p) => p.semNascimento && !p.excluido).length
+      : f === CONFERIR
       ? conferir.length
       : f === SEM
         ? pessoas.filter((p) => !p.classificacao).length
@@ -45,7 +48,9 @@ export default async function QuadroPage({
   const termo = semAcento(busca.trim())
   const lista = pessoas
     .filter((p) =>
-      filtro === CONFERIR
+      filtro === SEM_NASCIMENTO
+        ? p.semNascimento && !p.excluido
+        : filtro === CONFERIR
         ? p.alertas.length > 0
         : filtro === SEM
           ? !p.classificacao
@@ -63,6 +68,7 @@ export default async function QuadroPage({
     { chave: "todos", rotulo: "Todos" },
     ...VINCULOS_INSTITUICAO.map((v) => ({ chave: v, rotulo: v })),
     { chave: SEM, rotulo: "Sem classificação" },
+    { chave: SEM_NASCIMENTO, rotulo: "Sem data de nascimento" },
   ]
 
   return (
@@ -148,6 +154,11 @@ function LinhaPessoa({ pessoa: p, fotoUrl }: { pessoa: PessoaQuadro; fotoUrl: st
             {p.filiado && <Badge variant="outline">Filiado</Badge>}
             {p.temLogin && <Badge variant="outline">Login</Badge>}
             {p.temAcesso && <Badge variant="outline">Acesso ao painel</Badge>}
+            {p.semNascimento && !p.excluido && (
+              <Badge variant="outline" className="border-warning/40 text-warning-fg">
+                Sem data de nascimento
+              </Badge>
+            )}
             {p.excluido ? (
               <Badge variant="destructive">Cadastro excluído</Badge>
             ) : (
@@ -216,6 +227,7 @@ function LinhaPessoa({ pessoa: p, fotoUrl }: { pessoa: PessoaQuadro; fotoUrl: st
               vinculosEntidade={p.vinculosEntidade.length}
             />
           )}
+          {p.semNascimento && !p.excluido && <NascimentoQuadroForm usuarioId={p.usuarioId} />}
           {p.vinculosEntidade.length > 0 && (
             <Link href={`/painel/pessoal/${p.usuarioId}`} className="text-primary justify-self-start text-xs underline-offset-2 hover:underline">
               Abrir no Pessoal

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { type EstadoForm } from "@/lib/contas"
 import { NAO_E_DA_ENTIDADE, VINCULOS_INSTITUICAO } from "@/lib/vinculos-instituicao"
 
-import { classificarPessoaAction } from "../actions"
+import { classificarPessoaAction, salvarNascimentoQuadroAction } from "../actions"
 
 const rotulo = (v: string) => (v === NAO_E_DA_ENTIDADE ? "Não é da entidade" : v)
 
@@ -84,6 +84,37 @@ export function ClassificarForm({
         </label>
       )}
       {estado.erro && <p className="text-destructive text-xs">{estado.erro}</p>}
+    </form>
+  )
+}
+
+/** Data de nascimento de quem está sem: entra nos aniversariantes do dia e do mês. */
+export function NascimentoQuadroForm({ usuarioId }: { usuarioId: string }) {
+  const [estado, formAction, pendente] = useActionState<EstadoForm, FormData>(async (anterior, dados) => {
+    const r = await salvarNascimentoQuadroAction(anterior, dados)
+    if (r.ok) toast.success(r.ok)
+    return r
+  }, {})
+  return (
+    <form action={formAction} className="grid gap-1">
+      <input type="hidden" name="usuario_id" value={usuarioId} />
+      <label htmlFor={`nasc-${usuarioId}`} className="text-muted-foreground text-xs">
+        Data de nascimento
+      </label>
+      <div className="flex gap-2">
+        <input
+          id={`nasc-${usuarioId}`}
+          name="data_nascimento"
+          type="date"
+          required
+          className="border-input bg-background h-8 min-w-0 flex-1 rounded-md border px-2 text-sm shadow-xs"
+        />
+        <Button type="submit" size="sm" variant="outline" className="h-8" disabled={pendente}>
+          {pendente ? <Loader2 className="animate-spin" /> : <Save />}
+          Salvar
+        </Button>
+      </div>
+      {estado.erro && <span className="text-destructive text-xs">{estado.erro}</span>}
     </form>
   )
 }

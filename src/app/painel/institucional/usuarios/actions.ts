@@ -28,6 +28,9 @@ import {
 import { definirDepartamentosCompras } from "@/lib/db/compras-acesso"
 import { atribuirPerfis } from "@/lib/db/perfis"
 import { classificarPessoa } from "@/lib/db/quadro"
+import { colunasDoNascimento } from "@/lib/nascimento"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { tenantAtual } from "@/lib/tenant"
 import { CHAVES_PERMISSAO } from "@/lib/permissoes-catalogo"
 
 const CHAVE = "permissoes"
@@ -252,6 +255,31 @@ export async function classificarPessoaAction(
   revalidatePath("/painel/pessoal", "layout")
   revalidatePath("/painel")
   return { ok: r.ok }
+}
+
+/** Quadro da entidade: grava a data de nascimento de quem está sem (15/11/2026). */
+export async function salvarNascimentoQuadroAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requirePermissao(CHAVE, ALT)
+  const usuarioId = texto(formData, "usuario_id")
+  const data = texto(formData, "data_nascimento")
+  if (!usuarioId) return { erro: "Pessoa inválida." }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return { erro: "Informe a data de nascimento." }
+  const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date())
+  if (data > hoje || data < "1900-01-01") return { erro: "Data de nascimento inválida." }
+  const admin = await createAdminClient()
+  const { error, count } = await admin
+    .from("usuarios")
+    .update({ ...colunasDoNascimento(data), updated_at: new Date().toISOString() }, { count: "exact" })
+    .eq("id", usuarioId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+  if (error) return { erro: `Não foi possível salvar: ${error.message}` }
+  if (count === 0) return { erro: "Pessoa não encontrada." }
+  revalidatePath("/painel/institucional/usuarios/quadro")
+  revalidatePath("/painel/comunicacao/aniversariantes", "layout")
+  return { ok: "Data de nascimento salva." }
 }
 
 export async function salvarPermissoesAction(

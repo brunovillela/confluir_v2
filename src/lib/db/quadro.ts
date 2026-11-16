@@ -3,6 +3,7 @@ import "server-only"
 import { cpfConfiavel } from "@/lib/cpf"
 import { lerEmLotes, texto } from "@/lib/db/comum"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { nascimentoDe, type NascimentoUsuario } from "@/lib/nascimento"
 import { tenantAtual } from "@/lib/tenant"
 import {
   NAO_E_DA_ENTIDADE,
@@ -56,6 +57,8 @@ export type PessoaQuadro = {
   alertas: string[]
   /** Classificação que os dados indicam, quando há alerta (ou NAO_E_DA_ENTIDADE). */
   sugestao: string | null
+  /** Sem data de nascimento no cadastro nem na ficha de filiação (fica fora dos aniversariantes). */
+  semNascimento: boolean
 }
 
 /** Matrícula comparável: sem zeros à esquerda; "0" e vazia não contam. */
@@ -147,7 +150,7 @@ export async function listarQuadro(): Promise<PessoaQuadro[]> {
     emLotes(ids, (l, de, ate) =>
       admin
         .from("usuarios")
-        .select("id, nome_completo, nome_guerra, email, cpf, vinculo_instituicao, inativo, deletado, auth_user_id")
+        .select("id, nome_completo, nome_guerra, email, cpf, vinculo_instituicao, inativo, deletado, auth_user_id, data_nascimento, nascimento_data, nascimento_dia, nascimento_mes")
         .in("id", l)
         .order("id")
         .range(de, ate)
@@ -179,7 +182,7 @@ export async function listarQuadro(): Promise<PessoaQuadro[]> {
   const filiacoes = await emLotes(cpfs, (l, de, ate) =>
     admin
       .from("filiacoes")
-      .select("cpf")
+      .select("cpf, nascimento_mes")
       .eq("emp_proprietaria_id", emp)
       .in("cpf", l)
       .not("filiacao_excluida", "is", true)
@@ -187,6 +190,8 @@ export async function listarQuadro(): Promise<PessoaQuadro[]> {
       .range(de, ate)
   )
   const cpfsFiliados = new Set(filiacoes.map((f) => String(f.cpf)))
+  // A ficha de filiação também dá a data (os aniversariantes usam de reserva).
+  const cpfsComNascimento = new Set(filiacoes.filter((f) => f.nascimento_mes).map((f) => String(f.cpf)))
   const comAcesso = new Set(acessos.map((a) => String(a.usuario_id)))
   const comRegistros = new Set([...contracheques, ...ponto, ...ferias])
 
@@ -285,6 +290,8 @@ export async function listarQuadro(): Promise<PessoaQuadro[]> {
         temRegistrosPessoal,
         alertas,
         sugestao,
+        semNascimento:
+          !nascimentoDe(u as NascimentoUsuario) && !cpfsComNascimento.has(cpfConfiavel(texto(u.cpf)) ?? "-"),
       }
     })
     .sort((a, b) => (a.nome ?? "").localeCompare(b.nome ?? "", "pt-BR"))

@@ -14,6 +14,7 @@ import {
   ultimosInformados,
   type TipoCorrigivel,
 } from "@/lib/movimento-alteracoes"
+import { nascimentoDe, type NascimentoUsuario } from "@/lib/nascimento"
 import { tenantAtual } from "@/lib/tenant"
 
 /**
@@ -329,7 +330,7 @@ export async function calcularMovimento(
   const vinculos = (vincs ?? []) as Record<string, unknown>[]
   const ids = [...new Set(vinculos.map((v) => texto(v.trabalhador_id)).filter((v): v is string => Boolean(v)))]
   const { data: us } = ids.length
-    ? await admin.from("usuarios").select("id, nome_completo, nome_guerra, cpf").in("id", ids)
+    ? await admin.from("usuarios").select("id, nome_completo, nome_guerra, cpf, data_nascimento, nascimento_data, nascimento_dia, nascimento_mes").in("id", ids)
     : { data: [] }
   const usuario = new Map(((us ?? []) as Record<string, unknown>[]).map((u) => [String(u.id), u]))
   const pessoa = new Map<string, Pessoa>()
@@ -964,6 +965,7 @@ export async function calcularMovimento(
     const faltas: string[] = []
     if (!p.cpf) faltas.push("sem CPF")
     if (!comConta.has(f)) faltas.push("sem conta bancária ou Pix")
+    if (!nascimentoDe((usuario.get(f) ?? {}) as NascimentoUsuario)) faltas.push("sem data de nascimento")
     if (faltas.length) {
       linhas.push({
         chave: `pend:${competencia}:${f}`,
