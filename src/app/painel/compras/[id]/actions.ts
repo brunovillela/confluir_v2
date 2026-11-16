@@ -18,6 +18,11 @@ import {
 import {
   adicionarProposta,
   buscarProcesso,
+  cotacaoRapida,
+  pedeJustificativaPropostaUnica,
+  regraPropostaUnica,
+  salvarJustificativaPropostaUnica,
+  type PropostaRapida,
   cancelarProcesso,
   definirEscolhaProposta,
   encerrarCotacao,
@@ -235,6 +240,24 @@ export async function escolherPropostaAction(
   redirect(`/painel/compras/${processoId}?salvo=1`)
 }
 
+/** Justificativa da proposta única, se a regra da auditoria pedir. */
+async function lerJustificativa(
+  formData: FormData,
+  numPropostas: number,
+  valorCompra: number
+): Promise<{ justificativa: string | null; erro?: string }> {
+  const regra = await regraPropostaUnica()
+  if (!pedeJustificativaPropostaUnica(regra, numPropostas, valorCompra)) return { justificativa: null }
+  const j = texto(formData, "justificativa_proposta_unica").replace(/\s+/g, " ")
+  if (j.length < 10) {
+    return {
+      justificativa: null,
+      erro: `Uma só proposta acima de ${regra.limite.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}: explique por que não houve outras (pelo menos 10 caracteres).`,
+    }
+  }
+  return { justificativa: j.slice(0, 1000) }
+}
+
 export async function registrarCompraAction(
   _prev: EstadoForm,
   formData: FormData
@@ -244,12 +267,97 @@ export async function registrarCompraAction(
   if (!processoId) return { erro: "Processo inválido." }
   const dataCompra = dataISO(texto(formData, "data_compra"))
   if (!dataCompra) return { erro: "Informe a data da compra." }
+  const processo = await buscarProcesso(processoId)
+  if (!processo) return { erro: "Processo não encontrado." }
+  if (processo.aquisicao_direta === false) {
+    const total = processo.propostas.filter((p) => p.escolhida).reduce((s, p) => s + (p.valor_proposta ?? 0), 0)
+    const j = await lerJustificativa(formData, processo.propostas.length, total)
+    if (j.erro) return { erro: j.erro }
+    if (j.justificativa) {
+      const r = await salvarJustificativaPropostaUnica(processoId, j.justificativa)
+      if (r.erro) return { erro: r.erro }
+    }
+  }
   const { erro } = await registrarCompra(
     processoId,
     sessao.usuario.id,
     dataCompra
   )
   if (erro) return { erro }
+  revalidarProcesso(processoId)
+  redirect(`/painel/compras/${processoId}?salvo=1`)
+}
+
+/**
+ * Cotação rápida: as propostas já consultadas, a escolhida e a compra num
+ * envio só. Linhas sem fornecedor e sem valor são ignoradas.
+ */
+export async function cotacaoRapidaAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requireOperacao(formData)
+  const processoId = texto(formData, "processo_id")
+  if (!processoId) return { erro: "Processo inválido." }
+  const dataCompra = dataISO(texto(formData, "data_compra"))
+  if (!dataCompra) return { erro: "Informe a data da compra." }
+  const escolhidaIdx = texto(formData, "escolhida")
+  const linhas = Number(texto(formData, "linhas")) || 0
+
+  const propostas: (PropostaRapida & { arquivo?: File })[] = []
+  for (let i = 0; i < Math.min(linhas, 10); i++) {
+    const fornecedorId = texto(formData, `fornecedor_id_${i}`)
+    const valorTexto = texto(formData, `valor_${i}`)
+    if (!fornecedorId && !valorTexto) continue
+    if (!fornecedorId) return { erro: `Proposta ${i + 1}: escolha o fornecedor.` }
+    const valor = parseValorBR(valorTexto)
+    if (valor === null || valor <= 0) return { erro: `Proposta ${i + 1}: informe o valor.` }
+    const formaBruta = texto(formData, `forma_pagamento_${i}`)
+    const arquivo = formData.get(`arquivo_${i}`)
+    propostas.push({
+      fornecedor_id: fornecedorId,
+      valor,
+      forma_pagamento: (FORMAS_PAGAMENTO_COMPRAS as readonly string[]).includes(formaBruta) ? formaBruta : null,
+      previsao_entrega: dataISO(texto(formData, `previsao_entrega_${i}`)),
+      arquivo_url: null,
+      escolhida: escolhidaIdx === String(i),
+      arquivo: arquivo instanceof File && arquivo.size > 0 ? arquivo : undefined,
+    })
+  }
+  if (propostas.length === 0) return { erro: "Registre ao menos uma proposta." }
+  if (new Set(propostas.map((p) => p.fornecedor_id)).size !== propostas.length) {
+    return { erro: "O mesmo fornecedor aparece em mais de uma proposta." }
+  }
+  const escolhida = propostas.find((p) => p.escolhida)
+  if (!escolhida) return { erro: "Marque qual proposta foi escolhida." }
+
+  const j = await lerJustificativa(formData, propostas.length, escolhida.valor)
+  if (j.erro) return { erro: j.erro }
+
+  const enviados: string[] = []
+  for (const p of propostas) {
+    if (!p.arquivo) continue
+    const { caminho, erro } = await subirPdfCompras(`propostas/${processoId}`, p.arquivo)
+    if (erro) {
+      if (enviados.length) await (await createAdminClient()).storage.from("compras").remove(enviados)
+      return { erro }
+    }
+    if (caminho) {
+      enviados.push(caminho)
+      p.arquivo_url = caminho
+    }
+  }
+  const { erro } = await cotacaoRapida({
+    processoId,
+    usuarioId: sessao.usuario.id,
+    dataCompra,
+    propostas: propostas.map(({ arquivo: _a, ...p }) => p),
+    justificativa: j.justificativa,
+  })
+  if (erro) {
+    if (enviados.length) await (await createAdminClient()).storage.from("compras").remove(enviados)
+    return { erro }
+  }
   revalidarProcesso(processoId)
   redirect(`/painel/compras/${processoId}?salvo=1`)
 }

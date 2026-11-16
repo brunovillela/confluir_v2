@@ -425,7 +425,13 @@ async function verificarLinha(
           .eq("processo_compra_id", String(proc.id))
         const limite = n(p.valor) ?? 0
         if ((count ?? 0) > 1) r("ok", `${count} propostas.`)
-        else if (valor !== null && valor > limite) r("falha", `Uma só proposta para ${formatarMoeda(valor)} — aceito até ${formatarMoeda(limite)}.`)
+        else if (valor !== null && valor > limite) {
+          const porque = t(proc.proposta_unica_justificativa)
+          r(
+            "falha",
+            `Uma só proposta para ${formatarMoeda(valor)} — aceito até ${formatarMoeda(limite)}.${porque ? ` Justificativa do comprador: ${porque}` : " Sem justificativa registrada."}`
+          )
+        }
         else r("ok", `Uma só proposta, dentro do limite de ${formatarMoeda(limite)}.`)
         break
       }

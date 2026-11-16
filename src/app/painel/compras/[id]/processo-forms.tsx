@@ -270,9 +270,12 @@ export function PropostaNovaForm({
 export function RegistrarCompraForm({
   processoId,
   resumo,
+  justificativaAcimaDe = null,
 }: {
   processoId: string
   resumo: string
+  /** Uma só proposta acima do limite da auditoria: pede a justificativa (valor = o limite). */
+  justificativaAcimaDe?: number | null
 }) {
   const [estado, formAction, pendente] = useActionState(
     registrarCompraAction,
@@ -288,6 +291,25 @@ export function RegistrarCompraForm({
       className="flex flex-wrap items-end gap-3"
     >
       <input type="hidden" name="processo_id" value={processoId} />
+      {justificativaAcimaDe !== null && (
+        <div className="grid w-full gap-1.5">
+          <Label htmlFor="compra-justificativa">Por que só uma proposta? *</Label>
+          <Textarea
+            id="compra-justificativa"
+            name="justificativa_proposta_unica"
+            required
+            minLength={10}
+            maxLength={1000}
+            rows={2}
+            placeholder="Ex.: fornecedor exclusivo da peça; urgência para o evento de sexta; outros dois não responderam."
+          />
+          <p className="text-muted-foreground text-xs">
+            Acima de{" "}
+            {justificativaAcimaDe.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} com uma proposta, a
+            ordem sai com o alerta da auditoria. A justificativa vai junto, para quem autoriza.
+          </p>
+        </div>
+      )}
       <div className="grid gap-1.5">
         <Label htmlFor="compra-data">Data da compra *</Label>
         <Input

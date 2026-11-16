@@ -23,6 +23,8 @@ import {
   empresasPorId,
   FORNECIMENTO_LEGADO,
   listarFornecedores,
+  pedeJustificativaPropostaUnica,
+  regraPropostaUnica,
   urlArquivoCompras,
   type Fornecimento,
   type OrdemDoProcesso,
@@ -48,6 +50,7 @@ import {
   RegistrarCompraForm,
 } from "./processo-forms"
 import { NotaFiscalIcone, NovoCodigoPix } from "./ajustes-pagamento"
+import { CotacaoRapidaForm } from "./cotacao-rapida"
 import { OrdemCompraAcoes } from "./ordem-compra"
 import { CustoDoRpa } from "./custo-rpa"
 import { ComprovanteAcoes } from "./comprovante-envio"
@@ -237,6 +240,10 @@ export default async function ProcessoCompraPage({
 
   const fornecedores =
     operavel && !processo.comprado ? await listarFornecedores() : []
+  // Cotação rápida (16/11): Via Aquisição, sem proposta registrada ainda.
+  const podeCotacaoRapida =
+    operavel && !processo.comprado && processo.aquisicao_direta === false && processo.propostas.length === 0
+  const regraUnica = operavel && !processo.comprado ? await regraPropostaUnica() : { ativa: false, limite: 0 }
   // Processo migrado comprado sem fornecimento (o Bubble não tinha o
   // desdobramento): a tela monta um a partir do processo, com as ordens que já
   // o pagam; no primeiro pagamento, nota ou recebimento ele é gravado de
@@ -714,6 +721,13 @@ export default async function ProcessoCompraPage({
               </ul>
             )}
 
+            {podeCotacaoRapida && (
+              <>
+                <Separator />
+                <CotacaoRapidaForm processoId={processo.id} fornecedores={fornecedores} regra={regraUnica} />
+              </>
+            )}
+
             {operavel && processo.em_cotacao && (
               <>
                 <Separator />
@@ -755,6 +769,12 @@ export default async function ProcessoCompraPage({
               <RegistrarCompraForm
                 processoId={processo.id}
                 resumo={`Serão criados ${escolhidas.length} fornecimento(s), total ${formatarMoeda(totalEscolhidas)}.`}
+                justificativaAcimaDe={
+                  processo.aquisicao_direta === false &&
+                  pedeJustificativaPropostaUnica(regraUnica, processo.propostas.length, totalEscolhidas)
+                    ? regraUnica.limite
+                    : null
+                }
               />
             )}
 

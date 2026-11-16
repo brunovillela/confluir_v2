@@ -24,6 +24,7 @@ import {
 } from "@/lib/db/compras-cancelamento"
 import { PERMISSOES_USUARIO_FK } from "@/lib/permissoes"
 import { resolverPermissoes } from "@/lib/permissoes-resolver"
+import { regrasConfiguradas } from "@/lib/db/auditoria-regras"
 import type { Permissoes } from "@/lib/permissoes"
 import {
   debitarCaixaCompra,
@@ -204,6 +205,8 @@ export type ProcessoDetalhe = {
   canceladoPorNome: string | null
   /** Por que foi cancelado (desde 14/11/2026; antes, null). */
   cancelado_motivo: string | null
+  /** Por que seguiu com uma só proposta acima do limite da auditoria (16/11/2026). */
+  proposta_unica_justificativa: string | null
   produto: string | null
   /** true = bem/produto, false = serviço, null = não informado. */
   e_produto: boolean | null
@@ -865,6 +868,7 @@ export async function buscarProcesso(
     cancelado_quando: (p.cancelado_quando as string | null) ?? null,
     canceladoPorNome: p.cancelado_por_id ? (usuarios.get(String(p.cancelado_por_id)) ?? null) : null,
     cancelado_motivo: (p.cancelado_motivo as string | null) ?? null,
+    proposta_unica_justificativa: (p.proposta_unica_justificativa as string | null) ?? null,
     produto: (p.solicitacao_produto as string | null) ?? null,
     e_produto: (p.solicitacao_e_produto as boolean | null) ?? null,
     observacao: (p.solicitacao_observacao as string | null) ?? null,
@@ -1420,6 +1424,147 @@ export async function definirEscolhaProposta(
  * proposta e marca o processo como comprado (valor = soma dos fornecimentos).
  * As ordens de pagamento são geradas por fornecimento, na sequência.
  */
+// ── Proposta única e cotação rápida (16/11/2026) ─────────────────────────────
+
+/**
+ * A regra "Compra com uma só proposta" da auditoria (Financeiro → Auditoria
+ * das ordens): ativa = não está em "Aceitar"; limite = o valor configurado.
+ */
+export async function regraPropostaUnica(): Promise<{ ativa: boolean; limite: number }> {
+  try {
+    const regra = (await regrasConfiguradas("compras")).find((r) => r.regra.codigo === "proposta_unica")
+    if (!regra) return { ativa: false, limite: 0 }
+    return { ativa: regra.severidade !== "aceitar", limite: Number(regra.parametros.valor) || 0 }
+  } catch {
+    return { ativa: false, limite: 0 }
+  }
+}
+
+/** Com uma só proposta e valor acima do limite, a compra pede justificativa. */
+export function pedeJustificativaPropostaUnica(
+  regra: { ativa: boolean; limite: number },
+  numPropostas: number,
+  valorCompra: number
+): boolean {
+  return regra.ativa && numPropostas <= 1 && valorCompra > regra.limite
+}
+
+export async function salvarJustificativaPropostaUnica(
+  processoId: string,
+  justificativa: string | null
+): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const { error } = await admin
+    .from("compras_solicitacoes")
+    .update({ proposta_unica_justificativa: justificativa })
+    .eq("id", processoId)
+  if (error) {
+    if (esquemaAusente(error)) return { erro: AVISO_SQL }
+    return { erro: `Não foi possível gravar a justificativa: ${error.message}` }
+  }
+  return {}
+}
+
+export type PropostaRapida = {
+  fornecedor_id: string
+  valor: number
+  forma_pagamento: string | null
+  previsao_entrega: string | null
+  arquivo_url: string | null
+  escolhida: boolean
+}
+
+/**
+ * Cotação rápida: o comprador que já consultou os fornecedores registra tudo
+ * de uma vez — abre e encerra a cotação, grava as propostas (uma escolhida) e
+ * efetiva a compra (cria o fornecimento). Os registros são os mesmos do fluxo
+ * passo a passo. Se a compra falhar, desfaz as propostas e a cotação.
+ */
+export async function cotacaoRapida(dados: {
+  processoId: string
+  usuarioId: string
+  dataCompra: string
+  propostas: PropostaRapida[]
+  justificativa: string | null
+}): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const { data: p } = await admin
+    .from("compras_solicitacoes")
+    .select("id, aquisicao_direta, comprado, cancelado, em_cotacao, cotacao_inicio, cotacao_termino, cotacao_responsavel_id")
+    .eq("id", dados.processoId)
+    .maybeSingle()
+  if (!p) return { erro: "Processo não encontrado." }
+  if (p.cancelado === true) return { erro: "Processo cancelado." }
+  if (p.comprado === true) return { erro: "Compra já registrada." }
+  if (p.aquisicao_direta !== false) return { erro: "A cotação rápida é para compras Via Aquisição." }
+  const { count } = await admin
+    .from("compras_propostas")
+    .select("id", { count: "exact", head: true })
+    .eq("processo_compra_id", dados.processoId)
+  if ((count ?? 0) > 0) return { erro: "Este processo já tem propostas: siga pela cotação abaixo." }
+  if (dados.propostas.filter((x) => x.escolhida).length !== 1) return { erro: "Marque a proposta escolhida." }
+
+  const hoje = hojeSP()
+  const antes = {
+    em_cotacao: p.em_cotacao,
+    cotacao_inicio: p.cotacao_inicio,
+    cotacao_termino: p.cotacao_termino,
+    cotacao_responsavel_id: p.cotacao_responsavel_id,
+  }
+  const { error: erroCotacao } = await admin
+    .from("compras_solicitacoes")
+    .update({
+      em_cotacao: false,
+      cotacao_inicio: p.cotacao_inicio ?? hoje,
+      cotacao_termino: hoje,
+      cotacao_responsavel_id: p.cotacao_responsavel_id ?? dados.usuarioId,
+      proposta_unica_justificativa: dados.justificativa,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", dados.processoId)
+  if (erroCotacao) {
+    if (esquemaAusente(erroCotacao)) return { erro: AVISO_SQL }
+    return { erro: `Não foi possível registrar a cotação: ${erroCotacao.message}` }
+  }
+  const agora = new Date().toISOString()
+  const emp = await tenantAtual()
+  const { data: inseridas, error: erroPropostas } = await admin
+    .from("compras_propostas")
+    .insert(
+      dados.propostas.map((x) => ({
+        processo_compra_id: dados.processoId,
+        fornecedor_id: x.fornecedor_id,
+        valor_proposta: x.valor,
+        forma_pagamento: x.forma_pagamento,
+        previsao_entrega: x.previsao_entrega,
+        proposta_arquivo_url: x.arquivo_url,
+        escolhida: x.escolhida,
+        escolhida_em: x.escolhida ? agora : null,
+        escolhida_por_id: x.escolhida ? dados.usuarioId : null,
+        emp_proprietaria_id: emp,
+      }))
+    )
+    .select("id")
+  const desfazer = async () => {
+    const ids = (inseridas ?? []).map((x) => String(x.id))
+    if (ids.length) await admin.from("compras_propostas").delete().in("id", ids)
+    await admin
+      .from("compras_solicitacoes")
+      .update({ ...antes, proposta_unica_justificativa: null })
+      .eq("id", dados.processoId)
+  }
+  if (erroPropostas) {
+    await desfazer()
+    return { erro: `Não foi possível registrar as propostas: ${erroPropostas.message}` }
+  }
+  const { erro } = await registrarCompra(dados.processoId, dados.usuarioId, dados.dataCompra)
+  if (erro) {
+    await desfazer()
+    return { erro }
+  }
+  return {}
+}
+
 export async function registrarCompra(
   processoId: string,
   compradorId: string,
