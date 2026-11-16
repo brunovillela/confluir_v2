@@ -84,6 +84,8 @@ export const EVENTOS_TELEGRAM = [
   { chave: "pendencia_viagens", rotulo: "Pedido de viagem a atender", grupo: "pendencia", acesso: { permissoes: ["viagens_gestao"] } },
   { chave: "pendencia_dados_bancarios", rotulo: "Conta bancária incluída, alterada ou excluída por funcionário/diretor a confirmar", grupo: "pendencia", acesso: { permissoes: ["financeiro_pagamento"] } },
   { chave: "compra_cancelada", rotulo: "Solicitação de compra cancelada (a sua ou uma da fila do comprador)", grupo: "notificacao", acesso: { permissoes: ["aquisicoes_compras_edicao", "aquisicoes_comprador"] } },
+  { chave: "cotacao_atrasada", rotulo: "Solicitação de compra esperando a cotação além do prazo (comprador e coordenador do departamento)", grupo: "pendencia", acesso: { permissoes: ["aquisicoes_comprador"], coordenador: true } },
+  { chave: "compra_andamento", rotulo: "Sua solicitação de compra foi comprada ou recebida", grupo: "notificacao", acesso: { permissoes: ["aquisicoes_compras_edicao", "aquisicoes_comprador"] } },
   { chave: "pendencia_cotacao", rotulo: "Nova aquisição a cotar (comprador)", grupo: "pendencia", acesso: { permissoes: ["aquisicoes_comprador"] } },
   { chave: "pendencia_recebimentos", rotulo: "Fornecimento a receber", grupo: "pendencia", acesso: { permissoes: ["aquisicoes_recebimentos", "aquisicoes_compras_edicao"] } },
   { chave: "pendencia_caixa", rotulo: "Despesa lançada no seu caixa a reconhecer, despesa sua não reconhecida ou aporte recusado", grupo: "pendencia" },

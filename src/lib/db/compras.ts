@@ -1424,6 +1424,60 @@ export async function definirEscolhaProposta(
  * proposta e marca o processo como comprado (valor = soma dos fornecimentos).
  * As ordens de pagamento são geradas por fornecimento, na sequência.
  */
+// ── Minhas solicitações (16/11/2026) ─────────────────────────────────────────
+
+export type MinhaSolicitacao = {
+  id: string
+  codigo: string | null
+  produto: string | null
+  departamentoNome: string | null
+  situacao: SituacaoProcesso
+  created_at: string | null
+  data_limite: string | null
+  cotacao_inicio: string | null
+  compra_data: string | null
+  compra_valor: number | null
+  recebimento_data: string | null
+  cancelado_motivo: string | null
+}
+
+/** As solicitações Via Aquisição que a pessoa registrou, das mais novas às mais antigas. */
+export async function listarMinhasSolicitacoes(usuarioId: string): Promise<MinhaSolicitacao[]> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("compras_solicitacoes")
+    .select(
+      "id, codigo, solicitacao_produto, solicitacao_departamento_id, created_at, solicitacao_data_limite, cancelado, comprado, recebido, em_cotacao, cotacao_inicio, cotacao_termino, compra_data, compra_valor, recebimento_data, cancelado_motivo"
+    )
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("solicitante_id", usuarioId)
+    .eq("aquisicao_direta", false)
+    .order("created_at", { ascending: false })
+    .limit(200)
+  if (error) return []
+  const linhas = (data ?? []) as Record<string, unknown>[]
+  const deptoIds = [...new Set(linhas.map((x) => x.solicitacao_departamento_id).filter((v): v is string => Boolean(v)))]
+  const nomeDepto = new Map<string, string>()
+  if (deptoIds.length) {
+    const { data: deps } = await admin.from("empresa_departamentos").select("id, departamento").in("id", deptoIds)
+    for (const d of (deps ?? []) as Record<string, unknown>[]) nomeDepto.set(String(d.id), String(d.departamento ?? ""))
+  }
+  return linhas.map((x) => ({
+    id: String(x.id),
+    codigo: (x.codigo as string | null) ?? null,
+    produto: (x.solicitacao_produto as string | null) ?? null,
+    departamentoNome: x.solicitacao_departamento_id ? (nomeDepto.get(String(x.solicitacao_departamento_id)) ?? null) : null,
+    situacao: derivarSituacao(x as FlagsProcesso),
+    created_at: (x.created_at as string | null) ?? null,
+    data_limite: (x.solicitacao_data_limite as string | null) ?? null,
+    cotacao_inicio: (x.cotacao_inicio as string | null) ?? null,
+    compra_data: (x.compra_data as string | null) ?? null,
+    compra_valor: (x.compra_valor as number | null) ?? null,
+    recebimento_data: (x.recebimento_data as string | null) ?? null,
+    cancelado_motivo: (x.cancelado_motivo as string | null) ?? null,
+  }))
+}
+
 // ── Proposta única e cotação rápida (16/11/2026) ─────────────────────────────
 
 /**
@@ -1662,7 +1716,50 @@ export async function registrarCompra(
       `Compra ${proc?.codigo ?? ""} — ${proc?.solicitacao_produto ?? "(sem descrição)"}: ${n} fornecimento${n === 1 ? "" : "s"} a receber`
     )
   }
+  avisarSolicitante(processoId, compradorId, (p) =>
+    `Sua solicitação foi comprada: ${p.codigo} — ${p.produto}, em ${formatarData(dataCompra)}. Agora falta a entrega.`
+  )
   return {}
+}
+
+/**
+ * O solicitante acompanha a própria solicitação (16/11/2026): avisa quando a
+ * compra é efetivada e quando o item é recebido — no sino e nos canais que ele
+ * ligou ("compra_andamento"). Não avisa quem fez a ação nem compra sem
+ * solicitante (direta registrada pela própria pessoa, legado).
+ */
+function avisarSolicitante(
+  processoId: string,
+  quemFez: string | null,
+  texto: (p: { codigo: string; produto: string }) => string
+): void {
+  depoisDaResposta(async () => {
+    const admin = await createAdminClient()
+    const { data: p } = await admin
+      .from("compras_solicitacoes")
+      .select("codigo, solicitacao_produto, solicitante_id, aquisicao_direta")
+      .eq("id", processoId)
+      .maybeSingle()
+    const solicitanteId = p?.solicitante_id ? String(p.solicitante_id) : null
+    if (!p || !solicitanteId || solicitanteId === quemFez || p.aquisicao_direta !== false) return
+    const { data: u } = await admin
+      .from("usuarios")
+      .select("id, nome_completo, email")
+      .eq("id", solicitanteId)
+      .not("inativo", "is", true)
+      .maybeSingle()
+    if (!u) return
+    const corpo = texto({ codigo: String(p.codigo ?? ""), produto: String(p.solicitacao_produto ?? "(sem descrição)") })
+    return avisar(
+      [{ id: String(u.id), nome: (u.nome_completo as string | null) ?? null, email: (u.email as string | null) ?? null, permissoes: {} as Permissoes }],
+      {
+        texto: corpo.slice(0, 300),
+        link: `/painel/compras/${processoId}`,
+        evento: "compra_andamento",
+        assunto: corpo.slice(0, 120),
+      }
+    )
+  })
 }
 
 /** Quem recebe fornecimentos fica sabendo que há entrega a conferir (onda 2, U2). */
@@ -1975,6 +2072,9 @@ export async function registrarRecebimento(
         updated_at: new Date().toISOString(),
       })
       .eq("id", linha.processo_id)
+    avisarSolicitante(String(linha.processo_id), dados.recebedor_id, (p) =>
+      `Sua solicitação chegou: ${p.codigo} — ${p.produto}, recebida em ${formatarData(dados.data)}${dados.de_acordo ? "" : " com ressalva (fora do solicitado)"}.`
+    )
   }
   return {}
 }

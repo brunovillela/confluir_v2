@@ -5,6 +5,7 @@ import {
   FileClock,
   ClipboardCheck,
   ClipboardList,
+  Inbox,
   ListChecks,
   PackageOpen,
   Plus,
@@ -28,7 +29,7 @@ import { GraficoColunas } from "@/components/graficos/colunas";
 import { BarraProporcao, GraficoRanking } from "@/components/graficos/ranking";
 import { TileIndicador } from "@/components/graficos/tile";
 import { requirePermissao } from "@/lib/auth";
-import { listarDepartamentos, resumoCompras } from "@/lib/db/compras";
+import { listarDepartamentos, listarMinhasSolicitacoes, resumoCompras } from "@/lib/db/compras";
 import { escopoComprasDoUsuario } from "@/lib/db/compras-acesso";
 import { DIAS_AVISO_NOTA, listarNotasAReceber } from "@/lib/db/compras-marketplace";
 import {
@@ -77,12 +78,14 @@ export default async function ComprasPage({
     await indicadoresCompras(escopo, periodo, true);
     redirect(urlDoPeriodo);
   }
-  const [resumo, resumoContr, departamentos, { dados: ind, calculadoEm }] = await Promise.all([
+  const [resumo, resumoContr, departamentos, { dados: ind, calculadoEm }, minhas] = await Promise.all([
     resumoCompras(escopo),
     resumoContratos(),
     escopo.todos ? Promise.resolve([]) : listarDepartamentos(),
     indicadoresCompras(escopo, periodo),
+    listarMinhasSolicitacoes(sessao.usuario.id).catch(() => []),
   ]);
+  const minhasAbertas = minhas.filter((s) => !["recebida", "cancelada"].includes(s.situacao)).length;
   const nomesDosDepartamentos = departamentos
     .filter((d) => escopo.departamentoIds.includes(d.id))
     .map((d) => d.nome);
@@ -153,6 +156,15 @@ export default async function ComprasPage({
       )}
 
       <div className={GRADE_AREAS}>
+        {(minhas.length > 0 || podeCriar) && (
+          <CartaoArea
+            titulo="Minhas solicitações"
+            descricao="As compras que você pediu Via Aquisição e a etapa de cada uma"
+            href="/painel/compras/minhas"
+            icone={Inbox}
+            indicador={minhasAbertas > 0 ? `${minhasAbertas} em andamento` : null}
+          />
+        )}
         <CartaoArea
           titulo="Processos de compra"
           descricao="Todas as compras que você vê, com filtros e exportação"

@@ -21,6 +21,11 @@ import { formatarData } from "@/lib/formato"
 import { escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
 import { listarNotasAReceber } from "@/lib/db/compras-marketplace"
 import { preferenciasDeAviso } from "@/lib/db/avisos"
+import { cotacaoForaDoPrazo, diasUteisDesde } from "@/lib/compras-prazo"
+import { hojeSP } from "@/lib/db/comum"
+import { lerComprasConfig } from "@/lib/db/compras-config"
+
+import { PrazoCotacaoForm } from "./prazo-cotacao"
 import { podeAcessar } from "@/lib/permissoes"
 
 export const metadata: Metadata = { title: "Área do comprador — Confluir" }
@@ -50,28 +55,25 @@ function hoje(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-/** Dias desde a solicitação (para "esperando há N dias"). */
-function diasDesde(iso: string | null): number | null {
-  if (!iso) return null
-  const ms = Date.now() - new Date(iso).getTime()
-  return ms >= 0 ? Math.floor(ms / 86_400_000) : null
-}
 
-/** A partir daqui a espera vira destaque. */
-const DIAS_ESPERA_ALERTA = 3
 
 function ItemProcesso({
   item,
   acao,
   mostrarEspera = false,
+  prazo = null,
 }: {
   item: ItemFilaComprador
   acao: string
   /** Solicitadas: quanto tempo esperam a cotação começar. */
   mostrarEspera?: boolean
+  /** Prazo da entidade para iniciar a cotação (dias úteis; null = sem prazo). */
+  prazo?: number | null
 }) {
   const atrasado = item.data_limite ? item.data_limite < hoje() : false
-  const espera = mostrarEspera ? diasDesde(item.created_at) : null
+  const criado = item.created_at?.slice(0, 10) ?? null
+  const espera = mostrarEspera && criado ? diasUteisDesde(criado, hojeSP()) : null
+  const foraDoPrazo = mostrarEspera && cotacaoForaDoPrazo(criado, hojeSP(), prazo)
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
       <div className="min-w-0">
@@ -97,8 +99,11 @@ function ItemProcesso({
             <span>sem prazo</span>
           )}
           {espera !== null && (
-            <span className={espera >= DIAS_ESPERA_ALERTA ? "text-warning-fg font-medium" : ""}>
-              {espera === 0 ? "solicitada hoje" : `esperando há ${espera} dia${espera === 1 ? "" : "s"}`}
+            <span className={foraDoPrazo ? "text-warning-fg font-medium" : ""}>
+              {espera === 0
+                ? "solicitada hoje"
+                : `esperando há ${espera} dia${espera === 1 ? "" : "s"} út${espera === 1 ? "il" : "eis"}`}
+              {foraDoPrazo ? " · fora do prazo" : ""}
             </span>
           )}
         </p>
@@ -123,6 +128,9 @@ export default async function CompradorPage() {
     ).catch(() => null),
     ehComprador ? preferenciasDeAviso(sessao.usuario.id).catch(() => null) : Promise.resolve(null),
   ])
+  const config = await lerComprasConfig()
+  // Quem ajusta o prazo: o comprador ou quem configura o sistema.
+  const podeConfigurar = ehComprador || podeAcessar(sessao.permissoes, "configuracoes")
   // Avisos são opt-in: sem nenhum canal ligado, o comprador só vê a fila aqui.
   const semAvisoDeCotacao =
     !!prefs && !prefs.email.pendencia_cotacao && !prefs.telegram.pendencia_cotacao && !prefs.push.pendencia_cotacao
@@ -146,6 +154,7 @@ export default async function CompradorPage() {
         <p className="text-muted-foreground mt-1 text-xs">
           Processos Via Aquisição que aguardam sua ação, da solicitação à compra.
         </p>
+        <PrazoCotacaoForm prazo={config.prazoCotacao} podeEditar={podeConfigurar} />
       </div>
 
       {semAvisoDeCotacao && (
@@ -222,6 +231,7 @@ export default async function CompradorPage() {
                   item={item}
                   acao={etapa.acao}
                   mostrarEspera={etapa.chave === "solicitada"}
+                  prazo={config.prazoCotacao}
                 />
               ))}
             </CardContent>

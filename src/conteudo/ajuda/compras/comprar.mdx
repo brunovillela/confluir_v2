@@ -319,8 +319,11 @@ Cada etapa é uma ação no próprio processo:
   Em **Aquisição → Área do comprador**, os processos via Aquisição aparecem
   agrupados por etapa — **Solicitadas** (iniciar cotação), **Em cotação** e
   **Cotadas — a comprar** — com o prazo em destaque (vermelho quando vencido).
-  Nas Solicitadas, cada item diz há quantos dias espera a cotação começar, em
-  destaque a partir de 3 dias. Clique num item para operar.
+  Nas Solicitadas, cada item diz há quantos dias úteis espera a cotação começar
+  e fica em destaque, **fora do prazo**, quando passa do prazo da entidade. O
+  prazo aparece no topo da página (padrão: 3 dias úteis; fins de semana e
+  feriados nacionais não contam) e o comprador muda em **Alterar** — em branco,
+  sem prazo. Clique num item para operar.
   <RequerPermissao>Comprador</RequerPermissao>
 </Aviso>
 
@@ -334,11 +337,30 @@ Cada etapa é uma ação no próprio processo:
     conta a fila inteira (a cotar, em cotação e cotadas a comprar).
   - **Todo dia:** o **Lembrete diário** (também em Meu perfil → Avisos) traz a
     fila junto com as outras pendências.
+  - **Fora do prazo:** passado o prazo para iniciar a cotação, os compradores e o
+    coordenador do departamento solicitante recebem, uma vez por solicitação, o
+    aviso **Solicitação de compra esperando a cotação além do prazo** (ligado em
+    Meu perfil → Avisos).
   - Na página de Aquisição, o quadro **A cotar** e o cartão da Área do
     comprador mostram quantas esperam a cotação começar.
 </Aviso>
 
-<Print src="compras/comprador.png" alt="Área do comprador com três blocos — Solicitadas, Em cotação e Cotadas a comprar — cada um listando os processos com código, produto, departamento, prazo e um botão para operar." legenda="A Área do comprador: cada processo na sua etapa, com o prazo e o botão de ação." />
+<Print src="compras/comprador.png" alt="Área do comprador com três blocos — Solicitadas, Em cotação e Cotadas a comprar — cada um listando os processos com código, produto, departamento, prazo e um botão para operar." legenda="A Área do comprador: o prazo para iniciar a cotação no topo e cada processo na sua etapa, com a espera em dias úteis." />
+
+## Minhas solicitações
+
+<RequerPermissao>Aquisição — editar</RequerPermissao>
+
+Em **Aquisição → Minhas solicitações**, quem pediu compras Via Aquisição vê cada
+uma com a etapa, numa frase: esperando o comprador (há quantos dias úteis e se
+passou do prazo), em cotação, cotada, comprada (data e valor, aguardando a
+entrega), recebida ou cancelada (com o motivo). Clique numa linha para abrir o
+processo. Quando a compra é efetivada e quando o item é recebido, o solicitante
+recebe o aviso **Sua solicitação de compra foi comprada ou recebida**, no sino e,
+se ligar em Meu perfil → Avisos, por e-mail, Telegram ou celular. Quem fez a ação
+não é avisado da própria ação.
+
+<Print src="compras/minhas-solicitacoes.png" alt="Minhas solicitações: o quadro Em andamento com a solicitação 2026.1016.1018.2936, mouses sem fio, a frase Comprada em 16/10/2026 por R$ 249,50: aguardando a entrega, o departamento Administrativo, a data da solicitação, o prazo para receber e o selo Comprada; no topo, o botão Nova solicitação." legenda="Minhas solicitações: a etapa de cada pedido, sem abrir processo por processo." />
 
 ## Cancelar a solicitação
 

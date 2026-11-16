@@ -2,10 +2,11 @@
 
 # Compras, fornecedores e contratos
 
-24 tabelas. Diagrama: [er/compras.md](../er/compras.md).
+25 tabelas. Diagrama: [er/compras.md](../er/compras.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
+| [compras_config](#compras_config) | identificação | Configuração de Aquisição da entidade (uma linha por entidade): prazo para iniciar a cotação. |
 | [compras_creditos_usos](#compras_creditos_usos) | identificação | Cada uso do crédito de uma compra cancelada pelo vendedor: a ordem e o processo da compra nova em que foi abatido e quanto. Desfeito (desfei… |
 | [compras_departamentos_acesso](#compras_departamentos_acesso) | identificação | Quais departamentos cada usuário enxerga em Compras (acesso às compras por departamento), definido por um gestor. |
 | [compras_devolucoes_recebimentos](#compras_devolucoes_recebimentos) | identificação | Cada valor que voltou da devolução de uma compra cancelada pelo vendedor (pode vir em partes ou menor que o cancelado). |
@@ -30,6 +31,27 @@
 | [fa_documentos_categorias](#fa_documentos_categorias) | — | Categorias dos documentos institucionais, migradas do Bubble. |
 | [fa_documentos_categorias_junction](#fa_documentos_categorias_junction) | — | Ligação muitos-para-muitos entre documentos institucionais e categorias. |
 | [fa_documentos_versao](#fa_documentos_versao) | — | Versões (arquivos) dos documentos institucionais com vigência. O vínculo real com o documento é documento_raw (bubble_id), pois documento_id… |
+
+## compras_config
+
+Configuração de Aquisição da entidade (uma linha por entidade): prazo para iniciar a cotação.
+
+- **LGPD:** identificação · titulares: usuários do sistema
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `cotacao_prazo_dias_uteis` | integer | sim |  |  | nenhum | Em quantos dias úteis depois da solicitação o comprador deve iniciar a cotação (null = sem prazo). |
+| `atualizado_por_id` | uuid | sim |  | → usuarios (set null) | identificação | Quem alterou a configuração por último. |
+| `created_at` | timestamp with time zone | não | `now()` |  | nenhum |  |
+| `updated_at` | timestamp with time zone | sim |  |  | nenhum |  |
+
+Checks: `compras_config_cotacao_prazo_dias_uteis_check` `CHECK (((cotacao_prazo_dias_uteis IS NULL) OR ((cotacao_prazo_dias_uteis >= 1) AND (cotacao_prazo_dias_uteis <= 60))))`
+
+Índices: `compras_config_emp`, `compras_config_pkey`
 
 ## compras_creditos_usos
 

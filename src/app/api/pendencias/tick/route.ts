@@ -1,5 +1,6 @@
 import { contextoDoTenant } from "@/lib/db/comunicacao-mensagens"
 import { avisarNotasAReceber } from "@/lib/db/compras-marketplace"
+import { lembrarCotacoesAtrasadas } from "@/lib/db/compras-cotacao-lembrete"
 import { lembrarPendencias, tenantsDoLembrete } from "@/lib/db/pendencias-lembrete"
 import { lembretesDoPortal, type ResultadoLembretesDoPortal } from "@/lib/db/portal-lembretes"
 import { lembrarAssinaturasRpa } from "@/lib/db/rpa-lembretes"
@@ -33,8 +34,12 @@ export const maxDuration = 300
  * leva um lembrete ao prestador (até 2); esgotados, quem emitiu é avisado
  * (lib/db/rpa-lembretes.ts).
  *
+ * E as COTAÇÕES FORA DO PRAZO: solicitação Via Aquisição que passou do prazo
+ * da entidade sem a cotação começar avisa os compradores e o coordenador do
+ * departamento, uma vez por solicitação (lib/db/compras-cotacao-lembrete.ts).
+ *
  * `?tenant=<uuid>` roda um tenant só (disparo manual e testes na demo);
- * `?etapa=pendencias`, `?etapa=portal`, `?etapa=notas` ou `?etapa=rpa` roda só uma das partes.
+ * `?etapa=pendencias`, `?etapa=portal`, `?etapa=notas`, `?etapa=rpa` ou `?etapa=cotacao` roda só uma das partes.
  */
 async function handler(req: Request): Promise<Response> {
   const secret = process.env.CRON_SECRET
@@ -110,7 +115,23 @@ async function handler(req: Request): Promise<Response> {
     }
   }
 
-  return Response.json({ verificados: tenants.length, processados: resultados, portal, notas, rpa })
+  const cotacao: { tenant: string; atrasadas: number; avisos: number; erros: string[] }[] = []
+  if (!etapa || etapa === "cotacao") {
+    const svc = createServiceClient()
+    for (const t of tenants) {
+      try {
+        const contexto = await contextoDoTenant(t.id, svc)
+        cotacao.push({ tenant: t.id, ...(await lembrarCotacoesAtrasadas(svc, t.id, contexto)) })
+      } catch (e) {
+        cotacao.push({ tenant: t.id, atrasadas: 0, avisos: 0, erros: [e instanceof Error ? e.message : String(e)] })
+      }
+    }
+    for (const c of cotacao) {
+      if (c.erros.length) console.error(`[pendencias/tick] cotações fora do prazo (${c.tenant}):`, c.erros.join(" · "))
+    }
+  }
+
+  return Response.json({ verificados: tenants.length, processados: resultados, portal, notas, rpa, cotacao })
 }
 
 export const GET = handler

@@ -6,6 +6,11 @@ Só chaves (PK e FK). Tabelas de outros módulos aparecem sem atributos. Colunas
 
 ```mermaid
 erDiagram
+  compras_config {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid atualizado_por_id FK
+  }
   compras_creditos_usos {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -167,6 +172,7 @@ erDiagram
     uuid id PK
     uuid documento_id FK
   }
+  compras_config }o--o| usuarios : "atualizado_por_id"
   compras_creditos_usos }o--o| compras_solicitacoes : "processo_id"
   compras_creditos_usos }o--o| ordens_pagamento : "ordem_id"
   compras_creditos_usos }o--o| usuarios : "criado_por_id"
