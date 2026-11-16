@@ -13,6 +13,7 @@ import { avisoAnalitica } from "@/lib/db/analitica"
 import { hojeSP } from "@/lib/db/comum"
 import { lancamentosContabeis } from "@/lib/db/contabil"
 import { rpasPagosNoPeriodo, totalizarRpas } from "@/lib/db/contabil-rpa"
+import { saldosComFornecedoresEm, type SaldoComFornecedor } from "@/lib/db/compras-cancelamento"
 import { listarMesesFechados } from "@/lib/db/meses-fechados"
 import { pendenciasDoMes } from "@/lib/db/fechamento-pendencias"
 import { emailContabilidade } from "@/lib/db/rpa-contabilidade"
@@ -30,12 +31,15 @@ export default async function ContabilPage({ searchParams }: { searchParams: Pro
   const sessao = await requirePermissao("financeiro_leitura", ["financeiro_pagamento"])
   const sp = await searchParams
   const { de, ate } = periodoContabil(sp.de, sp.ate)
-  const [l, fechados, rpas, emailContab] = await Promise.all([
+  const [l, fechados, rpas, emailContab, saldos] = await Promise.all([
     lancamentosContabeis(de, ate),
     listarMesesFechados(),
     rpasPagosNoPeriodo(de, ate),
     emailContabilidade(),
+    saldosComFornecedoresEm(ate).catch(() => [] as SaldoComFornecedor[]),
   ])
+  const somaSaldos = (tipo: SaldoComFornecedor["tipo"]) => saldos.filter((x) => x.tipo === tipo).reduce((t, x) => t + x.saldo, 0)
+  const creditosVencidos = saldos.filter((x) => x.tipo === "Crédito" && x.situacao.startsWith("Vencido"))
   const tr = totalizarRpas(rpas)
   const ordensPagas = new Set(l.despesas.map((d) => d.id.split(":")[0])).size
   // Os últimos 12 meses, do atual para trás, mais os fechados mais antigos.
@@ -69,7 +73,7 @@ export default async function ContabilPage({ searchParams }: { searchParams: Pro
           <h1 className="text-2xl font-semibold tracking-tight">Exportação contábil</h1>
         </div>
         <p className="text-muted-foreground mt-1 text-xs">
-          Os lançamentos de um período em planilha, com centro de custo, departamento, favorecido e CNPJ/CPF: a aba Despesas traz as ordens pagas pela data do pagamento; a aba Receitas, a arrecadação por competência, tipo e fonte; a aba RPAs, os recibos de autônomo pagos no período com bruto, retenções e INSS patronal.
+          Os lançamentos de um período em planilha, com centro de custo, departamento, favorecido e CNPJ/CPF: a aba Despesas traz as ordens pagas pela data do pagamento; a aba Receitas, a arrecadação por competência, tipo e fonte; a aba RPAs, os recibos de autônomo pagos no período com bruto, retenções e INSS patronal; a aba Créditos e devoluções, o que estava a receber de fornecedores no último dia por compras canceladas.
         </p>
       </div>
 
@@ -217,6 +221,57 @@ export default async function ContabilPage({ searchParams }: { searchParams: Pro
             <p className="text-warning-fg mt-2 text-xs">
               {rpas.filter((r) => !r.assinado).length} RPA(s) pago(s) sem o recibo assinado anexado — a planilha
               marca quais.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card id="creditos-devolucoes">
+        <CardHeader>
+          <CardTitle className="text-base">Créditos e devoluções em aberto em {formatarData(ate)}</CardTitle>
+          <CardDescription className="text-xs">
+            Compras canceladas pelo vendedor depois de pagas: o crédito para compras futuras e o dinheiro a devolver são
+            valores a receber da entidade. O saldo é o do fim do último dia do período — o que foi abatido, recebido ou
+            encerrado depois não conta. A aba Créditos e devoluções da planilha traz cada um.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {saldos.length === 0 ? (
+            <p className="text-muted-foreground text-sm">Nada em aberto nessa data.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead className="text-right">Quantos</TableHead>
+                  <TableHead className="text-right">Saldo</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(["Crédito", "Devolução"] as const).map((tipo) => (
+                  <TableRow key={tipo}>
+                    <TableCell>{tipo === "Crédito" ? "Créditos com fornecedores" : "Devoluções a receber"}</TableCell>
+                    <TableCell className="text-right tabular-nums">{saldos.filter((x) => x.tipo === tipo).length}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatarMoeda(somaSaldos(tipo))}</TableCell>
+                  </TableRow>
+                ))}
+                <TableRow>
+                  <TableCell className="font-medium">Total</TableCell>
+                  <TableCell className="text-right tabular-nums">{saldos.length}</TableCell>
+                  <TableCell className="text-right font-medium tabular-nums">{formatarMoeda(somaSaldos("Crédito") + somaSaldos("Devolução"))}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          )}
+          {creditosVencidos.length > 0 && (
+            <p className="text-warning-fg mt-2 text-xs">
+              {creditosVencidos.length} crédito(s) já vencido(s) na data, somando{" "}
+              {formatarMoeda(creditosVencidos.reduce((t, x) => t + x.saldo, 0))}: não podem mais ser abatidos. Dê como
+              perdido em{" "}
+              <Link href="/painel/compras/notas-a-receber#creditos" className="text-primary hover:underline">
+                Notas a receber
+              </Link>{" "}
+              ou negocie com o fornecedor.
             </p>
           )}
         </CardContent>

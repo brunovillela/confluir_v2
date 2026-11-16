@@ -4,6 +4,7 @@ import { getSessaoPainel } from "@/lib/auth"
 import { lancamentosContabeis, type LancamentoDespesa, type LancamentoReceita } from "@/lib/db/contabil"
 import { COLUNAS_RPA_CONTABIL, linhasRpaComTotal } from "@/lib/contabil-rpa-planilha"
 import { rpasPagosNoPeriodo } from "@/lib/db/contabil-rpa"
+import { saldosComFornecedoresEm, type SaldoComFornecedor } from "@/lib/db/compras-cancelamento"
 import { registrarExportacao } from "@/lib/exportacoes"
 import { podeAcessar } from "@/lib/permissoes"
 import { type ColunaXlsx, dataXlsx, planilhaXlsxAbas, respostaXlsx } from "@/lib/xlsx"
@@ -13,7 +14,8 @@ import { periodoContabil } from "../periodo"
 /**
  * Lançamentos do período em XLSX: aba Despesas (ordens pagas), aba Receitas
  * (arrecadação) e aba RPAs (bruto, retenções, INSS patronal e custo dos RPAs
- * pagos no período — a Despesas só tem o líquido).
+ * pagos no período — a Despesas só tem o líquido) e aba Créditos e devoluções
+ * (o que estava a receber de fornecedores no último dia, por compra cancelada).
  */
 export async function GET(request: NextRequest): Promise<Response> {
   const sessao = await getSessaoPainel()
@@ -22,7 +24,11 @@ export async function GET(request: NextRequest): Promise<Response> {
   }
   const sp = new URL(request.url).searchParams
   const { de, ate } = periodoContabil(sp.get("de"), sp.get("ate"))
-  const [l, rpas] = await Promise.all([lancamentosContabeis(de, ate), rpasPagosNoPeriodo(de, ate)])
+  const [l, rpas, saldos] = await Promise.all([
+    lancamentosContabeis(de, ate),
+    rpasPagosNoPeriodo(de, ate),
+    saldosComFornecedoresEm(ate).catch(() => [] as SaldoComFornecedor[]),
+  ])
   await registrarExportacao(request, { usuarioId: sessao.usuario.id, recurso: "contabil", formato: "xlsx", quantidade: l.despesas.length + l.receitas.length + rpas.length, filtros: { de, ate } })
 
   const despesas: ColunaXlsx<LancamentoDespesa>[] = [
@@ -53,10 +59,28 @@ export async function GET(request: NextRequest): Promise<Response> {
     { titulo: "Lançamentos", valor: (r) => r.lancamentos, largura: 12 },
     { titulo: "Pagantes", valor: (r) => r.pagantes, largura: 12 },
   ]
+  const colunasSaldos: ColunaXlsx<SaldoComFornecedor | null>[] = [
+    { titulo: "Tipo", valor: (s) => s?.tipo ?? "Total", largura: 12 },
+    { titulo: "Fornecedor", valor: (s) => s?.fornecedor, largura: 40 },
+    { titulo: "CNPJ/CPF", valor: (s) => s?.documento, largura: 20 },
+    { titulo: "Compra", valor: (s) => s?.codigo, largura: 20 },
+    { titulo: "Produto", valor: (s) => s?.produto, largura: 40 },
+    { titulo: "Cancelada em", valor: (s) => dataXlsx(s?.data), largura: 12 },
+    { titulo: "Valor cancelado", valor: (s) => s?.valorCancelado ?? null, largura: 14 },
+    { titulo: "Usado / recebido até a data", valor: (s) => s?.movimentado ?? null, largura: 16 },
+    { titulo: `Saldo em ${ate.split("-").reverse().join("/")}`, valor: (s) => s?.saldo ?? Math.round(saldos.reduce((t, x) => t + x.saldo, 0) * 100) / 100, largura: 14 },
+    { titulo: "Validade do crédito", valor: (s) => dataXlsx(s?.validade), largura: 12 },
+    { titulo: "Situação", valor: (s) => s?.situacao, largura: 28 },
+  ]
   const bytes = planilhaXlsxAbas([
     { aba: "Despesas", colunas: despesas as ColunaXlsx<unknown>[], linhas: l.despesas },
     { aba: "Receitas", colunas: receitas as ColunaXlsx<unknown>[], linhas: l.receitas },
     { aba: "RPAs", colunas: COLUNAS_RPA_CONTABIL as ColunaXlsx<unknown>[], linhas: linhasRpaComTotal(rpas) },
+    {
+      aba: "Créditos e devoluções",
+      colunas: colunasSaldos as ColunaXlsx<unknown>[],
+      linhas: saldos.length ? [...saldos, null] : [],
+    },
   ])
   return respostaXlsx(`contabil-${de}-a-${ate}`, bytes)
 }

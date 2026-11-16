@@ -1108,3 +1108,120 @@ export async function cancelamentosDoFornecedor(fornecedorId: string): Promise<C
     }
   })
 }
+
+// ── Saldo com fornecedores numa data, para a contabilidade (15/11/2026) ──────
+
+export type SaldoComFornecedor = {
+  tipo: "Crédito" | "Devolução"
+  fornecedor: string
+  documento: string | null
+  codigo: string | null
+  produto: string | null
+  /** Data do cancelamento. */
+  data: string | null
+  valorCancelado: number
+  /** Crédito: abatido em compras até a data; devolução: recebido até a data. */
+  movimentado: number
+  saldo: number
+  validade: string | null
+  situacao: string
+}
+
+/** Data (São Paulo) de um timestamptz. */
+function dataSP(ts: string | null | undefined): string | null {
+  if (!ts) return null
+  return new Date(ts).toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" })
+}
+
+/**
+ * Créditos com fornecedores e devoluções a receber de compras canceladas pelo
+ * vendedor que estavam em aberto no fim do dia `ate` — o que a entidade tinha
+ * a receber (em dinheiro ou em compras). Vale para datas passadas: usos,
+ * recebimentos e encerramentos depois da data não contam.
+ */
+export async function saldosComFornecedoresEm(ate: string): Promise<SaldoComFornecedor[]> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data, error } = await admin
+    .from("compras_fornecimentos")
+    .select(
+      "id, processo_id, fornecedor_id, vendedor_id, cancelamento_desfecho, cancelamento_valor, cancelamento_data, credito_validade, credito_usado_em, credito_usado_obs, devolucao_recebida_em, devolucao_recebida_obs"
+    )
+    .eq("emp_proprietaria_id", emp)
+    .not("cancelamento_desfecho", "is", null)
+    .lte("cancelamento_data", ate)
+    .order("cancelamento_data", { ascending: true })
+    .limit(1000)
+  if (error) {
+    if (esquemaAusente(error)) return []
+    throw new Error(`Falha ao ler os créditos e devoluções: ${error.message}`)
+  }
+  // Fechados na própria compra (parte abatida numa ordem ainda não paga, nada a devolver) não são um valor a receber.
+  const linhas = (data ?? []).filter((f) => {
+    const obs = String((f.cancelamento_desfecho === "credito" ? f.credito_usado_obs : f.devolucao_recebida_obs) ?? "")
+    return !obs.startsWith("Abatido na ordem") && !obs.startsWith("Nada a devolver")
+  })
+  if (!linhas.length) return []
+  const ids = linhas.map((f) => String(f.id))
+  const idsDe = (k: "processo_id" | "fornecedor_id" | "vendedor_id") => [...new Set(linhas.map((l) => texto(l[k])).filter((v): v is string => !!v))]
+  const [usos, recs, procs, empresas] = await Promise.all([
+    admin.from("compras_creditos_usos").select("credito_fornecimento_id, valor, created_at, desfeito_em").in("credito_fornecimento_id", ids),
+    admin.from("compras_devolucoes_recebimentos").select("fornecimento_id, valor, data").in("fornecimento_id", ids).lte("data", ate),
+    admin.from("compras_solicitacoes").select("id, codigo, solicitacao_produto").in("id", idsDe("processo_id")),
+    admin.from("empresa").select("id, nome_fantasia, nome_razao, cnpj_cpf").in("id", [...idsDe("fornecedor_id"), ...idsDe("vendedor_id")]),
+  ])
+  const proc = new Map((procs.data ?? []).map((p) => [String(p.id), p]))
+  const empresa = new Map((empresas.data ?? []).map((e) => [String(e.id), e]))
+  const nomeDe = (id: unknown) => {
+    const e = id ? empresa.get(String(id)) : undefined
+    return e ? (texto(e.nome_fantasia) ?? texto(e.nome_razao)) : null
+  }
+  const saida: SaldoComFornecedor[] = []
+  for (const f of linhas) {
+    const valor = Number(f.cancelamento_valor ?? 0)
+    if (!(valor > 0)) continue
+    const credito = f.cancelamento_desfecho === "credito"
+    let movimentado: number
+    let situacao: string
+    if (credito) {
+      // Marcado como usado ou dado como perdido até a data: não há mais saldo.
+      const fechadoEm = dataSP(texto(f.credito_usado_em))
+      if (fechadoEm && fechadoEm <= ate) continue
+      movimentado = centavos(
+        (usos.data ?? [])
+          .filter((u) => String(u.credito_fornecimento_id) === String(f.id))
+          .filter((u) => (dataSP(texto(u.created_at)) ?? "") <= ate && (!u.desfeito_em || (dataSP(texto(u.desfeito_em)) ?? "") > ate))
+          .reduce((s, u) => s + Number(u.valor ?? 0), 0)
+      )
+      const validade = texto(f.credito_validade)
+      situacao = validade && validade < ate ? `Vencido em ${formatarData(validade)}, sem uso` : movimentado > 0 ? "Usado em parte" : "Em aberto"
+    } else {
+      const encerradaEm = dataSP(texto(f.devolucao_recebida_em))
+      if (encerradaEm && encerradaEm <= ate) continue
+      movimentado = centavos(
+        (recs.data ?? []).filter((r) => String(r.fornecimento_id) === String(f.id)).reduce((s, r) => s + Number(r.valor ?? 0), 0)
+      )
+      situacao = movimentado > 0 ? "Recebida em parte" : "A receber"
+    }
+    const saldo = centavos(valor - movimentado)
+    if (saldo <= 0.005) continue
+    const marketplace = nomeDe(f.fornecedor_id)
+    const vendedor = nomeDe(f.vendedor_id)
+    const doc = f.vendedor_id ? empresa.get(String(f.vendedor_id)) : empresa.get(String(f.fornecedor_id))
+    const p = proc.get(String(f.processo_id))
+    saida.push({
+      tipo: credito ? "Crédito" : "Devolução",
+      fornecedor: vendedor && marketplace ? `${vendedor} (via ${marketplace})` : (vendedor ?? marketplace ?? "(fornecedor)"),
+      documento: texto(doc?.cnpj_cpf),
+      codigo: texto(p?.codigo),
+      produto: texto(p?.solicitacao_produto),
+      data: texto(f.cancelamento_data),
+      valorCancelado: valor,
+      movimentado,
+      saldo,
+      validade: credito ? texto(f.credito_validade) : null,
+      situacao,
+    })
+  }
+  return saida
+}
