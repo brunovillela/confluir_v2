@@ -16,6 +16,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-11-17",
     titulo: "Meu perfil: Meus veículos",
     itens: [
+      "Ordens de pagamento: ordem sem forma de pagamento não é mais paga — o formulário de pagamento avisa e o registro (pela ordem, em lote, pela Distribuição de comprovantes ou pelo extrato) pede para informar a forma em Corrigir ordem antes. Afeta só ordens antigas: desde 23/10 todas nascem com a forma.",
       "Meu perfil → Meus veículos: quem usa os veículos da entidade vê a própria CNH e o seu histórico — usos, km, reservas, abastecimentos e infrações com a situação da cobrança —, com filtros e ordenação, e pede um veículo dali mesmo.",
     ],
   },

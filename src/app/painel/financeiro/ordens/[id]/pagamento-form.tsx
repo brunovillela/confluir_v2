@@ -32,6 +32,7 @@ export function PagamentoForm({
   centros,
   podeEditar = true,
   parecidas = [],
+  semForma = false,
 }: {
   ordemId: string
   valorPago: number | null
@@ -43,6 +44,8 @@ export function PagamentoForm({
   podeEditar?: boolean
   /** Códigos das ordens que parecem a mesma cobrança (primeiro registro). */
   parecidas?: string[]
+  /** A ordem não tem forma de pagamento: o registro é recusado até corrigir. */
+  semForma?: boolean
 }) {
   const [estado, salvarAction, salvando] = useActionState(salvarPagamento, {})
   const envio = useEnvioFormulario(salvarAction, estado)
@@ -62,6 +65,14 @@ export function PagamentoForm({
 
   return (
     <div className="grid gap-4">
+      {semForma && !temPagamento && (
+        <Alert variant="warning">
+          <AlertDescription>
+            Esta ordem está sem forma de pagamento. Informe-a em <strong>Corrigir</strong>, acima, antes de registrar o
+            pagamento.
+          </AlertDescription>
+        </Alert>
+      )}
       {erro && (
         <Alert variant="destructive">
           <AlertDescription>{erro}</AlertDescription>

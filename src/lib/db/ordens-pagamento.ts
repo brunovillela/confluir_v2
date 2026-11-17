@@ -41,7 +41,7 @@ export async function registrarPagamentoDaOrdem({
   const admin = await createAdminClient()
   const { data: ordem } = await admin
     .from("ordens_pagamento")
-    .select("id, codigo, descricao, situacao, arquivo_pagamento, data_pagamento, valor_pago, caixa_conta_id, centro_custo_receita_id, valor_inicial_cobranca, vencimento, beneficiario_fornecedor_id, fornecedor_id, beneficiario_usuario_id")
+    .select("id, codigo, descricao, situacao, forma_pagamento, arquivo_pagamento, data_pagamento, valor_pago, caixa_conta_id, centro_custo_receita_id, valor_inicial_cobranca, vencimento, beneficiario_fornecedor_id, fornecedor_id, beneficiario_usuario_id")
     .eq("id", id)
     .eq("emp_proprietaria_id", await tenantAtual())
     .maybeSingle()
@@ -56,6 +56,13 @@ export async function registrarPagamentoDaOrdem({
           ? "A ordem ainda não foi autorizada — só ordem \"A pagar\" pode ser paga."
           : `Ordem "${ordem.situacao}" não pode ser paga.`,
     }
+  }
+
+  // Sem forma de pagamento não se paga (17/11/2026): ordens geradas por diárias,
+  // custeio e reembolso nasciam sem ela até 22/10 e foram pagas assim — a
+  // exportação contábil e a conferência de comprovantes dependem da forma.
+  if (!editando && !String(ordem.forma_pagamento ?? "").trim()) {
+    return { erro: `${ordem.codigo ? `A ordem ${ordem.codigo}` : "A ordem"} está sem forma de pagamento. Informe-a em Corrigir, na própria ordem, antes de registrar o pagamento.` }
   }
 
   // Data digitada errada (ex.: 0206 no lugar de 2026) não entra.

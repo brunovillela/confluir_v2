@@ -196,6 +196,12 @@ Sem nenhum dado bancário, a ordem não é gerada e a mensagem pede para cadastr
 os dados do favorecido. A multa de trânsito nasce como **Boleto**. No
 **Corrigir ordem**, a forma pode mudar, mas não ficar vazia.
 
+Ordem antiga sem forma (algumas geradas por diárias, custeio e reembolso até
+22/10/2026) **não é paga** enquanto a forma não for informada: o formulário de
+pagamento avisa, e o registro — pela ordem, em lote, pela Distribuição de
+comprovantes ou pelo extrato — é recusado com a mensagem para informá-la em
+**Corrigir ordem** (corrigir só a forma não devolve a ordem para autorização).
+
 Ordem antiga ainda **sem forma** completa-se sozinha: quando alguém cadastra a
 chave Pix ou a conta do favorecido (no fornecedor, na ficha do filiado, no
 Pessoal ou na ficha do diretor), as ordens abertas dele sem forma recebem a

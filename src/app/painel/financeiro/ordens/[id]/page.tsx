@@ -596,6 +596,7 @@ export default async function OrdemPage({
                 centroReceitaId={ordem.centro_custo_receita_id as string | null}
                 temComprovante={!!ordem.arquivo_pagamento}
                 temPagamento={temPagamento}
+                semForma={!String(ordem.forma_pagamento ?? "").trim()}
                 parecidas={temPagamento ? [] : parecidas.map((p) => p.codigo ?? "ordem")}
                 centros={(await listarCentrosDeDebito((ordem.centro_custo_receita_id as string | null) ?? null)).map(
                   (c) => ({
