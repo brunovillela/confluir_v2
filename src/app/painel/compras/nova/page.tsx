@@ -21,12 +21,20 @@ import {
 } from "@/lib/db/compras"
 
 import { saldosDeCreditoPorFornecedor } from "@/lib/db/compras-cancelamento"
+import { compraParaRepetir } from "@/lib/db/compras-repetir"
 import { NovaCompraForm } from "./nova-compra-form"
 
 export const metadata: Metadata = { title: "Nova compra — Confluir" }
 
-export default async function NovaCompraPage() {
+export default async function NovaCompraPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ repetir?: string }>
+}) {
   const sessao = await requirePermissao("aquisicoes_compras_edicao", ["aquisicoes_compra_direta"])
+  const { repetir } = await searchParams
+  // Repetir compra (17/11/2026): o formulário abre com o que se repete.
+  const inicial = repetir && /^[0-9a-f-]{36}$/i.test(repetir) ? await compraParaRepetir(repetir, String(sessao.usuario.id)) : null
   const viaCompras = podeAcessar(sessao.permissoes, "aquisicoes_compras_edicao")
   const direta = podeAcessar(sessao.permissoes, "aquisicoes_compra_direta")
 
@@ -59,7 +67,7 @@ export default async function NovaCompraPage() {
             Aquisição
           </Link>
         </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">Nova compra</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{inicial ? "Repetir compra" : "Nova compra"}</h1>
         <p className="text-muted-foreground mt-1 text-xs">
           Solicitação via setor de compras ou registro de aquisição direta
         </p>
@@ -98,6 +106,7 @@ export default async function NovaCompraPage() {
         rpaConfig={rpaConfig}
         rpaPatronal={direta ? await aliquotaPatronalRpa() : null}
         rpasAvulsos={rpasAvulsos}
+        inicial={inicial}
       />
     </>
   )

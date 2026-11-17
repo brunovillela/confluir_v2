@@ -1,11 +1,12 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, Plus } from "lucide-react"
+import { ArrowLeft, CopyPlus, Plus } from "lucide-react"
 
 import { SituacaoProcessoBadge } from "@/components/compras"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
+import { podeAcessar } from "@/lib/permissoes"
 import { cotacaoForaDoPrazo, diasUteisDesde } from "@/lib/compras-prazo"
 import { listarMinhasSolicitacoes, type MinhaSolicitacao } from "@/lib/db/compras"
 import { hojeSP } from "@/lib/db/comum"
@@ -59,16 +60,15 @@ export default async function MinhasSolicitacoesPage() {
     ordensDevolvidasDe(sessao.usuario.id).catch(() => []),
   ])
   const hoje = hojeSP()
+  const podeRepetir = podeAcessar(sessao.permissoes, "aquisicoes_compras_edicao", ["aquisicoes_compra_direta"])
   const abertas = lista.filter((s) => !["recebida", "cancelada"].includes(s.situacao))
   const encerradas = lista.filter((s) => ["recebida", "cancelada"].includes(s.situacao))
 
   const Linha = ({ s }: { s: MinhaSolicitacao }) => {
     const a = andamento(s, hoje, config.prazoCotacao)
     return (
-      <Link
-        href={`/painel/compras/${s.id}`}
-        className="hover:border-primary/40 grid gap-1 rounded-md border p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
-      >
+      <div className="hover:border-primary/40 relative grid gap-1 rounded-md border p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+        <Link href={`/painel/compras/${s.id}`} className="absolute inset-0 rounded-md" aria-label={`Abrir ${s.codigo ?? "a solicitação"}`} />
         <div className="min-w-0">
           <p className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-sm font-medium">
             <span className="text-primary tabular-nums">{s.codigo ?? "(sem código)"}</span>
@@ -81,8 +81,18 @@ export default async function MinhasSolicitacoesPage() {
             {s.data_limite && <span>Receber até {formatarData(s.data_limite)}</span>}
           </p>
         </div>
-        <SituacaoProcessoBadge situacao={s.situacao} />
-      </Link>
+        <div className="relative flex items-center gap-2 sm:justify-end">
+          <SituacaoProcessoBadge situacao={s.situacao} />
+          {podeRepetir && (
+            <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-xs">
+              <Link href={`/painel/compras/nova?repetir=${s.id}`} title="Nova solicitação com os dados desta">
+                <CopyPlus />
+                Repetir
+              </Link>
+            </Button>
+          )}
+        </div>
+      </div>
     )
   }
 

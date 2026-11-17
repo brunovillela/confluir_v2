@@ -15,6 +15,7 @@ import {
 import { conferirDescricaoCompra, regraDescricaoCompras } from "@/lib/db/ordens-verificacao"
 import { gerarJsonIA, gerarJsonIADeImagem, gerarJsonIADePdf } from "@/lib/ia"
 import { parseValorBR } from "@/lib/valores"
+import { comQuantidade, formatarQuantidade, lerQuantidade, separarQuantidade } from "@/lib/compras-quantidade"
 
 // Toda compra é auditada: o texto precisa se sustentar sozinho diante de um
 // auditor ou do conselho fiscal, sem depender de quem a registrou.
@@ -41,13 +42,15 @@ export type RedacaoCompra = {
 /** "Melhorar com IA": reescreve a descrição E a observação da compra. */
 export async function gerarRedacaoCompra(input: {
   produto: string
+  /** "2 caixas": já vai na descrição (no fim), a IA não repete. */
+  quantidade?: string
   observacao?: string
   tipo?: string
   direta?: boolean
 }): Promise<RedacaoCompra> {
   await requirePermissao("aquisicoes_compras_edicao", ["aquisicoes_compra_direta"])
 
-  const rascunho = (input.produto ?? "").trim()
+  const rascunho = separarQuantidade(input.produto ?? "").produto
   if (rascunho.length < 3) {
     return {
       erro: "Escreva um rascunho do produto ou serviço antes de usar a IA.",
@@ -68,6 +71,9 @@ export async function gerarRedacaoCompra(input: {
     `Rascunho do produto ou serviço: ${rascunho}`,
   ]
   if (tipoRotulo) partes.push(`Tipo: ${tipoRotulo}`)
+  if (input.quantidade?.trim()) {
+    partes.push(`Quantidade informada em campo próprio: ${input.quantidade.trim()} — o sistema a acrescenta ao fim da descrição; não a repita, exceto ao detalhar vários itens.`)
+  }
   // A ordem de pagamento leva só a descrição do produto: é ela que a auditoria
   // lê. Os critérios configurados pela entidade valem para ela (17/11/2026).
   const { criterios } = await regraDescricaoCompras()
@@ -140,9 +146,22 @@ export type LeituraNota = {
   forma_pagamento?: string
   /** Ex.: "NF-e nº 1234, série 1". */
   documento?: string
+  /** Quantidade e unidade (um item na nota; vários = 1 lote, itens na descrição). */
+  quantidade?: string
+  unidade?: string
   fornecedorExistente?: FornecedorEncontrado | null
   fornecedorLido?: FornecedorDaNota | null
   avisos?: string[]
+}
+
+/** "UN" → "unidades", "CX" → "caixas"… (como a nota abrevia). */
+function unidadePorExtenso(u: string): string {
+  const mapa: Record<string, string> = {
+    UN: "unidades", UND: "unidades", UNID: "unidades", PC: "peças", PÇ: "peças", CX: "caixas", PCT: "pacotes", PT: "pacotes",
+    KG: "kg", G: "g", L: "litros", LT: "litros", ML: "ml", M: "metros", MT: "metros", RS: "resmas", RES: "resmas", KIT: "kits", SV: "serviço", SERV: "serviço",
+  }
+  const chave = u.trim().toUpperCase()
+  return mapa[chave] ?? (u.trim().toLowerCase() || "unidades")
 }
 
 function str(v: unknown): string {
@@ -283,6 +302,18 @@ export async function lerNotaCompra(formData: FormData): Promise<LeituraNota> {
     .filter(Boolean)
     .join(" ")
 
+  // Quantidade da compra (17/11/2026): um item → a dele; vários → 1 lote.
+  const itens = Array.isArray(dados.itens) ? (dados.itens as Record<string, unknown>[]) : []
+  let quantidade = ""
+  let unidade = ""
+  if (itens.length === 1 && (num(itens[0].quantidade) ?? 0) > 0) {
+    quantidade = formatarQuantidade(num(itens[0].quantidade)!)
+    unidade = unidadePorExtenso(str(itens[0].unidade))
+  } else if (itens.length > 1) {
+    quantidade = "1"
+    unidade = "lote (itens na descrição)"
+  }
+
   const dataCompra = dataIso(dados.data_emissao)
   if (!dataCompra) avisos.push("A data da compra não foi encontrada — preencha à mão.")
   if (valorNum === null || valorNum <= 0) {
@@ -292,6 +323,8 @@ export async function lerNotaCompra(formData: FormData): Promise<LeituraNota> {
 
   return {
     produto: str(dados.produto),
+    quantidade,
+    unidade,
     observacao: str(dados.observacao),
     e_produto: natureza === "bem" || natureza === "servico" ? natureza : "",
     valor:
@@ -380,10 +413,15 @@ export type ConferenciaDescricao = { status: "ok" | "falha" | "na"; detalhe: str
 export async function conferirDescricaoAction(input: {
   produto: string
   valor?: string
+  quantidade?: string
+  unidade?: string
 }): Promise<ConferenciaDescricao> {
   await requirePermissao("aquisicoes_compras_edicao", ["aquisicoes_compra_direta"])
   const produto = (input.produto ?? "").trim()
   if (produto.length < 3) return { status: "na", detalhe: "" }
   const valor = input.valor ? parseValorBR(input.valor) : null
-  return conferirDescricaoCompra(`Compra — ${produto}`.slice(0, 500), valor ?? null)
+  // Como a action grava: a quantidade entra no fim da descrição.
+  const q = lerQuantidade(input.quantidade)
+  const descricao = q !== null && input.unidade?.trim() ? comQuantidade(produto, q, input.unidade) : produto
+  return conferirDescricaoCompra(`Compra — ${descricao}`.slice(0, 500), valor ?? null)
 }

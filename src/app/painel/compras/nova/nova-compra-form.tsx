@@ -59,6 +59,8 @@ import {
   type LeituraNota,
 } from "./ia-actions"
 import { ErroNoCampo } from "@/components/ui/erro-no-campo"
+import { UNIDADES_COMPRA } from "@/lib/compras-quantidade"
+import type { InicialCompra } from "@/lib/db/compras-repetir"
 
 type Opcao = { id: string; nome: string }
 type CentroOpcao = { id: string; nome: string; departamentoId: string | null }
@@ -96,7 +98,10 @@ export function NovaCompraForm({
   permiteViaCompras = true,
   permiteDireta = true,
   creditos = {},
+  inicial = null,
 }: {
+  /** Repetir compra: o formulário abre com o que se repete da compra de origem. */
+  inicial?: InicialCompra | null
   /** Saldo de crédito (compra cancelada pelo vendedor) por fornecedor. */
   creditos?: Record<string, number>
   /** "Aquisição — editar": solicitação para o setor de compras. */
@@ -125,8 +130,10 @@ export function NovaCompraForm({
   const [estado, formAction, pendente] = useActionState(criarCompra, {})
   const formRef = useRef<HTMLFormElement>(null)
   // Com uma só modalidade permitida, ela vem fixa.
-  const [direta, setDireta] = useState(!permiteViaCompras && permiteDireta)
-  const [comProjeto, setComProjeto] = useState(false)
+  const [direta, setDireta] = useState(
+    inicial ? (inicial.direta ? permiteDireta : !permiteViaCompras) : !permiteViaCompras && permiteDireta
+  )
+  const [comProjeto, setComProjeto] = useState(!!inicial?.projetoId)
   // Entregue no ato da compra? Na compra direta o normal é sim (já veio);
   // na solicitação, não (o comprador ainda vai comprar). Sem entrega no ato,
   // limite e local para receber passam a ser obrigatórios.
@@ -136,12 +143,14 @@ export function NovaCompraForm({
   const setNoAto = direta ? setNoAtoDireta : setNoAtoVia
 
   // Aquisição direta: preencher à mão ou a partir da nota (semiautomático).
-  const [modo, setModo] = useState<Modo | null>(null)
+  const [modo, setModo] = useState<Modo | null>(inicial?.direta ? "manual" : null)
 
   // Departamento solicitante → filtra os centros de custo (A3).
-  const [depto, setDepto] = useState("")
-  const [centroManual, setCentroManual] = useState("")
-  const [projetoId, setProjetoId] = useState("")
+  const [depto, setDepto] = useState(
+    inicial?.departamentoId && departamentos.some((d) => d.id === inicial.departamentoId) ? inicial.departamentoId : ""
+  )
+  const [centroManual, setCentroManual] = useState(inicial?.centroCustoId ?? "")
+  const [projetoId, setProjetoId] = useState(inicial?.projetoId ?? "")
 
   const centrosVisiveis = depto
     ? centrosCusto.filter((c) => c.departamentoId === depto)
@@ -165,6 +174,8 @@ export function NovaCompraForm({
 
   const produtoRef = useRef<HTMLTextAreaElement>(null)
   const observacaoRef = useRef<HTMLTextAreaElement>(null)
+  const quantidadeRef = useRef<HTMLInputElement>(null)
+  const unidadeRef = useRef<HTMLInputElement>(null)
   const [iaPendente, setIaPendente] = useState(false)
   const [iaErro, setIaErro] = useState<string | null>(null)
   // Conferência da descrição com a régua da auditoria, antes de gravar.
@@ -175,7 +186,7 @@ export function NovaCompraForm({
   // Fornecedores: a lista cresce quando um fornecedor é cadastrado pela nota;
   // `comboVersao` remonta o combobox para ele assumir a nova escolha.
   const [fornecedores, setFornecedores] = useState(fornecedoresIniciais)
-  const [fornecedorId, setFornecedorId] = useState("")
+  const [fornecedorId, setFornecedorId] = useState(inicial?.fornecedorId ?? "")
   const [comboVersao, setComboVersao] = useState(0)
 
   // Leitura da nota.
@@ -192,9 +203,9 @@ export function NovaCompraForm({
   const [cadastrado, setCadastrado] = useState<string | null>(null)
 
   const [arquivoErro, setArquivoErro] = useState<string | null>(null)
-  const [forma, setForma] = useState("")
+  const [forma, setForma] = useState(inicial?.formaPagamento ?? "")
   // Tipo da compra e, no serviço de autônomo, o pagamento por RPA.
-  const [tipo, setTipo] = useState("")
+  const [tipo, setTipo] = useState<string>(inicial?.tipo ?? "")
   const [rpaMarcado, setRpaMarcado] = useState(false)
   const [envioErro, setEnvioErro] = useState<string | null>(null)
 
@@ -272,8 +283,10 @@ export function NovaCompraForm({
         "e_produto"
       ) as HTMLSelectElement | null
     )?.value
+    const qtd = [quantidadeRef.current?.value.trim(), unidadeRef.current?.value.trim()].filter(Boolean).join(" ")
     const r = await gerarRedacaoCompra({
       produto,
+      quantidade: qtd || undefined,
       observacao: observacaoRef.current?.value ?? "",
       tipo: tipo || undefined,
       direta,
@@ -298,13 +311,16 @@ export function NovaCompraForm({
       setConferencia(null)
       return
     }
-    if (produto === conferidoRef.current) return
-    conferidoRef.current = produto
+    const quantidade = quantidadeRef.current?.value.trim() ?? ""
+    const unidade = unidadeRef.current?.value.trim() ?? ""
+    const chave = [produto, quantidade, unidade].join("|")
+    if (chave === conferidoRef.current) return
+    conferidoRef.current = chave
     const valor = (produtoRef.current?.form?.elements.namedItem("valor") as HTMLInputElement | null)?.value
     setConferindo(true)
-    const r = await conferirDescricaoAction({ produto, valor: valor || undefined }).catch(() => null)
+    const r = await conferirDescricaoAction({ produto, valor: valor || undefined, quantidade, unidade }).catch(() => null)
     // Mudou enquanto a IA lia: vale a próxima conferência.
-    if (conferidoRef.current !== produto) return
+    if (conferidoRef.current !== chave) return
     setConferindo(false)
     setConferencia(r && r.status !== "na" ? r : null)
   }
@@ -406,6 +422,15 @@ export function NovaCompraForm({
       {(envioErro || estado.erro) && (
         <Alert variant="destructive">
           <AlertDescription>{envioErro ?? estado.erro}</AlertDescription>
+        </Alert>
+      )}
+      {inicial && (
+        <Alert variant="info">
+          <AlertDescription>
+            Repetindo a compra <strong>{inicial.origemCodigo ?? ""}</strong>: descrição, quantidade, departamento,
+            centro de custo{inicial.direta ? ", fornecedor e forma de pagamento" : ""} vieram dela. Confira tudo e
+            informe o que é novo{inicial.direta ? " — valor, data, nota e o complemento do pagamento" : ""}.
+          </AlertDescription>
         </Alert>
       )}
       <input type="hidden" name="com_projeto" value={comProjeto ? "on" : ""} />
@@ -717,10 +742,51 @@ export function NovaCompraForm({
                     rows={4}
                     required
                     onBlur={() => void conferirDescricao()}
-                    defaultValue={semi ? leitura?.produto : undefined}
-                    placeholder="O que precisa ser adquirido"
+                    defaultValue={semi ? leitura?.produto : (inicial?.produto ?? undefined)}
+                    placeholder="O que precisa ser adquirido e para quê"
                     className={TEXTAREA}
                   />
+                  {/* Quantidade (17/11/2026): a maior causa de devolução era a falta dela. */}
+                  <div className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)] gap-2">
+                    <div className="grid gap-1">
+                      <Label htmlFor="quantidade" className="text-xs">
+                        Quantidade *
+                      </Label>
+                      <Input
+                        id="quantidade"
+                        name="quantidade"
+                        ref={quantidadeRef}
+                        required
+                        inputMode="decimal"
+                        pattern="[0-9.]*(,[0-9]+)?"
+                        title="Um número, como 2 ou 2,5"
+                        placeholder="Ex.: 2"
+                        defaultValue={semi ? leitura?.quantidade : (inicial?.quantidade ?? undefined)}
+                        onBlur={() => void conferirDescricao()}
+                      />
+                    </div>
+                    <div className="grid gap-1">
+                      <Label htmlFor="unidade" className="text-xs">
+                        Unidade *
+                      </Label>
+                      <Input
+                        id="unidade"
+                        name="unidade"
+                        ref={unidadeRef}
+                        required
+                        maxLength={40}
+                        list="unidades-compra"
+                        placeholder="unidades, caixas, serviço…"
+                        defaultValue={semi ? leitura?.unidade : (inicial?.unidade ?? undefined)}
+                        onBlur={() => void conferirDescricao()}
+                      />
+                      <datalist id="unidades-compra">
+                        {UNIDADES_COMPRA.map((u) => (
+                          <option key={u} value={u} />
+                        ))}
+                      </datalist>
+                    </div>
+                  </div>
                   {iaErro && <p className="text-destructive text-xs">{iaErro}</p>}
                   {conferindo ? (
                     <p className="text-muted-foreground inline-flex items-center gap-1 text-xs">
@@ -740,8 +806,8 @@ export function NovaCompraForm({
                     </p>
                   ) : (
                     <p className="text-muted-foreground text-xs">
-                      Só a descrição vai para a ordem de pagamento, e é ela que a auditoria lê: diga o quê, quanto e
-                      para quê.
+                      Só a descrição e a quantidade vão para a ordem de pagamento, e é o que a auditoria lê: diga o
+                      quê e para quê.
                     </p>
                   )}
                 </div>
@@ -752,8 +818,8 @@ export function NovaCompraForm({
                     name="observacao"
                     ref={observacaoRef}
                     rows={4}
-                    defaultValue={semi ? leitura?.observacao : undefined}
-                    placeholder="Finalidade, justificativa, links de referência, quantidade…"
+                    defaultValue={semi ? leitura?.observacao : (inicial?.observacao ?? undefined)}
+                    placeholder="Justificativa, links de referência, detalhes…"
                     className={TEXTAREA}
                   />
                 </div>
@@ -767,7 +833,7 @@ export function NovaCompraForm({
                     name="e_produto"
                     required
                     className={SELECT}
-                    defaultValue={semi ? (leitura?.e_produto ?? "") : ""}
+                    defaultValue={semi ? (leitura?.e_produto ?? "") : (inicial?.tipo ?? "")}
                     onChange={(e) => setTipo(e.target.value)}
                   >
                     <option value="" disabled>

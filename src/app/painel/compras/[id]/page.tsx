@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
-import { Barcode, FileText, Pencil, Receipt } from "lucide-react"
+import { Barcode, CopyPlus, FileText, Pencil, Receipt } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -508,6 +508,16 @@ export default async function ProcessoCompraPage({
                 </Link>
               </Button>
             )}
+            {/* Repetir compra (17/11/2026): a nova abre com o que se repete. */}
+            {podeAcessar(sessao.permissoes, "aquisicoes_compras_edicao", ["aquisicoes_compra_direta"]) &&
+              !processo.legado && (
+                <Button asChild variant="outline">
+                  <Link href={`/painel/compras/nova?repetir=${processo.id}`}>
+                    <CopyPlus />
+                    Repetir compra
+                  </Link>
+                </Button>
+              )}
             {podeCancelar && <CancelarProcessoBotao processoId={processo.id} />}
           </div>
         </div>

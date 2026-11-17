@@ -1,5 +1,6 @@
 "use server"
 
+import { comQuantidade, lerQuantidade } from "@/lib/compras-quantidade"
 import { revalidatePath } from "next/cache"
 import { enviarLinkAutomatico } from "@/lib/db/rpa-assinatura"
 import { validarNitPis } from "@/lib/cpf"
@@ -67,8 +68,18 @@ export async function criarCompra(
 
   // Toda compra é auditada: só a observação é facultativa (e limite/local
   // para receber, quando a entrega é no ato da compra).
-  const produto = texto(formData, "produto")
-  if (!produto) return { erro: "Descreva o produto ou serviço.", campo: "produto" }
+  const produtoDigitado = texto(formData, "produto")
+  if (!produtoDigitado) return { erro: "Descreva o produto ou serviço.", campo: "produto" }
+  // Quantidade e unidade (17/11/2026): entram na descrição, que vai para a
+  // ordem de pagamento. Só quando o formulário traz os campos.
+  let produto = produtoDigitado
+  if (formData.has("quantidade")) {
+    const quantidade = lerQuantidade(texto(formData, "quantidade"))
+    if (quantidade === null) return { erro: "Informe a quantidade (um número maior que zero).", campo: "quantidade" }
+    const unidade = texto(formData, "unidade")
+    if (!unidade) return { erro: "Informe a unidade (unidades, caixas, kg, serviço…).", campo: "unidade" }
+    produto = comQuantidade(produtoDigitado, quantidade, unidade.slice(0, 40))
+  }
   const observacao = texto(formData, "observacao") || null
   const tipo = texto(formData, "e_produto")
   if (tipo !== "bem" && tipo !== "servico") {
