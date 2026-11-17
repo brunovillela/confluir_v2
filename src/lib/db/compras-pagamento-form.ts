@@ -15,6 +15,7 @@ import {
   validarDetalhePagamento,
   type DetalhePagamento,
 } from "@/lib/db/compras-pagamento"
+import { conferirChaveDoFornecedor } from "@/lib/db/fornecedores"
 
 function texto(formData: FormData, campo: string): string {
   return String(formData.get(campo) ?? "").trim()
@@ -67,7 +68,11 @@ export async function lerDetalhePagamento(
         if (chave.length < 5) return { erro: "Informe a chave Pix do fornecedor." }
         const pix = validarChavePix(tipo, chave)
         if (pix.erro || !pix.valor) return { erro: pix.erro ?? "Informe a chave Pix do fornecedor." }
-        novoMeio = { pix: pix.valor, pix_tipo: tipo }
+        // Chave CPF/CNPJ de outra pessoa: só com o nome do titular (17/11/2026).
+        const favorecido = texto(formData, "pix_favorecido") || null
+        const titular = await conferirChaveDoFornecedor(fornecedorId, tipo, pix.valor, favorecido, null)
+        if (titular.erro) return { erro: titular.erro.replace("em Favorecido", "em Titular da chave") }
+        novoMeio = { pix: pix.valor, pix_tipo: tipo, favorecido, titular_documento: titular.documento ?? null }
       } else {
         detalhe.dados_bancarios_id = escolha
       }

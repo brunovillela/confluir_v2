@@ -1,6 +1,7 @@
 import "server-only"
 import { hojeSP, lerEmLotes } from "@/lib/db/comum"
-import { validarCnpj, validarCpf, validarNitPis, lerDocumentoTitular } from "@/lib/cpf"
+import { lerDocumentoTitular, mesmoTitular, validarCnpj, validarCpf, validarNitPis } from "@/lib/cpf"
+import { conferirTitularPix } from "@/lib/pix-titular"
 import { formatarCnpjCpf } from "@/lib/formato"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -876,6 +877,34 @@ export type DadosConta = {
   titular_documento?: string | null
 }
 
+/**
+ * Confere a chave Pix com o documento do fornecedor. Chave CPF/CNPJ de outra
+ * pessoa exige o nome do titular (Favorecido) e grava o documento da chave
+ * como titular; a do próprio fornecedor preenche o titular se vazio.
+ */
+export async function conferirChaveDoFornecedor(
+  fornecedorId: string,
+  tipo: string | null,
+  chave: string | null,
+  favorecido: string | null | undefined,
+  titularDocumento: string | null
+): Promise<{ erro?: string; documento?: string }> {
+  const admin = await createAdminClient()
+  const { data: e } = await admin.from("empresa").select("cnpj_cpf").eq("id", fornecedorId).maybeSingle()
+  const conf = conferirTitularPix(tipo, chave, (e?.cnpj_cpf as string | null) ?? null)
+  if (conf.situacao === "nao_comparavel") return {}
+  if (conf.situacao === "mesmo") return titularDocumento ? {} : { documento: conf.documento }
+  if (!favorecido?.trim()) {
+    return {
+      erro: `${conf.mensagem} Se a chave é mesmo de outra pessoa (por exemplo, o CPF do dono de um MEI), informe o nome dela em Favorecido — ele aparece na ordem para quem paga conferir no banco.`,
+    }
+  }
+  if (titularDocumento && !mesmoTitular(titularDocumento, conf.documento)) {
+    return { erro: "O CPF/CNPJ do titular informado não é o da chave Pix. Corrija um dos dois." }
+  }
+  return { documento: conf.documento }
+}
+
 export async function salvarConta(
   fornecedorId: string,
   dados: DadosConta,
@@ -901,6 +930,11 @@ export async function salvarConta(
     const conferida = validarChavePix(pixTipo, dados.pix)
     if (conferida.erro) return { erro: conferida.erro }
     pix = conferida.valor
+    // Chave CPF/CNPJ de outra pessoa (17/11/2026): só com o nome do titular,
+    // que a ordem mostra para quem paga conferir no app do banco.
+    const titularChave = await conferirChaveDoFornecedor(fornecedorId, pixTipo, pix, dados.favorecido, dados.titular_documento ?? null)
+    if (titularChave.erro) return { erro: titularChave.erro }
+    if (titularChave.documento) dados = { ...dados, titular_documento: titularChave.documento }
   }
   const banco = normalizarBanco(dados.banco, dados.banco_codigo)
   const linha = {

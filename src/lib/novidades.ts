@@ -28,6 +28,7 @@ export const NOVIDADES: Novidade[] = [
       "Meu perfil → Ponto: quando o departamento de pessoal ajusta marcações de um mês já liberado, o funcionário recebe um aviso (sino e, se ligado \"Espelho de ponto liberado\" em Meu perfil → Avisos, e-mail, Telegram ou celular), sem horários na mensagem; vários ajustes no mesmo dia viram um aviso só.",
       "Aquisição, nova compra: Quantidade e Unidade viraram campos obrigatórios (2 caixas, 2,5 kg, 1 serviço) e entram sozinhas na descrição da ordem de pagamento — a falta da quantidade era o motivo mais comum de ordem devolvida. No semiautomático, vêm da nota.",
       "Aquisição: Repetir compra. Na página do processo (e em Minhas solicitações), abre uma compra nova já com a descrição, a quantidade, o departamento, o centro de custo e, na aquisição direta, o fornecedor e a forma de pagamento; valor, data e nota são sempre novos.",
+      "Fornecedores e compras: chave Pix do tipo CPF/CNPJ que não é do fornecedor só é cadastrada com o nome do titular (caso do MEI que recebe no CPF do dono). E a ordem paga por Pix mostra em Pago com \"Confira no banco se o titular é…\", para quem paga comparar com o nome que o app do banco exibe — vale também para chave de telefone, e-mail ou aleatória.",
     ],
   },
   {

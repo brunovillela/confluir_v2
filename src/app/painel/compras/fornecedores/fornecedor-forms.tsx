@@ -629,7 +629,7 @@ export function ContaForm({
             id="cb-favorecido"
             name="favorecido"
             defaultValue={conta?.favorecido ?? ""}
-            placeholder="Titular da conta, se diferente"
+            placeholder="O nome que o banco mostra para a chave ou a conta"
           />
         </div>
         <div className="grid gap-1.5">

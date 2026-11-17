@@ -331,6 +331,15 @@ export function DetalhePagamento({
               <Label htmlFor="pix_chave">Chave *</Label>
               <Input id="pix_chave" name="pix_chave" required />
             </div>
+            <div className="grid gap-1.5 md:col-span-3">
+              <Label htmlFor="pix_favorecido">Titular da chave</Label>
+              <Input
+                id="pix_favorecido"
+                name="pix_favorecido"
+                maxLength={120}
+                placeholder="O nome que o banco mostra para esta chave — obrigatório se não for o fornecedor"
+              />
+            </div>
           </div>
         ) : (
           <div className="grid gap-3 md:grid-cols-5">

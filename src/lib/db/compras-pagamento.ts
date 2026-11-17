@@ -219,7 +219,7 @@ async function fornecedorDoTenant(fornecedorId: string): Promise<boolean> {
 export async function inserirMeioFornecedor(
   fornecedorId: string,
   dados:
-    | { pix: string; pix_tipo: string }
+    | { pix: string; pix_tipo: string; favorecido?: string | null; titular_documento?: string | null }
     | {
         banco: string
         banco_codigo?: string | null
@@ -389,13 +389,24 @@ export async function descreverPagoCom(
   if (dadosId) {
     const { data } = await admin
       .from("dados_bancarios")
-      .select("banco, agencia, conta, pix, pix_tipo, favorecido")
+      .select("banco, agencia, conta, pix, pix_tipo, favorecido, fornecedor_id")
       .eq("id", dadosId)
       .maybeSingle()
     if (!data) return null
     // Um mesmo cadastro pode ter chave e conta: a forma da ordem decide.
     if (data.pix && (ordem.forma_pagamento === "Pix" || !(data.banco && data.conta))) {
-      return `Chave Pix do fornecedor — ${data.pix_tipo ? `${data.pix_tipo}: ` : ""}${data.pix}`
+      // Quem paga confere no app do banco o nome do titular (17/11/2026): o
+      // favorecido do cadastro ou, sem ele, o nome do fornecedor.
+      let titular = typeof data.favorecido === "string" && data.favorecido.trim() ? data.favorecido.trim() : null
+      if (!titular && data.fornecedor_id) {
+        const { data: e } = await admin
+          .from("empresa")
+          .select("nome_razao, nome_fantasia")
+          .eq("id", data.fornecedor_id)
+          .maybeSingle()
+        titular = (e?.nome_razao as string | null)?.trim() || (e?.nome_fantasia as string | null)?.trim() || null
+      }
+      return `Chave Pix do fornecedor — ${data.pix_tipo ? `${data.pix_tipo}: ` : ""}${data.pix}${titular ? `. Confira no banco se o titular é ${titular}` : ""}`
     }
     return `Conta do fornecedor — ${data.banco}, ag. ${data.agencia ?? "—"}, conta ${data.conta}${data.favorecido ? ` (${data.favorecido})` : ""}`
   }
