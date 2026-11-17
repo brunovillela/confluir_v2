@@ -201,6 +201,19 @@ export const REGRAS_AUDITORIA: RegraCatalogo[] = [
     parametros: [{ chave: "valor", rotulo: "Aquisição direta até (R$)", tipo: "moeda", padrao: 10000 }],
   },
   {
+    codigo: "fracionamento",
+    titulo: "Compras fracionadas",
+    pergunta: "Aceita várias aquisições diretas do mesmo fornecedor para o mesmo departamento que, somadas, passam do limite?",
+    explicacao:
+      "Soma as aquisições diretas do mesmo fornecedor e do mesmo departamento na janela de dias (parcelas da mesma compra contam uma vez; marketplaces ficam de fora, porque reúnem vendedores diferentes). Passando do limite, a compra pode estar sendo dividida para escapar da cotação. Com o limite em 0, vale o da regra \"Aquisição direta acima do limite\".",
+    origens: ["compras"],
+    padrao: { compras: "alertar" },
+    parametros: [
+      { chave: "valor", rotulo: "Soma aceita até (R$; 0 = o limite da aquisição direta)", tipo: "moeda", padrao: 0 },
+      { chave: "dias", rotulo: "Janela (dias para trás)", tipo: "dias", padrao: 30 },
+    ],
+  },
+  {
     codigo: "sem_documento_fiscal",
     titulo: "Sem nota fiscal",
     pergunta: "Aceita ordem sem nota fiscal ou documento equivalente anexado?",

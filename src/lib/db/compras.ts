@@ -192,6 +192,8 @@ export type OrdemDoProcesso = {
   pixCodigoFinal?: string | null
   /** Caminho da nota fiscal da ordem (bucket compras). */
   notaFiscal?: string | null
+  /** Devolvida pelo avaliador ("Aguardando informações"): o motivo. */
+  devolucaoMotivo?: string | null
 }
 
 export type ProcessoDetalhe = {
@@ -318,6 +320,8 @@ export async function normalizarOrdens(
     autorizacao_data: (o.autorizacao_data as string | null) ?? null,
     pixCodigoFinal: typeof o.pix_codigo === "string" && o.pix_codigo ? o.pix_codigo.slice(-8) : null,
     notaFiscal: (o.arquivo_nota_fiscal as string | null) ?? null,
+    devolucaoMotivo:
+      o.situacao === "Aguardando informações" ? ((o.autorizacao_observacao as string | null) ?? null) : null,
     favorecidoNome:
       (o.beneficiario_fornecedor_id
         ? empresas.get(String(o.beneficiario_fornecedor_id))?.nome

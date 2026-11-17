@@ -2,6 +2,7 @@ import { contextoDoTenant } from "@/lib/db/comunicacao-mensagens"
 import { avisarNotasAReceber } from "@/lib/db/compras-marketplace"
 import { lembrarCotacoesAtrasadas } from "@/lib/db/compras-cotacao-lembrete"
 import { lembrarRecebimentosAtrasados } from "@/lib/db/compras-recebimento-lembrete"
+import { lembrarOrdensDevolvidas } from "@/lib/db/compras-ordens-devolvidas"
 import { lembrarPendencias, tenantsDoLembrete } from "@/lib/db/pendencias-lembrete"
 import { lembretesDoPortal, type ResultadoLembretesDoPortal } from "@/lib/db/portal-lembretes"
 import { lembrarAssinaturasRpa } from "@/lib/db/rpa-lembretes"
@@ -45,7 +46,10 @@ export const maxDuration = 300
  *
  * `?tenant=<uuid>` roda um tenant só (disparo manual e testes na demo);
  * `?etapa=pendencias`, `?etapa=portal`, `?etapa=notas`, `?etapa=rpa`, `?etapa=cotacao` ou
- * `?etapa=recebimentos` roda só uma das partes.
+ * `?etapa=recebimentos` ou `?etapa=devolvidas` roda só uma das partes.
+ *
+ * E as ORDENS DE COMPRA DEVOLVIDAS há uma semana ou mais: quem lançou recebe um
+ * lembrete por semana (lib/db/compras-ordens-devolvidas.ts).
  */
 async function handler(req: Request): Promise<Response> {
   const secret = process.env.CRON_SECRET
@@ -153,7 +157,23 @@ async function handler(req: Request): Promise<Response> {
     }
   }
 
-  return Response.json({ verificados: tenants.length, processados: resultados, portal, notas, rpa, cotacao, recebimentos })
+  const devolvidas: { tenant: string; devolvidas: number; avisos: number; erros: string[] }[] = []
+  if (!etapa || etapa === "devolvidas") {
+    const svc = createServiceClient()
+    for (const t of tenants) {
+      try {
+        const contexto = await contextoDoTenant(t.id, svc)
+        devolvidas.push({ tenant: t.id, ...(await lembrarOrdensDevolvidas(svc, t.id, contexto)) })
+      } catch (e) {
+        devolvidas.push({ tenant: t.id, devolvidas: 0, avisos: 0, erros: [e instanceof Error ? e.message : String(e)] })
+      }
+    }
+    for (const d of devolvidas) {
+      if (d.erros.length) console.error(`[pendencias/tick] ordens devolvidas (${d.tenant}):`, d.erros.join(" · "))
+    }
+  }
+
+  return Response.json({ verificados: tenants.length, processados: resultados, portal, notas, rpa, cotacao, recebimentos, devolvidas })
 }
 
 export const GET = handler

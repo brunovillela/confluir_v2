@@ -10,6 +10,7 @@ import { cotacaoForaDoPrazo, diasUteisDesde } from "@/lib/compras-prazo"
 import { listarMinhasSolicitacoes, type MinhaSolicitacao } from "@/lib/db/compras"
 import { hojeSP } from "@/lib/db/comum"
 import { lerComprasConfig } from "@/lib/db/compras-config"
+import { ordensDevolvidasDe } from "@/lib/db/compras-ordens-devolvidas"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
 export const metadata: Metadata = { title: "Minhas solicitações — Confluir" }
@@ -52,7 +53,11 @@ export default async function MinhasSolicitacoesPage() {
     "aquisicoes_compra_direta",
     "aquisicoes_comprador",
   ])
-  const [lista, config] = await Promise.all([listarMinhasSolicitacoes(sessao.usuario.id), lerComprasConfig()])
+  const [lista, config, devolvidas] = await Promise.all([
+    listarMinhasSolicitacoes(sessao.usuario.id),
+    lerComprasConfig(),
+    ordensDevolvidasDe(sessao.usuario.id).catch(() => []),
+  ])
   const hoje = hojeSP()
   const abertas = lista.filter((s) => !["recebida", "cancelada"].includes(s.situacao))
   const encerradas = lista.filter((s) => ["recebida", "cancelada"].includes(s.situacao))
@@ -101,10 +106,47 @@ export default async function MinhasSolicitacoesPage() {
         </div>
         <p className="text-muted-foreground mt-1 text-xs">
           As compras que você pediu Via Aquisição e em que etapa cada uma está. Você é avisado quando a compra é feita e
-          quando o item chega (ligue "Sua solicitação de compra foi comprada ou recebida" em Meu perfil → Avisos para
+          quando o item chega (ligue &ldquo;Sua solicitação de compra foi comprada ou recebida&rdquo; em Meu perfil → Avisos para
           receber também por e-mail, Telegram ou celular).
         </p>
       </div>
+
+      {devolvidas.length > 0 && (
+        <Card id="devolvidas" className="border-warning/50 scroll-mt-24">
+          <CardHeader>
+            <CardTitle className="text-base">Compras devolvidas para você ({devolvidas.length})</CardTitle>
+            <CardDescription>
+              Ordens que você lançou e o avaliador devolveu pedindo ajuste. Abra a compra para corrigir ou responder e
+              reenviar para autorização.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            {devolvidas.map((d) => (
+              <Link
+                key={d.id}
+                href={d.processoId ? `/painel/compras/${d.processoId}#ordem-devolvida` : `/painel/financeiro/ordens/${d.id}`}
+                className="hover:border-primary/40 grid gap-1 rounded-md border p-3"
+              >
+                <p className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-sm font-medium">
+                  <span className="text-primary tabular-nums">{d.processoCodigo ?? d.codigo ?? "(sem código)"}</span>
+                  <span className="text-muted-foreground min-w-0 truncate text-xs">{d.descricao ?? ""}</span>
+                </p>
+                <p className="text-warning-fg text-xs font-medium">Motivo: {d.motivo ?? "não informado"}</p>
+                <p className="text-muted-foreground flex flex-wrap gap-x-3 text-xs">
+                  <span>Ordem {d.codigo ?? "—"}</span>
+                  {d.valor !== null && <span>{formatarMoeda(d.valor)}</span>}
+                  {d.devolvidaEm && (
+                    <span>
+                      Devolvida em {formatarData(d.devolvidaEm)}
+                      {d.devolvidaPorNome ? ` por ${d.devolvidaPorNome}` : ""}
+                    </span>
+                  )}
+                </p>
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

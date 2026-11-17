@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useEffect, useState } from "react"
+import { useActionState, useState } from "react"
 import { Loader2, Timer } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -18,10 +18,12 @@ export function PrazoCotacaoForm({ prazo, podeEditar }: { prazo: number | null; 
   const [editando, setEditando] = useState(false)
   const [estado, formAction, pendente] = useActionState(salvarPrazoCotacaoAction, {})
   const envio = useEnvioFormulario(formAction, estado, { manter: true })
-  // Salvou: volta para a frase com o prazo novo.
-  useEffect(() => {
+  // Salvou: volta para a frase com o prazo novo (ajuste na renderização, sem efeito).
+  const [visto, setVisto] = useState(estado)
+  if (estado !== visto) {
+    setVisto(estado)
     if (estado.ok) setEditando(false)
-  }, [estado])
+  }
   const texto =
     prazo === null
       ? "Sem prazo para iniciar a cotação."

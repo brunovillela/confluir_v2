@@ -435,6 +435,71 @@ async function verificarLinha(
         else r("ok", `Uma só proposta, dentro do limite de ${formatarMoeda(limite)}.`)
         break
       }
+      case "fracionamento": {
+        // Só aquisição direta: a compra cotada pelo setor de Aquisição não é fracionamento.
+        const proc = await buscar("compras_solicitacoes", linha.processo_compra_id)
+        if (proc && proc.aquisicao_direta === false) {
+          r("na", "Compra cotada pelo setor de Aquisição.")
+          break
+        }
+        if (valor === null || !fornId) {
+          r("na", "Sem valor ou fornecedor para comparar.")
+          break
+        }
+        // Marketplace reúne vendedores diferentes: somar a plataforma não indica fracionamento.
+        if (fornecedor?.marketplace === true) {
+          r("na", "Marketplace: cada compra é de um vendedor.")
+          break
+        }
+        const limiteDireta = n(regras.find((x) => x.regra.codigo === "direta_limite")?.parametros.valor) ?? 0
+        const limite = (n(p.valor) ?? 0) > 0 ? (n(p.valor) as number) : limiteDireta
+        if (!(limite > 0)) {
+          r("na", "Sem limite configurado.")
+          break
+        }
+        if (valor > limite) {
+          r("na", `A compra sozinha já passa de ${formatarMoeda(limite)} (regra da aquisição direta).`)
+          break
+        }
+        const dias = n(p.dias) ?? 30
+        const depto = t(linha.departamento_id)
+        let q = admin
+          .from("ordens_pagamento")
+          .select("id, codigo, valor_inicial_cobranca, processo_compra_id, created_at")
+          .eq("emp_proprietaria_id", emp)
+          .in("tipo", ["Compras", "Aquisição direta pelo Departamento"])
+          .eq("beneficiario_fornecedor_id", fornId)
+          .not("situacao", "in", '("Cancelada","Estornado")')
+          .not("excluido", "is", true)
+          .gte("created_at", `${somarDias(hoje, -dias)}T00:00:00-03:00`)
+          .limit(200)
+        if (t(linha.id)) q = q.neq("id", t(linha.id)!)
+        q = depto ? q.eq("departamento_id", depto) : q.is("departamento_id", null)
+        const { data: outras } = await q
+        // Parcelas da mesma compra não são outra compra.
+        const meuProc = t(linha.processo_compra_id)
+        const deOutrasCompras = ((outras ?? []) as Linha[]).filter((o) => !meuProc || t(o.processo_compra_id) !== meuProc)
+        let soma = valor
+        const cods: string[] = []
+        for (const o of deOutrasCompras) {
+          const pid = t(o.processo_compra_id)
+          if (pid) {
+            const po = await buscar("compras_solicitacoes", pid)
+            if (po && po.aquisicao_direta === false) continue
+          }
+          soma += n(o.valor_inicial_cobranca) ?? 0
+          if (t(o.codigo)) cods.push(t(o.codigo)!)
+        }
+        if (cods.length > 0 && soma > limite) {
+          r(
+            "falha",
+            `Com esta, ${cods.length + 1} compras do mesmo fornecedor para o departamento em ${dias} dias somam ${formatarMoeda(soma)}, acima de ${formatarMoeda(limite)}: ${cods.slice(0, 6).join(", ")}${cods.length > 6 ? "…" : ""}.`
+          )
+        } else {
+          r("ok", cods.length ? `${cods.length + 1} compras somam ${formatarMoeda(soma)} em ${dias} dias — dentro de ${formatarMoeda(limite)}.` : "Nenhuma outra compra do fornecedor para o departamento na janela.")
+        }
+        break
+      }
       case "direta_limite": {
         const proc = await buscar("compras_solicitacoes", linha.processo_compra_id)
         const limite = n(p.valor) ?? 0

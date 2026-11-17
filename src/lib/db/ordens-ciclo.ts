@@ -352,6 +352,11 @@ export async function avaliarOrdem(
     observacao,
     { valor, alcada }
   )
+  // Devolvida: quem lançou a compra é avisado, com o motivo (16/11/2026).
+  if (!aprovar) {
+    const { avisarOrdemDevolvida } = await import("@/lib/db/compras-ordens-devolvidas")
+    avisarOrdemDevolvida(ordemId, avaliadorId)
+  }
 
   // Só a compra em dinheiro (débito já lançado no caixa) fecha como paga na
   // autorização. Parcela de contrato com caixa ainda não tirou o dinheiro:

@@ -351,7 +351,14 @@ export async function cotacaoRapidaAction(
     processoId,
     usuarioId: sessao.usuario.id,
     dataCompra,
-    propostas: propostas.map(({ arquivo: _a, ...p }) => p),
+    propostas: propostas.map((p) => ({
+      fornecedor_id: p.fornecedor_id,
+      valor: p.valor,
+      forma_pagamento: p.forma_pagamento,
+      previsao_entrega: p.previsao_entrega,
+      arquivo_url: p.arquivo_url,
+      escolhida: p.escolhida,
+    })),
     justificativa: j.justificativa,
   })
   if (erro) {
@@ -360,6 +367,40 @@ export async function cotacaoRapidaAction(
   }
   revalidarProcesso(processoId)
   redirect(`/painel/compras/${processoId}?salvo=1`)
+}
+
+/**
+ * Ordem de compra devolvida pelo avaliador, sem nada a mudar na compra:
+ * quem lançou (ou quem opera a compra) responde e reenvia para autorização.
+ * Se precisar mudar algo, o caminho é Editar compra, que reenvia ao salvar.
+ */
+export async function reenviarOrdemDevolvidaAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao("aquisicoes_compras_edicao", [
+    "aquisicoes_compra_direta",
+    "aquisicoes_comprador",
+  ])
+  const processoId = texto(formData, "processo_id")
+  const ordemId = texto(formData, "ordem_id")
+  const resposta = texto(formData, "resposta").replace(/\s+/g, " ")
+  if (!processoId || !ordemId) return { erro: "Ordem inválida." }
+  if (resposta.length < 10) return { erro: "Responda ao avaliador (pelo menos 10 caracteres)." }
+  if (!podeAcessar(sessao.permissoes, "aquisicoes_comprador")) {
+    await garantirEscopoDoProcesso(sessao.usuario.id, processoId)
+  }
+  const processo = await buscarProcesso(processoId)
+  const daCompra = [
+    ...(processo?.fornecimentos ?? []).flatMap((f) => f.pagamentos ?? []),
+    ...(processo?.ordensAvulsas ?? []),
+  ].some((o) => o.id === ordemId)
+  if (!daCompra) return { erro: "A ordem não é desta compra." }
+  const { reenviarParaAutorizacao } = await import("@/lib/db/ordens-ciclo")
+  const { erro } = await reenviarParaAutorizacao(ordemId, sessao.usuario.id, resposta.slice(0, 1000))
+  if (erro) return { erro }
+  revalidarProcesso(processoId)
+  redirect(`/painel/compras/${processoId}?reenviada=1`)
 }
 
 export async function gerarOrdemAction(

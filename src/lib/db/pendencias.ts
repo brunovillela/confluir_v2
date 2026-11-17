@@ -362,6 +362,23 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
   }
 
 
+  // Aquisição: ordens de compra que EU lancei e o avaliador devolveu (16/11).
+  if (amb.usuarioId && pode("aquisicoes_compras_edicao", ["aquisicoes_compra_direta", "aquisicoes_comprador"])) {
+    const usuarioId = amb.usuarioId
+    fontes.push({
+      chave: "compras_devolvidas",
+      titulo: "Compras devolvidas para você",
+      descricao: "Ordens que o avaliador devolveu pedindo ajuste: corrija ou responda e reenvie",
+      href: "/painel/compras/minhas#devolvidas",
+      tabela: "ordens_pagamento",
+      montar: (q) => head(q),
+      contarCom: async () => {
+        const { ordensDevolvidasDe } = await import("@/lib/db/compras-ordens-devolvidas")
+        return (await ordensDevolvidasDe(usuarioId, { client, tenantId: emp }).catch(() => null))?.length ?? null
+      },
+    })
+  }
+
   // Aquisição: a fila do comprador (mesmo critério da Área do comprador):
   // Via Aquisição, não cancelada, não comprada — a cotar, em cotação ou cotada.
   if (pode("aquisicoes_comprador")) {

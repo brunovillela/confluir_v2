@@ -51,6 +51,7 @@ import {
 } from "./processo-forms"
 import { NotaFiscalIcone, NovoCodigoPix } from "./ajustes-pagamento"
 import { CotacaoRapidaForm } from "./cotacao-rapida"
+import { OrdemDevolvida } from "./ordem-devolvida"
 import { OrdemCompraAcoes } from "./ordem-compra"
 import { CustoDoRpa } from "./custo-rpa"
 import { ComprovanteAcoes } from "./comprovante-envio"
@@ -187,7 +188,7 @@ export default async function ProcessoCompraPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ criado?: string; salvo?: string; editada?: string }>
+  searchParams: Promise<{ criado?: string; salvo?: string; editada?: string; reenviada?: string }>
 }) {
   const sessao = await requirePermissao("aquisicoes_compras", [
     "aquisicoes_compras_edicao",
@@ -195,7 +196,7 @@ export default async function ProcessoCompraPage({
     "aquisicoes_recebimentos",
   ])
   const { id } = await params
-  const { criado, salvo, editada } = await searchParams
+  const { criado, salvo, editada, reenviada } = await searchParams
 
   const processo = await buscarProcesso(id)
   if (!processo) notFound()
@@ -392,6 +393,8 @@ export default async function ProcessoCompraPage({
     (o) => o.situacao !== "Cancelada" && o.situacao !== "Estornado"
   )
   const contar = (n: number, total: number, rotulo: string) => (total > 1 ? `${n} de ${total} ${rotulo}` : null)
+  // Devolvidas pelo avaliador: o motivo no topo, com as saídas (16/11/2026).
+  const devolvidas = ordensVivas.filter((o) => o.situacao === "Aguardando informações")
   const comDocumento = fornecimentosComUrl.filter(
     (f) => !!f.nota_fiscal_url || !!rpaPorFornecimento.get(f.id)?.assinado || f.pagamentos.some((o) => !!o.notaFiscal)
   ).length
@@ -486,6 +489,24 @@ export default async function ProcessoCompraPage({
         </p>
       </div>
 
+      {reenviada === "1" && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>Ordem reenviada para autorização, com a sua resposta.</AlertDescription>
+        </Alert>
+      )}
+      {devolvidas.map((o) => (
+        <OrdemDevolvida
+          key={o.id}
+          processoId={processo.id}
+          ordemId={o.id}
+          codigo={o.codigo}
+          motivo={o.devolucaoMotivo ?? null}
+          devolvidaPor={o.autorizadorNome}
+          devolvidaEm={o.autorizacao_data ? formatarData(o.autorizacao_data) : null}
+          podeEditar={podeEditar}
+          podeReenviar={podeAjustar}
+        />
+      ))}
       {processo.cancelado && (
         <Alert variant="destructive">
           <AlertDescription>
