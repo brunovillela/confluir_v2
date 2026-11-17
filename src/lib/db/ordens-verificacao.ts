@@ -237,6 +237,33 @@ async function consultarIA(
     : { status: "falha", detalhe: `${faltando.length ? `Falta: ${faltando.join("; ")}.` : ""} ${comentario}`.trim() }
 }
 
+/**
+ * A regra "Qualidade da descrição (IA)" das compras, como a entidade a
+ * configurou (17/11/2026): o "Melhorar com IA" do cadastro redige com estes
+ * critérios e a conferência antes de gravar usa a mesma régua da auditoria.
+ */
+export async function regraDescricaoCompras(): Promise<{ ativa: boolean; criterios: string; valorMinimo: number }> {
+  const regra = (await regrasConfiguradas("compras")).find((r) => r.regra.codigo === "descricao_ia")
+  const criterios = String(regra?.parametros.criterios || CRITERIOS_DESCRICAO_PADRAO)
+  const valorMinimo = Number(regra?.parametros.valor_minimo) || 0
+  return { ativa: !!regra && regra.severidade !== "aceitar", criterios, valorMinimo }
+}
+
+/**
+ * Confere a descrição de uma compra ainda não gravada, com os critérios e o
+ * parecer (em cache) da auditoria. "na" quando a regra está desligada, o valor
+ * fica abaixo do mínimo ou a IA não respondeu.
+ */
+export async function conferirDescricaoCompra(
+  descricao: string,
+  valor: number | null
+): Promise<{ status: StatusVerificacao; detalhe: string }> {
+  const { ativa, criterios, valorMinimo } = await regraDescricaoCompras()
+  if (!ativa) return { status: "na", detalhe: "A auditoria não avalia a descrição." }
+  if (valor !== null && valor < valorMinimo) return { status: "na", detalhe: `Abaixo de ${formatarMoeda(valorMinimo)} — não avaliada.` }
+  return avaliarDescricaoIA(descricao, criterios, "Compras", valor)
+}
+
 /** A descrição-base avaliada pela IA (sem o "parcela x/y" do lote nem o "(pagamento n)" da compra). */
 function chaveDaDescricao(descricao: string): string {
   return descricao

@@ -51,7 +51,9 @@ import {
 } from "./detalhe-pagamento"
 import {
   cadastrarFornecedorDaNota,
+  conferirDescricaoAction,
   gerarRedacaoCompra,
+  type ConferenciaDescricao,
   lerNotaCompra,
   type FornecedorDaNota,
   type LeituraNota,
@@ -165,6 +167,10 @@ export function NovaCompraForm({
   const observacaoRef = useRef<HTMLTextAreaElement>(null)
   const [iaPendente, setIaPendente] = useState(false)
   const [iaErro, setIaErro] = useState<string | null>(null)
+  // Conferência da descrição com a régua da auditoria, antes de gravar.
+  const [conferencia, setConferencia] = useState<ConferenciaDescricao | null>(null)
+  const [conferindo, setConferindo] = useState(false)
+  const conferidoRef = useRef("")
 
   // Fornecedores: a lista cresce quando um fornecedor é cadastrado pela nota;
   // `comboVersao` remonta o combobox para ele assumir a nova escolha.
@@ -281,6 +287,26 @@ export function NovaCompraForm({
     if (r.observacao && observacaoRef.current) {
       observacaoRef.current.value = r.observacao
     }
+    void conferirDescricao()
+  }
+
+  /** Ao sair do campo (ou depois da IA): a auditoria apontaria algo? */
+  async function conferirDescricao() {
+    const produto = produtoRef.current?.value.trim() ?? ""
+    if (produto.length < 10) {
+      conferidoRef.current = ""
+      setConferencia(null)
+      return
+    }
+    if (produto === conferidoRef.current) return
+    conferidoRef.current = produto
+    const valor = (produtoRef.current?.form?.elements.namedItem("valor") as HTMLInputElement | null)?.value
+    setConferindo(true)
+    const r = await conferirDescricaoAction({ produto, valor: valor || undefined }).catch(() => null)
+    // Mudou enquanto a IA lia: vale a próxima conferência.
+    if (conferidoRef.current !== produto) return
+    setConferindo(false)
+    setConferencia(r && r.status !== "na" ? r : null)
   }
 
   async function aoEscolherNota() {
@@ -690,15 +716,34 @@ export function NovaCompraForm({
                     ref={produtoRef}
                     rows={4}
                     required
+                    onBlur={() => void conferirDescricao()}
                     defaultValue={semi ? leitura?.produto : undefined}
                     placeholder="O que precisa ser adquirido"
                     className={TEXTAREA}
                   />
                   {iaErro && <p className="text-destructive text-xs">{iaErro}</p>}
-                  <p className="text-muted-foreground text-xs">
-                    A IA revisa a descrição e as observações: toda compra é
-                    auditada.
-                  </p>
+                  {conferindo ? (
+                    <p className="text-muted-foreground inline-flex items-center gap-1 text-xs">
+                      <Loader2 className="size-3 animate-spin" />
+                      Conferindo com os critérios da auditoria…
+                    </p>
+                  ) : conferencia?.status === "ok" ? (
+                    <p className="text-success-fg inline-flex items-center gap-1 text-xs">
+                      <CheckCircle2 className="size-3.5" />
+                      A descrição atende aos critérios da auditoria.
+                    </p>
+                  ) : conferencia?.status === "falha" ? (
+                    <p className="text-warning-fg text-xs" role="status">
+                      <TriangleAlert className="mr-1 inline size-3.5 align-[-2px]" />
+                      A auditoria apontaria: {conferencia.detalhe} Complete a descrição ou use{" "}
+                      <strong>Melhorar com IA</strong>.
+                    </p>
+                  ) : (
+                    <p className="text-muted-foreground text-xs">
+                      Só a descrição vai para a ordem de pagamento, e é ela que a auditoria lê: diga o quê, quanto e
+                      para quê.
+                    </p>
+                  )}
                 </div>
                 <div className="grid gap-1.5 content-start">
                   <Label htmlFor="observacao">Observações</Label>

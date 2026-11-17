@@ -20,6 +20,9 @@ export const NOVIDADES: Novidade[] = [
       "Meu perfil → Meus veículos: quem usa os veículos da entidade vê a própria CNH e o seu histórico — usos, km, reservas, abastecimentos e infrações com a situação da cobrança —, com filtros e ordenação, e pede um veículo dali mesmo.",
       "Filiados → Área do associado: o quadro Situação das partes subiu para o topo, e cada cartão com mudança por salvar mostra \"Alterações não salvas\" — o navegador também pergunta antes de fechar ou recarregar a página. Os cartões avisam o que está em uso antes de você decidir: vagas da lista de espera oferecidas (que vencem sem poder ser confirmadas se a Hospedagem ou o portal pararem) e, no Portal inteiro, também a votação online aberta e as cobranças Pix.",
       "Portal do associado, primeiro acesso: no Ver como filiado, a gestão passa a ver as páginas normalmente, com uma faixa dizendo o que falta ao associado — antes, só via o convite. Dado preenchido mas inutilizável também conta como pendência: telefone sem DDD, e-mail inválido ou CEP incompleto. E, se a conferência falhar, a gestão lê \"Não foi possível conferir agora\" em vez de \"Nada pendente\".",
+      "Aquisição, página da compra: na área do Pagamento, cada ordem tem os links Ver boleto (quando a forma é boleto) e Ver nota — a nota do pagamento ou, sem ela, a da compra.",
+      "Aquisição, nova compra: ao sair do campo Produto ou serviço, o sistema confere a descrição com os mesmos critérios da auditoria das ordens e avisa o que ela apontaria (falta a quantidade, a finalidade…), antes de gravar. O Melhorar com IA passa a redigir com os critérios que a entidade configurou.",
+      "Contratos: novo cartão Recorrentes sem contrato — fornecedores com 3 compras avulsas ou mais nos últimos meses que, somadas, chegam ao limite da aquisição direta e não têm contrato em uso. Mostra onde vale firmar contrato ou tabela de preços; marketplaces ficam de fora.",
     ],
   },
   {

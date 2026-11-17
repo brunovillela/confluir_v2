@@ -61,6 +61,13 @@ tudo preenchido; a única exceção é a observação.
   finalidade, **sem inventar** nada que você não escreveu (marca, valor,
   fornecedor). Observação em branco continua em branco. Confira antes de salvar:
   a responsabilidade pelo texto continua sendo de quem registra.
+
+  Só a descrição do **Produto ou serviço** vai para a ordem de pagamento, e é
+  ela que a auditoria lê. Ao sair do campo, o sistema confere a descrição com os
+  mesmos critérios da regra **Qualidade da descrição (IA)** da Auditoria das
+  ordens e avisa logo abaixo: "atende aos critérios" ou o que a auditoria
+  apontaria (por exemplo, falta a quantidade ou a finalidade). O aviso não
+  impede o registro; serve para corrigir antes de gravar.
 </Aviso>
 
 <Aviso tipo="atencao" titulo="Centro de custo é obrigatório">
@@ -543,6 +550,11 @@ ajustes que costumam aparecer depois da compra:
   pagamento acompanha quando usava a mesma nota (ou nenhuma).
 - **Nota do pagamento** (ícone de arquivo na linha da ordem) — uma nota
   específica daquele pagamento (por exemplo, de uma cobrança à parte).
+
+Na linha de cada ordem, na área do **Pagamento**, ficam também os links para
+consultar os arquivos: **Ver boleto**, quando a forma é boleto e o arquivo foi
+anexado, e **Ver nota**, com a nota do pagamento ou, se ele não tiver uma
+própria, a nota da compra.
 
 Passe o mouse sobre o ícone para ver o que ele faz; o clique abre a escolha
 do arquivo e a nota sobe assim que você o escolhe.

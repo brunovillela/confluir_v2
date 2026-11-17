@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, FilePen, FileText, HeartPulse, Plus, ScrollText, Tags } from "lucide-react"
+import { ArrowLeft, FilePen, FileText, HeartPulse, Plus, Repeat, ScrollText, Tags } from "lucide-react"
 
 import {
   TiposContratoBadges,
@@ -39,6 +39,7 @@ import { podeAcessar } from "@/lib/permissoes"
 import { ExportarXlsx } from "@/components/exportar-xlsx"
 import { faixaDaSaude, percentualSaude } from "@/components/medidor-saude-cadastros"
 import { saudeContratos } from "@/lib/db/contratos-saude"
+import { fornecedoresRecorrentesSemContrato } from "@/lib/db/fornecedores-recorrentes"
 
 export const metadata: Metadata = { title: "Contratos — Confluir" }
 
@@ -85,7 +86,7 @@ export default async function ContratosPage({
     ? (brutos.categoria as string)
     : ""
 
-  const [resumo, contratos, minutas, saude] = await Promise.all([
+  const [resumo, contratos, minutas, saude, recorrentes] = await Promise.all([
     resumoContratos(podeEditar, false),
     listarContratos({
       busca,
@@ -97,6 +98,7 @@ export default async function ContratosPage({
     }),
     podeEditar ? listarMinutas() : Promise.resolve({ disponivel: false, minutas: [] }),
     saudeContratos({ verSigilosos: podeEditar }),
+    fornecedoresRecorrentesSemContrato().catch(() => null),
   ])
   const percentualSaudeContratos = percentualSaude(saude.emUso - saude.comPendencia, saude.emUso)
   const faixaSaude = faixaDaSaude(percentualSaudeContratos)
@@ -202,7 +204,7 @@ export default async function ContratosPage({
         </Alert>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {saude.disponivel && (
           <Link href="/painel/compras/contratos/saude" className="group">
             <Card className="group-hover:border-primary/40 h-full transition-colors">
@@ -246,6 +248,24 @@ export default async function ContratosPage({
           valor={resumo.semTermo}
           href={filtroHref({ situacao: "sem_termo", pagina: "" })}
         />
+        {recorrentes?.disponivel && (
+          <Link href="/painel/compras/contratos/recorrentes" className="group">
+            <Card className="group-hover:border-primary/40 h-full transition-colors">
+              <CardContent>
+                <p className="text-muted-foreground flex items-center gap-1 text-xs">
+                  <Repeat className="size-3.5" />
+                  Recorrentes sem contrato
+                </p>
+                <p className="mt-1 text-2xl font-semibold tabular-nums">
+                  {recorrentes.linhas.length.toLocaleString("pt-BR")}
+                </p>
+                <p className="text-muted-foreground mt-1 text-xs tabular-nums">
+                  {formatarMoeda(recorrentes.linhas.reduce((s, l) => s + l.total, 0))} em {recorrentes.meses} meses
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
       </div>
 
       <form action="/painel/compras/contratos" className="flex flex-wrap gap-2">

@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
-import { FileText, Pencil } from "lucide-react"
+import { Barcode, FileText, Pencil, Receipt } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -36,6 +36,7 @@ import { custosDosRpas } from "@/lib/db/rpa-retencoes"
 import { rpasComLinkPendente } from "@/lib/db/rpa-assinatura"
 import { situacaoOrdensCompra } from "@/lib/db/ordem-compra"
 import { comprovantesDasOrdens, type ComprovanteDaOrdem } from "@/lib/db/comprovante-fornecedor"
+import { urlArquivoOrdem } from "@/lib/db/ordens-extrato"
 import { edicaoDaCompra } from "@/lib/db/compras-edicao"
 import { listarCartoes, nomeCartao } from "@/lib/db/compras-pagamento"
 import { contasAbertasParaCompras } from "@/lib/db/caixa"
@@ -96,16 +97,13 @@ function LinhaOrdem({
   ordem,
   processoId,
   podeAjustar,
-  mostrarNota = true,
   comprovante,
 }: {
-  ordem: OrdemDoProcesso & { notaUrl?: string | null }
+  ordem: OrdemDoProcesso & { notaUrl?: string | null; boletoUrl?: string | null }
   processoId: string
   podeAjustar: boolean
   /** Comprovante anexado à ordem paga: link e envio ao fornecedor. */
   comprovante?: ComprovanteDaOrdem
-  /** No fornecimento a nota da compra já aparece acima; aqui só se for outra. */
-  mostrarNota?: boolean
 }) {
   const pixTrocavel =
     ordem.forma_pagamento === "Pix (QR Code)" && !ORDEM_ENCERRADA.includes(String(ordem.situacao))
@@ -154,9 +152,26 @@ function LinhaOrdem({
           <FileText className="size-3.5" />
           Extrato simplificado
         </a>
-        {mostrarNota && ordem.notaUrl && (
-          <a href={ordem.notaUrl} target="_blank" rel="noreferrer" className="text-primary whitespace-nowrap hover:underline">
-            Nota do pagamento
+        {ordem.boletoUrl && (
+          <a
+            href={ordem.boletoUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary inline-flex items-center gap-1 whitespace-nowrap hover:underline"
+          >
+            <Barcode className="size-3.5" />
+            Ver boleto
+          </a>
+        )}
+        {ordem.notaUrl && (
+          <a
+            href={ordem.notaUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary inline-flex items-center gap-1 whitespace-nowrap hover:underline"
+          >
+            <Receipt className="size-3.5" />
+            Ver nota
           </a>
         )}
         {podeAjustar && (
@@ -314,12 +329,23 @@ export default async function ProcessoCompraPage({
       arquivoUrl: await urlArquivoCompras(p.proposta_arquivo_url),
     }))
   )
-  // Nota de cada pagamento (vários por fornecimento).
+  // Nota e boleto de cada pagamento (vários por fornecimento). Sem nota
+  // própria, a ordem mostra a nota da compra (17/11/2026: os dois links ficam
+  // na área do pagamento).
   const notasDasOrdens = new Map(
     await Promise.all(
-      fornecimentosBase
-        .flatMap((f) => f.pagamentos)
-        .map(async (o) => [o.id, await urlArquivoCompras(o.notaFiscal ?? null)] as const)
+      fornecimentosBase.flatMap((f) =>
+        f.pagamentos.map(
+          async (o) => [o.id, await urlArquivoCompras(o.notaFiscal ?? f.nota_fiscal_url ?? null)] as const
+        )
+      )
+    )
+  )
+  const boletosDasOrdens = new Map(
+    await Promise.all(
+      [...fornecimentosBase.flatMap((f) => f.pagamentos), ...processo.ordensAvulsas]
+        .filter((o) => !!o.boleto)
+        .map(async (o) => [o.id, await urlArquivoOrdem(o.boleto)] as const)
     )
   )
   const fornecimentosComUrl = await Promise.all(
@@ -385,6 +411,7 @@ export default async function ProcessoCompraPage({
     ordensAvulsas.map(async (o) => ({
       ...o,
       notaUrl: await urlArquivoCompras(o.notaFiscal ?? null),
+      boletoUrl: boletosDasOrdens.get(o.id) ?? null,
     }))
   )
 
@@ -1131,10 +1158,13 @@ export default async function ProcessoCompraPage({
                         {f.pagamentos.map((o) => (
                           <div key={o.id} className="py-2 first:pt-0 last:pb-0">
                             <LinhaOrdem
-                              ordem={{ ...o, notaUrl: notasDasOrdens.get(o.id) ?? null }}
+                              ordem={{
+                                ...o,
+                                notaUrl: notasDasOrdens.get(o.id) ?? null,
+                                boletoUrl: boletosDasOrdens.get(o.id) ?? null,
+                              }}
                               processoId={processo.id}
                               podeAjustar={podeAjustar}
-                              mostrarNota={o.notaFiscal !== f.nota_fiscal_url}
                               comprovante={comprovantes.get(o.id)}
                             />
                           </div>

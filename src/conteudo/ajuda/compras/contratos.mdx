@@ -167,6 +167,27 @@ cadastro. Quem só lê contratos não vê os de categoria sigilosa, nem na conta
 
 <Print src="compras/contratos-saude.png" alt="Página Saúde dos contratos: o medidor Contratos sem pendência em 0%, Crítico, com 0 de 4 contratos em uso; os cartões por problema — com pendência 4, com apontamento 2, sem o arquivo do contrato 4, sem departamento ou centro de custo 2, não autorizado 3, sem responsável 2 e os demais zerados; abaixo, a lista Todos com pendência com os quatro contratos, o fornecedor, o término, os selos dos problemas e o botão Abrir contrato." legenda="A saúde dos contratos: o percentual, os problemas por tipo e a lista para corrigir." />
 
+## Fornecedores recorrentes sem contrato
+
+O cartão **Recorrentes sem contrato**, no topo da lista de contratos, abre a
+lista de fornecedores com quem a entidade compra repetidamente de forma avulsa,
+sem contrato em uso. É onde vale firmar um contrato ou combinar uma tabela de
+preços.
+
+Entra o fornecedor com **3 compras ou mais** no período que, somadas, chegam ao
+limite da aquisição direta (o valor da regra **Aquisição direta acima do
+limite**, em Financeiro → Auditoria das ordens). Ficam de fora:
+
+- quem já tem contrato em uso (não vencido, ativo, fora as ajudas
+  institucionais);
+- os marketplaces, porque cada compra é de um vendedor diferente;
+- as compras canceladas.
+
+Escolha o período (últimos 3, 6 ou 12 meses). A lista vem pelo valor comprado,
+com o número de compras, em quantos meses elas aconteceram e os departamentos
+que compraram. **Ver as compras** abre cada processo; o nome leva à página do
+fornecedor.
+
 ## Categorias
 
 Contratos podem ser organizados por **categoria**. Uma categoria marcada como

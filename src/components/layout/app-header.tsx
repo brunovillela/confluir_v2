@@ -49,6 +49,8 @@ const ROTULOS_SEGMENTO: Record<string, string> = {
   "contas-bancarias": "Contas bancárias",
   alteracoes: "Alterações",
   veiculos: "Veículos",
+  minhas: "Minhas solicitações",
+  recorrentes: "Recorrentes sem contrato",
 }
 
 /** Monta a trilha de breadcrumbs a partir da rota, usando os títulos dos módulos. */

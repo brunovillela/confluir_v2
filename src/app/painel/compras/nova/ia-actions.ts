@@ -12,7 +12,9 @@ import {
   salvarEndereco,
   type FornecedorEncontrado,
 } from "@/lib/db/fornecedores"
+import { conferirDescricaoCompra, regraDescricaoCompras } from "@/lib/db/ordens-verificacao"
 import { gerarJsonIA, gerarJsonIADeImagem, gerarJsonIADePdf } from "@/lib/ia"
+import { parseValorBR } from "@/lib/valores"
 
 // Toda compra é auditada: o texto precisa se sustentar sozinho diante de um
 // auditor ou do conselho fiscal, sem depender de quem a registrou.
@@ -66,6 +68,12 @@ export async function gerarRedacaoCompra(input: {
     `Rascunho do produto ou serviço: ${rascunho}`,
   ]
   if (tipoRotulo) partes.push(`Tipo: ${tipoRotulo}`)
+  // A ordem de pagamento leva só a descrição do produto: é ela que a auditoria
+  // lê. Os critérios configurados pela entidade valem para ela (17/11/2026).
+  const { criterios } = await regraDescricaoCompras()
+  partes.push(
+    `Critérios mínimos que a auditoria exige da descrição do produto (só ela vai para a ordem de pagamento; inclua nela o que houver no material para atendê-los, sem inventar): ${criterios}`
+  )
   const obs = (input.observacao ?? "").trim()
   partes.push(
     obs ? `Rascunho das observações: ${obs}` : "Observações: (em branco)"
@@ -359,4 +367,23 @@ export async function cadastrarFornecedorDaNota(
       bloqueado: false,
     },
   }
+}
+
+// ── Conferência antes de gravar (17/11/2026) ────────────────────────────────
+
+export type ConferenciaDescricao = { status: "ok" | "falha" | "na"; detalhe: string }
+
+/**
+ * Confere a descrição com a régua da auditoria antes de gravar: 37% das
+ * descrições de compra eram apontadas só depois, com a ordem já criada.
+ */
+export async function conferirDescricaoAction(input: {
+  produto: string
+  valor?: string
+}): Promise<ConferenciaDescricao> {
+  await requirePermissao("aquisicoes_compras_edicao", ["aquisicoes_compra_direta"])
+  const produto = (input.produto ?? "").trim()
+  if (produto.length < 3) return { status: "na", detalhe: "" }
+  const valor = input.valor ? parseValorBR(input.valor) : null
+  return conferirDescricaoCompra(`Compra — ${produto}`.slice(0, 500), valor ?? null)
 }
