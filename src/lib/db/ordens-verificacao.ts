@@ -22,6 +22,7 @@ import {
   usuarioDaTrilha,
 } from "@/lib/db/ordens-ciclo"
 import { formatarData, formatarMoeda } from "@/lib/formato"
+import { DIAS_VENCIMENTO_ANTIGO, vencimentoAntigo } from "@/lib/ordens-vencimento"
 import { gerarJsonIA } from "@/lib/ia"
 import { periodoDaDescricao } from "@/lib/locacao-periodo"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -408,6 +409,13 @@ async function verificarLinha(
         const limite = n(p.dias) ?? 120
         if (!venc) r("na", "A ordem não tem vencimento.")
         else if (venc > somarDias(hoje, limite)) r("falha", `Vencimento ${formatarData(venc)} — mais de ${limite} dias à frente. Confira o ano.`)
+        else r("ok", `Vence em ${formatarData(venc)}.`)
+        break
+      }
+      case "vencimento_ano": {
+        const limite = n(p.dias) ?? DIAS_VENCIMENTO_ANTIGO
+        if (!venc) r("na", "A ordem não tem vencimento.")
+        else if (vencimentoAntigo(venc, hoje, limite)) r("falha", `Vencimento ${formatarData(venc)} — mais de ${limite} dias atrás. Confira o ano.`)
         else r("ok", `Vence em ${formatarData(venc)}.`)
         break
       }

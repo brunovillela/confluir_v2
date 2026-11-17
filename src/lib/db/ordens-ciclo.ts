@@ -4,6 +4,7 @@ import { getSessaoPainel } from "@/lib/auth"
 import { esquemaAusente, hojeSP } from "@/lib/db/comum"
 import { emitirEvento } from "@/lib/db/webhooks"
 import { DESTINOS_SITUACAO, SITUACAO_NA_FATURA, SITUACAO_PROCESSANDO, motivoOpcional } from "@/lib/ordens-situacoes"
+import { vencimentoComAnoSuspeito } from "@/lib/ordens-vencimento"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -613,14 +614,13 @@ export async function corrigirOrdem(
     return { erro: "Ordem paga ou encerrada não pode ser corrigida." }
   }
   if (nova.valor !== null && !(nova.valor > 0)) return { erro: "Valor inválido." }
-  // Ano digitado errado (2024 ou 2062 no lugar de 2026): não entra. A ordem
-  // antiga com vencimento de anos atrás continua podendo ser corrigida para perto de hoje.
+  // Ano digitado errado (2025 ou 2062 no lugar de 2026): não entra — mais de
+  // 180 dias atrás ou mais de 5 anos à frente (17/11/2026; antes aceitava o
+  // ano anterior inteiro). A ordem antiga com vencimento de anos atrás
+  // continua podendo ser corrigida para perto de hoje.
   if (nova.vencimento && nova.vencimento !== o.vencimento) {
-    const ano = Number(String(nova.vencimento).slice(0, 4))
-    const anoHoje = Number(hojeSP().slice(0, 4))
-    if (!(ano >= anoHoje - 1 && ano <= anoHoje + 5)) {
-      return { erro: `Vencimento ${String(nova.vencimento).split("-").reverse().join("/")} fora do esperado — confira o ano.` }
-    }
+    const suspeito = vencimentoComAnoSuspeito(String(nova.vencimento), hojeSP())
+    if (suspeito) return { erro: suspeito }
   }
 
   const antes: Record<string, unknown> = {}

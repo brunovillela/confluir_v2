@@ -169,6 +169,16 @@ export const REGRAS_AUDITORIA: RegraCatalogo[] = [
     parametros: [{ chave: "dias", rotulo: "A partir de quantos dias à frente", tipo: "dias", padrao: 120 }],
   },
   {
+    codigo: "vencimento_ano",
+    titulo: "Vencimento com o ano errado",
+    pergunta: "Aceita criar ordem com vencimento de muitos meses atrás?",
+    explicacao:
+      "Vencimento de mais de seis meses atrás quase sempre é o ano digitado errado (2024 ou 2025 no lugar de 2026): a ordem nasce \"vencida\" e distorce os atrasos e o fluxo projetado. Bloqueada por padrão; o lançamento atrasado de verdade cabe na regra Vencimento já passado.",
+    origens: TODAS,
+    padrao: { "*": "bloquear" },
+    parametros: [{ chave: "dias", rotulo: "Mais de quantos dias atrás", tipo: "dias", padrao: 180 }],
+  },
+  {
     codigo: "descricao_ia",
     titulo: "Qualidade da descrição (IA)",
     pergunta: "A descrição traz o mínimo para quem autoriza e para a auditoria?",

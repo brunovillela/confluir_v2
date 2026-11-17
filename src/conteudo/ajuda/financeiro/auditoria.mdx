@@ -127,8 +127,14 @@ ainda não foi personalizado.
 - **Vencimento distante demais** — vencimento mais de *N* dias à frente (padrão
   120), que costuma ser o ano digitado errado. Vem desligada (Aceitar) para
   contratos, custeio e locação, cujas parcelas nascem à frente de propósito.
-  Na **correção** da ordem, vencimento com o ano fora de um ano antes a cinco
-  anos depois de hoje é recusado direto.
+- **Vencimento com o ano errado** — vencimento de mais de *N* dias atrás
+  (padrão 180), quase sempre o ano digitado errado (2024 ou 2025 no lugar de
+  2026): a ordem nasceria "vencida" e distorceria os atrasos e o fluxo
+  projetado. Vem como **Bloquear** para todas as origens; o lançamento atrasado
+  de verdade, de poucos meses, cai na regra *Vencimento já passado*.
+
+Na **correção** da ordem, vencimento de mais de 180 dias atrás ou mais de cinco
+anos à frente é recusado direto, com o pedido para conferir o ano.
 
 **Com fornecedor** (compras, contratos, RPA, hotel, locação, jurídico)
 

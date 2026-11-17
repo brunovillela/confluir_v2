@@ -16,6 +16,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-11-17",
     titulo: "Meu perfil: Meus veículos",
     itens: [
+      "Ordens de pagamento: vencimento com o ano digitado errado (2024 ou 2025 no lugar de 2026) não passa mais. A Auditoria das ordens ganhou a regra Vencimento com o ano errado — mais de 180 dias atrás —, que bloqueia a criação por padrão (configurável por origem), e o Corrigir ordem recusa a data pedindo para conferir o ano.",
       "Ordens de pagamento: ordem sem forma de pagamento não é mais paga — o formulário de pagamento avisa e o registro (pela ordem, em lote, pela Distribuição de comprovantes ou pelo extrato) pede para informar a forma em Corrigir ordem antes. Afeta só ordens antigas: desde 23/10 todas nascem com a forma.",
       "Meu perfil → Meus veículos: quem usa os veículos da entidade vê a própria CNH e o seu histórico — usos, km, reservas, abastecimentos e infrações com a situação da cobrança —, com filtros e ordenação, e pede um veículo dali mesmo.",
       "Filiados → Área do associado: o quadro Situação das partes subiu para o topo, e cada cartão com mudança por salvar mostra \"Alterações não salvas\" — o navegador também pergunta antes de fechar ou recarregar a página. Os cartões avisam o que está em uso antes de você decidir: vagas da lista de espera oferecidas (que vencem sem poder ser confirmadas se a Hospedagem ou o portal pararem) e, no Portal inteiro, também a votação online aberta e as cobranças Pix.",
