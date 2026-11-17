@@ -186,3 +186,35 @@ export function deduzirTipoPix(chave: string | null | undefined): "CNPJ / CPF" |
   if (d.length === 10 || d.length === 11 || (d.length >= 12 && d.length <= 13 && d.startsWith("55"))) return "Telefone"
   return null
 }
+
+/** Nomes antigos ou digitados do tipo da chave → o padrão (TIPOS_CHAVE_PIX). */
+const SINONIMOS_TIPO_PIX: Record<string, "CNPJ / CPF" | "Telefone" | "E-mail" | "Chave aleatória"> = {
+  "cnpj / cpf": "CNPJ / CPF",
+  cpf: "CNPJ / CPF",
+  cnpj: "CNPJ / CPF",
+  "cpf/cnpj": "CNPJ / CPF",
+  "cnpj/cpf": "CNPJ / CPF",
+  "cpf / cnpj": "CNPJ / CPF",
+  telefone: "Telefone",
+  celular: "Telefone",
+  fone: "Telefone",
+  "e-mail": "E-mail",
+  email: "E-mail",
+  "chave aleatória": "Chave aleatória",
+  aleatória: "Chave aleatória",
+  aleatoria: "Chave aleatória",
+  "chave aleatoria": "Chave aleatória",
+}
+
+/**
+ * O tipo da chave Pix na lista única (17/11/2026): cada cadastro tinha a sua
+ * ("cpf", "Email", "CPF"…). Reconhece os sinônimos; sem tipo reconhecível,
+ * deduz pela chave. null quando não há chave nem tipo reconhecível.
+ */
+export function normalizarTipoPix(
+  tipo: string | null | undefined,
+  chave?: string | null
+): "CNPJ / CPF" | "Telefone" | "E-mail" | "Chave aleatória" | null {
+  const t = (tipo ?? "").trim().toLowerCase()
+  return SINONIMOS_TIPO_PIX[t] ?? deduzirTipoPix(chave)
+}

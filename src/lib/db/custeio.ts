@@ -2,6 +2,7 @@ import "server-only"
 import type { Apontamento } from "@/lib/auditoria-confirmacao"
 import { inserirOrdensVerificadasCompat, type Confirmacao } from "@/lib/db/ordens-verificacao"
 import { cpfConfiavel } from "@/lib/cpf"
+import { normalizarTipoPix } from "@/lib/bancos"
 import { esquemaAusente, hojeSP, lerEmLotes, lerEmLotesPorIds, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -276,7 +277,8 @@ export async function salvarConvidado(dados: {
     conta: texto(dados.conta),
     tipo_conta: texto(dados.tipoConta),
     pix: texto(dados.pix),
-    tipo_chave_pix: texto(dados.tipoChavePix),
+    // Tipo na lista única (17/11/2026): o formulário era texto livre.
+    tipo_chave_pix: texto(dados.pix) ? normalizarTipoPix(texto(dados.tipoChavePix), texto(dados.pix)) : texto(dados.tipoChavePix),
     observacoes: texto(dados.observacoes),
     updated_at: new Date().toISOString(),
   }
@@ -773,7 +775,7 @@ async function montarRegistroCusteio(
     ...(dados.pagamento
       ? {
           forma_pagamento: dados.pagamento.forma,
-          ...(dados.pagamento.pix ? { pix: dados.pagamento.pix, tipo_chave_pix: dados.pagamento.tipoChavePix } : {}),
+          ...(dados.pagamento.pix ? { pix: dados.pagamento.pix, tipo_chave_pix: normalizarTipoPix(dados.pagamento.tipoChavePix, dados.pagamento.pix) } : {}),
           ...(dados.pagamento.conta
             ? {
                 banco: dados.pagamento.banco,
@@ -1564,7 +1566,7 @@ async function dadoBancarioDoCusteio(
       ...chaveDono,
       favorecido: pag.favorecido ?? nome,
       ...(ehPix
-        ? { pix: pag.pix, pix_tipo: pag.tipoChavePix, prefere_pix: true }
+        ? { pix: pag.pix, pix_tipo: normalizarTipoPix(pag.tipoChavePix, pag.pix), prefere_pix: true }
         : {
             banco: pag.banco,
             agencia: pag.agencia,

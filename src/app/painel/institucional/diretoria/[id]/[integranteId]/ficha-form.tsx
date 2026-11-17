@@ -15,6 +15,8 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { normalizarTipoPix } from "@/lib/bancos"
+import { TIPOS_CHAVE_PIX } from "@/lib/contracheques-constantes"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import type { FichaDiretor, OrigemDaFicha } from "@/lib/db/diretoria-ficha"
@@ -28,7 +30,8 @@ const SELECT =
 
 const CAMISAS = ["PP", "P", "M", "G", "GG", "XG", "XGG"]
 const SANGUINEOS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
-const CHAVES_PIX = ["CPF", "CNPJ", "E-mail", "Telefone", "Aleatória"]
+// Tipo da chave na lista única do sistema (17/11/2026).
+const CHAVES_PIX = TIPOS_CHAVE_PIX
 
 /** Selo no título do cartão: de onde vem o dado. */
 function Origem({ filiacao }: { filiacao: boolean }) {
@@ -276,7 +279,7 @@ export function FichaDiretorForm({
             <Input id="pix" name="pix" defaultValue={v("pix")} />
           </Campo>
           <Campo id="tipo_chave_pix" rotulo="Tipo de chave Pix">
-            <select id="tipo_chave_pix" name="tipo_chave_pix" className={SELECT} defaultValue={v("tipo_chave_pix")}>
+            <select id="tipo_chave_pix" name="tipo_chave_pix" className={SELECT} defaultValue={v("pix") ? (normalizarTipoPix(v("tipo_chave_pix"), v("pix")) ?? "") : ""}>
               <option value="">—</option>
               {CHAVES_PIX.map((c) => (
                 <option key={c} value={c}>{c}</option>

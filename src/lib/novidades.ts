@@ -33,6 +33,7 @@ export const NOVIDADES: Novidade[] = [
       "Filiados → Área do associado: o cartão do Primeiro acesso diz o que vale hoje (por exemplo, o termo, um e-mail e um telefone), avisa o dado marcado que não é exigido porque o associado não teria como cumpri-lo, e ligar \"Exigir\" pede confirmação. O cartão do Atendimento avisa quantas solicitações estão em aberto antes de desabilitar, e a página da solicitação no painel avisa quando, com o Atendimento desabilitado, a resposta não chega ao associado.",
       "Filiados → Termos legais: com o primeiro acesso exigindo o termo, publicar ou tornar vigente uma versão do termo de LGPD pede confirmação, e o novo campo \"O que mudou nesta versão\" aparece em destaque para quem aceita de novo no portal.",
       "Portal do associado: a página de uma parte desabilitada ganhou o botão \"Falar com o sindicato\". Quem já estava com o portal aberto quando o primeiro acesso passou a valer vê o portão ao entrar na próxima seção, e a recusa diz o que falta. Avisos que são consequência de algo que a pessoa já fez, como a falta numa reserva, continuam no sino mesmo com a parte desabilitada.",
+      "Tipo da chave Pix com a mesma lista em todo o sistema (CNPJ / CPF, Telefone, E-mail, Chave aleatória): a ficha do diretor e o convidado de custeio — que era texto livre — passam a usá-la, e o custeio grava o tipo já no padrão.",
     ],
   },
   {

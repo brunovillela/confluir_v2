@@ -1,5 +1,6 @@
 "use server"
 
+import { normalizarTipoPix } from "@/lib/bancos"
 import { revalidatePath } from "next/cache"
 
 import { requirePermissao } from "@/lib/auth"
@@ -44,7 +45,7 @@ export async function salvarFichaAction(
     agencia: txt(formData, "agencia"),
     conta_corrente: txt(formData, "conta_corrente"),
     pix: txt(formData, "pix"),
-    tipo_chave_pix: txt(formData, "tipo_chave_pix"),
+    tipo_chave_pix: txt(formData, "pix") ? normalizarTipoPix(txt(formData, "tipo_chave_pix"), txt(formData, "pix")) : txt(formData, "tipo_chave_pix"),
     titular_documento: lerDocumentoTitular(txt(formData, "titular_documento")).documento,
     tem_restricao: formData.get("tem_restricao") === "on",
     restricao_descricao: txt(formData, "restricao_descricao"),
