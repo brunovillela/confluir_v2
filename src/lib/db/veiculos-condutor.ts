@@ -68,6 +68,25 @@ export async function perfilDoCondutor(usuarioId: string): Promise<PerfilConduto
   }
 }
 
+/**
+ * Tem algo de veículos para mostrar no Meu perfil? Cadastro de condutor ou
+ * qualquer uso, reserva, abastecimento ou infração — uma linha de cada basta.
+ */
+export async function temHistoricoDeVeiculo(usuarioId: string): Promise<boolean> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const existe = async (q: PromiseLike<{ data: unknown[] | null }>) => ((await q).data ?? []).length > 0
+  const achados = await Promise.all([
+    buscarCondutorDoUsuario(usuarioId).then(Boolean),
+    existe(admin.from("veiculos_disponibilidade").select("id").eq("emp_proprietaria_id", emp).eq("condutor_id", usuarioId).limit(1)),
+    existe(admin.from("veiculos_agendamentos").select("id").eq("emp_proprietaria_id", emp).eq("condutor_id", usuarioId).limit(1)),
+    existe(admin.from("veiculos_abastecimentos").select("id").eq("emp_proprietaria_id", emp).eq("usuario_id", usuarioId).limit(1)),
+    // Infrações não têm coluna de entidade: a RLS isola pelo veículo.
+    existe(admin.from("veiculos_infracoes").select("id").eq("condutor_infrator_id", usuarioId).limit(1)),
+  ])
+  return achados.some(Boolean)
+}
+
 // ── Indicadores ──────────────────────────────────────────────────────────────
 
 export type VeiculoDoCondutor = { id: string; rotulo: string; usos: number; km: number; dias: number }

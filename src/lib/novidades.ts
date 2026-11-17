@@ -13,6 +13,13 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-17",
+    titulo: "Meu perfil: Meus veículos",
+    itens: [
+      "Meu perfil → Meus veículos: quem usa os veículos da entidade vê a própria CNH e o seu histórico — usos, km, reservas, abastecimentos e infrações com a situação da cobrança —, com filtros e ordenação, e pede um veículo dali mesmo.",
+    ],
+  },
+  {
     id: "2026-11-16",
     titulo: "Ponto: comparação entre anos, relatório por funcionário e ajuste das marcações",
     itens: [

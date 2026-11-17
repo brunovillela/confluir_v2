@@ -34,15 +34,20 @@ import { lerFiltrosBase, POR_PAGINA_PADRAO, type Aba, type Params } from "./filt
 const CAMPO =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 
-type Contexto = {
+export type ContextoCondutor = {
   usuarioId: string
+  /** Rota da página que mostra as listas (gestão do condutor ou Meu perfil). */
+  base: string
   aba: Aba
   params: Params
   veiculos: VeiculoDoCondutor[]
   combustiveis: string[]
+  /** Links para as telas do módulo: só aparecem a quem pode abri-las. */
+  links: { veiculos: boolean; gestao: boolean }
+  /** No Meu perfil o texto fala com a própria pessoa. */
+  proprio?: boolean
 }
-
-const base = (usuarioId: string) => `/painel/veiculos/condutores/${usuarioId}`
+type Contexto = ContextoCondutor
 
 function Campo({ rotulo, id, children }: { rotulo: string; id: string; children: React.ReactNode }) {
   return (
@@ -62,7 +67,7 @@ function Filtros({ ctx, children }: { ctx: Contexto; children?: React.ReactNode 
     (k) => p[k]
   )
   return (
-    <form action={base(ctx.usuarioId)} className="grid gap-3 rounded-md border p-3 sm:grid-cols-2 lg:grid-cols-4">
+    <form action={ctx.base} className="grid gap-3 rounded-md border p-3 sm:grid-cols-2 lg:grid-cols-4">
       <input type="hidden" name="aba" value={ctx.aba} />
       {/* Filtrar mantém a ordenação e o tamanho da página (volta à página 1). */}
       {p.porPagina && <input type="hidden" name="porPagina" value={p.porPagina} />}
@@ -92,7 +97,7 @@ function Filtros({ ctx, children }: { ctx: Contexto; children?: React.ReactNode 
         </Button>
         {algum && (
           <Button variant="ghost" size="sm" asChild>
-            <Link href={`${base(ctx.usuarioId)}?aba=${ctx.aba}`}>Limpar filtros</Link>
+            <Link href={`${ctx.base}?aba=${ctx.aba}`}>Limpar filtros</Link>
           </Button>
         )}
       </div>
@@ -118,12 +123,29 @@ function Vazio({ texto }: { texto: string }) {
 
 function ordenacao(ctx: Contexto) {
   const { chaveOrdem, dir } = lerFiltrosBase(ctx.aba, ctx.params)
-  const href = linkDeOrdem(base(ctx.usuarioId), { ...ctx.params, aba: ctx.aba }, chaveOrdem, dir, ["pagina"])
+  const href = linkDeOrdem(ctx.base, { ...ctx.params, aba: ctx.aba }, chaveOrdem, dir, ["pagina"])
   return { ordem: chaveOrdem, dir, href }
 }
 
-function VeiculoLink({ id, placa, modelo }: { id: string | null; placa: string | null; modelo?: string | null }) {
+function VeiculoLink({
+  id,
+  placa,
+  modelo,
+  link,
+}: {
+  id: string | null
+  placa: string | null
+  modelo?: string | null
+  link: boolean
+}) {
   if (!id) return <span className="text-muted-foreground">—</span>
+  if (!link)
+    return (
+      <span className="whitespace-nowrap">
+        {placa ?? "(sem placa)"}
+        {modelo && <span className="text-muted-foreground block text-xs">{modelo}</span>}
+      </span>
+    )
   return (
     <Link href={`/painel/veiculos/${id}`} className="text-primary whitespace-nowrap hover:underline">
       {placa ?? "(sem placa)"}
@@ -207,7 +229,7 @@ export async function ListaMovimentacoes({ ctx }: { ctx: Contexto }) {
                     )}
                   </TableCell>
                   <TableCell>
-                    <VeiculoLink id={m.veiculo_id} placa={m.veiculoPlaca} modelo={m.veiculoModelo} />
+                    <VeiculoLink id={m.veiculo_id} placa={m.veiculoPlaca} modelo={m.veiculoModelo} link={ctx.links.veiculos} />
                   </TableCell>
                   <TableCell className="max-w-64">
                     <span className="line-clamp-1">{m.destino ?? "—"}</span>
@@ -223,7 +245,7 @@ export async function ListaMovimentacoes({ ctx }: { ctx: Contexto }) {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    {m.veiculo_id && (
+                    {m.veiculo_id && ctx.links.gestao && (
                       <Link
                         href={`/painel/veiculos/${m.veiculo_id}/historico/${m.id}`}
                         className="text-primary text-xs whitespace-nowrap hover:underline"
@@ -295,7 +317,7 @@ export async function ListaReservas({ ctx }: { ctx: Contexto }) {
                   )}
                 </TableCell>
                 <TableCell>
-                  <VeiculoLink id={a.veiculo_id} placa={a.veiculoPlaca} modelo={a.veiculoModelo} />
+                  <VeiculoLink id={a.veiculo_id} placa={a.veiculoPlaca} modelo={a.veiculoModelo} link={ctx.links.veiculos} />
                 </TableCell>
                 <TableCell className="max-w-64">
                   <span className="line-clamp-1">{a.destino ?? "—"}</span>
@@ -365,7 +387,7 @@ export async function ListaAbastecimentos({ ctx }: { ctx: Contexto }) {
               <TableRow key={a.id}>
                 <TableCell className="whitespace-nowrap">{formatarDataHora(a.data_hora)}</TableCell>
                 <TableCell>
-                  <VeiculoLink id={a.veiculo_id} placa={a.veiculoPlaca} />
+                  <VeiculoLink id={a.veiculo_id} placa={a.veiculoPlaca} link={ctx.links.veiculos} />
                 </TableCell>
                 <TableCell className="max-w-56">
                   <span className="line-clamp-1">{a.posto ?? "—"}</span>
@@ -443,7 +465,7 @@ export async function ListaInfracoes({ ctx }: { ctx: Contexto }) {
               <TableRow key={i.id}>
                 <TableCell className="whitespace-nowrap">{formatarData(i.infracao_data)}</TableCell>
                 <TableCell>
-                  <VeiculoLink id={i.veiculo_id} placa={i.veiculoPlaca} modelo={i.veiculoModelo} />
+                  <VeiculoLink id={i.veiculo_id} placa={i.veiculoPlaca} modelo={i.veiculoModelo} link={ctx.links.veiculos} />
                 </TableCell>
                 <TableCell className="max-w-72">
                   <span className="line-clamp-1">{i.descricao ?? "—"}</span>
@@ -457,9 +479,11 @@ export async function ListaInfracoes({ ctx }: { ctx: Contexto }) {
                   <CobrancaBadge situacao={i.cobranca_situacao} />
                 </TableCell>
                 <TableCell className="text-right">
-                  <Link href={`/painel/veiculos/infracoes/${i.id}`} className="text-primary text-xs whitespace-nowrap hover:underline">
-                    Abrir
-                  </Link>
+                  {ctx.links.veiculos && (
+                    <Link href={`/painel/veiculos/infracoes/${i.id}`} className="text-primary text-xs whitespace-nowrap hover:underline">
+                      Abrir
+                    </Link>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
@@ -482,7 +506,7 @@ export async function ListaChecklists({ ctx }: { ctx: Contexto }) {
   const o = ordenacao(ctx)
   return (
     <div className="grid gap-3">
-      <p className="text-muted-foreground text-xs">Checklists da frota feitos por este condutor como inspetor.</p>
+      <p className="text-muted-foreground text-xs">Checklists da frota feitos {ctx.proprio ? "por você" : "por este condutor"} como inspetor.</p>
       <Filtros ctx={ctx}>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="pendencia" value="sim" defaultChecked={p.pendencia === "sim"} className="size-4" />
@@ -507,9 +531,13 @@ export async function ListaChecklists({ ctx }: { ctx: Contexto }) {
               <TableRow key={c.id}>
                 <TableCell className="whitespace-nowrap">{formatarDataHora(c.realizadoEm)}</TableCell>
                 <TableCell>
-                  <Link href={`/painel/veiculos/${c.veiculoId}`} className="text-primary hover:underline">
-                    {c.veiculoRotulo}
-                  </Link>
+                  {ctx.links.veiculos ? (
+                    <Link href={`/painel/veiculos/${c.veiculoId}`} className="text-primary hover:underline">
+                      {c.veiculoRotulo}
+                    </Link>
+                  ) : (
+                    c.veiculoRotulo
+                  )}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">{c.hodometro !== null ? c.hodometro.toLocaleString("pt-BR") : "—"}</TableCell>
                 <TableCell className="text-right">
@@ -522,9 +550,11 @@ export async function ListaChecklists({ ctx }: { ctx: Contexto }) {
                   )}
                 </TableCell>
                 <TableCell className="text-right">
-                  <Link href={`/painel/veiculos/checklists/${c.id}`} className="text-primary text-xs hover:underline">
-                    Abrir
-                  </Link>
+                  {ctx.links.veiculos && (
+                    <Link href={`/painel/veiculos/checklists/${c.id}`} className="text-primary text-xs hover:underline">
+                      Abrir
+                    </Link>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

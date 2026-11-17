@@ -4,6 +4,10 @@
 
 O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga. É o mesmo conteúdo do aviso "O que há de novo" dentro do sistema. O detalhe técnico de cada entrega está no histórico do git; as decisões de arquitetura, em [`docs/arquitetura/adr/`](../arquitetura/adr/LEIA-ME.md).
 
+## 17/11/2026 — Meu perfil: Meus veículos
+
+- Meu perfil → Meus veículos: quem usa os veículos da entidade vê a própria CNH e o seu histórico — usos, km, reservas, abastecimentos e infrações com a situação da cobrança —, com filtros e ordenação, e pede um veículo dali mesmo.
+
 ## 16/11/2026 — Ponto: comparação entre anos, relatório por funcionário e ajuste das marcações
 
 - Aquisição: ordem de compra devolvida pelo avaliador não fica mais esquecida. Quem lançou é avisado com o motivo, a ordem aparece em "Compras devolvidas para você" (caixa de entrada e Minhas solicitações) e a página da compra mostra o motivo, com Editar compra ou Responder e reenviar. Lembrete semanal enquanto continuar devolvida.

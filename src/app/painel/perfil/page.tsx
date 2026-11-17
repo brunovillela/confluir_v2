@@ -5,6 +5,7 @@ import {
   BellRing,
   CalendarCheck,
   CalendarX2,
+  CarFront,
   Clock4,
   Coins,
   CreditCard,
@@ -42,6 +43,7 @@ import { podeAcessar } from "@/lib/permissoes"
 import { usuarioTemCaixa } from "@/lib/db/caixa"
 import { usuarioTemCartao } from "@/lib/db/compras-pagamento"
 import { contarRemessasDiaria } from "@/lib/db/diarias-historico"
+import { temHistoricoDeVeiculo } from "@/lib/db/veiculos-condutor"
 import { areaDoDiretor, diretoriaDoUsuario } from "@/lib/db/perfil-diretor"
 import {
   listarEnderecos,
@@ -203,6 +205,13 @@ const MEU_CAIXA: AreaPerfil = {
   icone: Wallet,
 }
 
+const MEUS_VEICULOS: AreaPerfil = {
+  titulo: "Meus veículos",
+  descricao: "Sua CNH, usos, reservas, abastecimentos e infrações com os veículos da entidade",
+  href: "/painel/perfil/veiculos",
+  icone: CarFront,
+}
+
 const MEU_CARTAO: AreaPerfil = {
   titulo: "Meu cartão",
   descricao: "Compras e faturas do cartão da entidade que está com você",
@@ -224,13 +233,14 @@ export default async function PerfilPage({
 }) {
   const { usuario, permissoes } = await requireSessaoPainel()
   const { area: avisoArea } = await searchParams
-  const [perfil, telefones, enderecos, temCaixa, temCartao, remessasAnteriores] = await Promise.all([
+  const [perfil, telefones, enderecos, temCaixa, temCartao, remessasAnteriores, temVeiculos] = await Promise.all([
     obterPerfil(usuario.id),
     listarTelefones(usuario.id),
     listarEnderecos(usuario.id),
     usuarioTemCaixa(usuario.id).catch(() => false),
     usuarioTemCartao(usuario.id).catch(() => false),
     contarRemessasDiaria(usuario.id).catch(() => 0),
+    temHistoricoDeVeiculo(usuario.id).catch(() => false),
   ])
   if (!perfil) return null
 
@@ -633,6 +643,14 @@ export default async function PerfilPage({
               descricao={DIARIAS_ANTERIORES.descricao}
               href={DIARIAS_ANTERIORES.href}
               icone={DIARIAS_ANTERIORES.icone}
+            />
+          )}
+          {temVeiculos && (
+            <CartaoArea
+              titulo={MEUS_VEICULOS.titulo}
+              descricao={MEUS_VEICULOS.descricao}
+              href={MEUS_VEICULOS.href}
+              icone={MEUS_VEICULOS.icone}
             />
           )}
           {temCaixa && (

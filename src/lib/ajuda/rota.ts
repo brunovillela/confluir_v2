@@ -39,6 +39,7 @@ const EXTRAS: Record<string, string> = {
   "/painel/hospedagem/mapa": "/painel/ajuda/hospedagem/demanda-garantida",
   "/painel/hospedagem/nao-comparecimentos": "/painel/ajuda/hospedagem/demanda-garantida",
   "/painel/perfil/reembolsos": "/painel/ajuda/pessoal/reembolsos",
+  "/painel/perfil/veiculos": "/painel/ajuda/introducao/meu-perfil",
   "/painel/perfil/contracheques": "/painel/ajuda/pessoal/contracheques",
   "/painel/financeiro/contas-bancarias": "/painel/ajuda/financeiro/ordens",
   "/painel/institucional/ramais": "/painel/ajuda/institucional",
