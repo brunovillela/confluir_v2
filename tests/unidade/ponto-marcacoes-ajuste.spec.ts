@@ -2,10 +2,12 @@ import { expect, test } from "playwright/test"
 
 import {
   aplicarAjuste,
+  descreverAjuste,
   desfazerAjustes,
   lerBatidas,
   lidoOriginal,
   mesclarLeitura,
+  textoDiaMarcado,
   type MarcacoesEspelho,
 } from "../../src/lib/ponto-marcacoes-ajuste"
 
@@ -79,5 +81,19 @@ test.describe("ajuste das marcações do espelho", () => {
     expect(nova2.dias.find((d) => d.data === "2026-03-02")!.marcacoes).toEqual(["08:00", "12:00", "13:00", "11:30"])
     // Sem ajustes: a leitura passa como veio.
     expect(mesclarLeitura(lido(), lido())).toEqual(lido())
+  })
+
+  test("descreve cada ajuste em uma frase", () => {
+    expect(textoDiaMarcado({ ocorrencia: "Feriado", marcacoes: ["08:00", "12:00"] })).toBe("08:00 12:00 (Feriado)")
+    expect(textoDiaMarcado({ ocorrencia: "Folga", marcacoes: [] })).toBe("Folga")
+    expect(textoDiaMarcado({ ocorrencia: null, marcacoes: [] })).toBe("sem batidas")
+    let m = aplicarAjuste(lido(), { data: "2026-03-02", marcacoes: ["08:00", "12:00", "13:00", "17:30"], ocorrencia: null }, quem)
+    expect(descreverAjuste(m.ajustes!.at(-1)!)).toBe("era 08:00 12:00 13:00 11:30, ficou 08:00 12:00 13:00 17:30")
+    m = aplicarAjuste(m, { data: "2026-03-03", marcacoes: [], ocorrencia: null, retirar: true }, quem)
+    expect(descreverAjuste(m.ajustes!.at(-1)!)).toBe("retirado (era 08:00 12:00 13:00)")
+    m = aplicarAjuste(m, { data: "2026-03-09", marcacoes: [], ocorrencia: "Folga" }, quem)
+    expect(descreverAjuste(m.ajustes!.at(-1)!)).toBe("incluído: Folga")
+    m = desfazerAjustes(m, "2026-03-02", quem)
+    expect(descreverAjuste(m.ajustes!.at(-1)!)).toBe("voltou ao que o espelho trazia (08:00 12:00 13:00 11:30)")
   })
 })

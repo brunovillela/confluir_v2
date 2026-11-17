@@ -7,6 +7,7 @@ import { DIAS_PARADA as DIAS_FICHA_PARADA } from "@/lib/ficha-filiacao"
 import type { SessaoPainel } from "@/lib/auth"
 import { alcadaDoUsuario } from "@/lib/db/compras"
 import { contagemPendenciasDesconto, exclusoesNaoCumpridas } from "@/lib/db/desconto-comunicacoes"
+import { contagemDiasParaConferir } from "@/lib/db/ponto-marcacoes"
 import { DIAS_SILENCIO_COBRANCA, empresasParaCobrar, relacoesDoRhALancar } from "@/lib/db/repasse"
 import { SITUACAO_EM_AUTORIZACAO } from "@/lib/db/ordens-ciclo"
 import { situacaoDosPlanos } from "@/lib/db/veiculos-manutencoes"
@@ -213,6 +214,31 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
       })
     }
   }
+  // Ponto (16/11): dias com alerta nas marcações sem ajuste nem conferência,
+  // nas remessas abertas — a fila "Dias para conferir" da remessa.
+  if (pode("pessoal_gestao")) {
+    const fonte: Fonte = {
+      chave: "ponto_conferir",
+      titulo: "Dias do ponto para conferir",
+      descricao: "Alertas nas marcações das remessas abertas, sem ajuste nem conferência",
+      href: "/painel/pessoal/ponto",
+      tabela: "pessoal_registro_ponto",
+      montar: (q) => head(q),
+      contarCom: async () => {
+        const c = await contagemDiasParaConferir(client, emp).catch(() => null)
+        if (!c) return null
+        // Uma remessa só: o link vai direto à fila dela; várias, à lista.
+        if (c.remessas.length === 1) {
+          fonte.href = `/painel/pessoal/ponto/${c.remessas[0].id}?aba=indicadores#dias-para-conferir`
+          fonte.descricao = `${c.remessas[0].nome}: alertas nas marcações sem ajuste nem conferência`
+        } else if (c.remessas.length > 1) {
+          fonte.descricao = c.remessas.map((r) => `${r.nome} (${r.dias})`).join(" · ")
+        }
+        return c.total
+      },
+    }
+    fontes.push(fonte)
+  }
   if (pode("pessoal_gestao", ["pessoal_faltas_justificadas"])) {
     fontes.push({
       chave: "faltas",
@@ -334,6 +360,7 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
       montar: (q) => head(q).in("situacao", ["solicitada", "em_atendimento"]),
     })
   }
+
 
   // Aquisição: a fila do comprador (mesmo critério da Área do comprador):
   // Via Aquisição, não cancelada, não comprada — a cotar, em cotação ou cotada.

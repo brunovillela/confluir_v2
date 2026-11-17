@@ -17,6 +17,9 @@ import { requireSessaoPainel } from "@/lib/auth"
 import { exigirFuncionario } from "@/lib/db/perfil"
 import { meusDocumentosPessoal } from "@/lib/db/pessoal"
 import { faixasHoraExtra } from "@/lib/db/ponto-config"
+import { meusAjustesDePonto } from "@/lib/db/ponto-marcacoes"
+import { formatarDataHora } from "@/lib/formato"
+import { descreverAjuste } from "@/lib/ponto-marcacoes-ajuste"
 import { lerPaginacao } from "@/lib/paginacao"
 
 export const metadata: Metadata = { title: "Meu controle de ponto — Confluir" }
@@ -30,7 +33,11 @@ export default async function MeuPontoPage({
   const sessao = await requireSessaoPainel()
   // Área de funcionário: diretor e demais usuários sem vínculo com o sindicato voltam ao perfil.
   await exigirFuncionario(sessao.usuario.id as string)
-  const [{ pontos }, faixas] = await Promise.all([meusDocumentosPessoal(sessao.usuario.id), faixasHoraExtra()])
+  const [{ pontos }, faixas, ajustes] = await Promise.all([
+    meusDocumentosPessoal(sessao.usuario.id),
+    faixasHoraExtra(),
+    meusAjustesDePonto(String(sessao.usuario.id)),
+  ])
   const params = await searchParams
   const paginacao = lerPaginacao(params, 10)
 
@@ -90,6 +97,40 @@ export default async function MeuPontoPage({
           />
         </CardContent>
       </Card>
+
+      {ajustes.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Ajustes nas suas marcações</CardTitle>
+            <CardDescription>
+              O departamento de pessoal corrigiu estas marcações lidas do seu espelho de ponto. Cada linha mostra como
+              estava e como ficou; a marcação original continua guardada. Se discordar de algum ajuste, fale com o
+              departamento de pessoal.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            {ajustes.map((m) => (
+              <section key={m.registroId} className="grid gap-2">
+                <h3 className="text-sm font-semibold">{m.remessa}</h3>
+                <ul className="grid gap-2 text-sm">
+                  {m.ajustes.map((a, i) => (
+                    <li key={i} className="rounded-md border px-3 py-2">
+                      <span className="font-medium tabular-nums">{a.data.split("-").reverse().slice(0, 2).join("/")}</span>
+                      {" · "}
+                      {descreverAjuste(a)}
+                      {a.motivo && <span className="block text-xs">Motivo: {a.motivo}</span>}
+                      <span className="text-muted-foreground block text-xs">
+                        {formatarDataHora(a.em)}
+                        {a.porNome ? ` · ${a.porNome}` : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </CardContent>
+        </Card>
+      )}
     </>
   )
 }

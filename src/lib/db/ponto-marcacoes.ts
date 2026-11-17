@@ -1,10 +1,11 @@
 import "server-only"
 
+import type { SupabaseClient } from "@supabase/supabase-js"
 import { extractText, getDocumentProxy } from "unpdf"
 
 import { esquemaAusente, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { gerarJsonIADePdf, type EsquemaJsonIA } from "@/lib/ia"
-import { mesclarLeitura, type MarcacoesEspelho } from "@/lib/ponto-marcacoes-ajuste"
+import { mesclarLeitura, type AjusteMarcacao, type MarcacoesEspelho } from "@/lib/ponto-marcacoes-ajuste"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
@@ -376,4 +377,85 @@ export async function diasParaConferir(remessaId: string): Promise<ConferenciaFu
   return linhas
     .map((l) => ({ ...l, nome: nomes.get(l.funcionarioId) ?? "(sem nome)" }))
     .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+}
+
+/**
+ * Para a caixa de entrada do painel: quantos dias esperam conferência nas
+ * remessas ABERTAS da entidade (as finalizadas ficam de fora). Recebe o
+ * cliente porque o lembrete diário roda sem requisição.
+ */
+export async function contagemDiasParaConferir(
+  client: SupabaseClient,
+  emp: string
+): Promise<{ total: number; remessas: { id: string; nome: string; dias: number }[] } | null> {
+  const { data: rems, error } = await client
+    .from("pessoal_registro_ponto_remessas")
+    .select("id, nome_remessa")
+    .eq("emp_proprietaria_id", emp)
+    .not("finalizada", "is", true)
+  if (error) return null
+  const nomes = new Map(((rems ?? []) as { id: string; nome_remessa: string | null }[]).map((r) => [String(r.id), r.nome_remessa ?? "Remessa"]))
+  if (nomes.size === 0) return { total: 0, remessas: [] }
+  const { data: regs, error: e2 } = await client
+    .from("pessoal_registro_ponto")
+    .select("remessa_id, marcacoes")
+    .in("remessa_id", [...nomes.keys()])
+    .not("marcacoes", "is", null)
+    .range(0, 4999)
+  if (e2) return null
+  const porRemessa = new Map<string, number>()
+  for (const r of (regs ?? []) as { remessa_id: string; marcacoes: MarcacoesEspelho | null }[]) {
+    const n = detalharDias(r.marcacoes).filter((d) => d.alertas.length > 0 && !d.ajustado && !d.conferido).length
+    if (n) porRemessa.set(String(r.remessa_id), (porRemessa.get(String(r.remessa_id)) ?? 0) + n)
+  }
+  const remessas = [...porRemessa].map(([id, dias]) => ({ id, nome: nomes.get(id)!, dias })).sort((a, b) => b.dias - a.dias)
+  return { total: remessas.reduce((s, r) => s + r.dias, 0), remessas }
+}
+
+export type AjustesDoMes = {
+  registroId: string
+  remessa: string
+  competencia: string | null
+  ajustes: AjusteMarcacao[]
+}
+
+/**
+ * Meu perfil → Ponto: os ajustes que a gestão fez nas marcações do próprio
+ * funcionário, só nos registros JÁ LIBERADOS a ele. A marcação original
+ * fica preservada e à vista dele (o antes e o depois de cada dia). A
+ * conferência sem mudança não entra: nada foi alterado.
+ */
+export async function meusAjustesDePonto(usuarioId: string): Promise<AjustesDoMes[]> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("pessoal_registro_ponto")
+    .select("id, remessa_id, marcacoes")
+    .eq("funcionario_id", usuarioId)
+    .eq("liberado", true)
+    .not("marcacoes", "is", null)
+    .range(0, 999)
+  if (error) return []
+  const comAjuste = ((data ?? []) as { id: string; remessa_id: string; marcacoes: MarcacoesEspelho | null }[])
+    .map((r) => ({ ...r, ajustes: (r.marcacoes?.ajustes ?? []).filter((a) => a.tipo !== "conferido") }))
+    .filter((r) => r.ajustes.length > 0)
+  if (comAjuste.length === 0) return []
+  const { data: rems } = await admin
+    .from("pessoal_registro_ponto_remessas")
+    .select("id, nome_remessa, mes_referencia_os, ano_referencia_os")
+    .in("id", [...new Set(comAjuste.map((r) => String(r.remessa_id)))])
+  const info = new Map(((rems ?? []) as Record<string, unknown>[]).map((r) => [String(r.id), r]))
+  const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+  return comAjuste
+    .map((r) => {
+      const rem = info.get(String(r.remessa_id))
+      const mes = MESES.indexOf(String(rem?.mes_referencia_os ?? ""))
+      const ano = String(rem?.ano_referencia_os ?? "")
+      return {
+        registroId: String(r.id),
+        remessa: texto(rem?.nome_remessa) ?? "Remessa",
+        competencia: mes >= 0 && /^\d{4}$/.test(ano) ? `${ano}-${String(mes + 1).padStart(2, "0")}` : null,
+        ajustes: [...r.ajustes].reverse(),
+      }
+    })
+    .sort((a, b) => (b.competencia ?? "").localeCompare(a.competencia ?? ""))
 }

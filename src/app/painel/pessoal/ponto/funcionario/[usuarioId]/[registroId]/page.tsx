@@ -16,7 +16,7 @@ import { funcionarioDaArea } from "@/lib/db/pessoal-area"
 import { carregarBasePonto, rotuloCompetenciaPonto } from "@/lib/db/ponto-analise"
 import { detalharDias, type MarcacoesEspelho } from "@/lib/db/ponto-marcacoes"
 import { formatarData, formatarDataHora } from "@/lib/formato"
-import { lidoOriginal } from "@/lib/ponto-marcacoes-ajuste"
+import { descreverAjuste, lidoOriginal, textoDiaMarcado } from "@/lib/ponto-marcacoes-ajuste"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 import { horas } from "../../../analise/componentes"
@@ -25,9 +25,6 @@ import { RecalcularHoras } from "./recalcular-horas"
 
 export const metadata: Metadata = { title: "Registro de ponto — Confluir" }
 
-/** "08:00 12:00 13:00 17:00 (Feriado)" — como o dia aparece no histórico de ajustes. */
-const textoDia = (d: { ocorrencia: string | null; marcacoes: string[] }) =>
-  [d.marcacoes.join(" "), d.ocorrencia ? (d.marcacoes.length ? `(${d.ocorrencia})` : d.ocorrencia) : ""].filter(Boolean).join(" ") || "sem batidas"
 
 /**
  * Nível 3 do Ponto: o funcionário naquele mês — horas, espelho, marcações dia
@@ -263,7 +260,7 @@ export default async function RegistroPontoPage({
             abrir={abrirDia}
             dias={dias.map((d) => {
               const original = d.ajustado ? lidoOriginal(marcacoes, d.data) : undefined
-              return { ...d, original: original ? textoDia(original) : null }
+              return { ...d, original: original ? textoDiaMarcado(original) : null }
             })}
           />
         </CardContent>
@@ -281,15 +278,7 @@ export default async function RegistroPontoPage({
                 <li key={i} className="rounded-md border px-3 py-2">
                   <span className="font-medium tabular-nums">{formatarData(a.data).slice(0, 5)}</span>
                   {" · "}
-                  {a.tipo === "conferido"
-                    ? `conferido como está (${a.depois ? textoDia(a.depois) : "—"})`
-                    : a.tipo === "desfeito"
-                    ? `voltou ao que o espelho trazia (${a.depois ? textoDia(a.depois) : "sem o dia"})`
-                    : !a.depois
-                      ? `retirado (era ${a.antes ? textoDia(a.antes) : "—"})`
-                      : !a.antes
-                        ? `incluído: ${textoDia(a.depois)}`
-                        : `era ${textoDia(a.antes)}, ficou ${textoDia(a.depois)}`}
+                  {descreverAjuste(a)}
                   {a.motivo && <span className="block text-xs">Motivo: {a.motivo}</span>}
                   {retirados.has(a.data) && ultimoDoDia.get(a.data) === i && (
                     <DesfazerBotao registroId={registroId} data={a.data} incluido={false} rotulo="Voltar ao espelho" />

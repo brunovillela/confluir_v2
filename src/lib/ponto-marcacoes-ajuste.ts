@@ -202,3 +202,21 @@ export function mesclarLeitura(nova: MarcacoesEspelho, anterior: MarcacoesEspelh
   dias.sort((a, b) => a.data.localeCompare(b.data))
   return { ...nova, dias, ajustes: anterior.ajustes }
 }
+
+/** "08:00 12:00 13:00 17:00 (Feriado)" — como o dia aparece nos históricos de ajuste. */
+export function textoDiaMarcado(d: { ocorrencia: string | null; marcacoes: string[] }): string {
+  return (
+    [d.marcacoes.join(" "), d.ocorrencia ? (d.marcacoes.length ? `(${d.ocorrencia})` : d.ocorrencia) : ""]
+      .filter(Boolean)
+      .join(" ") || "sem batidas"
+  )
+}
+
+/** O ajuste em uma frase (para quem lê o histórico). */
+export function descreverAjuste(a: AjusteMarcacao): string {
+  if (a.tipo === "conferido") return `conferido como está (${a.depois ? textoDiaMarcado(a.depois) : "—"})`
+  if (a.tipo === "desfeito") return `voltou ao que o espelho trazia (${a.depois ? textoDiaMarcado(a.depois) : "sem o dia"})`
+  if (!a.depois) return `retirado (era ${a.antes ? textoDiaMarcado(a.antes) : "—"})`
+  if (!a.antes) return `incluído: ${textoDiaMarcado(a.depois)}`
+  return `era ${textoDiaMarcado(a.antes)}, ficou ${textoDiaMarcado(a.depois)}`
+}
