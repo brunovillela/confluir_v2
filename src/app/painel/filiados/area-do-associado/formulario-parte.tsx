@@ -1,7 +1,7 @@
 "use client"
 
-import { startTransition, useActionState, useState } from "react"
-import { Loader2, RotateCcw, Save } from "lucide-react"
+import { startTransition, useActionState, useEffect, useState } from "react"
+import { CircleDot, Loader2, RotateCcw, Save } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -49,6 +49,20 @@ function efeitoDoEstado(def: DefinicaoParte, estado: EstadoParte): string {
   return def.chave === "portal"
     ? "O portal funciona normalmente, com cada parte no estado escolhido abaixo."
     : "Funciona normalmente para o associado."
+}
+
+/**
+ * Mesmo valor de opção? O número digitado chega como texto; o texto conta sem
+ * os espaços das pontas (a gravação apara); a lista, sem a ordem.
+ */
+function mesmoValor(a: ValorOpcao | undefined, b: ValorOpcao | undefined): boolean {
+  if (Array.isArray(a) || Array.isArray(b)) {
+    const x = Array.isArray(a) ? [...a].sort() : []
+    const y = Array.isArray(b) ? [...b].sort() : []
+    return x.length === y.length && x.every((v, i) => v === y[i])
+  }
+  if (typeof a === "boolean" || typeof b === "boolean") return a === b
+  return String(a ?? "").trim() === String(b ?? "").trim()
 }
 
 function Recado({ erro, ok }: { erro?: string; ok?: string }) {
@@ -101,6 +115,29 @@ export function FormularioParte({
   const [estado, formAction, pendente] = useActionState<EstadoForm, FormData>(salvarParteAction, {})
   const [escolhido, setEscolhido] = useState<EstadoParte>(inicial.estado)
   const [valores, setValores] = useState<Record<string, ValorOpcao>>(inicial.opcoes)
+  // Aviso e volta seguem não controlados (defaultValue); o estado só acompanha
+  // o que foi digitado, para saber se há alteração por salvar.
+  const [mensagem, setMensagem] = useState(inicial.mensagem ?? "")
+  const [retorno, setRetorno] = useState(inicial.retornoPrevisto ?? "")
+
+  // Alteração por salvar (são 21 cartões numa página só): marca ao lado do
+  // Salvar e pergunta antes de fechar ou recarregar. Depois de salvar, a página
+  // revalidada traz o novo `inicial`, e a marca some. Aviso e volta só contam
+  // fora de "Habilitada" — habilitada, a gravação os descarta.
+  const alterado =
+    escolhido !== inicial.estado ||
+    def.opcoes.some((o) => !mesmoValor(valores[o.chave] ?? o.padrao, inicial.opcoes[o.chave] ?? o.padrao)) ||
+    (escolhido !== "habilitada" &&
+      (mensagem.trim() !== (inicial.mensagem ?? "").trim() || retorno !== (inicial.retornoPrevisto ?? "")))
+  useEffect(() => {
+    if (!alterado) return
+    const aoSair = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ""
+    }
+    window.addEventListener("beforeunload", aoSair)
+    return () => window.removeEventListener("beforeunload", aoSair)
+  }, [alterado])
 
   const id = (campo: string) => `parte-${chave}-${campo}`
   const invalido = (campo: string) => estado.erro !== undefined && estado.campo === campo
@@ -185,6 +222,7 @@ export function FormularioParte({
               rows={2}
               maxLength={600}
               defaultValue={inicial.mensagem ?? ""}
+              onChange={(e) => setMensagem(e.target.value)}
               placeholder={padraoDoAviso}
             />
             <p className="text-muted-foreground text-xs">
@@ -200,6 +238,7 @@ export function FormularioParte({
               type="date"
               min={amanha}
               defaultValue={inicial.retornoPrevisto ?? ""}
+              onChange={(e) => setRetorno(e.target.value)}
               aria-invalid={invalido("retorno_previsto") || undefined}
             />
             <p className="text-muted-foreground text-xs">Opcional. Sem data, fica assim até alguém mudar.</p>
@@ -236,10 +275,18 @@ export function FormularioParte({
                   ? "Nunca alterada: vale o padrão, com o primeiro acesso já exigido."
                   : "Nunca alterada: vale o padrão, como sempre foi."))}
         </p>
-        <Button type="submit" size="sm" disabled={pendente || !disponivel || !lida}>
-          {pendente ? <Loader2 className="animate-spin" /> : <Save />}
-          Salvar<span className="sr-only"> {def.titulo}</span>
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          {alterado && disponivel && lida && (
+            <span role="status" className="text-warning-fg flex items-center gap-1.5 text-xs font-medium">
+              <CircleDot aria-hidden className="size-3.5" />
+              Alterações não salvas
+            </span>
+          )}
+          <Button type="submit" size="sm" disabled={pendente || !disponivel || !lida}>
+            {pendente ? <Loader2 className="animate-spin" /> : <Save />}
+            Salvar<span className="sr-only"> {def.titulo}</span>
+          </Button>
+        </div>
       </div>
     </form>
   )

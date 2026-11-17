@@ -108,9 +108,9 @@ export const PARTES_PORTAL = [
     podeSuspender: true,
     podeDesabilitar: true,
     efeitoSuspensa:
-      "O portal fica em modo de consulta: o associado entra e vê tudo, mas nada é gravado (pedidos, inscrições, votos, solicitações, cadastro). Sair, desligar avisos e a contribuição assistencial continuam.",
+      "O portal fica em modo de consulta: o associado entra e vê tudo, mas nada é gravado pelo portal (pedidos, inscrições, votos pelo portal, confirmação de vaga da lista de espera, solicitações, cadastro). Continuam: sair, desligar avisos, a contribuição assistencial, a desistência da filiação coletiva, o cancelamento de reservas e inscrições, o QR do Pix e o link pessoal de voto do e-mail.",
     efeitoDesabilitada:
-      "O portal sai do ar: a tela de entrada mostra a mensagem e não deixa entrar. A contribuição assistencial (oposição) continua aberta, por ter prazo legal. Os avisos por e-mail e celular para o portal param.",
+      "O portal sai do ar: a tela de entrada mostra a mensagem e não deixa entrar. A contribuição assistencial (oposição) continua aberta, por ter prazo legal, e o link pessoal de voto do e-mail continua. Quem paga por Pix fica sem o QR, vagas oferecidas da lista de espera não se confirmam, e os avisos por e-mail e celular para o portal param.",
     configuradoEm: [{ rotulo: "Nome e logomarca da entidade", href: "/painel/institucional/organizacao" }],
     opcoes: [
       {
@@ -362,9 +362,9 @@ export const PARTES_PORTAL = [
     podeSuspender: true,
     podeDesabilitar: true,
     efeitoSuspensa:
-      "Novos pedidos, lista de espera e ofertas de vaga ficam bloqueados. Cancelar o que já foi pedido continua (senão vira falta).",
+      "Novos pedidos, a lista de espera e a confirmação das vagas oferecidas ficam bloqueados — a vaga já oferecida não se confirma (nem pelo link do e-mail) e vence no prazo. Cancelar o que já foi pedido continua (senão vira falta).",
     efeitoDesabilitada:
-      "Sai do menu e do Início, e a fila de espera para de ofertar vagas. Reservas já confirmadas continuam valendo no hotel.",
+      "Sai do menu e do Início, e a fila de espera para de ofertar vagas; as já oferecidas não se confirmam e vencem no prazo. Reservas já confirmadas continuam valendo no hotel.",
     configuradoEm: [
       { rotulo: "Condições de uso, cotas e não comparecimento", href: "/painel/filiados/direitos" },
       { rotulo: "Hotéis", href: "/painel/hospedagem/hoteis" },

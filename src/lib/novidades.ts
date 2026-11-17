@@ -18,6 +18,8 @@ export const NOVIDADES: Novidade[] = [
     itens: [
       "Ordens de pagamento: ordem sem forma de pagamento não é mais paga — o formulário de pagamento avisa e o registro (pela ordem, em lote, pela Distribuição de comprovantes ou pelo extrato) pede para informar a forma em Corrigir ordem antes. Afeta só ordens antigas: desde 23/10 todas nascem com a forma.",
       "Meu perfil → Meus veículos: quem usa os veículos da entidade vê a própria CNH e o seu histórico — usos, km, reservas, abastecimentos e infrações com a situação da cobrança —, com filtros e ordenação, e pede um veículo dali mesmo.",
+      "Filiados → Área do associado: o quadro Situação das partes subiu para o topo, e cada cartão com mudança por salvar mostra \"Alterações não salvas\" — o navegador também pergunta antes de fechar ou recarregar a página. Os cartões avisam o que está em uso antes de você decidir: vagas da lista de espera oferecidas (que vencem sem poder ser confirmadas se a Hospedagem ou o portal pararem) e, no Portal inteiro, também a votação online aberta e as cobranças Pix.",
+      "Portal do associado, primeiro acesso: no Ver como filiado, a gestão passa a ver as páginas normalmente, com uma faixa dizendo o que falta ao associado — antes, só via o convite. Dado preenchido mas inutilizável também conta como pendência: telefone sem DDD, e-mail inválido ou CEP incompleto. E, se a conferência falhar, a gestão lê \"Não foi possível conferir agora\" em vez de \"Nada pendente\".",
     ],
   },
   {

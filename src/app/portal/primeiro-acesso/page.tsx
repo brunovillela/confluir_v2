@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { CheckCircle2, Settings2 } from "lucide-react"
+import { CheckCircle2, Settings2, TriangleAlert } from "lucide-react"
 
 import { ContatosEmergencia } from "@/components/contatos-emergencia"
 import { AvisoDaUrl } from "@/components/portal/aviso-da-url"
@@ -75,7 +75,7 @@ export default async function PrimeiroAcessoPage({
 
   if (!pend.pendente) {
     if (!preview) redirect(destino)
-    return <SemPendencias exigido={pend.exigido} destino={destino} />
+    return <SemPendencias exigido={pend.exigido} incompleto={pend.incompleto} destino={destino} />
   }
 
   const doFormulario = pend.dados.filter((i): i is ItemDoFormulario => i !== "contato_emergencia")
@@ -338,19 +338,31 @@ function NotaDaGestao() {
   )
 }
 
-/** Só no "Ver como filiado": o associado não tem nada pendente (ele seguiria direto). */
-function SemPendencias({ exigido, destino }: { exigido: boolean; destino: string }) {
+/**
+ * Só no "Ver como filiado": o associado não tem nada pendente (ele seguiria
+ * direto) — ou uma leitura falhou e, na dúvida, o portal não o barra: aí a
+ * gestão lê que não deu para conferir, não um "Nada pendente" que não foi visto.
+ */
+function SemPendencias({ exigido, incompleto, destino }: { exigido: boolean; incompleto: boolean; destino: string }) {
   return (
     <>
       <CabecalhoPagina secao={ROTA_PRIMEIRO_ACESSO} titulo="Primeiro acesso" />
       <EstadoVazio
         cartao
-        icone={CheckCircle2}
-        titulo={exigido ? "Nada pendente" : "O primeiro acesso não está sendo exigido"}
+        icone={incompleto ? TriangleAlert : CheckCircle2}
+        titulo={
+          incompleto
+            ? "Não foi possível conferir agora"
+            : exigido
+              ? "Nada pendente"
+              : "O primeiro acesso não está sendo exigido"
+        }
         descricao={
-          exigido
-            ? "Este associado já aceitou o termo de privacidade em vigor e tem os dados obrigatórios preenchidos: ele entra direto no portal."
-            : "Com o primeiro acesso desligado (ou o portal suspenso ou fora do ar), o associado entra direto no portal."
+          incompleto
+            ? "Uma leitura falhou e, na dúvida, o portal não barra o associado: ele entra direto enquanto isso. Recarregue a página daqui a pouco para conferir."
+            : exigido
+              ? "Este associado já aceitou o termo de privacidade em vigor e tem os dados obrigatórios preenchidos: ele entra direto no portal."
+              : "Com o primeiro acesso desligado (ou o portal suspenso ou fora do ar), o associado entra direto no portal."
         }
         acao={
           <Button asChild variant="outline">

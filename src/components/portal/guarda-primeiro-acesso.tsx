@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
-import { ArrowRight, ClipboardCheck, Settings2 } from "lucide-react"
+import { ArrowRight, ClipboardCheck } from "lucide-react"
 
 import { hrefPrimeiroAcesso, livreDoPrimeiroAcesso } from "@/app/portal/primeiro-acesso/regras"
 import { Button } from "@/components/ui/button"
@@ -23,7 +23,9 @@ import { Button } from "@/components/ui/button"
  * concluído em outra aba, a casca volta atualizada em vez de mostrar o
  * portão de novo.
  *
- * "Ver como filiado" vê o mesmo portão, com a nota da gestão.
+ * "Ver como filiado" vê a página normal, com uma faixa no topo: quem atende
+ * o associado ("onde está meu QR do Pix?") precisa do conteúdo, não do
+ * convite. A faixa diz o que falta a ele e leva ao primeiro acesso como ele vê.
  */
 export function GuardaPrimeiroAcesso({
   resumo,
@@ -45,6 +47,31 @@ export function GuardaPrimeiroAcesso({
 
   const href = hrefPrimeiroAcesso(atual)
 
+  if (hrefGestao) {
+    return (
+      <>
+        <p
+          role="note"
+          className="border-warning/40 bg-warning/10 text-warning-fg flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border px-3 py-2 text-xs print:hidden"
+        >
+          <ClipboardCheck aria-hidden className="size-3.5 shrink-0" />
+          <span>
+            Visível só para a gestão: este associado ainda não concluiu o primeiro acesso (falta {resumo}) e vê o
+            convite &quot;Antes de começar&quot; no lugar desta página.
+          </span>
+          <a href={href} className="underline underline-offset-2">
+            Ver o primeiro acesso dele
+          </a>
+          <span aria-hidden>·</span>
+          <Link href={hrefGestao} className="underline underline-offset-2">
+            Configurar em Filiados › Área do associado
+          </Link>
+        </p>
+        {children}
+      </>
+    )
+  }
+
   return (
     <div className="mx-auto grid w-full max-w-xl gap-6 pt-2">
       <div className="grid justify-items-center gap-3 text-center">
@@ -63,17 +90,6 @@ export function GuardaPrimeiroAcesso({
           </a>
         </Button>
       </div>
-
-      {hrefGestao && (
-        <p className="text-muted-foreground flex flex-wrap items-center justify-center gap-1 text-center text-xs">
-          <Settings2 aria-hidden className="size-3.5" />
-          Visível só para a gestão: este associado vê esta tela até concluir o primeiro acesso. Configure em{" "}
-          <Link href={hrefGestao} className="underline underline-offset-2">
-            Filiados › Área do associado
-          </Link>
-          .
-        </p>
-      )}
     </div>
   )
 }

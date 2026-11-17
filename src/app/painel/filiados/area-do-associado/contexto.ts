@@ -21,6 +21,26 @@ export async function cobrancasPixEmAberto(): Promise<number> {
   return error ? 0 : (count ?? 0)
 }
 
+/**
+ * Vagas da lista de espera oferecidas e ainda no prazo: a reserva está
+ * guardada e só se confirma com a Hospedagem (e o portal) habilitada — pelo
+ * portal ou pelo link do e-mail. Suspender ou desabilitar agora faz a vaga
+ * vencer sem que o associado consiga confirmá-la.
+ */
+export async function vagasOferecidasEmAberto(): Promise<{ total: number; primeiraVence: string | null }> {
+  const admin = await createAdminClient()
+  const { data, count, error } = await admin
+    .from("hospedagem_espera")
+    .select("oferta_expira_em", { count: "exact" })
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("situacao", "oferecida")
+    .gt("oferta_expira_em", new Date().toISOString())
+    .order("oferta_expira_em", { ascending: true })
+    .limit(1)
+  if (error) return { total: 0, primeiraVence: null }
+  return { total: count ?? 0, primeiraVence: (data?.[0]?.oferta_expira_em as string | null) ?? null }
+}
+
 /** Rodadas com o voto pela internet aberto agora (apuração não encerrada). */
 export async function votacoesOnlineAbertas(): Promise<number> {
   const admin = await createAdminClient()

@@ -1,11 +1,14 @@
 import "server-only"
 
 import { cache } from "react"
+import * as Sentry from "@sentry/nextjs"
 
 import {
   camposQueFaltam,
+  faltaNoPrimeiroAcesso,
   hrefPrimeiroAcesso,
   livreDoPrimeiroAcesso,
+  type EditaveisDoCadastro,
   type ItemObrigatorio,
 } from "@/app/portal/primeiro-acesso/regras"
 import { cpfConfiavel, grafiasDoCpf } from "@/lib/cpf"
@@ -51,9 +54,21 @@ export type PendenciasPrimeiroAcesso = {
   termo: { id: string; renovacao: boolean } | null
   /** O que falta nos dados, na ordem do catálogo. */
   dados: ItemObrigatorio[]
+  /**
+   * Alguma leitura falhou e o que ela decidiria ficou sem pendência (na
+   * dúvida, não trava). A falha vai ao Sentry; o "Ver como filiado" diz que
+   * não deu para conferir, em vez de "Nada pendente".
+   */
+  incompleto: boolean
 }
 
-const NADA: PendenciasPrimeiroAcesso = { exigido: false, pendente: false, termo: null, dados: [] }
+const NADA: PendenciasPrimeiroAcesso = { exigido: false, pendente: false, termo: null, dados: [], incompleto: false }
+
+/** Leitura que falhou: no log e no Sentry — o portão abre em silêncio, a equipe não. */
+function registrarFalha(etapa: string, e: unknown): void {
+  console.error(`primeiro acesso (${etapa}):`, e instanceof Error ? e.message : e)
+  Sentry.captureException(e instanceof Error ? e : new Error(String(e)), { tags: { area: "primeiro-acesso", etapa } })
+}
 
 /** A recusa das ações (bloqueioDaParte) enquanto há pendência. */
 export const MENSAGEM_PRIMEIRO_ACESSO =
@@ -97,6 +112,11 @@ async function lerRegistro(cpfBruto: string): Promise<Registro | null> {
  * de aceite em página nenhuma, então não vira pendência.
  */
 async function termoLgpdAceitavel(): Promise<string | null> {
+  return lerTermoLgpdAceitavel().catch(() => null)
+}
+
+/** O mesmo, mas a falha da leitura SOBE (não vira "sem termo"). */
+async function lerTermoLgpdAceitavel(): Promise<string | null> {
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("filiacao_tl_lgpd")
@@ -106,23 +126,40 @@ async function termoLgpdAceitavel(): Promise<string | null> {
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle()
-  if (error || !data?.id || !texto(data.texto)) return null
+  if (error) throw new Error(`primeiro acesso: falha ao ler o termo em vigor: ${error.message}`)
+  if (!data?.id || !texto(data.texto)) return null
   return String(data.id)
 }
 
 async function calcularPendencias(cpf: string, filiadoId: string): Promise<PendenciasPrimeiroAcesso> {
-  const cfg = await configDoPortal().catch(() => null)
-  if (!cfg || !cfg.lida || cfg.partes.portal.estado !== "habilitada") return NADA
+  const cfg = await configDoPortal().catch((e) => {
+    registrarFalha("configuracao", e)
+    return null
+  })
+  if (!cfg) return { ...NADA, incompleto: true }
+  // Configuração que não leu: na dúvida, não trava. Sem a tabela (migração por
+  // aplicar) não é falha — o primeiro acesso só não existe ainda.
+  if (!cfg.lida) {
+    if (cfg.disponivel) registrarFalha("configuracao", new Error("a leitura de portal_partes falhou"))
+    return { ...NADA, incompleto: cfg.disponivel }
+  }
+  if (cfg.partes.portal.estado !== "habilitada") return NADA
   const op = cfg.partes.primeiro_acesso.opcoes
   if (!op.exigir) return NADA
 
   // Os dados só se exigem com Meu cadastro gravando e só o que ele deixa alterar.
   const cadastro = cfg.partes.cadastro
   const editaveis = cadastro.opcoes.campos_editaveis
-  const podeAlterar: Record<ItemObrigatorio, boolean> = {
-    email: editaveis.includes("email_pessoal") || editaveis.includes("email_corporativo"),
-    telefone: editaveis.includes("telefones"),
+  const editaveisDoCadastro: EditaveisDoCadastro = {
+    emailPessoal: editaveis.includes("email_pessoal"),
+    emailCorporativo: editaveis.includes("email_corporativo"),
+    telefones: editaveis.includes("telefones"),
     endereco: editaveis.includes("endereco"),
+  }
+  const podeAlterar: Record<ItemObrigatorio, boolean> = {
+    email: editaveisDoCadastro.emailPessoal || editaveisDoCadastro.emailCorporativo,
+    telefone: editaveisDoCadastro.telefones,
+    endereco: editaveisDoCadastro.endereco,
     contato_emergencia: cadastro.opcoes.contatos_emergencia,
   }
   const itens =
@@ -133,28 +170,32 @@ async function calcularPendencias(cpf: string, filiadoId: string): Promise<Pende
   const querTermo = op.exigir_termo
   if (!querTermo && itens.length === 0) return { ...NADA, exigido: true }
 
-  // Cada leitura falha sozinha, e o que ela decide fica sem pendência.
+  // Cada leitura falha sozinha, e o que ela decide fica sem pendência — mas
+  // a falha vai ao Sentry e a conta sai marcada como incompleta.
+  let incompleto = false
+  const falhou = (etapa: string) => (e: unknown) => {
+    incompleto = true
+    registrarFalha(etapa, e)
+    return null
+  }
   const [termoId, registro, emergencia] = await Promise.all([
-    querTermo ? termoLgpdAceitavel().catch(() => null) : Promise.resolve(null),
-    querTermo || doFormulario.length > 0
-      ? lerRegistro(cpf).catch((e) => {
-          console.error(e instanceof Error ? e.message : e)
-          return null
-        })
-      : Promise.resolve(null),
+    querTermo ? lerTermoLgpdAceitavel().catch(falhou("termo")) : Promise.resolve(null),
+    querTermo || doFormulario.length > 0 ? lerRegistro(cpf).catch(falhou("cadastro")) : Promise.resolve(null),
     itens.includes("contato_emergencia")
-      ? listarContatosEmergencia({ cpf, filiadoId }).catch(() => null)
+      ? listarContatosEmergencia({ cpf, filiadoId }).catch(falhou("contatos"))
       : Promise.resolve(null),
   ])
 
   const termo =
     termoId && registro && registro.lgpdId !== termoId ? { id: termoId, renovacao: registro.lgpdId !== null } : null
+  // Dado que existe mas não serve (telefone sem DDD, e-mail inválido) também
+  // falta: a régua de Meu cadastro (faltaNoPrimeiroAcesso).
   const dados = itens.filter((i) =>
     i === "contato_emergencia"
       ? Boolean(emergencia?.disponivel && emergencia.contatos.length === 0)
-      : registro !== null && camposQueFaltam([i], registro).length > 0
+      : registro !== null && faltaNoPrimeiroAcesso(i, registro, editaveisDoCadastro)
   )
-  return { exigido: true, pendente: Boolean(termo) || dados.length > 0, termo, dados }
+  return { exigido: true, pendente: Boolean(termo) || dados.length > 0, termo, dados, incompleto }
 }
 
 /** O que a oposição exige do filiado nos dados (30/10/2026). */
@@ -201,11 +242,15 @@ export async function pendenciasDaOposicao(cpf: string): Promise<PendenciasDaOpo
 
 /**
  * Uma conta por requisição, dividida entre a casca (o portão), a página e o
- * bloqueioDaParte das páginas e ações. Nunca rejeita: na dúvida, nada pendente.
+ * bloqueioDaParte das páginas e ações. Nunca rejeita: na dúvida, nada pendente
+ * (e `incompleto`, com a falha no Sentry).
  */
 export const pendenciasDoPrimeiroAcesso = cache(
   (cpf: string, filiadoId: string): Promise<PendenciasPrimeiroAcesso> =>
-    calcularPendencias(cpf, filiadoId).catch(() => NADA)
+    calcularPendencias(cpf, filiadoId).catch((e) => {
+      registrarFalha("calculo", e)
+      return { ...NADA, incompleto: true }
+    })
 )
 
 /**

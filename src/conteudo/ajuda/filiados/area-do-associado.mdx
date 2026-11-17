@@ -12,7 +12,7 @@ começa habilitada e toda opção começa no comportamento de antes, com uma
 exceção. O **Primeiro acesso** já começa exigido (veja
 [Primeiro acesso](#primeiro-acesso)).
 
-<Print src="filiados/area-do-associado.png" alt="Topo da Área do associado: o cartão do portal inteiro com as escolhas Habilitada, Suspensa e Desabilitada e o efeito de cada uma, o aviso e a orientação da tela de entrada, os atalhos da barra do celular e, abaixo, o quadro Situação das partes (1 suspensa, 1 desabilitada) e o Conferir como o associado vê." legenda="O portal inteiro vem primeiro; o quadro Situação das partes mostra o que não está habilitado e leva a cada parte." />
+<Print src="filiados/area-do-associado.png" alt="Topo da Área do associado: o cartão do portal inteiro com as escolhas Habilitada, Suspensa e Desabilitada e o efeito de cada uma, o aviso e a orientação da tela de entrada, os atalhos da barra do celular e, abaixo, o quadro Situação das partes (1 suspensa, 1 desabilitada) e o Conferir como o associado vê." legenda="O quadro Situação das partes mostra o que não está habilitado e leva a cada parte; o cartão do portal inteiro vale por cima de todas." />
 
 ## Os três estados
 
@@ -57,7 +57,10 @@ salvar.
   </Passo>
   <Passo titulo="Salve">
     Cada parte tem o seu botão. Desabilitar pede confirmação, e tirar o portal
-    inteiro do ar ou pô-lo em modo de consulta também.
+    inteiro do ar ou pô-lo em modo de consulta também. Enquanto um cartão tem
+    mudança por salvar, ele mostra **Alterações não salvas** ao lado do
+    botão, e o navegador pergunta antes de fechar ou recarregar a página — o
+    Salvar de um cartão não salva os outros.
   </Passo>
 </PassoAPasso>
 
@@ -70,7 +73,8 @@ são apagadas; na próxima suspensão, escreva de novo. Cada cartão mostra a
 
 ## O portal inteiro
 
-O primeiro cartão vale por cima de todas as partes:
+O cartão **Portal inteiro**, logo abaixo do quadro Situação das partes, vale
+por cima de todas as partes:
 
 - **Suspenso** — o portal entra em **modo de consulta**: o associado entra e
   vê tudo, mas nada é gravado. Bom para uma migração ou uma auditoria.
@@ -133,6 +137,14 @@ A página confere o que está em uso antes de você decidir:
   prefira suspender.
 - **Votação** — quando há votação pela internet aberta agora, avisa que
   suspender bloqueia o voto pelo portal (o link pessoal continua).
+- **Hospedagem** — quando há vagas da lista de espera oferecidas e ainda no
+  prazo, avisa quantas e quando vence a primeira: com a Hospedagem suspensa
+  ou desabilitada, o associado não consegue confirmar (nem pelo link do
+  e-mail), e a vaga vence.
+- **Portal inteiro** — junta os avisos que valem para ele: votação aberta (o
+  voto pelo portal para; o link pessoal e a urna continuam), cobranças Pix
+  (fora do ar, quem paga por Pix fica sem o QR) e vagas oferecidas (não se
+  confirmam).
 - **Atendimento e O sindicato** não ficam desabilitados ao mesmo tempo: o
   associado precisa de pelo menos um canal com a entidade.
 
@@ -209,8 +221,18 @@ Como funciona:
   primeiro acesso, com um aviso no topo e o botão para concluí-lo.
 </Aviso>
 
-No **Ver como filiado**, a gestão vê a mesma tela do Primeiro acesso que o
-associado veria, em somente leitura.
+No **Ver como filiado**, a gestão vê as páginas normalmente — para atender o
+associado ("onde está o meu QR do Pix?") —, com uma faixa no topo dizendo o
+que falta a ele e que ele vê o convite **Antes de começar** no lugar da
+página. O link **Ver o primeiro acesso dele** abre a tela dos passos como o
+associado a vê, em somente leitura. Se uma leitura falhar ao conferir, a
+tela diz **Não foi possível conferir agora** (na dúvida, o portal não barra
+ninguém, e a falha fica registrada para a equipe técnica).
+
+Dado preenchido mas inutilizável também conta como pendência, pela mesma
+régua de Meu cadastro: telefone sem DDD, e-mail que não é um endereço
+válido ou CEP incompleto. Um campo que a entidade travou em Meu cadastro não
+conta contra o associado, porque ele não teria como corrigi-lo.
 
 ## Conferir como o associado vê
 

@@ -1,3 +1,4 @@
+import { erroCep, erroEmail, erroTelefone } from "@/app/portal/cadastro/validacao"
 import { destinoDoPortal } from "@/lib/portal-destino"
 
 /**
@@ -210,6 +211,48 @@ export function camposQueFaltam(itens: readonly ItemObrigatorio[], v: Valores): 
   if (itens.includes("telefone") && vazio(v.telefone_1) && vazio(v.telefone_2)) faltam.push("telefone_1")
   if (itens.includes("endereco")) for (const c of CAMPOS_DO_ENDERECO) if (vazio(v[c])) faltam.push(c)
   return faltam
+}
+
+/** O que o associado altera em Meu cadastro (os grupos da opção campos_editaveis). */
+export type EditaveisDoCadastro = {
+  emailPessoal: boolean
+  emailCorporativo: boolean
+  telefones: boolean
+  endereco: boolean
+}
+
+/**
+ * Primeiro acesso: o item conta como cumprido só com um valor UTILIZÁVEL —
+ * pela régua de Meu cadastro (src/app/portal/cadastro/validacao.ts), e não só
+ * preenchido. Falta o e-mail sem nenhum endereço válido; o telefone sem
+ * nenhum número com DDD; o endereço com campo em branco ou CEP incompleto. E
+ * falta também o item com um campo EDITÁVEL inválido, mesmo havendo outro bom:
+ * Meu cadastro recusaria salvar (telefone 2 sem DDD barraria o endereço), e o
+ * passo precisa listar o que a pessoa vai ter de corrigir. Campo travado pela
+ * entidade não conta contra: a pessoa não teria como corrigi-lo.
+ *
+ * A oposição segue com camposQueFaltam (só em branco).
+ */
+export function faltaNoPrimeiroAcesso(
+  item: ItemDoFormulario,
+  v: Valores,
+  editaveis: EditaveisDoCadastro
+): boolean {
+  const s = (c: string) => (v[c] ?? "").trim()
+  if (item === "email") {
+    const bons = ["email_pessoal", "email_corporativo"].filter((c) => s(c) && !erroEmail("", s(c)))
+    const ruim =
+      (editaveis.emailPessoal && Boolean(erroEmail("", s("email_pessoal")))) ||
+      (editaveis.emailCorporativo && Boolean(erroEmail("", s("email_corporativo"))))
+    return bons.length === 0 || ruim
+  }
+  if (item === "telefone") {
+    const bons = ["telefone_1", "telefone_2"].filter((c) => s(c) && !erroTelefone("", s(c)))
+    const ruim =
+      editaveis.telefones && Boolean(erroTelefone("", s("telefone_1")) || erroTelefone("", s("telefone_2")))
+    return bons.length === 0 || ruim
+  }
+  return camposQueFaltam(["endereco"], v).length > 0 || (editaveis.endereco && Boolean(erroCep(s("endereco_cep"))))
 }
 
 /** "a, b e c" */

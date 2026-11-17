@@ -115,8 +115,8 @@ export default async function PortalLayout({ children }: { children: React.React
     opcoesDaParte("portal")
       .then((o) => o.atalhos)
       .catch(() => opcoesPadrao("portal").atalhos),
-    // Primeiro acesso: o da pessoa vista (no "Ver como filiado", o portão
-    // dela). Nunca rejeita — na dúvida, nada pendente.
+    // Primeiro acesso: o da pessoa vista (no "Ver como filiado", a página
+    // normal com a faixa do que falta a ela). Nunca rejeita — na dúvida, nada pendente.
     pendenciasDoPrimeiroAcesso(cpf, vis.filiado.filiacaoId),
   ])
   const rotasDesabilitadas = desabilitadas.map(rotaDoMenu).filter((r): r is string => r !== null)

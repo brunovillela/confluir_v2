@@ -26,7 +26,7 @@ import {
 import { cn } from "@/lib/utils"
 
 import { ConferirComoAssociado } from "./conferir-como-associado"
-import { cobrancasPixEmAberto, votacoesOnlineAbertas } from "./contexto"
+import { cobrancasPixEmAberto, vagasOferecidasEmAberto, votacoesOnlineAbertas } from "./contexto"
 import { FormularioParte, type ValorOpcao } from "./formulario-parte"
 import { contagemDasPartes } from "./resumo"
 
@@ -120,7 +120,7 @@ function CartaoParte({
   chave,
   cfg,
   links,
-  aviso,
+  avisos,
   amanha,
   ultimaAlteracao,
   disponivel,
@@ -129,7 +129,8 @@ function CartaoParte({
   chave: ChaveParte
   cfg: ConfigDaParte
   links: readonly { rotulo: string; href: string }[]
-  aviso?: string
+  /** O que está em uso agora e pesa na escolha do estado (um parágrafo cada). */
+  avisos?: readonly string[]
   amanha: string
   ultimaAlteracao: string | null
   disponivel: boolean
@@ -157,10 +158,14 @@ function CartaoParte({
             {def.observacao}
           </p>
         )}
-        {aviso && (
+        {avisos && avisos.length > 0 && (
           <Alert variant="warning">
             <TriangleAlert aria-hidden />
-            <AlertDescription>{aviso}</AlertDescription>
+            <AlertDescription className="grid gap-1.5">
+              {avisos.map((a) => (
+                <p key={a}>{a}</p>
+              ))}
+            </AlertDescription>
           </Alert>
         )}
         {links.length > 0 && (
@@ -204,26 +209,52 @@ export default async function AreaDoAssociadoPage() {
   const sessao = await requirePermissao("filiacao_gestao")
 
   // Os avisos de contexto são um extra: falha neles não derruba a página.
-  const [config, cobrancasAbertas, votacoesAbertas] = await Promise.all([
+  const [config, cobrancasAbertas, votacoesAbertas, vagas] = await Promise.all([
     configDoPortal(),
     cobrancasPixEmAberto().catch(() => 0),
     votacoesOnlineAbertas().catch(() => 0),
+    vagasOferecidasEmAberto().catch(() => ({ total: 0, primeiraVence: null })),
   ])
   const cfgDe = (c: ChaveParte) => config.partes[c] as ConfigDaParte
   const nomes = await nomesDosUsuarios(
     CHAVES_PARTES.map((c) => cfgDe(c).atualizadaPor).filter((id): id is string => Boolean(id))
   ).catch(() => new Map<string, string>())
 
-  const avisos: Partial<Record<ChaveParte, string>> = {}
+  // O que está em uso agora, cartão a cartão. O Portal inteiro junta os de
+  // todas as partes que ele pausa ou tira do ar — é o cartão de maior efeito.
+  const avisos: Partial<Record<ChaveParte, string[]>> = {}
+  const avisar = (c: ChaveParte, texto: string) => (avisos[c] ??= []).push(texto)
+  const pix =
+    cobrancasAbertas === 1
+      ? "Há 1 cobrança Pix em aberto"
+      : `Há ${cobrancasAbertas.toLocaleString("pt-BR")} cobranças Pix em aberto`
+  const ofertas =
+    vagas.total === 1
+      ? "Há 1 vaga da lista de espera oferecida, aguardando a confirmação do associado"
+      : `Há ${vagas.total.toLocaleString("pt-BR")} vagas da lista de espera oferecidas, aguardando a confirmação dos associados`
+  const vence = vagas.primeiraVence
+    ? ` (${vagas.total === 1 ? "o prazo vence" : "o primeiro prazo vence"} em ${formatarDataHora(vagas.primeiraVence)})`
+    : ""
   if (cobrancasAbertas > 0) {
-    avisos.contribuicao = `${
-      cobrancasAbertas === 1
-        ? "Há 1 cobrança Pix em aberto"
-        : `Há ${cobrancasAbertas.toLocaleString("pt-BR")} cobranças Pix em aberto`
-    }: desabilitar tira o QR do portal; prefira suspender.`
+    avisar("contribuicao", `${pix}: desabilitar tira o QR do portal; prefira suspender.`)
+    avisar("portal", `${pix}: fora do ar, quem paga por Pix fica sem o QR (em modo de consulta, o QR continua).`)
   }
   if (votacoesAbertas > 0) {
-    avisos.votacao = "Há votação online aberta: suspender bloqueia o voto pelo portal (o link pessoal continua)."
+    avisar("votacao", "Há votação online aberta: suspender bloqueia o voto pelo portal (o link pessoal continua).")
+    avisar(
+      "portal",
+      "Há votação online aberta: em modo de consulta ou fora do ar, o voto pelo portal para; o link pessoal do e-mail e a urna continuam."
+    )
+  }
+  if (vagas.total > 0) {
+    avisar(
+      "hospedagem",
+      `${ofertas}${vence}: suspensa ou desabilitada, a Hospedagem não deixa confirmar (nem pelo link do e-mail), e a vaga vence no prazo.`
+    )
+    avisar(
+      "portal",
+      `${ofertas}${vence}: em modo de consulta ou fora do ar, ela não se confirma (nem pelo link do e-mail) e vence no prazo.`
+    )
   }
 
   const amanha = amanhaSP()
@@ -239,7 +270,7 @@ export default async function AreaDoAssociadoPage() {
       chave={c}
       cfg={cfgDe(c)}
       links={linksVisiveis(definicaoDaParte(c), sessao.permissoes)}
-      aviso={avisos[c]}
+      avisos={avisos[c]}
       amanha={amanha}
       ultimaAlteracao={ultimaAlteracao(c)}
       disponivel={config.disponivel}
@@ -303,8 +334,7 @@ export default async function AreaDoAssociadoPage() {
         </Alert>
       )}
 
-      {cartao("portal")}
-
+      {/* O resumo e a conferência no topo: dá para ver o que está pausado antes de mexer no interruptor geral. */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -355,6 +385,8 @@ export default async function AreaDoAssociadoPage() {
           </CardContent>
         </Card>
       </div>
+
+      {cartao("portal")}
 
       {grupos.map((g) => (
         <section
