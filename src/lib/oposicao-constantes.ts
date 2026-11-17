@@ -6,8 +6,8 @@
 // ── Modo de formalização (por campanha) ─────────────────────────────────────
 export const MODOS_FORMALIZACAO = [
   { chave: "tela", rotulo: "Só confirmação na tela" },
-  { chave: "assinatura", rotulo: "Confirmação + assinatura gov.br + upload" },
-  { chave: "hibrido", rotulo: "Híbrido (filiado só confirma; não-filiado assina)" },
+  { chave: "assinatura", rotulo: "Confirmação + carta assinada" },
+  { chave: "hibrido", rotulo: "Híbrido (filiado só confirma; não filiado assina a carta)" },
 ] as const
 
 export type ModoFormalizacao = (typeof MODOS_FORMALIZACAO)[number]["chave"]
