@@ -612,6 +612,13 @@ export default async function ProcessoCompraPage({
             <Campo rotulo="Vinculado a projeto">
               {processo.projetoNome ?? "Não há"}
             </Campo>
+            {processo.contrato_id && (
+              <Campo rotulo="No âmbito do contrato">
+                <Link href={`/painel/compras/contratos/${processo.contrato_id}`} className="text-primary hover:underline">
+                  {processo.contratoNome ?? "(contrato)"}
+                </Link>
+              </Campo>
+            )}
             {processo.entrega_no_ato ? (
               <Campo rotulo="Entrega">No ato da compra</Campo>
             ) : (

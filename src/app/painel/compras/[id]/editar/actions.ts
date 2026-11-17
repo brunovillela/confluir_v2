@@ -70,6 +70,9 @@ export async function editarCompraAction(
   const comProjeto = texto(fd, "com_projeto") === "on"
   const projetoId = texto(fd, "projeto_id")
   if (comProjeto && !projetoId) return { erro: "Escolha o projeto da compra.", campo: "projeto_id" }
+  const comContrato = texto(fd, "com_contrato") === "on"
+  const contratoId = texto(fd, "contrato_id")
+  if (comContrato && !contratoId) return { erro: "Escolha o contrato da compra.", campo: "contrato_id" }
   const entregaNoAto = texto(fd, "entrega_no_ato") === "on"
   const dataLimite = entregaNoAto ? null : dataISO(texto(fd, "data_limite"))
   const localEntrega = entregaNoAto ? null : texto(fd, "local_entrega") || null
@@ -85,6 +88,7 @@ export async function editarCompraAction(
     departamento_id: departamentoId,
     centro_custo_id: centroCustoId,
     projeto_id: comProjeto ? projetoId : null,
+    contrato_id: comContrato ? contratoId : null,
     entrega_no_ato: entregaNoAto,
     data_limite: dataLimite,
     local_entrega: localEntrega,

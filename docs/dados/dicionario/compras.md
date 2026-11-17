@@ -475,10 +475,11 @@ Processo de compra: da solicitação (ou aquisição direta) à cotação, avali
 | `solicitacao_entrega_no_ato` | boolean | não | `false` |  |  | Item entregue no momento da compra. |
 | `cancelado_motivo` | text | sim |  |  | nenhum | Por que a solicitação de compra foi cancelada (texto de quem cancelou). |
 | `proposta_unica_justificativa` | text | sim |  |  | nenhum | Por que a compra seguiu com uma só proposta acima do limite da auditoria (texto do comprador). |
+| `contrato_id` | uuid | sim |  | → contratos (set null) | nenhum | Contrato no âmbito do qual a compra é feita (opcional). Aparece na ordem de pagamento da compra e nos extratos. |
 
 Únicas: `UNIQUE (bubble_id)`
 
-Índices: `compras_solicitacoes_bubble_id_key`, `compras_solicitacoes_pkey`, `idx_compras_solicitacoes_codigo`, `idx_compras_solicitacoes_criacao`
+Índices: `compras_solicitacoes_bubble_id_key`, `compras_solicitacoes_contrato_idx`, `compras_solicitacoes_pkey`, `idx_compras_solicitacoes_codigo`, `idx_compras_solicitacoes_criacao`
 
 ## contratos
 

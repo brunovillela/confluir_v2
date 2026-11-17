@@ -106,6 +106,7 @@ erDiagram
     uuid pagamento_enviado_por_id FK
     uuid recebimento_recebido_por_id FK
     uuid solicitante_id FK
+    uuid contrato_id FK
   }
   contratos {
     uuid id PK
@@ -213,6 +214,7 @@ erDiagram
   compras_rpa }o--o| usuarios : "criado_por"
   compras_solicitacoes }o--o| centros_de_custo : "solicitacao_centro_custo_id"
   compras_solicitacoes }o--o| compras_propostas : "cotacao_proposta_id"
+  compras_solicitacoes }o--o| contratos : "contrato_id"
   compras_solicitacoes }o--o| empresa : "compra_fornecedor_id"
   compras_solicitacoes }o--o| empresa_departamentos : "solicitacao_departamento_id"
   compras_solicitacoes }o--o| estoque : "estoque_id"

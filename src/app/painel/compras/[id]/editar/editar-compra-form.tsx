@@ -45,6 +45,7 @@ export function EditarCompraForm({
   departamentos,
   centrosCusto,
   projetos,
+  contratos = [],
   fornecedores,
   cartoes,
   caixas,
@@ -60,6 +61,7 @@ export function EditarCompraForm({
     departamentoId: string
     centroCustoId: string
     projetoId: string
+    contratoId?: string
     entregaNoAto: boolean
     dataLimite: string
     localEntrega: string
@@ -75,6 +77,8 @@ export function EditarCompraForm({
   departamentos: Opcao[]
   centrosCusto: CentroOpcao[]
   projetos: ProjetoOpcao[]
+  /** Contratos ativos (e o atual da compra): compra no âmbito de um contrato. */
+  contratos?: { id: string; nome: string; fornecedorNome: string | null }[]
   fornecedores: EmpresaOpcao[]
   cartoes: CartaoOpcao[]
   caixas: CaixaOpcao[]
@@ -87,6 +91,8 @@ export function EditarCompraForm({
 
   const [comProjeto, setComProjeto] = useState(Boolean(atual.projetoId))
   const [projetoId, setProjetoId] = useState(atual.projetoId)
+  const [comContrato, setComContrato] = useState(Boolean(atual.contratoId))
+  const [contratoId, setContratoId] = useState(atual.contratoId ?? "")
   const [depto, setDepto] = useState(atual.departamentoId)
   const [centroManual, setCentroManual] = useState(atual.centroCustoId)
   const [noAto, setNoAto] = useState(atual.entregaNoAto)
@@ -147,6 +153,7 @@ export function EditarCompraForm({
       )}
       <input type="hidden" name="processo_id" value={processoId} />
       <input type="hidden" name="com_projeto" value={comProjeto ? "on" : ""} />
+      <input type="hidden" name="com_contrato" value={comContrato ? "on" : ""} />
       <input type="hidden" name="entrega_no_ato" value={noAto ? "on" : ""} />
       <input type="hidden" name="forma_atual" value={atual.forma} />
       <input type="hidden" name="alterar_pagamento" value={alterarPagamento ? "on" : ""} />
@@ -161,6 +168,13 @@ export function EditarCompraForm({
             <Switch checked={comProjeto} onCheckedChange={setComProjeto} aria-label="Vincular a um projeto" />
             <span className={comProjeto ? "font-medium" : "text-muted-foreground"}>Vinculada a um projeto</span>
           </label>
+          {contratos.length > 0 && (
+            <label className="flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Sem contrato</span>
+              <Switch checked={comContrato} onCheckedChange={setComContrato} aria-label="Vincular a um contrato" />
+              <span className={comContrato ? "font-medium" : "text-muted-foreground"}>No âmbito de um contrato</span>
+            </label>
+          )}
           <div className="grid gap-4 md:grid-cols-2">
             <div className="grid gap-1.5">
               <Label htmlFor="produto">Produto ou serviço *</Label>
@@ -259,6 +273,30 @@ export function EditarCompraForm({
                   </option>
                 ))}
               </select>
+            </div>
+          )}
+          {comContrato && (
+            <div className="grid gap-1.5 md:max-w-xl">
+              <Label htmlFor="contrato_id">Contrato *</Label>
+              <select
+                id="contrato_id"
+                name="contrato_id"
+                required
+                className={SELECT}
+                value={contratoId}
+                onChange={(e) => setContratoId(e.target.value)}
+              >
+                <option value="" disabled>
+                  Escolha o contrato
+                </option>
+                {contratos.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome}
+                    {c.fornecedorNome ? ` (${c.fornecedorNome})` : ""}
+                  </option>
+                ))}
+              </select>
+              <p className="text-muted-foreground text-xs">Aparece na ordem de pagamento da compra e nos extratos.</p>
             </div>
           )}
           <div className="grid gap-3">

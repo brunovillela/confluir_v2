@@ -87,6 +87,7 @@ export function NovaCompraForm({
   departamentos,
   centrosCusto,
   projetos,
+  contratos = [],
   fornecedores: fornecedoresIniciais,
   cartoes,
   caixas,
@@ -111,6 +112,8 @@ export function NovaCompraForm({
   departamentos: Opcao[]
   centrosCusto: CentroOpcao[]
   projetos: ProjetoOpcao[]
+  /** Contratos ativos: a compra pode ser feita no âmbito de um (17/11/2026). */
+  contratos?: { id: string; nome: string; fornecedorNome: string | null }[]
   fornecedores: FornecedorOpcao[]
   /** Cartões ativos da entidade (pagamento em cartão). */
   cartoes: CartaoOpcao[]
@@ -151,6 +154,8 @@ export function NovaCompraForm({
   )
   const [centroManual, setCentroManual] = useState(inicial?.centroCustoId ?? "")
   const [projetoId, setProjetoId] = useState(inicial?.projetoId ?? "")
+  const [comContrato, setComContrato] = useState(false)
+  const [contratoId, setContratoId] = useState("")
 
   const centrosVisiveis = depto
     ? centrosCusto.filter((c) => c.departamentoId === depto)
@@ -434,6 +439,7 @@ export function NovaCompraForm({
         </Alert>
       )}
       <input type="hidden" name="com_projeto" value={comProjeto ? "on" : ""} />
+      <input type="hidden" name="com_contrato" value={comContrato ? "on" : ""} />
       <input
         type="hidden"
         name="modalidade"
@@ -484,6 +490,13 @@ export function NovaCompraForm({
                 Vinculada a um projeto
               </span>
             </label>
+            {contratos.length > 0 && (
+              <label className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground">Sem contrato</span>
+                <Switch checked={comContrato} onCheckedChange={setComContrato} aria-label="Vincular a um contrato" />
+                <span className={comContrato ? "font-medium" : "text-muted-foreground"}>No âmbito de um contrato</span>
+              </label>
+            )}
           </div>
 
           {direta && (
@@ -934,6 +947,30 @@ export function NovaCompraForm({
                       </option>
                     ))}
                   </select>
+                </div>
+              )}
+              {comContrato && (
+                <div className="grid gap-1.5 md:max-w-xl">
+                  <Label htmlFor="contrato_id">Contrato *</Label>
+                  <select
+                    id="contrato_id"
+                    name="contrato_id"
+                    required
+                    className={SELECT}
+                    value={contratoId}
+                    onChange={(e) => setContratoId(e.target.value)}
+                  >
+                    <option value="" disabled>
+                      Escolha o contrato
+                    </option>
+                    {contratos.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nome}
+                        {c.fornecedorNome ? ` (${c.fornecedorNome})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-muted-foreground text-xs">Aparece na ordem de pagamento da compra e nos extratos.</p>
                 </div>
               )}
 

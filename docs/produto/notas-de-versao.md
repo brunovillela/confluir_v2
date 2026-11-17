@@ -6,6 +6,7 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 
 ## 17/11/2026 — Meu perfil: Meus veículos
 
+- Aquisição: a compra pode ser marcada como feita no âmbito de um contrato (ao registrar ou editar, escolhe-se o contrato). O contrato e o projeto da compra passam a aparecer na ordem de pagamento dela e nos extratos simplificado e completo — antes, o projeto escolhido na compra não aparecia na ordem quando não tinha sido copiado para ela.
 - Oposição: o modo de formalização da campanha que pede a carta passou a se chamar "Confirmação + carta assinada" (antes, "Confirmação + assinatura gov.br + upload"), porque a carta também pode ser assinada no próprio Confluir.
 - Ordens de pagamento: vencimento com o ano digitado errado (2024 ou 2025 no lugar de 2026) não passa mais. A Auditoria das ordens ganhou a regra Vencimento com o ano errado — mais de 180 dias atrás —, que bloqueia a criação por padrão (configurável por origem), e o Corrigir ordem recusa a data pedindo para conferir o ano.
 - Ordens de pagamento: ordem sem forma de pagamento não é mais paga — o formulário de pagamento avisa e o registro (pela ordem, em lote, pela Distribuição de comprovantes ou pelo extrato) pede para informar a forma em Corrigir ordem antes. Afeta só ordens antigas: desde 23/10 todas nascem com a forma.
@@ -23,7 +24,6 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 - Filiados → Área do associado: o cartão do Primeiro acesso diz o que vale hoje (por exemplo, o termo, um e-mail e um telefone), avisa o dado marcado que não é exigido porque o associado não teria como cumpri-lo, e ligar "Exigir" pede confirmação. O cartão do Atendimento avisa quantas solicitações estão em aberto antes de desabilitar, e a página da solicitação no painel avisa quando, com o Atendimento desabilitado, a resposta não chega ao associado.
 - Filiados → Termos legais: com o primeiro acesso exigindo o termo, publicar ou tornar vigente uma versão do termo de LGPD pede confirmação, e o novo campo "O que mudou nesta versão" aparece em destaque para quem aceita de novo no portal.
 - Portal do associado: a página de uma parte desabilitada ganhou o botão "Falar com o sindicato". Quem já estava com o portal aberto quando o primeiro acesso passou a valer vê o portão ao entrar na próxima seção, e a recusa diz o que falta. Avisos que são consequência de algo que a pessoa já fez, como a falta numa reserva, continuam no sino mesmo com a parte desabilitada.
-- Tipo da chave Pix com a mesma lista em todo o sistema (CNPJ / CPF, Telefone, E-mail, Chave aleatória): a ficha do diretor e o convidado de custeio — que era texto livre — passam a usá-la, e o custeio grava o tipo já no padrão.
 
 ## 16/11/2026 — Ponto: comparação entre anos, relatório por funcionário e ajuste das marcações
 

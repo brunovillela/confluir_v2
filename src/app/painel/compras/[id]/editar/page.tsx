@@ -12,6 +12,7 @@ import {
   listarCentrosCustoParaCompra,
   listarDepartamentos,
   listarFornecedores,
+  listarContratosParaCompra,
   listarProjetosAbertos,
 } from "@/lib/db/compras"
 import { compraNoEscopo, escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
@@ -88,6 +89,12 @@ export default async function EditarCompraPage({ params }: { params: Promise<{ i
     processo.projeto_id && !projetos.some((p) => p.id === processo.projeto_id)
       ? [{ id: processo.projeto_id, nome: processo.projetoNome ?? "(projeto atual)", centroCustoId: null }, ...projetos]
       : projetos
+  // Compra no âmbito de um contrato (17/11/2026): os ativos e o atual da compra.
+  const contratosAtivos = await listarContratosParaCompra().catch(() => [])
+  const listaContratos =
+    processo.contrato_id && !contratosAtivos.some((c) => c.id === processo.contrato_id)
+      ? [{ id: processo.contrato_id, nome: processo.contratoNome ?? "(contrato atual)", fornecedorId: null, fornecedorNome: null }, ...contratosAtivos]
+      : contratosAtivos
   const listaCompradores =
     f?.comprador_id && !compradores.some((c) => c.id === f.comprador_id)
       ? [{ id: f.comprador_id, nome: f.compradorNome ?? "(comprador atual)", origem: "" }, ...compradores]
@@ -132,6 +139,7 @@ export default async function EditarCompraPage({ params }: { params: Promise<{ i
           departamentoId: processo.departamento_id ?? "",
           centroCustoId: processo.centro_custo_id ?? "",
           projetoId: processo.projeto_id ?? "",
+          contratoId: processo.contrato_id ?? "",
           entregaNoAto: processo.entrega_no_ato,
           dataLimite: processo.data_limite ?? "",
           localEntrega: processo.local_entrega ?? "",
@@ -147,6 +155,7 @@ export default async function EditarCompraPage({ params }: { params: Promise<{ i
         departamentos={departamentos}
         centrosCusto={centros}
         projetos={listaProjetos}
+        contratos={listaContratos}
         fornecedores={fornecedores.map((x) => ({
           id: x.id,
           nome: x.nome,

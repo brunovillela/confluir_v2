@@ -98,6 +98,9 @@ export async function criarCompra(
   const comProjeto = texto(formData, "com_projeto") === "on"
   const projetoId = texto(formData, "projeto_id")
   if (comProjeto && !projetoId) return { erro: "Escolha o projeto da compra.", campo: "projeto_id" }
+  const comContrato = texto(formData, "com_contrato") === "on"
+  const contratoId = texto(formData, "contrato_id")
+  if (comContrato && !contratoId) return { erro: "Escolha o contrato da compra.", campo: "contrato_id" }
 
   const entregaNoAto = texto(formData, "entrega_no_ato") === "on"
   const dataLimite = entregaNoAto ? null : dataISO(texto(formData, "data_limite"))
@@ -114,6 +117,7 @@ export async function criarCompra(
     departamento_id: departamentoId,
     centro_custo_id: centroCustoId,
     projeto_id: comProjeto ? projetoId : null,
+    contrato_id: comContrato ? contratoId : null,
     data_limite: dataLimite,
     local_entrega: localEntrega,
     entrega_no_ato: entregaNoAto,

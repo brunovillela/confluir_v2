@@ -79,7 +79,10 @@ export async function respostaPdfExtratoOrdem(id: string, req: Request): Promise
       formaPagamento: txt(o.forma_pagamento) || "—",
       pagoCom: x.pagoCom,
       pixCodigo: txt(o.pix_codigo) || null,
-      projeto: x.detalhe.projetoVinculado?.descricao ?? null,
+      projeto: x.detalhe.projetoVinculado ? (x.detalhe.projetoVinculado.descricao_sumaria ?? x.detalhe.projetoVinculado.descricao ?? "(sem nome)") : null,
+      contrato: x.detalhe.contratoDaCompra
+        ? `${x.detalhe.contratoDaCompra.codigo ? `${x.detalhe.contratoDaCompra.codigo} — ` : ""}${x.detalhe.contratoDaCompra.objeto ?? "(sem descrição)"} (vigência ${formatarData(x.detalhe.contratoDaCompra.vigencia_inicio)} a ${formatarData(x.detalhe.contratoDaCompra.vigencia_termino)})`
+        : null,
     },
     procedencia: { origem: pr.origem, titulo: pr.titulo, linhas: pr.linhas, pessoas, detalhamento: pr.detalhamento ?? null },
     favorecido: {

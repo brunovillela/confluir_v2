@@ -791,14 +791,22 @@ export type DetalheOrdem = {
    * veículo (contrato_aluguel_id), unificados num só espaço.
    */
   contratoVinculado: ContratoResumo | null
-  /** Projeto vinculado à ordem (quando houver). */
+  /** Projeto vinculado à ordem — o da ordem ou, na ordem de compra, o da compra. */
   projetoVinculado: ProjetoResumo | null
+  /**
+   * Ordem de compra: o contrato no âmbito do qual a compra foi feita
+   * (compras_solicitacoes.contrato_id, 17/11/2026) — distinto do contrato que
+   * gera a ordem (contratoVinculado).
+   */
+  contratoDaCompra: ContratoResumo | null
   /** Observação da solicitação de compra vinculada (quando houver). */
   compraObservacao: string | null
 }
 
 export type ProjetoResumo = {
   id: string
+  /** Nome do projeto (descricao_sumaria). */
+  descricao_sumaria: string | null
   descricao: string | null
   tipo: string | null
   inicio: string | null
@@ -886,7 +894,7 @@ export async function detalheOrdem(id: string): Promise<DetalheOrdem | null> {
     ordem.projeto_id
       ? admin
           .from("projeto")
-          .select("id, descricao, tipo, inicio, termino_previsao, finalizado")
+          .select("id, descricao_sumaria, descricao, tipo, inicio, termino_previsao, finalizado")
           .eq("id", ordem.projeto_id)
           .eq("emp_proprietaria_id", empId)
           .maybeSingle()
@@ -894,7 +902,7 @@ export async function detalheOrdem(id: string): Promise<DetalheOrdem | null> {
     ordem.processo_compra_id
       ? admin
           .from("compras_solicitacoes")
-          .select("solicitacao_observacao")
+          .select("solicitacao_observacao, contrato_id, solicitacao_projeto_id")
           .eq("id", ordem.processo_compra_id)
           .eq("emp_proprietaria_id", empId)
           .maybeSingle()
@@ -955,7 +963,31 @@ export async function detalheOrdem(id: string): Promise<DetalheOrdem | null> {
     }
   }
 
-  const projetoVinculado = (projetoRes.data ?? null) as ProjetoResumo | null
+  // Ordem de compra: o projeto e o contrato vêm da compra.
+  const compra = (compraRes.data ?? null) as { contrato_id?: string | null; solicitacao_projeto_id?: string | null } | null
+  const [projetoDaCompraRes, contratoDaCompraRes] = await Promise.all([
+    !projetoRes.data && compra?.solicitacao_projeto_id
+      ? admin
+          .from("projeto")
+          .select("id, descricao_sumaria, descricao, tipo, inicio, termino_previsao, finalizado")
+          .eq("id", compra.solicitacao_projeto_id)
+          .eq("emp_proprietaria_id", empId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    compra?.contrato_id && compra.contrato_id !== ordem.contrato_id
+      ? admin
+          .from("contratos")
+          .select("id, codigo, objeto, vigencia_inicio, vigencia_termino, ativo, arquivo_contrato")
+          .eq("id", compra.contrato_id)
+          .eq("emp_proprietaria_id", empId)
+          .not("deletado", "is", true)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ])
+  const projetoVinculado = (projetoRes.data ?? projetoDaCompraRes.data ?? null) as ProjetoResumo | null
+  const contratoDaCompra = contratoDaCompraRes.data
+    ? { ...(contratoDaCompraRes.data as Omit<ContratoResumo, "origem">), origem: "contrato" as const }
+    : null
 
   return {
     ordem: ordem as DetalheOrdem["ordem"],
@@ -979,6 +1011,7 @@ export async function detalheOrdem(id: string): Promise<DetalheOrdem | null> {
       : null,
     contratoVinculado,
     projetoVinculado,
+    contratoDaCompra,
     compraObservacao,
   }
 }

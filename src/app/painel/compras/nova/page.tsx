@@ -17,6 +17,7 @@ import {
   listarCentrosCustoParaCompra,
   listarDepartamentos,
   listarFornecedores,
+  listarContratosParaCompra,
   listarProjetosAbertos,
 } from "@/lib/db/compras"
 
@@ -53,6 +54,8 @@ export default async function NovaCompraPage({
   ])
   // Crédito de compras canceladas pelo vendedor: abatido na compra nova.
   const creditos = direta ? await saldosDeCreditoPorFornecedor().catch(() => ({})) : {}
+  // Compra no âmbito de um contrato (17/11/2026).
+  const contratos = await listarContratosParaCompra().catch(() => [])
   // Só os departamentos pelos quais a pessoa compra (sem restrição: todos).
   const departamentos = escopo.todos
     ? todosDepartamentos
@@ -88,6 +91,7 @@ export default async function NovaCompraPage({
         departamentos={departamentos}
         centrosCusto={centros}
         projetos={projetos}
+        contratos={contratos}
         fornecedores={fornecedores.map((f) => ({
           id: f.id,
           nome: f.nome,

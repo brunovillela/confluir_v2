@@ -543,6 +543,26 @@ export default async function OrdemPage({
                   <span className="text-muted-foreground">Não aplicável</span>
                 )}
               </Campo>
+              {detalhe.contratoDaCompra && (
+                <div className="col-span-2">
+                  <Campo rotulo="Contrato da compra">
+                    <Link href={`/painel/compras/contratos/${detalhe.contratoDaCompra.id}`} className="text-primary hover:underline">
+                      {detalhe.contratoDaCompra.codigo ? `${detalhe.contratoDaCompra.codigo} — ` : ""}
+                      {detalhe.contratoDaCompra.objeto ?? "(sem descrição)"}
+                    </Link>
+                    <span className="text-muted-foreground">
+                      {" "}
+                      · vigência {formatarData(detalhe.contratoDaCompra.vigencia_inicio)} a {formatarData(detalhe.contratoDaCompra.vigencia_termino)}
+                      {detalhe.contratoDaCompra.ativo === true ? "" : " · inativo"}
+                    </span>
+                  </Campo>
+                </div>
+              )}
+              {Boolean(ordem.processo_compra_id) && detalhe.projetoVinculado && (
+                <div className="col-span-2">
+                  <Campo rotulo="Projeto da compra">{detalhe.projetoVinculado.descricao_sumaria ?? detalhe.projetoVinculado.descricao ?? "(sem nome)"}</Campo>
+                </div>
+              )}
               {detalhe.compraObservacao && (
                 <div className="col-span-2">
                   <Campo rotulo="Observação da compra">
@@ -965,6 +985,11 @@ export default async function OrdemPage({
           </CardHeader>
           <CardContent>
             <div className="grid gap-3 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <Campo rotulo="Projeto">
+                  {detalhe.projetoVinculado.descricao_sumaria ?? "(sem nome)"}
+                </Campo>
+              </div>
               <div className="sm:col-span-2">
                 <Campo rotulo="Descrição">
                   {detalhe.projetoVinculado.descricao ?? "(sem descrição)"}

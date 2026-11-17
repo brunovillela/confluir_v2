@@ -222,6 +222,9 @@ export type ProcessoDetalhe = {
   centroCustoNome: string | null
   projeto_id: string | null
   projetoNome: string | null
+  /** Contrato no âmbito do qual a compra é feita (17/11/2026). */
+  contrato_id: string | null
+  contratoNome: string | null
   data_limite: string | null
   local_entrega: string | null
   /** Entregue no ato da compra (supabase/compras-entrega-no-ato.sql). */
@@ -769,6 +772,9 @@ export async function buscarProcesso(
             .maybeSingle()
         : Promise.resolve({ data: null }),
     ])
+  const contratoDaCompra = p.contrato_id
+    ? (await admin.from("contratos").select("id, codigo, objeto").eq("id", String(p.contrato_id)).maybeSingle()).data
+    : null
 
   const propostas: Proposta[] = propostasBrutas.map((x) => ({
     id: String(x.id),
@@ -890,6 +896,8 @@ export async function buscarProcesso(
       : null,
     projeto_id: (p.solicitacao_projeto_id as string | null) ?? null,
     projetoNome: (projeto.data?.descricao_sumaria as string | undefined) ?? null,
+    contrato_id: (p.contrato_id as string | null) ?? null,
+    contratoNome: contratoDaCompra ? rotuloContrato(contratoDaCompra) : null,
     data_limite: (p.solicitacao_data_limite as string | null) ?? null,
     local_entrega: (p.solicitacao_local as string | null) ?? null,
     entrega_no_ato: p.solicitacao_entrega_no_ato === true,
@@ -930,6 +938,8 @@ export type NovaSolicitacao = {
   departamento_id: string
   centro_custo_id: string | null
   projeto_id: string | null
+  /** Contrato no âmbito do qual a compra é feita (opcional). */
+  contrato_id?: string | null
   data_limite: string | null
   local_entrega: string | null
   /**
@@ -971,6 +981,7 @@ export async function criarSolicitacao(
       solicitacao_departamento_id: nova.departamento_id,
       solicitacao_centro_custo_id: nova.centro_custo_id,
       solicitacao_projeto_id: nova.projeto_id,
+      ...(nova.contrato_id ? { contrato_id: nova.contrato_id } : {}),
       solicitacao_data_limite: nova.data_limite,
       solicitacao_local: nova.local_entrega,
       ...(nova.entrega_no_ato ? { solicitacao_entrega_no_ato: true } : {}),
@@ -1076,6 +1087,7 @@ export async function criarCompraDireta(
       solicitacao_departamento_id: nova.departamento_id,
       solicitacao_centro_custo_id: nova.centro_custo_id,
       solicitacao_projeto_id: nova.projeto_id,
+      ...(nova.contrato_id ? { contrato_id: nova.contrato_id } : {}),
       solicitacao_data_limite: nova.data_limite,
       solicitacao_local: nova.local_entrega,
       ...(nova.entrega_no_ato ? { solicitacao_entrega_no_ato: true } : {}),
@@ -2485,6 +2497,39 @@ export type ProjetoCompraOpcao = {
   nome: string
   /** Centro de custo do projeto — atribuído à despesa da compra. */
   centroCustoId: string | null
+}
+
+function rotuloContrato(c: { codigo?: unknown; objeto?: unknown }): string {
+  const codigo = typeof c.codigo === "string" && c.codigo.trim() ? c.codigo.trim() : null
+  const objeto = typeof c.objeto === "string" && c.objeto.trim() ? c.objeto.trim() : "(sem descrição)"
+  return codigo ? `${codigo} — ${objeto}` : objeto
+}
+
+export type ContratoCompraOpcao = { id: string; nome: string; fornecedorId: string | null; fornecedorNome: string | null }
+
+/** Contratos ativos, para escolher o contrato da compra (17/11/2026). */
+export async function listarContratosParaCompra(): Promise<ContratoCompraOpcao[]> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("contratos")
+    .select("id, codigo, objeto, fornecedor_id")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .not("deletado", "is", true)
+    .eq("ativo", true)
+    .order("codigo", { ascending: true })
+    .limit(1000)
+  if (error) return []
+  const fornIds = [...new Set((data ?? []).map((c) => c.fornecedor_id).filter((v): v is string => Boolean(v)))]
+  const { data: emps } = fornIds.length
+    ? await admin.from("empresa").select("id, nome_fantasia, nome_razao").in("id", fornIds)
+    : { data: [] as { id: string; nome_fantasia: string | null; nome_razao: string | null }[] }
+  const nome = new Map((emps ?? []).map((e) => [String(e.id), e.nome_fantasia || e.nome_razao || null]))
+  return (data ?? []).map((c) => ({
+    id: String(c.id),
+    nome: rotuloContrato(c),
+    fornecedorId: (c.fornecedor_id as string | null) ?? null,
+    fornecedorNome: c.fornecedor_id ? (nome.get(String(c.fornecedor_id)) ?? null) : null,
+  }))
 }
 
 export async function listarProjetosAbertos(): Promise<ProjetoCompraOpcao[]> {

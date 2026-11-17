@@ -117,6 +117,8 @@ export type DadosEdicaoCompra = {
   departamento_id: string
   centro_custo_id: string
   projeto_id: string | null
+  /** Contrato no âmbito do qual a compra é feita; undefined = não muda. */
+  contrato_id?: string | null
   entrega_no_ato: boolean
   data_limite: string | null
   local_entrega: string | null
@@ -247,6 +249,7 @@ export async function editarCompra(
     solicitacao_departamento_id: dados.departamento_id,
     solicitacao_centro_custo_id: dados.centro_custo_id,
     solicitacao_projeto_id: dados.projeto_id,
+    ...(dados.contrato_id !== undefined ? { contrato_id: dados.contrato_id } : {}),
     solicitacao_data_limite: dados.entrega_no_ato ? null : dados.data_limite,
     solicitacao_local: dados.entrega_no_ato ? null : dados.local_entrega,
     solicitacao_entrega_no_ato: dados.entrega_no_ato,

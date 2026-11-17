@@ -134,6 +134,8 @@ export type ExtratoOrdemProps = {
     pagoCom: string | null
     pixCodigo: string | null
     projeto: string | null
+    /** Ordem de compra: contrato no âmbito do qual a compra foi feita. */
+    contrato?: string | null
   }
   procedencia: {
     origem: string
@@ -307,6 +309,7 @@ export function ExtratoOrdemPDF(p: ExtratoOrdemProps) {
             <Campo rotulo="Forma de pagamento" valor={p.ordem.formaPagamento} />
             {p.ordem.pagoCom ? <Campo rotulo="Pago com" valor={p.ordem.pagoCom} largo /> : null}
             {p.ordem.pixCodigo ? <Campo rotulo="Código/chave Pix" valor={p.ordem.pixCodigo} largo /> : null}
+            {p.ordem.contrato ? <Campo rotulo="Contrato da compra" valor={p.ordem.contrato} largo /> : null}
             {p.ordem.projeto ? <Campo rotulo="Projeto" valor={p.ordem.projeto} largo /> : null}
           </View>
         </Secao>
