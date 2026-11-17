@@ -16,6 +16,8 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 - Contratos: novo cartão Recorrentes sem contrato — fornecedores com 3 compras avulsas ou mais nos últimos meses que, somadas, chegam ao limite da aquisição direta e não têm contrato em uso. Mostra onde vale firmar contrato ou tabela de preços; marketplaces ficam de fora.
 - Controle de ponto: ao marcar a remessa como finalizada com dias ainda por conferir nas marcações, a tela avisa quantos são (e quantos têm marcação incompleta) e pergunta antes — depois de finalizada, as horas só mudam reabrindo a remessa.
 - Meu perfil → Ponto: quando o departamento de pessoal ajusta marcações de um mês já liberado, o funcionário recebe um aviso (sino e, se ligado "Espelho de ponto liberado" em Meu perfil → Avisos, e-mail, Telegram ou celular), sem horários na mensagem; vários ajustes no mesmo dia viram um aviso só.
+- Aquisição, nova compra: Quantidade e Unidade viraram campos obrigatórios (2 caixas, 2,5 kg, 1 serviço) e entram sozinhas na descrição da ordem de pagamento — a falta da quantidade era o motivo mais comum de ordem devolvida. No semiautomático, vêm da nota.
+- Aquisição: Repetir compra. Na página do processo (e em Minhas solicitações), abre uma compra nova já com a descrição, a quantidade, o departamento, o centro de custo e, na aquisição direta, o fornecedor e a forma de pagamento; valor, data e nota são sempre novos.
 
 ## 16/11/2026 — Ponto: comparação entre anos, relatório por funcionário e ajuste das marcações
 
