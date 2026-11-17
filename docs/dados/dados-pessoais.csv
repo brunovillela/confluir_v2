@@ -1069,6 +1069,7 @@ modulo,tabela,coluna,categoria,titulares,descricao
 "filiacao","portal_avisos","","identificacao;sensivel_sindical","filiados","Avisos (notificações) exibidos ao filiado no portal do associado, por CPF: evento, texto, link e data de leitura."
 "filiacao","portal_avisos","cpf","identificacao","filiados",""
 "filiacao","portal_avisos","texto","sensivel_sindical","filiados","Pode mencionar contribuição em atraso ou votação."
+"filiacao","portal_avisos","mesmo_com_parte_desabilitada","nenhum","filiados","O aviso aparece no sino, na lista e no Início mesmo com a parte do portal desabilitada (consequência de algo que a pessoa já fez, ex.: falta numa reserva)."
 "filiacao","portal_avisos_preferencias","","identificacao","filiados","Preferências do filiado (por CPF) sobre quais avisos do portal também chegam por e-mail."
 "filiacao","portal_avisos_preferencias","cpf","identificacao","filiados",""
 "filiacao","portal_nao_filiado","","identificacao","público externo (trabalhadores não filiados)","Cadastro mínimo de não filiados que entram no portal (ex.: para registrar oposição à contribuição)."

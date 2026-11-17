@@ -1,11 +1,14 @@
 import Link from "next/link"
-import { ExternalLink, UserRound } from "lucide-react"
+import { ExternalLink, TriangleAlert, UserRound } from "lucide-react"
 
 import { ConversaAtendimento, SituacaoAtendimentoBadge } from "@/components/atendimento/conversa"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { conversaComMarcos, type Atendimento, type MensagemAtendimento } from "@/lib/db/portal-atendimentos"
-import { opcoesDaParte } from "@/lib/db/portal-partes"
+import { configDaParte } from "@/lib/db/portal-partes"
+import { getSessaoPainel } from "@/lib/auth"
 import { formatarCpf } from "@/lib/cpf"
+import { moduloDaRota, podeAcessarModulo } from "@/lib/permissoes"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 
 import { RespostaAtendimentoForm } from "./resposta-form"
@@ -25,9 +28,23 @@ export async function AtendimentoPainel({
   mensagens: MensagemAtendimento[]
   mostrarCabecalho?: boolean
 }) {
-  const prazoReabrirDias = await opcoesDaParte("atendimento")
-    .then((o) => o.prazo_reabrir_dias)
-    .catch(() => undefined)
+  // Uma leitura (com cache por requisição) para o prazo e o estado da parte.
+  const parte = await configDaParte("atendimento").catch(() => null)
+  const prazoReabrirDias = parte?.opcoes.prazo_reabrir_dias
+  // Desabilitado em Filiados › Área do associado: a conversa some do portal e
+  // o aviso da resposta não sai (nem e-mail) — quem responde precisa saber.
+  const desabilitadoNoPortal = parte?.estado === "desabilitada"
+  // O link para mudar só para quem abre a Área do associado (filiacao_gestao);
+  // quem atende pela Saúde ou pelas Demandas lê a quem pedir.
+  const AREA = "/painel/filiados/area-do-associado"
+  const podeMudar = desabilitadoNoPortal
+    ? await getSessaoPainel()
+        .then((sessao) => {
+          const modulo = moduloDaRota(AREA)
+          return !!sessao && (!modulo || podeAcessarModulo(sessao.permissoes, modulo))
+        })
+        .catch(() => false)
+    : false
   return (
     <>
       {mostrarCabecalho && (
@@ -69,6 +86,27 @@ export async function AtendimentoPainel({
           </span>
         </CardContent>
       </Card>
+
+      {desabilitadoNoPortal && (
+        <Alert variant="warning">
+          <TriangleAlert aria-hidden />
+          <AlertTitle>O Atendimento está desabilitado no portal</AlertTitle>
+          <AlertDescription>
+            O associado não vê esta conversa e a resposta escrita aqui não chega a ele — nem pelo sino, nem por e-mail.{" "}
+            {podeMudar ? (
+              <>
+                Avise-o por outro canal ou mude o Atendimento para suspenso em{" "}
+                <Link href={`${AREA}#parte-atendimento`} className="underline underline-offset-2">
+                  Filiados › Área do associado
+                </Link>
+                .
+              </>
+            ) : (
+              "Avise-o por outro canal ou peça a quem gerencia a Área do associado para suspender o Atendimento."
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Card>
         <CardHeader>

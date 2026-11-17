@@ -87,6 +87,7 @@ export function FormularioParte({
   amanha,
   ultimaAlteracao,
   versao,
+  portalPausado = false,
   disponivel,
   lida = true,
 }: {
@@ -102,6 +103,8 @@ export function FormularioParte({
    * depois — o formulário inteiro (estado, aviso, opções) iria por cima.
    */
   versao: string
+  /** Só no Primeiro acesso: com o portal em consulta ou fora do ar, nada é pedido. */
+  portalPausado?: boolean
   /** false: falta rodar o SQL — dá para ver, não para salvar. */
   disponivel: boolean
   /**
@@ -164,6 +167,15 @@ export function FormularioParte({
               confirmar: "Pôr em consulta",
             })
           }
+        } else if (chave === "primeiro_acesso" && valores.exigir === true && inicial.opcoes.exigir === false) {
+          // Ligar o portão alcança a base inteira de uma vez.
+          confirmarEnvio(e, {
+            titulo: "Exigir o primeiro acesso?",
+            descricao: `Todos os associados com pendência — o termo em vigor a aceitar ou um dado obrigatório em falta — passarão pela tela do primeiro acesso ao entrar no portal ou ao abrir outra área dele, inclusive quem já está com ele aberto.${
+              portalPausado ? " Com o portal em modo de consulta ou fora do ar, nada é pedido até ele ser habilitado." : ""
+            }`,
+            confirmar: "Exigir",
+          })
         }
         if (e.defaultPrevented) return
         // Envio pela transição, não por `action={…}`: o React 19 reinicia o
@@ -241,7 +253,9 @@ export function FormularioParte({
               onChange={(e) => setRetorno(e.target.value)}
               aria-invalid={invalido("retorno_previsto") || undefined}
             />
-            <p className="text-muted-foreground text-xs">Opcional. Sem data, fica assim até alguém mudar.</p>
+            <p className="text-muted-foreground text-xs">
+              Opcional: volta à 0h do dia escolhido (horário de Brasília). Sem data, fica assim até alguém mudar.
+            </p>
           </div>
         </div>
       )}

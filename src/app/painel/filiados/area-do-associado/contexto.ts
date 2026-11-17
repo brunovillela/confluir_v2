@@ -1,5 +1,6 @@
 import "server-only"
 
+import { ATENDIMENTO_ABERTO } from "@/lib/atendimento-constantes"
 import { janelasOnline } from "@/lib/db/votacao-sem-link"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -39,6 +40,21 @@ export async function vagasOferecidasEmAberto(): Promise<{ total: number; primei
     .limit(1)
   if (error) return { total: 0, primeiraVence: null }
   return { total: count ?? 0, primeiraVence: (data?.[0]?.oferta_expira_em as string | null) ?? null }
+}
+
+/**
+ * Solicitações do Atendimento ainda abertas (aberta, em andamento ou
+ * respondida): com o Atendimento desabilitado, o associado deixa de vê-las e
+ * as respostas da equipe não chegam a ele — nem por e-mail.
+ */
+export async function atendimentosEmAberto(): Promise<number> {
+  const admin = await createAdminClient()
+  const { count, error } = await admin
+    .from("portal_atendimentos")
+    .select("id", { count: "exact", head: true })
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .in("situacao", ATENDIMENTO_ABERTO)
+  return error ? 0 : (count ?? 0)
 }
 
 /** Rodadas com o voto pela internet aberto agora (apuração não encerrada). */

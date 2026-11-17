@@ -9,6 +9,7 @@ import {
   CartaoVotacoes,
   EsqueletoCartao,
 } from "@/components/portal/inicio/blocos-agenda"
+import { CascaDoPrimeiroAcesso } from "@/components/portal/guarda-parte"
 import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
 import { Compromissos } from "@/components/portal/inicio/compromissos"
 import { EsqueletoMinhaSituacao, MinhaSituacao } from "@/components/portal/inicio/minha-situacao"
@@ -61,6 +62,7 @@ export default async function PortalInicioPage() {
 
   return (
     <>
+      <CascaDoPrimeiroAcesso />
       <CabecalhoPagina
         secao="/portal/inicio"
         titulo={`Olá, ${nome.split(" ")[0]}`}

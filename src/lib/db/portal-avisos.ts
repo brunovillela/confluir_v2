@@ -123,6 +123,48 @@ function deParteDesabilitada(cfg: ConfigPortal | null, link: string | null | und
   return !!cfg && !!parte && cfg.partes[parte].estado === "desabilitada"
 }
 
+/**
+ * A marca da exceção nos avisos (migração 20261117223931). Enquanto o banco
+ * não a tem, ler ou gravar com ela daria erro: os leitores e o insert tentam
+ * com a coluna e, se ela não existir, seguem sem — como antes da migração.
+ * Os leitores lembram a falta por 5 minutos (não pagam o erro a cada página);
+ * a gravação tenta SEMPRE com a marca — depois da migração, nenhum aviso da
+ * exceção pode sair sem ela (ficaria escondido para sempre).
+ */
+const COLUNA_EXCECAO = "mesmo_com_parte_desabilitada"
+const LEMBRAR_SEM_COLUNA_MS = 5 * 60_000
+let semColunaDaExcecaoAte = 0
+
+function colunaDaExcecaoAusente(e: unknown): boolean {
+  const err = e as { code?: string; message?: string } | null
+  return !!err && (err.code === "42703" || (err.message ?? "").includes(COLUNA_EXCECAO))
+}
+
+/** Lê com a coluna da exceção nos campos; sem ela no banco, só com os campos de base. */
+export async function comColunaDaExcecao<T>(campos: string, ler: (campos: string) => Promise<T>): Promise<T> {
+  if (Date.now() >= semColunaDaExcecaoAte) {
+    try {
+      return await ler(`${campos}, ${COLUNA_EXCECAO}`)
+    } catch (e) {
+      if (!colunaDaExcecaoAusente(e)) throw e
+      semColunaDaExcecaoAte = Date.now() + LEMBRAR_SEM_COLUNA_MS
+    }
+  }
+  return ler(campos)
+}
+
+/**
+ * O aviso já gravado sai do sino, da lista e do Início? Só se leva a parte
+ * desabilitada E não foi gravado com a exceção (`mesmo_com_parte_desabilitada`,
+ * a falta numa reserva, a vaga cancelada pelo sindicato…).
+ */
+function escondidoPelaParte(
+  cfg: ConfigPortal | null,
+  a: { link: string | null; evento: string; mesmo_com_parte_desabilitada?: boolean | null }
+): boolean {
+  return a.mesmo_com_parte_desabilitada !== true && deParteDesabilitada(cfg, a.link, a.evento)
+}
+
 /** Alguma parte desabilitada hoje (sem nenhuma, os leitores nem olham o link). */
 function temParteDesabilitada(cfg: ConfigPortal | null): cfg is ConfigPortal {
   return !!cfg && Object.entries(cfg.partes).some(([chave, p]) => chave !== "portal" && p.estado === "desabilitada")
@@ -252,13 +294,24 @@ export async function avisarFiliado(aviso: AvisoPortal, amb: Ambiente = {}): Pro
       if (data && data.length > 0) return false
     }
 
-    const { error } = await client.from("portal_avisos").insert({
+    const linha = {
       emp_proprietaria_id: tenantId,
       cpf,
       evento: aviso.evento,
       texto: aviso.texto,
       link: aviso.link,
-    })
+    }
+    // A exceção fica no aviso: sem ela, o sino, a lista e o Início o
+    // esconderiam pela regra da parte desabilitada. Só a marca vai junto, e só
+    // quando vale — o insert dos demais não muda. Sem a coluna no banco, grava
+    // sem ela, nesta chamada só (a próxima tenta de novo com a marca).
+    const marcar = aviso.mesmoComParteDesabilitada === true
+    let { error } = marcar
+      ? await client.from("portal_avisos").insert({ ...linha, mesmo_com_parte_desabilitada: true })
+      : await client.from("portal_avisos").insert(linha)
+    if (error && marcar && colunaDaExcecaoAusente(error)) {
+      ;({ error } = await client.from("portal_avisos").insert(linha))
+    }
     if (error) {
       if (!tabelaAusente(error)) console.error("aviso ao filiado (sino):", error.message)
       return false
@@ -378,25 +431,35 @@ export async function listaDeAvisos(
   // Nunca rejeita (falha = null, tudo vale): pode correr junto do índice.
   const lendoPartes = configDasPartes(null)
 
-  type Indice = { id: string; evento: string; link: string | null; lida_em: string | null; created_at: string }
+  type Indice = {
+    id: string
+    evento: string
+    link: string | null
+    lida_em: string | null
+    created_at: string
+    /** Ausente enquanto a migração da marca não roda (comColunaDaExcecao). */
+    mesmo_com_parte_desabilitada?: boolean | null
+  }
   let indice: Indice[]
   try {
-    indice = await lerEmLotes<Indice>((de, ate) =>
-      admin
-        .from("portal_avisos")
-        .select("id, evento, link, lida_em, created_at")
-        .eq("emp_proprietaria_id", tenantId)
-        .eq("cpf", chave)
-        .order("created_at", { ascending: false })
-        .order("id")
-        .range(de, ate)
+    indice = await comColunaDaExcecao("id, evento, link, lida_em, created_at", (campos) =>
+      lerEmLotes<Indice>((de, ate) =>
+        admin
+          .from("portal_avisos")
+          .select(campos)
+          .eq("emp_proprietaria_id", tenantId)
+          .eq("cpf", chave)
+          .order("created_at", { ascending: false })
+          .order("id")
+          .range(de, ate)
+      )
     )
   } catch (e) {
     if (tabelaAusente(e as { code?: string })) return vazia
     throw e
   }
   const partes = await lendoPartes
-  if (temParteDesabilitada(partes)) indice = indice.filter((a) => !deParteDesabilitada(partes, a.link, a.evento))
+  if (temParteDesabilitada(partes)) indice = indice.filter((a) => !escondidoPelaParte(partes, a))
 
   const porTipo = new Map<string, { total: number; naoLidos: number }>()
   let naoLidos = 0
@@ -466,17 +529,20 @@ export const contarAvisosNaoLidos = cache(async (cpf: string): Promise<number> =
   const partes = await configDasPartes(null)
   if (temParteDesabilitada(partes)) {
     try {
-      const naoLidos = await lerEmLotes<{ evento: string; link: string | null }>((de, ate) =>
-        admin
-          .from("portal_avisos")
-          .select("id, evento, link")
-          .eq("emp_proprietaria_id", tenantId)
-          .eq("cpf", chave)
-          .is("lida_em", null)
-          .order("id")
-          .range(de, ate)
+      const naoLidos = await comColunaDaExcecao("id, evento, link", (campos) =>
+        lerEmLotes<{ evento: string; link: string | null; mesmo_com_parte_desabilitada?: boolean | null }>(
+          (de, ate) =>
+            admin
+              .from("portal_avisos")
+              .select(campos)
+              .eq("emp_proprietaria_id", tenantId)
+              .eq("cpf", chave)
+              .is("lida_em", null)
+              .order("id")
+              .range(de, ate)
+        )
       )
-      return naoLidos.filter((a) => !deParteDesabilitada(partes, a.link, a.evento)).length
+      return naoLidos.filter((a) => !escondidoPelaParte(partes, a)).length
     } catch {
       return 0
     }

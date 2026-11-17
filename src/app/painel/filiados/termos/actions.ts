@@ -22,28 +22,40 @@ function ehTipo(v: unknown): v is TipoTermo {
 export async function criarTermoAction(input: {
   tipo: string
   texto: string
-}): Promise<{ erro?: string }> {
+  /** Só no LGPD: o resumo do que mudou, que o associado lê ao aceitar de novo. */
+  oQueMudou?: string | null
+}): Promise<{ erro?: string; aviso?: string }> {
   await requirePermissao("filiacao_gestao")
   if (!ehTipo(input.tipo)) return { erro: "Tipo inválido." }
-  const { erro } = await criarTermo(input.tipo, input.texto)
+  const { erro, aviso } = await criarTermo(
+    input.tipo,
+    input.texto,
+    typeof input.oQueMudou === "string" ? input.oQueMudou : null
+  )
   if (erro) return { erro }
   revalidatePath(AQUI)
   revalidatePath("/filiar")
-  return {}
+  return aviso ? { aviso } : {}
 }
 
 export async function atualizarTermoAction(input: {
   tipo: string
   id: string
   texto: string
-}): Promise<{ erro?: string }> {
+  oQueMudou?: string | null
+}): Promise<{ erro?: string; aviso?: string }> {
   await requirePermissao("filiacao_gestao")
   if (!ehTipo(input.tipo)) return { erro: "Tipo inválido." }
-  const { erro } = await atualizarTermo(input.tipo, input.id, input.texto)
+  const { erro, aviso } = await atualizarTermo(
+    input.tipo,
+    input.id,
+    input.texto,
+    typeof input.oQueMudou === "string" ? input.oQueMudou : undefined
+  )
   if (erro) return { erro }
   revalidatePath(AQUI)
   revalidatePath("/filiar")
-  return {}
+  return aviso ? { aviso } : {}
 }
 
 export async function definirVigenteAction(input: {

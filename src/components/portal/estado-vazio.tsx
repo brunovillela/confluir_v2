@@ -20,6 +20,7 @@ export function EstadoVazio({
   acao,
   cartao = false,
   compacto = false,
+  tituloComo,
   className,
 }: {
   icone: LucideIcon
@@ -29,8 +30,14 @@ export function EstadoVazio({
   acao?: React.ReactNode
   cartao?: boolean
   compacto?: boolean
+  /**
+   * O título é o da PÁGINA (a página inteira virou o vazio, ex.: a parte
+   * "indisponível"): vira o h1 dela, para o leitor de tela. Padrão: parágrafo.
+   */
+  tituloComo?: "h1"
   className?: string
 }) {
+  const Titulo = tituloComo ?? "p"
   if (compacto) {
     return (
       <div className={cn("text-muted-foreground flex items-start gap-2 py-1 text-sm", className)}>
@@ -48,7 +55,7 @@ export function EstadoVazio({
     <div className={cn("text-muted-foreground flex flex-col items-center gap-2 py-10 text-center", className)}>
       <Icone aria-hidden className="size-6" />
       {/* Com explicação, a frase vira o título dela. */}
-      <p className={cn("text-sm", descricao && "text-foreground font-medium")}>{titulo}</p>
+      <Titulo className={cn("text-sm", descricao && "text-foreground font-medium")}>{titulo}</Titulo>
       {descricao && <p className="max-w-prose text-sm text-balance">{descricao}</p>}
       {acao && <div className="mt-2 flex flex-wrap justify-center gap-2">{acao}</div>}
     </div>

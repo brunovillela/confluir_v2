@@ -525,7 +525,8 @@ export const PARTES_PORTAL = [
     podeSuspender: true,
     podeDesabilitar: true,
     efeitoSuspensa: "Novas solicitações, respostas e reaberturas ficam bloqueadas; a conversa continua para leitura.",
-    efeitoDesabilitada: "Sai do menu, da barra e do Início; os botões \"Avisar o sindicato\" das outras páginas somem.",
+    efeitoDesabilitada:
+      "Sai do menu, da barra e do Início; os botões \"Avisar o sindicato\" das outras páginas somem. As solicitações em aberto deixam de aparecer para o associado e as respostas da equipe não chegam a ele (nem por e-mail) — para uma pausa, prefira suspender.",
     observacao: "Atendimento e O sindicato não ficam desabilitados ao mesmo tempo: o associado precisa de um canal.",
     configuradoEm: [{ rotulo: "Atendimentos (respostas e prazos)", href: "/painel/filiados/atendimentos" }],
     opcoes: [

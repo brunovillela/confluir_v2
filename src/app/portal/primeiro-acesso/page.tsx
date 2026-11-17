@@ -7,6 +7,7 @@ import { ContatosEmergencia } from "@/components/contatos-emergencia"
 import { AvisoDaUrl } from "@/components/portal/aviso-da-url"
 import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
 import { EstadoVazio } from "@/components/portal/estado-vazio"
+import { OQueMudouNoTermo } from "@/components/portal/o-que-mudou-termo"
 import { HREF_AREA_DO_ASSOCIADO } from "@/components/portal/guarda-parte"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -133,6 +134,8 @@ export default async function PrimeiroAcessoPage({
               <CardContent className="grid gap-4">
                 {termo?.texto ? (
                   <>
+                    {/* Renovação: o que mudou, em destaque e antes do texto. */}
+                    {pend.termo.renovacao && <OQueMudouNoTermo texto={termo.oQueMudou} />}
                     <p className="text-muted-foreground text-xs">Termo em vigor — {rotuloVersao(termo)}.</p>
                     {/* Rolagem própria para o termo não empurrar o aceite para longe;
                         focável, para rolar também pelo teclado. */}

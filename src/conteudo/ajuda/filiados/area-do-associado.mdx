@@ -20,7 +20,7 @@ exceção. O **Primeiro acesso** já começa exigido (veja
 | --- | --- |
 | **Habilitada** | A parte como sempre foi. |
 | **Suspensa** | A parte continua no menu, com um aviso no topo da página. O que já existe continua para consulta, mas nada é enviado por ela — pedidos, inscrições, respostas, alterações. |
-| **Desabilitada** | A parte sai do menu, da barra do celular, do Início, da Ajuda e dos avisos. Quem abrir o endereço direto lê que ela não está disponível — na Hospedagem e em Eventos, com o que ainda pode cancelar logo abaixo. |
+| **Desabilitada** | A parte sai do menu, da barra do celular, do Início, da Ajuda e dos avisos (menos os que são consequência de algo que o associado já fez, como a falta numa reserva — esses continuam no sino). Quem abrir o endereço direto lê que ela não está disponível, com o botão para falar com o sindicato — na Hospedagem e em Eventos, com o que ainda pode cancelar logo abaixo. |
 
 Cada cartão mostra, ao lado de cada estado, **o que ele faz naquela parte** —
 suspender a Hospedagem não é o mesmo que suspender a Votação. Leia antes de
@@ -51,7 +51,7 @@ salvar.
     vale um texto padrão, que aparece de exemplo no próprio campo.
   </Passo>
   <Passo titulo="Marque a volta automática (opcional)">
-    Na data, a parte volta sozinha a ficar habilitada — ninguém precisa lembrar
+    Na data, a partir da 0h (horário de Brasília), a parte volta sozinha a ficar habilitada — ninguém precisa lembrar
     de religar. A data entra no fim da mensagem (&quot;Previsão de retorno:
     …&quot;). O cartão mostra depois que a parte voltou sozinha, e em que dia.
   </Passo>
@@ -141,6 +141,16 @@ A página confere o que está em uso antes de você decidir:
   prazo, avisa quantas e quando vence a primeira: com a Hospedagem suspensa
   ou desabilitada, o associado não consegue confirmar (nem pelo link do
   e-mail), e a vaga vence.
+- **Atendimento** — quando há solicitações em aberto, avisa quantas:
+  desabilitado, o Atendimento esconde as conversas do associado e as respostas
+  da equipe não chegam a ele (nem por e-mail); prefira suspender. Com ele
+  desabilitado, a própria página da solicitação no painel avisa quem vai
+  responder.
+- **Primeiro acesso** — o selo diz o que vale hoje (ex.: &quot;vale hoje: o
+  termo de privacidade, um e-mail e um telefone&quot;), e o cartão avisa o
+  dado marcado que não é exigido porque o associado não teria como cumpri-lo
+  (Meu cadastro não deixa alterar, ou está suspenso). Com o portal em modo de
+  consulta ou fora do ar, o selo diz **Não exigido agora**.
 - **Portal inteiro** — junta os avisos que valem para ele: votação aberta (o
   voto pelo portal para; o link pessoal e a urna continuam), cobranças Pix
   (fora do ar, quem paga por Pix fica sem o QR) e vagas oferecidas (não se
@@ -198,7 +208,11 @@ Como funciona:
 - **Vale para todos**: quem entra pela primeira vez e também quem já usa o
   portal, no próximo acesso. E de novo sempre que um termo novo entra em
   vigor — novo termo, novo aceite, a mesma régua de
-  [Cadastros pendentes](/painel/ajuda/filiados/cadastros-pendentes).
+  [Cadastros pendentes](/painel/ajuda/filiados/cadastros-pendentes). Por
+  isso, ligar **Exigir** e publicar (ou tornar vigente) uma versão do termo
+  em [Termos legais](/painel/ajuda/filiados/termos) pedem confirmação. Ao
+  publicar, escreva em **O que mudou nesta versão** um resumo: quem já tinha
+  aceitado lê esse resumo em destaque, antes do texto, ao aceitar de novo.
 - **Só exige o que o associado consegue cumprir**: um dado só é obrigatório
   se ele puder alterá-lo em Meu cadastro (a opção **O que o associado pode
   alterar**; o contato de emergência, só com **Mostrar contatos de
@@ -246,6 +260,9 @@ linha visível só para a gestão, com o link de volta para esta tela.
   página &quot;não disponível&quot; valem no próximo clique, e o que grava é
   recusado no servidor. O menu lateral de quem já estava logado se atualiza ao
   recarregar a página.
+  Com o Primeiro acesso é diferente: quem já estava dentro quando ele passou a
+  ser exigido (ou quando um termo novo entrou em vigor) vê o portão ao entrar
+  na próxima seção do portal, sem precisar recarregar.
 </Aviso>
 
 ### Erros comuns
@@ -260,7 +277,9 @@ linha visível só para a gestão, com o link de volta para esta tela.
 - **&quot;O banco ainda não tem a tabela da Área do associado&quot;** — a tela abre,
   mas nada é salvo até a configuração do banco ser concluída. Enquanto isso,
   todas as partes seguem habilitadas.
-- **&quot;Não foi possível ler a configuração atual do portal&quot;** — a
+- **&quot;Não foi possível ler a configuração da Área do associado&quot;** (no
+  topo da tela) ou **&quot;Não foi possível ler a configuração atual do
+  portal&quot;** (ao salvar) — a
   leitura falhou e os cartões mostram o padrão, não o que está gravado.
   Recarregue a página antes de salvar, para não gravar por cima.
 - **&quot;… salvou “Hospedagem” em …, depois que esta página foi aberta&quot;**

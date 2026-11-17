@@ -1,7 +1,8 @@
 "use client"
 
+import { createContext, useContext, useEffect, useRef } from "react"
 import Link from "next/link"
-import { usePathname, useSearchParams } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { ArrowRight, ClipboardCheck } from "lucide-react"
 
 import { hrefPrimeiroAcesso, livreDoPrimeiroAcesso } from "@/app/portal/primeiro-acesso/regras"
@@ -43,7 +44,9 @@ export function GuardaPrimeiroAcesso({
   const q = busca.toString()
   const atual = q ? `${pathname}?${q}` : pathname
   // Com a busca: o pedido de desfiliação pelo Atendimento passa pela marca (?motivo=desfiliacao).
-  if (!resumo || livreDoPrimeiroAcesso(atual)) return <>{children}</>
+  if (!resumo || livreDoPrimeiroAcesso(atual)) {
+    return <CascaConhecePendencia.Provider value={Boolean(resumo)}>{children}</CascaConhecePendencia.Provider>
+  }
 
   const href = hrefPrimeiroAcesso(atual)
 
@@ -67,7 +70,7 @@ export function GuardaPrimeiroAcesso({
             Configurar em Filiados › Área do associado
           </Link>
         </p>
-        {children}
+        <CascaConhecePendencia.Provider value>{children}</CascaConhecePendencia.Provider>
       </>
     )
   }
@@ -92,4 +95,30 @@ export function GuardaPrimeiroAcesso({
       </div>
     </div>
   )
+}
+
+/**
+ * A casca já sabe do primeiro acesso pendente? (O resumo que o layout leu.)
+ * O layout do portal não se refaz ao navegar: quem estava com o portal aberto
+ * quando o primeiro acesso passou a valer (opção ligada, termo novo) ficaria
+ * com a casca sem o portão até recarregar — vendo só "pausas" sem motivo.
+ */
+const CascaConhecePendencia = createContext(false)
+
+/**
+ * Posto pelo GuardaParte (layout de cada seção, que se refaz ao entrar nela)
+ * quando o servidor vê a pendência: se a casca ainda não sabe dela, atualiza
+ * a casca uma vez (router.refresh), e o portão aparece. Sabendo, não faz nada
+ * — por isso não entra em laço.
+ */
+export function AtualizarCascaSePendente() {
+  const conhece = useContext(CascaConhecePendencia)
+  const router = useRouter()
+  const feito = useRef(false)
+  useEffect(() => {
+    if (conhece || feito.current) return
+    feito.current = true
+    router.refresh()
+  }, [conhece, router])
+  return null
 }

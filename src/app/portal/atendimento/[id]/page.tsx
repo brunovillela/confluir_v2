@@ -7,7 +7,7 @@ import { ehPedidoDeDesfiliacao, MOTIVO_DESFILIACAO } from "@/app/portal/primeiro
 import { ConversaAtendimento, SituacaoAtendimentoBadge } from "@/components/atendimento/conversa"
 import { AvisoDaUrl } from "@/components/portal/aviso-da-url"
 import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
-import { paginaIndisponivel } from "@/components/portal/guarda-parte"
+import { CascaDoPrimeiroAcesso, paginaIndisponivel } from "@/components/portal/guarda-parte"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -89,6 +89,7 @@ export default async function PortalAtendimentoDetalhePage({
 
   return (
     <>
+      <CascaDoPrimeiroAcesso />
       <CabecalhoPagina
         secao="/portal/atendimento"
         voltar={{ base: "/portal/atendimento", rotulo: "Atendimento" }}

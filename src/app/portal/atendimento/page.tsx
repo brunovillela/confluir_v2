@@ -7,7 +7,7 @@ import { SituacaoAtendimentoBadge } from "@/components/atendimento/conversa"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
 import { EstadoVazio } from "@/components/portal/estado-vazio"
-import { paginaIndisponivel } from "@/components/portal/guarda-parte"
+import { CascaDoPrimeiroAcesso, paginaIndisponivel } from "@/components/portal/guarda-parte"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -153,6 +153,7 @@ export default async function PortalAtendimentoPage({ searchParams }: { searchPa
 
   return (
     <>
+      <CascaDoPrimeiroAcesso />
       <CabecalhoPagina
         secao="/portal/atendimento"
         titulo="Atendimento"

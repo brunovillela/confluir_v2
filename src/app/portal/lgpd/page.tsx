@@ -4,6 +4,7 @@ import Link from "next/link"
 import { AcaoVisualizacao } from "@/components/acao-visualizacao"
 import { AvisoDaUrl } from "@/components/portal/aviso-da-url"
 import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
+import { OQueMudouNoTermo } from "@/components/portal/o-que-mudou-termo"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -371,6 +372,7 @@ export default async function LgpdPage({
                   <p className="text-sm">
                     {`${entidade} publicou depois uma versão mais nova do termo (${rotuloVersao(lgpdVigente)}). O seu aceite continua registrado na versão acima; para aceitar a versão em vigor, leia o texto abaixo e confirme.`}
                   </p>
+                  <OQueMudouNoTermo texto={lgpdVigente.oQueMudou} />
                   <div className="text-sm whitespace-pre-line">{lgpdVigente.texto}</div>
                   {aceiteDoVigente}
                 </div>

@@ -1,5 +1,6 @@
 import { erroCep, erroEmail, erroTelefone } from "@/app/portal/cadastro/validacao"
 import { destinoDoPortal } from "@/lib/portal-destino"
+import type { EstadoParte } from "@/lib/portal-partes-constantes"
 
 /**
  * Primeiro acesso (Filiados › Área do associado › Primeiro acesso): as regras
@@ -253,6 +254,105 @@ export function faltaNoPrimeiroAcesso(
     return bons.length === 0 || ruim
   }
   return camposQueFaltam(["endereco"], v).length > 0 || (editaveis.endereco && Boolean(erroCep(s("endereco_cep"))))
+}
+
+/** O que a configuração precisa trazer para dizer o que o primeiro acesso exige (a ConfigPortal serve). */
+export type ConfigDasExigencias = {
+  partes: {
+    portal: { estado: EstadoParte }
+    primeiro_acesso: { opcoes: { exigir: boolean; exigir_termo: boolean; campos_obrigatorios: readonly string[] } }
+    cadastro: { estado: EstadoParte; opcoes: { campos_editaveis: readonly string[]; contatos_emergencia: boolean } }
+  }
+}
+
+export type ExigenciasDoPrimeiroAcesso = {
+  /** Algo pode ser pedido agora (opção ligada e portal habilitado). */
+  ativo: boolean
+  /** Por que nada é pedido (null quando está ativo). */
+  inativoPor: "desligado" | "portal_suspenso" | "portal_fora_do_ar" | null
+  /** O aceite do termo em vigor é pedido (quando há termo com texto). */
+  termo: boolean
+  /** Os dados obrigatórios que valem de fato. */
+  itens: ItemObrigatorio[]
+  editaveis: EditaveisDoCadastro
+  /** Marcados na opção, mas sem efeito — e por quê (o associado não teria como cumprir). */
+  descartados: { item: ItemObrigatorio; motivo: string }[]
+}
+
+const ITENS_OBRIGATORIOS: readonly ItemObrigatorio[] = ["email", "telefone", "endereco", "contato_emergencia"]
+
+/**
+ * O que o primeiro acesso exige de fato, só pela configuração (sem olhar a
+ * pessoa): o portão (calcularPendencias) e o cartão do painel usam a MESMA
+ * regra. Só se exige o que dá para cumprir: portal suspenso ou fora do ar
+ * não pede nada; Meu cadastro suspenso pede só o termo; um dado só vale se o
+ * associado pode alterá-lo em Meu cadastro (o contato de emergência, com o
+ * cartão ligado).
+ */
+export function exigenciasDoPrimeiroAcesso(cfg: ConfigDasExigencias): ExigenciasDoPrimeiroAcesso {
+  const op = cfg.partes.primeiro_acesso.opcoes
+  const cadastro = cfg.partes.cadastro
+  const ed = cadastro.opcoes.campos_editaveis
+  const editaveis: EditaveisDoCadastro = {
+    emailPessoal: ed.includes("email_pessoal"),
+    emailCorporativo: ed.includes("email_corporativo"),
+    telefones: ed.includes("telefones"),
+    endereco: ed.includes("endereco"),
+  }
+  const vazio = { termo: false, itens: [], editaveis, descartados: [] }
+  // Desligado vem antes: com a opção desligada nada "volta a valer" quando o portal reabrir.
+  if (!op.exigir) return { ...vazio, ativo: false, inativoPor: "desligado" }
+  const portal = cfg.partes.portal.estado
+  if (portal !== "habilitada") {
+    return { ...vazio, ativo: false, inativoPor: portal === "suspensa" ? "portal_suspenso" : "portal_fora_do_ar" }
+  }
+
+  const marcados = ITENS_OBRIGATORIOS.filter((i) => op.campos_obrigatorios.includes(i))
+  if (cadastro.estado !== "habilitada") {
+    return {
+      ativo: true,
+      inativoPor: null,
+      termo: op.exigir_termo,
+      itens: [],
+      editaveis,
+      descartados: marcados.map((item) => ({
+        item,
+        motivo: op.exigir_termo ? "Meu cadastro está suspenso, e só o termo é pedido" : "Meu cadastro está suspenso",
+      })),
+    }
+  }
+  const podeAlterar: Record<ItemObrigatorio, boolean> = {
+    email: editaveis.emailPessoal || editaveis.emailCorporativo,
+    telefone: editaveis.telefones,
+    endereco: editaveis.endereco,
+    contato_emergencia: cadastro.opcoes.contatos_emergencia,
+  }
+  const MOTIVO: Record<ItemObrigatorio, string> = {
+    email: "Meu cadastro não deixa o associado alterar os e-mails",
+    telefone: "Meu cadastro não deixa o associado alterar os telefones",
+    endereco: "Meu cadastro não deixa o associado alterar o endereço",
+    contato_emergencia: "o cartão de contatos de emergência está desligado em Meu cadastro",
+  }
+  return {
+    ativo: true,
+    inativoPor: null,
+    termo: op.exigir_termo,
+    itens: marcados.filter((i) => podeAlterar[i]),
+    editaveis,
+    descartados: marcados.filter((i) => !podeAlterar[i]).map((item) => ({ item, motivo: MOTIVO[item] })),
+  }
+}
+
+/** "o termo de privacidade, um e-mail e um telefone" — o que vale hoje, para o painel. */
+export function descreverExigencias(ex: Pick<ExigenciasDoPrimeiroAcesso, "termo" | "itens">): string {
+  const partes = [...(ex.termo ? ["o termo de privacidade"] : []), ...ex.itens.map((i) => NOME_DO_ITEM[i])]
+  return partes.length > 0 ? juntarComE(partes) : "nada (sem termo e sem dados obrigatórios)"
+}
+
+/** "Um e-mail", "O endereço completo"… — o item com a inicial maiúscula, para começar frase. */
+export function nomeDoItem(i: ItemObrigatorio): string {
+  const n = NOME_DO_ITEM[i]
+  return n.charAt(0).toUpperCase() + n.slice(1)
 }
 
 /** "a, b e c" */

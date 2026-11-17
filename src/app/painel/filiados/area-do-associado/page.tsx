@@ -26,9 +26,17 @@ import {
 import { cn } from "@/lib/utils"
 
 import { ConferirComoAssociado } from "./conferir-como-associado"
-import { cobrancasPixEmAberto, vagasOferecidasEmAberto, votacoesOnlineAbertas } from "./contexto"
+import { atendimentosEmAberto, cobrancasPixEmAberto, vagasOferecidasEmAberto, votacoesOnlineAbertas } from "./contexto"
 import { FormularioParte, type ValorOpcao } from "./formulario-parte"
 import { contagemDasPartes } from "./resumo"
+import {
+  descreverExigencias,
+  exigenciasDoPrimeiroAcesso,
+  oQueFalta,
+  type ExigenciasDoPrimeiroAcesso,
+  type ItemObrigatorio,
+} from "@/app/portal/primeiro-acesso/regras"
+import { temTermoLgpdAceitavel } from "@/lib/db/portal-primeiro-acesso"
 
 export const metadata: Metadata = {
   title: "Área do associado — Confluir",
@@ -72,18 +80,50 @@ function linksVisiveis(def: DefinicaoParte, permissoes: Permissoes) {
   })
 }
 
-function SeloEstado({ chave, cfg, fixa }: { chave: ChaveParte; cfg: ConfigDaParte; fixa: boolean }) {
+function SeloEstado({
+  chave,
+  cfg,
+  fixa,
+  exigencias,
+}: {
+  chave: ChaveParte
+  cfg: ConfigDaParte
+  fixa: boolean
+  exigencias?: ExigenciasDoPrimeiroAcesso
+}) {
   // Primeiro acesso: o estado é fixo, mas a opção `exigir` liga e desliga o
-  // portão — o selo diz o que está valendo.
+  // portão — o selo diz o que está valendo DE FATO (portal pausado não pede
+  // nada; dado que Meu cadastro não deixa alterar não é pedido).
   if (chave === "primeiro_acesso") {
-    const exigido = (cfg.opcoes as { exigir?: boolean }).exigir !== false
-    return exigido ? (
-      <Badge variant="warning">
-        <TriangleAlert aria-hidden />
-        Exigido
-      </Badge>
-    ) : (
-      <Badge variant="secondary">Não exigido</Badge>
+    const ex = exigencias
+    if (!ex || ex.inativoPor === "desligado") return <Badge variant="secondary">Não exigido</Badge>
+    if (!ex.ativo) {
+      return (
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <Badge variant="secondary">Não exigido agora</Badge>
+          <span className="text-muted-foreground text-xs">
+            com o portal {ex.inativoPor === "portal_suspenso" ? "em modo de consulta" : "fora do ar"}
+          </span>
+        </span>
+      )
+    }
+    // Ligado, mas sem termo publicado e sem dado aplicável: ninguém passa pelo portão.
+    if (!ex.termo && ex.itens.length === 0) {
+      return (
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <Badge variant="secondary">Não pede nada agora</Badge>
+          <span className="text-muted-foreground text-xs">sem termo publicado e sem dado obrigatório que valha</span>
+        </span>
+      )
+    }
+    return (
+      <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <Badge variant="warning">
+          <TriangleAlert aria-hidden />
+          Exigido
+        </Badge>
+        <span className="text-muted-foreground text-xs">vale hoje: {descreverExigencias(ex)}</span>
+      </span>
     )
   }
   if (fixa) {
@@ -120,6 +160,8 @@ function CartaoParte({
   chave,
   cfg,
   links,
+  exigencias,
+  portalPausado,
   avisos,
   amanha,
   ultimaAlteracao,
@@ -129,6 +171,10 @@ function CartaoParte({
   chave: ChaveParte
   cfg: ConfigDaParte
   links: readonly { rotulo: string; href: string }[]
+  /** Só no Primeiro acesso: o que vale de fato hoje. */
+  exigencias?: ExigenciasDoPrimeiroAcesso
+  /** Só no Primeiro acesso: o portal está em consulta ou fora do ar (nada é pedido). */
+  portalPausado?: boolean
   /** O que está em uso agora e pesa na escolha do estado (um parágrafo cada). */
   avisos?: readonly string[]
   amanha: string
@@ -147,7 +193,7 @@ function CartaoParte({
       <CardHeader>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <CardTitle>{def.titulo}</CardTitle>
-          <SeloEstado chave={chave} cfg={cfg} fixa={fixa} />
+          <SeloEstado chave={chave} cfg={cfg} fixa={fixa} exigencias={exigencias} />
         </div>
         <CardDescription>{def.descricao}</CardDescription>
       </CardHeader>
@@ -194,6 +240,7 @@ function CartaoParte({
             amanha={amanha}
             ultimaAlteracao={ultimaAlteracao}
             versao={cfg.atualizadaEm ?? ""}
+            portalPausado={portalPausado}
             disponivel={disponivel}
             lida={lida}
           />
@@ -209,11 +256,13 @@ export default async function AreaDoAssociadoPage() {
   const sessao = await requirePermissao("filiacao_gestao")
 
   // Os avisos de contexto são um extra: falha neles não derruba a página.
-  const [config, cobrancasAbertas, votacoesAbertas, vagas] = await Promise.all([
+  const [config, cobrancasAbertas, votacoesAbertas, vagas, atendimentosAbertos, temTermo] = await Promise.all([
     configDoPortal(),
     cobrancasPixEmAberto().catch(() => 0),
     votacoesOnlineAbertas().catch(() => 0),
     vagasOferecidasEmAberto().catch(() => ({ total: 0, primeiraVence: null })),
+    atendimentosEmAberto().catch(() => 0),
+    temTermoLgpdAceitavel(),
   ])
   const cfgDe = (c: ChaveParte) => config.partes[c] as ConfigDaParte
   const nomes = await nomesDosUsuarios(
@@ -246,6 +295,43 @@ export default async function AreaDoAssociadoPage() {
       "Há votação online aberta: em modo de consulta ou fora do ar, o voto pelo portal para; o link pessoal do e-mail e a urna continuam."
     )
   }
+  // Primeiro acesso: o que vale de fato. O termo só é pedido se há termo LGPD
+  // em vigor com texto; o que está marcado e não vale (o associado não teria
+  // como cumprir) vira aviso, uma frase por motivo.
+  const regra = exigenciasDoPrimeiroAcesso(config)
+  const exigencias: ExigenciasDoPrimeiroAcesso = { ...regra, termo: regra.termo && temTermo }
+  if (exigencias.ativo) {
+    if (regra.termo && !temTermo) {
+      avisar(
+        "primeiro_acesso",
+        "O aceite do termo está marcado, mas não há termo de LGPD em vigor com texto em Filiados › Termos legais: o aceite não é pedido."
+      )
+    }
+    const porMotivo = new Map<string, ItemObrigatorio[]>()
+    for (const d of exigencias.descartados) porMotivo.set(d.motivo, [...(porMotivo.get(d.motivo) ?? []), d.item])
+    for (const [motivo, itens] of porMotivo) {
+      const nomes = oQueFalta(itens)
+      avisar(
+        "primeiro_acesso",
+        `${nomes.charAt(0).toUpperCase()}${nomes.slice(1)} ${itens.length === 1 ? "está marcado, mas não é exigido" : "estão marcados, mas não são exigidos"}: ${motivo}.`
+      )
+    }
+  } else if (exigencias.inativoPor !== "desligado") {
+    avisar(
+      "primeiro_acesso",
+      `Com o portal ${exigencias.inativoPor === "portal_suspenso" ? "em modo de consulta" : "fora do ar"}, nada é exigido agora: o primeiro acesso volta a valer quando o portal for habilitado.`
+    )
+  }
+  if (atendimentosAbertos > 0) {
+    avisar(
+      "atendimento",
+      `${
+        atendimentosAbertos === 1
+          ? "Há 1 solicitação em aberto"
+          : `Há ${atendimentosAbertos.toLocaleString("pt-BR")} solicitações em aberto`
+      }: desabilitado, o Atendimento esconde as conversas do associado e as respostas da equipe não chegam a ele (nem por e-mail). Prefira suspender: a conversa fica para leitura e as respostas continuam avisando.`
+    )
+  }
   if (vagas.total > 0) {
     avisar(
       "hospedagem",
@@ -270,6 +356,8 @@ export default async function AreaDoAssociadoPage() {
       chave={c}
       cfg={cfgDe(c)}
       links={linksVisiveis(definicaoDaParte(c), sessao.permissoes)}
+      exigencias={c === "primeiro_acesso" ? exigencias : undefined}
+      portalPausado={c === "primeiro_acesso" ? geral !== "habilitada" : undefined}
       avisos={avisos[c]}
       amanha={amanha}
       ultimaAlteracao={ultimaAlteracao(c)}

@@ -3,6 +3,7 @@ import Link from "next/link"
 import { BellOff, Settings2 } from "lucide-react"
 
 import { Paginacao } from "@/components/paginacao"
+import { CascaDoPrimeiroAcesso } from "@/components/portal/guarda-parte"
 import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
 import { EstadoVazio } from "@/components/portal/estado-vazio"
 import { LembrarListaPortal } from "@/components/portal/voltar-portal"
@@ -73,6 +74,7 @@ export default async function PortalAvisosPage({
 
   return (
     <>
+      <CascaDoPrimeiroAcesso />
       {/* As Preferências voltam para a lista como estava (tipo, página). */}
       <LembrarListaPortal base="/portal/avisos" url={urlDaLista} />
       <CabecalhoPagina

@@ -5,10 +5,11 @@ import * as Sentry from "@sentry/nextjs"
 
 import {
   camposQueFaltam,
+  exigenciasDoPrimeiroAcesso,
   faltaNoPrimeiroAcesso,
   hrefPrimeiroAcesso,
   livreDoPrimeiroAcesso,
-  type EditaveisDoCadastro,
+  resumoDoPrimeiroAcesso,
   type ItemObrigatorio,
 } from "@/app/portal/primeiro-acesso/regras"
 import { cpfConfiavel, grafiasDoCpf } from "@/lib/cpf"
@@ -70,9 +71,24 @@ function registrarFalha(etapa: string, e: unknown): void {
   Sentry.captureException(e instanceof Error ? e : new Error(String(e)), { tags: { area: "primeiro-acesso", etapa } })
 }
 
-/** A recusa das ações (bloqueioDaParte) enquanto há pendência. */
-export const MENSAGEM_PRIMEIRO_ACESSO =
-  "Antes de usar o portal, conclua o primeiro acesso: aceite o termo de privacidade e complete seus dados."
+/**
+ * O começo da recusa das ações (bloqueioDaParte) enquanto há pendência; o
+ * resto diz o que falta à pessoa (mensagemDoPrimeiroAcesso). É por ele que
+ * as páginas reconhecem a recusa (ehBloqueioDoPrimeiroAcesso).
+ */
+export const MENSAGEM_PRIMEIRO_ACESSO = "Antes de usar o portal, conclua o primeiro acesso"
+
+/**
+ * A recusa com o que falta de verdade ("… falta aceitar o termo de
+ * privacidade") — quem estava com o portal aberto quando o primeiro acesso
+ * passou a valer lê o motivo, não um texto genérico.
+ */
+function mensagemDoPrimeiroAcesso(p: PendenciasPrimeiroAcesso): string {
+  const falta = resumoDoPrimeiroAcesso(p)
+  return falta
+    ? `${MENSAGEM_PRIMEIRO_ACESSO}: falta ${falta}.`
+    : `${MENSAGEM_PRIMEIRO_ACESSO}: aceite o termo de privacidade e complete seus dados.`
+}
 
 const CAMPOS_REGISTRO =
   "tl_lgpd_id, email_pessoal, email_corporativo, telefone_1, telefone_2, endereco_cep, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_estado"
@@ -115,6 +131,17 @@ async function termoLgpdAceitavel(): Promise<string | null> {
   return lerTermoLgpdAceitavel().catch(() => null)
 }
 
+/**
+ * Há termo LGPD em vigor COM TEXTO (o único que o primeiro acesso pede)? Para
+ * o cartão do painel dizer o que vale de fato. Na dúvida (leitura que falha),
+ * sim — o painel não afirma que o termo não é pedido sem ter conferido.
+ */
+export async function temTermoLgpdAceitavel(): Promise<boolean> {
+  return lerTermoLgpdAceitavel()
+    .then(Boolean)
+    .catch(() => true)
+}
+
 /** O mesmo, mas a falha da leitura SOBE (não vira "sem termo"). */
 async function lerTermoLgpdAceitavel(): Promise<string | null> {
   const admin = await createAdminClient()
@@ -143,31 +170,14 @@ async function calcularPendencias(cpf: string, filiadoId: string): Promise<Pende
     if (cfg.disponivel) registrarFalha("configuracao", new Error("a leitura de portal_partes falhou"))
     return { ...NADA, incompleto: cfg.disponivel }
   }
-  if (cfg.partes.portal.estado !== "habilitada") return NADA
-  const op = cfg.partes.primeiro_acesso.opcoes
-  if (!op.exigir) return NADA
-
-  // Os dados só se exigem com Meu cadastro gravando e só o que ele deixa alterar.
-  const cadastro = cfg.partes.cadastro
-  const editaveis = cadastro.opcoes.campos_editaveis
-  const editaveisDoCadastro: EditaveisDoCadastro = {
-    emailPessoal: editaveis.includes("email_pessoal"),
-    emailCorporativo: editaveis.includes("email_corporativo"),
-    telefones: editaveis.includes("telefones"),
-    endereco: editaveis.includes("endereco"),
-  }
-  const podeAlterar: Record<ItemObrigatorio, boolean> = {
-    email: editaveisDoCadastro.emailPessoal || editaveisDoCadastro.emailCorporativo,
-    telefone: editaveisDoCadastro.telefones,
-    endereco: editaveisDoCadastro.endereco,
-    contato_emergencia: cadastro.opcoes.contatos_emergencia,
-  }
-  const itens =
-    cadastro.estado === "habilitada"
-      ? (op.campos_obrigatorios as ItemObrigatorio[]).filter((i) => podeAlterar[i])
-      : []
+  // O que vale de fato (a mesma regra do cartão do painel): portal suspenso
+  // ou fora do ar não pede nada; Meu cadastro suspenso, só o termo; um dado
+  // só se exige se o associado pode alterá-lo em Meu cadastro.
+  const ex = exigenciasDoPrimeiroAcesso(cfg)
+  if (!ex.ativo) return NADA
+  const { itens, editaveis: editaveisDoCadastro } = ex
   const doFormulario = itens.filter((i) => i !== "contato_emergencia")
-  const querTermo = op.exigir_termo
+  const querTermo = ex.termo
   if (!querTermo && itens.length === 0) return { ...NADA, exigido: true }
 
   // Cada leitura falha sozinha, e o que ela decide fica sem pendência — mas
@@ -263,7 +273,8 @@ export const pendenciasDoPrimeiroAcesso = cache(
  * requisição (sem cookies) ou com falha, não trava.
  */
 export async function bloqueioDoPrimeiroAcesso(): Promise<string | null> {
-  return (await primeiroAcessoDaSessao()).pendente ? MENSAGEM_PRIMEIRO_ACESSO : null
+  const p = await primeiroAcessoDaSessao()
+  return p.pendente ? mensagemDoPrimeiroAcesso(p) : null
 }
 
 /**
@@ -288,7 +299,7 @@ export async function primeiroAcessoDaSessao(): Promise<PendenciasPrimeiroAcesso
  * pausa pelo aviso de concluir o primeiro acesso.
  */
 export function ehBloqueioDoPrimeiroAcesso(recusa: string | null | undefined): boolean {
-  return recusa === MENSAGEM_PRIMEIRO_ACESSO
+  return !!recusa && recusa.startsWith(MENSAGEM_PRIMEIRO_ACESSO)
 }
 
 /**

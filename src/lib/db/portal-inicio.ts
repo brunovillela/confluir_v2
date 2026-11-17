@@ -9,7 +9,7 @@ import { esquemaAusente, texto } from "@/lib/db/comum"
 import { registrosDoCpf } from "@/lib/db/filiado-portal"
 import type { PendenciaAvaliacao } from "@/lib/db/hospedagem-avaliacoes"
 import { meusAtendimentos, type Atendimento } from "@/lib/db/portal-atendimentos"
-import { contarAvisosNaoLidos, parteDoAviso, type AvisoDoFiliado } from "@/lib/db/portal-avisos"
+import { comColunaDaExcecao, contarAvisosNaoLidos, parteDoAviso, type AvisoDoFiliado } from "@/lib/db/portal-avisos"
 import { configDoPortal } from "@/lib/db/portal-partes"
 import { CHAVES_PARTES, opcoesPadrao, type ChaveParte, type EstadoParte } from "@/lib/portal-partes-constantes"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -136,31 +136,46 @@ export async function avisosNaoLidos(
   const chave = cpfConfiavel(cpf)
   if (!chave) return { avisos: [], total: 0 }
   const admin = await createAdminClient()
-  const { data, error, count } = await admin
-    .from("portal_avisos")
-    .select("id, evento, texto, link, lida_em, created_at", { count: "exact" })
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .eq("cpf", chave)
-    .is("lida_em", null)
-    .order("created_at", { ascending: false })
-    .limit(ocultar.length > 0 ? Math.min(limite * 3, 60) : limite)
-  if (error) {
-    if (esquemaAusente(error)) return { avisos: [], total: 0 }
-    throw new Error(`avisos não lidos: ${error.message}`)
+  const tenantId = await tenantAtual()
+  type Linha = Record<string, unknown> & { mesmo_com_parte_desabilitada?: boolean | null }
+  let lido: { data: Linha[]; count: number | null }
+  try {
+    // Com a marca da exceção da parte desabilitada, quando o banco já a tem.
+    lido = await comColunaDaExcecao("id, evento, texto, link, lida_em, created_at", async (campos) => {
+      const { data, error, count } = await admin
+        .from("portal_avisos")
+        .select(campos, { count: "exact" })
+        .eq("emp_proprietaria_id", tenantId)
+        .eq("cpf", chave)
+        .is("lida_em", null)
+        .order("created_at", { ascending: false })
+        .limit(ocultar.length > 0 ? Math.min(limite * 3, 60) : limite)
+      if (error) throw Object.assign(new Error(error.message), { code: error.code })
+      return { data: (data ?? []) as unknown as Linha[], count }
+    })
+  } catch (e) {
+    if (esquemaAusente(e as { code?: string; message?: string })) return { avisos: [], total: 0 }
+    throw new Error(`avisos não lidos: ${(e as Error).message}`)
   }
-  const todos = (data ?? []).map((a) => ({
+  const { data, count } = lido
+  const todos = data.map((a) => ({
     id: String(a.id),
     evento: String(a.evento),
     texto: String(a.texto),
     link: texto(a.link),
     lidaEm: null,
     criadoEm: String(a.created_at),
+    // Gravado com a exceção da parte desabilitada (a falta numa reserva…): aparece assim mesmo.
+    mesmoComParteDesabilitada: a.mesmo_com_parte_desabilitada === true,
   }))
   const visiveis = todos.filter((a) => {
+    if (a.mesmoComParteDesabilitada) return true
     const parte = parteDoAviso(a.link, a.evento)
     return !parte || !ocultar.includes(parte)
   })
-  const avisos = visiveis.slice(0, limite)
+  const avisos: AvisoDoFiliado[] = visiveis
+    .slice(0, limite)
+    .map((a) => ({ id: a.id, evento: a.evento, texto: a.texto, link: a.link, lidaEm: a.lidaEm, criadoEm: a.criadoEm }))
   const total =
     ocultar.length > 0
       ? await contarAvisosNaoLidos(cpf).catch(() => visiveis.length)

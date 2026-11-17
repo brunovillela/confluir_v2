@@ -50,31 +50,65 @@ export type TermoVersao = {
   codigo: string | null
   emVigor: boolean
   created_at: string | null
+  /** Só no LGPD: o resumo do que mudou, mostrado no passo de renovação do primeiro acesso. */
+  oQueMudou: string | null
+}
+
+/**
+ * "O que mudou" (filiacao_tl_lgpd.o_que_mudou, migração 20261117223936). Até
+ * o banco ter a coluna, ler e gravar seguem sem ela, como antes. A leitura
+ * lembra a falta por 5 minutos; a gravação tenta SEMPRE com a coluna e, se
+ * ela faltar, salva o termo sem o resumo e avisa quem publicou.
+ */
+const LEMBRAR_SEM_COLUNA_MS = 5 * 60_000
+let semOQueMudouAte = 0
+const leOQueMudou = (tipo: TipoTermo) => tipo === "lgpd" && Date.now() >= semOQueMudouAte
+/** Aviso a quem publicou quando o resumo não coube no banco. */
+export const AVISO_SEM_O_QUE_MUDOU =
+  "O resumo \"O que mudou\" não foi salvo: o banco ainda não tem esse campo (falta aplicar a migração). O termo foi salvo."
+function colunaOQueMudouAusente(error: { code?: string; message?: string } | null): boolean {
+  return !!error && (error.code === "42703" || error.code === "PGRST204" || (error.message ?? "").includes("o_que_mudou"))
 }
 
 export async function listarTermos(tipo: TipoTermo): Promise<TermoVersao[]> {
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from(TABELA[tipo])
-    .select("id, texto, codigo, em_vigor, created_at")
-    .eq("emp_proprietaria_id", await tenantAtual())
-    .order("em_vigor", { ascending: false })
-    .order("created_at", { ascending: false, nullsFirst: false })
+  const empId = await tenantAtual()
+  const ler = (comOQueMudou: boolean) =>
+    admin
+      .from(TABELA[tipo])
+      .select(comOQueMudou ? "id, texto, codigo, em_vigor, created_at, o_que_mudou" : "id, texto, codigo, em_vigor, created_at")
+      .eq("emp_proprietaria_id", empId)
+      .order("em_vigor", { ascending: false })
+      .order("created_at", { ascending: false, nullsFirst: false })
+  // A decisão fica numa const: outra requisição pode mudar a memória durante o await.
+  const comColuna = leOQueMudou(tipo)
+  let { data, error } = await ler(comColuna)
+  if (error && comColuna && colunaOQueMudouAusente(error)) {
+    semOQueMudouAte = Date.now() + LEMBRAR_SEM_COLUNA_MS
+    ;({ data, error } = await ler(false))
+  }
   if (error) throw new Error(`Falha ao listar termos: ${error.message}`)
-  return (data ?? []).map((t) => ({
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map((t) => ({
     id: String(t.id),
     texto: texto(t.texto),
     codigo: texto(t.codigo),
     emVigor: t.em_vigor === true,
     created_at: texto(t.created_at),
+    oQueMudou: texto(t.o_que_mudou),
   }))
+}
+
+/** O resumo do que mudou, limpo: em branco vira null; até 1.000 caracteres. */
+function limparOQueMudou(v: string | null | undefined): string | null {
+  return (v ?? "").trim().slice(0, 1000) || null
 }
 
 /** Nova versão do termo — passa a ser a vigente (desmarca as demais do tipo). */
 export async function criarTermo(
   tipo: TipoTermo,
-  textoNovo: string
-): Promise<{ erro?: string; id?: string }> {
+  textoNovo: string,
+  oQueMudou?: string | null
+): Promise<{ erro?: string; id?: string; aviso?: string }> {
   const t = textoNovo.trim()
   if (t.length < 10) return { erro: "Escreva o texto do termo." }
   const empId = await tenantAtual()
@@ -86,20 +120,25 @@ export async function criarTermo(
     .eq("emp_proprietaria_id", empId)
     .eq("em_vigor", true)
 
-  const { data, error } = await admin
-    .from(TABELA[tipo])
-    .insert({
-      texto: t,
-      codigo: codigoVersao(),
-      em_vigor: true,
-      emp_proprietaria_id: empId,
-    })
-    .select("id")
-    .single()
+  const linha: Record<string, unknown> = { texto: t, codigo: codigoVersao(), em_vigor: true, emp_proprietaria_id: empId }
+  const resumo = limparOQueMudou(oQueMudou)
+  const inserir = (comResumo: boolean) =>
+    admin
+      .from(TABELA[tipo])
+      .insert(comResumo ? { ...linha, o_que_mudou: resumo } : linha)
+      .select("id")
+      .single()
+  const comResumo = tipo === "lgpd" && resumo !== null
+  let { data, error } = await inserir(comResumo)
+  let aviso: string | undefined
+  if (error && comResumo && colunaOQueMudouAusente(error)) {
+    ;({ data, error } = await inserir(false))
+    aviso = AVISO_SEM_O_QUE_MUDOU
+  }
   if (error || !data) {
     return { erro: `Não foi possível salvar: ${error?.message ?? "?"}` }
   }
-  return { id: String(data.id) }
+  return { id: String(data.id), ...(aviso ? { aviso } : {}) }
 }
 
 /** A versão já foi aceita por alguém? Ver lib/filiacao-termos-aceite.ts. */
@@ -123,20 +162,35 @@ export async function versaoAceita(tipo: TipoTermo, id: string): Promise<boolean
 export async function atualizarTermo(
   tipo: TipoTermo,
   id: string,
-  textoNovo: string
-): Promise<{ erro?: string }> {
+  textoNovo: string,
+  oQueMudou?: string | null
+): Promise<{ erro?: string; aviso?: string }> {
   const t = textoNovo.trim()
   if (t.length < 10) return { erro: "Escreva o texto do termo." }
   if (await versaoAceita(tipo, id)) return { erro: MOTIVO_TERMO_ACEITO }
   const admin = await createAdminClient()
-  const { error, count } = await admin
-    .from(TABELA[tipo])
-    .update({ texto: t }, { count: "exact" })
-    .eq("id", id)
-    .eq("emp_proprietaria_id", await tenantAtual())
+  const empId = await tenantAtual()
+  // O resumo só muda quando o formulário o manda (undefined = não mexe).
+  const comResumo = tipo === "lgpd" && oQueMudou !== undefined
+  const atualizar = (resumo: boolean) =>
+    admin
+      .from(TABELA[tipo])
+      .update(
+        (resumo ? { texto: t, o_que_mudou: limparOQueMudou(oQueMudou) } : { texto: t }) as Record<string, unknown>,
+        { count: "exact" }
+      )
+      .eq("id", id)
+      .eq("emp_proprietaria_id", empId)
+  let { error, count } = await atualizar(comResumo)
+  let aviso: string | undefined
+  if (error && comResumo && colunaOQueMudouAusente(error)) {
+    ;({ error, count } = await atualizar(false))
+    // Só avisa se havia o que guardar (o campo em branco não perde nada).
+    if (limparOQueMudou(oQueMudou)) aviso = AVISO_SEM_O_QUE_MUDOU
+  }
   if (error) return { erro: `Não foi possível salvar: ${error.message}` }
   if (count === 0) return { erro: "Termo não encontrado." }
-  return {}
+  return aviso ? { aviso } : {}
 }
 
 /** Marca uma versão como vigente (desmarca as demais do tipo). */

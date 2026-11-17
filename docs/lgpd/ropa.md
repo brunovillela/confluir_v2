@@ -160,7 +160,7 @@
 |---|---|---|
 | [portal_atendimentos](../dados/dicionario/filiacao.md#portal_atendimentos) | identificacao, sens. sindical | `cpf` (identificacao), `nome` (identificacao), `email` (identificacao), `titulo` (identificacao) |
 | [portal_atendimentos_mensagens](../dados/dicionario/filiacao.md#portal_atendimentos_mensagens) | identificacao, sens. sindical | `autor_nome` (identificacao), `texto` (identificacao), `anexo_caminho` (identificacao), `anexo_nome` (identificacao) |
-| [portal_avisos](../dados/dicionario/filiacao.md#portal_avisos) | identificacao, sens. sindical | `cpf` (identificacao), `texto` (sens. sindical) |
+| [portal_avisos](../dados/dicionario/filiacao.md#portal_avisos) | identificacao, sens. sindical | `cpf` (identificacao), `texto` (sens. sindical), `mesmo_com_parte_desabilitada` (nenhum) |
 | [portal_avisos_preferencias](../dados/dicionario/filiacao.md#portal_avisos_preferencias) | identificacao | `cpf` (identificacao) |
 | [portal_nao_filiado](../dados/dicionario/filiacao.md#portal_nao_filiado) | identificacao | `cpf` (identificacao), `nome` (identificacao), `email` (identificacao), `telefone` (identificacao), `nascimento` (identificacao) |
 | [portal_push_assinaturas](../dados/dicionario/filiacao.md#portal_push_assinaturas) | identificacao, credencial | `cpf` (identificacao), `endpoint` (credencial), `p256dh` (credencial), `auth` (credencial), `user_agent` (identificacao) |

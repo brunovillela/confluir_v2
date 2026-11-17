@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation"
 import { ArrowLeft, CheckCircle2, CircleHelp } from "lucide-react"
 
 import { Marca } from "@/components/marca"
+import { OQueMudouNoTermo } from "@/components/portal/o-que-mudou-termo"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -380,6 +381,8 @@ async function PassoDados({
           </h3>
           {termo?.texto ? (
             <>
+              {/* Renovação: o que mudou, em destaque (o mesmo do primeiro acesso). */}
+              {pend.termo.renovacao && <OQueMudouNoTermo texto={termo.oQueMudou} />}
               <p className="text-muted-foreground text-xs">
                 Como {entidade} trata os seus dados pessoais — termo em vigor, {rotuloVersao(termo)}.
               </p>

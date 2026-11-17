@@ -1136,6 +1136,7 @@ Versões do termo de consentimento LGPD exibido na ficha de filiação pública.
 | `slug` | text | sim |  |  |  |  |
 | `created_at` | timestamp with time zone | sim | `now()` |  |  |  |
 | `emp_proprietaria_id` | uuid | sim |  | → empresa |  |  |
+| `o_que_mudou` | text | sim |  |  | nenhum | Resumo do que mudou em relação à versão anterior, escrito por quem publica; aparece ao associado no passo de renovação do primeiro acesso. |
 
 Únicas: `UNIQUE (bubble_id)`
 
@@ -1651,6 +1652,7 @@ Avisos (notificações) exibidos ao filiado no portal do associado, por CPF: eve
 | `link` | text | sim |  |  |  |  |
 | `lida_em` | timestamp with time zone | sim |  |  |  |  |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `mesmo_com_parte_desabilitada` | boolean | não | `false` |  | nenhum | O aviso aparece no sino, na lista e no Início mesmo com a parte do portal desabilitada (consequência de algo que a pessoa já fez, ex.: falta numa reserva). |
 
 Índices: `portal_avisos_cpf_idx`, `portal_avisos_nao_lidos_idx`, `portal_avisos_pkey`
 

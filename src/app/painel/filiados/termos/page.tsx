@@ -20,6 +20,7 @@ import {
   type TipoTermo,
   versaoAceita,
 } from "@/lib/db/filiacao-termos"
+import { configDoPortal } from "@/lib/db/portal-partes"
 import { formatarDataHora } from "@/lib/formato"
 
 import { AcoesVersao, TermoEditor } from "./termos-forms"
@@ -28,9 +29,18 @@ export const metadata: Metadata = { title: "Termos legais — Confluir" }
 
 export default async function TermosPage() {
   await requirePermissao("filiacao_gestao")
-  const [lgpd, desconto] = await Promise.all([
+  const [lgpd, desconto, exigeNoPortal] = await Promise.all([
     comAceite("lgpd"),
     comAceite("desconto"),
+    // O Primeiro acesso (Filiados › Área do associado) exige o termo LGPD em
+    // vigor? Então publicar uma versão barra a base no próximo acesso. Na
+    // dúvida, avisa.
+    configDoPortal()
+      .then((c) => {
+        const op = c.partes.primeiro_acesso.opcoes
+        return c.partes.portal.estado === "habilitada" && op.exigir && op.exigir_termo
+      })
+      .catch(() => true),
   ])
 
   return (
@@ -50,7 +60,7 @@ export default async function TermosPage() {
         </p>
       </div>
 
-      <SecaoTermo tipo="lgpd" versoes={lgpd} />
+      <SecaoTermo tipo="lgpd" versoes={lgpd} avisoPublicar={exigeNoPortal} />
       <SecaoTermo tipo="desconto" versoes={desconto} />
     </>
   )
@@ -68,9 +78,12 @@ async function comAceite(tipo: TipoTermo): Promise<VersaoComAceite[]> {
 function SecaoTermo({
   tipo,
   versoes,
+  avisoPublicar = false,
 }: {
   tipo: TipoTermo
   versoes: VersaoComAceite[]
+  /** Só no LGPD, com o Primeiro acesso exigindo o termo. */
+  avisoPublicar?: boolean
 }) {
   const vigente = versoes.find((v) => v.emVigor) ?? null
 
@@ -114,9 +127,13 @@ function SecaoTermo({
         {/* Nova versão */}
         <GrupoColapsavel
           titulo="Nova versão do termo"
-          descricao="Substitui a vigente; a anterior vai para o histórico"
+          descricao={
+            avisoPublicar
+              ? "Substitui a vigente; a anterior vai para o histórico. Com o Primeiro acesso exigindo o termo, todos os associados terão de aceitá-la no próximo acesso ao portal"
+              : "Substitui a vigente; a anterior vai para o histórico"
+          }
         >
-          <TermoEditor tipo={tipo} />
+          <TermoEditor tipo={tipo} avisoPublicar={avisoPublicar} />
         </GrupoColapsavel>
 
         {/* Histórico */}
@@ -145,11 +162,16 @@ function SecaoTermo({
                       versão {v.codigo ?? "—"} · {formatarDataHora(v.created_at)}
                     </span>
                   </div>
-                  <AcoesVersao tipo={tipo} id={v.id} emVigor={v.emVigor} />
+                  <AcoesVersao tipo={tipo} id={v.id} emVigor={v.emVigor} avisoPublicar={avisoPublicar} />
                 </div>
                 <p className="text-muted-foreground mt-2 line-clamp-3 text-sm whitespace-pre-wrap">
                   {v.texto ?? "—"}
                 </p>
+                {v.oQueMudou && (
+                  <p className="mt-2 text-xs whitespace-pre-wrap">
+                    <span className="font-medium">O que mudou:</span> {v.oQueMudou}
+                  </p>
+                )}
                 <div className="mt-3">
                   {v.aceita ? (
                     <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
@@ -163,6 +185,7 @@ function SecaoTermo({
                         tipo={tipo}
                         id={v.id}
                         textoInicial={v.texto ?? ""}
+                        oQueMudouInicial={v.oQueMudou ?? ""}
                       />
                     </GrupoColapsavel>
                   )}
