@@ -1,6 +1,7 @@
 import { contextoDoTenant } from "@/lib/db/comunicacao-mensagens"
 import { avisarNotasAReceber } from "@/lib/db/compras-marketplace"
 import { lembrarCotacoesAtrasadas } from "@/lib/db/compras-cotacao-lembrete"
+import { lembrarRecebimentosAtrasados } from "@/lib/db/compras-recebimento-lembrete"
 import { lembrarPendencias, tenantsDoLembrete } from "@/lib/db/pendencias-lembrete"
 import { lembretesDoPortal, type ResultadoLembretesDoPortal } from "@/lib/db/portal-lembretes"
 import { lembrarAssinaturasRpa } from "@/lib/db/rpa-lembretes"
@@ -38,8 +39,13 @@ export const maxDuration = 300
  * da entidade sem a cotação começar avisa os compradores e o coordenador do
  * departamento, uma vez por solicitação (lib/db/compras-cotacao-lembrete.ts).
  *
+ * E os RECEBIMENTOS ATRASADOS: fornecimento que passou da entrega esperada sem
+ * recebimento registrado avisa quem comprou, quem pediu e quem recebe — uma
+ * vez por semana de atraso (lib/db/compras-recebimento-lembrete.ts).
+ *
  * `?tenant=<uuid>` roda um tenant só (disparo manual e testes na demo);
- * `?etapa=pendencias`, `?etapa=portal`, `?etapa=notas`, `?etapa=rpa` ou `?etapa=cotacao` roda só uma das partes.
+ * `?etapa=pendencias`, `?etapa=portal`, `?etapa=notas`, `?etapa=rpa`, `?etapa=cotacao` ou
+ * `?etapa=recebimentos` roda só uma das partes.
  */
 async function handler(req: Request): Promise<Response> {
   const secret = process.env.CRON_SECRET
@@ -131,7 +137,23 @@ async function handler(req: Request): Promise<Response> {
     }
   }
 
-  return Response.json({ verificados: tenants.length, processados: resultados, portal, notas, rpa, cotacao })
+  const recebimentos: { tenant: string; atrasados: number; avisos: number; erros: string[] }[] = []
+  if (!etapa || etapa === "recebimentos") {
+    const svc = createServiceClient()
+    for (const t of tenants) {
+      try {
+        const contexto = await contextoDoTenant(t.id, svc)
+        recebimentos.push({ tenant: t.id, ...(await lembrarRecebimentosAtrasados(svc, t.id, contexto)) })
+      } catch (e) {
+        recebimentos.push({ tenant: t.id, atrasados: 0, avisos: 0, erros: [e instanceof Error ? e.message : String(e)] })
+      }
+    }
+    for (const r of recebimentos) {
+      if (r.erros.length) console.error(`[pendencias/tick] recebimentos atrasados (${r.tenant}):`, r.erros.join(" · "))
+    }
+  }
+
+  return Response.json({ verificados: tenants.length, processados: resultados, portal, notas, rpa, cotacao, recebimentos })
 }
 
 export const GET = handler

@@ -25,6 +25,7 @@ import {
 import { PERMISSOES_USUARIO_FK } from "@/lib/permissoes"
 import { resolverPermissoes } from "@/lib/permissoes-resolver"
 import { regrasConfiguradas } from "@/lib/db/auditoria-regras"
+import { entregaEsperada, type EntregaEsperada } from "@/lib/compras-prazo"
 import type { Permissoes } from "@/lib/permissoes"
 import {
   debitarCaixaCompra,
@@ -2089,6 +2090,8 @@ export type RecebimentoPendente = {
   valor: number | null
   data_compra: string | null
   previsao_entrega: string | null
+  /** Quando deveria chegar (previsão → prazo da solicitação → 15 dias da compra). */
+  entrega_esperada: EntregaEsperada | null
 }
 
 /** O que tem para chegar: fornecimentos comprados e ainda não recebidos. */
@@ -2127,7 +2130,7 @@ export async function listarRecebimentosPendentes(): Promise<{
     lerEmLotesPorIds<Record<string, unknown>>(processoIds, (fatia, de, ate) =>
       admin
         .from("compras_solicitacoes")
-        .select("id, codigo, solicitacao_produto, solicitacao_departamento_id")
+        .select("id, codigo, solicitacao_produto, solicitacao_departamento_id, solicitacao_data_limite")
         .in("id", fatia)
         .order("id")
         .range(de, ate)
@@ -2177,8 +2180,15 @@ export async function listarRecebimentosPendentes(): Promise<{
         valor: (x.valor as number | null) ?? null,
         data_compra: (x.data_compra as string | null) ?? null,
         previsao_entrega: (x.previsao_entrega as string | null) ?? null,
+        entrega_esperada: entregaEsperada(
+          (x.previsao_entrega as string | null) ?? null,
+          (p?.solicitacao_data_limite as string | null) ?? null,
+          (x.data_compra as string | null) ?? null
+        ),
       }
-    }),
+    })
+      // Quem venceu primeiro vem antes; sem data, no fim.
+      .sort((a, b) => (a.entrega_esperada?.data ?? "9999").localeCompare(b.entrega_esperada?.data ?? "9999")),
   }
 }
 

@@ -87,6 +87,7 @@ export const EVENTOS_TELEGRAM = [
   { chave: "cotacao_atrasada", rotulo: "Solicitação de compra esperando a cotação além do prazo (comprador e coordenador do departamento)", grupo: "pendencia", acesso: { permissoes: ["aquisicoes_comprador"], coordenador: true } },
   { chave: "compra_andamento", rotulo: "Sua solicitação de compra foi comprada ou recebida", grupo: "notificacao", acesso: { permissoes: ["aquisicoes_compras_edicao", "aquisicoes_comprador"] } },
   { chave: "pendencia_cotacao", rotulo: "Nova aquisição a cotar (comprador)", grupo: "pendencia", acesso: { permissoes: ["aquisicoes_comprador"] } },
+  { chave: "recebimento_atrasado", rotulo: "Compra com a entrega atrasada e sem recebimento registrado (quem comprou, quem pediu e quem recebe)", grupo: "pendencia", acesso: { permissoes: ["aquisicoes_recebimentos", "aquisicoes_compras_edicao", "aquisicoes_compra_direta", "aquisicoes_comprador"] } },
   { chave: "pendencia_recebimentos", rotulo: "Fornecimento a receber", grupo: "pendencia", acesso: { permissoes: ["aquisicoes_recebimentos", "aquisicoes_compras_edicao"] } },
   { chave: "pendencia_caixa", rotulo: "Despesa lançada no seu caixa a reconhecer, despesa sua não reconhecida ou aporte recusado", grupo: "pendencia" },
   { chave: "veiculos_manutencao", rotulo: "Revisão preventiva da frota próxima ou vencida", grupo: "pendencia", acesso: { permissoes: ["veiculos_gestao"] } },

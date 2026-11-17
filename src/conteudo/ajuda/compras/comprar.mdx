@@ -773,10 +773,16 @@ informações*. Ver [Ordens de pagamento](/painel/ajuda/financeiro/ordens).
 
 Quando o item chega, a baixa é feita em **Aquisição → Recebimentos pendentes**.
 Aparecem ali a aquisição direta marcada como **não recebida** e os
-fornecimentos **via Aquisição já comprados**, da previsão de entrega mais
-próxima para a mais distante. Cada item mostra o código, o fornecedor, a
-descrição, o departamento, a data da compra, o valor e a previsão; previsão já
-passada aparece com o selo **Atrasado**. A recepção clica em **Registrar
+fornecimentos **via Aquisição já comprados**, os atrasados primeiro. Cada item
+mostra o código, o fornecedor, a descrição, o departamento, a data da compra, o
+valor e a **data esperada de entrega**: a previsão do fornecedor; sem ela, o
+"receber até" da solicitação; sem nenhum dos dois, 15 dias depois da compra. Data
+já passada aparece com o selo **Atrasado**.
+
+Entrega atrasada sem recebimento registrado gera, uma vez por semana de atraso, o
+aviso **Compra com a entrega atrasada e sem recebimento registrado** para quem
+comprou, quem pediu e quem tem a permissão de Recebimentos (ligue em Meu perfil →
+Avisos). Se o item já chegou, registre a chegada; se não, cobre o fornecedor. A recepção clica em **Registrar
 chegada**, confere e registra: **Recebido em** (obrigatório), a chave **Fornecimento adequado
 à solicitação** (já vem ligada; desligue se veio diferente) e a **Observação**.
 <RequerPermissao>Recebimentos ou Aquisição — editar</RequerPermissao>

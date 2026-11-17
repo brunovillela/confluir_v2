@@ -71,7 +71,7 @@ export default async function RecebimentosComprasPage({
             A receber ({pendentes.length})
           </CardTitle>
           <CardDescription>
-            Ordenado pela previsão de entrega mais próxima. Clique na compra para registrar a chegada.
+            Os atrasados primeiro. A data esperada é a previsão de entrega; sem ela, o prazo da solicitação; sem nenhum dos dois, 15 dias depois da compra. Clique na compra para registrar a chegada.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3">
@@ -82,7 +82,14 @@ export default async function RecebimentosComprasPage({
             </p>
           ) : (
             pendentes.map((f) => {
-              const atrasado = !!f.previsao_entrega && f.previsao_entrega < hoje
+              const esperada = f.entrega_esperada
+              const atrasado = !!esperada && esperada.data < hoje
+              const rotuloData =
+                esperada?.origem === "previsao"
+                  ? "previsto para"
+                  : esperada?.origem === "prazo_solicitacao"
+                    ? "receber até"
+                    : "esperado até"
               return (
                 <details
                   key={f.id}
@@ -112,10 +119,17 @@ export default async function RecebimentosComprasPage({
                         {f.data_compra && (
                           <span>Comprado em {formatarData(f.data_compra)}</span>
                         )}
-                        {f.previsao_entrega ? (
-                          <Badge variant={atrasado ? "warning" : "outline"}>
-                            {atrasado ? "Atrasado · previsto para " : "Previsto para "}
-                            {formatarData(f.previsao_entrega)}
+                        {esperada ? (
+                          <Badge
+                            variant={atrasado ? "warning" : "outline"}
+                            title={
+                              esperada.origem === "padrao"
+                                ? "Sem previsão nem prazo na solicitação: espera-se a entrega em 15 dias da compra"
+                                : undefined
+                            }
+                          >
+                            {atrasado ? `Atrasado · ${rotuloData} ` : `${rotuloData[0].toUpperCase()}${rotuloData.slice(1)} `}
+                            {formatarData(esperada.data)}
                           </Badge>
                         ) : (
                           <span className="italic">Sem previsão de entrega</span>
