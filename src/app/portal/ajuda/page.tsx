@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { areasAjudaPortal, saidaDaAjudaPortal } from "@/lib/ajuda/mapa-portal"
 import { partesDesabilitadas } from "@/lib/db/portal-partes"
+import { primeiroAcessoDaSessao } from "@/lib/db/portal-primeiro-acesso"
 import type { ChaveParte } from "@/lib/portal-partes-constantes"
 
 // O sufixo vem do modelo do layout do portal (A183).
@@ -21,9 +22,13 @@ export const metadata: Metadata = { title: "Ajuda" }
  * aparece; na dúvida (leitura que falhou), todas aparecem.
  */
 export default async function PortalAjudaIndexPage() {
-  const desabilitadas = await partesDesabilitadas().catch(() => [] as ChaveParte[])
+  const [desabilitadas, primeiroAcesso] = await Promise.all([
+    partesDesabilitadas().catch(() => [] as ChaveParte[]),
+    primeiroAcessoDaSessao(),
+  ])
   const areas = areasAjudaPortal(desabilitadas)
-  const saida = saidaDaAjudaPortal(desabilitadas)
+  // Primeiro acesso pendente: o Atendimento ainda não abre — a saída vai a O sindicato.
+  const saida = saidaDaAjudaPortal(desabilitadas, { primeiroAcessoPendente: primeiroAcesso.pendente })
 
   return (
     <>

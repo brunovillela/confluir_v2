@@ -16,7 +16,7 @@ import { listarContatosEmergencia } from "@/lib/db/filiacao-contatos-emergencia"
 import { listarTermos, type TermoVersao } from "@/lib/db/filiacao-termos"
 import { cadastroDoFiliado } from "@/lib/db/filiado-portal"
 import { nomeEntidade } from "@/lib/db/organizacao"
-import { opcoesDaParte } from "@/lib/db/portal-partes"
+import { estadoDaParte, opcoesDaParte } from "@/lib/db/portal-partes"
 import { pendenciasDoPrimeiroAcesso } from "@/lib/db/portal-primeiro-acesso"
 import { opcoesPadrao } from "@/lib/portal-partes-constantes"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
@@ -80,7 +80,7 @@ export default async function PrimeiroAcessoPage({
 
   const doFormulario = pend.dados.filter((i): i is ItemDoFormulario => i !== "contato_emergencia")
   const comEmergencia = pend.dados.includes("contato_emergencia")
-  const [entidade, versoes, cadastro, sessao, opcoesCadastro, emergencia] = await Promise.all([
+  const [entidade, versoes, cadastro, sessao, opcoesCadastro, emergencia, estadoSindicato] = await Promise.all([
     nomeEntidade(),
     pend.termo ? listarTermos("lgpd").catch(() => [] as TermoVersao[]) : Promise.resolve([] as TermoVersao[]),
     doFormulario.length > 0 ? cadastroDoFiliado(filiado.cpf).catch(() => null) : Promise.resolve(null),
@@ -91,7 +91,10 @@ export default async function PrimeiroAcessoPage({
     comEmergencia
       ? listarContatosEmergencia({ cpf: filiado.cpf, filiadoId: filiado.filiacaoId }).catch(() => null)
       : Promise.resolve(null),
+    // Na dúvida, a parte vale (o link aparece).
+    estadoDaParte("sindicato").catch(() => "habilitada" as const),
   ])
+  const comSindicato = estadoSindicato !== "desabilitada"
   const termo = pend.termo ? (versoes.find((v) => v.id === pend.termo?.id) ?? null) : null
   const total = (pend.termo ? 1 : 0) + (pend.dados.length > 0 ? 1 : 0)
 
@@ -258,12 +261,24 @@ export default async function PrimeiroAcessoPage({
         )}
       </ol>
 
+      {/* O canal de quem tem dúvida sobre o termo ou não consegue concluir: O
+          sindicato abre antes do primeiro acesso (o Atendimento, não). */}
       <p className="text-muted-foreground text-xs">
         Dúvidas?{" "}
         <Link href="/portal/ajuda" className="text-foreground font-medium underline underline-offset-4">
           Veja a Ajuda
         </Link>{" "}
-        ou fale com a secretaria da entidade.
+        {comSindicato ? (
+          <>
+            ou fale com o sindicato pelos canais em{" "}
+            <Link href="/portal/sindicato" className="text-foreground font-medium underline underline-offset-4">
+              O sindicato
+            </Link>
+            .
+          </>
+        ) : (
+          "ou fale com a secretaria da entidade."
+        )}
       </p>
     </>
   )

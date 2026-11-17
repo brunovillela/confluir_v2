@@ -181,7 +181,7 @@ export const PARTES_PORTAL = [
     podeSuspender: false,
     podeDesabilitar: false,
     observacao:
-      "Liga e desliga pelas opções. Vale também para quem já usa o portal (no próximo acesso) e de novo quando um termo novo entra em vigor. A contribuição assistencial, a desistência da filiação coletiva, o pedido de desfiliação, as preferências de avisos e a Ajuda continuam abertos sem ele.",
+      "Liga e desliga pelas opções. Vale também para quem já usa o portal (no próximo acesso) e de novo quando um termo novo entra em vigor. A contribuição assistencial, a desistência da filiação coletiva, o pedido de desfiliação, a Votação, as preferências de avisos, a Ajuda e O sindicato continuam abertos sem ele; Hospedagem e Eventos abrem só para cancelar o que já foi pedido.",
     configuradoEm: [{ rotulo: "Termo de privacidade (LGPD)", href: "/painel/filiados/termos" }],
     opcoes: [
       {

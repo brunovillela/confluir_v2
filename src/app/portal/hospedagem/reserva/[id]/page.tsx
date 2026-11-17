@@ -30,7 +30,9 @@ import {
   reservaDaPessoa,
   type SituacaoReserva,
 } from "@/lib/db/hospedagem-garantida"
+import { hrefPrimeiroAcesso } from "@/app/portal/primeiro-acesso/regras"
 import { bloqueioDaParte } from "@/lib/db/portal-partes"
+import { ehBloqueioDoPrimeiroAcesso } from "@/lib/db/portal-primeiro-acesso"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { noitesDaEstadia } from "@/lib/hospedagem-garantida-constantes"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
@@ -134,7 +136,18 @@ export default async function ReservaHospedagemPage({
               </strong>
               . Sem confirmação, passa para a próxima pessoa da lista.
             </p>
-            {suspensao ? (
+            {ehBloqueioDoPrimeiroAcesso(suspensao) ? (
+              // Primeiro acesso pendente: a página abre para cancelar; confirmar espera por ele.
+              <div className="grid gap-2">
+                <p>Para confirmar, conclua antes o primeiro acesso — depois você volta direto para esta reserva.</p>
+                <div>
+                  <Button asChild size="sm">
+                    {/* <a>, não <Link>: carga inteira, como no portão (GuardaPrimeiroAcesso). */}
+                    <a href={hrefPrimeiroAcesso(`/portal/hospedagem/reserva/${id}`)}>Concluir o primeiro acesso</a>
+                  </Button>
+                </div>
+              </div>
+            ) : suspensao ? (
               <p>Não é possível confirmar agora. {suspensao}</p>
             ) : reserva.esperaToken ? (
               <AcaoVisualizacao preview={preview} nota="Somente o próprio associado pode confirmar.">

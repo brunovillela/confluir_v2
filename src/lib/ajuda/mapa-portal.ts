@@ -84,10 +84,15 @@ export function areasAjudaPortal(desabilitadas: readonly ChaveParte[] = []): Are
 
 /**
  * Para onde vai quem não achou a resposta (A115): o Atendimento; com ele
- * desabilitado, os canais de "O sindicato". Os dois nunca ficam desabilitados
- * juntos (salvarParte recusa) — se ficassem, valeria o Atendimento.
+ * desabilitado — ou com o primeiro acesso pendente, que o fecha (só O
+ * sindicato abre antes dele, ROTAS_LIVRES_DO_PRIMEIRO_ACESSO) —, os canais de
+ * "O sindicato". Os dois nunca ficam desabilitados juntos (salvarParte
+ * recusa) — se ficassem, valeria o Atendimento.
  */
-export function saidaDaAjudaPortal(desabilitadas: readonly ChaveParte[] = []): {
+export function saidaDaAjudaPortal(
+  desabilitadas: readonly ChaveParte[] = [],
+  op: { primeiroAcessoPendente?: boolean } = {}
+): {
   canal: "atendimento" | "sindicato"
   href: string
   /** Na lista da busca, quando nada casa. */
@@ -96,7 +101,8 @@ export function saidaDaAjudaPortal(desabilitadas: readonly ChaveParte[] = []): {
   texto: string
   botao: string
 } {
-  if (desabilitadas.includes("atendimento") && !desabilitadas.includes("sindicato")) {
+  const semAtendimento = desabilitadas.includes("atendimento") || op.primeiroAcessoPendente === true
+  if (semAtendimento && !desabilitadas.includes("sindicato")) {
     return {
       canal: "sindicato",
       href: "/portal/sindicato",

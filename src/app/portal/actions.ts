@@ -318,7 +318,10 @@ export async function confirmarCodigoFiliado(
   // oposição) e o tipo dela levaria o "Continuar" ao painel. Com o primeiro
   // acesso pendente, o "Continuar" vai direto a ele.
   if (formData.get("criar_senha") === "1") {
-    redirect(`/definir-senha?destino=${encodeURIComponent(await destinoAoEntrar(quem, "/portal/inicio"))}`)
+    // Depois da senha, também o item que trouxe a pessoa (A30), não o Início.
+    redirect(
+      `/definir-senha?destino=${encodeURIComponent(await destinoAoEntrar(quem, destinoDoPortal(formData.get("next")) ?? "/portal/inicio"))}`
+    )
   }
 
   // Volta ao item que trouxe a pessoa (A30), validado de novo aqui — pelo

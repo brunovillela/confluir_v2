@@ -35,18 +35,21 @@ import {
   opcoesDaParte,
   situacaoDoPortal,
 } from "@/lib/db/portal-partes"
+import { ehBloqueioDoPrimeiroAcesso, primeiroAcessoDaSessao } from "@/lib/db/portal-primeiro-acesso"
 import { formatarDataHora } from "@/lib/formato"
-import { mensagemDaSituacao, opcoesPadrao } from "@/lib/portal-partes-constantes"
+import { mensagemDaSituacao, opcoesPadrao, type EstadoParte } from "@/lib/portal-partes-constantes"
 import { tenantAtual } from "@/lib/tenant"
 import { origemAtual } from "@/lib/tenant-url"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 import { AcaoVisualizacao } from "@/components/acao-visualizacao"
+import { AvisoPrimeiroAcesso } from "@/components/portal/aviso-primeiro-acesso"
 import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
 import { EstadoVazio } from "@/components/portal/estado-vazio"
 import { ParteIndisponivel } from "@/components/portal/guarda-parte"
 
 import { AgendaDeAtividades } from "../agenda/agenda-de-atividades"
+import { resumoDoPrimeiroAcesso } from "../primeiro-acesso/regras"
 import { itemDoEvento, linkGoogleAgenda } from "./calendario"
 import {
   AbrirAncoraRecolhida,
@@ -163,7 +166,8 @@ async function codigosDeEntrada(lista: EventoDoFiliado[]): Promise<Map<string, s
  * sem nem ser consultada. Eventos desabilitada mostra o "indisponível" e, logo
  * abaixo, só as inscrições que ainda se cancelam (InscricoesQueSeCancelam);
  * o portal fora do ar deixa esta página aberta em modo de consulta, para
- * cancelar (ABERTOS_COM_PORTAL_FORA_DO_AR).
+ * cancelar (ABERTOS_COM_PORTAL_FORA_DO_AR). O primeiro acesso pendente
+ * também (ROTAS_LIVRES_DO_PRIMEIRO_ACESSO), com o aviso de concluí-lo no topo.
  */
 export default async function PortalEventosPage() {
   const { filiado, preview } = await requireVisualizacaoPortal()
@@ -178,21 +182,29 @@ export default async function PortalEventosPage() {
       </InscricoesQueSeCancelam>
     )
   }
-  const [lista, agenda, origem, bloqueio, opcoes, atendimento, portal] = await Promise.all([
-    eventosParaFiliado(filiado.cpf, await tenantAtual()),
-    // null: Agenda desabilitada — a seção some.
-    estadoDaParte("agenda")
-      .catch(() => "habilitada" as const)
-      .then((estado) => (estado === "desabilitada" ? null : eventosDoAplicativo(50))),
-    origemAtual().catch(() => ""),
-    bloqueioDaParte("eventos").catch(() => null),
-    opcoesDaParte("eventos").catch(() => opcoesPadrao("eventos")),
-    estadoDaParte("atendimento").catch(() => "habilitada" as const),
-    situacaoDoPortal().catch(() => null),
-  ])
+  const [lista, agenda, origem, bloqueio, opcoes, atendimento, sindicato, portal, primeiroAcesso] =
+    await Promise.all([
+      eventosParaFiliado(filiado.cpf, await tenantAtual()),
+      // null: Agenda desabilitada — a seção some.
+      estadoDaParte("agenda")
+        .catch(() => "habilitada" as const)
+        .then((estado) => (estado === "desabilitada" ? null : eventosDoAplicativo(50))),
+      origemAtual().catch(() => ""),
+      bloqueioDaParte("eventos").catch(() => null),
+      opcoesDaParte("eventos").catch(() => opcoesPadrao("eventos")),
+      estadoDaParte("atendimento").catch(() => "habilitada" as const),
+      estadoDaParte("sindicato").catch(() => "habilitada" as const),
+      situacaoDoPortal().catch(() => null),
+      primeiroAcessoDaSessao(),
+    ])
   // Portal fora do ar: o Atendimento levaria à página de manutenção.
   const foraDoAr = portal?.estado === "desabilitada"
-  const comAtendimento = atendimento !== "desabilitada" && !foraDoAr
+  // Com o cancelamento pelo portal desligado: por onde pedi-lo.
+  const canal = canalParaCancelar({ atendimento, sindicato, foraDoAr, primeiroAcessoPendente: primeiroAcesso.pendente })
+  // Primeiro acesso pendente: a página abre só para cancelar; o que falta vai
+  // no aviso do topo, e as pausas abaixo remetem a ele.
+  const resumoPrimeiroAcesso = ehBloqueioDoPrimeiroAcesso(bloqueio) ? resumoDoPrimeiroAcesso(primeiroAcesso) : null
+  const esperaPrimeiroAcesso = resumoPrimeiroAcesso !== null
 
   // A135: o que ainda vai acontecer fica à vista; do que já passou, só as
   // inscrições dele, recolhidas e das mais recentes para trás.
@@ -238,6 +250,19 @@ export default async function PortalEventosPage() {
             {bloqueio} Aqui você consulta e cancela as suas inscrições.
           </AlertDescription>
         </Alert>
+      )}
+
+      {esperaPrimeiroAcesso && (
+        <AvisoPrimeiroAcesso
+          resumo={resumoPrimeiroAcesso}
+          destino="/portal/eventos"
+          aqui={
+            opcoes.permitir_cancelar
+              ? "Aqui você consulta e cancela as suas inscrições."
+              : "Aqui você consulta as suas inscrições; para cancelar, fale com o sindicato."
+          }
+          para="se inscrever ou responder se vai comparecer"
+        />
       )}
 
       {/* ── Inscrições abertas: o destaque da página ─────────────────── */}
@@ -299,8 +324,10 @@ export default async function PortalEventosPage() {
                     )}
                     {bloqueio ? (
                       <PausaNoPortal>
-                        As inscrições pelo portal estão pausadas no momento — veja
-                        o aviso no topo da página.
+                        {esperaPrimeiroAcesso
+                          ? "Para se inscrever, conclua antes o primeiro acesso"
+                          : "As inscrições pelo portal estão pausadas no momento"}{" "}
+                        — veja o aviso no topo da página.
                       </PausaNoPortal>
                     ) : (
                       <AcaoVisualizacao
@@ -455,8 +482,10 @@ export default async function PortalEventosPage() {
                                     comparecer.{" "}
                                   </>
                                 )}
-                                A confirmação de presença pelo portal está pausada no
-                                momento — veja o aviso no topo da página.
+                                {esperaPrimeiroAcesso
+                                  ? "Para responder, conclua antes o primeiro acesso"
+                                  : "A confirmação de presença pelo portal está pausada no momento"}{" "}
+                                — veja o aviso no topo da página.
                               </PausaNoPortal>
                             ) : e.rsvpAberto ? (
                               <AcaoVisualizacao
@@ -551,7 +580,7 @@ export default async function PortalEventosPage() {
                               e={e}
                               preview={preview}
                               permitirCancelar={opcoes.permitir_cancelar}
-                              comAtendimento={comAtendimento}
+                              canal={canal}
                             />
                           )}
                         </div>
@@ -662,16 +691,35 @@ export default async function PortalEventosPage() {
  * pelo portal desligado, a orientação de falar com o sindicato (pelo
  * Atendimento, quando ele está no ar).
  */
+/** Por onde pedir o cancelamento quando o portal não cancela (opção desligada). */
+type CanalCancelar = "atendimento" | "sindicato" | null
+
+/**
+ * O Atendimento, se estiver no portal e aberto para a pessoa (o primeiro
+ * acesso pendente o fecha); senão, os canais de O sindicato, que abrem antes
+ * do primeiro acesso. Fora do ar, nenhum dos dois: levariam à manutenção.
+ */
+function canalParaCancelar(c: {
+  atendimento: EstadoParte
+  sindicato: EstadoParte
+  foraDoAr: boolean
+  primeiroAcessoPendente: boolean
+}): CanalCancelar {
+  if (c.foraDoAr) return null
+  if (c.atendimento !== "desabilitada" && !c.primeiroAcessoPendente) return "atendimento"
+  return c.sindicato !== "desabilitada" ? "sindicato" : null
+}
+
 function DesistirDaInscricao({
   e,
   preview,
   permitirCancelar,
-  comAtendimento,
+  canal,
 }: {
   e: EventoDoFiliado
   preview: boolean
   permitirCancelar: boolean
-  comAtendimento: boolean
+  canal: CanalCancelar
 }) {
   if (!e.inscricaoId) return null
   if (permitirCancelar) {
@@ -684,7 +732,7 @@ function DesistirDaInscricao({
   return (
     <p className="text-muted-foreground text-sm">
       Para cancelar ou desistir da inscrição, fale com o sindicato
-      {comAtendimento && (
+      {canal === "atendimento" && (
         <>
           {" "}pelo{" "}
           <Link
@@ -694,6 +742,14 @@ function DesistirDaInscricao({
             className="text-primary font-medium underline underline-offset-4"
           >
             Atendimento
+          </Link>
+        </>
+      )}
+      {canal === "sindicato" && (
+        <>
+          {" "}pelos canais em{" "}
+          <Link href="/portal/sindicato" className="text-primary font-medium underline underline-offset-4">
+            O sindicato
           </Link>
         </>
       )}
@@ -716,13 +772,20 @@ async function InscricoesQueSeCancelam({
   preview: boolean
   children: React.ReactNode
 }) {
-  const [lista, opcoes, atendimento, portal] = await Promise.all([
+  const [lista, opcoes, atendimento, sindicato, portal, primeiroAcesso] = await Promise.all([
     tenantAtual().then((t) => eventosParaFiliado(cpf, t)),
     opcoesDaParte("eventos").catch(() => opcoesPadrao("eventos")),
     estadoDaParte("atendimento").catch(() => "habilitada" as const),
+    estadoDaParte("sindicato").catch(() => "habilitada" as const),
     situacaoDoPortal().catch(() => null),
+    primeiroAcessoDaSessao(),
   ])
-  const comAtendimento = atendimento !== "desabilitada" && portal?.estado !== "desabilitada"
+  const canal = canalParaCancelar({
+    atendimento,
+    sindicato,
+    foraDoAr: portal?.estado === "desabilitada",
+    primeiroAcessoPendente: primeiroAcesso.pendente,
+  })
   const minhas = lista.filter((e) => !e.passado && e.inscrito && podeDesistirDe(e))
 
   return (
@@ -752,7 +815,7 @@ async function InscricoesQueSeCancelam({
                       e={e}
                       preview={preview}
                       permitirCancelar={opcoes.permitir_cancelar}
-                      comAtendimento={comAtendimento}
+                      canal={canal}
                     />
                   </li>
                 ))}

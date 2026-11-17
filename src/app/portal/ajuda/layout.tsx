@@ -4,6 +4,7 @@ import { BASE_AJUDA_PORTAL } from "@/lib/ajuda/base-conhecimento-portal"
 import { AREAS_AJUDA_PORTAL } from "@/lib/ajuda/manifesto-portal"
 import { areasAjudaPortal, artigoForaDaAjuda, saidaDaAjudaPortal } from "@/lib/ajuda/mapa-portal"
 import { partesDesabilitadas } from "@/lib/db/portal-partes"
+import { primeiroAcessoDaSessao } from "@/lib/db/portal-primeiro-acesso"
 import type { ChaveParte } from "@/lib/portal-partes-constantes"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
@@ -66,7 +67,11 @@ export default async function PortalAjudaLayout({
   children: React.ReactNode
 }) {
   await requireVisualizacaoPortal()
-  const desabilitadas = await partesDesabilitadas().catch(() => [] as ChaveParte[])
+  const [desabilitadas, primeiroAcesso] = await Promise.all([
+    partesDesabilitadas().catch(() => [] as ChaveParte[]),
+    // Pendente, o Atendimento espera o primeiro acesso: a saída vai a O sindicato.
+    primeiroAcessoDaSessao(),
+  ])
 
   const areas: NavArea[] = areasAjudaPortal(desabilitadas).map((a) => ({
     slug: a.slug,
@@ -77,7 +82,7 @@ export default async function PortalAjudaLayout({
   }))
   const itens = ITENS.filter((i) => !artigoForaDaAjuda(i.areaSlug, i.artigoSlug, desabilitadas)).map((i) => i.item)
   // Quem não achou a resposta pergunta ao sindicato (A115).
-  const saidaAjuda = saidaDaAjudaPortal(desabilitadas)
+  const saidaAjuda = saidaDaAjudaPortal(desabilitadas, { primeiroAcessoPendente: primeiroAcesso.pendente })
   const saida: SaidaBusca = { rotulo: saidaAjuda.rotuloBusca, href: saidaAjuda.href }
 
   return (

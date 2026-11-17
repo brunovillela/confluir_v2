@@ -107,6 +107,8 @@ export async function salvarParteAction(_prev: EstadoForm, fd: FormData): Promis
     retornoPrevisto: txt(fd, "retorno_previsto") || null,
     opcoes: lidas.opcoes,
     usuarioId: sessao.usuario.id,
+    // Sem o campo (página aberta antes desta versão), não confere.
+    versaoLida: fd.has("versao") ? txt(fd, "versao") : null,
   })
   if (erro) return { erro, campo }
 

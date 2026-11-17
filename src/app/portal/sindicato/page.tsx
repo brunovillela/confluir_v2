@@ -12,7 +12,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { nomeEntidade } from "@/lib/db/organizacao"
+import { hrefPrimeiroAcesso } from "@/app/portal/primeiro-acesso/regras"
 import { estadoDaParte, opcoesDaParte } from "@/lib/db/portal-partes"
+import { primeiroAcessoDaSessao } from "@/lib/db/portal-primeiro-acesso"
 import {
   canaisDoSindicato,
   diretoriaVigente,
@@ -70,7 +72,7 @@ export default async function PortalSindicatoPage() {
   const { filiado } = await requireVisualizacaoPortal()
   // Na dúvida, o de sempre: tudo à vista e o Atendimento no ar.
   const opcoesP = opcoesDaParte("sindicato").catch(() => opcoesPadrao("sindicato"))
-  const [opcoes, atendimento, entidade, canais, diretoria] = await Promise.all([
+  const [opcoes, atendimento, entidade, canais, diretoria, primeiroAcesso] = await Promise.all([
     opcoesP,
     estadoDaParte("atendimento").catch(() => "habilitada" as const),
     nomeEntidade().catch(() => null),
@@ -80,8 +82,14 @@ export default async function PortalSindicatoPage() {
         ? carregar("diretoria", () => diretoriaVigente(filiado.cpf, { destacarBase: o.destacar_base }))
         : null
     ),
+    primeiroAcessoDaSessao(),
   ])
   const comAtendimento = atendimento !== "desabilitada"
+  // Esta página abre antes do primeiro acesso (é o canal de quem não consegue
+  // concluí-lo); o Atendimento, não: o convite leva a concluí-lo antes.
+  const atendimentoEspera = comAtendimento && primeiroAcesso.pendente
+  const c = canais?.valor
+  const temCanais = Boolean(c && (c.email || c.site || c.sedes.length > 0)) || Boolean(opcoes.texto_canais)
   const nosCanais = entidade ? `Os canais oficiais de ${entidade}` : "Os canais oficiais da entidade"
 
   return (
@@ -105,19 +113,27 @@ export default async function PortalSindicatoPage() {
                 Pelo portal
               </CardTitle>
               <CardDescription>
-                Abra uma solicitação no Atendimento: ela fica registrada, tem prazo de resposta e a resposta chega
-                aqui no portal e por e-mail.
+                {atendimentoEspera
+                  ? `Depois de concluir o primeiro acesso, abra uma solicitação no Atendimento: ela fica registrada, tem prazo de resposta e a resposta chega aqui no portal e por e-mail.${temCanais ? " Enquanto isso, use os canais oficiais abaixo." : ""}`
+                  : "Abra uma solicitação no Atendimento: ela fica registrada, tem prazo de resposta e a resposta chega aqui no portal e por e-mail."}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Button asChild className="w-full sm:w-auto">
-                <Link href="/portal/atendimento">Abrir uma solicitação</Link>
+                {atendimentoEspera ? (
+                  // <a>, não <Link>: carga inteira, como no portão (GuardaPrimeiroAcesso).
+                  <a href={hrefPrimeiroAcesso("/portal/atendimento")}>Concluir o primeiro acesso</a>
+                ) : (
+                  <Link href="/portal/atendimento">Abrir uma solicitação</Link>
+                )}
               </Button>
             </CardContent>
           </Card>
         )}
 
-        <CartaoCanais canais={canais?.valor ?? null} comAtendimento={comAtendimento} />
+        {/* Com o primeiro acesso pendente, o único convite ao Atendimento é o
+            cartão de cima (que leva a concluí-lo): os de baixo cairiam no portão. */}
+        <CartaoCanais canais={canais?.valor ?? null} comAtendimento={comAtendimento && !atendimentoEspera} />
 
         {opcoes.texto_canais && (
           <Card>
@@ -150,7 +166,7 @@ export default async function PortalSindicatoPage() {
               </p>
             )}
           </div>
-          <BlocoDiretoria diretoria={diretoria} comAtendimento={comAtendimento} />
+          <BlocoDiretoria diretoria={diretoria} comAtendimento={comAtendimento && !atendimentoEspera} />
         </section>
       )}
     </>

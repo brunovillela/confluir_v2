@@ -18,7 +18,7 @@ import { getSessaoPainel } from "@/lib/auth"
 import { hojeSP } from "@/lib/db/comum"
 import { oQueAcontece } from "@/lib/db/desistencia-coletiva"
 import { emailContatoEntidade } from "@/lib/db/organizacao"
-import { opcoesDaParte, rotasDesabilitadas, situacaoDoPortal } from "@/lib/db/portal-partes"
+import { bloqueioDaParte, opcoesDaParte, rotasDesabilitadas, situacaoDoPortal } from "@/lib/db/portal-partes"
 import { CONDICAO_COLETIVA, EM_ANDAMENTO_DESFILIACAO } from "@/lib/filiacao"
 import { formatarData } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
@@ -64,7 +64,7 @@ const ORIENTACAO_SEM_ATENDIMENTO =
 export default async function DesfiliacaoPortalPage() {
   const { filiado, preview } = await requireVisualizacaoPortal()
   const admin = await createAdminClient()
-  const [{ data }, opcoes, desligadas, email, situacao] = await Promise.all([
+  const [{ data }, opcoes, desligadas, email, situacao, pausaAtendimento] = await Promise.all([
     admin
       .from("filiacoes")
       .select("filiacao_condicao, filiacao_coletiva_prazo")
@@ -76,12 +76,19 @@ export default async function DesfiliacaoPortalPage() {
     rotasDesabilitadas().catch(() => [] as string[]),
     emailContatoEntidade().catch(() => null),
     situacaoDoPortal().catch(() => null),
+    // O Atendimento (ou o portal) suspenso recusa o pedido: o botão levaria a
+    // uma página de pausa. O primeiro acesso não conta — a marca da
+    // desfiliação o dispensa (MOTIVO_DESFILIACAO).
+    bloqueioDaParte("atendimento", undefined, { ignorarPrimeiroAcesso: true }).catch(() => null),
   ])
   // Portal fora do ar: esta página continua aberta, mas o Atendimento, O
   // sindicato, Meu cadastro e o Início levariam à página de manutenção — fica
   // o contato da entidade.
   const foraDoAr = situacao?.estado === "desabilitada"
-  const pedidoOnline = opcoes.solicitacao_online && !foraDoAr && !desligadas.includes("/portal/atendimento")
+  const atendimentoNoPortal = !foraDoAr && !desligadas.includes("/portal/atendimento")
+  // Suspenso (só ele ou o portal em consulta): sem o botão, com o porquê.
+  const atendimentoPausado = atendimentoNoPortal && pausaAtendimento !== null
+  const pedidoOnline = opcoes.solicitacao_online && atendimentoNoPortal && !atendimentoPausado
   const comSindicato = !foraDoAr && !desligadas.includes("/portal/sindicato")
   // O texto padrão fala do Atendimento: sem o botão, só vale o rito próprio
   // da entidade (ou a frase sem o Atendimento).
@@ -187,8 +194,14 @@ export default async function DesfiliacaoPortalPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3">
-            {/* Sem o botão (desligado ou sem Atendimento), o contato da
-                entidade: a desfiliação nunca fica sem caminho. */}
+            {/* Atendimento suspenso: por que o botão não está aqui. */}
+            {opcoes.solicitacao_online && atendimentoPausado && (
+              <p className="text-sm">
+                O pedido pelo Atendimento do portal está pausado. {pausaAtendimento}
+              </p>
+            )}
+            {/* Sem o botão (desligado, sem Atendimento ou com ele suspenso), o
+                contato da entidade: a desfiliação nunca fica sem caminho. */}
             {!pedidoOnline && (
               <p className="text-muted-foreground text-sm">
                 Dúvidas sobre como pedir? Fale com a secretaria

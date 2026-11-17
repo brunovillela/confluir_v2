@@ -218,14 +218,32 @@ export const pendenciasDoPrimeiroAcesso = cache(
  * requisição (sem cookies) ou com falha, não trava.
  */
 export async function bloqueioDoPrimeiroAcesso(): Promise<string | null> {
+  return (await primeiroAcessoDaSessao()).pendente ? MENSAGEM_PRIMEIRO_ACESSO : null
+}
+
+/**
+ * As pendências da pessoa EXIBIDA (a mesma régua de bloqueioDoPrimeiroAcesso),
+ * para as páginas que abrem antes do primeiro acesso e precisam dizer o que
+ * falta: Hospedagem e Eventos (só para cancelar) e a saída da Ajuda. Fora de
+ * requisição ou com falha, nada pendente.
+ */
+export async function primeiroAcessoDaSessao(): Promise<PendenciasPrimeiroAcesso> {
   try {
     const vis = await getVisualizacaoPortal()
-    if (!vis) return null
-    const p = await pendenciasDoPrimeiroAcesso(vis.filiado.cpf, vis.filiado.filiacaoId)
-    return p.pendente ? MENSAGEM_PRIMEIRO_ACESSO : null
+    if (!vis) return NADA
+    return await pendenciasDoPrimeiroAcesso(vis.filiado.cpf, vis.filiado.filiacaoId)
   } catch {
-    return null
+    return NADA
   }
+}
+
+/**
+ * A recusa do bloqueioDaParte veio do primeiro acesso (e não de uma pausa da
+ * parte ou do portal)? As páginas abertas só para cancelar trocam o texto da
+ * pausa pelo aviso de concluir o primeiro acesso.
+ */
+export function ehBloqueioDoPrimeiroAcesso(recusa: string | null | undefined): boolean {
+  return recusa === MENSAGEM_PRIMEIRO_ACESSO
 }
 
 /**

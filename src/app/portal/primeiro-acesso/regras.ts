@@ -16,10 +16,21 @@ export const ROTA_PRIMEIRO_ACESSO = "/portal/primeiro-acesso"
 /**
  * O que abre mesmo com o primeiro acesso pendente: a própria página, os dois
  * caminhos de cumpri-lo (Meu cadastro e Privacidade e dados), os direitos com
- * prazo (desistência da filiação coletiva, contribuição assistencial), o
- * desligar dos avisos e a Ajuda — e o pedido de desfiliação pelo
- * Atendimento, pela marca abaixo. "Sair" é da casca e nunca some. Rotas
- * públicas, fora de /portal, não passam pelo portão.
+ * prazo (desistência da filiação coletiva, contribuição assistencial e a
+ * Votação — decisão do Bruno, 16/11/2026: o voto tem prazo e não espera o
+ * termo nem o cadastro), o desligar dos avisos, a Ajuda e os canais de O
+ * sindicato (quem tem dúvida sobre o termo ou não consegue concluir precisa
+ * de a quem recorrer) — e o pedido de desfiliação pelo Atendimento, pela
+ * marca abaixo. "Sair" é da casca e nunca some. Rotas públicas, fora de
+ * /portal, não passam pelo portão.
+ *
+ * Hospedagem e Eventos abrem para CANCELAR o que já foi pedido (reserva que
+ * vira falta, inscrição que prende a vaga) — como com o portal fora do ar
+ * (ABERTOS_COM_PORTAL_FORA_DO_AR). Pedir, entrar na fila, confirmar vaga,
+ * inscrever-se e responder presença continuam recusados no servidor: essas
+ * partes NÃO estão entre as livres do bloqueioDaParte
+ * (src/lib/db/portal-partes.ts), e as páginas trocam esses botões pelo aviso
+ * de concluir o primeiro acesso (AvisoPrimeiroAcesso).
  */
 export const ROTAS_LIVRES_DO_PRIMEIRO_ACESSO: readonly string[] = [
   ROTA_PRIMEIRO_ACESSO,
@@ -27,8 +38,14 @@ export const ROTAS_LIVRES_DO_PRIMEIRO_ACESSO: readonly string[] = [
   "/portal/lgpd",
   "/portal/desfiliacao",
   "/portal/oposicao",
+  // Inteira (cédula, rodada, comprovante): votar grava, e a parte é livre também no servidor.
+  "/portal/votacao",
   "/portal/avisos/preferencias",
   "/portal/ajuda",
+  "/portal/sindicato",
+  // Só para cancelar (ver acima). O prefixo cobre /hospedagem/reserva/<id>.
+  "/portal/hospedagem",
+  "/portal/eventos",
 ]
 
 /**

@@ -3,7 +3,8 @@ import "server-only"
 import { cache } from "react"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
-import { esquemaAusente, hojeSP } from "@/lib/db/comum"
+import { esquemaAusente, hojeSP, nomesDosUsuarios } from "@/lib/db/comum"
+import { formatarDataHora } from "@/lib/formato"
 import {
   CHAVES_PARTES,
   definicaoDaParte,
@@ -151,8 +152,12 @@ export async function rotasDesabilitadas(amb?: Ambiente): Promise<string[]> {
 /**
  * Partes que o primeiro acesso pendente não trava: os caminhos de cumpri-lo
  * (Meu cadastro, Privacidade e dados), os direitos com prazo (Minha filiação,
- * contribuição assistencial), os avisos e a Ajuda — as mesmas rotas abertas
- * do portão (ROTAS_LIVRES_DO_PRIMEIRO_ACESSO).
+ * contribuição assistencial e a Votação — o voto grava sem esperar o termo
+ * nem o cadastro, decisão de 16/11/2026), os avisos, a Ajuda e O sindicato
+ * (só leitura).
+ * As rotas abertas do portão (ROTAS_LIVRES_DO_PRIMEIRO_ACESSO) incluem também
+ * Hospedagem e Eventos, mas só para cancelar: elas NÃO entram aqui, e pedir,
+ * confirmar vaga, inscrever-se e responder presença continuam recusados.
  */
 const LIVRES_DO_PRIMEIRO_ACESSO: readonly ChaveParte[] = [
   "portal",
@@ -161,8 +166,10 @@ const LIVRES_DO_PRIMEIRO_ACESSO: readonly ChaveParte[] = [
   "lgpd",
   "desfiliacao",
   "oposicao",
+  "votacao",
   "avisos",
   "ajuda",
+  "sindicato",
 ]
 
 /**
@@ -236,6 +243,13 @@ const DATA_ISO = /^\d{4}-\d{2}-\d{2}$/
  * Grava o estado e as opções de uma parte (upsert por entidade + parte).
  * Valida aqui o que é regra, não tela: estado permitido pela parte, retorno
  * no futuro e Atendimento + O sindicato nunca desabilitados juntos.
+ *
+ * `versaoLida`: quando a parte tinha sido gravada pela última vez na página
+ * que enviou ("" = nunca). O formulário grava a parte INTEIRA — estado,
+ * aviso, volta e opções —, então página aberta há tempo desfaria em silêncio
+ * o que outra pessoa salvou depois (ex.: tirar o portal do modo de consulta
+ * ao mudar só o aviso da entrada). Diferente do gravado, recusa. null = não
+ * confere.
  */
 export async function salvarParte(p: {
   parte: ChaveParte
@@ -244,6 +258,7 @@ export async function salvarParte(p: {
   retornoPrevisto: string | null
   opcoes: unknown
   usuarioId: string
+  versaoLida?: string | null
 }): Promise<{ erro?: string; campo?: string }> {
   const def = definicaoDaParte(p.parte)
   if (!estadosPermitidos(def).includes(p.estado)) {
@@ -262,6 +277,18 @@ export async function salvarParte(p: {
   // uma parte desligada, e as regras abaixo seriam conferidas contra o padrão.
   if (!atual.lida) {
     return { erro: "Não foi possível ler a configuração atual do portal. Recarregue a página e tente de novo." }
+  }
+  const gravada = atual.partes[p.parte]
+  if (p.versaoLida != null && (gravada.atualizadaEm ?? "") !== p.versaoLida) {
+    const autor = gravada.atualizadaPor
+      ? (await nomesDosUsuarios([gravada.atualizadaPor]).catch(() => new Map<string, string>())).get(
+          gravada.atualizadaPor
+        )
+      : undefined
+    const quando = gravada.atualizadaEm ? ` em ${formatarDataHora(gravada.atualizadaEm)}` : ""
+    return {
+      erro: `${autor ?? "Outra pessoa"} salvou “${def.titulo}”${quando}, depois que esta página foi aberta. Recarregue a página para ver o que está valendo e refaça a sua mudança.`,
+    }
   }
   if (p.estado === "desabilitada" && (p.parte === "atendimento" || p.parte === "sindicato")) {
     const outra = p.parte === "atendimento" ? "sindicato" : "atendimento"

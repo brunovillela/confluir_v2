@@ -27,8 +27,11 @@ import { Paginacao } from "@/components/paginacao"
 import { AvisoDaUrl } from "@/components/portal/aviso-da-url"
 import { CabecalhoPagina } from "@/components/portal/cabecalho-pagina"
 import { EstadoVazio } from "@/components/portal/estado-vazio"
+import { AvisoPrimeiroAcesso } from "@/components/portal/aviso-primeiro-acesso"
 import { paginaIndisponivel } from "@/components/portal/guarda-parte"
 import { LembrarListaPortal } from "@/components/portal/voltar-portal"
+import { resumoDoPrimeiroAcesso } from "@/app/portal/primeiro-acesso/regras"
+import { ehBloqueioDoPrimeiroAcesso, primeiroAcessoDaSessao } from "@/lib/db/portal-primeiro-acesso"
 import { requireVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 import {
   cadastroDoFiliado,
@@ -137,7 +140,9 @@ function Recolhido({ titulo, children }: { titulo: string; children: React.React
  * abaixo, só o que ainda se cancela (SoOQueSeCancela) — sem gravar nada;
  * suspensa — ou o portal em consulta ou fora do ar —, somem o pedido, a fila e
  * o "Confirmar" das vagas, e ficam histórico, QR e os cancelamentos (cancelar
- * evita a falta).
+ * evita a falta). O primeiro acesso pendente faz o mesmo (a página abre só
+ * para cancelar — ROTAS_LIVRES_DO_PRIMEIRO_ACESSO), com o aviso de concluí-lo
+ * no topo no lugar da pausa.
  */
 export default async function PortalHospedagemPage({
   searchParams,
@@ -157,6 +162,13 @@ export default async function PortalHospedagemPage({
     estadoDaParte("atendimento").catch(() => "habilitada" as const),
   ])
   const mostrarPago = parte?.opcoes.mostrar_pago ?? true
+  // Primeiro acesso pendente: o que falta (o aviso do topo) e, no lugar da
+  // pausa, a remissão a ele nos pedidos e nas vagas.
+  const resumoPrimeiroAcesso = ehBloqueioDoPrimeiroAcesso(suspensao)
+    ? resumoDoPrimeiroAcesso(await primeiroAcessoDaSessao())
+    : null
+  const pausa =
+    resumoPrimeiroAcesso !== null ? "Conclua antes o primeiro acesso — veja o aviso no topo da página." : suspensao
   const params = await searchParams
   const { salvo } = params
   const agora = new Date()
@@ -283,6 +295,15 @@ export default async function PortalHospedagemPage({
         subtitulo="Cupons de hospedagem subsidiada nos hotéis parceiros do sindicato."
       />
 
+      {resumoPrimeiroAcesso !== null && (
+        <AvisoPrimeiroAcesso
+          resumo={resumoPrimeiroAcesso}
+          destino="/portal/hospedagem"
+          aqui="Aqui você consulta e cancela as suas reservas e sai da lista de espera."
+          para="pedir hospedagem ou confirmar uma vaga"
+        />
+      )}
+
       {salvo === "1" && (
         <AvisoDaUrl parametros={["salvo", "hotel"]}>
           <Alert variant="success">
@@ -317,7 +338,7 @@ export default async function PortalHospedagemPage({
               ; sem confirmação, passa para a próxima pessoa da lista.
             </p>
             {/* Suspensa: confirmar não dá; recusar, sim (libera a vaga para outra pessoa). */}
-            {suspensao && <p>Não é possível confirmar agora. {suspensao}</p>}
+            {pausa && <p>Não é possível confirmar agora. {pausa}</p>}
             <AcaoVisualizacao preview={preview} nota="Somente o próprio associado pode confirmar.">
               <div className="flex flex-wrap items-center gap-2">
                 {!suspensao && <ConfirmarOfertaBotao token={e.token} />}
@@ -339,7 +360,10 @@ export default async function PortalHospedagemPage({
         hoje={hoje}
         agora={agora.toISOString()}
         preview={preview}
-        suspensao={suspensao}
+        suspensao={pausa}
+        tituloSuspensao={
+          resumoPrimeiroAcesso !== null ? "Novos pedidos esperam o primeiro acesso" : undefined
+        }
         atendimento={estadoAtendimento !== "desabilitada"}
         bloqueio={bloqueio}
         travaAvaliacao={travaAvaliacao}

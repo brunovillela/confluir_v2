@@ -99,6 +99,7 @@ export function SolicitarCupomForm({
   agora,
   preview = false,
   suspensao = null,
+  tituloSuspensao = "Novos pedidos estão suspensos",
   atendimento = true,
   bloqueio = null,
   travaAvaliacao = null,
@@ -116,6 +117,8 @@ export function SolicitarCupomForm({
   preview?: boolean
   /** Pedidos parados (Área do associado): o texto da recusa, o mesmo da action. */
   suspensao?: string | null
+  /** O título do aviso dos pedidos parados (o primeiro acesso pendente tem o seu). */
+  tituloSuspensao?: string
   /** O Atendimento está no portal: os "peça em Atendimento" viram link. */
   atendimento?: boolean
   /** Condição da entidade que vale para qualquer data (lista, fonte, regime). */
@@ -192,7 +195,7 @@ export function SolicitarCupomForm({
 
         {suspensao ? (
           <Alert variant="info">
-            <AlertTitle>Novos pedidos estão suspensos</AlertTitle>
+            <AlertTitle>{tituloSuspensao}</AlertTitle>
             <AlertDescription>
               <p>{suspensao}</p>
               <p>

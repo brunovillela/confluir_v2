@@ -11,9 +11,10 @@ import { Button } from "@/components/ui/button"
  * Primeiro acesso pendente (Filiados › Área do associado › Primeiro acesso):
  * no lugar do conteúdo, o convite para concluí-lo, levando a página de agora
  * como destino. As rotas que abrem de qualquer jeito (o próprio primeiro
- * acesso, Meu cadastro, Privacidade e dados, os direitos com prazo, as
- * preferências de avisos, a Ajuda e o pedido de desfiliação pelo
- * Atendimento) passam direto.
+ * acesso, Meu cadastro, Privacidade e dados, os direitos com prazo — entre
+ * eles a Votação —, as preferências de avisos, a Ajuda, O sindicato, o
+ * pedido de desfiliação pelo Atendimento e, só para cancelar, Hospedagem e
+ * Eventos) passam direto — ver ROTAS_LIVRES_DO_PRIMEIRO_ACESSO.
  *
  * A escolha é no cliente, pelo caminho atual, como no PortalForaDoAr: o
  * layout não re-renderiza ao navegar. As ações que concluem um passo

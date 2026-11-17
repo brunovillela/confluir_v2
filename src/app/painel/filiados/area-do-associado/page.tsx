@@ -188,6 +188,7 @@ function CartaoParte({
             }}
             amanha={amanha}
             ultimaAlteracao={ultimaAlteracao}
+            versao={cfg.atualizadaEm ?? ""}
             disponivel={disponivel}
             lida={lida}
           />

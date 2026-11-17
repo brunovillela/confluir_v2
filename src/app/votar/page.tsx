@@ -64,11 +64,12 @@ export default async function VotacoesPage({
   const canalAviso = user ? `no e-mail ${mascararEmail(user.email ?? "")}` : tg ? "no Telegram" : null
   const faltaVinculo = votacoes.some((v) => !v.somenteFiliados && !vinculos.has(v.assembleiaId))
   // As votações só de filiados mandam à Votação do portal — a menos que ela
-  // (ou o portal inteiro) esteja desabilitada em Filiados › Área do
-  // associado: aí o caminho é o link pessoal do e-mail. Na dúvida, o portal.
+  // (ou o portal inteiro) esteja suspensa ou desabilitada em Filiados › Área
+  // do associado: suspensa, o portal recusa o voto (modo de consulta); aí o
+  // caminho é o link pessoal do e-mail. Na dúvida, o portal.
   const votacaoNoPortal = votacoes.some((v) => v.somenteFiliados)
     ? await configDoPortal()
-        .then((c) => c.partes.portal.estado !== "desabilitada" && c.partes.votacao.estado !== "desabilitada")
+        .then((c) => c.partes.portal.estado === "habilitada" && c.partes.votacao.estado === "habilitada")
         .catch(() => true)
     : true
 

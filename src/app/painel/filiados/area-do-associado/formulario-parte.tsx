@@ -72,6 +72,7 @@ export function FormularioParte({
   inicial,
   amanha,
   ultimaAlteracao,
+  versao,
   disponivel,
   lida = true,
 }: {
@@ -81,6 +82,12 @@ export function FormularioParte({
   amanha: string
   /** "Última alteração: … por …", ou null quando nunca foi gravada. */
   ultimaAlteracao: string | null
+  /**
+   * Quando a parte foi gravada pela última vez ("" = nunca), como a página a
+   * leu. Vai num campo oculto: salvar recusa se outra pessoa gravou a parte
+   * depois — o formulário inteiro (estado, aviso, opções) iria por cima.
+   */
+  versao: string
   /** false: falta rodar o SQL — dá para ver, não para salvar. */
   disponivel: boolean
   /**
@@ -132,6 +139,8 @@ export function FormularioParte({
       }}
     >
       <input type="hidden" name="parte" value={chave} />
+      {/* Da prop, não de estado: acompanha a página revalidada depois de salvar. */}
+      <input type="hidden" name="versao" value={versao} />
 
       {permitidos.length > 1 ? (
         <fieldset className="grid gap-2" aria-invalid={invalido("estado") || undefined}>
