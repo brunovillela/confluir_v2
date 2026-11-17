@@ -48,12 +48,34 @@ export type RemessaPontoFormDados = {
   itens: number
 }
 
-export function RemessaPontoForm({ remessa }: { remessa?: RemessaPontoFormDados }) {
+export function RemessaPontoForm({
+  remessa,
+  aConferir,
+}: {
+  remessa?: RemessaPontoFormDados
+  /** Fila "Dias para conferir" da remessa aberta: avisa antes de finalizar. */
+  aConferir?: { dias: number; incompletos: number }
+}) {
   const [estado, formAction, pendente] = useActionState(
     remessa ? atualizarRemessaPonto : criarRemessaPonto,
     {}
   )
-  const envio = useEnvioFormulario(formAction, estado)
+  const envio = useEnvioFormulario(formAction, estado, {
+    // Finalizar com dias por conferir: depois, as horas só mudam reabrindo a remessa.
+    antes: (e) => {
+      const finalizando = remessa?.finalizada !== true && new FormData(e.currentTarget).get("finalizada") === "on"
+      if (!finalizando || !aConferir?.dias) return
+      confirmarEnvio(e, {
+        titulo: "Finalizar com dias por conferir?",
+        descricao:
+          `Há ${aConferir.dias} dia(s) com alerta nas marcações sem ajuste nem conferência` +
+          (aConferir.incompletos ? `, ${aConferir.incompletos} deles com marcação incompleta (que contam a menos se as horas forem recalculadas)` : "") +
+          ". Depois de finalizada, as horas só mudam reabrindo a remessa. Confira na aba Indicadores e resenha → Dias para conferir.",
+        confirmar: "Finalizar mesmo assim",
+        cancelar: "Voltar e conferir",
+      })
+    },
+  })
   const [estadoExcluir, excluirAction, excluindo] = useActionState(
     excluirRemessaPonto,
     {}

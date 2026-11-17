@@ -5,7 +5,7 @@ import { extractText, getDocumentProxy } from "unpdf"
 
 import { esquemaAusente, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { gerarJsonIADePdf, type EsquemaJsonIA } from "@/lib/ia"
-import { mesclarLeitura, type AjusteMarcacao, type MarcacoesEspelho } from "@/lib/ponto-marcacoes-ajuste"
+import { mesclarLeitura, mesmoDia, type AjusteMarcacao, type MarcacoesEspelho } from "@/lib/ponto-marcacoes-ajuste"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
@@ -436,7 +436,8 @@ export async function meusAjustesDePonto(usuarioId: string): Promise<AjustesDoMe
     .range(0, 999)
   if (error) return []
   const comAjuste = ((data ?? []) as { id: string; remessa_id: string; marcacoes: MarcacoesEspelho | null }[])
-    .map((r) => ({ ...r, ajustes: (r.marcacoes?.ajustes ?? []).filter((a) => a.tipo !== "conferido") }))
+    // Conferência, e desfazer uma conferência, não mudam nada: ficam de fora.
+    .map((r) => ({ ...r, ajustes: (r.marcacoes?.ajustes ?? []).filter((a) => a.tipo !== "conferido" && !mesmoDia(a.antes, a.depois)) }))
     .filter((r) => r.ajustes.length > 0)
   if (comAjuste.length === 0) return []
   const { data: rems } = await admin

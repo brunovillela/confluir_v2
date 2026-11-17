@@ -75,6 +75,15 @@ export function lerBatidas(texto: string): { batidas: string[] } | { erro: strin
   return { batidas }
 }
 
+/** Mesmas batidas e ocorrência (null = o dia não existe). */
+export function mesmoDia(
+  a: { ocorrencia: string | null; marcacoes: string[] } | null,
+  b: { ocorrencia: string | null; marcacoes: string[] } | null
+): boolean {
+  if (!a || !b) return a === b
+  return a.ocorrencia === b.ocorrencia && a.marcacoes.join(" ") === b.marcacoes.join(" ")
+}
+
 const copia = (d: DiaMarcado | undefined) => (d ? { ocorrencia: d.ocorrencia, marcacoes: [...d.marcacoes] } : null)
 
 export const vazio = (): MarcacoesEspelho => ({ departamento: null, carga_diaria: null, dias: [], ajustes: [] })

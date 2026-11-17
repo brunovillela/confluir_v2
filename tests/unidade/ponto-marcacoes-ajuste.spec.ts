@@ -6,6 +6,7 @@ import {
   desfazerAjustes,
   lerBatidas,
   lidoOriginal,
+  mesmoDia,
   mesclarLeitura,
   textoDiaMarcado,
   type MarcacoesEspelho,
@@ -95,5 +96,13 @@ test.describe("ajuste das marcações do espelho", () => {
     expect(descreverAjuste(m.ajustes!.at(-1)!)).toBe("incluído: Folga")
     m = desfazerAjustes(m, "2026-03-02", quem)
     expect(descreverAjuste(m.ajustes!.at(-1)!)).toBe("voltou ao que o espelho trazia (08:00 12:00 13:00 11:30)")
+  })
+
+  test("mesmo dia: batidas e ocorrência iguais", () => {
+    const a = { ocorrencia: null, marcacoes: ["08:00", "17:00"] }
+    expect(mesmoDia(a, { ocorrencia: null, marcacoes: ["08:00", "17:00"] })).toBe(true)
+    expect(mesmoDia(a, { ocorrencia: "Feriado", marcacoes: ["08:00", "17:00"] })).toBe(false)
+    expect(mesmoDia(a, null)).toBe(false)
+    expect(mesmoDia(null, null)).toBe(true)
   })
 })

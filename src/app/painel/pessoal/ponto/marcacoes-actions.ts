@@ -9,7 +9,8 @@ import { regrasApuracaoPonto } from "@/lib/db/ponto-config"
 import { jornadaDoFuncionario } from "@/lib/db/pessoal-sst"
 import { duasCasas } from "@/lib/horas"
 import { apurarMes } from "@/lib/ponto-apuracao"
-import { aplicarAjuste, conferirDia, desfazerAjustes, lerBatidas, type MarcacoesEspelho } from "@/lib/ponto-marcacoes-ajuste"
+import { avisar, depoisDaResposta } from "@/lib/db/avisos"
+import { aplicarAjuste, conferirDia, desfazerAjustes, lerBatidas, mesmoDia, type MarcacoesEspelho } from "@/lib/ponto-marcacoes-ajuste"
 import { escolherJornada, leituraDasMarcacoes } from "@/lib/ponto-recalculo"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -28,7 +29,7 @@ async function registroDaEntidade(registroId: string) {
   const admin = await createAdminClient()
   const { data: reg } = await admin
     .from("pessoal_registro_ponto")
-    .select("id, funcionario_id, remessa_id, marcacoes")
+    .select("id, funcionario_id, remessa_id, marcacoes, liberado")
     .eq("id", registroId)
     .maybeSingle()
   if (!reg) return null
@@ -39,6 +40,40 @@ async function registroDaEntidade(registroId: string) {
     .maybeSingle()
   if (!rem || String(rem.emp_proprietaria_id) !== (await tenantAtual())) return null
   return { admin, reg }
+}
+
+/** Começo fixo do aviso: com `umaVezPorDia`, vários ajustes no mesmo dia viram um aviso só. */
+const AVISO_AJUSTE = "O departamento de pessoal ajustou marcações do seu controle de ponto"
+
+/**
+ * Mês já liberado ao funcionário: avisa que houve ajuste (sino, e-mail,
+ * Telegram e celular, conforme as preferências de "ponto"). Sem horários na
+ * mensagem — o antes e o depois ficam em Meu perfil → Ponto.
+ */
+function avisarFuncionario(reg: Record<string, unknown>) {
+  if (reg.liberado !== true || !reg.funcionario_id) return
+  const funcionarioId = String(reg.funcionario_id)
+  depoisDaResposta(async () => {
+    const admin = await createAdminClient()
+    const [{ data: u }, { data: rem }] = await Promise.all([
+      admin.from("usuarios").select("id, nome_completo, nome_guerra, email").eq("id", funcionarioId).maybeSingle(),
+      admin.from("pessoal_registro_ponto_remessas").select("nome_remessa").eq("id", String(reg.remessa_id)).maybeSingle(),
+    ])
+    if (!u) return
+    const remessa = (rem?.nome_remessa as string | null) ?? null
+    await avisar(
+      [{ id: funcionarioId, nome: (u.nome_completo ?? u.nome_guerra ?? null) as string | null, email: (u.email ?? null) as string | null, permissoes: {} }],
+      {
+        texto: `${AVISO_AJUSTE}${remessa ? ` (${remessa})` : ""}. Veja como estava e como ficou em Meu perfil → Ponto.`,
+        link: "/painel/perfil/ponto",
+        evento: "ponto",
+        assunto: "Ajuste nas suas marcações de ponto",
+        umaVezPorDia: true,
+        prefixoDoDia: AVISO_AJUSTE,
+        chaveEntrega: `ponto-ajuste:${String(reg.id)}`,
+      }
+    )
+  })
 }
 
 function revalidar(funcionarioId: string, registroId: string, remessaId: string) {
@@ -83,6 +118,7 @@ export async function salvarDiaMarcacaoAction(_prev: EstadoForm, formData: FormD
   const { error } = await admin.from("pessoal_registro_ponto").update({ marcacoes: novo }).eq("id", registroId)
   if (error) return { erro: `Não foi possível salvar: ${error.message}` }
   revalidar(String(reg.funcionario_id), registroId, String(reg.remessa_id))
+  avisarFuncionario(reg)
   const dia = data.split("-").reverse().slice(0, 2).join("/")
   return { ok: retirar ? `Dia ${dia} retirado das marcações.` : `Marcações de ${dia} salvas.` }
 }
@@ -106,6 +142,8 @@ export async function desfazerAjusteDiaAction(_prev: EstadoForm, formData: FormD
   const { error } = await admin.from("pessoal_registro_ponto").update({ marcacoes: novo }).eq("id", registroId)
   if (error) return { erro: `Não foi possível desfazer: ${error.message}` }
   revalidar(String(reg.funcionario_id), registroId, String(reg.remessa_id))
+  const ultimo = novo.ajustes?.at(-1)
+  if (ultimo && !mesmoDia(ultimo.antes, ultimo.depois)) avisarFuncionario(reg)
   return { ok: "O dia voltou ao que o espelho trazia." }
 }
 

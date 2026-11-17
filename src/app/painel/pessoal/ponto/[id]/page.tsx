@@ -293,7 +293,7 @@ export default async function RemessaPontoPage({
       )}
 
       {editandoRemessa ? (
-        <RemessaPontoForm remessa={remessa} />
+        <RemessaPontoForm remessa={remessa} aConferir={remessa.finalizada === true ? undefined : await resumoAConferir(id)} />
       ) : naAnalise ? (
         <AnaliseDaRemessa remessaId={id} filtroConferir={paramsBusca.conferir} />
       ) : (
@@ -607,6 +607,13 @@ export default async function RemessaPontoPage({
       )}
     </>
   )
+}
+
+/** Para o aviso ao finalizar: dias da fila de conferência e, deles, os de marcação incompleta. */
+async function resumoAConferir(remessaId: string): Promise<{ dias: number; incompletos: number }> {
+  const fila = await diasParaConferir(remessaId).catch(() => [])
+  const dias = fila.flatMap((p) => p.dias)
+  return { dias: dias.length, incompletos: dias.filter((d) => d.alertas.includes("Marcação incompleta")).length }
 }
 
 async function AnaliseDaRemessa({ remessaId, filtroConferir }: { remessaId: string; filtroConferir?: string }) {

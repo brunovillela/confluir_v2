@@ -13,6 +13,8 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 - Aquisição, página da compra: na área do Pagamento, cada ordem tem os links Ver boleto (quando a forma é boleto) e Ver nota — a nota do pagamento ou, sem ela, a da compra.
 - Aquisição, nova compra: ao sair do campo Produto ou serviço, o sistema confere a descrição com os mesmos critérios da auditoria das ordens e avisa o que ela apontaria (falta a quantidade, a finalidade…), antes de gravar. O Melhorar com IA passa a redigir com os critérios que a entidade configurou.
 - Contratos: novo cartão Recorrentes sem contrato — fornecedores com 3 compras avulsas ou mais nos últimos meses que, somadas, chegam ao limite da aquisição direta e não têm contrato em uso. Mostra onde vale firmar contrato ou tabela de preços; marketplaces ficam de fora.
+- Controle de ponto: ao marcar a remessa como finalizada com dias ainda por conferir nas marcações, a tela avisa quantos são (e quantos têm marcação incompleta) e pergunta antes — depois de finalizada, as horas só mudam reabrindo a remessa.
+- Meu perfil → Ponto: quando o departamento de pessoal ajusta marcações de um mês já liberado, o funcionário recebe um aviso (sino e, se ligado "Espelho de ponto liberado" em Meu perfil → Avisos, e-mail, Telegram ou celular), sem horários na mensagem; vários ajustes no mesmo dia viram um aviso só.
 
 ## 16/11/2026 — Ponto: comparação entre anos, relatório por funcionário e ajuste das marcações
 
