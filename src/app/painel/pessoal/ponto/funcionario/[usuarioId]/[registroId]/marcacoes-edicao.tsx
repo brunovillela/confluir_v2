@@ -1,7 +1,7 @@
 "use client"
 
 import { Fragment, useActionState, useState } from "react"
-import { Loader2, Pencil, Plus, RotateCcw, Save, Trash2, X } from "lucide-react"
+import { CheckCheck, Loader2, Pencil, Plus, RotateCcw, Save, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
@@ -23,6 +23,7 @@ export type DiaEdicao = {
   intervaloMin: number | null
   alertas: string[]
   ajustado: boolean
+  conferido: boolean
   /** Texto do que o espelho trazia, para o título do selo "Ajustado". */
   original: string | null
 }
@@ -53,21 +54,24 @@ export function MarcacoesEdicao({
   registroId,
   competencia,
   dias,
+  abrir,
 }: {
   registroId: string
   /** AAAA-MM: o dia incluído precisa ser deste mês. */
   competencia: string
   dias: DiaEdicao[]
+  /** Dia (AAAA-MM-DD) que já abre em edição — o link da fila "Dias para conferir". */
+  abrir?: string
 }) {
-  const [editando, setEditando] = useState<string | null>(null)
+  const [editando, setEditando] = useState<string | null>(abrir && dias.some((d) => d.data === abrir) ? abrir : null)
   const [incluindo, setIncluindo] = useState(false)
 
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-muted-foreground text-xs">
-          Corrija um dia lido errado ou inclua um que faltou. As horas lançadas no registro não mudam: as marcações
-          alimentam os alertas e os indicadores.
+          Corrija um dia lido errado, inclua um que faltou ou confirme um alerta que é real. Os alertas e os
+          indicadores usam o que ficar aqui; para as horas do registro, use Recalcular pelas marcações.
         </p>
         {!incluindo && (
           <Button
@@ -114,7 +118,10 @@ export function MarcacoesEdicao({
             <TableBody>
               {dias.map((d) => (
                 <Fragment key={d.data}>
-                  <TableRow className={d.alertas.length ? "bg-warning/5" : d.marcacoes.length ? "" : "text-muted-foreground"}>
+                  <TableRow
+                    id={`dia-${d.data}`}
+                    className={`scroll-mt-24 ${d.alertas.length && !d.conferido ? "bg-warning/5" : d.marcacoes.length ? "" : "text-muted-foreground"}`}
+                  >
                     <TableCell className="whitespace-nowrap tabular-nums">
                       {ddmm(d.data)} {d.diaSemana}
                     </TableCell>
@@ -126,6 +133,11 @@ export function MarcacoesEdicao({
                       {d.ajustado && (
                         <Badge variant="info" className="ml-2" title={d.original ? `No espelho: ${d.original}` : "Dia incluído à mão"}>
                           {d.original ? "Ajustado" : "Incluído"}
+                        </Badge>
+                      )}
+                      {d.conferido && (
+                        <Badge variant="success" className="ml-2" title="Conferido como está: o alerta é real">
+                          Conferido
                         </Badge>
                       )}
                     </TableCell>
@@ -156,7 +168,9 @@ export function MarcacoesEdicao({
                           <Pencil />
                         </Button>
                       )}
-                      {d.ajustado && <DesfazerBotao registroId={registroId} data={d.data} incluido={!d.original} />}
+                      {(d.ajustado || d.conferido) && (
+                        <DesfazerBotao registroId={registroId} data={d.data} incluido={d.ajustado && !d.original} />
+                      )}
                     </TableCell>
                   </TableRow>
                   {editando === d.data && (
@@ -282,6 +296,20 @@ function FormDia({
           {pendente ? <Loader2 className="animate-spin" /> : <Save />}
           {novo ? "Incluir" : "Salvar"}
         </Button>
+        {!novo && dia && dia.alertas.length > 0 && !dia.conferido && (
+          <Button
+            type="submit"
+            size="sm"
+            variant="outline"
+            name="conferir"
+            value="1"
+            disabled={pendente}
+            title="O alerta é real: o dia fica como está e sai da fila de conferência"
+          >
+            <CheckCheck />
+            Está certo como está
+          </Button>
+        )}
         {!novo && (
           <Button type="submit" size="sm" variant="outline" name="retirar" value="1" disabled={pendente}>
             <Trash2 />
@@ -349,6 +377,28 @@ export function DesfazerBotao({
           {pendente ? <Loader2 className="animate-spin" /> : <RotateCcw />}
         </Button>
       )}
+    </form>
+  )
+}
+
+/** Na fila "Dias para conferir": confirma o dia como está, sem abrir a página. */
+export function ConferirDiaBotao({ registroId, data }: { registroId: string; data: string }) {
+  const [estado, formAction, pendente] = useActionState<EstadoForm, FormData>(async (anterior, dados) => {
+    const r = await salvarDiaMarcacaoAction(anterior, dados)
+    if (r.ok) toast.success(r.ok)
+    if (r.erro) toast.error(r.erro)
+    return r
+  }, {})
+  if (estado.ok) return <span className="text-muted-foreground text-xs">conferido</span>
+  return (
+    <form action={formAction} className="inline">
+      <input type="hidden" name="registro_id" value={registroId} />
+      <input type="hidden" name="data" value={data} />
+      <input type="hidden" name="conferir" value="1" />
+      <Button type="submit" variant="ghost" size="sm" className="h-7" disabled={pendente} title="O alerta é real: sai da fila">
+        {pendente ? <Loader2 className="animate-spin" /> : <CheckCheck />}
+        Está certo
+      </Button>
     </form>
   )
 }

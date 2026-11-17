@@ -21,6 +21,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 
 import { horas } from "../../../analise/componentes"
 import { DesfazerBotao, MarcacoesEdicao } from "./marcacoes-edicao"
+import { RecalcularHoras } from "./recalcular-horas"
 
 export const metadata: Metadata = { title: "Registro de ponto — Confluir" }
 
@@ -37,11 +38,13 @@ export default async function RegistroPontoPage({
   searchParams,
 }: {
   params: Promise<{ usuarioId: string; registroId: string }>
-  searchParams: Promise<{ de?: string }>
+  searchParams: Promise<{ de?: string; ajustar?: string }>
 }) {
   const sessao = await requirePermissao("pessoal_gestao")
   const { usuarioId, registroId } = await params
-  const deRemessa = (await searchParams).de === "remessa"
+  const sp = await searchParams
+  const deRemessa = sp.de === "remessa"
+  const abrirDia = /^\d{4}-\d{2}-\d{2}$/.test(sp.ajustar ?? "") ? sp.ajustar : undefined
   const admin = await createAdminClient()
   const [funcionario, base, { data: reg }] = await Promise.all([
     funcionarioDaArea(usuarioId),
@@ -209,6 +212,16 @@ export default async function RegistroPontoPage({
               <p className="text-lg font-semibold tabular-nums">{horas(Number(v ?? 0))}</p>
             </div>
           ))}
+          {dias.length > 0 && (
+            <div className="sm:col-span-2 lg:col-span-4">
+              <RecalcularHoras
+                registroId={registroId}
+                faixa1={base.faixas["70"]}
+                faixa2={base.faixas["100"]}
+                bloqueado={remessa?.finalizada === true}
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -247,6 +260,7 @@ export default async function RegistroPontoPage({
           <MarcacoesEdicao
             registroId={registroId}
             competencia={comp}
+            abrir={abrirDia}
             dias={dias.map((d) => {
               const original = d.ajustado ? lidoOriginal(marcacoes, d.data) : undefined
               return { ...d, original: original ? textoDia(original) : null }
@@ -259,7 +273,7 @@ export default async function RegistroPontoPage({
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Ajustes nas marcações</CardTitle>
-            <CardDescription>O que foi corrigido, incluído ou retirado à mão, com o que era antes. Mais recente primeiro.</CardDescription>
+            <CardDescription>O que foi corrigido, incluído, retirado ou conferido à mão, com o que era antes. Mais recente primeiro.</CardDescription>
           </CardHeader>
           <CardContent>
             <ul className="grid gap-2 text-sm">
@@ -267,7 +281,9 @@ export default async function RegistroPontoPage({
                 <li key={i} className="rounded-md border px-3 py-2">
                   <span className="font-medium tabular-nums">{formatarData(a.data).slice(0, 5)}</span>
                   {" · "}
-                  {a.tipo === "desfeito"
+                  {a.tipo === "conferido"
+                    ? `conferido como está (${a.depois ? textoDia(a.depois) : "—"})`
+                    : a.tipo === "desfeito"
                     ? `voltou ao que o espelho trazia (${a.depois ? textoDia(a.depois) : "sem o dia"})`
                     : !a.depois
                       ? `retirado (era ${a.antes ? textoDia(a.antes) : "—"})`

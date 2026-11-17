@@ -2,7 +2,7 @@ import "server-only"
 
 import { extractText, getDocumentProxy } from "unpdf"
 
-import { esquemaAusente, texto } from "@/lib/db/comum"
+import { esquemaAusente, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { gerarJsonIADePdf, type EsquemaJsonIA } from "@/lib/ia"
 import { mesclarLeitura, type MarcacoesEspelho } from "@/lib/ponto-marcacoes-ajuste"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -45,10 +45,18 @@ const ESQUEMA: EsquemaJsonIA = {
   schema: {
     type: "object",
     additionalProperties: false,
-    required: ["departamento", "carga_diaria", "dias"],
+    required: ["departamento", "carga_diaria", "jornada", "dias"],
     properties: {
       departamento: { type: ["string", "null"] },
       carga_diaria: { type: ["string", "null"] },
+      jornada: {
+        type: "object",
+        additionalProperties: false,
+        required: ["dom", "seg", "ter", "qua", "qui", "sex", "sab"],
+        properties: Object.fromEntries(
+          ["dom", "seg", "ter", "qua", "qui", "sex", "sab"].map((k) => [k, { type: "array", items: { type: "string" } }])
+        ),
+      },
       dias: {
         type: "array",
         items: {
@@ -72,6 +80,7 @@ Regras:
 - "marcacoes": os horários batidos (ENTRADA 1, SAÍDA 1, ENTRADA 2, SAÍDA 2, ENTRADA 3, SAÍDA 3) na ordem, formato HH:MM. Não inclua as colunas de totais (NORMAIS, BTOTAL, FALTAS, EXTRAS, BSALDO, NOT.), nem saldos como "+05:01". Horário seguido de asterisco ou marcado como incluído manualmente conta como batida.
 - "ocorrencia": quando o dia traz uma palavra em vez de horários (Feriado, Férias, Falta, Atestado, Folga, Compensado, Recesso, DSR, Abonado…), coloque essa palavra; senão null. Se houver horários E a palavra Feriado, mantenha os dois.
 - "departamento": o campo DEPARTAMENTO do cabeçalho; "carga_diaria": a carga de segunda-feira no quadro HORÁRIO DE TRABALHO (HH:MM). null se não houver.
+- "jornada": o quadro HORÁRIO DE TRABALHO, um item por dia da semana (dom, seg, ter, qua, qui, sex, sab) com os horários previstos em ordem (ENTRADA 1, SAÍDA 1, ENTRADA 2, SAÍDA 2…), HH:MM. Se o quadro trouxer só a carga do dia (um valor), devolva só ele. Dia sem horário ou com 00:00: [].
 Não invente horários: dia sem batida tem "marcacoes": [].`
 
 /** Lê o espelho de um registro e guarda as marcações. */
@@ -121,9 +130,17 @@ export async function lerEspelhoDoRegistro(registroId: string): Promise<{ erro?:
 
 function normalizar(m: MarcacoesEspelho): MarcacoesEspelho {
   const hora = /^([01]?\d|2[0-3]):[0-5]\d$/
+  const quadro = ((m as unknown as { jornada?: Record<string, unknown> }).jornada ?? {}) as Record<string, unknown>
+  const jornada = ["dom", "seg", "ter", "qua", "qui", "sex", "sab"].map((k) =>
+    (Array.isArray(quadro[k]) ? (quadro[k] as unknown[]) : [])
+      .map((h) => String(h).trim())
+      .filter((h) => hora.test(h))
+      .map((h) => h.padStart(5, "0"))
+  )
   return {
     departamento: texto(m.departamento),
     carga_diaria: texto(m.carga_diaria),
+    jornada,
     dias: (Array.isArray(m.dias) ? m.dias : [])
       .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(String(d.data ?? "")))
       .map((d) => ({
@@ -285,6 +302,8 @@ export type DiaDetalhado = {
   alertas: string[]
   /** Corrigido ou incluído à mão pela gestão de pessoal. */
   ajustado: boolean
+  /** Conferido como está (o alerta é real). */
+  conferido: boolean
 }
 
 const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
@@ -313,6 +332,48 @@ export function detalharDias(m: MarcacoesEspelho | null): DiaDetalhado[] {
       intervaloMin: ps.length > 1 ? ps[1].ini - ps[0].fim : null,
       alertas,
       ajustado: d.ajustado === true,
+      conferido: d.conferido === true,
     }
   })
+}
+
+// ── Fila de conferência (16/11/2026) ─────────────────────────────────────────
+
+export type ConferenciaFuncionario = {
+  registroId: string
+  funcionarioId: string
+  nome: string
+  dias: DiaDetalhado[]
+}
+
+/**
+ * Dias com alerta nas marcações da remessa que ninguém olhou ainda — nem
+ * ajustou, nem conferiu como está. Muitos são erro de leitura do espelho
+ * (marcação incompleta, intervalo curto por um horário lido errado); os que
+ * forem reais, a gestão confere e eles saem da fila.
+ */
+export async function diasParaConferir(remessaId: string): Promise<ConferenciaFuncionario[]> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("pessoal_registro_ponto")
+    .select("id, funcionario_id, marcacoes")
+    .eq("remessa_id", remessaId)
+    .not("marcacoes", "is", null)
+    .range(0, 4999)
+  if (error) {
+    if (esquemaAusente(error)) return []
+    throw new Error(`Falha ao ler as marcações: ${error.message}`)
+  }
+  const linhas = ((data ?? []) as { id: string; funcionario_id: string | null; marcacoes: MarcacoesEspelho | null }[])
+    .filter((r) => r.funcionario_id)
+    .map((r) => ({
+      registroId: String(r.id),
+      funcionarioId: String(r.funcionario_id),
+      dias: detalharDias(r.marcacoes).filter((d) => d.alertas.length > 0 && !d.ajustado && !d.conferido),
+    }))
+    .filter((l) => l.dias.length > 0)
+  const nomes = await nomesDosUsuarios(linhas.map((l) => l.funcionarioId))
+  return linhas
+    .map((l) => ({ ...l, nome: nomes.get(l.funcionarioId) ?? "(sem nome)" }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
 }

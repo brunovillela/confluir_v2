@@ -18,6 +18,8 @@ export type DiaMarcado = {
   marcacoes: string[]
   /** Corrigido ou incluído à mão — vale sobre a leitura do espelho. */
   ajustado?: boolean
+  /** Conferido pela gestão como está (o alerta é real, não erro de leitura): sai da fila "Dias para conferir". */
+  conferido?: boolean
 }
 
 export type AjusteMarcacao = {
@@ -30,8 +32,8 @@ export type AjusteMarcacao = {
   por: string | null
   porNome: string | null
   em: string
-  /** "desfeito" quando o dia voltou ao lido do espelho. */
-  tipo?: "ajuste" | "desfeito"
+  /** "desfeito": voltou ao lido do espelho; "conferido": confirmado como está. */
+  tipo?: "ajuste" | "desfeito" | "conferido"
 }
 
 export type MarcacoesEspelho = {
@@ -39,6 +41,12 @@ export type MarcacoesEspelho = {
   carga_diaria: string | null
   dias: DiaMarcado[]
   ajustes?: AjusteMarcacao[]
+  /**
+   * Jornada prevista por dia da semana (0 = domingo … 6 = sábado), como o
+   * quadro HORÁRIO DE TRABALHO do espelho: horários em ordem ou só a carga.
+   * Gravada a partir de 16/11/2026 (leituras antigas não têm).
+   */
+  jornada?: string[][]
 }
 
 const HORA = /^([01]?\d|2[0-3])[:hH]?([0-5]\d)$/
@@ -83,7 +91,9 @@ export function aplicarAjuste(
   const base = atual ?? vazio()
   const anterior = base.dias.find((d) => d.data === dia.data)
   const ocorrencia = dia.ocorrencia?.trim() || null
-  const novo: DiaMarcado | null = dia.retirar ? null : { data: dia.data, ocorrencia, marcacoes: [...dia.marcacoes], ajustado: true }
+  const novo: DiaMarcado | null = dia.retirar
+    ? null
+    : { data: dia.data, ocorrencia, marcacoes: [...dia.marcacoes], ajustado: true, ...(anterior?.conferido ? { conferido: true } : {}) }
   const dias = base.dias.filter((d) => d.data !== dia.data)
   if (novo) dias.push(novo)
   dias.sort((a, b) => a.data.localeCompare(b.data))
@@ -134,20 +144,60 @@ export function desfazerAjustes(
   }
 }
 
+/** Confirma o dia como está (o alerta é real): fica marcado e sai da fila de conferência. */
+export function conferirDia(
+  atual: MarcacoesEspelho,
+  data: string,
+  quem: { id: string | null; nome: string | null; motivo: string | null; em: string }
+): MarcacoesEspelho {
+  const dia = atual.dias.find((d) => d.data === data)
+  if (!dia || dia.conferido) return atual
+  return {
+    ...atual,
+    dias: atual.dias.map((d) => (d.data === data ? { ...d, conferido: true } : d)),
+    ajustes: [
+      ...(atual.ajustes ?? []),
+      {
+        data,
+        antes: copia(dia),
+        depois: copia(dia),
+        motivo: quem.motivo?.trim() || null,
+        por: quem.id,
+        porNome: quem.nome,
+        em: quem.em,
+        tipo: "conferido",
+      },
+    ],
+  }
+}
+
 /**
  * Nova leitura do espelho sobre a anterior: os dias ajustados à mão
  * continuam como estão (inclusive os retirados), e o histórico é mantido.
  */
 export function mesclarLeitura(nova: MarcacoesEspelho, anterior: MarcacoesEspelho | null): MarcacoesEspelho {
   if (!anterior?.ajustes?.length) return nova
-  // Último estado de cada dia mexido à mão (a não ser que tenha sido desfeito).
-  const ultimo = new Map<string, AjusteMarcacao>()
-  for (const a of anterior.ajustes) ultimo.set(a.data, a)
-  const manuais = [...ultimo.values()].filter((a) => a.tipo !== "desfeito")
-  const datas = new Set(manuais.map((a) => a.data))
-  const dias = nova.dias.filter((d) => !datas.has(d.data))
-  for (const a of manuais) {
-    if (a.depois) dias.push({ data: a.data, ocorrencia: a.depois.ocorrencia, marcacoes: [...a.depois.marcacoes], ajustado: true })
+  // O que valeu à mão em cada dia desde o último "desfeito": o último estado,
+  // se houve ajuste, e se foi conferido.
+  const porDia = new Map<string, AjusteMarcacao[]>()
+  for (const a of anterior.ajustes) {
+    if (a.tipo === "desfeito") porDia.delete(a.data)
+    else porDia.set(a.data, [...(porDia.get(a.data) ?? []), a])
+  }
+  const dias = nova.dias.filter((d) => !porDia.has(d.data))
+  for (const [data, lista] of porDia) {
+    const ultimo = lista[lista.length - 1]
+    const ajustado = lista.some((a) => a.tipo !== "conferido")
+    const conferido = lista.some((a) => a.tipo === "conferido")
+    if (!ultimo.depois) continue // retirado à mão
+    // Só conferido: o dia conferido como estava (a nova leitura não o muda).
+    dias.push({
+      data,
+      ocorrencia: ultimo.depois.ocorrencia,
+      marcacoes: [...ultimo.depois.marcacoes],
+      ...(ajustado ? { ajustado: true } : {}),
+      ...(conferido ? { conferido: true } : {}),
+    })
   }
   dias.sort((a, b) => a.data.localeCompare(b.data))
   return { ...nova, dias, ajustes: anterior.ajustes }

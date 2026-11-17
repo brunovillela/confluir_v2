@@ -379,6 +379,8 @@ export async function aplicarItens(
         departamento: item.leitura?.departamento ?? null,
         carga_diaria: item.leitura?.jornada[1]?.length ? item.leitura.jornada[1].join(" ") : null,
         dias: item.leitura?.dias ?? [],
+        // O quadro de horário inteiro: o recálculo pelas marcações usa.
+        jornada: item.leitura?.jornada ?? [],
       },
       (atual?.marcacoes ?? null) as MarcacoesEspelho | null
     )

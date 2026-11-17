@@ -41,7 +41,7 @@ import { posterioresPorFuncionario } from "@/lib/db/ponto-cascata"
 import { faixasHoraExtra } from "@/lib/db/ponto-config"
 import { isentosNaCompetencia, periodoIsencao } from "@/lib/db/ponto-isencoes"
 import { decimalHoras, hhmm } from "@/lib/horas"
-import { espelhosPendentes } from "@/lib/db/ponto-marcacoes"
+import { diasParaConferir, espelhosPendentes } from "@/lib/db/ponto-marcacoes"
 import { obterResenha } from "@/lib/db/ponto-resenha"
 import { paginaDoIndice, recorteDaLista, urlNaLista } from "@/lib/lista-estado"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
@@ -52,6 +52,7 @@ import { CartaoResenha, PainelIndicadores } from "../analise/componentes"
 import { RemessaPontoForm } from "../remessa-form"
 import { excluirRemessaPonto, liberacaoEmMassaPonto, transferirRegistroPonto } from "../actions"
 import { ExcluirRemessaVazia, TransferirParaRemessa } from "@/components/pessoal/remessa-acoes"
+import { DiasParaConferir } from "./dias-para-conferir"
 import { ExcluirRegistroBotao, RegistroPontoForm } from "./registro-itens"
 
 export const metadata: Metadata = {
@@ -84,6 +85,8 @@ export default async function RemessaPontoPage({
     transferido?: string
     /** Registro recém-salvo: a lista abre na página dele, com a linha destacada. */
     linha?: string
+    /** Filtro da fila "Dias para conferir" (texto do alerta). */
+    conferir?: string
   }>
 }) {
   await requirePermissao("pessoal_gestao")
@@ -292,7 +295,7 @@ export default async function RemessaPontoPage({
       {editandoRemessa ? (
         <RemessaPontoForm remessa={remessa} />
       ) : naAnalise ? (
-        <AnaliseDaRemessa remessaId={id} />
+        <AnaliseDaRemessa remessaId={id} filtroConferir={paramsBusca.conferir} />
       ) : (
         <>
           {formAberto && !formNaLinha && (
@@ -606,11 +609,12 @@ export default async function RemessaPontoPage({
   )
 }
 
-async function AnaliseDaRemessa({ remessaId }: { remessaId: string }) {
-  const [base, pendentes, { disponivel, resenha }] = await Promise.all([
+async function AnaliseDaRemessa({ remessaId, filtroConferir }: { remessaId: string; filtroConferir?: string }) {
+  const [base, pendentes, { disponivel, resenha }, fila] = await Promise.all([
     carregarBasePonto(),
     espelhosPendentes(remessaId),
     obterResenha("remessa", remessaId),
+    diasParaConferir(remessaId),
   ])
   const ind = indicadoresDe(base, { escopo: "remessa", remessaId })
   const ano = base.remessas.find((r) => r.id === remessaId)?.competencia.slice(0, 4)
@@ -635,6 +639,7 @@ async function AnaliseDaRemessa({ remessaId }: { remessaId: string }) {
           </Button>
         )}
       </div>
+      {(fila.length > 0 || ind.espelhosLidos > 0) && <DiasParaConferir remessaId={remessaId} fila={fila} filtro={filtroConferir} />}
       <PainelIndicadores ind={ind} hrefDepartamento={ano ? (d) => `/painel/pessoal/ponto/analise?ano=${ano}&departamento=${encodeURIComponent(d)}` : undefined} />
       <CartaoResenha disponivel={disponivel} resenha={resenha} escopo="remessa" remessaId={remessaId} />
     </>

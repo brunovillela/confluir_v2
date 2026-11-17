@@ -254,8 +254,30 @@ guarda cada mudança com o que era antes, o motivo, quem fez e quando; o dia
 retirado volta por ali, em **Voltar ao espelho**. Ler o espelho de novo não
 desfaz o que foi ajustado à mão.
 
-As horas lançadas no registro (realizadas, pagas, banco) não mudam com o
-ajuste — para elas, use **Editar** no alto da página.
+Quando o alerta é real (o funcionário de fato fez a jornada longa), **Está
+certo como está** confirma o dia: ele ganha o selo **Conferido** e sai da fila
+de conferência, mas o alerta continua contando nos indicadores.
+
+**Dias para conferir.** Na aba **Indicadores e resenha** da remessa, a fila
+reúne os dias com alerta que ninguém ajustou nem conferiu, por funcionário,
+com um filtro por tipo de alerta (comece por **Marcação incompleta**, que
+quase sempre é erro de leitura). **Ajustar** abre o mês do funcionário com o
+dia já em edição; **Está certo** confere sem sair da fila.
+
+<Print src="pessoal/ponto-dias-conferir.png" alt="Aba Indicadores e resenha da remessa de março com o quadro Dias para conferir: 48 dias com alerta, os filtros Todos, Jornada acima de 10 h, Sequência de 7+ dias sem folga, Intervalo menor que 1 h, Menos de 11 h desde a jornada anterior, Marcação incompleta e Domingo ou feriado trabalhado, cada um com a contagem, e a lista por funcionário com o dia, as batidas, os alertas e os botões Ajustar e Está certo." legenda="A fila da remessa: filtre por alerta, ajuste o que é erro de leitura e confira o que é real." />
+
+**Recalcular pelas marcações.** O ajuste não mexe nas horas do registro. Com
+as marcações conferidas, **Recalcular pelas marcações** (em **Horas do mês**)
+mostra as realizadas a 50% e a 100% que elas dão, ao lado das lançadas, com a
+jornada prevista usada: o quadro de horário do espelho; sem ele, a jornada
+vinculada ao funcionário (**Atribuições e SST → Jornadas**); sem ela, a carga
+do espelho de segunda a sexta. As regras são as da importação (tolerância,
+faixas, negativas). Nada é gravado até **Aplicar no registro**, que refaz o
+saldo remanescente e, se marcado, o das remessas seguintes; as pagas não
+mudam. Se ainda houver dia com marcação incompleta, a tela avisa antes, porque
+esse dia conta a menos. Com a remessa finalizada, só a prévia aparece.
+
+<Print src="pessoal/ponto-recalcular.png" alt="Horas do mês de uma funcionária com a prévia Pelas marcações conferidas: realizadas a 50% de -8:00 contra 8:00 lançadas e a 100% de 0:00 contra 2:00, a jornada Administrativo usada, o aviso de 4 dias ainda com marcação incompleta e os botões Aplicar no registro e Cancelar." legenda="A prévia do recálculo: compare com o lançado e corrija os dias incompletos antes de aplicar." />
 
 <Print src="pessoal/ponto-marcacoes-ajuste.png" alt="Marcações dia a dia de março com o dia 03/03 aberto para ajuste: a linha lida com 07:05 12:05 12:35 19:35 e os alertas de jornada acima de 10 h e intervalo menor que 1 h; abaixo, o formulário com as batidas corrigidas para 07:05 12:05 13:05 19:35, a ocorrência vazia, o motivo e os botões Salvar, Retirar o dia e Cancelar; no alto, Incluir dia." legenda="Ajustar um dia: as batidas na ordem, a ocorrência e o motivo." />
 
