@@ -149,7 +149,9 @@ export function MesclarForm({ fichas, sugerido }: { fichas: FichaMesclagem[]; su
   const papeisTelefone = telefonesEditados ?? papeisPadraoTelefones(fichas, principal)
   const papeisEmail = emailsEditados ?? papeisPadraoEmails(fichas, principal)
 
-  const fonte = (campo: string) => campos[campo] ?? fonteDoCampo(fichas, principal, campo)
+  // A matrícula sindical não é escolha: fica sempre a menor do grupo.
+  const fonte = (campo: string) =>
+    campo === "matricula_sindical" ? fonteDoCampo(fichas, principal, campo) : (campos[campo] ?? fonteDoCampo(fichas, principal, campo))
   const fichaDe = (id: string) => fichas.find((f) => f.id === id)!
 
   const decisao: Decisao = {
@@ -189,13 +191,16 @@ export function MesclarForm({ fichas, sugerido }: { fichas: FichaMesclagem[]; su
   const linhaCampos = (grupo: GrupoCampo) =>
     CAMPOS_ESCOLHA.filter((c) => c.grupo === grupo).map(({ campo, rotulo }) => {
       const valores = new Set(fichas.map((f) => f.valores[campo] ?? null))
-      const temEscolha = valores.size > 1
+      const temEscolha = valores.size > 1 && campo !== "matricula_sindical"
       const diverge = camposDivergem(fichas, campo)
       return (
         <tr key={campo}>
           <th scope="row" className={CLASSE_ROTULO}>
             {rotulo}
             {diverge && <span className="bg-warning-fg ml-1.5 inline-block size-1.5 rounded-full align-middle" title="Os cadastros divergem" />}
+            {campo === "matricula_sindical" && valores.size > 1 && (
+              <span className="text-muted-foreground block text-[11px] font-normal">fica a menor; a maior é liberada</span>
+            )}
           </th>
           {fichas.map((f) => {
             const texto = exibirCampo(f, campo)

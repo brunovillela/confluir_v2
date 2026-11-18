@@ -3,7 +3,7 @@ import "server-only"
 import { cpfConfiavel, formatarCpf, grafiasDoCpf, limparCpf, validarCpf } from "@/lib/cpf"
 import { texto } from "@/lib/db/comum"
 import { invalidarCacheCadastrosPendentes } from "@/lib/db/filiacao-cadastros-pendentes"
-import { normalizarMatricula, proximaMatriculaSindical } from "@/lib/db/filiacao-matricula"
+import { matriculasLivres, normalizarMatricula, proximaMatriculaSindical } from "@/lib/db/filiacao-matricula"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import { semAcento } from "@/lib/texto"
@@ -240,8 +240,10 @@ export async function corrigirIdentidade(
  */
 export async function atribuirMatriculaSindical(id: string): Promise<string | null> {
   const admin = await createAdminClient()
-  for (let tentativa = 0; tentativa < 5; tentativa++) {
-    const numero = (await proximaMatriculaSindical()) + tentativa
+  // As 5 menores livres: se outro cadastro pegar a primeira no mesmo instante, vai a seguinte.
+  const livres = await matriculasLivres(5)
+  for (let tentativa = 0; tentativa < livres.length; tentativa++) {
+    const numero = livres[tentativa]
     const matricula = String(numero)
     const { error } = await admin
       .from("filiacoes")

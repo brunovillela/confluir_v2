@@ -127,7 +127,23 @@ const CAMPOS_ENDERECO = CAMPOS_ESCOLHA.filter((c) => c.grupo === "endereco").map
 const preenchido = (v: string | null | undefined) => v !== null && v !== undefined && v !== ""
 
 /** De qual cadastro vem cada campo: o principal; vazio nele, o primeiro preenchido (a condição Ativo vence). */
+/**
+ * A matrícula sindical que fica na mesclagem é sempre a MENOR do grupo; a
+ * maior é liberada para outro cadastro (numeração sequencial, 17/11/2026).
+ */
+export function fichaDaMenorMatricula(fichas: FichaMesclagem[]): FichaMesclagem | null {
+  const comNumero = fichas
+    .map((f) => ({ f, n: Number(String(f.valores.matricula_sindical ?? "").replace(/\D/g, "")) }))
+    .filter((x) => x.n > 0)
+  if (comNumero.length === 0) return null
+  return comNumero.sort((a, b) => a.n - b.n)[0].f
+}
+
 export function fonteDoCampo(fichas: FichaMesclagem[], principal: string, campo: string): string {
+  if (campo === "matricula_sindical") {
+    const menor = fichaDaMenorMatricula(fichas)
+    if (menor) return menor.id
+  }
   const ordem = [...fichas.filter((f) => f.id === principal), ...fichas.filter((f) => f.id !== principal)]
   // Quem está Ativo em algum dos cadastros é, salvo escolha em contrário, Ativo.
   if (campo === "filiacao_condicao") {
@@ -501,7 +517,8 @@ export type EnvioMesclagem = {
 export function montarEnvio(fichas: FichaMesclagem[], d: Decisao): EnvioMesclagem {
   const campos: EnvioMesclagem["campos"] = {}
   const deFonte = (campo: string) => {
-    const id = d.campos[campo] ?? fonteDoCampo(fichas, d.principal, campo)
+    // A matrícula não é escolha: fica sempre a menor do grupo.
+    const id = campo === "matricula_sindical" ? fonteDoCampo(fichas, d.principal, campo) : (d.campos[campo] ?? fonteDoCampo(fichas, d.principal, campo))
     return fichas.find((f) => f.id === id)!
   }
   for (const c of CAMPOS_ESCOLHA) {

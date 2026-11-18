@@ -2,7 +2,7 @@ import "server-only"
 import { esquemaAusente, lerEmLotes, lerEmLotesPorIds } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
 
-import { normalizarMatricula, matriculasEmUso, proximaMatriculaSindical } from "@/lib/db/filiacao-matricula"
+import { normalizarMatricula, matriculasEmUso, matriculasLivres } from "@/lib/db/filiacao-matricula"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
@@ -426,7 +426,8 @@ export async function importarFiliadosDaFonte(
   // em branco, a próxima livre. Repetida (no banco ou na planilha) é erro da linha.
   const novasBrutas = validas.filter((l) => !existentesPorCpf.has(l.cpf))
   const usadas = novasBrutas.length ? await matriculasEmUso() : new Set<string>()
-  let proxima = novasBrutas.length ? await proximaMatriculaSindical() : 0
+  // As menores livres, uma por cadastro novo (a numeração é sequencial).
+  const livres = novasBrutas.length ? await matriculasLivres(novasBrutas.length + 50) : []
   const novas: LinhaImportacao[] = []
   for (const l of novasBrutas) {
     const informada = normalizarMatricula(l.matricula_sindical)
@@ -441,8 +442,8 @@ export async function importarFiliadosDaFonte(
     }
     let matricula = informada
     if (!matricula) {
-      while (usadas.has(String(proxima))) proxima++
-      matricula = String(proxima++)
+      while (livres.length && usadas.has(String(livres[0]))) livres.shift()
+      matricula = String(livres.shift() ?? Math.max(0, ...[...usadas].map(Number).filter((n) => n < 10_000_000)) + 1)
     }
     usadas.add(matricula)
     novas.push({ ...l, matricula_sindical: matricula })

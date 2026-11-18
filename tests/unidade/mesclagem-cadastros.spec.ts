@@ -13,6 +13,8 @@ import {
   type Decisao,
   type FichaMesclagem,
   type VinculoFicha,
+  fichaDaMenorMatricula,
+  fonteDoCampo,
 } from "@/lib/mesclagem-cadastros"
 
 /** Regras da mesclagem lado a lado (lib/mesclagem-cadastros.ts). */
@@ -302,4 +304,11 @@ test.describe("contas e contatos de emergência", () => {
     const envio = montarEnvio(fichas, decisao("a", fichas, { emergenciaDescartados: ["21933333333"] }))
     expect(envio.contatos.emergencia_descartar.sort()).toEqual(["e2", "e3"])
   })
+})
+
+test("a matrícula sindical que fica é sempre a menor do grupo", () => {
+  const base = (id: string, matricula: string) => ({ id, valores: { matricula_sindical: matricula } }) as unknown as FichaMesclagem
+  const fichas = [base("a", "20422"), base("b", "8675"), base("c", "")]
+  expect(fichaDaMenorMatricula(fichas)?.id).toBe("b")
+  expect(fonteDoCampo(fichas, "a", "matricula_sindical")).toBe("b")
 })
