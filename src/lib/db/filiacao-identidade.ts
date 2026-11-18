@@ -3,7 +3,7 @@ import "server-only"
 import { cpfConfiavel, formatarCpf, grafiasDoCpf, limparCpf, validarCpf } from "@/lib/cpf"
 import { texto } from "@/lib/db/comum"
 import { invalidarCacheCadastrosPendentes } from "@/lib/db/filiacao-cadastros-pendentes"
-import { matriculasLivres, normalizarMatricula, proximaMatriculaSindical } from "@/lib/db/filiacao-matricula"
+import { atribuirMenorMatricula, normalizarMatricula, proximaMatriculaSindical } from "@/lib/db/filiacao-matricula"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import { semAcento } from "@/lib/texto"
@@ -234,32 +234,11 @@ export async function corrigirIdentidade(
 }
 
 /**
- * Grava a matrícula sindical automática num cadastro recém-criado. Sem índice
- * único ainda (ver supabase/filiacoes-matricula-unica.sql), confere de novo
- * depois de gravar e tenta o número seguinte se outro cadastro pegou o mesmo.
+ * Grava a matrícula sindical automática (a menor livre) num cadastro
+ * recém-criado. A escolha e a gravação são do banco, numa transação com trava
+ * por entidade (filiacao_atribuir_matricula): sem número repetido entre
+ * cadastros feitos no mesmo instante.
  */
 export async function atribuirMatriculaSindical(id: string): Promise<string | null> {
-  const admin = await createAdminClient()
-  // As 5 menores livres: se outro cadastro pegar a primeira no mesmo instante, vai a seguinte.
-  const livres = await matriculasLivres(5)
-  for (let tentativa = 0; tentativa < livres.length; tentativa++) {
-    const numero = livres[tentativa]
-    const matricula = String(numero)
-    const { error } = await admin
-      .from("filiacoes")
-      .update({ matricula_sindical: matricula, matricula_sindical_numero: numero })
-      .eq("id", id)
-      .is("matricula_sindical", null)
-    if (error) {
-      if (error.code === "23505") continue
-      return null
-    }
-    const outros = await cadastrosComMatricula(matricula, [id])
-    if (outros.length === 0) return matricula
-    await admin
-      .from("filiacoes")
-      .update({ matricula_sindical: null, matricula_sindical_numero: null })
-      .eq("id", id)
-  }
-  return null
+  return atribuirMenorMatricula(id)
 }

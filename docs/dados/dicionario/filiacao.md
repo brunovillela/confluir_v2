@@ -1302,7 +1302,7 @@ Cadastro do filiado (ou ex-filiado/não filiado) na entidade: identificação, c
 
 Checks: `filiacoes_forma_recebimento_check` `CHECK (((forma_recebimento IS NULL) OR (forma_recebimento = ANY (ARRAY['consignado'::text, 'pix'::text, 'boleto'::text]))))`
 
-Índices: `filiacoes_anonimizada_idx`, `filiacoes_bubble_id_key`, `filiacoes_condicao_idx`, `filiacoes_cpf_idx`, `filiacoes_emp_ativo_em_idx`, `filiacoes_emp_inativo_em_idx`, `filiacoes_matricula_idx`, `filiacoes_nome_norm_trgm`, `filiacoes_pkey`, `idx_bub_filiacoes`, `idx_filiacoes_aniversario`, `idx_filiacoes_coletiva`, `idx_filiacoes_condicao_etapa`, `idx_filiacoes_cpf`, `idx_filiacoes_mesclado_em`, `idx_filiacoes_usuario`
+Índices: `filiacoes_anonimizada_idx`, `filiacoes_bubble_id_key`, `filiacoes_condicao_idx`, `filiacoes_cpf_idx`, `filiacoes_emp_ativo_em_idx`, `filiacoes_emp_inativo_em_idx`, `filiacoes_matricula_idx`, `filiacoes_matricula_numero_vivos_idx`, `filiacoes_nome_norm_trgm`, `filiacoes_pkey`, `idx_bub_filiacoes`, `idx_filiacoes_aniversario`, `idx_filiacoes_coletiva`, `idx_filiacoes_condicao_etapa`, `idx_filiacoes_cpf`, `idx_filiacoes_mesclado_em`, `idx_filiacoes_usuario`
 
 ## fonte_categorias
 
