@@ -123,6 +123,11 @@ erDiagram
     uuid emp_proprietaria_id FK
     uuid atualizada_por FK
   }
+  filiacao_matriculas_anteriores {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid filiacao_id FK
+  }
   filiacao_prontuario {
     uuid id PK
     uuid filiacao_id FK
@@ -392,6 +397,7 @@ erDiagram
   filiacao_desconto_confirmacoes }o--|| filiacao_desconto_comunicacoes : "comunicacao_id"
   filiacao_duplicidades_ignoradas }o--o| usuarios : "criado_por"
   filiacao_inadimplencia_regras }o--o| usuarios : "atualizada_por"
+  filiacao_matriculas_anteriores }o--|| filiacoes : "filiacao_id"
   filiacao_prontuario }o--o| filiacoes : "filiacao_id"
   filiacao_prontuario }o--o| hospedagem_cupom : "hospedagem_id"
   filiacao_prontuario }o--o| juridico_homologacoes : "homologacao_id"

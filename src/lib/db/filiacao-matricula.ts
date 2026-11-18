@@ -85,3 +85,27 @@ export async function matriculasEmUso(): Promise<Set<string>> {
   }
   return usadas
 }
+
+export type MatriculaAnterior = {
+  matricula: string
+  substituida_por: string | null
+  ate: string
+  motivo: string | null
+}
+
+/**
+ * Matrículas sindicais que o cadastro já teve (a mais recente primeiro),
+ * gravadas pelo gatilho de filiacoes a cada troca (18/11/2026).
+ */
+export async function matriculasAnterioresDoFiliado(filiacaoId: string): Promise<MatriculaAnterior[]> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("filiacao_matriculas_anteriores")
+    .select("matricula, substituida_por, ate, motivo")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("filiacao_id", filiacaoId)
+    .order("ate", { ascending: false })
+    .limit(20)
+  if (error) return []
+  return (data ?? []) as MatriculaAnterior[]
+}

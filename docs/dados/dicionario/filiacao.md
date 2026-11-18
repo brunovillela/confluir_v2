@@ -2,7 +2,7 @@
 
 # Filiação e portal do associado
 
-61 tabelas. Diagrama: [er/filiacao.md](../er/filiacao.md).
+62 tabelas. Diagrama: [er/filiacao.md](../er/filiacao.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -26,6 +26,7 @@
 | [filiacao_desconto_confirmacoes](#filiacao_desconto_confirmacoes) | identificação | Confirmação, pelo RH da fonte pagadora, de que recebeu uma comunicação de inclusões/exclusões de desconto (15/11/2026). |
 | [filiacao_duplicidades_ignoradas](#filiacao_duplicidades_ignoradas) | identificação | Grupos de cadastros de filiados conferidos e marcados como NÃO duplicidade, para não reaparecerem na tela de duplicidades. |
 | [filiacao_inadimplencia_regras](#filiacao_inadimplencia_regras) | — | Regras de inadimplência por entidade: quantas remessas sem contribuição (consecutivas ou numa janela) suspendem direitos do filiado. |
+| [filiacao_matriculas_anteriores](#filiacao_matriculas_anteriores) | **sensível: sindical** | Matrículas sindicais que o cadastro já teve: a busca acha a pessoa pelo número antigo e a troca fica conferível (18/11/2026). Preenchida pel… |
 | [filiacao_prontuario](#filiacao_prontuario) | **sensível: sindical**, **sensível: saúde** | Prontuário do filiado: registro cronológico dos eventos da pessoa no sindicato (atendimentos, homologações, hospedagens, assembleias, atuali… |
 | [filiacao_recebe](#filiacao_recebe) | **sensível: sindical**, financeiro, identificação, trabalhista | Cada linha é a contribuição de um trabalhador numa remessa (relação de descontos de uma fonte pagadora, Pix ou boleto), importada em Receita… |
 | [filiacao_recebe_comprovacao](#filiacao_recebe_comprovacao) | — | Comprovantes de repasse das contribuições pela fonte pagadora em cada remessa (data, valor, arquivo), usados na conciliação de Receitas. Mig… |
@@ -620,6 +621,29 @@ Checks: `ck_filiacao_inadimplencia_qtd` `CHECK (((quantidade >= 1) AND (janela_r
 
 Índices: `filiacao_inadimplencia_regras_pkey`, `ux_filiacao_inadimplencia_tipo`
 
+## filiacao_matriculas_anteriores
+
+Matrículas sindicais que o cadastro já teve: a busca acha a pessoa pelo número antigo e a troca fica conferível (18/11/2026). Preenchida pelo gatilho de filiacoes.
+
+- **LGPD:** **sensível: sindical** · titulares: filiados
+- **RLS:** ligado · policies: `tenant_isolation`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `filiacao_id` | uuid | não |  | → filiacoes (**cascade**) |  |  |
+| `matricula` | text | não |  |  | **sensível: sindical** | O número antigo, como estava gravado. |
+| `matricula_numero` | integer | sim |  |  | **sensível: sindical** | O número antigo como inteiro (para a busca exata). |
+| `substituida_por` | text | sim |  |  | **sensível: sindical** | O número que entrou no lugar (null = matrícula apagada). |
+| `ate` | timestamp with time zone | não | `now()` |  |  | Até quando o cadastro teve esse número. |
+| `motivo` | text | sim |  |  | nenhum | Por que trocou, quando se sabe (arranjo da numeração, mesclagem). |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Únicas: `UNIQUE (filiacao_id, matricula)`
+
+Índices: `filiacao_matriculas_anteriores_numero_idx`, `filiacao_matriculas_anteriores_pkey`, `filiacao_matriculas_anteriores_unica`
+
 ## filiacao_prontuario
 
 Prontuário do filiado: registro cronológico dos eventos da pessoa no sindicato (atendimentos, homologações, hospedagens, assembleias, atualizações cadastrais), migrado do Bubble e alimentado por vários módulos.
@@ -1201,7 +1225,7 @@ Cadastro do filiado (ou ex-filiado/não filiado) na entidade: identificação, c
 
 - **LGPD:** identificação, **sensível: sindical**, trabalhista, financeiro, **credencial (nunca exportar)** · titulares: filiados
 - **RLS:** ligado · policies: `tenant_isolation`
-- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `filiacoes_nascimento_dia_mes` → `filiacoes_nascimento_dia_mes`, `set_emp_from_jwt` → `set_emp_from_jwt`, `trg_filiacoes_updated_at` → `set_updated_at`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `filiacao_guardar_matricula_anterior` → `filiacao_guardar_matricula_anterior`, `filiacoes_nascimento_dia_mes` → `filiacoes_nascimento_dia_mes`, `set_emp_from_jwt` → `set_emp_from_jwt`, `trg_filiacoes_updated_at` → `set_updated_at`
 
 | Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
 |---|---|---|---|---|---|---|

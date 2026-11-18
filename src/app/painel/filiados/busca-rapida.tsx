@@ -17,6 +17,7 @@ type Sugestao = {
   filiacao_condicao: string | null
   /** Matrícula na fonte que casou com a busca. */
   matricula_fonte?: string | null
+  matricula_anterior?: string | null
 }
 
 /**
@@ -129,6 +130,7 @@ export function BuscaRapida() {
                       {s.cpf ? formatarCpf(s.cpf) : ""}
                       {s.matricula_sindical && <> · {s.matricula_sindical}</>}
                       {s.matricula_fonte && <> · na fonte {s.matricula_fonte}</>}
+                      {s.matricula_anterior && <> · antiga {s.matricula_anterior}</>}
                     </span>
                     <CondicaoBadge condicao={s.filiacao_condicao} />
                   </button>

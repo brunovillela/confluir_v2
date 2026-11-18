@@ -6,6 +6,7 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 
 ## 17/11/2026 — Meu perfil: Meus veículos
 
+- Telegram: novo comando /diaria. Funcionários e diretores pedem diária pelo bot, em perguntas — tipo, período (vale data passada), quantidade e motivo —, e escolhem salvar na remessa ou já enviá-la para avaliação. As regras são as do Meu perfil → Diárias.
 - Financeiro: o O que fazer hoje separa as ordens em Aguardando informações há 15 dias ou mais (contados da última devolução) numa fila em destaque, que abre a lista só com elas; as mais recentes seguem na fila comum.
 - Aquisição: a compra pode ser marcada como feita no âmbito de um contrato (ao registrar ou editar, escolhe-se o contrato). O contrato e o projeto da compra passam a aparecer na ordem de pagamento dela e nos extratos simplificado e completo — antes, o projeto escolhido na compra não aparecia na ordem quando não tinha sido copiado para ela.
 - Oposição: o modo de formalização da campanha que pede a carta passou a se chamar "Confirmação + carta assinada" (antes, "Confirmação + assinatura gov.br + upload"), porque a carta também pode ser assinada no próprio Confluir.
@@ -27,6 +28,7 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 - Portal do associado: a página de uma parte desabilitada ganhou o botão "Falar com o sindicato". Quem já estava com o portal aberto quando o primeiro acesso passou a valer vê o portão ao entrar na próxima seção, e a recusa diz o que falta. Avisos que são consequência de algo que a pessoa já fez, como a falta numa reserva, continuam no sino mesmo com a parte desabilitada.
 - Tipo da chave Pix com a mesma lista em todo o sistema (CNPJ / CPF, Telefone, E-mail, Chave aleatória): a ficha do diretor e o convidado de custeio — que era texto livre — passam a usá-la, e o custeio grava o tipo já no padrão. O campo é o mesmo em todos os cadastros de conta (fornecedor, filiado, funcionário, Meu perfil, diretor, convidado e chave nova no pagamento): "Tipo da chave Pix", antes da chave, já escolhido pelo formato quando o cadastro antigo não tinha o tipo. O Portal do hotel também passa a pedir o tipo da chave Pix nas contas de recebimento.
 - Filiados: a matrícula sindical nova é a menor que estiver vaga, e a mesclagem fica sempre com o menor número do par, para a numeração seguir sem buracos.
+- Filiados: a busca acha o filiado também pela matrícula sindical antiga — a de carteirinha impressa ou planilha de antes de uma troca — e mostra "antiga 100084" ao lado do nome. A ficha exibe os números anteriores ao lado da matrícula atual. Toda troca de matrícula passa a ficar registrada sozinha, e as trocas do arranjo da numeração de 17/11 já estão lá.
 
 ## 16/11/2026 — Ponto: comparação entre anos, relatório por funcionário e ajuste das marcações
 

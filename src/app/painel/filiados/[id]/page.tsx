@@ -49,6 +49,7 @@ import {
 import { listarContatosEmergencia } from "@/lib/db/filiacao-contatos-emergencia"
 import { listarDadosBancariosFiliado } from "@/lib/db/filiacao-dados-bancarios"
 import { buscarPerfilFiliado } from "@/lib/db/filiados"
+import { matriculasAnterioresDoFiliado } from "@/lib/db/filiacao-matricula"
 import { listarProntuario } from "@/lib/db/prontuario"
 import {
   formatarCep,
@@ -158,9 +159,10 @@ export default async function FiliadoPage({
 
   const { id } = await params
   const { salvo, etapa, mesclado, vinculos: vinculosUnificados, naoUnidos, pendentes, visualizar } = await searchParams
-  const [perfil, prontuario] = await Promise.all([
+  const [perfil, prontuario, matriculasAnteriores] = await Promise.all([
     buscarPerfilFiliado(id),
     listarProntuario(id, 5),
+    matriculasAnterioresDoFiliado(id),
   ])
   if (!perfil) notFound()
   // Dado bancário é financeiro: só quem edita a filiação ou lança reembolso vê.
@@ -339,6 +341,16 @@ export default async function FiliadoPage({
         <p className="text-muted-foreground mt-1 font-mono text-sm">
           {f.cpf ? formatarCpf(f.cpf) : "CPF não informado"}
           {f.matricula_sindical && <> · matrícula {f.matricula_sindical}</>}
+          {matriculasAnteriores.length > 0 && (
+            <span
+              title={matriculasAnteriores
+                .map((m) => `${m.matricula} até ${formatarData(m.ate.slice(0, 10))}${m.motivo ? ` — ${m.motivo}` : ""}`)
+                .join("\n")}
+            >
+              {" "}
+              (antes {matriculasAnteriores.map((m) => m.matricula).join(", ")})
+            </span>
+          )}
         </p>
       </div>
 

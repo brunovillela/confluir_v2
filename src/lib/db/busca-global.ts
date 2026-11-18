@@ -147,7 +147,7 @@ export async function buscarGlobal(sessao: SessaoPainel, busca: string): Promise
       buscar: async () =>
         (await sugerirFiliados(termo, LIMITE)).map((f) => ({
           titulo: f.nome_completo ?? "(sem nome)",
-          detalhe: [f.cpf ? formatarCpf(f.cpf) : null, f.matricula_sindical ? `matrícula ${f.matricula_sindical}` : null, f.filiacao_condicao].filter(Boolean).join(" · ") || null,
+          detalhe: [f.cpf ? formatarCpf(f.cpf) : null, f.matricula_sindical ? `matrícula ${f.matricula_sindical}` : null, f.matricula_anterior ? `antiga ${f.matricula_anterior}` : null, f.filiacao_condicao].filter(Boolean).join(" · ") || null,
           href: `/painel/filiados/${f.id}`,
         })),
     })

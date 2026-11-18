@@ -150,14 +150,50 @@ async function registrosPorMatriculaVinculo(
   return resultado
 }
 
-/** Pré-busca da listagem: ids pela matrícula na fonte, só para identificador. */
+/**
+ * Cadastros que JÁ TIVERAM exatamente esta matrícula sindical (id → número
+ * antigo): carteirinha, planilha ou o filiado ainda trazem o número de antes
+ * de uma troca (o arranjo da numeração de 17/11/2026, uma mesclagem).
+ */
+export async function registrosPorMatriculaAnterior(
+  termo: string,
+  empId: string
+): Promise<Map<string, string>> {
+  const resultado = new Map<string, string>()
+  const numero = termo.replace(/\D/g, "").replace(/^0+/, "")
+  if (!numero || numero.length > 9 || /[^\d\s.\-/]/.test(termo)) return resultado
+  const { data, error } = await (await createAdminClient())
+    .from("filiacao_matriculas_anteriores")
+    .select("filiacao_id, matricula")
+    .eq("emp_proprietaria_id", empId)
+    .eq("matricula_numero", Number(numero))
+    .order("ate", { ascending: false })
+    .limit(20)
+  if (error) {
+    console.warn("[busca filiados] matrículas anteriores indisponíveis:", error.message)
+    return resultado
+  }
+  for (const l of (data ?? []) as { filiacao_id: string; matricula: string }[]) {
+    if (!resultado.has(l.filiacao_id)) resultado.set(l.filiacao_id, l.matricula)
+  }
+  return resultado
+}
+
+/**
+ * Pré-busca da listagem, só para identificador: ids pela matrícula na fonte
+ * e pela matrícula sindical que o cadastro já teve.
+ */
 async function idsPorMatriculaVinculo(
   busca: string | undefined,
   empId: string
 ): Promise<string[]> {
   const termo = (busca ?? "").trim()
   if (!termo || !ehIdentificador(termo)) return []
-  return [...(await registrosPorMatriculaVinculo(termo, empId)).keys()]
+  const [porVinculo, porAnterior] = await Promise.all([
+    registrosPorMatriculaVinculo(termo, empId),
+    registrosPorMatriculaAnterior(termo, empId),
+  ])
+  return [...new Set([...porVinculo.keys(), ...porAnterior.keys()])]
 }
 
 /** Subconjunto do builder do PostgREST usado pelos filtros da listagem. */
@@ -398,6 +434,8 @@ export type SugestaoFiliado = {
   filiacao_condicao: string | null
   /** Matrícula na fonte que casou com a busca (só quando achado por ela). */
   matricula_fonte?: string | null
+  /** Matrícula sindical antiga que casou com a busca (só quando achado por ela). */
+  matricula_anterior?: string | null
 }
 
 /**
@@ -423,9 +461,12 @@ export async function sugerirFiliados(
   // tiravam a máscara do CPF.)
   const digitos = termo.replace(/\D/g, "")
   const identificador = ehIdentificador(termo)
-  const porVinculo = identificador
-    ? await registrosPorMatriculaVinculo(termo, empId)
-    : new Map<string, string>()
+  const [porVinculo, porAnterior] = identificador
+    ? await Promise.all([
+        registrosPorMatriculaVinculo(termo, empId),
+        registrosPorMatriculaAnterior(termo, empId),
+      ])
+    : [new Map<string, string>(), new Map<string, string>()]
 
   let exatos: SugestaoFiliado[] = []
   if (identificador) {
@@ -435,9 +476,10 @@ export async function sugerirFiliados(
       partes.push(`matricula_sindical.eq.${matricula}`, `cpf.eq.${digitos}`)
     }
     const norm = normalizarMatricula(termo)
-    const idsExatosVinculo = [...porVinculo]
-      .filter(([, m]) => normalizarMatricula(m) === norm)
-      .map(([id]) => id)
+    const idsExatosVinculo = [
+      ...[...porVinculo].filter(([, m]) => normalizarMatricula(m) === norm).map(([id]) => id),
+      ...porAnterior.keys(),
+    ]
     if (idsExatosVinculo.length > 0) {
       partes.push(`id.in.(${idsExatosVinculo.join(",")})`)
     }
@@ -460,7 +502,7 @@ export async function sugerirFiliados(
     q,
     { busca: termo, situacao: "ativas" },
     empId,
-    [...porVinculo.keys()]
+    [...porVinculo.keys(), ...porAnterior.keys()]
   )
   const { data, error } = await q
     .order("nome_completo", { ascending: true, nullsFirst: false })
@@ -472,6 +514,7 @@ export async function sugerirFiliados(
   return [...exatos, ...demais].slice(0, limite).map((s) => ({
     ...s,
     matricula_fonte: porVinculo.get(s.id) ?? null,
+    matricula_anterior: porAnterior.get(s.id) ?? null,
   }))
 }
 

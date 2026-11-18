@@ -38,6 +38,7 @@ export const NOVIDADES: Novidade[] = [
       "Portal do associado: a página de uma parte desabilitada ganhou o botão \"Falar com o sindicato\". Quem já estava com o portal aberto quando o primeiro acesso passou a valer vê o portão ao entrar na próxima seção, e a recusa diz o que falta. Avisos que são consequência de algo que a pessoa já fez, como a falta numa reserva, continuam no sino mesmo com a parte desabilitada.",
       "Tipo da chave Pix com a mesma lista em todo o sistema (CNPJ / CPF, Telefone, E-mail, Chave aleatória): a ficha do diretor e o convidado de custeio — que era texto livre — passam a usá-la, e o custeio grava o tipo já no padrão. O campo é o mesmo em todos os cadastros de conta (fornecedor, filiado, funcionário, Meu perfil, diretor, convidado e chave nova no pagamento): \"Tipo da chave Pix\", antes da chave, já escolhido pelo formato quando o cadastro antigo não tinha o tipo. O Portal do hotel também passa a pedir o tipo da chave Pix nas contas de recebimento.",
       "Filiados: a matrícula sindical nova é a menor que estiver vaga, e a mesclagem fica sempre com o menor número do par, para a numeração seguir sem buracos.",
+      "Filiados: a busca acha o filiado também pela matrícula sindical antiga — a de carteirinha impressa ou planilha de antes de uma troca — e mostra \"antiga 100084\" ao lado do nome. A ficha exibe os números anteriores ao lado da matrícula atual. Toda troca de matrícula passa a ficar registrada sozinha, e as trocas do arranjo da numeração de 17/11 já estão lá.",
     ],
   },
   {

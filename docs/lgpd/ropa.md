@@ -15,7 +15,7 @@
 
 | # | Processo | Tabelas | Categorias de dados | Transferência internacional |
 |---|---|---|---|---|
-| P01 | [Filiação e cadastro do associado](#p01) | 18 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
+| P01 | [Filiação e cadastro do associado](#p01) | 19 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P02 | [Contribuições, receitas e cobranças](#p02) | 10 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista | sim |
 | P03 | [Atendimento ao filiado no portal](#p03) | 6 | identificação, **sensível: filiação/posição sindical**, credencial (segredo de acesso, nunca exportar) | sim |
 | P04 | [Oposição à contribuição assistencial](#p04) | 6 | identificação, **sensível: filiação/posição sindical**, trabalhista | sim |
@@ -24,7 +24,7 @@
 | P07 | [Diretoria, mandatos e ofícios](#p07) | 8 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P08 | [Saúde do trabalhador (CAT, atendimentos, CIPA)](#p08) | 11 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, trabalhista | sim |
 | P09 | [Jurídico](#p09) | 4 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista | sim |
-| P10 | [Pessoal: RH dos funcionários da entidade](#p10) | 41 | identificação, **sensível: saúde**, financeiro, trabalhista | sim |
+| P10 | [Pessoal: RH dos funcionários da entidade](#p10) | 42 | identificação, **sensível: saúde**, financeiro, trabalhista | sim |
 | P11 | [Financeiro, compras, fornecedores e contratos](#p11) | 38 | identificação, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P12 | [Institucional: custeios, viagens, linhas e patrimônio](#p12) | 10 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P13 | [Hospedagem conveniada e cessão de espaços](#p13) | 12 | identificação, **sensível: filiação/posição sindical**, financeiro, credencial (segredo de acesso, nunca exportar) | sim |
@@ -58,7 +58,7 @@
 
 **Medidas de segurança.** RLS por tenant; trilha `auditoria` em filiacoes, filiacao_vinculos e dados_bancarios; anonimização que corta o vínculo com o acervo de saúde; permissão própria `filiacao_lgpd`.
 
-<details><summary>Tabelas (18) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (19) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -70,6 +70,7 @@
 | [filiacao_coletiva_itens](../dados/dicionario/filiacao.md#filiacao_coletiva_itens) | identificacao, sens. sindical, trabalhista | `cpf` (identificacao), `nome_completo` (identificacao), `matricula` (trabalhista), `email` (identificacao), `resultado` (sens. sindical), `condicao_anterior` (sens. sindical), `observacao` (sens. sindical), `desistencia_em` (sens. sindical) |
 | [filiacao_contatos_emergencia](../dados/dicionario/filiacao.md#filiacao_contatos_emergencia) | identificacao, sens. sindical | `cpf` (identificacao), `nome` (identificacao), `telefone` (identificacao), `vinculo` (identificacao) |
 | [filiacao_duplicidades_ignoradas](../dados/dicionario/filiacao.md#filiacao_duplicidades_ignoradas) | identificacao | `chave` (identificacao), `motivo` (identificacao) |
+| [filiacao_matriculas_anteriores](../dados/dicionario/filiacao.md#filiacao_matriculas_anteriores) | sens. sindical | `matricula` (sens. sindical), `matricula_numero` (sens. sindical), `substituida_por` (sens. sindical), `motivo` (nenhum) |
 | [filiacao_prontuario](../dados/dicionario/filiacao.md#filiacao_prontuario) | sens. sindical, sens. saude | `descricao` (sens. saude), `tipo` (sens. sindical), `atendimento_raw` (sens. saude) |
 | [filiacao_registro](../dados/dicionario/filiacao.md#filiacao_registro) | identificacao, sens. sindical | `cpf` (identificacao), `nome` (identificacao), `nome_social` (identificacao), `sexo` (identificacao), `matricula_sindical` (sens. sindical), `matricula_sindical_n` (sens. sindical), `condicao_sindical` (sens. sindical) |
 | [filiacao_solicitacao_eventos](../dados/dicionario/filiacao.md#filiacao_solicitacao_eventos) | identificacao, sens. sindical | `evento` (sens. sindical), `detalhe` (sens. sindical), `ip` (identificacao), `user_agent` (identificacao) |
@@ -450,7 +451,7 @@
 
 **Observações.** Comprovantes mandados ao bot do Telegram (recibo de reembolso, atestado) passam pelo Telegram e pela IA por iniciativa do próprio funcionário; o chat mostra só o período do atestado. Pendências: a resenha do ponto envia à IA até 30 funcionários por nome; `pessoal_folha_competencias.snapshot` guarda cópia de dados pessoais; documentos ainda no CDN do Bubble.
 
-<details><summary>Tabelas (41) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (42) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -492,6 +493,7 @@
 | [pessoal_registro_ponto](../dados/dicionario/pessoal.md#pessoal_registro_ponto) | financeiro, trabalhista | `horas_realizadas_70` (trabalhista), `horas_pagas_70` (financeiro), `saldo_remanescente_70` (trabalhista), `saldo_remessa_anterior_70` (trabalhista), `horas_realizadas_100` (trabalhista), `horas_pagas_100` (financeiro), `saldo_remanescente_100` (trabalhista), `saldo_remessa_anterior_100` (trabalhista), `arquivo` (trabalhista), `marcacoes` (trabalhista) |
 | [pessoal_tabelas_salariais](../dados/dicionario/pessoal.md#pessoal_tabelas_salariais) | identificacao | `criado_por` (identificacao) |
 | [pessoal_telegram_arquivos](../dados/dicionario/pessoal.md#pessoal_telegram_arquivos) | identificacao, sens. saude, financeiro | `chat_id` (identificacao), `usuario_id` (identificacao), `passo` (nenhum), `dados` (identificacao), `dados` (financeiro), `dados` (sens. saude), `atualizado_em` (nenhum), `expira_em` (nenhum) |
+| [pessoal_telegram_diarias](../dados/dicionario/pessoal.md#pessoal_telegram_diarias) | identificacao | `chat_id` (identificacao), `usuario_id` (identificacao), `passo` (nenhum), `dados` (identificacao), `atualizado_em` (nenhum), `expira_em` (nenhum) |
 | [pessoal_treinamentos_alunos](../dados/dicionario/pessoal.md#pessoal_treinamentos_alunos) | trabalhista | `data_inicio` (trabalhista), `data_termino` (trabalhista), `certificado_url` (trabalhista) |
 | [prestadores_servico](../dados/dicionario/pessoal.md#prestadores_servico) | identificacao | `cpf` (identificacao), `nome_completo` (identificacao), `nome_fantasia` (identificacao) |
 | [prestcont_remessa](../dados/dicionario/pessoal.md#prestcont_remessa) | financeiro | `planilha` (financeiro), `valor_total` (financeiro) |
@@ -544,7 +546,7 @@
 | [compras_pedido](../dados/dicionario/compras.md#compras_pedido) | identificacao | `autorizador` (identificacao) |
 | [compras_propostas](../dados/dicionario/compras.md#compras_propostas) | identificacao | `proposta_arquivo_url` (identificacao), `escolhida_por_id` (identificacao) |
 | [compras_rpa](../dados/dicionario/compras.md#compras_rpa) | identificacao, financeiro | `fornecedor_id` (identificacao), `valor_informado` (financeiro), `valor_bruto` (financeiro), `inss` (financeiro), `irrf` (financeiro), `iss` (financeiro), `dependentes` (identificacao), `valor_liquido` (financeiro), `arquivo_assinado` (identificacao), `assinatura_validacao` (identificacao), `irrf_memoria` (financeiro) |
-| [compras_solicitacoes](../dados/dicionario/compras.md#compras_solicitacoes) | identificacao | `solicitacao_observacao` (identificacao), `recebedor_id` (identificacao), `cotacao_responsavel_id` (identificacao), `avaliacao_avaliador_id` (identificacao), `avaliacao_observacao` (identificacao), `comprado_por_id` (identificacao), `recebimento_observacao` (identificacao), `solicitante_id` (identificacao), `cancelado_motivo` (nenhum), `proposta_unica_justificativa` (nenhum) |
+| [compras_solicitacoes](../dados/dicionario/compras.md#compras_solicitacoes) | identificacao | `solicitacao_observacao` (identificacao), `recebedor_id` (identificacao), `cotacao_responsavel_id` (identificacao), `avaliacao_avaliador_id` (identificacao), `avaliacao_observacao` (identificacao), `comprado_por_id` (identificacao), `recebimento_observacao` (identificacao), `solicitante_id` (identificacao), `cancelado_motivo` (nenhum), `proposta_unica_justificativa` (nenhum), `contrato_id` (nenhum) |
 | [contratos](../dados/dicionario/compras.md#contratos) | identificacao, financeiro | `responsavel_id` (identificacao), `arquivo_contrato` (identificacao), `valor` (financeiro) |
 | [contratos_minutas](../dados/dicionario/compras.md#contratos_minutas) | identificacao, financeiro | `parametros` (identificacao), `texto` (identificacao), `arquivo_assinado` (identificacao), `assinatura_validacao` (identificacao) |
 | [contratos_minutas_versoes](../dados/dicionario/compras.md#contratos_minutas_versoes) | identificacao | `texto` (identificacao) |
@@ -654,7 +656,7 @@
 | [hospedagem_beneficiarios](../dados/dicionario/hospedagem.md#hospedagem_beneficiarios) | identificacao | `cpf` (identificacao), `nome` (identificacao), `observacao` (identificacao) |
 | [hospedagem_cupom](../dados/dicionario/hospedagem.md#hospedagem_cupom) | identificacao, sens. sindical, financeiro, credencial | `check_in` (identificacao), `sexo` (identificacao), `tarifa_hospede` (financeiro), `filiado_id` (sens. sindical), `check_out` (identificacao), `token` (credencial), `nao_comparecimento_abono_motivo` (identificacao), `emergencial_motivo` (identificacao) |
 | [hospedagem_espera](../dados/dicionario/hospedagem.md#hospedagem_espera) | identificacao, sens. sindical, credencial | `filiado_id` (sens. sindical), `cpf` (identificacao), `sexo` (identificacao), `token` (credencial) |
-| [hospedagem_hotel_contas](../dados/dicionario/hospedagem.md#hospedagem_hotel_contas) | identificacao, financeiro | `titular` (identificacao), `documento` (identificacao), `banco` (financeiro), `agencia` (financeiro), `conta` (financeiro), `chave_pix` (financeiro) |
+| [hospedagem_hotel_contas](../dados/dicionario/hospedagem.md#hospedagem_hotel_contas) | identificacao, financeiro | `titular` (identificacao), `documento` (identificacao), `banco` (financeiro), `agencia` (financeiro), `conta` (financeiro), `chave_pix` (financeiro), `chave_pix_tipo` (nenhum) |
 | [hospedagem_hotel_usuarios](../dados/dicionario/hospedagem.md#hospedagem_hotel_usuarios) | identificacao | `email` (identificacao), `nome` (identificacao) |
 | [hospedagem_penalidade_liberacoes](../dados/dicionario/hospedagem.md#hospedagem_penalidade_liberacoes) | identificacao | `cpf` (identificacao), `motivo` (identificacao) |
 | [hospedagem_servico](../dados/dicionario/hospedagem.md#hospedagem_servico) | identificacao | `sexo` (identificacao), `relatorio` (identificacao) |
@@ -881,4 +883,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 241 de 241 tabelas com dado pessoal atribuídas a 17 processos.
+Cobertura: 243 de 243 tabelas com dado pessoal atribuídas a 17 processos.
