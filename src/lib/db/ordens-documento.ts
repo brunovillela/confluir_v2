@@ -106,7 +106,7 @@ export async function receberDocumentoFiscal(
     }
     analise = await reverificarOrdem(ordemId, novos, {
       notaFiscal: up.caminho,
-      confirmacao: { codigos: analise.apontamentos.map((a) => a.codigo) },
+      confirmacao: { codigos: analise.apontamentos.map((a) => a.codigo), semJustificativa: true },
     })
   }
   if (analise.apontamentos) {

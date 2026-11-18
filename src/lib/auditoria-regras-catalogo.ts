@@ -318,6 +318,28 @@ export const REGRAS_AUDITORIA: RegraCatalogo[] = [
   },
 ]
 
+/**
+ * Justificativa ao confirmar (17/11/2026): quase todo alerta de compra era
+ * aceito com "Registrar mesmo assim" (212 confirmações desde 01/10) e quem
+ * autoriza não sabia por quê. Toda regra ganha a opção; ligada, confirmar o
+ * alerta pede uma justificativa curta, que vai para a trilha e aparece junto
+ * do alerta. A compra com uma só proposta já pede a sua no próprio processo.
+ */
+export const PARAMETRO_JUSTIFICATIVA = "exigir_justificativa"
+for (const regra of REGRAS_AUDITORIA) {
+  if ((regra.parametros ?? []).some((p) => p.chave === PARAMETRO_JUSTIFICATIVA)) continue
+  regra.parametros = [
+    ...(regra.parametros ?? []),
+    {
+      chave: PARAMETRO_JUSTIFICATIVA,
+      rotulo: "Exigir justificativa para registrar mesmo assim",
+      tipo: "sim_nao",
+      padrao: regra.codigo !== "proposta_unica",
+      ajuda: "Quem confirma o alerta sem ajustar explica o motivo; quem autoriza vê a justificativa junto do alerta.",
+    },
+  ]
+}
+
 export function regrasDaOrigem(origem: OrigemOrdem): RegraCatalogo[] {
   return REGRAS_AUDITORIA.filter((r) => r.origens.includes(origem))
 }

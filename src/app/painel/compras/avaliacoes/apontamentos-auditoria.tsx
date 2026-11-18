@@ -23,11 +23,17 @@ export function ApontamentosAuditoria({ apontamentos }: { apontamentos: Apontame
           <li key={a.codigo} className="grid gap-0.5">
             <span className="font-medium">{a.titulo}</span>
             {a.detalhe && <span className="text-muted-foreground">{a.detalhe}</span>}
-            {a.confirmado && (
-              <span className="text-muted-foreground italic">
-                Quem lançou viu este alerta e confirmou sem ajustar.
-              </span>
-            )}
+            {a.confirmado &&
+              (a.justificativa ? (
+                <span>
+                  <span className="text-muted-foreground">Confirmado por quem lançou: </span>
+                  <span className="font-medium">&ldquo;{a.justificativa}&rdquo;</span>
+                </span>
+              ) : (
+                <span className="text-muted-foreground italic">
+                  Quem lançou viu este alerta e confirmou sem ajustar.
+                </span>
+              ))}
           </li>
         ))}
       </ul>

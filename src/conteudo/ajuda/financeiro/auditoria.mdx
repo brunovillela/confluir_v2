@@ -46,9 +46,22 @@ registrar: pontos da análise**, com cada ponto não ok e o motivo:
   arquivos). Ao enviar de novo, a análise roda outra vez: o que continua
   aparece como **Persiste após o ajuste**, e o que foi resolvido, como
   **Resolvido com o ajuste**. Sem nenhum apontamento, a ordem é registrada.
-- **Registrar mesmo assim** — grava a ordem com os alertas. A trilha da ordem
-  registra que **foram confirmados por quem registrou, sem ajuste**, à vista
-  de quem autoriza.
+- **Registrar mesmo assim** — grava a ordem com os alertas. Cada alerta pede
+  antes a resposta a **Por que registrar mesmo assim?** (pelo menos 10
+  caracteres; o botão só liga com todas preenchidas). A trilha da ordem
+  registra que **foram confirmados por quem registrou, sem ajuste**, com a
+  justificativa, que aparece para quem autoriza junto do alerta (na fila de
+  avaliação, na página da ordem e no extrato).
+
+Cada regra tem, na configuração, a opção **Exigir justificativa para registrar
+mesmo assim**, ligada por padrão. Desligada, o alerta daquela regra se
+confirma sem explicação, como antes. A compra com uma só proposta já pede a
+sua justificativa no próprio processo e vem desligada.
+
+Na **Cobrança em duplicidade**, a tela lista as ordens parecidas (código,
+situação, vencimento, valor e descrição), com link para abrir cada uma: dá
+para ver ali se é a mesma cobrança lançada duas vezes ou duas compras iguais
+de verdade.
 
 Regra marcada como **Bloquear** aparece na mesma tela, mas **não se
 confirma**: o botão fica desligado até o ponto ser ajustado.

@@ -3,11 +3,12 @@ import "server-only"
 import {
   CRITERIOS_DESCRICAO_PADRAO,
   origemDoTipo,
+  PARAMETRO_JUSTIFICATIVA,
   REGRAS_AUDITORIA,
   type OrigemOrdem,
   type Severidade,
 } from "@/lib/auditoria-regras-catalogo"
-import type { Apontamento } from "@/lib/auditoria-confirmacao"
+import { JUSTIFICATIVA_MINIMA, type Apontamento, type OrdemRelacionada } from "@/lib/auditoria-confirmacao"
 import { contaConferida } from "@/lib/bancos"
 import { mesmoTitular, validarCnpj, validarCpf } from "@/lib/cpf"
 import { regrasConfiguradas, type RegraConfigurada } from "@/lib/db/auditoria-regras"
@@ -72,14 +73,26 @@ export type ContextoVerificacao = {
 
 export type { Apontamento }
 
-/** Os códigos de alerta confirmados por quem registra. */
-export type Confirmacao = { codigos: string[] }
+/** Os códigos de alerta confirmados por quem registra (e, desde 17/11/2026, por quê). */
+export type Confirmacao = {
+  codigos: string[]
+  justificativas?: Record<string, string>
+  /** Fluxo sem tela (aceita os alertas sozinho): não há a quem pedir justificativa. */
+  semJustificativa?: boolean
+}
 
 
 /** Lê a confirmação do formulário (campo oculto "confirmados", códigos por vírgula). */
 export function lerConfirmacao(fd: FormData): Confirmacao {
   const bruto = String(fd.get("confirmados") ?? "")
-  return { codigos: bruto.split(",").map((c) => c.trim()).filter(Boolean) }
+  const justificativas: Record<string, string> = {}
+  try {
+    const j = JSON.parse(String(fd.get("justificativas") ?? "") || "{}") as Record<string, unknown>
+    for (const [k, v] of Object.entries(j)) if (typeof v === "string" && v.trim()) justificativas[k] = v.trim().slice(0, 500)
+  } catch {
+    // Campo ausente ou adulterado: sem justificativas.
+  }
+  return { codigos: bruto.split(",").map((c) => c.trim()).filter(Boolean), justificativas }
 }
 
 /** As falhas de um lote, uma por regra (parcelas repetem a mesma). */
@@ -89,16 +102,38 @@ function apontamentosDe(resultados: ResultadoVerificacao[][], confirmacao: Confi
     for (const v of lista) {
       if (v.status !== "falha" || vistos.has(v.codigo)) continue
       const bloqueia = v.severidade === "bloquear"
+      const pedeJustificativa = !bloqueia && v.justificar !== false
+      const justificativa = confirmacao.justificativas?.[v.codigo]
       vistos.set(v.codigo, {
         codigo: v.codigo,
         titulo: v.titulo,
         detalhe: v.detalhe,
         bloqueia,
-        confirmado: !bloqueia && confirmacao.codigos.includes(v.codigo),
+        // Regra que pede justificativa só vale como confirmada com ela.
+        confirmado:
+          !bloqueia &&
+          confirmacao.codigos.includes(v.codigo) &&
+          (!pedeJustificativa || confirmacao.semJustificativa === true || (justificativa?.length ?? 0) >= JUSTIFICATIVA_MINIMA),
+        pedeJustificativa,
+        ...(justificativa ? { justificativa } : {}),
+        ...(v.relacionadas?.length ? { relacionadas: v.relacionadas } : {}),
       })
     }
   }
   return [...vistos.values()]
+}
+
+/** As justificativas dos alertas desta ordem, para o evento "verificada". */
+function justificativasDosAlertas(
+  confirmacao: Confirmacao,
+  lista: ResultadoVerificacao[]
+): { justificativas?: Record<string, string> } {
+  const j = Object.fromEntries(
+    lista
+      .filter((v) => v.status === "falha" && confirmacao.justificativas?.[v.codigo])
+      .map((v) => [v.codigo, confirmacao.justificativas![v.codigo]])
+  )
+  return Object.keys(j).length ? { justificativas: j } : {}
 }
 
 /** Há o que mostrar antes de gravar? (bloqueio, ou alerta ainda não confirmado) */
@@ -114,6 +149,10 @@ export type ResultadoVerificacao = {
   severidade: Severidade
   status: StatusVerificacao
   detalhe: string
+  /** Confirmar sem ajustar pede justificativa (padrão: sim). */
+  justificar?: boolean
+  /** Ordens citadas pelo alerta (duplicidade), para a tela de confirmação. */
+  relacionadas?: OrdemRelacionada[]
 }
 
 const t = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null)
@@ -326,8 +365,16 @@ async function verificarLinha(
 
   const saida: ResultadoVerificacao[] = []
   for (const { regra, severidade, parametros: p } of regras) {
-    const r = (status: StatusVerificacao, detalhe: string) =>
-      saida.push({ codigo: regra.codigo, titulo: regra.titulo, severidade, status, detalhe })
+    const r = (status: StatusVerificacao, detalhe: string, relacionadas?: OrdemRelacionada[]) =>
+      saida.push({
+        codigo: regra.codigo,
+        titulo: regra.titulo,
+        severidade,
+        status,
+        detalhe,
+        justificar: p[PARAMETRO_JUSTIFICATIVA] !== false,
+        ...(relacionadas?.length ? { relacionadas } : {}),
+      })
 
     switch (regra.codigo) {
       case "favorecido_documento": {
@@ -390,7 +437,7 @@ async function verificarLinha(
         const base = venc ?? hoje
         let q = admin
           .from("ordens_pagamento")
-          .select("codigo")
+          .select("id, codigo, descricao, vencimento, situacao, valor_inicial_cobranca")
           .eq("emp_proprietaria_id", emp)
           .eq("valor_inicial_cobranca", valor)
           .not("situacao", "in", '("Cancelada","Estornado")')
@@ -401,8 +448,22 @@ async function verificarLinha(
         if (t(linha.id)) q = q.neq("id", t(linha.id)!)
         q = fornId ? q.eq("beneficiario_fornecedor_id", fornId) : q.eq("beneficiario_usuario_id", usuarioId!)
         const { data } = await q.limit(5)
-        const cods = (data ?? []).map((o) => t(o.codigo)).filter(Boolean)
-        r(cods.length ? "falha" : "ok", cods.length ? `Mesmo favorecido e valor em ±${dias} dias: ${cods.join(", ")}.` : "Nenhuma ordem parecida.")
+        const parecidas = (data ?? []) as Linha[]
+        const cods = parecidas.map((o) => t(o.codigo)).filter(Boolean)
+        // As parecidas vão junto, para a tela de confirmação mostrar lado a lado (17/11/2026).
+        const relacionadas: OrdemRelacionada[] = parecidas.map((o) => ({
+          id: String(o.id),
+          codigo: t(o.codigo),
+          descricao: t(o.descricao),
+          vencimento: t(o.vencimento),
+          situacao: t(o.situacao),
+          valor: n(o.valor_inicial_cobranca),
+        }))
+        r(
+          parecidas.length ? "falha" : "ok",
+          parecidas.length ? `Mesmo favorecido e valor em ±${dias} dias: ${cods.join(", ") || "(sem código)"}.` : "Nenhuma ordem parecida.",
+          relacionadas
+        )
         break
       }
       case "vencimento_distante": {
@@ -888,7 +949,7 @@ export async function inserirOrdensVerificadas(
         `${lista.length} verificação(ões) na criação — ${al ? `${al} alerta(s)` : "sem alertas"}${confirmados}.`,
         {
           alertas: lista.filter((v) => v.status === "falha").map((v) => v.codigo),
-          ...(ctx.confirmacao && al ? { confirmados: ctx.confirmacao.codigos } : {}),
+          ...(ctx.confirmacao && al ? { confirmados: ctx.confirmacao.codigos, ...justificativasDosAlertas(ctx.confirmacao, lista) } : {}),
           ...descricaoAvaliada(linhas[i], lista),
         }
       )
@@ -1003,7 +1064,12 @@ export async function reverificarOrdem(
       "verificada",
       await usuarioDaTrilha(),
       `${lista.length} verificação(ões) ${motivo} — ${al.length ? `${al.length} alerta(s) confirmados por quem registrou` : "sem alertas"}.`,
-      { alertas: al.map((v) => v.codigo), confirmados: ctx.confirmacao.codigos, ...descricaoAvaliada(linha, lista) }
+      {
+        alertas: al.map((v) => v.codigo),
+        confirmados: ctx.confirmacao.codigos,
+        ...justificativasDosAlertas(ctx.confirmacao, lista),
+        ...descricaoAvaliada(linha, lista),
+      }
     )
   }
   return precisaConfirmar(apontamentos) ? { apontamentos, registrar } : { registrar }
@@ -1096,23 +1162,30 @@ export type VerificacaoGravada = {
 
 export async function verificacoesDaOrdem(ordemId: string): Promise<VerificacaoGravada[]> {
   const admin = await createAdminClient()
-  const { data, error } = await admin
-    .from("ordens_pagamento_verificacoes")
-    .select("codigo, titulo, severidade, status, detalhe, created_at")
-    .eq("ordem_id", ordemId)
-    .order("created_at")
+  const [{ data, error }, justificativas] = await Promise.all([
+    admin
+      .from("ordens_pagamento_verificacoes")
+      .select("codigo, titulo, severidade, status, detalhe, created_at")
+      .eq("ordem_id", ordemId)
+      .order("created_at"),
+    justificativasPorOrdem([ordemId]),
+  ])
   if (error) return []
   // Cada regra pela última verificação (a ordem reavaliada depois de uma
   // alteração substitui o resultado anterior), na ordem em que apareceram.
   const ultima = new Map<string, VerificacaoGravada>()
   const criadaEm = String(data?.[0]?.created_at ?? "")
   for (const v of data ?? []) {
+    // Alerta confirmado com justificativa: ela vai junto do detalhe (ordem e extrato).
+    const j = v.status === "alerta" ? justificativas.get(ordemId)?.get(String(v.codigo)) : undefined
+    const vale = j && j.em >= String(v.created_at) ? j.texto : null
+    const detalhe = (v.detalhe as string | null) ?? null
     ultima.set(String(v.codigo), {
       codigo: String(v.codigo),
       titulo: String(v.titulo),
       severidade: String(v.severidade),
       status: v.status as VerificacaoGravada["status"],
-      detalhe: (v.detalhe as string | null) ?? null,
+      detalhe: vale ? `${detalhe ?? ""} Justificativa de quem registrou: ${vale}`.trim() : detalhe,
       quando: String(v.created_at),
       criadaEm,
     })
@@ -1128,6 +1201,35 @@ export type ApontamentoDaOrdem = {
   severidade: string
   /** Quem lançou viu o alerta e confirmou sem ajustar. */
   confirmado: boolean
+  /** Por que confirmou (17/11/2026), quando a regra pede. */
+  justificativa?: string | null
+}
+
+/**
+ * As justificativas dos alertas confirmados, por ordem e regra, com o momento
+ * da confirmação (vale a mais recente), lidas dos eventos "verificada".
+ */
+async function justificativasPorOrdem(ordemIds: string[]): Promise<Map<string, Map<string, { texto: string; em: string }>>> {
+  const m = new Map<string, Map<string, { texto: string; em: string }>>()
+  if (!ordemIds.length) return m
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("ordens_pagamento_eventos")
+    .select("ordem_id, dados, created_at")
+    .in("ordem_id", ordemIds)
+    .eq("tipo", "verificada")
+  for (const e of (data ?? []) as { ordem_id: string; dados: Record<string, unknown> | null; created_at: string }[]) {
+    const j = e.dados?.justificativas
+    if (!j || typeof j !== "object") continue
+    const porRegra = m.get(e.ordem_id) ?? new Map<string, { texto: string; em: string }>()
+    for (const [codigo, texto] of Object.entries(j as Record<string, unknown>)) {
+      if (typeof texto !== "string" || !texto.trim()) continue
+      const atual = porRegra.get(codigo)
+      if (!atual || atual.em < e.created_at) porRegra.set(codigo, { texto: texto.trim(), em: e.created_at })
+    }
+    m.set(e.ordem_id, porRegra)
+  }
+  return m
 }
 
 /**
@@ -1142,7 +1244,7 @@ export async function apontamentosPorOrdem(
   const m = new Map<string, ApontamentoDaOrdem[]>()
   if (!ordemIds.length) return m
   const admin = await createAdminClient()
-  const [verif, eventos] = await Promise.all([
+  const [verif, eventos, justificativas] = await Promise.all([
     admin
       .from("ordens_pagamento_verificacoes")
       .select("ordem_id, codigo, titulo, severidade, status, detalhe, created_at")
@@ -1153,6 +1255,7 @@ export async function apontamentosPorOrdem(
       .select("ordem_id, dados, created_at")
       .in("ordem_id", ordemIds)
       .eq("tipo", "verificada"),
+    justificativasPorOrdem(ordemIds),
   ])
   if (verif.error) return m
   // Quando cada alerta foi confirmado por quem registrou. Vale a confirmação
@@ -1183,6 +1286,10 @@ export async function apontamentosPorOrdem(
         detalhe: (v.detalhe as string | null) ?? null,
         severidade: String(v.severidade),
         confirmado: (confirmados.get(ordem)?.get(String(v.codigo)) ?? "") >= String(v.created_at),
+        justificativa: (() => {
+          const j = justificativas.get(ordem)?.get(String(v.codigo))
+          return j && j.em >= String(v.created_at) ? j.texto : null
+        })(),
       }))
     if (lista.length) m.set(ordem, lista)
   }

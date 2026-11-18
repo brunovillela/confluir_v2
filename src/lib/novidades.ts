@@ -40,6 +40,7 @@ export const NOVIDADES: Novidade[] = [
       "Tipo da chave Pix com a mesma lista em todo o sistema (CNPJ / CPF, Telefone, E-mail, Chave aleatória): a ficha do diretor e o convidado de custeio — que era texto livre — passam a usá-la, e o custeio grava o tipo já no padrão. O campo é o mesmo em todos os cadastros de conta (fornecedor, filiado, funcionário, Meu perfil, diretor, convidado e chave nova no pagamento): \"Tipo da chave Pix\", antes da chave, já escolhido pelo formato quando o cadastro antigo não tinha o tipo. O Portal do hotel também passa a pedir o tipo da chave Pix nas contas de recebimento.",
       "Filiados: a matrícula sindical nova é a menor que estiver vaga, e a mesclagem fica sempre com o menor número do par, para a numeração seguir sem buracos.",
       "Filiados: a busca acha o filiado também pela matrícula sindical antiga — a de carteirinha impressa ou planilha de antes de uma troca — e mostra \"antiga 100084\" ao lado do nome. A ficha exibe os números anteriores ao lado da matrícula atual. Toda troca de matrícula passa a ficar registrada sozinha, e as trocas do arranjo da numeração de 17/11 já estão lá.",
+      "Auditoria das ordens: registrar uma ordem \"mesmo assim\", com alerta, agora pede o motivo de cada alerta — e quem autoriza vê a justificativa junto do alerta (fila de avaliação, página da ordem e extrato). A exigência é ligada por regra em Financeiro → Auditoria das ordens. E a Cobrança em duplicidade mostra as ordens parecidas, com link, para comparar antes de confirmar.",
     ],
   },
   {
