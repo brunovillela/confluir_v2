@@ -61,6 +61,7 @@ import {
   NovoEleitorBotao,
   RemoverAptoBotao,
 } from "./aptos"
+import { LerAptosComIA } from "./aptos-ia"
 import { AssembleiasDaRodada, type JanelaItem } from "./assembleias-rodada"
 import { AvisoAptos } from "./aviso-aptos"
 import { GuardaContatos } from "./guarda-contatos"
@@ -82,6 +83,9 @@ import { TesteEntregaCard } from "./teste-entrega"
 import { EntregaRuimAlerta } from "./entrega-ruim-alerta"
 
 export const metadata: Metadata = { title: "Rodada de assembleias — Confluir" }
+
+/** A lista de aptos lida pela IA (17/11/2026) roda numa action desta página: lista grande leva minutos. */
+export const maxDuration = 300
 
 const INPUT_FILTRO =
   "border-input bg-background text-foreground h-9 rounded-md border px-3 text-sm shadow-xs outline-none"
@@ -360,6 +364,7 @@ export default async function RodadaPage({
             <div className="flex flex-wrap gap-2">
               <NovoEleitorBotao rodadaId={rodada.id} />
               <ImportarAptos rodadaId={rodada.id} />
+              <LerAptosComIA rodadaId={rodada.id} />
               {/* Planilha e PDF com os filtros da aba (09/11/2026). */}
               {contagemAptos.total > 0 && <ExportarAptos rodadaId={rodada.id} />}
             </div>

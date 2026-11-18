@@ -6,6 +6,7 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 
 ## 17/11/2026 — Meu perfil: Meus veículos
 
+- Votações → rodada → Aptos: "Ler lista com IA" recebe a lista de aptos como a empresa mandou — planilha, CSV, PDF ou foto, fora do modelo. A IA lê nome, CPF, matrícula, e-mail e telefone, a tela mostra a prévia com os descartados e o motivo, e só "Incluir" grava. E a importação de listas grandes não para mais no meio com o erro "JWT expired".
 - Telegram: novo comando /diaria. Funcionários e diretores pedem diária pelo bot, em perguntas — tipo, período (vale data passada), quantidade e motivo —, e escolhem salvar na remessa ou já enviá-la para avaliação. As regras são as do Meu perfil → Diárias.
 - Financeiro: o O que fazer hoje separa as ordens em Aguardando informações há 15 dias ou mais (contados da última devolução) numa fila em destaque, que abre a lista só com elas; as mais recentes seguem na fila comum.
 - Aquisição: a compra pode ser marcada como feita no âmbito de um contrato (ao registrar ou editar, escolhe-se o contrato). O contrato e o projeto da compra passam a aparecer na ordem de pagamento dela e nos extratos simplificado e completo — antes, o projeto escolhido na compra não aparecia na ordem quando não tinha sido copiado para ela.

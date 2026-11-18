@@ -213,7 +213,7 @@
 <a id="p05"></a>
 ## P05. Assembleias e votações
 
-**Finalidade.** Organizar assembleias, verificar aptidão dos eleitores, colher votos (online, link pessoal, urna, mesário, em separado), apurar e emitir comprovantes e atas.
+**Finalidade.** Organizar assembleias, verificar aptidão dos eleitores, colher votos (online, link pessoal, urna, mesário, em separado), apurar e emitir comprovantes e atas. A lista de aptos enviada pela empresa pode ser lida por IA (planilha, PDF ou imagem; o arquivo é apagado depois da leitura).
 
 **Titulares.** Eleitores (filiados e trabalhadores da base), mesários, apuradores.
 
@@ -226,9 +226,9 @@
 
 **Compartilhamento com terceiros.** Resultado agregado é público (ata). Nenhum dado individual compartilhado.
 
-**Suboperadores.** Supabase, Vercel, Sentry, Brevo / Resend, Telegram, Cloudflare Turnstile.
+**Suboperadores.** Supabase, Vercel, Sentry, Brevo / Resend, Telegram, Cloudflare Turnstile, OpenAI.
 
-**Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Telegram: Exterior; Cloudflare Turnstile: EUA (rede global). Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
+**Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Telegram: Exterior; Cloudflare Turnstile: EUA (rede global); OpenAI: EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
 **Retenção.** Voto anônimo e atas: permanente (memória institucional). Participação (quem votou): 5 anos após a assembleia. Dados de contato dos aptos: apagados automaticamente 90 dias (ajustável por rodada) após a apuração de todas as assembleias da rodada (cron /api/votacao/tick, migração 20261018181729); contatos do voto em separado: no encerramento da apuração. Códigos RT08–RT11 em retencao.md (proposta a validar).
 
@@ -873,7 +873,7 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 | Supabase | Banco de dados, autenticação e arquivos | Dados no Brasil (AWS São Paulo, sa-east-1); empresa nos EUA | P01, P02, P03, P04, P05, P06, P07, P08, P09, P10, P11, P12, P13, P14, P15, P16, P17 |
 | Vercel | Hospedagem da aplicação e execução das funções | Funções em São Paulo (gru1); empresa e rede de borda nos EUA | P01, P02, P03, P04, P05, P06, P07, P08, P09, P10, P11, P12, P13, P14, P15, P16, P17 |
 | Sentry | Registro de erros (CPF mascarado, sem corpo de requisição) | União Europeia (Alemanha) | P01, P02, P03, P04, P05, P06, P07, P08, P09, P10, P11, P12, P13, P14, P15, P16, P17 |
-| OpenAI | Recursos de IA: leitura de PDF/imagem e redação (store: false) | EUA | P01, P02, P06, P07, P08, P10, P11, P12, P13, P14, P15, P17 |
+| OpenAI | Recursos de IA: leitura de PDF/imagem e redação (store: false) | EUA | P01, P02, P05, P06, P07, P08, P10, P11, P12, P13, P14, P15, P17 |
 | Brevo / Resend | Envio de e-mails transacionais | Brevo: União Europeia (França); Resend: EUA | P01, P02, P03, P04, P05, P07, P10, P11, P12, P13, P15, P16, P17 |
 | Telegram | Bot de avisos, aprovações e votação | Exterior | P05, P07, P10, P11, P14, P16 |
 | Cloudflare Turnstile | Verificação anti-robô nos formulários de acesso | EUA (rede global) | P04, P05, P16 |

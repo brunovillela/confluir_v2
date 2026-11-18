@@ -128,9 +128,21 @@ export async function createAdminClient(): Promise<SupabaseClient> {
   // Vale para os dois clientes — tenant e service.
   const usuarioId = await usuarioIdAtual()
   const carimbo: Record<string, string> = usuarioId ? { "x-confluir-usuario": usuarioId } : {}
+  // JWT NOVO A CADA CHAMADA (17/11/2026): antes o token era gerado uma vez,
+  // com 60 s de vida, e uma operação longa com o mesmo cliente (importar
+  // milhares de aptos: ler os existentes em lotes e gravar de 500 em 500)
+  // passava disso — o banco recusava as últimas gravações com "JWT expired".
+  // Gerar o token por requisição custa um HMAC; a vida curta continua valendo.
   const tenant = createSupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
-    global: { headers: { Authorization: `Bearer ${jwtDoTenant(tenantId)}`, ...carimbo } },
+    global: {
+      headers: carimbo,
+      fetch: (entrada, init) => {
+        const cabecalhos = new Headers(init?.headers ?? (entrada instanceof Request ? entrada.headers : undefined))
+        cabecalhos.set("Authorization", `Bearer ${jwtDoTenant(tenantId)}`)
+        return fetch(entrada, { ...init, headers: cabecalhos })
+      },
+    },
   })
   const service = createSupabaseClient(
     SUPABASE_URL,

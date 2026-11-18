@@ -5,6 +5,10 @@ import { revalidatePath } from "next/cache"
 import { flagsDaModalidade, MODALIDADES, temUrna } from "@/lib/assembleias-constantes"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
+import { conferirLinhaApto, type CamposApto, type LinhaApto } from "@/lib/aptos-linhas"
+import { lerAptosDaLista, type LeituraAptos } from "@/lib/db/aptos-lista-ia"
+import { criarEnvioLista, MAX_ARQUIVO_LISTA } from "@/lib/db/filiacao-atualizacao-lista"
+import { MAX_LINHAS_LISTA } from "@/lib/ia-lista-trabalhadores"
 import { limparCpf, validarCpf } from "@/lib/cpf"
 import { decodificarCsv, normalizarCabecalho, parseCsv } from "@/lib/csv"
 import {
@@ -500,51 +504,20 @@ export async function importarAptosCsv(
   }
 
   const erros: { linha: number; motivo: string }[] = []
-  const linhas: {
-    linha: number
-    cpf: string | null
-    nome_completo: string | null
-    matricula: string | null
-    email: string | null
-    telefone: string | null
-  }[] = []
+  const linhas: LinhaApto[] = []
   let exemplos = 0
   for (let i = 1; i < linhasCsv.length; i++) {
     const bruta = linhasCsv[i]
     if (bruta.every((c) => c.trim() === "")) continue
-    const campos: Partial<
-      Record<"cpf" | "nome" | "matricula" | "email" | "telefone", string>
-    > = {}
+    const campos: CamposApto = {}
     for (const [indice, campo] of colunas) {
       campos[campo] = (bruta[indice] ?? "").trim()
     }
-    // linhas de exemplo da planilha modelo esquecidas no arquivo
-    if (/^exemplo\b/i.test(campos.nome ?? "")) {
-      exemplos++
-      continue
-    }
-    const cpfBruto = (campos.cpf ?? "").trim()
-    const cpf = limparCpf(cpfBruto)
-    if (cpfBruto !== "" && !validarCpf(cpf)) {
-      erros.push({ linha: i + 1, motivo: `CPF inválido: ${cpfBruto}` })
-      continue
-    }
-    // sem CPF ainda vale, desde que dê para identificar por nome ou matrícula
-    if (cpfBruto === "" && !campos.nome && !campos.matricula) {
-      erros.push({
-        linha: i + 1,
-        motivo: "Linha sem CPF, nome ou matrícula — impossível identificar.",
-      })
-      continue
-    }
-    linhas.push({
-      linha: i + 1,
-      cpf: cpfBruto === "" ? null : cpf,
-      nome_completo: campos.nome || null,
-      matricula: campos.matricula || null,
-      email: campos.email || null,
-      telefone: campos.telefone || null,
-    })
+    // A mesma conferência da lista lida pela IA (lib/aptos-linhas.ts).
+    const c = conferirLinhaApto(campos, i + 1)
+    if ("exemplo" in c) exemplos++
+    else if ("erro" in c) erros.push({ linha: i + 1, motivo: c.erro })
+    else linhas.push(c.linha)
   }
 
   const { resultado, erro } = await importarAptos(rodadaId, linhas)
@@ -553,6 +526,63 @@ export async function importarAptosCsv(
   resultado.totalLinhas += erros.length + exemplos
   resultado.ignorados += exemplos
   revalidarRodada(rodadaId)
+  return { resultado }
+}
+
+// ── Lista de aptos lida pela IA (17/11/2026) ────────────────────────────────
+
+/** 1º passo: URL assinada para o navegador subir a lista direto ao armazenamento. */
+export async function prepararEnvioAptosAction(
+  nomeArquivo: string,
+  tamanho: number
+): Promise<{ caminho?: string; token?: string; erro?: string }> {
+  await requirePermissao("assembleias")
+  if (!(tamanho > 0)) return { erro: "Escolha o arquivo da lista (planilha, CSV, PDF ou imagem)." }
+  if (tamanho > MAX_ARQUIVO_LISTA) return { erro: "Arquivo grande demais — até 25 MB. Divida a lista." }
+  return criarEnvioLista(nomeArquivo)
+}
+
+/** 2º passo: a IA lê o arquivo enviado e devolve a prévia. Nada entra na rodada ainda. */
+export async function lerAptosComIAAction(entrada: {
+  rodadaId: string
+  caminho: string
+  arquivo: string
+}): Promise<LeituraAptos> {
+  await requirePermissao("assembleias")
+  if (!(await obterRodada(entrada.rodadaId))) return { erro: "Rodada não encontrada." }
+  return lerAptosDaLista(entrada.caminho, entrada.arquivo)
+}
+
+/** 3º passo: inclui na rodada as linhas da prévia, conferidas de novo aqui. */
+export async function incluirAptosLidosAction(entrada: {
+  rodadaId: string
+  linhas: CamposApto[]
+}): Promise<EstadoImportacaoAptos> {
+  await requirePermissao("assembleias")
+  if (!(await obterRodada(entrada.rodadaId))) return { erro: "Rodada não encontrada." }
+  if (!Array.isArray(entrada.linhas) || entrada.linhas.length === 0) return { erro: "Nenhum apto para incluir." }
+  if (entrada.linhas.length > MAX_LINHAS_LISTA) return { erro: "Lista grande demais." }
+  const linhas: LinhaApto[] = []
+  const erros: { linha: number; motivo: string }[] = []
+  entrada.linhas.forEach((campos, i) => {
+    const c = conferirLinhaApto(
+      {
+        cpf: String(campos?.cpf ?? ""),
+        nome: String(campos?.nome ?? ""),
+        matricula: String(campos?.matricula ?? ""),
+        email: String(campos?.email ?? ""),
+        telefone: String(campos?.telefone ?? ""),
+      },
+      i + 1
+    )
+    if ("linha" in c) linhas.push(c.linha)
+    else if ("erro" in c) erros.push({ linha: i + 1, motivo: c.erro })
+  })
+  const { resultado, erro } = await importarAptos(entrada.rodadaId, linhas)
+  if (erro || !resultado) return { erro: erro ?? "Falha na importação." }
+  resultado.erros = [...erros, ...resultado.erros]
+  resultado.totalLinhas += erros.length
+  revalidarRodada(entrada.rodadaId)
   return { resultado }
 }
 
