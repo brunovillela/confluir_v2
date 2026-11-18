@@ -6,14 +6,13 @@ import { Loader2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { normalizarTipoPix } from "@/lib/bancos"
-import { TIPOS_CHAVE_PIX } from "@/lib/contracheques-constantes"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import type { ConvidadoLinha } from "@/lib/db/custeio"
 
 import { salvarConvidadoAction } from "../actions"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
+import { CampoTipoChavePix } from "@/components/campo-tipo-chave-pix"
 
 export function ConvidadoForm({
   convidado,
@@ -96,25 +95,10 @@ export function ConvidadoForm({
               defaultValue={convidado?.tipo_conta ?? ""}
             />
           </div>
+          <CampoTipoChavePix id="tipo_chave_pix" name="tipo_chave_pix" valor={convidado?.tipo_chave_pix} chave={convidado?.pix} />
           <div className="grid gap-1.5">
-            <Label htmlFor="pix">Chave PIX</Label>
+            <Label htmlFor="pix">Chave Pix</Label>
             <Input id="pix" name="pix" defaultValue={convidado?.pix ?? ""} />
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="tipo_chave_pix">Tipo da chave PIX</Label>
-            <select
-              id="tipo_chave_pix"
-              name="tipo_chave_pix"
-              defaultValue={convidado?.pix ? (normalizarTipoPix(convidado.tipo_chave_pix, convidado.pix) ?? "") : ""}
-              className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm shadow-xs"
-            >
-              <option value="">—</option>
-              {TIPOS_CHAVE_PIX.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
           </div>
         </div>
       </fieldset>

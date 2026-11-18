@@ -10,7 +10,7 @@ import {
   DETALHE_DA_FORMA,
   type FormaPagamentoCompras,
 } from "@/lib/compras-constantes"
-import { TIPOS_CHAVE_PIX, TIPOS_CONTA } from "@/lib/contracheques-constantes"
+import { TIPOS_CONTA } from "@/lib/contracheques-constantes"
 import type {
   ContaFornecedor,
   PixFornecedor,
@@ -18,6 +18,7 @@ import type {
 
 import { ACEITA_NOTA, LIMITE_ENVIO, prepararArquivo } from "@/lib/arquivo-envio"
 import { meiosDoFornecedor } from "./pagamento-actions"
+import { CampoTipoChavePix } from "@/components/campo-tipo-chave-pix"
 
 export type CartaoOpcao = { id: string; nome: string }
 export type CaixaOpcao = {
@@ -314,21 +315,9 @@ export function DetalhePagamento({
       {valorEscolha === NOVA &&
         (ePix ? (
           <div className="grid gap-3 md:grid-cols-3">
-            <div className="grid gap-1.5">
-              <Label htmlFor="pix_tipo">Tipo da chave *</Label>
-              <select id="pix_tipo" name="pix_tipo" required defaultValue="" className={SELECT}>
-                <option value="" disabled>
-                  Escolha o tipo
-                </option>
-                {TIPOS_CHAVE_PIX.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CampoTipoChavePix id="pix_tipo" obrigatorio />
             <div className="grid gap-1.5 md:col-span-2">
-              <Label htmlFor="pix_chave">Chave *</Label>
+              <Label htmlFor="pix_chave">Chave Pix *</Label>
               <Input id="pix_chave" name="pix_chave" required />
             </div>
             <div className="grid gap-1.5 md:col-span-3">

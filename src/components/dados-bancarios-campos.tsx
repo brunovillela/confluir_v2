@@ -2,7 +2,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { CampoBanco } from "@/components/campo-banco"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { TIPOS_CHAVE_PIX, TIPOS_CONTA } from "@/lib/contracheques-constantes"
+import { TIPOS_CONTA } from "@/lib/contracheques-constantes"
+import { CampoTipoChavePix } from "@/components/campo-tipo-chave-pix"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -97,17 +98,7 @@ export function CamposDadosBancarios({
             defaultValue={valores?.titularDocumento ?? titularSugerido ?? ""}
           />
         </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor={`${p}-pix-tipo`}>Tipo da chave Pix</Label>
-          <select id={`${p}-pix-tipo`} name="pix_tipo" defaultValue={valores?.pixTipo ?? ""} className={SELECT}>
-            <option value="">—</option>
-            {TIPOS_CHAVE_PIX.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </div>
+        <CampoTipoChavePix id={`${p}-pix-tipo`} valor={valores?.pixTipo} chave={valores?.pix} />
         <div className="grid gap-1.5 sm:col-span-3">
           <Label htmlFor={`${p}-pix`}>Chave Pix</Label>
           <Input id={`${p}-pix`} name="pix" defaultValue={valores?.pix ?? ""} />
