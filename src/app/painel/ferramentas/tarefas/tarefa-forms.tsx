@@ -1,7 +1,7 @@
 "use client"
 
-import { useActionState, useState } from "react"
-import { Check, Link2, Loader2, Pencil, Plus, RotateCcw, Save, Trash2, Unlink } from "lucide-react"
+import { type ReactNode, useActionState, useState } from "react"
+import { Check, Link2, Loader2, Pencil, Plus, RotateCcw, Save, Trash2, Unlink, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -186,6 +186,80 @@ export function VincularTarefa({ pai, avulsas }: { pai: PaiFixo; avulsas: Tarefa
       </div>
       {estado.erro && <p className="text-destructive text-sm sm:col-span-2">{estado.erro}</p>}
     </form>
+  )
+}
+
+/**
+ * Botões "Nova tarefa" e "Vincular avulsa" que abrem o formulário só quando
+ * pedido (a lista fica limpa). O de nova tarefa continua aberto depois de
+ * adicionar, para lançar várias em seguida; fecha no X.
+ */
+export function IncluirTarefas({
+  pessoas,
+  pai,
+  avulsas,
+  dica,
+  cabecalho,
+}: {
+  pessoas: OpcaoPessoa[]
+  pai: PaiFixo
+  avulsas: TarefaAvulsa[]
+  dica?: string
+  /** Fica à esquerda, na mesma linha dos botões (título do cartão). */
+  cabecalho?: ReactNode
+}) {
+  const [aberto, setAberto] = useState<"nova" | "vincular" | null>(null)
+  const alternar = (qual: "nova" | "vincular") => setAberto((a) => (a === qual ? null : qual))
+  return (
+    <div className="grid gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {cabecalho}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant={aberto === "nova" ? "secondary" : "default"}
+            aria-expanded={aberto === "nova"}
+            onClick={() => alternar("nova")}
+          >
+            <Plus />
+            Nova tarefa
+          </Button>
+          {avulsas.length > 0 && (
+            <Button
+              type="button"
+              size="sm"
+              variant={aberto === "vincular" ? "secondary" : "outline"}
+              aria-expanded={aberto === "vincular"}
+              onClick={() => alternar("vincular")}
+            >
+              <Link2 />
+              Vincular avulsa
+            </Button>
+          )}
+        </div>
+      </div>
+      {aberto && (
+        <div className="bg-muted/40 relative grid gap-2 rounded-md border p-3 pr-10">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="absolute top-1.5 right-1.5 size-7"
+            aria-label="Fechar o formulário"
+            onClick={() => setAberto(null)}
+          >
+            <X />
+          </Button>
+          {aberto === "nova" ? (
+            <AdicionarTarefa pessoas={pessoas} pai={pai} />
+          ) : (
+            <VincularTarefa pai={pai} avulsas={avulsas} />
+          )}
+          {dica && aberto === "nova" && <p className="text-muted-foreground text-xs">{dica}</p>}
+        </div>
+      )}
+    </div>
   )
 }
 

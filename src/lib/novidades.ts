@@ -16,6 +16,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-11-17",
     titulo: "Meu perfil: Meus veículos",
     itens: [
+      "Ferramentas → Projetos: a página do projeto ficou em duas colunas no topo — à esquerda tipo, período, centro de custo, departamentos e detalhamento; à direita o orçamento, com uma barra de quanto já foi solicitado em Aquisição, e o saldo. Nas tarefas, o formulário só abre ao clicar em Nova tarefa ou Vincular avulsa.",
       "Votações → rodada → Aptos: \"Ler lista com IA\" recebe a lista de aptos como a empresa mandou — planilha, CSV, PDF ou foto, fora do modelo. A IA lê nome, CPF, matrícula, e-mail e telefone, a tela mostra a prévia com os descartados e o motivo, e só \"Incluir\" grava. E a importação de listas grandes não para mais no meio com o erro \"JWT expired\".",
       "Telegram: novo comando /diaria. Funcionários e diretores pedem diária pelo bot, em perguntas — tipo, período (vale data passada), quantidade e motivo —, e escolhem salvar na remessa ou já enviá-la para avaliação. As regras são as do Meu perfil → Diárias.",
       "Financeiro: o O que fazer hoje separa as ordens em Aguardando informações há 15 dias ou mais (contados da última devolução) numa fila em destaque, que abre a lista só com elas; as mais recentes seguem na fila comum.",

@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import type { ReactNode } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ArrowLeft, Pencil } from "lucide-react"
@@ -7,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
 import {
   Table,
   TableBody,
@@ -21,7 +23,7 @@ import { obterProjeto } from "@/lib/db/projetos"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
-import { AdicionarTarefa, VincularTarefa } from "../../tarefas/tarefa-forms"
+import { IncluirTarefas } from "../../tarefas/tarefa-forms"
 import { TarefasLista } from "../../tarefas/tarefas-lista"
 import { ProjetoAcoes } from "./projeto-acoes"
 
@@ -58,24 +60,25 @@ export default async function ProjetoPage({
   const saldo =
     projeto.orcamento != null ? projeto.orcamento - projeto.gastoCompras : null
 
+  const periodo =
+    projeto.inicio || projeto.termino_previsao
+      ? `${projeto.inicio ? formatarData(projeto.inicio) : "?"}${
+          projeto.termino_previsao ? ` a ${formatarData(projeto.termino_previsao)}` : ""
+        }`
+      : "—"
+  const usoOrcamento =
+    projeto.orcamento != null && projeto.orcamento > 0
+      ? (projeto.gastoCompras / projeto.orcamento) * 100
+      : null
+
   return (
     <>
-      <div className="flex items-center justify-between gap-2">
-        <Button variant="ghost" size="sm" asChild>
-          <Link href="/painel/ferramentas/projetos">
-            <ArrowLeft />
-            Projetos
-          </Link>
-        </Button>
-        {editor && (
-          <Button variant="outline" size="sm" asChild>
-            <Link href={`/painel/ferramentas/projetos/${id}/editar`}>
-              <Pencil />
-              Editar
-            </Link>
-          </Button>
-        )}
-      </div>
+      <Button variant="ghost" size="sm" asChild className="self-start">
+        <Link href="/painel/ferramentas/projetos">
+          <ArrowLeft />
+          Projetos
+        </Link>
+      </Button>
 
       {salvo && (
         <Alert className="border-success/40 text-success-fg">
@@ -84,110 +87,119 @@ export default async function ProjetoPage({
       )}
 
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {projeto.titulo ?? "(sem título)"}
-            </h1>
-            {projeto.finalizado ? (
-              <Badge variant="outline" className="text-muted-foreground">
-                Finalizado
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="border-success/40 text-success-fg">
-                Em andamento
-              </Badge>
-            )}
-            {projeto.estrategico && <Badge variant="secondary">Estratégico</Badge>}
-          </div>
-          <p className="text-muted-foreground mt-1 text-xs">
-            {projeto.tipo ?? "—"}
-            {projeto.inicio || projeto.termino_previsao
-              ? ` · ${projeto.inicio ? formatarData(projeto.inicio) : "?"}${
-                  projeto.termino_previsao
-                    ? ` – ${formatarData(projeto.termino_previsao)}`
-                    : ""
-                }`
-              : ""}
-          </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {projeto.titulo ?? "(sem título)"}
+          </h1>
+          {projeto.finalizado ? (
+            <Badge variant="outline" className="text-muted-foreground">
+              Finalizado
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="border-success/40 text-success-fg">
+              Em andamento
+            </Badge>
+          )}
+          {projeto.estrategico && <Badge variant="secondary">Estratégico</Badge>}
         </div>
         {editor && (
-          <ProjetoAcoes projetoId={id} finalizado={projeto.finalizado === true} pendentes={pendentes} />
+          <div className="flex flex-wrap items-start gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/painel/ferramentas/projetos/${id}/editar`}>
+                <Pencil />
+                Editar
+              </Link>
+            </Button>
+            <ProjetoAcoes projetoId={id} finalizado={projeto.finalizado === true} pendentes={pendentes} />
+          </div>
         )}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <CardValor
-          rotulo="Orçamento"
-          valor={projeto.orcamento != null ? formatarMoeda(projeto.orcamento) : "—"}
-        />
-        <CardValor
-          rotulo="Solicitado em Aquisição"
-          valor={formatarMoeda(projeto.gastoCompras)}
-        />
-        <CardValor
-          rotulo="Saldo do orçamento"
-          valor={saldo != null ? formatarMoeda(saldo) : "—"}
-          alerta={saldo != null && saldo < 0}
-        />
-        <CardValor rotulo="Solicitações" valor={projeto.solicitacoes.length} />
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardContent className="grid gap-4">
+            <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
+              <Dado rotulo="Tipo">{projeto.tipo ?? "—"}</Dado>
+              <Dado rotulo="Período">{periodo}</Dado>
+              <Dado rotulo="Centro de custo">{projeto.centroCustoNome ?? "—"}</Dado>
+              <Dado rotulo="Departamentos">
+                {projeto.departamentos.length > 0 ? projeto.departamentos.join(", ") : "—"}
+              </Dado>
+            </dl>
+            {projeto.detalhamento && (
+              <div className="border-t pt-4">
+                <p className="text-muted-foreground mb-1 text-xs">Detalhamento</p>
+                <p className="text-sm whitespace-pre-wrap">{projeto.detalhamento}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="grid gap-3">
+            <div>
+              <p className="text-muted-foreground text-xs">Orçamento</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums">
+                {projeto.orcamento != null ? formatarMoeda(projeto.orcamento) : "—"}
+              </p>
+            </div>
+            {usoOrcamento != null && (
+              <div className="grid gap-1">
+                <Progress
+                  value={Math.min(usoOrcamento, 100)}
+                  className={`h-2 ${usoOrcamento > 100 ? "[&>[data-slot=progress-indicator]]:bg-destructive" : ""}`}
+                  aria-label="Parte do orçamento já solicitada"
+                />
+                <p className="text-muted-foreground text-xs">
+                  {usoOrcamento.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}% do orçamento solicitado
+                </p>
+              </div>
+            )}
+            <dl className="grid gap-1.5 border-t pt-3 text-sm">
+              <Linha rotulo="Solicitado em Aquisição">{formatarMoeda(projeto.gastoCompras)}</Linha>
+              <Linha rotulo="Saldo" alerta={saldo != null && saldo < 0}>
+                {saldo != null ? formatarMoeda(saldo) : "—"}
+              </Linha>
+              <Linha rotulo="Solicitações">{projeto.solicitacoes.length.toLocaleString("pt-BR")}</Linha>
+            </dl>
+          </CardContent>
+        </Card>
       </div>
 
-      {(projeto.centroCustoNome || projeto.departamentos.length > 0) && (
-        <Card>
-          <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
-            {projeto.centroCustoNome && (
-              <div>
-                <p className="text-muted-foreground text-xs">Centro de custo</p>
-                <p className="mt-0.5">{projeto.centroCustoNome}</p>
-              </div>
-            )}
-            {projeto.departamentos.length > 0 && (
-              <div>
-                <p className="text-muted-foreground text-xs">Departamentos</p>
-                <p className="mt-0.5">{projeto.departamentos.join(", ")}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {projeto.detalhamento && (
-        <Card>
-          <CardContent>
-            <p className="text-muted-foreground mb-2 text-xs">Detalhamento</p>
-            <p className="text-sm whitespace-pre-wrap">{projeto.detalhamento}</p>
-          </CardContent>
-        </Card>
-      )}
-
       <Card>
-        <CardContent>
-          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-            <p className="text-sm font-medium">
-              Tarefas{" "}
-              <span className="text-muted-foreground font-normal">
-                ({concluidas}/{tarefas.tarefas.length})
-              </span>
-            </p>
-            {demanda && veDemandas && (
-              <Link href={`/painel/ferramentas/demandas/${demanda.id}`} className="text-primary text-xs hover:underline">
-                Ver a demanda do projeto
-              </Link>
-            )}
-          </div>
-          {editaTarefas && !projeto.finalizado && (
-            <div className="mb-4 grid gap-3">
-              <AdicionarTarefa pessoas={pessoas} pai={{ campo: "projeto_id", id }} />
-              <VincularTarefa pai={{ campo: "projeto_id", id }} avulsas={avulsas} />
-              {!demanda && (
-                <p className="text-muted-foreground text-xs">
-                  Na primeira tarefa, o projeto cria a demanda dele, e as tarefas seguem a rotina das
-                  demandas: o responsável é avisado e elas aparecem em Tarefas.
+        <CardContent className="grid gap-4">
+          {(() => {
+            const titulo = (
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <p className="text-sm font-medium">
+                  Tarefas{" "}
+                  <span className="text-muted-foreground font-normal">
+                    ({concluidas}/{tarefas.tarefas.length})
+                  </span>
                 </p>
-              )}
-            </div>
-          )}
+                {demanda && veDemandas && (
+                  <Link href={`/painel/ferramentas/demandas/${demanda.id}`} className="text-primary text-xs hover:underline">
+                    Ver a demanda do projeto
+                  </Link>
+                )}
+              </div>
+            )
+            return editaTarefas && !projeto.finalizado ? (
+              <IncluirTarefas
+                pessoas={pessoas}
+                pai={{ campo: "projeto_id", id }}
+                avulsas={avulsas}
+                cabecalho={titulo}
+                dica={
+                  demanda
+                    ? undefined
+                    : "Na primeira tarefa, o projeto cria a demanda dele, e as tarefas seguem a rotina das demandas: o responsável é avisado e elas aparecem em Tarefas."
+                }
+              />
+            ) : (
+              titulo
+            )
+          })()}
           <TarefasLista
             tarefas={tarefas.tarefas}
             pai={{ campo: "projeto_id", id }}
@@ -246,27 +258,28 @@ export default async function ProjetoPage({
   )
 }
 
-function CardValor({
+function Dado({ rotulo, children }: { rotulo: string; children: ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-muted-foreground text-xs">{rotulo}</dt>
+      <dd className="mt-0.5 break-words">{children}</dd>
+    </div>
+  )
+}
+
+function Linha({
   rotulo,
-  valor,
   alerta,
+  children,
 }: {
   rotulo: string
-  valor: number | string
   alerta?: boolean
+  children: ReactNode
 }) {
   return (
-    <Card>
-      <CardContent>
-        <p className="text-muted-foreground text-xs">{rotulo}</p>
-        <p
-          className={`mt-1 text-2xl font-semibold tabular-nums ${
-            alerta ? "text-destructive" : ""
-          }`}
-        >
-          {typeof valor === "number" ? valor.toLocaleString("pt-BR") : valor}
-        </p>
-      </CardContent>
-    </Card>
+    <div className="flex items-baseline justify-between gap-3">
+      <dt className="text-muted-foreground">{rotulo}</dt>
+      <dd className={`font-medium tabular-nums ${alerta ? "text-destructive" : ""}`}>{children}</dd>
+    </div>
   )
 }
