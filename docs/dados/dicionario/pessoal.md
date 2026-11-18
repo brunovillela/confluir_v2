@@ -2,7 +2,7 @@
 
 # Pessoal (RH da entidade)
 
-61 tabelas. Diagrama: [er/pessoal.md](../er/pessoal.md).
+62 tabelas. Diagrama: [er/pessoal.md](../er/pessoal.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -63,6 +63,7 @@
 | [pessoal_registro_ponto_remessas](#pessoal_registro_ponto_remessas) | — | Remessa mensal de espelhos de ponto (mês de referência, finalizada). Migrada do Bubble; gerida em Pessoal > Ponto. |
 | [pessoal_tabelas_salariais](#pessoal_tabelas_salariais) | identificação | Tabela salarial de um período, com os degraus em pessoal_nivel_salarial_base; no máximo uma vigente por entidade (src/lib/db/tabelas-salaria… |
 | [pessoal_telegram_arquivos](#pessoal_telegram_arquivos) | identificação, financeiro, **sensível: saúde** | Comprovante mandado ao bot do Telegram (foto ou PDF) aguardando confirmação: o que a IA leu e o passo da conversa; apagada ao confirmar ou c… |
+| [pessoal_telegram_diarias](#pessoal_telegram_diarias) | identificação | Pedido de diária em andamento no bot do Telegram (/diaria): o passo da conversa e as respostas até ali; apagada ao confirmar ou cancelar e e… |
 | [pessoal_treinamentos](#pessoal_treinamentos) | — | Catálogo de treinamentos (carga horária e validade em meses) usado em SST. Herdado do Bubble; cadastrado em Pessoal > Treinamentos. |
 | [pessoal_treinamentos_alunos](#pessoal_treinamentos_alunos) | trabalhista | Participação de um funcionário num treinamento (datas e certificado), usada no controle de vencimentos. Espelho do Bubble; gravada em Pessoa… |
 | [prestadores_servico](#prestadores_servico) | identificação | Prestador de serviço pessoa física (CPF, nome) ligado a um fornecedor. Sem uso encontrado no código (possível legado do Bubble). |
@@ -1588,6 +1589,26 @@ Comprovante mandado ao bot do Telegram (foto ou PDF) aguardando confirmação: o
 | `expira_em` | timestamp with time zone | não |  |  | nenhum | Depois disso a conversa é descartada e o arquivo precisa ser mandado de novo. |
 
 Índices: `pessoal_telegram_arquivos_expira_idx`, `pessoal_telegram_arquivos_pkey`
+
+## pessoal_telegram_diarias
+
+Pedido de diária em andamento no bot do Telegram (/diaria): o passo da conversa e as respostas até ali; apagada ao confirmar ou cancelar e expira em 30 minutos (src/lib/telegram-diaria.ts).
+
+- **LGPD:** identificação · titulares: funcionários, diretores
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `chat_id` | text | não |  |  | identificação | Chat do Telegram da pessoa (o mesmo de usuarios.telegram_chat_id). |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  | Entidade (tenant). |
+| `usuario_id` | uuid | não |  | → usuarios (**cascade**) | identificação | Quem está pedindo — e quem recebe a diária. |
+| `passo` | text | não |  |  | nenhum | Passo atual da conversa (tipo, início, término, quantidade, motivo, confirmar). |
+| `dados` | jsonb | não | `'{}'::jsonb` |  | identificação | Respostas dadas até o passo atual: tipo de diária, datas, quantidade e motivo. |
+| `atualizado_em` | timestamp with time zone | não | `now()` |  | nenhum | Última resposta. |
+| `expira_em` | timestamp with time zone | não |  |  | nenhum | Depois disso a conversa é descartada e o /diaria recomeça. |
+
+Índices: `pessoal_telegram_diarias_expira_idx`, `pessoal_telegram_diarias_pkey`
 
 ## pessoal_treinamentos
 

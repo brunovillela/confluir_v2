@@ -83,6 +83,11 @@ async function apagarConversa(chatId: string): Promise<boolean> {
   return (data ?? []).length > 0
 }
 
+/** Outro pedido guiado começou (/diaria): a viagem pela metade não pode roubar as respostas. */
+export async function descartarPedidoViagem(chatId: string): Promise<void> {
+  await apagarConversa(chatId).catch(() => false)
+}
+
 async function contexto(passo: PassoViagem): Promise<ContextoViagem> {
   const precisaDeptos = passo === "departamento" || passo === "confirmar"
   const [departamentos, config] = await Promise.all([

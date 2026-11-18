@@ -42,6 +42,7 @@ Os comandos aparecem no botão **/** da conversa, e **/ajuda** lista todos.
 | /aprovar | Até 5 ordens de pagamento na sua alçada, com **Aprovar** e **Devolver** | Quem tem alçada |
 | /contracheque | Link do contracheque mais recente. O link é pessoal e expira em 1 hora | Quem tem contracheque liberado |
 | /ferias | Saldo de férias por período em aberto. O pedido de férias é feito no painel | Quem tem períodos de férias |
+| /diaria | Pedido de diária, em perguntas. A diária entra na sua remessa | Funcionário com vínculo em vigor ou diretor em exercício |
 | /diarias | As suas últimas solicitações de diária | Quem tem diárias |
 | /viagem | Pedido de passagem e hospedagem, em perguntas | Quem tem a permissão de pedir e é funcionário com vínculo em vigor ou diretor em exercício |
 | /viagens | Os seus últimos pedidos de viagem | Quem tem pedidos |
@@ -53,7 +54,7 @@ Os comandos aparecem no botão **/** da conversa, e **/ajuda** lista todos.
 | /ajuda | Lista os comandos | Todos |
 
 **/cancelar** desiste do que estiver em andamento: um motivo, um pedido de
-viagem ou um comprovante.
+diária ou de viagem, ou um comprovante.
 
 ## Resolver pendências
 
@@ -63,6 +64,18 @@ tudo o que espera por você. As regras e os botões de cada aviso estão em
 
 Em **/aprovar**, depois de tocar em **Devolver**, escreva o motivo na mensagem
 seguinte, com pelo menos 3 letras. Ele vai para quem lançou a ordem.
+
+## Pedir diária
+
+Mande **/diaria** e responda às perguntas: o tipo, o início e o término da
+atividade (vale data passada: 12/11, ontem; ou **Sem data**), a quantidade —
+o bot sugere uma diária por dia do período — e o motivo. O resumo mostra o
+valor e a remessa em que a diária vai entrar. Escolha **Salvar na remessa**
+(para juntar com outras e enviar depois) ou **Salvar e enviar a remessa**
+(manda a remessa inteira para avaliação). Com a remessa devolvida, a diária
+entra nela e o reenvio é pelo painel. Despesas extras com comprovante e diária
+para outra pessoa continuam no painel; o ciclo completo está em
+[Diárias](/painel/ajuda/pessoal/diarias).
 
 ## Pedir viagem
 
@@ -99,8 +112,9 @@ documentos:
   </Passo>
 </PassoAPasso>
 
-A conversa do comprovante e a do pedido de viagem expiram em 30 minutos sem
-resposta.
+A conversa do comprovante e a dos pedidos de diária e de viagem expiram em 30
+minutos sem resposta. Começar um pedido de diária descarta o de viagem pela
+metade, e vice-versa.
 
 ## Escrever uma dúvida
 

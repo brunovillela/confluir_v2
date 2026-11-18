@@ -326,6 +326,7 @@ O app lê os dados de um tenant com `createAdminClient()` (JWT `authenticated` c
 | `pessoal_registro_ponto_remessas` | pessoal | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `pessoal_tabelas_salariais` | pessoal | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `pessoal_telegram_arquivos` | pessoal | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
+| `pessoal_telegram_diarias` | pessoal | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `pessoal_treinamentos` | pessoal | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `pessoal_treinamentos_alunos` | pessoal | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `plataforma_admins` | plataforma | sim | — | | | | |

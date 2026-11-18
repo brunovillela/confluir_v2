@@ -16,6 +16,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-11-17",
     titulo: "Meu perfil: Meus veículos",
     itens: [
+      "Telegram: novo comando /diaria. Funcionários e diretores pedem diária pelo bot, em perguntas — tipo, período (vale data passada), quantidade e motivo —, e escolhem salvar na remessa ou já enviá-la para avaliação. As regras são as do Meu perfil → Diárias.",
       "Financeiro: o O que fazer hoje separa as ordens em Aguardando informações há 15 dias ou mais (contados da última devolução) numa fila em destaque, que abre a lista só com elas; as mais recentes seguem na fila comum.",
       "Aquisição: a compra pode ser marcada como feita no âmbito de um contrato (ao registrar ou editar, escolhe-se o contrato). O contrato e o projeto da compra passam a aparecer na ordem de pagamento dela e nos extratos simplificado e completo — antes, o projeto escolhido na compra não aparecia na ordem quando não tinha sido copiado para ela.",
       "Oposição: o modo de formalização da campanha que pede a carta passou a se chamar \"Confirmação + carta assinada\" (antes, \"Confirmação + assinatura gov.br + upload\"), porque a carta também pode ser assinada no próprio Confluir.",

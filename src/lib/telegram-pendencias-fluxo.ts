@@ -121,6 +121,7 @@ export const COMANDOS_BOT: readonly ComandoBot[] = [
   { comando: "aprovar", descricao: "ordens de pagamento na sua alçada, com botões para aprovar ou devolver" },
   { comando: "contracheque", descricao: "seu contracheque mais recente" },
   { comando: "ferias", descricao: "seu saldo de férias" },
+  { comando: "diaria", descricao: "pedir diária (entra na sua remessa)" },
   { comando: "diarias", descricao: "suas últimas solicitações de diária" },
   { comando: "viagem", descricao: "pedir passagem (aérea ou rodoviária) e hospedagem" },
   { comando: "viagens", descricao: "seus últimos pedidos de viagem" },

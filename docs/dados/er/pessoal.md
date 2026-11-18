@@ -343,6 +343,11 @@ erDiagram
     uuid emp_proprietaria_id FK
     uuid usuario_id FK
   }
+  pessoal_telegram_diarias {
+    text chat_id PK
+    uuid emp_proprietaria_id FK
+    uuid usuario_id FK
+  }
   pessoal_treinamentos {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -479,6 +484,7 @@ erDiagram
   pessoal_registro_ponto }o--o| usuarios : "funcionario_id"
   pessoal_tabelas_salariais }o--o| usuarios : "criado_por"
   pessoal_telegram_arquivos }o--|| usuarios : "usuario_id"
+  pessoal_telegram_diarias }o--|| usuarios : "usuario_id"
   pessoal_treinamentos_alunos }o--o| pessoal_treinamentos : "treinamento_id"
   pessoal_treinamentos_alunos }o--o| usuarios : "aluno_id"
   prestadores_servico }o--o| empresa : "fornecedor_id"
