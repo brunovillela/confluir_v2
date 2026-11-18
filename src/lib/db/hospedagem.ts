@@ -1,6 +1,7 @@
 import "server-only"
 
 import { lerDocumentoTitular } from "@/lib/cpf"
+import { normalizarTipoPix } from "@/lib/bancos"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { lerPermissoesHotel, type PermissoesHotel } from "@/lib/hotel-permissoes"
 import { inserirOrdemVerificada } from "@/lib/db/ordens-verificacao"
@@ -1076,6 +1077,8 @@ export type ContaHotel = {
   agencia: string | null
   conta: string | null
   chave_pix: string | null
+  /** Tipo da chave (TIPOS_CHAVE_PIX); antes de 17/11/2026, deduzido pelo formato. */
+  chave_pix_tipo?: string | null
   ativo: boolean
   created_at: string | null
 }
@@ -1084,7 +1087,7 @@ export type ContaHotel = {
 export function descreverConta(c: ContaHotel): string {
   if (c.tipo === "pix") {
     const partes = [
-      `Pix — chave ${c.chave_pix ?? "(sem chave)"}`,
+      `Pix — chave ${c.chave_pix_tipo ? `${c.chave_pix_tipo} ` : ""}${c.chave_pix ?? "(sem chave)"}`,
       c.titular,
       c.banco,
     ].filter(Boolean)
@@ -1323,7 +1326,7 @@ async function dadoBancarioDoHotel(empresaId: string | null, c: ContaHotel): Pro
       fornecedor_id: empresaId,
       favorecido: c.titular,
       ...(c.tipo === "pix"
-        ? { pix: c.chave_pix, prefere_pix: true }
+        ? { pix: c.chave_pix, pix_tipo: normalizarTipoPix(c.chave_pix_tipo, c.chave_pix), prefere_pix: true }
         : { banco: c.banco, agencia: c.agencia, conta: c.conta }),
       titular_documento: documento,
     })

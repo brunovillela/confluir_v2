@@ -360,6 +360,7 @@ Contas bancárias e chaves Pix do hotel para receber pagamentos, cadastradas pel
 | `ativo` | boolean | não | `true` |  |  |  |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `emp_proprietaria_id` | uuid | sim |  | → empresa |  |  |
+| `chave_pix_tipo` | text | sim |  |  | nenhum | Tipo da chave Pix (CNPJ / CPF, Telefone, E-mail ou Chave aleatória). |
 
 Checks: `hospedagem_hotel_contas_tipo_check` `CHECK ((tipo = ANY (ARRAY['pix'::text, 'deposito'::text])))`
 

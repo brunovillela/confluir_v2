@@ -47,6 +47,7 @@ export default async function ContasHotelPage() {
             agencia: c.agencia,
             conta: c.conta,
             chave_pix: c.chave_pix,
+            chave_pix_tipo: c.chave_pix_tipo ?? null,
             ativo: c.ativo,
           }))}
           preview={preview}

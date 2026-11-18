@@ -10,6 +10,7 @@ import { AcaoVisualizacao, formVisualizacao } from "@/components/acao-visualizac
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { CampoTipoChavePix } from "@/components/campo-tipo-chave-pix"
 import {
   Table,
   TableBody,
@@ -34,6 +35,7 @@ export type ContaLinha = {
   agencia: string | null
   conta: string | null
   chave_pix: string | null
+  chave_pix_tipo?: string | null
   ativo: boolean
 }
 
@@ -104,7 +106,9 @@ export function ContasHotel({
                     </TableCell>
                     <TableCell className="text-muted-foreground max-w-64 truncate text-sm">
                       {c.tipo === "pix"
-                        ? (c.chave_pix ?? "—")
+                        ? c.chave_pix
+                          ? `${c.chave_pix_tipo ? `${c.chave_pix_tipo}: ` : ""}${c.chave_pix}`
+                          : "—"
                         : [c.banco, c.agencia && `ag. ${c.agencia}`, c.conta && `conta ${c.conta}`]
                             .filter(Boolean)
                             .join(" · ") || "—"}
@@ -181,15 +185,14 @@ export function ContasHotel({
               <Input id="titular" name="titular" />
             </div>
             {tipo === "pix" ? (
-              <div className="grid gap-1.5 sm:col-span-2">
-                <Label htmlFor="chave_pix">Chave Pix *</Label>
-                <Input
-                  id="chave_pix"
-                  name="chave_pix"
-                  placeholder="CNPJ, email, telefone ou chave aleatória"
-                  required
-                />
-              </div>
+              <>
+                {/* Tipo da chave na lista única do sistema (17/11/2026). */}
+                <CampoTipoChavePix id="chave_pix_tipo" name="chave_pix_tipo" obrigatorio />
+                <div className="grid gap-1.5">
+                  <Label htmlFor="chave_pix">Chave Pix *</Label>
+                  <Input id="chave_pix" name="chave_pix" required />
+                </div>
+              </>
             ) : (
               <>
                 <div className="grid gap-1.5">

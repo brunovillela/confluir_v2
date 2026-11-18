@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache"
 
 import { type EstadoForm } from "@/lib/contas"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { validarChavePix } from "@/lib/bancos"
+import { TIPOS_CHAVE_PIX } from "@/lib/contracheques-constantes"
 
 /** Dados bancários de recebimento do hotel (Pix e depósito/TED). */
 export async function criarContaHotel(
@@ -33,10 +35,20 @@ export async function criarContaHotel(
     agencia: texto("agencia"),
     conta: texto("conta"),
     chave_pix: texto("chave_pix"),
+    chave_pix_tipo: null as string | null,
     ativo: true,
   }
-  if (tipo === "pix" && !dados.chave_pix) {
-    return { erro: "Informe a chave Pix." }
+  if (tipo === "pix") {
+    if (!dados.chave_pix) return { erro: "Informe a chave Pix." }
+    // Tipo da chave na lista única, conferido como nos demais cadastros (17/11/2026).
+    const tipoChave = texto("chave_pix_tipo")
+    if (!tipoChave || !(TIPOS_CHAVE_PIX as readonly string[]).includes(tipoChave)) {
+      return { erro: "Escolha o tipo da chave Pix." }
+    }
+    const conferida = validarChavePix(tipoChave, dados.chave_pix)
+    if (conferida.erro) return { erro: conferida.erro }
+    dados.chave_pix = conferida.valor
+    dados.chave_pix_tipo = tipoChave
   }
   if (tipo === "deposito" && (!dados.banco || !dados.conta)) {
     return { erro: "Informe pelo menos banco e conta para depósito." }
