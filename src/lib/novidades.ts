@@ -41,6 +41,7 @@ export const NOVIDADES: Novidade[] = [
       "Filiados: a matrícula sindical nova é a menor que estiver vaga, e a mesclagem fica sempre com o menor número do par, para a numeração seguir sem buracos.",
       "Filiados: a busca acha o filiado também pela matrícula sindical antiga — a de carteirinha impressa ou planilha de antes de uma troca — e mostra \"antiga 100084\" ao lado do nome. A ficha exibe os números anteriores ao lado da matrícula atual. Toda troca de matrícula passa a ficar registrada sozinha, e as trocas do arranjo da numeração de 17/11 já estão lá.",
       "Auditoria das ordens: registrar uma ordem \"mesmo assim\", com alerta, agora pede o motivo de cada alerta — e quem autoriza vê a justificativa junto do alerta (fila de avaliação, página da ordem e extrato). A exigência é ligada por regra em Financeiro → Auditoria das ordens. E a Cobrança em duplicidade mostra as ordens parecidas, com link, para comparar antes de confirmar.",
+      "Auditoria das ordens: o alerta de Fornecedor recém-cadastrado passa a valer a partir de R$ 1.000 (ajustável por origem; zero volta a alertar em qualquer valor). Era a compra pequena no fornecedor cadastrado na hora — 74% dos alertas desta regra desde outubro.",
     ],
   },
   {

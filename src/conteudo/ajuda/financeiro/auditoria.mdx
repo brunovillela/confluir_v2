@@ -152,7 +152,10 @@ anos à frente é recusado direto, com o pedido para conferir o ano.
 **Com fornecedor** (compras, contratos, RPA, hotel, locação, jurídico)
 
 - **Fornecedor bloqueado** — padrão: bloquear.
-- **Fornecedor recém-cadastrado** — cadastrado há menos de *N* dias.
+- **Fornecedor recém-cadastrado** — cadastrado há menos de *N* dias, em ordem
+  a partir de *R$ X* (padrão R$ 1.000; zero alerta em qualquer valor). O mínimo
+  evita o alarme da compra pequena no fornecedor cadastrado na hora (a padaria,
+  o mercado), que era a maior parte dos alertas desta regra.
 
 **Aquisição**
 

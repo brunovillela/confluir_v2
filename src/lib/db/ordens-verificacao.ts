@@ -392,7 +392,9 @@ async function verificarLinha(
       case "fornecedor_recente": {
         const criado = t(fornecedor?.created_at)?.slice(0, 10)
         const dias = n(p.dias) ?? 30
+        const minimo = n(p.valor_minimo) ?? 0
         if (!fornecedor || !criado) r("na", "Sem data de cadastro do fornecedor.")
+        else if (minimo > 0 && valor !== null && valor < minimo) r("na", `Abaixo de ${formatarMoeda(minimo)} — não avaliada.`)
         else if (diasEntre(criado, hoje) < dias) r("falha", `Fornecedor cadastrado em ${formatarData(criado)}, há ${diasEntre(criado, hoje)} dia(s).`)
         else r("ok", `Cadastrado em ${formatarData(criado)}.`)
         break

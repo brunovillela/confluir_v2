@@ -105,7 +105,18 @@ export const REGRAS_AUDITORIA: RegraCatalogo[] = [
     explicacao: "Pagamento logo após o cadastro de um fornecedor novo é um sinal clássico de fraude.",
     origens: ["compras", "contrato", "rpa", "hospedagem", "locacao"],
     padrao: { "*": "alertar" },
-    parametros: [{ chave: "dias", rotulo: "Cadastrado há menos de (dias)", tipo: "dias", padrao: 30 }],
+    parametros: [
+      { chave: "dias", rotulo: "Cadastrado há menos de (dias)", tipo: "dias", padrao: 30 },
+      // 17/11/2026: 74% dos alertas eram de ordens abaixo de R$ 1.000 (a
+      // padaria, o mercado cadastrados na hora da compra direta).
+      {
+        chave: "valor_minimo",
+        rotulo: "Alertar a partir de (R$)",
+        tipo: "moeda",
+        padrao: 1000,
+        ajuda: "Ordens abaixo deste valor não acusam fornecedor recém-cadastrado. Zero alerta em qualquer valor.",
+      },
+    ],
   },
   {
     codigo: "pix_divergente",
