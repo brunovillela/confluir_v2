@@ -9,7 +9,7 @@ import { descreverParecidas, ordensParecidas, type OrdemParecida } from "@/lib/d
 import { rotuloCentroCusto } from "@/lib/centros-custo-rotulo"
 import { idsDaBusca, type IdsDaBusca } from "@/lib/db/ordens-busca"
 import { semAcento } from "@/lib/texto"
-import { ABERTAS_PAGAVEIS, idsDuplicadasAPagar, idsProcessandoParado, idsSemCentroComRateio } from "@/lib/db/ordens-pendencias"
+import { ABERTAS_PAGAVEIS, idsAguardandoParado, idsDuplicadasAPagar, idsProcessandoParado, idsSemCentroComRateio } from "@/lib/db/ordens-pendencias"
 
 export const ORDENS_POR_PAGINA = 50
 
@@ -143,6 +143,7 @@ export const PENDENCIAS_ORDENS = {
   vence_hoje: "Vencem hoje",
   duplicadas: "Possíveis duplicadas a pagar",
   processando_parado: "Processando há 5 dias ou mais",
+  aguardando_parado: "Aguardando informações há 15 dias ou mais",
   sem_comprovante: "Pagas por Pix ou TED sem comprovante",
   sem_centro: "Pagas sem centro de custo",
   sem_debito: "Pagas sem conta de débito",
@@ -157,6 +158,7 @@ type IdsPendencia = { incluir?: string[]; excluir?: string[] }
 async function idsDaPendencia(pendencia: FiltrosOrdens["pendencia"]): Promise<IdsPendencia> {
   if (pendencia === "duplicadas") return { incluir: await idsDuplicadasAPagar() }
   if (pendencia === "processando_parado") return { incluir: await idsProcessandoParado() }
+  if (pendencia === "aguardando_parado") return { incluir: await idsAguardandoParado() }
   if (pendencia === "sem_centro") return { excluir: await idsSemCentroComRateio().catch(() => []) }
   return {}
 }

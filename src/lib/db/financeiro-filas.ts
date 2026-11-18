@@ -2,7 +2,14 @@ import "server-only"
 
 import { FORMAS_COM_COMPROVANTE } from "@/lib/compras-constantes"
 import { hojeSP } from "@/lib/db/comum"
-import { ABERTAS_PAGAVEIS, DIAS_PROCESSANDO_PARADO, idsDuplicadasAPagar, idsProcessandoParado } from "@/lib/db/ordens-pendencias"
+import {
+  ABERTAS_PAGAVEIS,
+  DIAS_AGUARDANDO_PARADO,
+  DIAS_PROCESSANDO_PARADO,
+  idsAguardandoParado,
+  idsDuplicadasAPagar,
+  idsProcessandoParado,
+} from "@/lib/db/ordens-pendencias"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import { DIAS_COBRAR_DEVOLUCAO } from "@/lib/db/compras-cancelamento"
@@ -42,7 +49,7 @@ export async function filasDoFinanceiro({ veAvaliacoes }: { veAvaliacoes: boolea
   const ordens = () => admin.from("ordens_pagamento").select("id", { count: "exact", head: true }).eq("emp_proprietaria_id", emp).not("excluido", "is", true)
   const n = (r: { count: number | null }) => r.count ?? 0
 
-  const [venceHoje, vencidas, aguardandoInfo, emAutorizacao, semComprovante, extrato, estornos, parados, duplicadas, devolucoes, devolucoesParadas] = await Promise.all([
+  const [venceHoje, vencidas, aguardandoInfo, emAutorizacao, semComprovante, extrato, estornos, parados, duplicadas, devolucoes, devolucoesParadas, aguardandoParados] = await Promise.all([
     ordens().in("situacao", ABERTAS_PAGAVEIS).eq("vencimento", hoje),
     ordens().in("situacao", ABERTAS_PAGAVEIS).lt("vencimento", hoje),
     ordens().eq("situacao", "Aguardando informações"),
@@ -72,6 +79,7 @@ export async function filasDoFinanceiro({ veAvaliacoes }: { veAvaliacoes: boolea
       .is("devolucao_recebida_em", null)
       .lte("cancelamento_data", somarDias(hoje, -DIAS_COBRAR_DEVOLUCAO))
       .or(`devolucao_cobrada_em.is.null,devolucao_cobrada_em.lte.${somarDias(hoje, -DIAS_COBRAR_DEVOLUCAO)}`),
+    idsAguardandoParado().catch(() => []),
   ])
   const nParadas = devolucoesParadas.error ? 0 : n(devolucoesParadas)
 
@@ -82,7 +90,8 @@ export async function filasDoFinanceiro({ veAvaliacoes }: { veAvaliacoes: boolea
     { codigo: "estornos", rotulo: "estornos para corrigir", quantidade: n(estornos), href: "/painel/financeiro/estornos?situacao=pendentes", urgente: true },
     { codigo: "processando", rotulo: `Processando há ${DIAS_PROCESSANDO_PARADO} dias ou mais`, quantidade: parados.length, href: lista({ pendencia: "processando_parado" }), urgente: true },
     { codigo: "autorizacao", rotulo: "em autorização", quantidade: n(emAutorizacao), href: lista({ situacao: "Em autorização" }), urgente: false },
-    { codigo: "informacoes", rotulo: "aguardando informações", quantidade: n(aguardandoInfo), href: lista({ situacao: "Aguardando informações" }), urgente: false },
+    { codigo: "informacoes_paradas", rotulo: `aguardando informações há ${DIAS_AGUARDANDO_PARADO} dias ou mais`, quantidade: aguardandoParados.length, href: lista({ pendencia: "aguardando_parado" }), urgente: true },
+    { codigo: "informacoes", rotulo: "aguardando informações", quantidade: Math.max(0, n(aguardandoInfo) - aguardandoParados.length), href: lista({ situacao: "Aguardando informações" }), urgente: false },
     { codigo: "comprovante", rotulo: `pagas sem comprovante (${DIAS_COMPROVANTE} dias)`, quantidade: n(semComprovante), href: `${ORDENS}/comprovantes?dias=${DIAS_COMPROVANTE}`, urgente: false },
     { codigo: "devolucoes_paradas", rotulo: `devoluções de compras canceladas paradas há ${DIAS_COBRAR_DEVOLUCAO} dias — cobrar o fornecedor`, quantidade: nParadas, href: "/painel/financeiro/conciliacao?situacao=pendente#devolucoes", urgente: true },
     { codigo: "devolucoes", rotulo: "devoluções de compras canceladas a receber", quantidade: devolucoes.error ? 0 : Math.max(0, n(devolucoes) - nParadas), href: "/painel/financeiro/conciliacao?situacao=pendente#devolucoes", urgente: false },

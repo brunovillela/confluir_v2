@@ -16,6 +16,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-11-17",
     titulo: "Meu perfil: Meus veículos",
     itens: [
+      "Financeiro: o O que fazer hoje separa as ordens em Aguardando informações há 15 dias ou mais (contados da última devolução) numa fila em destaque, que abre a lista só com elas; as mais recentes seguem na fila comum.",
       "Aquisição: a compra pode ser marcada como feita no âmbito de um contrato (ao registrar ou editar, escolhe-se o contrato). O contrato e o projeto da compra passam a aparecer na ordem de pagamento dela e nos extratos simplificado e completo — antes, o projeto escolhido na compra não aparecia na ordem quando não tinha sido copiado para ela.",
       "Oposição: o modo de formalização da campanha que pede a carta passou a se chamar \"Confirmação + carta assinada\" (antes, \"Confirmação + assinatura gov.br + upload\"), porque a carta também pode ser assinada no próprio Confluir.",
       "Ordens de pagamento: vencimento com o ano digitado errado (2024 ou 2025 no lugar de 2026) não passa mais. A Auditoria das ordens ganhou a regra Vencimento com o ano errado — mais de 180 dias atrás —, que bloqueia a criação por padrão (configurável por origem), e o Corrigir ordem recusa a data pedindo para conferir o ano.",
