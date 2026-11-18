@@ -6,6 +6,8 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 
 ## 17/11/2026 — Meu perfil: Meus veículos
 
+- Ferramentas → Projetos: a página do projeto ficou em duas colunas no topo — à esquerda tipo, período, centro de custo, departamentos e detalhamento; à direita o orçamento, com uma barra de quanto já foi solicitado em Aquisição, e o saldo. Nas tarefas, o formulário só abre ao clicar em Nova tarefa ou Vincular avulsa.
+- Ferramentas → Demandas e Anomalias: as páginas seguem o mesmo arranjo do projeto — no topo, à esquerda a descrição; à direita um resumo (responsável, prazo e uma barra das tarefas concluídas na demanda; apuração, ocorrência e as etapas investigada, tratada e eficácia verificada na anomalia). O formulário de tarefa ou providência só abre ao clicar no botão.
 - Votações → rodada → Aptos: "Ler lista com IA" recebe a lista de aptos como a empresa mandou — planilha, CSV, PDF ou foto, fora do modelo. A IA lê nome, CPF, matrícula, e-mail e telefone, a tela mostra a prévia com os descartados e o motivo, e só "Incluir" grava. E a importação de listas grandes não para mais no meio com o erro "JWT expired".
 - Telegram: novo comando /diaria. Funcionários e diretores pedem diária pelo bot, em perguntas — tipo, período (vale data passada), quantidade e motivo —, e escolhem salvar na remessa ou já enviá-la para avaliação. As regras são as do Meu perfil → Diárias.
 - Financeiro: o O que fazer hoje separa as ordens em Aguardando informações há 15 dias ou mais (contados da última devolução) numa fila em destaque, que abre a lista só com elas; as mais recentes seguem na fila comum.
@@ -32,6 +34,7 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 - Filiados: a busca acha o filiado também pela matrícula sindical antiga — a de carteirinha impressa ou planilha de antes de uma troca — e mostra "antiga 100084" ao lado do nome. A ficha exibe os números anteriores ao lado da matrícula atual. Toda troca de matrícula passa a ficar registrada sozinha, e as trocas do arranjo da numeração de 17/11 já estão lá.
 - Auditoria das ordens: registrar uma ordem "mesmo assim", com alerta, agora pede o motivo de cada alerta — e quem autoriza vê a justificativa junto do alerta (fila de avaliação, página da ordem e extrato). A exigência é ligada por regra em Financeiro → Auditoria das ordens. E a Cobrança em duplicidade mostra as ordens parecidas, com link, para comparar antes de confirmar.
 - Auditoria das ordens: o alerta de Fornecedor recém-cadastrado passa a valer a partir de R$ 1.000 (ajustável por origem; zero volta a alertar em qualquer valor). Era a compra pequena no fornecedor cadastrado na hora — 74% dos alertas desta regra desde outubro.
+- Filiados → Saúde dos cadastros: o cartão passou a mostrar a numeração sindical. Com algo a resolver, um aviso abre a nova página Numeração sindical, que lista números repetidos, cadastros unidos que ficaram com o número maior (o botão Ficar com o menor libera o maior), cadastros sem matrícula (Dar a matrícula usa a menor livre), matrículas fora do padrão e números vagos. Com tudo certo, mostra só "em ordem: 1 a 19.851".
 
 ## 16/11/2026 — Ponto: comparação entre anos, relatório por funcionário e ajuste das marcações
 

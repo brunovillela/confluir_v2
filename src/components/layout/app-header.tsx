@@ -31,6 +31,7 @@ const ROTULOS_SEGMENTO: Record<string, string> = {
   cartoes: "Cartões",
   "centros-custo": "Centros de custo",
   "saude-cadastros": "Saúde dos cadastros",
+  numeracao: "Numeração sindical",
   saude: "Saúde",
   grupos: "Grupos empresariais",
   funcionarios: "Funcionários",

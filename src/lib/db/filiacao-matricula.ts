@@ -100,3 +100,40 @@ export async function matriculasAnterioresDoFiliado(filiacaoId: string): Promise
   if (error) return []
   return (data ?? []) as MatriculaAnterior[]
 }
+
+export type SaudeNumeracao = {
+  em_uso: number
+  maior: number
+  buracos: number
+  faixas_buracos: { de: number; ate: number; qtd: number }[]
+  repetidas: number
+  lista_repetidas: { numero: number; cadastros: { id: string; nome: string | null; criado: string }[] }[]
+  unidos_maior: number
+  lista_unidos: { id: string; nome: string | null; atual: number; menor: number }[]
+  sem_numero: number
+  lista_sem_numero: { id: string; nome: string | null; criado: string }[]
+  fora_padrao: number
+  lista_fora_padrao: { id: string; nome: string | null; matricula: string }[]
+}
+
+/** Quantos problemas a numeração tem (buracos contam como um item só). */
+export function problemasDaNumeracao(s: SaudeNumeracao): number {
+  return (s.buracos > 0 ? 1 : 0) + s.repetidas + s.unidos_maior + s.sem_numero + s.fora_padrao
+}
+
+/**
+ * Saúde da numeração sindical (18/11/2026): buracos, números repetidos,
+ * unidos que ficaram com o número maior, sem número e fora do padrão.
+ * Uma consulta no banco (filiacao_numeracao_saude). null = indisponível.
+ */
+export async function saudeNumeracao(limite = 200): Promise<SaudeNumeracao | null> {
+  const { data, error } = await (await createAdminClient()).rpc("filiacao_numeracao_saude", {
+    p_emp: await tenantAtual(),
+    p_limite: limite,
+  })
+  if (error) {
+    console.error("[numeração sindical] falha ao medir:", error.message)
+    return null
+  }
+  return data as SaudeNumeracao
+}

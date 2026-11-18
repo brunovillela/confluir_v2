@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowUpRight, CopyCheck, FileUp, Settings } from "lucide-react"
+import { ArrowUpRight, CopyCheck, FileUp, Hash, Settings } from "lucide-react"
 
 import {
   faixaDaSaude,
@@ -10,12 +10,14 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { cadastrosPendentes } from "@/lib/db/filiacao-cadastros-pendentes"
 import { listarDuplicidades } from "@/lib/db/filiacao-duplicidades"
+import { saudeNumeracao, type SaudeNumeracao } from "@/lib/db/filiacao-matricula"
 
 /** Cartão "Saúde dos cadastros": completos ÷ ativos, com atalho para os pendentes e as duplicidades. */
 export async function SaudeCadastros({ podeConfigurar }: { podeConfigurar: boolean }) {
-  const [{ ativos, pendentes, comApontamento }, duplicidades] = await Promise.all([
+  const [{ ativos, pendentes, comApontamento }, duplicidades, numeracao] = await Promise.all([
     cadastrosPendentes(),
     listarDuplicidades(),
+    saudeNumeracao(1),
   ])
   const gruposDuplicados = duplicidades.disponivel ? duplicidades.grupos.length : 0
   const completos = ativos - pendentes
@@ -71,8 +73,40 @@ export async function SaudeCadastros({ podeConfigurar }: { podeConfigurar: boole
             <ArrowUpRight className="size-4" />
           </Link>
         )}
+        {numeracao && <LinhaNumeracao s={numeracao} />}
       </CardContent>
     </Card>
+  )
+}
+
+/** A numeração sindical: aviso quando sai da sequência; senão, uma linha discreta. */
+function LinhaNumeracao({ s }: { s: SaudeNumeracao }) {
+  const partes = [
+    s.repetidas > 0 && `${s.repetidas.toLocaleString("pt-BR")} ${s.repetidas === 1 ? "número repetido" : "números repetidos"}`,
+    s.unidos_maior > 0 && `${s.unidos_maior.toLocaleString("pt-BR")} ${s.unidos_maior === 1 ? "unido" : "unidos"} com o número maior`,
+    s.sem_numero > 0 && `${s.sem_numero.toLocaleString("pt-BR")} sem número`,
+    s.fora_padrao > 0 && `${s.fora_padrao.toLocaleString("pt-BR")} fora do padrão`,
+    s.buracos > 0 && `${s.buracos.toLocaleString("pt-BR")} ${s.buracos === 1 ? "número vago" : "números vagos"}`,
+  ].filter(Boolean)
+  const href = "/painel/filiados/saude-cadastros/numeracao"
+  // Só números vagos não pedem ação: os cadastros novos os ocupam.
+  const pedeAcao = s.repetidas + s.unidos_maior + s.sem_numero + s.fora_padrao > 0
+  if (pedeAcao) {
+    return (
+      <Link
+        href={href}
+        className="border-warning/40 bg-warning/10 hover:bg-warning/15 text-warning-fg flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium"
+      >
+        <Hash className="size-4" />
+        <span>Numeração sindical: {partes.join(" · ")}</span>
+        <ArrowUpRight className="size-4" />
+      </Link>
+    )
+  }
+  return (
+    <Link href={href} className="text-muted-foreground hover:text-foreground text-center text-xs underline-offset-2 hover:underline">
+      Numeração sindical {s.buracos > 0 ? `de 1 a ${s.maior.toLocaleString("pt-BR")}: ${partes.join(" · ")}` : `em ordem: 1 a ${s.maior.toLocaleString("pt-BR")}`}
+    </Link>
   )
 }
 

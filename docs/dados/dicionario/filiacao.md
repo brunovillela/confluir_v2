@@ -1225,7 +1225,7 @@ Cadastro do filiado (ou ex-filiado/não filiado) na entidade: identificação, c
 
 - **LGPD:** identificação, **sensível: sindical**, trabalhista, financeiro, **credencial (nunca exportar)** · titulares: filiados
 - **RLS:** ligado · policies: `tenant_isolation`
-- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `filiacao_guardar_matricula_anterior` → `filiacao_guardar_matricula_anterior`, `filiacoes_nascimento_dia_mes` → `filiacoes_nascimento_dia_mes`, `set_emp_from_jwt` → `set_emp_from_jwt`, `trg_filiacoes_updated_at` → `set_updated_at`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `filiacao_guardar_matricula_anterior` → `filiacao_guardar_matricula_anterior`, `filiacao_sincronizar_matricula_numero` → `filiacao_sincronizar_matricula_numero`, `filiacoes_nascimento_dia_mes` → `filiacoes_nascimento_dia_mes`, `set_emp_from_jwt` → `set_emp_from_jwt`, `trg_filiacoes_updated_at` → `set_updated_at`
 
 | Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
 |---|---|---|---|---|---|---|

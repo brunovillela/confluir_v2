@@ -242,3 +242,60 @@ export async function corrigirIdentidade(
 export async function atribuirMatriculaSindical(id: string): Promise<string | null> {
   return atribuirMenorMatricula(id)
 }
+
+/**
+ * Saúde da numeração: dá a menor matrícula sindical livre a um cadastro que
+ * está sem nenhuma (o banco escolhe, com trava). Fica no prontuário.
+ */
+export async function darMenorMatricula(id: string, usuarioId: string | null): Promise<{ erro?: string; matricula?: string }> {
+  const matricula = await atribuirMenorMatricula(id)
+  if (!matricula) return { erro: "Não foi possível dar a matrícula a este cadastro." }
+  await registrarNoProntuario(id, `Matrícula sindical ${matricula} atribuída pela saúde da numeração (a menor livre).`, usuarioId)
+  invalidarCacheCadastrosPendentes()
+  return { matricula }
+}
+
+/**
+ * Saúde da numeração: o cadastro unido passa a usar o menor número do grupo
+ * (o de um cadastro que foi incorporado a ele), se ninguém o usa. O número
+ * maior fica livre; o antigo vai para as matrículas anteriores pelo gatilho.
+ */
+export async function ficarComMenorMatricula(
+  id: string,
+  menor: number,
+  usuarioId: string | null
+): Promise<{ erro?: string }> {
+  if (!Number.isInteger(menor) || menor < 1) return { erro: "Número inválido." }
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const [{ data: atual }, { data: incorporado }] = await Promise.all([
+    admin.from("filiacoes").select("matricula_sindical").eq("id", id).eq("emp_proprietaria_id", emp).maybeSingle(),
+    admin
+      .from("filiacoes")
+      .select("id")
+      .eq("emp_proprietaria_id", emp)
+      .eq("mesclado_em_id", id)
+      .eq("matricula_sindical_numero", menor)
+      .limit(1),
+  ])
+  if (!atual) return { erro: "Cadastro não encontrado." }
+  if (!incorporado?.length) return { erro: `Nenhum cadastro unido a este tinha a matrícula ${menor}.` }
+  if ((await cadastrosComMatricula(String(menor), [id])).length > 0) {
+    return { erro: `A matrícula ${menor} já está em uso por outro cadastro.` }
+  }
+  const antes = atual.matricula_sindical as string | null
+  if (Number(antes) <= menor) return {}
+  const { error } = await admin
+    .from("filiacoes")
+    .update({ matricula_sindical: String(menor), updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("emp_proprietaria_id", emp)
+  if (error) return { erro: `Falha ao gravar: ${error.message}` }
+  await registrarNoProntuario(
+    id,
+    `Matrícula sindical alterada de ${antes ?? "em branco"} para ${menor} pela saúde da numeração: cadastro unido fica com o menor número do grupo.`,
+    usuarioId
+  )
+  invalidarCacheCadastrosPendentes()
+  return {}
+}
