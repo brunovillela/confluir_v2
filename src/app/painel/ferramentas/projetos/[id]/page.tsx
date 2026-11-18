@@ -1,5 +1,4 @@
 import type { Metadata } from "next"
-import type { ReactNode } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ArrowLeft, Pencil } from "lucide-react"
@@ -23,6 +22,7 @@ import { obterProjeto } from "@/lib/db/projetos"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
+import { Dado, Linha } from "../../dados-resumo"
 import { IncluirTarefas } from "../../tarefas/tarefa-forms"
 import { TarefasLista } from "../../tarefas/tarefas-lista"
 import { ProjetoAcoes } from "./projeto-acoes"
@@ -255,31 +255,5 @@ export default async function ProjetoPage({
         </CardContent>
       </Card>
     </>
-  )
-}
-
-function Dado({ rotulo, children }: { rotulo: string; children: ReactNode }) {
-  return (
-    <div className="min-w-0">
-      <dt className="text-muted-foreground text-xs">{rotulo}</dt>
-      <dd className="mt-0.5 break-words">{children}</dd>
-    </div>
-  )
-}
-
-function Linha({
-  rotulo,
-  alerta,
-  children,
-}: {
-  rotulo: string
-  alerta?: boolean
-  children: ReactNode
-}) {
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-muted-foreground">{rotulo}</dt>
-      <dd className={`font-medium tabular-nums ${alerta ? "text-destructive" : ""}`}>{children}</dd>
-    </div>
   )
 }

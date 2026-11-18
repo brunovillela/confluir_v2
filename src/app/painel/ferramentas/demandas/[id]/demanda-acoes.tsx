@@ -134,7 +134,7 @@ export function ExcluirDemanda({
       </div>
       <p className="text-muted-foreground text-xs">
         {tarefas > 0
-          ? `As ${tarefas === 1 ? "tarefa" : `${tarefas} tarefas`} não ${tarefas === 1 ? "será apagada" : "serão apagadas"} — apenas ${tarefas === 1 ? "deixa" : "deixam"} de pertencer a esta demanda.`
+          ? `${tarefas === 1 ? "A tarefa" : `As ${tarefas} tarefas`} não ${tarefas === 1 ? "será apagada" : "serão apagadas"} — apenas ${tarefas === 1 ? "deixa" : "deixam"} de pertencer a esta demanda.`
           : "Checklists e comentários desta demanda serão apagados junto."}
       </p>
     </form>

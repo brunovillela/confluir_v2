@@ -200,6 +200,7 @@ export function IncluirTarefas({
   avulsas,
   dica,
   cabecalho,
+  rotuloNova = "Nova tarefa",
 }: {
   pessoas: OpcaoPessoa[]
   pai: PaiFixo
@@ -207,6 +208,7 @@ export function IncluirTarefas({
   dica?: string
   /** Fica à esquerda, na mesma linha dos botões (título do cartão). */
   cabecalho?: ReactNode
+  rotuloNova?: string
 }) {
   const [aberto, setAberto] = useState<"nova" | "vincular" | null>(null)
   const alternar = (qual: "nova" | "vincular") => setAberto((a) => (a === qual ? null : qual))
@@ -223,7 +225,7 @@ export function IncluirTarefas({
             onClick={() => alternar("nova")}
           >
             <Plus />
-            Nova tarefa
+            {rotuloNova}
           </Button>
           {avulsas.length > 0 && (
             <Button

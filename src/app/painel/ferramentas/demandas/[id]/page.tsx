@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress"
 import { requirePermissao } from "@/lib/auth"
 import {
   listarPessoasAtribuiveis,
@@ -20,7 +21,8 @@ import { atendimentoDaDemanda, podeVerAtendimento } from "@/lib/db/portal-atendi
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
-import { AdicionarTarefa, VincularTarefa } from "../../tarefas/tarefa-forms"
+import { Linha } from "../../dados-resumo"
+import { IncluirTarefas } from "../../tarefas/tarefa-forms"
 import { TarefasLista } from "../../tarefas/tarefas-lista"
 import { AtendimentoPainel } from "@/app/painel/filiados/atendimentos/atendimento-painel"
 
@@ -59,24 +61,16 @@ export default async function DemandaPage({
   const concluidas = demanda.tarefas.filter((t) => t.concluido).length
   const pendentes = demanda.tarefas.length - concluidas
 
+  const progresso = demanda.tarefas.length > 0 ? (concluidas / demanda.tarefas.length) * 100 : null
+
   return (
     <>
-      <div className="flex items-center justify-between gap-2">
-        <Button variant="ghost" size="sm" asChild>
-          <Link href="/painel/ferramentas/demandas">
-            <ArrowLeft />
-            Demandas
-          </Link>
-        </Button>
-        {editor && (
-          <Button variant="outline" size="sm" asChild>
-            <Link href={`/painel/ferramentas/demandas/${id}/editar`}>
-              <Pencil />
-              Editar
-            </Link>
-          </Button>
-        )}
-      </div>
+      <Button variant="ghost" size="sm" asChild className="self-start">
+        <Link href="/painel/ferramentas/demandas">
+          <ArrowLeft />
+          Demandas
+        </Link>
+      </Button>
 
       {salvo && (
         <Alert className="border-success/40 text-success-fg">
@@ -85,25 +79,61 @@ export default async function DemandaPage({
       )}
 
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {demanda.nome ?? "(sem nome)"}
-          </h1>
-          <p className="text-muted-foreground mt-1 text-xs">
-            {demanda.responsavelNome
-              ? `Responsável: ${demanda.responsavelNome}`
-              : "Sem responsável"}
-            {demanda.prazo ? ` · Prazo ${formatarData(demanda.prazo)}` : ""}
-            {demanda.orcamento != null
-              ? ` · ${formatarMoeda(demanda.orcamento)}`
-              : ""}
-          </p>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {demanda.nome ?? "(sem nome)"}
+        </h1>
+        <div className="flex flex-wrap items-center gap-2">
+          {editor ? (
+            <SituacaoDemanda demandaId={id} situacao={demanda.situacao} pendentes={pendentes} />
+          ) : (
+            demanda.situacao && <Badge variant="outline">{demanda.situacao}</Badge>
+          )}
+          {editor && (
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/painel/ferramentas/demandas/${id}/editar`}>
+                <Pencil />
+                Editar
+              </Link>
+            </Button>
+          )}
         </div>
-        {editor ? (
-          <SituacaoDemanda demandaId={id} situacao={demanda.situacao} pendentes={pendentes} />
-        ) : (
-          demanda.situacao && <Badge variant="outline">{demanda.situacao}</Badge>
-        )}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardContent>
+            <p className="text-muted-foreground mb-2 text-xs">Descrição</p>
+            {demanda.descricao ? (
+              <p className="text-sm whitespace-pre-wrap">
+                <TextoComLinks texto={demanda.descricao} />
+              </p>
+            ) : (
+              <p className="text-muted-foreground text-sm">Sem descrição.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="grid gap-3">
+            <dl className="grid gap-1.5 text-sm">
+              <Linha rotulo="Responsável">{demanda.responsavelNome ?? "—"}</Linha>
+              <Linha rotulo="Prazo">{demanda.prazo ? formatarData(demanda.prazo) : "—"}</Linha>
+              <Linha rotulo="Orçamento">
+                {demanda.orcamento != null ? formatarMoeda(demanda.orcamento) : "—"}
+              </Linha>
+              {demanda.criadoPorNome && <Linha rotulo="Aberta por">{demanda.criadoPorNome}</Linha>}
+            </dl>
+            {progresso != null && (
+              <div className="grid gap-1 border-t pt-3">
+                <Progress value={progresso} className="h-2" aria-label="Tarefas concluídas" />
+                <p className="text-muted-foreground text-xs">
+                  {concluidas} de {demanda.tarefas.length} tarefa{demanda.tarefas.length === 1 ? "" : "s"} concluída
+                  {demanda.tarefas.length === 1 ? "" : "s"}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {demanda.projetoId && (
@@ -128,29 +158,21 @@ export default async function DemandaPage({
         <AtendimentoPainel atendimento={atendimento.atendimento} mensagens={atendimento.mensagens} mostrarCabecalho={false} />
       )}
 
-      {demanda.descricao && (
-        <Card>
-          <CardContent>
-            <p className="text-muted-foreground mb-2 text-xs">Descrição</p>
-            <p className="text-sm whitespace-pre-wrap">
-              <TextoComLinks texto={demanda.descricao} />
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
       <Card>
-        <CardContent>
-          <p className="mb-3 text-sm font-medium">
-            Tarefas{" "}
-            <span className="text-muted-foreground font-normal">
-              ({concluidas}/{demanda.tarefas.length})
-            </span>
-          </p>
-          <div className="mb-4 grid gap-3">
-            <AdicionarTarefa pessoas={pessoas} pai={{ campo: "demanda_id", id }} />
-            <VincularTarefa pai={{ campo: "demanda_id", id }} avulsas={avulsas} />
-          </div>
+        <CardContent className="grid gap-4">
+          <IncluirTarefas
+            pessoas={pessoas}
+            pai={{ campo: "demanda_id", id }}
+            avulsas={avulsas}
+            cabecalho={
+              <p className="text-sm font-medium">
+                Tarefas{" "}
+                <span className="text-muted-foreground font-normal">
+                  ({concluidas}/{demanda.tarefas.length})
+                </span>
+              </p>
+            }
+          />
           <TarefasLista
             tarefas={demanda.tarefas}
             pai={{ campo: "demanda_id", id }}
