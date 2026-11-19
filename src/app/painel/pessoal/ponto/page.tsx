@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, ArrowRight, BarChart3, Plus, UserX } from "lucide-react"
+import { ArrowLeft, ArrowRight, BarChart3, MoonStar, Plus, UserX } from "lucide-react"
 
 import { TileIndicador } from "@/components/graficos/tile"
 import { AbasLink } from "@/components/pessoal/abas-link"
@@ -91,6 +91,12 @@ export default async function PontoPage({
               <Link href={`/painel/pessoal/ponto/analise${ano ? `?ano=${ano}` : ""}`}>
                 <BarChart3 />
                 Indicadores e resenhas
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/painel/pessoal/ponto/fora-do-expediente">
+                <MoonStar />
+                Uso fora do expediente
               </Link>
             </Button>
             <Button asChild>

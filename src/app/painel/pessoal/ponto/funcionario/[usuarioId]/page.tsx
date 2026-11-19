@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { FileText, UserX } from "lucide-react"
+import { FileText, MoonStar, UserX } from "lucide-react"
 
 import { GraficoColunas } from "@/components/graficos/colunas"
 import { TileIndicador } from "@/components/graficos/tile"
@@ -79,6 +79,12 @@ export default async function PontoFuncionarioPage({
                 <FileText />
                 Relatório do ponto (PDF)
               </a>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/painel/pessoal/ponto/fora-do-expediente?funcionario=${usuarioId}#detalhe`}>
+                <MoonStar />
+                Uso fora do expediente
+              </Link>
             </Button>
           </div>
 

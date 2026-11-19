@@ -1,6 +1,7 @@
 import { AlertaForaJornada } from "@/components/layout/alerta-fora-jornada"
 import { AppHeader } from "@/components/layout/app-header"
 import { AppSidebar } from "@/components/layout/app-sidebar"
+import { RegistroUsoPainel } from "@/components/layout/registro-uso-painel"
 import { RegistrarSw } from "@/components/pwa/registrar-sw"
 import { AjudaMenu } from "@/components/layout/ajuda-menu"
 import { BuscaGlobal } from "@/components/layout/busca-global"
@@ -101,6 +102,7 @@ export default async function PainelLayout({
                 }
               />
               <AlertaForaJornada dias={jornada} />
+              {jornada.length > 0 && <RegistroUsoPainel />}
             </div>
             <div className="flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6">
               {children}

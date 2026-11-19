@@ -57,7 +57,8 @@ export function AlertaForaJornada({ dias }: { dias: JornadaDia[] }) {
       <span>
         Você está acessando o sistema <strong>fora do seu horário de
         trabalho</strong>. Horas fora da jornada contratada podem gerar passivo
-        trabalhista — combine com a gestão antes de trabalhar agora.
+        trabalhista — combine com a gestão antes de trabalhar agora. O tempo de uso
+        fora do horário fica registrado para o departamento de pessoal.
       </span>
     </div>
   )
