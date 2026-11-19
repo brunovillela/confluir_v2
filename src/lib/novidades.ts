@@ -13,6 +13,13 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-19",
+    titulo: "Eventos: relação de confirmados em Excel e PDF",
+    itens: [
+      "Eventos → página do evento: no quadro Inscrições, \"Baixar confirmados\" entrega a relação de quem está confirmado em Excel (nome, CPF, e-mail, telefone, filiado, convidado e quem convidou, RSVP, presenças e as respostas dos campos extras) ou em PDF, para levar a sistemas que não conversam com o Confluir — portaria, hotel, buffet, credenciamento. \"Lista p/ assinatura\" gera o PDF com uma coluna para colher a assinatura na porta.",
+    ],
+  },
+  {
     id: "2026-11-17",
     titulo: "Meu perfil: Meus veículos",
     itens: [

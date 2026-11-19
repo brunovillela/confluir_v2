@@ -4,6 +4,10 @@
 
 O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga. É o mesmo conteúdo do aviso "O que há de novo" dentro do sistema. O detalhe técnico de cada entrega está no histórico do git; as decisões de arquitetura, em [`docs/arquitetura/adr/`](../arquitetura/adr/LEIA-ME.md).
 
+## 19/11/2026 — Eventos: relação de confirmados em Excel e PDF
+
+- Eventos → página do evento: no quadro Inscrições, "Baixar confirmados" entrega a relação de quem está confirmado em Excel (nome, CPF, e-mail, telefone, filiado, convidado e quem convidou, RSVP, presenças e as respostas dos campos extras) ou em PDF, para levar a sistemas que não conversam com o Confluir — portaria, hotel, buffet, credenciamento. "Lista p/ assinatura" gera o PDF com uma coluna para colher a assinatura na porta.
+
 ## 17/11/2026 — Meu perfil: Meus veículos
 
 - Ferramentas → Projetos: a página do projeto ficou em duas colunas no topo — à esquerda tipo, período, centro de custo, departamentos e detalhamento; à direita o orçamento, com uma barra de quanto já foi solicitado em Aquisição, e o saldo. Nas tarefas, o formulário só abre ao clicar em Nova tarefa ou Vincular avulsa.

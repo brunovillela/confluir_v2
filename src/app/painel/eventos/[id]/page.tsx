@@ -5,6 +5,8 @@ import {
   ArrowLeft,
   DoorOpen,
   ExternalLink,
+  FileSpreadsheet,
+  FileText,
   ListChecks,
   Pencil,
   TriangleAlert,
@@ -16,6 +18,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -364,6 +367,40 @@ export default async function EventoPage({
               ? "Nenhuma inscrição ainda."
               : `${inscricoes.length} no total.`}
           </CardDescription>
+          {gestor && capacidade.confirmadas > 0 && (
+            <CardAction className="flex flex-wrap items-center justify-end gap-2">
+              <span className="text-muted-foreground text-xs">
+                Baixar confirmados:
+              </span>
+              <Button asChild variant="outline" size="sm">
+                <a href={`/painel/eventos/${id}/confirmados/xlsx`} download>
+                  <FileSpreadsheet />
+                  Excel
+                </a>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <a
+                  href={`/painel/eventos/${id}/confirmados/pdf`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <FileText />
+                  PDF
+                </a>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <a
+                  href={`/painel/eventos/${id}/confirmados/pdf?assinatura=1`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="PDF com coluna de assinatura, para a lista de presença em papel"
+                >
+                  <FileText />
+                  Lista p/ assinatura
+                </a>
+              </Button>
+            </CardAction>
+          )}
         </CardHeader>
         <CardContent>
           {inscricoes.length > 0 && (
