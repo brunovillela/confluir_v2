@@ -64,7 +64,7 @@ async function sugerirParesIA(
     titulo: c.titulo,
     resumo: c.resumo ?? (c.texto ?? "").slice(0, 300),
   })
-  const { dados, erro } = await gerarJsonIA({
+  const { dados, erro } = await gerarJsonIA({ processo: "representacao.acordos_comparacao",
     system: SYSTEM_PARES,
     prompt: `Responda {"pares":[{"a":"<id de A>","b":"<id de B>"}]}.\n\nA:\n${JSON.stringify(sobrasA.map(item))}\n\nB:\n${JSON.stringify(sobrasB.map(item))}`,
   })
@@ -110,7 +110,7 @@ async function analisarIA(
         A: it.a ? it.a.slice(0, 3500) : null,
         B: it.b ? it.b.slice(0, 3500) : null,
       }))
-      const { dados, erro } = await gerarJsonIA({
+      const { dados, erro } = await gerarJsonIA({ processo: "representacao.acordos_comparacao",
         system: SYSTEM_ANALISE,
         prompt: `Responda {"itens":[{"i":<número>,"resumo":"…","avaliacao":"favoravel|desfavoravel|neutra","motivo":"…"}]}.\n\n${JSON.stringify(corpo)}`,
       })

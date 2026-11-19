@@ -114,7 +114,7 @@ export async function extrairContribuicoesIa(
     if (arquivo.size > 20 * 1024 * 1024) {
       return { erro: "Imagem grande demais — máximo de 20 MB." }
     }
-    const extracao = await gerarJsonIADeImagem({
+    const extracao = await gerarJsonIADeImagem({ processo: "filiados.receitas_relatorio",
       system: SISTEMA,
       prompt:
         "Leia o relatório de contribuições desta empresa (foto ou print) e extraia as linhas de empregado.",
@@ -144,7 +144,7 @@ export async function extrairContribuicoesIa(
     if (arquivo.size > 20 * 1024 * 1024) {
       return { erro: "PDF escaneado grande demais — máximo de 20 MB." }
     }
-    extracao = await gerarJsonIADePdf({
+    extracao = await gerarJsonIADePdf({ processo: "filiados.receitas_relatorio",
       system: SISTEMA,
       prompt:
         "Leia o relatório de contribuições desta empresa (o PDF pode ser escaneado/imagem) e extraia as linhas de empregado.",
@@ -176,7 +176,7 @@ async function extrairDoTexto(
   const contexto = linhas.slice(0, 3).join("\n")
 
   const resultados = await emParalelo(blocos, BLOCOS_EM_PARALELO, (bloco, i) =>
-    gerarJsonIA({
+    gerarJsonIA({ processo: "filiados.receitas_relatorio",
       system: SISTEMA,
       prompt:
         blocos.length === 1

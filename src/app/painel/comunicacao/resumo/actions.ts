@@ -102,5 +102,5 @@ export async function melhorarPromptAction(input: {
   await requirePermissao("noticias")
   const t = (input.texto ?? "").trim()
   if (t.length < 10) return { erro: "Escreva o prompt antes de usar a IA." }
-  return gerarTextoIA({ system: SISTEMA_MELHORAR, prompt: `Prompt atual:\n${t}` })
+  return gerarTextoIA({ processo: "comunicacao.resumo_prompt", system: SISTEMA_MELHORAR, prompt: `Prompt atual:\n${t}` })
 }

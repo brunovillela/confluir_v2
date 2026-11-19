@@ -87,7 +87,7 @@ async function lerTexto(texto: string, conferir: boolean, aoAvancar?: AoAvancar)
   aoAvancar?.(0, blocos.length)
 
   const resultados = await emParalelo(blocos, BLOCOS_EM_PARALELO, async (bloco, i) => {
-    const r = await gerarJsonIA({
+    const r = await gerarJsonIA({ processo: "filiados.lista_trabalhadores",
       system: SISTEMA,
       esquema: ESQUEMA,
       prompt:
@@ -133,7 +133,7 @@ export async function lerListaTrabalhadores(arquivo: File, aoAvancar?: AoAvancar
   if (imagem) {
     if (arquivo.size > MAX_VISAO) return { erro: "Imagem grande demais para a leitura — até 20 MB." }
     aoAvancar?.(0, 1)
-    const r = await gerarJsonIADeImagem({
+    const r = await gerarJsonIADeImagem({ processo: "filiados.lista_trabalhadores",
       system: SISTEMA,
       esquema: ESQUEMA,
       prompt: "Transcreva os trabalhadores desta lista (foto ou print).",
@@ -151,7 +151,7 @@ export async function lerListaTrabalhadores(arquivo: File, aoAvancar?: AoAvancar
   if (ehPdf && pdf) {
     if (arquivo.size > MAX_VISAO) return { erro: "PDF escaneado grande demais para a leitura — até 20 MB. Divida o arquivo." }
     aoAvancar?.(0, 1)
-    const r = await gerarJsonIADePdf({
+    const r = await gerarJsonIADePdf({ processo: "filiados.lista_trabalhadores",
       system: SISTEMA,
       esquema: ESQUEMA,
       prompt: "Transcreva os trabalhadores desta lista (o PDF pode ser escaneado).",

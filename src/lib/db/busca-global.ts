@@ -77,7 +77,7 @@ async function usuarios(termo: string): Promise<ResultadoBusca[]> {
     .map((s) => ({
       titulo: s.nome_completo ?? "(sem nome)",
       detalhe: s.cpf ? formatarCpf(s.cpf) : null,
-      href: `/painel/institucional/usuarios/${acessoPor.get(s.id)}`,
+      href: `/painel/gestao/usuarios/${acessoPor.get(s.id)}`,
     }))
 }
 

@@ -56,7 +56,7 @@ export async function melhorarParabensAction(entrada: {
     .filter((l) => l !== null)
     .join("\n")
 
-  const r = await gerarJsonIA({ system: SISTEMA, prompt })
+  const r = await gerarJsonIA({ processo: "comunicacao.aniversariantes", system: SISTEMA, prompt })
   if (r.erro || !r.dados) return { erro: r.erro ?? "A IA não respondeu." }
   const campo = (k: string) => (typeof r.dados?.[k] === "string" ? String(r.dados[k]).trim() : "")
   const assunto = campo("assunto")

@@ -45,6 +45,7 @@ O Confluir é **operador** dos dados de cada entidade (controladora). Os serviç
 - **Onde:** EUA.
 - **Contrato:** DPA em <https://openai.com/policies/data-processing-addendum>. Pela política da API, os dados não treinam modelos por padrão. `store: false` impede guardar a resposta, mas a OpenAI pode reter entradas e saídas **por até 30 dias para monitorar abuso**, salvo com **retenção zero** (*Zero Data Retention*), que é aprovada por solicitação.
 - **Ações:** aceitar ou assinar o DPA na organização da OpenAI e **pedir retenção zero**, por causa da CAT. A RIPD de saúde (B3) decide se a CAT deve ser pseudonimizada antes do envio, por exemplo sem nome e CPF.
+- **Chave da entidade (19/11/2026):** em Gestão › Inteligência Artificial a entidade pode usar a própria conta OpenAI. O suboperador é o mesmo e o fluxo também (`store: false`, via `src/lib/ia.ts`); muda só de quem é a conta, e portanto quem contrata o DPA e a retenção zero: com chave própria, a própria entidade, na organização dela na OpenAI.
 
 ### Brevo / Resend (e-mail)
 - **Recebe:** e-mail do destinatário e corpo da mensagem: links de acesso, códigos, avisos de votação, comprovantes, ordens de compra com anexo, comunicados.

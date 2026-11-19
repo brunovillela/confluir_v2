@@ -1,0 +1,90 @@
+Em **Gestão → Inteligência Artificial** a entidade decide de que conta sai a IA
+do Confluir, acompanha quanto ela é usada e põe limites.
+
+<RequerPermissao>Organização (identidade e sedes)</RequerPermissao>
+
+## Chave de API própria
+
+Sem configurar nada, a IA usa a conta da plataforma. Com uma **chave da
+entidade**, o consumo passa a ser cobrado na conta OpenAI da própria entidade.
+
+<PassoAPasso>
+  <Passo titulo="Crie a chave na OpenAI">
+    Em platform.openai.com, na área de chaves de API, crie uma chave para o
+    Confluir e confira se a conta tem saldo.
+  </Passo>
+  <Passo titulo="Cole e teste">
+    No cartão **Chave de API**, cole a chave e clique em **Testar e salvar**. O
+    Confluir faz uma chamada mínima com ela: se a OpenAI recusar, a chave não
+    é salva e a anterior continua valendo.
+  </Passo>
+  <Passo titulo="Pronto">
+    O cartão passa a mostrar **Conta da entidade**, o final da chave (sk-…1234),
+    quem cadastrou e o último teste. Use **Testar agora** quando quiser
+    conferir de novo.
+  </Passo>
+</PassoAPasso>
+
+**Como a chave fica protegida.** Ela é cifrada no servidor antes de ir ao banco,
+com uma chave de cifra que não fica no banco. Nenhuma tela, relatório ou
+exportação devolve a chave — nem para quem a cadastrou. Só aparecem os 4
+últimos caracteres, para identificá-la. Para trocar, cadastre outra; para
+voltar à conta da plataforma, **Remover chave**.
+
+## Uso da IA
+
+O cartão **Uso da IA** mostra o período escolhido (este mês, mês passado, 7, 30
+ou 90 dias):
+
+- **Chamadas, tokens, custo estimado, falhas** e quantas pessoas usaram;
+- o gráfico de **tokens por dia** (passe o mouse numa barra para ver o dia);
+- a tabela agrupada **por pessoa, por processo, por departamento ou por
+  módulo**, com a fatia de cada linha no total.
+
+Clique numa linha da tabela para ver, no **Histórico de chamadas**, só as
+chamadas dela. O histórico mostra quando, quem, o processo, os tokens, o custo
+e o resultado (ok, falhou ou barrada pela Gestão, com o motivo). Filtre também
+por módulo, processo ou só as falhas.
+
+O registro guarda quem pediu, o processo, o módulo e o departamento da pessoa
+naquele momento — **nunca o texto enviado nem a resposta**. Chamadas do bot do
+Telegram aparecem com a pessoa do bot; tarefas agendadas aparecem sem pessoa.
+
+## Configuração
+
+- **IA ligada na entidade**: desmarcado, nenhuma tela chama a IA e os botões
+  avisam que ela está desligada.
+- **Módulos com IA**: desmarque um módulo para desligar só a IA dele (por
+  exemplo, Comunicação), mantendo as demais.
+- **Modelo**: em branco, vale o padrão da plataforma. Um modelo menor custa
+  menos; a chave precisa ter acesso a ele.
+- **Preços do modelo**: copie da página de preços da OpenAI (US$ por 1 milhão
+  de tokens). Sem eles, o relatório mostra só os tokens.
+- **Teto mensal**: o custo estimado máximo do mês. Com **Parar a IA ao atingir
+  o teto**, a IA para até o dia 1º; sem isso, o teto só aparece como alerta
+  (aqui e na Saúde do sistema, a partir de 80%).
+
+Cada mudança na chave e na configuração entra em **Alterações**, com quem fez e
+quando.
+
+## Erros comuns
+
+- **"A chave não passou no teste e não foi salva."** A OpenAI recusou: confira
+  se a chave foi copiada inteira, se está ativa e se a conta tem saldo.
+- **"A IA está desligada neste módulo."** O módulo foi desmarcado em
+  Configuração.
+- **"O teto mensal de IA da entidade foi atingido."** Aumente o teto ou espere
+  o dia 1º.
+- **O custo aparece como —.** Faltam os preços do modelo em Configuração.
+- **"Chave ilegível."** O servidor trocou a chave de cifra: a IA volta a usar a
+  conta da plataforma até a chave ser cadastrada de novo.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Visão geral da Gestão",
+      href: "/painel/ajuda/gestao",
+      descricao: "Saúde do sistema e as demais áreas",
+    },
+  ]}
+/>

@@ -184,14 +184,14 @@ export async function lerCatDoPdf(
   // sobre o próprio PDF (mais lento e mais caro, mas lê o formulário na imagem).
   const { dados, erro } =
     textoPdf.length >= 40
-      ? await gerarJsonIA({
+      ? await gerarJsonIA({ processo: "saude.cat_leitura",
           system: SISTEMA,
           prompt: `Texto do formulário de CAT:\n\n${textoPdf}`,
           esquema: ESQUEMA,
         })
       : buffer.byteLength > 20 * 1024 * 1024
         ? { dados: undefined, erro: "PDF escaneado grande demais — máximo de 20 MB." }
-        : await gerarJsonIADePdf({
+        : await gerarJsonIADePdf({ processo: "saude.cat_leitura",
             system: SISTEMA,
             prompt: "Leia o formulário de CAT contido neste PDF (que pode ser escaneado/imagem) e extraia os campos.",
             pdfBase64: Buffer.from(buffer).toString("base64"),

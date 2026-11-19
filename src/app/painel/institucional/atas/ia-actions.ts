@@ -60,10 +60,10 @@ export async function extrairAtaDePdf(formData: FormData): Promise<ExtracaoAta> 
 
   const { dados, erro } =
     texto.length >= 80
-      ? await gerarJsonIA({ system: SISTEMA, prompt: `Texto da ata:\n\n${texto.slice(0, 60000)}` })
+      ? await gerarJsonIA({ processo: "institucional.atas_leitura", system: SISTEMA, prompt: `Texto da ata:\n\n${texto.slice(0, 60000)}` })
       : arquivo.size > 20 * 1024 * 1024
         ? { dados: undefined, erro: "PDF escaneado grande demais para a leitura por IA (máximo 20 MB)." }
-        : await gerarJsonIADePdf({
+        : await gerarJsonIADePdf({ processo: "institucional.atas_leitura",
             system: SISTEMA,
             prompt: "Leia a ata de reunião contida neste PDF (pode ser escaneada) e extraia os campos.",
             pdfBase64: Buffer.from(buffer).toString("base64"),

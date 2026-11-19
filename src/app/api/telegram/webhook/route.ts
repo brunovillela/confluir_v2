@@ -394,7 +394,7 @@ async function tratar(chatId: string, texto: string, respondida: string | null =
   if (await tratarTextoViagem(chatId, texto, u)) return
 
   // Texto livre → assistente por IA (sem acesso a dados sensíveis da pessoa).
-  const { texto: resposta, erro } = await gerarTextoIA({
+  const { texto: resposta, erro } = await gerarTextoIA({ processo: "telegram.conversa", usuarioId: u.id, entidadeId: u.emp,
     system: `Você é o assistente do Confluir${u.entidade ? ` da entidade ${u.entidade}` : ""}, sistema de gestão de um sindicato, conversando pelo Telegram com um funcionário ou filiado. Responda em português do Brasil, de forma breve e cordial. O bot tem comandos: o que espera pela pessoa, com botões para resolver → /pendencias, contracheque → /contracheque, férias → /ferias, ver as diárias → /diarias, pedir diária → /diaria, pedir passagem aérea ou rodoviária e hospedagem → /viagem, ver os pedidos de viagem → /viagens, informes de rendimentos → /informes, atestados de saúde ocupacional (ASO) → /asos, veículos disponíveis por sede e com quem estão os carros → /carros, aprovar ou devolver ordens de pagamento na alçada → /aprovar, consulta de filiação por nome/CPF → /filiado <termo>. Para lançar recibo de reembolso do ACT, cupom de abastecimento ou atestado, a pessoa manda a foto ou o PDF aqui na conversa (o bot lê e pede confirmação). Oriente a usar o comando adequado. Para o restante (treinamentos, ASO detalhado etc.), oriente a consultar o painel do Confluir (área Meu perfil). Você NÃO tem acesso direto a esses dados nesta conversa em texto livre. Nunca invente informações.`,
     prompt: texto,
   })

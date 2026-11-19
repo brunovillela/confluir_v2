@@ -85,7 +85,7 @@ function normalizar(d: Record<string, unknown>): LeituraCartao {
 
 /** A IA lê um cartão de ponto (PDF de um funcionário). */
 export async function lerCartaoPdf(bytes: Uint8Array): Promise<{ leitura?: LeituraCartao; erro?: string }> {
-  const { dados, erro } = await gerarJsonIADePdf({
+  const { dados, erro } = await gerarJsonIADePdf({ processo: "pessoal.ponto_cartao",
     system: SISTEMA,
     prompt: "Leia este cartão de ponto e devolva o cabeçalho, a jornada prevista, as batidas de cada dia e o total do mês.",
     pdfBase64: Buffer.from(bytes).toString("base64"),

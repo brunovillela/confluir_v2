@@ -260,7 +260,7 @@ async function consultarIA(
   tipo: string,
   valor: number | null
 ): Promise<{ status: StatusVerificacao; detalhe: string }> {
-  const { dados, erro } = await gerarJsonIA({
+  const { dados, erro } = await gerarJsonIA({ processo: "financeiro.ordens_verificacao",
     system: SISTEMA_DESCRICAO,
     prompt: [
       `Critérios mínimos: ${criterios}`,

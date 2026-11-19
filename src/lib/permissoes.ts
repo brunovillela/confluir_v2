@@ -868,10 +868,9 @@ export const MODULOS: Modulo[] = [
     href: "/painel/institucional",
     icone: "Landmark",
     descricao:
-      "Organização, diretoria, registro sindical, e-mails, usuários e permissões",
+      "Organização, diretoria, registro sindical, e-mails, linhas, ajudas e custeios",
     chave: "configuracoes",
     chavesAlternativas: [
-      "permissoes",
       "diretoria_mandatos",
       "registro_mte",
       "ferramentas_emails_internos",
@@ -883,6 +882,24 @@ export const MODULOS: Modulo[] = [
       "custeio_institucional_autorizacao",
       "viagens_gestao",
     ],
+  },
+  {
+    // Gestão do sistema pelos administradores da entidade (19/11/2026):
+    // IA, integrações (API, webhooks, catracas), usuários, perfis e auditoria.
+    titulo: "Gestão",
+    href: "/painel/gestao",
+    icone: "Settings",
+    descricao: "Inteligência artificial, integrações, usuários, perfis de acesso e auditoria",
+    chave: "configuracoes",
+    chavesAlternativas: ["permissoes", "institucional_auditoria"],
+  },
+  {
+    titulo: "Inteligência Artificial",
+    href: "/painel/gestao/ia",
+    icone: "Sparkles",
+    descricao: "Chave de API própria, modelo, teto mensal e o uso da IA por pessoa, processo, departamento e módulo",
+    chave: "configuracoes",
+    oculto: true,
   },
   {
     titulo: "Organização",
@@ -967,7 +984,7 @@ export const MODULOS: Modulo[] = [
   },
   {
     titulo: "Usuários e permissões",
-    href: "/painel/institucional/usuarios",
+    href: "/painel/gestao/usuarios",
     icone: "Users",
     descricao: "Acesso ao painel e permissões por área",
     chave: "permissoes",
@@ -976,7 +993,7 @@ export const MODULOS: Modulo[] = [
   },
   {
     titulo: "API e webhooks",
-    href: "/painel/institucional/api",
+    href: "/painel/gestao/api",
     icone: "Plug",
     descricao: "Chaves de leitura para contador, Power BI e site; webhooks que avisam outros sistemas",
     chave: "configuracoes",
@@ -984,7 +1001,7 @@ export const MODULOS: Modulo[] = [
   },
   {
     titulo: "Controle de acesso",
-    href: "/painel/institucional/controle-acesso",
+    href: "/painel/gestao/controle-acesso",
     icone: "ScanFace",
     descricao: "Agente da recepção que liga o Confluir às catracas da sede",
     chave: "configuracoes",
@@ -992,7 +1009,7 @@ export const MODULOS: Modulo[] = [
   },
   {
     titulo: "Auditoria",
-    href: "/painel/institucional/auditoria",
+    href: "/painel/gestao/auditoria",
     icone: "ScrollText",
     descricao: "Quem alterou o quê nas tabelas sensíveis",
     chave: "institucional_auditoria",

@@ -212,7 +212,7 @@ async function baixarArquivo(fileId: string): Promise<{ bytes: Uint8Array } | { 
   }
 }
 
-async function lerPelaIA(a: ArquivoTelegram, bytes: Uint8Array, legenda: string | null) {
+async function lerPelaIA(a: ArquivoTelegram, bytes: Uint8Array, legenda: string | null, u: UsuarioTelegram) {
   const base64 = Buffer.from(bytes).toString("base64")
   const prompt = [
     "Leia o documento anexo e devolva o JSON pedido.",
@@ -222,8 +222,8 @@ async function lerPelaIA(a: ArquivoTelegram, bytes: Uint8Array, legenda: string 
     .join("\n")
   const r =
     a.mime === "application/pdf"
-      ? await gerarJsonIADePdf({ system: SISTEMA_LEITURA_ARQUIVO, prompt, pdfBase64: base64 })
-      : await gerarJsonIADeImagem({ system: SISTEMA_LEITURA_ARQUIVO, prompt, imagemBase64: base64, mimeType: a.mime })
+      ? await gerarJsonIADePdf({ processo: "telegram.comprovante", usuarioId: u.id, entidadeId: u.emp, system: SISTEMA_LEITURA_ARQUIVO, prompt, pdfBase64: base64 })
+      : await gerarJsonIADeImagem({ processo: "telegram.comprovante", usuarioId: u.id, entidadeId: u.emp, system: SISTEMA_LEITURA_ARQUIVO, prompt, imagemBase64: base64, mimeType: a.mime })
   return r
 }
 
@@ -321,7 +321,7 @@ export async function tratarArquivoTelegram(
     return true
   }
   const legenda = typeof msg.caption === "string" ? msg.caption.trim() : null
-  const lida = await lerPelaIA(arquivo, baixado.bytes, legenda)
+  const lida = await lerPelaIA(arquivo, baixado.bytes, legenda, u)
   if (lida.erro) console.error("Leitura do arquivo do Telegram:", lida.erro)
   const lido = normalizarLeitura(lida.dados as Record<string, unknown> | undefined)
 

@@ -18,6 +18,10 @@ import "server-only"
  * receberam a policy na parte 1.
  */
 export const TABELAS_TENANT: ReadonlySet<string> = new Set([
+  // Gestão › Inteligência Artificial (20261119160334_gestao_ia.sql).
+  "ia_config",
+  "ia_uso",
+  "gestao_eventos",
   "acordo_clausulas",
   "acordo_comparacao_pares",
   "acordo_comparacoes",

@@ -40,7 +40,7 @@ Qualquer evento, confirmado ou suspeito, que afete a **confidencialidade, a inte
 ## 4. Fontes de detecção já existentes
 
 - **Sentry:** erros da aplicação, alerta semanal de **deriva do schema** (`/api/schema/deriva/tick`) e relatórios de CSP (`/api/csp-relatorio`).
-- **Trilha `auditoria`:** alterações em filiações, dados bancários, usuários, permissões, ordens… (Institucional › Auditoria).
+- **Trilha `auditoria`:** alterações em filiações, dados bancários, usuários, permissões, ordens… (Gestão › Auditoria).
 - **Livro de exportações e log da API** (Auditoria › Exportações / API): saídas em massa fora do padrão.
 - **Bloqueio de login** (`login_tentativas`): picos de tentativas.
 - **Acessos ao relatório clínico** (`saude_atendimentos_acessos`).
@@ -85,7 +85,7 @@ Análise pós-incidente sem culpados: linha do tempo, causa raiz, o que funciono
 | **`SUPABASE_SERVICE_ROLE_KEY` exposta** | Gerar nova chave no Supabase; atualizar na Vercel; redeploy | Ignora o RLS: tratar como acesso total a todas as entidades até prova em contrário |
 | **`SUPABASE_JWT_SECRET` exposto** | Girar o segredo JWT no Supabase; atualizar `.env.local` e Vercel; redeploy | Esse segredo também assina o tenant (`src/lib/tenant-assinatura.ts`), os **links pessoais de votação** (`src/lib/acesso-eleitor.ts`), carteirinhas, descadastro de comunicados e "ver como". Girar **invalida todos esses links**: em período de votação, reenviar os links aos aptos |
 | **`SAUDE_RELATORIO_CHAVE` exposta** | Gerar chave nova (versão 2) e recifrar os relatórios com `chave_versao`; nunca apagar a chave antiga antes de recifrar | Perder a chave antiga sem recifrar torna os relatórios ilegíveis; não há rotina pronta (risco R9 da RIPD de saúde) |
-| **Chave da API pública vazada** | Revogar em Institucional › API; ver no log da API o que foi baixado e de onde | `/api/v1/filiados` com escopo de CPF expõe a base inteira |
+| **Chave da API pública vazada** | Revogar em Gestão › API; ver no log da API o que foi baixado e de onde | `/api/v1/filiados` com escopo de CPF expõe a base inteira |
 | **Conta de usuário comprometida** | Trocar a senha, encerrar as sessões (Supabase Auth), revisar as permissões, ver a `auditoria` e o livro de exportações dessa pessoa | Exigir MFA (`MFA_OBRIGATORIO=1`) |
 | **E-mail ou comunicado ao destinatário errado** | Pausar o cron de comunicação; pedir exclusão aos destinatários; conferir no Brevo quantos abriram | Conta como divulgação de dado sindical se revelar filiação |
 | **Arquivo exposto no Storage** | Mover para bucket privado ou apagar; checar os 3 buckets públicos (`comunicacao`, `noticias`, `organizacao`) | URLs assinadas expiram; públicas não |

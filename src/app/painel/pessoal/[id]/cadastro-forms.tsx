@@ -114,7 +114,7 @@ export function DadosCadastrais({
           </div>
         </div>
         <p className="text-muted-foreground text-xs">
-          O e-mail não se edita aqui: é o login da pessoa (Institucional › Usuários e permissões).
+          O e-mail não se edita aqui: é o login da pessoa (Gestão › Usuários e permissões).
         </p>
         <Mensagem estado={estado} />
         <div>

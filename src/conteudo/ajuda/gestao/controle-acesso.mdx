@@ -1,0 +1,103 @@
+O **Controle de acesso** liga o Confluir ao sistema de catracas da sede. Quem faz
+a ligação é um pequeno programa, o **agente**, instalado no computador da
+recepção de cada sede. Ele só faz conexões de saída para o Confluir: não é
+preciso abrir porta no firewall. A tela fica em **Gestão → Controle de
+acesso**.
+
+<RequerPermissao>Organização (identidade e sedes)</RequerPermissao>
+
+## Como funciona
+
+Cada computador de recepção é cadastrado no Confluir e recebe um **código de
+pareamento** de 6 dígitos. O agente, instalado no computador, pede esse código
+uma vez. Depois disso, ele procura o Confluir sozinho a cada poucos segundos e
+roda as verificações contra o sistema de catracas a cada 10 minutos (ou na hora,
+quando você pede).
+
+O sistema de catracas é escolhido no cadastro:
+
+- **Simulado (teste, sem catraca)** — para conferir a instalação sem catraca de
+  verdade;
+- **Control iD com servidor local** — o agente pede o endereço do servidor, o
+  usuário e a senha de integração, que o técnico da Control iD informa. Por
+  enquanto, só o item **Servidor alcançado** é conferido de fato; os demais
+  ficam pendentes.
+
+## Cadastrar e instalar
+
+<PassoAPasso>
+  <Passo titulo="Cadastre o computador">
+    Em **Cadastrar o computador de uma recepção**, preencha o **Nome do
+    computador** (ex.: Recepção — Macaé), a **Sede** e o **Sistema de catracas**.
+    Clique em **Cadastrar e gerar código**. O código aparece em letras grandes:
+    vale por **15 minutos** e só uma vez.
+  </Passo>
+  <Passo titulo="Baixe os dois arquivos">
+    Na mesma tela, baixe **instalar.ps1** e **agente-confluir.mjs** e salve os dois
+    na mesma pasta do computador da recepção (ex.: C:\Confluir).
+  </Passo>
+  <Passo titulo="Rode o instalador">
+    Clique com o botão direito em **instalar.ps1** e escolha **Executar com o
+    PowerShell**. O agente precisa do Node.js 18 ou mais novo: se faltar, o
+    instalador avisa como instalar.
+  </Passo>
+  <Passo titulo="Informe o endereço e o código">
+    Quando o assistente pedir, informe o endereço do Confluir da entidade (a
+    tela mostra qual é) e o código de 6 dígitos. A partir daí, o agente inicia
+    sozinho com o Windows.
+  </Passo>
+  <Passo titulo="Confira a lista de verificação">
+    Volte à tela. Ela se atualiza sozinha a cada poucos segundos.
+  </Passo>
+</PassoAPasso>
+
+## A lista de verificação
+
+Cada computador aparece em **Computadores das recepções**, com a situação
+(**Aguardando pareamento**, **Online** ou **Offline**), a sede, o sistema de
+catracas, a máquina, a versão do agente e o **Último contato**. Abaixo, seis
+itens, cada um com um sinal de conferido, de falha ou de aguardando:
+
+| Item | O que confere | Se falhar |
+|---|---|---|
+| **Agente pareado** | O agente se apresentou com o código | Instale o agente e digite o código |
+| **Agente online** | Último contato há menos de 1 minuto | O computador está desligado, sem internet ou com o agente parado |
+| **Servidor alcançado** | O agente encontra o servidor das catracas na rede | Confira o endereço do servidor com o técnico |
+| **Login no sistema** | O usuário de integração entra | Usuário ou senha de integração incorretos |
+| **Permissão** | O usuário pode criar e remover visitantes | Peça ao técnico a permissão de cadastrar visitantes |
+| **Teste completo** | Cadastra um visitante fictício com foto e o apaga | O sistema de catracas recusou o cadastro de teste |
+
+Verde em tudo quer dizer que a sede está pronta para receber visitantes do
+totem. **Testar de novo** pede ao agente que rode as verificações outra vez; o
+botão mostra **Verificando…** até a resposta chegar.
+
+## Trocar o computador ou desligar
+
+- **Código vencido ou perdido**: enquanto o computador não pareou, use **Novo
+  código** no cartão dele.
+- **Trocar o computador desta recepção**: no cartão de um computador já
+  pareado, abra esse item, gere um **Novo código** e digite-o no agente instalado
+  no computador novo. O antigo para de funcionar assim que o novo parear.
+- **Desligar**: o agente deixa de valer na hora, depois de confirmar. Não tem
+  volta: para religar, cadastre o computador de novo.
+
+## Erros comuns
+
+- **"Código não encontrado."** Confira os 6 dígitos e o endereço do Confluir
+  digitado no assistente.
+- **"Código vencido."** O código vale 15 minutos. Gere outro na tela.
+- **O computador aparece Offline.** Confira se ele está ligado, com internet e
+  com o agente rodando. O agente inicia com o Windows.
+- **"Dê um nome ao computador"** ou **"Escolha a sede."** Os dois são
+  obrigatórios no cadastro. Sem sede cadastrada, a lista fica vazia: cadastre a
+  sede antes em **Institucional → Organização**.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Visão geral do Institucional",
+      href: "/painel/ajuda/institucional",
+      descricao: "Organização, sedes e as demais áreas",
+    },
+  ]}
+/>

@@ -2,7 +2,7 @@
 
 # Plataforma, acesso e auditoria
 
-33 tabelas. Diagrama: [er/plataforma.md](../er/plataforma.md).
+36 tabelas. Diagrama: [er/plataforma.md](../er/plataforma.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -21,6 +21,9 @@
 | [empresa_departamentos](#empresa_departamentos) | — | Departamentos da entidade (secretarias, setores), com coordenador. Usados em compras, ofícios, agenda, contas e avisos. Departamento legado … |
 | [empresa_departamentos_integrantes](#empresa_departamentos_integrantes) | trabalhista | Usuários que integram cada departamento da entidade. Usado em avisos, permissões e diárias da diretoria. |
 | [empresa_sede](#empresa_sede) | — | Sedes e subsedes da entidade com endereço e telefones. Usadas no rodapé dos ofícios, na agenda, em cobranças e na cessão de espaços. |
+| [gestao_eventos](#gestao_eventos) | identificação | O que os administradores mudaram na Gestão (chave de IA cadastrada ou removida, teto, modelo, módulos desligados) e quem mudou. Só se acresc… |
+| [ia_config](#ia_config) | **credencial (nunca exportar)** | Configuração da IA da entidade (Gestão › Inteligência Artificial, 19/11/2026): chave de API própria cifrada pela aplicação, modelo, teto men… |
+| [ia_uso](#ia_uso) | identificação | Uma linha por chamada à IA (lib/ia.ts): quem pediu, processo, módulo, departamento, modelo, tokens, custo estimado e resultado. Não guarda o… |
 | [lgpd_bloqueios_litigio](#lgpd_bloqueios_litigio) | identificação | Bloqueio por litígio (legal hold, item 4 da seção 4 de retencao.md): enquanto vigente, a pessoa (CPF ou e-mail) ou o registro (tabela + id) … |
 | [lgpd_exportacoes](#lgpd_exportacoes) | identificação | Livro de exportações (achado M5 da RIPD da base multi-entidade): uma linha por arquivo com dado pessoal gerado no painel (planilha, PDF, CNA… |
 | [lgpd_regras_retencao](#lgpd_regras_retencao) | identificação | Regras do motor de retenção (seção 4 de docs/lgpd/retencao.md): uma linha por entidade e código RT, com prazo padrão, mínimo legal, prazo es… |
@@ -436,6 +439,93 @@ Sedes e subsedes da entidade com endereço e telefones. Usadas no rodapé dos of
 Únicas: `UNIQUE (bubble_id)`
 
 Índices: `empresa_sede_bubble_id_key`, `empresa_sede_pkey`
+
+## gestao_eventos
+
+O que os administradores mudaram na Gestão (chave de IA cadastrada ou removida, teto, modelo, módulos desligados) e quem mudou. Só se acrescenta (19/11/2026).
+
+- **LGPD:** identificação · titulares: funcionarios
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `criado_em` | timestamp with time zone | não | `now()` |  |  |  |
+| `usuario_id` | uuid | sim |  | → usuarios (set null) | identificação | Quem fez a mudança. |
+| `area` | text | não |  |  |  | Área da Gestão: ia, integracoes, acessos. |
+| `acao` | text | não |  |  |  | O que foi feito, em poucas palavras (ex.: chave_cadastrada). |
+| `detalhe` | text | sim |  |  | nenhum | Detalhe legível da mudança; nunca a chave nem dado pessoal além do nome. |
+
+Índices: `gestao_eventos_emp_data_idx`, `gestao_eventos_pkey`
+
+## ia_config
+
+Configuração da IA da entidade (Gestão › Inteligência Artificial, 19/11/2026): chave de API própria cifrada pela aplicação, modelo, teto mensal, preços para estimar o custo e módulos com a IA desligada.
+
+- **LGPD:** **credencial (nunca exportar)** · titulares: funcionarios
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `chave_cifrada` | text | sim |  |  | **credencial (nunca exportar)** | Chave de API da entidade cifrada com AES-256-GCM pela aplicação (lib/segredos.ts); a chave de cifra fica em variável de ambiente, fora do banco. Nunca é devolvida à tela. |
+| `chave_versao` | smallint | sim |  |  |  | Qual chave de cifra foi usada (0 = derivada de SAUDE_RELATORIO_CHAVE, 1 = SEGREDOS_CHAVE), para permitir a rotação. |
+| `chave_final` | text | sim |  |  | **credencial (nunca exportar)** | Os 4 últimos caracteres da chave, só para identificá-la na tela. |
+| `chave_definida_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem cadastrou a chave atual. |
+| `chave_definida_em` | timestamp with time zone | sim |  |  |  | Quando a chave atual foi cadastrada. |
+| `chave_testada_em` | timestamp with time zone | sim |  |  |  | Último teste de conexão com a chave atual. |
+| `chave_teste_erro` | text | sim |  |  | nenhum | Erro do último teste (nulo = deu certo). |
+| `modelo` | text | sim |  |  |  | Modelo escolhido pela entidade; nulo = o padrão da plataforma (MODELO_IA). |
+| `ia_ativa` | boolean | não | `true` |  |  | false = toda a IA desligada na entidade. |
+| `modulos_desligados` | text[] | não | `'{}'::text[]` |  |  | Módulos (slug de lib/ia-processos.ts) em que a IA está desligada. |
+| `limite_mensal_usd` | numeric(12,2) | sim |  |  |  | Teto de custo estimado por mês, em US$ (precisa dos preços). Nulo = sem teto. |
+| `bloquear_no_limite` | boolean | não | `false` |  |  | true = ao atingir o teto, a IA para até o mês seguinte; false = só avisa. |
+| `preco_entrada_usd_milhao` | numeric(12,4) | sim |  |  |  | Preço do modelo por 1 milhão de tokens de entrada, em US$ (para estimar o custo). |
+| `preco_entrada_cache_usd_milhao` | numeric(12,4) | sim |  |  |  | Preço por 1 milhão de tokens de entrada lidos do cache, em US$. |
+| `preco_saida_usd_milhao` | numeric(12,4) | sim |  |  |  | Preço por 1 milhão de tokens de saída (inclui o raciocínio), em US$. |
+| `atualizado_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem salvou a configuração por último. |
+| `updated_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Checks: `ia_config_chave_final_curta` `CHECK (((chave_final IS NULL) OR (length(chave_final) <= 4)))`; `ia_config_limite_positivo` `CHECK (((limite_mensal_usd IS NULL) OR (limite_mensal_usd > (0)::numeric)))`
+
+Índices: `ia_config_pkey`
+
+## ia_uso
+
+Uma linha por chamada à IA (lib/ia.ts): quem pediu, processo, módulo, departamento, modelo, tokens, custo estimado e resultado. Não guarda o texto enviado nem o devolvido (19/11/2026).
+
+- **LGPD:** identificação · titulares: funcionarios
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `criado_em` | timestamp with time zone | não | `now()` |  |  |  |
+| `usuario_id` | uuid | sim |  | → usuarios (set null) | identificação | Quem estava logado quando a IA foi chamada; nulo em tarefa agendada, bot ou fluxo público. |
+| `departamento_id` | uuid | sim |  | → empresa_departamentos (set null) |  | Departamento da pessoa no momento da chamada (o primeiro que coordena ou integra). |
+| `processo` | text | não | `'nao_identificado'::text` |  |  | Identificador do processo que chamou a IA (catálogo em lib/ia-processos.ts), ex.: compras.descricao. |
+| `modulo` | text | não | `'outros'::text` |  |  | Módulo do processo (slug do catálogo), ex.: compras, financeiro, pessoal. |
+| `tipo` | text | não | `'texto'::text` |  |  | Entrada da chamada: texto, json (texto com resposta estruturada), pdf ou imagem. |
+| `modelo` | text | não |  |  |  |  |
+| `origem_chave` | text | não | `'plataforma'::text` |  |  | Qual chave pagou: entidade (chave própria), plataforma (OPENAI_API_KEY) ou bloqueada (não chamou: IA desligada ou teto atingido). |
+| `tokens_entrada` | integer | não | `0` |  |  | Tokens de entrada (inclui os do cache). |
+| `tokens_entrada_cache` | integer | não | `0` |  |  | Parte dos tokens de entrada lida do cache (mais barata). |
+| `tokens_saida` | integer | não | `0` |  |  | Tokens de saída (inclui o raciocínio). |
+| `tokens_raciocinio` | integer | não | `0` |  |  | Parte dos tokens de saída gasta no raciocínio interno do modelo. |
+| `custo_estimado_usd` | numeric(12,6) | sim |  |  |  | Custo estimado em US$ pelos preços de ia_config no momento da chamada; nulo sem preços. |
+| `duracao_ms` | integer | sim |  |  |  | Duração da chamada em milissegundos. |
+| `sucesso` | boolean | não | `true` |  |  |  |
+| `erro` | text | sim |  |  | nenhum | Mensagem de erro amigável quando a chamada falhou (nunca o conteúdo). |
+
+Checks: `ia_uso_origem_valida` `CHECK ((origem_chave = ANY (ARRAY['entidade'::text, 'plataforma'::text, 'bloqueada'::text])))`; `ia_uso_tipo_valido` `CHECK ((tipo = ANY (ARRAY['texto'::text, 'json'::text, 'pdf'::text, 'imagem'::text])))`
+
+Índices: `ia_uso_emp_data_idx`, `ia_uso_emp_usuario_idx`, `ia_uso_pkey`
 
 ## lgpd_bloqueios_litigio
 

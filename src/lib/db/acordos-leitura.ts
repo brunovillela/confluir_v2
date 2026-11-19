@@ -158,10 +158,10 @@ export async function lerDadosDoRascunho(
 
   let ia
   if (!escaneado) {
-    ia = await gerarJsonIA({ system: SISTEMA, prompt: trechosParaIA(paginas) })
+    ia = await gerarJsonIA({ processo: "representacao.acordos_leitura", system: SISTEMA, prompt: trechosParaIA(paginas) })
   } else if (bytes.byteLength <= MAX_PDF_IA) {
     // Sem texto selecionável: a IA lê a imagem do PDF só para o cadastro.
-    ia = await gerarJsonIADePdf({
+    ia = await gerarJsonIADePdf({ processo: "representacao.acordos_leitura",
       system: SISTEMA,
       prompt: "Extraia os dados do cadastro deste acordo.",
       pdfBase64: Buffer.from(bytes).toString("base64"),

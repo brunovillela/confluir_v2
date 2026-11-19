@@ -85,7 +85,7 @@ export async function gerarRedacaoCompra(input: {
     obs ? `Rascunho das observações: ${obs}` : "Observações: (em branco)"
   )
 
-  const { dados, erro } = await gerarJsonIA({
+  const { dados, erro } = await gerarJsonIA({ processo: "compras.descricao",
     system: SISTEMA_REDACAO,
     prompt: partes.join("\n"),
   })
@@ -222,13 +222,13 @@ export async function lerNotaCompra(formData: FormData): Promise<LeituraNota> {
     }
     resultado =
       texto.length >= 80
-        ? await gerarJsonIA({
+        ? await gerarJsonIA({ processo: "compras.nota_fiscal",
             system: SISTEMA_NOTA,
             prompt: `Texto do documento fiscal:\n\n${texto.slice(0, 60000)}`,
           })
-        : await gerarJsonIADePdf({ system: SISTEMA_NOTA, prompt, pdfBase64: base64 })
+        : await gerarJsonIADePdf({ processo: "compras.nota_fiscal", system: SISTEMA_NOTA, prompt, pdfBase64: base64 })
   } else {
-    resultado = await gerarJsonIADeImagem({
+    resultado = await gerarJsonIADeImagem({ processo: "compras.nota_fiscal",
       system: SISTEMA_NOTA,
       prompt,
       imagemBase64: base64,

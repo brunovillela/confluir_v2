@@ -113,7 +113,7 @@ export async function lerEspelhoDoRegistro(registroId: string): Promise<{ erro?:
     return { pulado: motivo }
   }
 
-  const { dados, erro } = await gerarJsonIADePdf({
+  const { dados, erro } = await gerarJsonIADePdf({ processo: "pessoal.ponto_marcacoes",
     system: SISTEMA,
     prompt: "Leia este espelho de ponto e devolva as marcações de cada dia.",
     pdfBase64: Buffer.from(bytes).toString("base64"),

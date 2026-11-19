@@ -100,7 +100,7 @@ export async function melhorarTermoAction(input: {
   const t = (input.texto ?? "").trim()
   if (t.length < 10) return { erro: "Escreva o texto do termo antes de usar a IA." }
   const rotulo = ehTipo(input.tipo) ? ROTULO_TIPO_TERMO[input.tipo] : "termo"
-  return gerarTextoIA({
+  return gerarTextoIA({ processo: "filiados.termos_redacao",
     system: SISTEMA,
     prompt: `Tipo de termo: ${rotulo}\n\nTexto atual:\n${t}`,
   })

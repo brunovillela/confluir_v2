@@ -186,7 +186,7 @@ export async function gerarResenha(
   usuarioId: string
 ): Promise<{ erro?: string }> {
   if (ind.funcionarios === 0) return { erro: "Não há registros de ponto neste recorte." }
-  const { dados, erro } = await gerarJsonIA({
+  const { dados, erro } = await gerarJsonIA({ processo: "pessoal.ponto_resenha",
     system: SISTEMA,
     prompt: `Indicadores do controle de ponto:\n\n${resumoParaIA(ind)}`,
     esquema: ESQUEMA,

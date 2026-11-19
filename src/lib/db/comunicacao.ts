@@ -311,7 +311,7 @@ Responda SOMENTE com um objeto JSON no formato {"titulo": "...", "resumo": "..."
     .map((f, i) => `FONTE ${i + 1} (${f.url}):\n${f.texto}`)
     .join("\n\n---\n\n")
 
-  const { dados: json, erro } = await gerarJsonIA({ system, prompt })
+  const { dados: json, erro } = await gerarJsonIA({ processo: "comunicacao.resumo_noticias", system, prompt })
   if (erro) return { erro }
   const titulo = texto(json?.titulo)
   const resumo = texto(json?.resumo)

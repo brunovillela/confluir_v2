@@ -389,11 +389,6 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "DARF, FGTS, GPS, IPTU e alvarás: guias por competência e as ordens",
       },
       {
-        slug: "auditoria",
-        titulo: "Auditoria das ordens",
-        resumo: "Regras que o sistema confere antes de criar cada ordem",
-      },
-      {
         slug: "remessas",
         titulo: "Remessas bancárias (CNAB 240)",
         resumo: "Conta da entidade, arquivo de pagamento das ordens a pagar e o retorno do banco",
@@ -723,20 +718,15 @@ export const AREAS_AJUDA: AreaAjuda[] = [
   {
     slug: "institucional",
     titulo: "Institucional",
-    descricao: "Organização, diretoria, registro sindical e usuários",
+    descricao: "Organização, diretoria, registro sindical, atas, ajudas e custeios",
     icone: "Building2",
     ...permissaoDoModulo("/painel/institucional"),
     disponivel: true,
     artigos: [
       {
-        slug: "api",
-        titulo: "API e webhooks",
-        resumo: "Chaves de leitura para contador, Power BI e site; webhooks com assinatura e reenvio",
-      },
-      {
         slug: "index",
         titulo: "Visão geral do Institucional",
-        resumo: "Organização, diretoria, atas, MTE, e-mails, usuários e ajudas",
+        resumo: "Organização, diretoria, atas, MTE, e-mails, ajudas e custeios",
       },
       {
         slug: "diretoria",
@@ -755,11 +745,6 @@ export const AREAS_AJUDA: AreaAjuda[] = [
           "Custeios a diretores, demitidos políticos e convidados, com autorização",
       },
       {
-        slug: "usuarios",
-        titulo: "Usuários e permissões",
-        resumo: "Acesso ao painel, permissões por área e alçada",
-      },
-      {
         slug: "auditoria",
         titulo: "Auditoria",
         resumo: "Alterações, exportações e chamadas à API: filtros e leitura das linhas",
@@ -769,10 +754,45 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         titulo: "LGPD: retenção e descarte",
         resumo: "Prazos de guarda, simulação do descarte, bloqueios por litígio, encarregado e política de privacidade",
       },
+    ],
+  },
+  {
+    slug: "gestao",
+    titulo: "Gestão",
+    descricao: "Inteligência artificial, integrações, usuários, perfis de acesso e auditoria",
+    icone: "Settings",
+    ...permissaoDoModulo("/painel/gestao"),
+    disponivel: true,
+    artigos: [
+      {
+        slug: "index",
+        titulo: "Visão geral da Gestão",
+        resumo: "O painel do administrador: saúde dos acessos, integrações e IA num lugar só",
+      },
+      {
+        slug: "ia",
+        titulo: "Inteligência Artificial",
+        resumo: "Chave de API própria guardada cifrada, modelo, teto mensal, IA por módulo e o uso por pessoa, processo, departamento e módulo",
+      },
+      {
+        slug: "usuarios",
+        titulo: "Usuários e permissões",
+        resumo: "Acesso ao painel, permissões por área e alçada",
+      },
+      {
+        slug: "api",
+        titulo: "API e webhooks",
+        resumo: "Chaves de leitura para contador, Power BI e site; webhooks com assinatura e reenvio",
+      },
       {
         slug: "controle-acesso",
         titulo: "Controle de acesso",
         resumo: "Agente da recepção que liga o Confluir às catracas: cadastro, código de pareamento e verificação da conexão",
+      },
+      {
+        slug: "auditoria",
+        titulo: "Auditoria das ordens",
+        resumo: "Regras que o sistema confere antes de criar cada ordem",
       },
     ],
   },

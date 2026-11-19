@@ -210,7 +210,7 @@ export default async function ConfiguracoesViagensPage() {
               {equipe.map((p) => (
                 <li key={p.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2">
                   <Link
-                    href={`/painel/institucional/usuarios/${p.id}`}
+                    href={`/painel/gestao/usuarios/${p.id}`}
                     className="hover:text-primary font-medium"
                   >
                     {p.nome}
@@ -222,7 +222,7 @@ export default async function ConfiguracoesViagensPage() {
           )}
           <div>
             <Button asChild variant="outline" size="sm">
-              <Link href="/painel/institucional/usuarios">
+              <Link href="/painel/gestao/usuarios">
                 <ExternalLink />
                 Usuários e permissões
               </Link>

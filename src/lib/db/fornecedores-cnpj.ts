@@ -207,7 +207,7 @@ export async function fichaPorCnpj(
     municipio: base.cidade,
     uf: s(d.uf),
   }
-  const ia = await gerarJsonIA({ system: sistema(papel), prompt: JSON.stringify(registro) })
+  const ia = await gerarJsonIA({ processo: "compras.fornecedor_cnpj", system: sistema(papel), prompt: JSON.stringify(registro) })
   if (ia.dados) {
     viaIA = true
     const t = (k: string, reserva: string | null) => {

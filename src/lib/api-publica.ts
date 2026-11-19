@@ -96,7 +96,7 @@ async function conferirChave(req: Request, escopo: EscopoApi | null): Promise<Co
   } else usoPorChave.set(chaveId, { janela, n: 1 })
 
   const escopos = ((data.escopos as string[] | null) ?? []).filter(escopoApiValido)
-  if (escopo && !escopos.includes(escopo)) return recusa(403, `Esta chave não tem o escopo "${escopo}". Peça à entidade para marcá-lo em Institucional › API e webhooks.`, chaveId)
+  if (escopo && !escopos.includes(escopo)) return recusa(403, `Esta chave não tem o escopo "${escopo}". Peça à entidade para marcá-lo em Gestão › API e webhooks.`, chaveId)
 
   // Último uso (melhor esforço; a contagem exata não importa para a tela).
   void svc

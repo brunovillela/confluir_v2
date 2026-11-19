@@ -1,0 +1,51 @@
+A **Gestão** reúne o que os administradores da entidade usam para cuidar do
+próprio sistema: a inteligência artificial, quem acessa o painel, as
+integrações com outros sistemas e a auditoria. Fica no menu lateral, em
+**Gestão**.
+
+<RequerPermissao>Organização (identidade e sedes) ou Usuários e permissões</RequerPermissao>
+
+## Saúde do sistema
+
+No alto da página, uma lista curta diz o que merece atenção, com o mais urgente
+primeiro (ícone de alerta) e o que está em ordem depois. Cada linha leva à tela
+onde se resolve:
+
+- quantas pessoas têm acesso ao painel e quantas ainda não criaram o login;
+- **administradores sem verificação em duas etapas**, pelo nome — quem pode
+  mudar permissões deve ter o segundo fator;
+- o uso da IA no mês, a conta que paga (da entidade ou da plataforma) e quanto
+  do teto já foi;
+- chamadas de IA que falharam;
+- chaves de API **sem uso há 90 dias** — candidatas a revogar;
+- webhooks com falhas seguidas;
+- agentes das catracas sem contato.
+
+## As áreas
+
+| Grupo | Área | Para quê |
+|---|---|---|
+| Inteligência Artificial | [Inteligência Artificial](/painel/ajuda/gestao/ia) | Chave de API própria, modelo, teto e o uso da IA |
+| Acesso e usuários | [Usuários e permissões](/painel/ajuda/gestao/usuarios) | Quem acessa, o perfil e as exceções |
+| Acesso e usuários | Perfis de acesso e Quadro da entidade | Pacotes de permissões e quem pode receber acesso |
+| Acesso e usuários | [Auditoria](/painel/ajuda/gestao/auditoria) | Quem alterou o quê, exportações e chamadas à API |
+| Integrações | [API e webhooks](/painel/ajuda/gestao/api) | Chaves de leitura e avisos a outros sistemas |
+| Integrações | [Controle de acesso](/painel/ajuda/gestao/controle-acesso) | Agente que liga o Confluir às catracas |
+
+Estas áreas ficavam no **Institucional** até 19/11/2026. Os endereços antigos
+continuam funcionando e levam para cá.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Inteligência Artificial",
+      href: "/painel/ajuda/gestao/ia",
+      descricao: "Chave própria, teto mensal e relatório de uso",
+    },
+    {
+      titulo: "Usuários e permissões",
+      href: "/painel/ajuda/gestao/usuarios",
+      descricao: "Conceder acesso, perfis e ajustes finos",
+    },
+  ]}
+/>

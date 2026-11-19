@@ -235,14 +235,14 @@ export const PROCESSOS = [
   {
     id: "P16",
     nome: "Contas de acesso, segurança, auditoria e gestão interna",
-    tabelas: /^(api_|acesso_agentes$|auditoria$|auth_|login_|lgpd_|plataforma_|usuarios|webhooks|emails_institucionais$|assinaturas$|demandas)/,
-    finalidade: "Autenticar usuários, controlar perfis e permissões, registrar a trilha de auditoria e as tentativas de acesso, registrar as saídas de dados (livro de exportações `lgpd_exportacoes` e log da API `api_requisicoes`), atender pedidos de titulares, aplicar os prazos de retenção (motor de retenção: regras `lgpd_regras_retencao`, livro `lgpd_retencao_execucoes` e bloqueios por litígio `lgpd_bloqueios_litigio`), integrar sistemas (API/webhooks) e organizar demandas internas.",
+    tabelas: /^(api_|acesso_agentes$|auditoria$|auth_|login_|lgpd_|plataforma_|usuarios|webhooks|emails_institucionais$|assinaturas$|demandas|ia_config$|ia_uso$|gestao_eventos$)/,
+    finalidade: "Autenticar usuários, controlar perfis e permissões, registrar a trilha de auditoria e as tentativas de acesso, registrar as saídas de dados (livro de exportações `lgpd_exportacoes` e log da API `api_requisicoes`), atender pedidos de titulares, aplicar os prazos de retenção (motor de retenção: regras `lgpd_regras_retencao`, livro `lgpd_retencao_execucoes` e bloqueios por litígio `lgpd_bloqueios_litigio`), integrar sistemas (API/webhooks), administrar a IA da entidade (chave de API própria cifrada `ia_config`, registro de uso por pessoa, processo e departamento `ia_uso` — sem o conteúdo — e o livro de alterações da Gestão `gestao_eventos`) e organizar demandas internas.",
     titulares: "Usuários do sistema (funcionários, diretores, filiados no portal), administradores da plataforma",
     baseLegal: ["Art. 7º, IX e art. 46: legítimo interesse e dever de segurança.", "Art. 7º, II: guarda de registros de acesso (Marco Civil, art. 15)."],
     compartilhamento: "Destinos de webhook cadastrados pela entidade (hoje só um de teste).",
     suboperadores: [...BASE, "email", "telegram", "cloudflare"],
-    retencao: "Registros de acesso e log da API: 6 meses (Marco Civil). Auditoria e livro de exportações: 5 anos. Contas: enquanto ativas. Livro do motor de retenção: só contagens, sem prazo. Bloqueios por litígio: enquanto o processo durar, depois histórico. Códigos RT31–RT35 em retencao.md (proposta a validar); a RT31 já está no motor de retenção.",
-    seguranca: "Turnstile e cadência de códigos; MFA; identidade separada do metadata (`auth_identidades`); auditoria sem colunas cifradas; API com escopo por endpoint (CPF só com `filiados_cpf`) e chave só no cabeçalho; livro de exportações e log da API gravados só pelo service_role (a entidade só lê).",
+    retencao: "Registros de acesso e log da API: 6 meses (Marco Civil). Auditoria e livro de exportações: 5 anos. Contas: enquanto ativas. Uso da IA (`ia_uso`) e alterações da Gestão: proposta de 2 anos (a definir). Livro do motor de retenção: só contagens, sem prazo. Bloqueios por litígio: enquanto o processo durar, depois histórico. Códigos RT31–RT35 em retencao.md (proposta a validar); a RT31 já está no motor de retenção.",
+    seguranca: "Turnstile e cadência de códigos; MFA; identidade separada do metadata (`auth_identidades`); auditoria sem colunas cifradas; API com escopo por endpoint (CPF só com `filiados_cpf`) e chave só no cabeçalho; livro de exportações e log da API gravados só pelo service_role (a entidade só lê); chave de IA da entidade cifrada na aplicação (AES-256-GCM, chave de cifra fora do banco) e nunca devolvida à tela; `ia_uso` não guarda o texto enviado à IA.",
     observacoes: "Pendência: a `auditoria` copia em claro códigos e tokens com nomes fora da lista de ocultos.",
   },
   {

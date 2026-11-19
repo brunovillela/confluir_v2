@@ -28,6 +28,7 @@ import {
   Siren,
   Star,
   UserPen,
+  Settings,
   Users,
   Vote,
   Wrench,
@@ -40,6 +41,7 @@ import {
  * navegação lateral) sem arrastar referências de componente não serializáveis.
  */
 export const ICONES_AJUDA: Record<string, LucideIcon> = {
+  Settings,
   BedDouble,
   Bell,
   BookOpen,

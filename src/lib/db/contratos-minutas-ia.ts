@@ -69,7 +69,7 @@ export async function redigirMinutaIA(
   p: ParametrosMinuta,
   q: Qualificacoes
 ): Promise<{ texto?: string; erro?: string; truncado?: boolean }> {
-  return gerarTextoIA({
+  return gerarTextoIA({ processo: "compras.minuta_contrato",
     system: SYSTEM,
     maxTokens: MAX_TOKENS_MINUTA,
     prompt: [
@@ -86,7 +86,7 @@ export async function ajustarMinutaIA(
   p: ParametrosMinuta,
   q: Qualificacoes
 ): Promise<{ texto?: string; erro?: string; truncado?: boolean }> {
-  return gerarTextoIA({
+  return gerarTextoIA({ processo: "compras.minuta_contrato",
     system: SYSTEM,
     maxTokens: MAX_TOKENS_MINUTA,
     prompt: [

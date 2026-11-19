@@ -94,10 +94,10 @@ export async function lerAtaAction(caminho: string, tipoBruto: string): Promise<
   }
   const { dados, erro } =
     texto.length >= 80
-      ? await gerarJsonIA({ system: sistema(tipo), prompt: `Texto da ata:\n\n${texto.slice(0, 60000)}` })
+      ? await gerarJsonIA({ processo: "representacao.empregador_reuniao_ata", system: sistema(tipo), prompt: `Texto da ata:\n\n${texto.slice(0, 60000)}` })
       : bytes.length > 20 * 1024 * 1024
         ? { dados: undefined, erro: "PDF escaneado grande demais para a leitura por IA (máximo 20 MB)." }
-        : await gerarJsonIADePdf({
+        : await gerarJsonIADePdf({ processo: "representacao.empregador_reuniao_ata",
             system: sistema(tipo),
             prompt: "Leia a ata contida neste PDF (pode ser escaneada) e extraia os campos.",
             pdfBase64: Buffer.from(bytes).toString("base64"),

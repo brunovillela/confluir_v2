@@ -88,10 +88,10 @@ export async function lerGuiaTributo(formData: FormData): Promise<LeituraGuia> {
     }
     resultado =
       texto.length >= 60
-        ? await gerarJsonIA({ system: SISTEMA_GUIA, prompt: `Texto da guia:\n\n${texto.slice(0, 40000)}` })
-        : await gerarJsonIADePdf({ system: SISTEMA_GUIA, prompt, pdfBase64: base64 })
+        ? await gerarJsonIA({ processo: "financeiro.tributos_guia", system: SISTEMA_GUIA, prompt: `Texto da guia:\n\n${texto.slice(0, 40000)}` })
+        : await gerarJsonIADePdf({ processo: "financeiro.tributos_guia", system: SISTEMA_GUIA, prompt, pdfBase64: base64 })
   } else {
-    resultado = await gerarJsonIADeImagem({ system: SISTEMA_GUIA, prompt, imagemBase64: base64, mimeType: arquivo.type })
+    resultado = await gerarJsonIADeImagem({ processo: "financeiro.tributos_guia", system: SISTEMA_GUIA, prompt, imagemBase64: base64, mimeType: arquivo.type })
   }
   const { dados, erro } = resultado
   if (erro || !dados) return { erro: erro ?? "A IA não conseguiu ler a guia." }

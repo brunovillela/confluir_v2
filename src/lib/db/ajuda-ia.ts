@@ -52,5 +52,5 @@ QUEM PERGUNTA: ${quemPergunta.nome ?? "usuário"} — tem acesso a: ${
 
 PERGUNTA: ${p}`
 
-  return gerarTextoIA({ system: SYSTEM, prompt })
+  return gerarTextoIA({ processo: "painel.ajuda", system: SYSTEM, prompt })
 }

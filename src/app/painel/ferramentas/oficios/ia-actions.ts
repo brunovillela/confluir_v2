@@ -39,5 +39,5 @@ export async function melhorarOficio(input: {
     partes.push(`Destinatário: ${input.destinatario.trim()}`)
   }
 
-  return gerarTextoIA({ system: SISTEMA, prompt: partes.join("\n\n") })
+  return gerarTextoIA({ processo: "ferramentas.oficios", system: SISTEMA, prompt: partes.join("\n\n") })
 }

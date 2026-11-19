@@ -78,7 +78,7 @@ export async function conferirImportacaoAction(_p: EstadoImportacao, fd: FormDat
     const mime = mimeDeImagem(arquivo.type, arquivo.name)
     let r
     if (mime) {
-      r = await gerarJsonIADeImagem({
+      r = await gerarJsonIADeImagem({ processo: "representacao.congresso_importacao",
         system: SISTEMA,
         prompt: "Extraia a lista de pessoas desta imagem.",
         imagemBase64: Buffer.from(await arquivo.arrayBuffer()).toString("base64"),
@@ -90,9 +90,9 @@ export async function conferirImportacaoAction(_p: EstadoImportacao, fd: FormDat
       const { texto, ehPdf, pdf, erro } = await textoDoArquivo(arquivo)
       if (erro) return { erro }
       if (texto.length >= 20) {
-        r = await gerarJsonIA({ system: SISTEMA, prompt: `Documento:\n\n${texto.slice(0, MAX_TEXTO)}` })
+        r = await gerarJsonIA({ processo: "representacao.congresso_importacao", system: SISTEMA, prompt: `Documento:\n\n${texto.slice(0, MAX_TEXTO)}` })
       } else if (ehPdf && pdf) {
-        r = await gerarJsonIADePdf({
+        r = await gerarJsonIADePdf({ processo: "representacao.congresso_importacao",
           system: SISTEMA,
           prompt: "Extraia a lista de pessoas deste documento (pode ser escaneado).",
           pdfBase64: Buffer.from(pdf).toString("base64"),

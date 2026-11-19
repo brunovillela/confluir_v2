@@ -145,19 +145,19 @@ export async function lerFaturaLocacao(
     }
     resultado =
       texto.length >= 60
-        ? await gerarJsonIA({
+        ? await gerarJsonIA({ processo: "veiculos.contrato_locacao",
             system: SISTEMA_FATURA,
             prompt: `Texto do documento:\n\n${texto.slice(0, 40000)}`,
             esquema: ESQUEMA_FATURA,
           })
-        : await gerarJsonIADePdf({
+        : await gerarJsonIADePdf({ processo: "veiculos.contrato_locacao",
             system: SISTEMA_FATURA,
             prompt,
             pdfBase64: base64,
             esquema: ESQUEMA_FATURA,
           })
   } else {
-    resultado = await gerarJsonIADeImagem({
+    resultado = await gerarJsonIADeImagem({ processo: "veiculos.contrato_locacao",
       system: SISTEMA_FATURA,
       prompt,
       imagemBase64: base64,

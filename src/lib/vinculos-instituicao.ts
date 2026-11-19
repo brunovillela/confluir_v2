@@ -1,6 +1,6 @@
 /**
  * Vínculo da pessoa com a entidade (`usuarios.vinculo_instituicao`) — a
- * classificação do quadro, feita em Institucional › Usuários › Quadro da
+ * classificação do quadro, feita em Gestão › Usuários › Quadro da
  * entidade. Quem tem um destes entra no quadro: aniversários do painel,
  * onboarding em lote e (funcionários e diretores) o caixa. Sem vínculo, a
  * pessoa só tem o acesso que receber.

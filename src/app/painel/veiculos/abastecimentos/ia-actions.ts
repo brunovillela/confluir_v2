@@ -142,19 +142,19 @@ export async function lerRelatorioAbastecimentosIa(
 
   let extracao
   if (ehImagem && buffer) {
-    extracao = await gerarJsonIADeImagem({
+    extracao = await gerarJsonIADeImagem({ processo: "veiculos.abastecimento",
       system: SISTEMA,
       prompt: "Leia os abastecimentos desta imagem (cupom, fatura ou relatório fotografado).",
       imagemBase64: Buffer.from(buffer).toString("base64"),
       mimeType: arquivo.type,
     })
   } else if (texto.length >= 20) {
-    extracao = await gerarJsonIA({
+    extracao = await gerarJsonIA({ processo: "veiculos.abastecimento",
       system: SISTEMA,
       prompt: `Relatório de abastecimentos:\n\n${texto.length > MAX_TEXTO ? texto.slice(0, MAX_TEXTO) : texto}`,
     })
   } else if (ehPdf && buffer) {
-    extracao = await gerarJsonIADePdf({
+    extracao = await gerarJsonIADePdf({ processo: "veiculos.abastecimento",
       system: SISTEMA,
       prompt: "Leia os abastecimentos deste relatório (o PDF pode ser escaneado).",
       pdfBase64: Buffer.from(buffer).toString("base64"),

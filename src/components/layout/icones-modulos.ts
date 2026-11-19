@@ -1,4 +1,5 @@
 import {
+  Sparkles,
   Plug,
   ScanFace,
   QrCode,
@@ -96,4 +97,5 @@ export const ICONES_MODULOS: Record<string, LucideIcon> = {
   TriangleAlert,
   Wrench,
   Settings,
+  Sparkles,
 }

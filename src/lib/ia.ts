@@ -1,5 +1,13 @@
 import "server-only"
 import OpenAI from "openai"
+import { cache } from "react"
+
+import { configIAParaChamada, custoDoMes, type ConfigIAPublica } from "@/lib/db/ia-config"
+import { PROCESSO_NAO_IDENTIFICADO, processoIA } from "@/lib/ia-processos"
+import { usuarioIdAtual } from "@/lib/sessao-atual"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { tenantAtual } from "@/lib/tenant"
+import { comTenant, contextoFixado } from "@/lib/tenant-contexto"
 
 /**
  * Camada única de acesso ao modelo de IA (OpenAI, Responses API). Lê a chave e
@@ -10,6 +18,14 @@ import OpenAI from "openai"
  * Modelo padrão: gpt-5.5. Para reduzir custo, o usuário pode apontar
  * `MODELO_IA` para um modelo mais barato (ex.: gpt-5.4-mini ou gpt-5.4-nano) —
  * o código funciona em qualquer um deles.
+ *
+ * GESTÃO (19/11/2026): a entidade pode cadastrar a própria chave e o próprio
+ * modelo em Gestão › Inteligência Artificial (tabela ia_config, chave cifrada
+ * por lib/segredos.ts). Sem chave própria, vale a da plataforma
+ * (OPENAI_API_KEY). Antes de chamar, respeita a IA desligada (toda ou por
+ * módulo) e o teto mensal; depois, registra a chamada em ia_uso (quem,
+ * processo, módulo, departamento, tokens, custo estimado) — nunca o conteúdo.
+ * Cada chamada passa `processo` com uma chave de lib/ia-processos.ts.
  */
 export const MODELO_IA = process.env.MODELO_IA?.trim() || "gpt-5.5"
 
@@ -28,10 +44,34 @@ export type ResultadoIA = {
   truncado?: boolean
 }
 
+type OrigemChave = "entidade" | "plataforma" | "bloqueada"
+type TipoChamada = "texto" | "json" | "pdf" | "imagem"
+
+/** Quem e de onde: o que toda função pública aceita além do conteúdo. */
+export type ContextoIA = {
+  /** Chave do processo em lib/ia-processos.ts (ex.: "compras.descricao"). */
+  processo?: string
+  /** Quem pediu, quando não há sessão (bot do Telegram, tarefa agendada). */
+  usuarioId?: string | null
+  /**
+   * Entidade, quando o código roda fora de uma requisição dela (o webhook do
+   * Telegram atende todas): a chamada usa a configuração e o registro dela.
+   */
+  entidadeId?: string | null
+}
+
+/** Roda `fn` fixando a entidade do contexto, quando informada. */
+function naEntidade<T>(ctx: ContextoIA, fn: () => Promise<T>): Promise<T> {
+  if (!ctx.entidadeId) return fn()
+  return comTenant({ tenantId: ctx.entidadeId, origem: contextoFixado()?.origem ?? "" }, fn)
+}
+
 /** Mensagem amigável a partir de um erro do SDK da OpenAI. */
-function erroIA(e: unknown): string {
+function erroIA(e: unknown, origem: OrigemChave, modelo: string): string {
   if (e instanceof OpenAI.AuthenticationError) {
-    return "Chave de IA inválida — confira a OPENAI_API_KEY."
+    return origem === "entidade"
+      ? "A chave de IA da entidade foi recusada — confira em Gestão › Inteligência Artificial."
+      : "Chave de IA inválida — confira a OPENAI_API_KEY."
   }
   if (e instanceof OpenAI.PermissionDeniedError) {
     return "A chave de IA não tem permissão para este modelo."
@@ -43,7 +83,9 @@ function erroIA(e: unknown): string {
     return "Muitas solicitações de IA agora. Tente novamente em instantes."
   }
   if (e instanceof OpenAI.NotFoundError) {
-    return `Modelo de IA não encontrado ("${MODELO_IA}"). Confira o MODELO_IA no .env.local.`
+    return origem === "entidade" || modelo !== MODELO_IA
+      ? `Modelo de IA não encontrado ("${modelo}"). Confira o modelo em Gestão › Inteligência Artificial.`
+      : `Modelo de IA não encontrado ("${modelo}"). Confira o MODELO_IA no .env.local.`
   }
   if (e instanceof OpenAI.BadRequestError) {
     return `Solicitação de IA inválida: ${e.message}`
@@ -71,45 +113,188 @@ function cortada(r: Resposta): boolean {
   )
 }
 
-function cliente(): OpenAI | null {
-  const apiKey = process.env.OPENAI_API_KEY
-  return apiKey ? new OpenAI({ apiKey }) : null
+const SEM_CHAVE = "IA não configurada — falta a OPENAI_API_KEY no servidor."
+
+type RegistroBase = {
+  emp: string
+  config: ConfigIAPublica | null
+  processo: string
+  modulo: string
+  tipo: TipoChamada
+  usuarioId: string | null
 }
 
-const SEM_CHAVE = "IA não configurada — falta a OPENAI_API_KEY no servidor."
+type Preparo =
+  | { erro: string; registro: RegistroBase | null }
+  | { client: OpenAI; modelo: string; origem: OrigemChave; registro: RegistroBase | null }
+
+/** Departamento da pessoa: o que coordena; sem isso, o primeiro que integra. */
+const departamentoDe = cache(async (usuarioId: string): Promise<string | null> => {
+  try {
+    const admin = await createAdminClient()
+    const emp = await tenantAtual()
+    const { data: coord } = await admin
+      .from("empresa_departamentos")
+      .select("id")
+      .eq("emp_proprietaria_id", emp)
+      .eq("coordenador_id", usuarioId)
+      .limit(1)
+    if (coord?.[0]?.id) return String(coord[0].id)
+    const { data: integ } = await admin
+      .from("empresa_departamentos_integrantes")
+      .select("departamento_id")
+      .eq("usuario_id", usuarioId)
+      .limit(1)
+    return integ?.[0]?.departamento_id ? String(integ[0].departamento_id) : null
+  } catch {
+    return null
+  }
+})
+
+/**
+ * Escolhe a chave e o modelo e confere as travas da Gestão. Sem entidade
+ * resolvível (script), segue com a chave da plataforma e sem registro.
+ */
+async function preparar(ctx: ContextoIA, tipo: TipoChamada): Promise<Preparo> {
+  const proc = processoIA(ctx.processo ?? PROCESSO_NAO_IDENTIFICADO)
+  let registro: RegistroBase | null = null
+  let config: ConfigIAPublica | null = null
+  let chaveEntidade: string | null = null
+  try {
+    const emp = await tenantAtual()
+    const lida = await configIAParaChamada(emp)
+    config = lida.config.disponivel ? lida.config : null
+    chaveEntidade = lida.chave
+    const usuarioId = ctx.usuarioId !== undefined ? ctx.usuarioId : await usuarioIdAtual()
+    registro = { emp, config, processo: proc.chave, modulo: proc.modulo, tipo, usuarioId }
+  } catch {
+    // Fora de uma entidade: chave da plataforma, sem registro.
+  }
+
+  if (config && !config.iaAtiva) {
+    return { erro: "A IA está desligada nesta entidade (Gestão › Inteligência Artificial).", registro }
+  }
+  if (config && config.modulosDesligados.includes(proc.modulo)) {
+    return { erro: "A IA está desligada neste módulo (Gestão › Inteligência Artificial).", registro }
+  }
+  if (registro && config?.limiteMensalUsd && config.bloquearNoLimite) {
+    const gasto = await custoDoMes(registro.emp)
+    if (gasto >= config.limiteMensalUsd) {
+      return {
+        erro: "O teto mensal de IA da entidade foi atingido. A IA volta no dia 1º ou quando a Gestão aumentar o teto.",
+        registro,
+      }
+    }
+  }
+
+  const modelo = config?.modelo || MODELO_IA
+  if (chaveEntidade) {
+    return { client: new OpenAI({ apiKey: chaveEntidade }), modelo, origem: "entidade", registro }
+  }
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) return { erro: SEM_CHAVE, registro }
+  return { client: new OpenAI({ apiKey }), modelo, origem: "plataforma", registro }
+}
+
+/** Custo estimado em US$ pelos preços da Gestão; null sem preços. */
+function custoEstimado(config: ConfigIAPublica | null, entrada: number, cacheados: number, saida: number): number | null {
+  if (!config || config.precoEntrada === null || config.precoSaida === null) return null
+  const precoCache = config.precoEntradaCache ?? config.precoEntrada
+  return ((entrada - cacheados) * config.precoEntrada + cacheados * precoCache + saida * config.precoSaida) / 1_000_000
+}
+
+/** Grava a chamada em ia_uso. Nunca derruba a chamada de IA. */
+async function registrar(
+  base: RegistroBase | null,
+  r: { modelo: string; origem: OrigemChave; inicio: number; resposta?: Resposta; erro?: string }
+): Promise<void> {
+  if (!base) return
+  try {
+    const u = r.resposta?.usage
+    const entrada = u?.input_tokens ?? 0
+    const cacheados = u?.input_tokens_details?.cached_tokens ?? 0
+    const saida = u?.output_tokens ?? 0
+    const departamentoId = base.usuarioId ? await departamentoDe(base.usuarioId) : null
+    const admin = await createAdminClient()
+    await admin.from("ia_uso").insert({
+      emp_proprietaria_id: base.emp,
+      usuario_id: base.usuarioId,
+      departamento_id: departamentoId,
+      processo: base.processo,
+      modulo: base.modulo,
+      tipo: base.tipo,
+      modelo: r.modelo,
+      origem_chave: r.origem,
+      tokens_entrada: entrada,
+      tokens_entrada_cache: cacheados,
+      tokens_saida: saida,
+      tokens_raciocinio: u?.output_tokens_details?.reasoning_tokens ?? 0,
+      custo_estimado_usd: u ? custoEstimado(base.config, entrada, cacheados, saida) : null,
+      duracao_ms: Date.now() - r.inicio,
+      sucesso: !r.erro,
+      erro: r.erro ? r.erro.slice(0, 300) : null,
+    })
+  } catch {
+    // Registro é acessório: sem a tabela (migração pendente) ou com falha de rede, segue.
+  }
+}
+
+/** Registra a recusa da Gestão (IA desligada, teto, sem chave) e devolve a mensagem. */
+async function recusarPreparo(p: { erro: string; registro: RegistroBase | null }): Promise<string> {
+  await registrar(p.registro, {
+    modelo: p.registro?.config?.modelo || MODELO_IA,
+    origem: "bloqueada",
+    inicio: Date.now(),
+    erro: p.erro,
+  })
+  return p.erro
+}
 
 export async function gerarTextoIA({
   system,
   prompt,
   maxTokens = MAX_TOKENS_TEXTO,
+  processo,
+  usuarioId,
+  entidadeId,
 }: {
   system: string
   prompt: string
   /** Documentos longos (minuta de contrato) pedem mais que o padrão de 4096. */
   maxTokens?: number
-}): Promise<ResultadoIA> {
-  const client = cliente()
-  if (!client) return { erro: SEM_CHAVE }
+} & ContextoIA): Promise<ResultadoIA> {
+  const ctx = { processo, usuarioId, entidadeId }
+  return naEntidade(ctx, () => chamarTextoIA(system, prompt, maxTokens, ctx))
+}
+
+async function chamarTextoIA(system: string, prompt: string, maxTokens: number, ctx: ContextoIA): Promise<ResultadoIA> {
+  const p = await preparar(ctx, "texto")
+  if ("erro" in p) return { erro: await recusarPreparo(p) }
+  const { client, modelo, origem } = p
+  const inicio = Date.now()
 
   try {
     const resposta = await client.responses.create({
-      model: MODELO_IA,
+      model: modelo,
       max_output_tokens: maxTokens + FOLGA_RACIOCINIO,
       instructions: system,
       input: prompt,
       store: false,
     })
 
-    if (recusou(resposta)) {
-      return {
-        erro: "A IA recusou a solicitação. Ajuste o texto e tente de novo.",
-      }
-    }
     const texto = resposta.output_text.trim()
-    if (!texto) return { erro: "A IA não retornou texto." }
+    const erro = recusou(resposta)
+      ? "A IA recusou a solicitação. Ajuste o texto e tente de novo."
+      : !texto
+        ? "A IA não retornou texto."
+        : undefined
+    await registrar(p.registro, { modelo, origem, inicio, resposta, erro })
+    if (erro) return { erro }
     return { texto, truncado: cortada(resposta) }
   } catch (e) {
-    return { erro: erroIA(e) }
+    const erro = erroIA(e, origem, modelo)
+    await registrar(p.registro, { modelo, origem, inicio, erro })
+    return { erro }
   }
 }
 
@@ -160,14 +345,28 @@ function extrairJson(bruto: string): Record<string, unknown> | null {
 async function chamarJsonIA(
   system: string,
   content: OpenAI.Responses.ResponseInputMessageContentList,
-  esquema?: EsquemaJsonIA
+  esquema: EsquemaJsonIA | undefined,
+  ctx: ContextoIA,
+  tipo: TipoChamada
 ): Promise<ResultadoJsonIA> {
-  const client = cliente()
-  if (!client) return { erro: SEM_CHAVE }
+  return naEntidade(ctx, () => chamarJsonIANaEntidade(system, content, esquema, ctx, tipo))
+}
+
+async function chamarJsonIANaEntidade(
+  system: string,
+  content: OpenAI.Responses.ResponseInputMessageContentList,
+  esquema: EsquemaJsonIA | undefined,
+  ctx: ContextoIA,
+  tipo: TipoChamada
+): Promise<ResultadoJsonIA> {
+  const p = await preparar(ctx, tipo)
+  if ("erro" in p) return { erro: await recusarPreparo(p) }
+  const { client, modelo, origem } = p
+  const inicio = Date.now()
 
   try {
     const resposta = await client.responses.create({
-      model: MODELO_IA,
+      model: modelo,
       max_output_tokens: MAX_TOKENS_JSON + FOLGA_RACIOCINIO,
       instructions: `${system}\n\nResponda SOMENTE com um objeto JSON válido. Não inclua texto, comentários, cercas de código nem tags fora do JSON.`,
       // O modo JSON exige a palavra "JSON" na mensagem do usuário (as
@@ -189,22 +388,24 @@ async function chamarJsonIA(
       store: false,
     })
 
-    if (recusou(resposta)) {
-      return { erro: "A IA recusou a solicitação." }
-    }
-    if (cortada(resposta)) {
-      return {
-        erro: "A resposta da IA ficou grande demais e foi cortada. Tente um arquivo/lote menor.",
-      }
-    }
     const bruto = resposta.output_text.trim()
-    if (!bruto) return { erro: "A IA não retornou dados." }
-
-    const dados = extrairJson(bruto)
-    if (!dados) return { erro: "A IA retornou um JSON inválido." }
+    const dados = bruto ? extrairJson(bruto) : null
+    const erro = recusou(resposta)
+      ? "A IA recusou a solicitação."
+      : cortada(resposta)
+        ? "A resposta da IA ficou grande demais e foi cortada. Tente um arquivo/lote menor."
+        : !bruto
+          ? "A IA não retornou dados."
+          : !dados
+            ? "A IA retornou um JSON inválido."
+            : undefined
+    await registrar(p.registro, { modelo, origem, inicio, resposta, erro })
+    if (erro || !dados) return { erro: erro ?? "A IA retornou um JSON inválido." }
     return { dados }
   } catch (e) {
-    return { erro: erroIA(e) }
+    const erro = erroIA(e, origem, modelo)
+    await registrar(p.registro, { modelo, origem, inicio, erro })
+    return { erro }
   }
 }
 
@@ -213,12 +414,15 @@ export async function gerarJsonIA({
   system,
   prompt,
   esquema,
+  processo,
+  usuarioId,
+  entidadeId,
 }: {
   system: string
   prompt: string
   esquema?: EsquemaJsonIA
-}): Promise<ResultadoJsonIA> {
-  return chamarJsonIA(system, [{ type: "input_text", text: prompt }], esquema)
+} & ContextoIA): Promise<ResultadoJsonIA> {
+  return chamarJsonIA(system, [{ type: "input_text", text: prompt }], esquema, { processo, usuarioId, entidadeId }, "json")
 }
 
 /**
@@ -231,12 +435,15 @@ export async function gerarJsonIADePdf({
   prompt,
   pdfBase64,
   esquema,
+  processo,
+  usuarioId,
+  entidadeId,
 }: {
   system: string
   prompt: string
   pdfBase64: string
   esquema?: EsquemaJsonIA
-}): Promise<ResultadoJsonIA> {
+} & ContextoIA): Promise<ResultadoJsonIA> {
   return chamarJsonIA(
     system,
     [
@@ -247,7 +454,9 @@ export async function gerarJsonIADePdf({
       },
       { type: "input_text", text: prompt },
     ],
-    esquema
+    esquema,
+    { processo, usuarioId, entidadeId },
+    "pdf"
   )
 }
 
@@ -261,13 +470,16 @@ export async function gerarJsonIADeImagem({
   imagemBase64,
   mimeType,
   esquema,
+  processo,
+  usuarioId,
+  entidadeId,
 }: {
   system: string
   prompt: string
   imagemBase64: string
   mimeType: string
   esquema?: EsquemaJsonIA
-}): Promise<ResultadoJsonIA> {
+} & ContextoIA): Promise<ResultadoJsonIA> {
   return chamarJsonIA(
     system,
     [
@@ -278,6 +490,45 @@ export async function gerarJsonIADeImagem({
       },
       { type: "input_text", text: prompt },
     ],
-    esquema
+    esquema,
+    { processo, usuarioId, entidadeId },
+    "imagem"
   )
+}
+
+/**
+ * Teste da chave da entidade (Gestão): uma chamada mínima com a chave dada,
+ * sem passar pelas travas. Devolve null quando deu certo ou a mensagem do erro.
+ * Fica aqui porque toda chamada à OpenAI passa por este arquivo.
+ */
+export async function testarChaveIA(chave: string, modelo: string | null): Promise<string | null> {
+  const m = modelo || MODELO_IA
+  const inicio = Date.now()
+  let base: RegistroBase | null = null
+  try {
+    base = {
+      emp: await tenantAtual(),
+      config: null,
+      processo: "gestao.teste_chave",
+      modulo: "outros",
+      tipo: "texto",
+      usuarioId: await usuarioIdAtual(),
+    }
+  } catch {
+    base = null
+  }
+  try {
+    const resposta = await new OpenAI({ apiKey: chave }).responses.create({
+      model: m,
+      max_output_tokens: 64,
+      input: "Responda apenas: ok",
+      store: false,
+    })
+    await registrar(base, { modelo: m, origem: "entidade", inicio, resposta })
+    return null
+  } catch (e) {
+    const erro = erroIA(e, "entidade", m)
+    await registrar(base, { modelo: m, origem: "entidade", inicio, erro })
+    return erro
+  }
 }

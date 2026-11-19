@@ -161,10 +161,10 @@ export async function lerArquivoDeComprovantes(arquivo: File): Promise<ArquivoLi
     const comTexto = paginas.filter((p) => p.trim().length >= 40).length
     resultado =
       comTexto === paginas.length && texto.length < 120_000
-        ? await gerarJsonIA({ system: SISTEMA, prompt: `Texto do arquivo, separado por página:\n\n${texto}`, esquema: ESQUEMA })
-        : await gerarJsonIADePdf({ system: SISTEMA, prompt, pdfBase64: Buffer.from(pdf).toString("base64"), esquema: ESQUEMA })
+        ? await gerarJsonIA({ processo: "financeiro.comprovantes_distribuicao", system: SISTEMA, prompt: `Texto do arquivo, separado por página:\n\n${texto}`, esquema: ESQUEMA })
+        : await gerarJsonIADePdf({ processo: "financeiro.comprovantes_distribuicao", system: SISTEMA, prompt, pdfBase64: Buffer.from(pdf).toString("base64"), esquema: ESQUEMA })
   } else {
-    resultado = await gerarJsonIADeImagem({
+    resultado = await gerarJsonIADeImagem({ processo: "financeiro.comprovantes_distribuicao",
       system: SISTEMA,
       prompt,
       imagemBase64: Buffer.from(original).toString("base64"),

@@ -44,7 +44,7 @@ function numero(v: unknown): number | null {
 
 /** A IA lê um contracheque (PDF de um funcionário). */
 export async function lerContrachequePdf(bytes: Uint8Array): Promise<{ leitura?: LeituraContracheque; erro?: string }> {
-  const { dados, erro } = await gerarJsonIADePdf({
+  const { dados, erro } = await gerarJsonIADePdf({ processo: "pessoal.contracheque_leitura",
     system: SISTEMA,
     prompt: "Leia este contracheque e devolva o empregado, a competência e os totais de proventos, descontos e líquido.",
     pdfBase64: Buffer.from(bytes).toString("base64"),

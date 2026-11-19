@@ -8,10 +8,7 @@ import {
   LockKeyhole,
   Mail,
   Plane,
-  ScanFace,
   ScrollText,
-  Plug,
-  ShieldCheck,
   Smartphone,
   PhoneCall,
   Users,
@@ -34,20 +31,8 @@ type Area = {
 }
 
 const AREAS: Area[] = [
-  {
-    titulo: "API e webhooks",
-    descricao: "Chaves de leitura e avisos a outros sistemas",
-    href: "/painel/institucional/api",
-    icone: Plug,
-    chave: "configuracoes",
-  },
-  {
-    titulo: "Controle de acesso",
-    descricao: "Agente da recepção que liga o Confluir às catracas",
-    href: "/painel/institucional/controle-acesso",
-    icone: ScanFace,
-    chave: "configuracoes",
-  },
+
+
   {
     titulo: "Organização",
     descricao: "Razão social, CNPJ, logo e endereços das sedes",
@@ -139,14 +124,7 @@ const AREAS: Area[] = [
     icone: Plane,
     chave: "viagens_gestao",
   },
-  {
-    titulo: "Usuários e permissões",
-    descricao: "Quem acessa o painel e o que cada um pode ver e editar",
-    href: "/painel/institucional/usuarios",
-    icone: ShieldCheck,
-    chave: "permissoes",
-    chavesAlternativas: ["configuracoes"],
-  },
+
   {
     titulo: "LGPD: retenção e descarte",
     descricao: "Prazos de guarda, simulação do descarte mensal e bloqueios por litígio",
@@ -154,20 +132,11 @@ const AREAS: Area[] = [
     icone: LockKeyhole,
     chave: "configuracoes",
   },
-  {
-    titulo: "Auditoria",
-    descricao: "Quem alterou o quê: permissões, usuários, filiações, dados bancários, ordens",
-    href: "/painel/institucional/auditoria",
-    icone: ScrollText,
-    chave: "institucional_auditoria",
-    chavesAlternativas: ["configuracoes", "permissoes"],
-  },
+
 ]
 
 export default async function ConfiguracoesPage() {
   const sessao = await requirePermissao("configuracoes", [
-    "permissoes",
-    "institucional_auditoria",
     "diretoria_mandatos",
     "registro_mte",
     "ferramentas_emails_internos",
@@ -197,7 +166,7 @@ export default async function ConfiguracoesPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Institucional</h1>
         </div>
         <p className="text-muted-foreground mt-1 text-xs">
-          A entidade: organização, diretoria, registro sindical e acessos
+          A entidade: organização, diretoria, registro sindical e recursos. Usuários, integrações e IA ficam em Gestão.
         </p>
       </div>
 

@@ -57,7 +57,7 @@ export async function redigirComIAAction(
   const org = await obterOrganizacao()
 
   const lista = MARCADORES.map((m) => `{{${m.chave}}} — ${m.rotulo}`).join("\n")
-  const { texto, erro } = await gerarTextoIA({
+  const { texto, erro } = await gerarTextoIA({ processo: "espacos.termo",
     system:
       "Você redige documentos institucionais de entidades sindicais brasileiras, em português do Brasil, com linguagem simples e direta. Escreve texto corrido e cláusulas numeradas, sem juridiquês desnecessário e sem inventar obrigações que não foram pedidas.",
     prompt: [

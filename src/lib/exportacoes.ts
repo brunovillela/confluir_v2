@@ -9,7 +9,7 @@ import { tenantAtual } from "@/lib/tenant"
  * docs/lgpd/ripd-base-multitenant.md): toda rota que entrega um arquivo com
  * dado pessoal em massa chama `registrarExportacao` antes de responder.
  * Grava pelo service_role com o tenant explícito; a entidade só lê
- * (policy tenant_isolation FOR SELECT), em Institucional › Auditoria.
+ * (policy tenant_isolation FOR SELECT), em Gestão › Auditoria.
  */
 
 export type CategoriaExportada = "identificacao" | "cpf" | "sindical" | "saude" | "financeiro" | "trabalhista" | "voto"

@@ -99,7 +99,7 @@ async function classificar(
         // Texto longo: o começo basta para tema e resumo.
         texto: clausulas[i].texto.slice(0, 2500),
       }))
-      const { dados, erro } = await gerarJsonIA({
+      const { dados, erro } = await gerarJsonIA({ processo: "representacao.acordos_extracao",
         system: SYSTEM_TEMAS,
         prompt: `Classifique estas cláusulas. Responda {"itens":[{"i":<número>,"tema":"<chave>","resumo":"<texto>"}]}.\n\n${JSON.stringify(itens)}`,
       })

@@ -39,7 +39,7 @@ export async function sugerirPlanoCargos(entrada: {
   const prompt = `FUNÇÃO: ${funcao}${
     entrada.descricao ? `\nDESCRIÇÃO: ${entrada.descricao}` : ""
   }`
-  const { dados, erro } = await gerarJsonIA({ system: SYSTEM_PLANO, prompt })
+  const { dados, erro } = await gerarJsonIA({ processo: "pessoal.sst", system: SYSTEM_PLANO, prompt })
   if (erro) return { erro }
   const lista = Array.isArray(dados?.atribuicoes) ? dados!.atribuicoes : []
   const atribuicoes = lista
@@ -124,7 +124,7 @@ ${entrada.descricao ? `DESCRIÇÃO: ${entrada.descricao}\n` : ""}${
       : ""
   }`
 
-  const { dados, erro } = await gerarJsonIA({ system: SYSTEM_SST, prompt })
+  const { dados, erro } = await gerarJsonIA({ processo: "pessoal.sst", system: SYSTEM_SST, prompt })
   if (erro) return { erro }
   if (!dados) return { erro: "A IA não retornou uma análise." }
 

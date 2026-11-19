@@ -234,7 +234,7 @@ function textoPadrao(d: Omit<RelatorioDiretoria, "paragrafos" | "redigidoPorIA">
 
 async function redigir(d: Omit<RelatorioDiretoria, "paragrafos" | "redigidoPorIA">): Promise<{ paragrafos: string[]; redigidoPorIA: boolean }> {
   const padrao = textoPadrao(d)
-  const r = await gerarTextoIA({
+  const r = await gerarTextoIA({ processo: "institucional.relatorio_diretoria",
     system:
       "Você redige o relatório mensal da diretoria de uma entidade sindical brasileira, em português do Brasil, tom institucional e direto. Use SOMENTE os números fornecidos; não invente dados nem explique causas que não estejam nos dados. Escreva de 3 a 6 parágrafos curtos, sem títulos, sem listas, sem markdown. Valores em reais no formato R$ 1.234,56.",
     prompt: `Mês: ${d.mesRotulo}. Entidade: ${d.entidade}.\nDados (JSON): ${JSON.stringify({ filiacao: d.filiacao, arrecadacao: d.arrecadacao, despesa: d.despesa, caixa: d.caixa, acoes: d.acoes, vencidos: d.vencidosPorArea })}\n\nTexto-base que você pode melhorar (mantendo os números exatos):\n${padrao.join("\n")}`,

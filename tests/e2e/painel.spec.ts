@@ -12,7 +12,7 @@ test.describe.serial("painel", () => {
     await expect(page).toHaveURL(/\/painel$/)
     await expect(page.getByText("Consulta de filiação")).toBeVisible()
 
-    await page.goto("/painel/institucional/auditoria")
+    await page.goto("/painel/gestao/auditoria")
     await expect(page.getByRole("heading", { name: "Auditoria" })).toBeVisible()
   })
 

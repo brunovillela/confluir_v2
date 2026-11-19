@@ -117,8 +117,8 @@ const SHOTS = process.env.SHOT_UNICO
       ["/painel/institucional/diretoria/diarias", "institucional/diretoria-diarias.png", { esperar: "Lançar diária", altura: 1100 }],
       ["/painel/institucional/diretoria/diarias", "institucional/diretoria-lancar-diaria.png", { esperar: "Lançar diária", abrir: ["Lançar diária"], fullPage: true }],
       ["/painel/institucional/diretoria/fe600000-0000-4000-8000-000000000001/liberacoes", "institucional/liberacoes-lote.png", { esperar: "Registrar liberação", abrir: ["Registrar liberação", "Várias liberações"], fullPage: true }],
-      ["/painel/institucional/usuarios/c06b8d80-f07c-4cfd-9205-6ef59e334ccb", "institucional/conta-funcao.png", { esperar: "Quem ocupa o posto", fullPage: true }],
-      ["/painel/institucional/usuarios/c06b8d80-f07c-4cfd-9205-6ef59e334ccb", "institucional/conta-funcao-cadastrar-pessoa.png", { esperar: "Quem ocupa o posto", passos: [{ clicar: "css=button:has-text(\"Cadastrar pessoa\") >> nth=0" }, { aguardar: "Cadastrar quem vai ocupar o posto" }], scrollTo: "Registrar quem entra no posto", altura: 1000 }],
+      ["/painel/gestao/usuarios/c06b8d80-f07c-4cfd-9205-6ef59e334ccb", "institucional/conta-funcao.png", { esperar: "Quem ocupa o posto", fullPage: true }],
+      ["/painel/gestao/usuarios/c06b8d80-f07c-4cfd-9205-6ef59e334ccb", "institucional/conta-funcao-cadastrar-pessoa.png", { esperar: "Quem ocupa o posto", passos: [{ clicar: "css=button:has-text(\"Cadastrar pessoa\") >> nth=0" }, { aguardar: "Cadastrar quem vai ocupar o posto" }], scrollTo: "Registrar quem entra no posto", altura: 1000 }],
       ["/painel/hospedagem/hoteis/40010000-0000-4000-8000-000000000001", "hospedagem/hotel-ficha.png", { esperar: "Visualizar", fullPage: true }],
       // Abre a visualização do hotel (cookie) e vai às contas; a visualização
       // só lê — o botão Cadastrar conta fica cinza.
@@ -578,9 +578,9 @@ const SHOTS_ANTIGOS = [
   // entidade (demo: Rodrigo Alves Prado, da fonte, classificado como
   // prestador) e a página da pessoa com perfis e ajustes finos.
   /*
-  ["/painel/institucional/usuarios", "institucional/usuarios-nova-pessoa.png", { abrir: ["Conceder acesso a uma pessoa", "Nova pessoa"] }],
-  ["/painel/institucional/usuarios/quadro", "institucional/quadro.png", { esperar: "Sugestão:" }],
-  ["/painel/institucional/usuarios/44d991c1-a5b7-431f-9957-b061ee0a9449", "institucional/usuarios.png", { scrollTo: "Ajustes finos" }],
+  ["/painel/gestao/usuarios", "institucional/usuarios-nova-pessoa.png", { abrir: ["Conceder acesso a uma pessoa", "Nova pessoa"] }],
+  ["/painel/gestao/usuarios/quadro", "institucional/quadro.png", { esperar: "Sugestão:" }],
+  ["/painel/gestao/usuarios/44d991c1-a5b7-431f-9957-b061ee0a9449", "institucional/usuarios.png", { scrollTo: "Ajustes finos" }],
   */
 
   // Rodada de 17/09: tela de Filiados com o aviso de possíveis duplicidades
@@ -690,8 +690,8 @@ const SHOTS_ANTIGOS = [
   // ["/painel/patrimonio/notas", "patrimonio/notas.png"],
 
   // Perfis de acesso / RBAC (já capturado — seed: demo-seed-perfis.sql).
-  // ["/painel/institucional/usuarios/perfis", "institucional/perfis.png"],
-  // ["/painel/institucional/usuarios/perfis/a0510000-0000-4000-8000-000000000001", "institucional/perfil-detalhe.png", { fullPage: true }],
+  // ["/painel/gestao/usuarios/perfis", "institucional/perfis.png"],
+  // ["/painel/gestao/usuarios/perfis/a0510000-0000-4000-8000-000000000001", "institucional/perfil-detalhe.png", { fullPage: true }],
 
   // Custeio Institucional (já capturado — seed: demo-seed-custeio.sql).
   // ["/painel/institucional/custeios", "institucional/custeios.png"],
@@ -760,7 +760,7 @@ const SHOTS_ANTIGOS = [
   // Institucional (já capturado — seed: demo-seed-institucional.sql)
   // ["/painel/institucional", "institucional/painel.png"],
   // ["/painel/institucional/diretoria/fe600000-0000-4000-8000-000000000001", "institucional/diretoria.png", { fullPage: true }],
-  // ["/painel/institucional/usuarios/44d991c1-a5b7-431f-9957-b061ee0a9449", "institucional/usuarios.png"],
+  // ["/painel/gestao/usuarios/44d991c1-a5b7-431f-9957-b061ee0a9449", "institucional/usuarios.png"],
   // ["/painel/institucional/ajudas", "institucional/ajudas.png"],
 
   // Ferramentas (já capturado — seed: demo-seed-ferramentas.sql)

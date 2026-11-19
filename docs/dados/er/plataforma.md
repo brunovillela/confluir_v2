@@ -71,6 +71,22 @@ erDiagram
     uuid emp_ref_id FK
     uuid emp_proprietaria_id FK
   }
+  gestao_eventos {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid usuario_id FK
+  }
+  ia_config {
+    uuid emp_proprietaria_id PK,FK
+    uuid chave_definida_por FK
+    uuid atualizado_por FK
+  }
+  ia_uso {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid usuario_id FK
+    uuid departamento_id FK
+  }
   lgpd_bloqueios_litigio {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -176,6 +192,11 @@ erDiagram
   empresa_departamentos_integrantes }o--|| empresa_departamentos : "departamento_id"
   empresa_departamentos_integrantes }o--|| usuarios : "usuario_id"
   empresa_sede }o--o| empresa : "emp_ref_id"
+  gestao_eventos }o--o| usuarios : "usuario_id"
+  ia_config }o--o| usuarios : "atualizado_por"
+  ia_config }o--o| usuarios : "chave_definida_por"
+  ia_uso }o--o| empresa_departamentos : "departamento_id"
+  ia_uso }o--o| usuarios : "usuario_id"
   lgpd_bloqueios_litigio }o--o| usuarios : "criado_por"
   lgpd_bloqueios_litigio }o--o| usuarios : "encerrado_por"
   lgpd_exportacoes }o--o| usuarios : "usuario_id"

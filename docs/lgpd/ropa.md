@@ -30,7 +30,7 @@
 | P13 | [Hospedagem conveniada e cessão de espaços](#p13) | 12 | identificação, **sensível: filiação/posição sindical**, financeiro, credencial (segredo de acesso, nunca exportar) | sim |
 | P14 | [Frota: veículos e condutores](#p14) | 15 | identificação, financeiro | sim |
 | P15 | [Comunicação, eventos e avisos](#p15) | 9 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
-| P16 | [Contas de acesso, segurança, auditoria e gestão interna](#p16) | 24 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
+| P16 | [Contas de acesso, segurança, auditoria e gestão interna](#p16) | 27 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P17 | [Congressos e conferências](#p17) | 5 | identificação, **sensível: filiação/posição sindical** | sim |
 
 <a id="p01"></a>
@@ -762,7 +762,7 @@
 <a id="p16"></a>
 ## P16. Contas de acesso, segurança, auditoria e gestão interna
 
-**Finalidade.** Autenticar usuários, controlar perfis e permissões, registrar a trilha de auditoria e as tentativas de acesso, registrar as saídas de dados (livro de exportações `lgpd_exportacoes` e log da API `api_requisicoes`), atender pedidos de titulares, aplicar os prazos de retenção (motor de retenção: regras `lgpd_regras_retencao`, livro `lgpd_retencao_execucoes` e bloqueios por litígio `lgpd_bloqueios_litigio`), integrar sistemas (API/webhooks) e organizar demandas internas.
+**Finalidade.** Autenticar usuários, controlar perfis e permissões, registrar a trilha de auditoria e as tentativas de acesso, registrar as saídas de dados (livro de exportações `lgpd_exportacoes` e log da API `api_requisicoes`), atender pedidos de titulares, aplicar os prazos de retenção (motor de retenção: regras `lgpd_regras_retencao`, livro `lgpd_retencao_execucoes` e bloqueios por litígio `lgpd_bloqueios_litigio`), integrar sistemas (API/webhooks), administrar a IA da entidade (chave de API própria cifrada `ia_config`, registro de uso por pessoa, processo e departamento `ia_uso` — sem o conteúdo — e o livro de alterações da Gestão `gestao_eventos`) e organizar demandas internas.
 
 **Titulares.** Usuários do sistema (funcionários, diretores, filiados no portal), administradores da plataforma.
 
@@ -779,13 +779,13 @@
 
 **Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Telegram: Exterior; Cloudflare Turnstile: EUA (rede global). Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
-**Retenção.** Registros de acesso e log da API: 6 meses (Marco Civil). Auditoria e livro de exportações: 5 anos. Contas: enquanto ativas. Livro do motor de retenção: só contagens, sem prazo. Bloqueios por litígio: enquanto o processo durar, depois histórico. Códigos RT31–RT35 em retencao.md (proposta a validar); a RT31 já está no motor de retenção.
+**Retenção.** Registros de acesso e log da API: 6 meses (Marco Civil). Auditoria e livro de exportações: 5 anos. Contas: enquanto ativas. Uso da IA (`ia_uso`) e alterações da Gestão: proposta de 2 anos (a definir). Livro do motor de retenção: só contagens, sem prazo. Bloqueios por litígio: enquanto o processo durar, depois histórico. Códigos RT31–RT35 em retencao.md (proposta a validar); a RT31 já está no motor de retenção.
 
-**Medidas de segurança.** Turnstile e cadência de códigos; MFA; identidade separada do metadata (`auth_identidades`); auditoria sem colunas cifradas; API com escopo por endpoint (CPF só com `filiados_cpf`) e chave só no cabeçalho; livro de exportações e log da API gravados só pelo service_role (a entidade só lê).
+**Medidas de segurança.** Turnstile e cadência de códigos; MFA; identidade separada do metadata (`auth_identidades`); auditoria sem colunas cifradas; API com escopo por endpoint (CPF só com `filiados_cpf`) e chave só no cabeçalho; livro de exportações e log da API gravados só pelo service_role (a entidade só lê); chave de IA da entidade cifrada na aplicação (AES-256-GCM, chave de cifra fora do banco) e nunca devolvida à tela; `ia_uso` não guarda o texto enviado à IA.
 
 **Observações.** Pendência: a `auditoria` copia em claro códigos e tokens com nomes fora da lista de ocultos.
 
-<details><summary>Tabelas (24) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (27) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -801,6 +801,9 @@
 | [demandas_check_tarefas](../dados/dicionario/ferramentas.md#demandas_check_tarefas) | identificacao | `demandado_documentos` (identificacao), `demandante_documentos` (identificacao), `prioridade` (nenhum) |
 | [demandas_comentarios](../dados/dicionario/ferramentas.md#demandas_comentarios) | identificacao | `descricao` (identificacao) |
 | [emails_institucionais](../dados/dicionario/filiacao.md#emails_institucionais) | identificacao | `endereco` (identificacao) |
+| [gestao_eventos](../dados/dicionario/plataforma.md#gestao_eventos) | identificacao | `usuario_id` (identificacao), `detalhe` (nenhum) |
+| [ia_config](../dados/dicionario/plataforma.md#ia_config) | credencial | `chave_cifrada` (credencial), `chave_final` (credencial), `chave_definida_por` (identificacao), `chave_teste_erro` (nenhum), `atualizado_por` (identificacao) |
+| [ia_uso](../dados/dicionario/plataforma.md#ia_uso) | identificacao | `usuario_id` (identificacao), `erro` (nenhum) |
 | [lgpd_bloqueios_litigio](../dados/dicionario/plataforma.md#lgpd_bloqueios_litigio) | identificacao | `cpf` (identificacao), `email` (identificacao), `motivo` (identificacao), `processo` (identificacao), `criado_por` (identificacao), `encerrado_por` (identificacao) |
 | [lgpd_exportacoes](../dados/dicionario/plataforma.md#lgpd_exportacoes) | identificacao | `usuario_id` (identificacao), `filtros` (identificacao) |
 | [lgpd_regras_retencao](../dados/dicionario/plataforma.md#lgpd_regras_retencao) | identificacao | `ativada_por` (identificacao) |
@@ -816,12 +819,12 @@
 
 </details>
 
-<sub>Titulares registrados no banco para estas tabelas: beneficiários de ordens; condutores; demais pessoas envolvidas em processo; diretores; eleitores; filiados; fornecedores pf; funcionários; inscritos; interessados; pessoas que usam a chave de api da entidade; público externo; sistemas; trabalhadores não filiados; usuários do sistema; usuários do sistema (operadores da plataforma).</sub>
+<sub>Titulares registrados no banco para estas tabelas: beneficiários de ordens; condutores; demais pessoas envolvidas em processo; diretores; eleitores; filiados; fornecedores pf; funcionarios; funcionários; inscritos; interessados; pessoas que usam a chave de api da entidade; público externo; sistemas; trabalhadores não filiados; usuários do sistema; usuários do sistema (operadores da plataforma).</sub>
 
 <a id="p17"></a>
 ## P17. Congressos e conferências
 
-**Finalidade.** Organizar congressos, plenárias e conferências que a entidade promove ou de que participa: configuração do regimento, delegações, inscrição e lista de participantes (delegados, natos, suplentes, observadores, convidados), programa e grupos de trabalho. Inclui a inscrição pela página pública (com ciência do tratamento, IP e link pessoal guardado só como hash) e a importação de listas por planilha ou ata, que pode ser lida por IA. No dia do evento: credenciamento (com conferência de documento), crachás com código guardado só como hash, troca de titular por suplente com quem autorizou, e presença por sessão com o meio e o nível de prova de que a pessoa estava no local.
+**Finalidade.** Organizar congressos, plenárias e conferências que a entidade promove ou de que participa: configuração do regimento, delegações, inscrição e lista de participantes (delegados, natos, suplentes, observadores, convidados), programa e grupos de trabalho. Inclui a inscrição pela página pública (com ciência do tratamento, IP e link pessoal guardado só como hash) e a importação de listas por planilha ou ata, que pode ser lida por IA.
 
 **Titulares.** Delegados, observadores e convidados de congressos (filiados ou não), diretores natos.
 
@@ -883,4 +886,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 243 de 243 tabelas com dado pessoal atribuídas a 17 processos.
+Cobertura: 246 de 246 tabelas com dado pessoal atribuídas a 17 processos.

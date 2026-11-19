@@ -123,6 +123,13 @@ const nextConfig: NextConfig = {
       { source: "/painel/representacao/registro-mte/:path*", destination: "/painel/institucional/registro-mte/:path*", permanent: true },
       { source: "/painel/configuracoes", destination: "/painel/institucional", permanent: true },
       { source: "/painel/configuracoes/:path*", destination: "/painel/institucional/:path*", permanent: true },
+      // Módulo Gestão (19/11/2026): integrações (API e webhooks, catracas),
+      // usuários e permissões e auditoria saíram do Institucional.
+      ...["api", "controle-acesso", "usuarios", "auditoria"].flatMap((area) => [
+        { source: `/painel/institucional/${area}`, destination: `/painel/gestao/${area}`, permanent: true },
+        { source: `/painel/institucional/${area}/:path*`, destination: `/painel/gestao/${area}/:path*`, permanent: true },
+        { source: `/painel/ajuda/institucional/${area}`, destination: `/painel/ajuda/gestao/${area}`, permanent: true },
+      ]),
       // E-mails institucionais (cadastro de recurso da entidade) saiu de Ferramentas p/ Institucional.
       { source: "/painel/ferramentas/emails", destination: "/painel/institucional/emails", permanent: true },
       { source: "/painel/ferramentas/emails/:path*", destination: "/painel/institucional/emails/:path*", permanent: true },

@@ -106,7 +106,7 @@ export async function excluirVinculoAction(
   const r = await excluirVinculoFuncionario(vinculoId)
   if (r.erro) return { erro: r.erro }
   revalidatePath("/painel/pessoal", "layout")
-  revalidatePath("/painel/institucional/usuarios/quadro")
+  revalidatePath("/painel/gestao/usuarios/quadro")
   // Sem vínculo restante a ficha deixa de existir: volta à lista.
   if (r.restantes === 0) redirect("/painel/pessoal/funcionarios?vinculo_excluido=1")
   if (UUID.test(usuarioId)) revalidatePath(`/painel/pessoal/${usuarioId}`)
@@ -124,6 +124,6 @@ export async function excluirFuncionarioAction(
   const r = await excluirFuncionario(usuarioId)
   if (r.erro) return { erro: r.erro }
   revalidatePath("/painel/pessoal", "layout")
-  revalidatePath("/painel/institucional/usuarios/quadro")
+  revalidatePath("/painel/gestao/usuarios/quadro")
   redirect("/painel/pessoal/funcionarios?funcionario_excluido=1")
 }

@@ -477,7 +477,7 @@ export async function gerarTexto(
   const { politica } = await obterPolitica()
   const objetivo = objetivoPorValor(s.objetivo)
 
-  const { dados, erro } = await gerarJsonIA({
+  const { dados, erro } = await gerarJsonIA({ processo: "comunicacao.textos_geracao",
     system: montarSystem(politica, s.canal, objetivo),
     prompt: montarPrompt(s, politica),
   })
@@ -534,7 +534,7 @@ Escreva em português do Brasil, em prosa direta, entre 1200 e 2500 caracteres. 
 
 /** Melhora a política escrita à mão, sem exemplos externos. */
 export async function melhorarPolitica(atual: string): Promise<ResultadoIA> {
-  return gerarTextoIA({
+  return gerarTextoIA({ processo: "comunicacao.politica_editorial",
     system: SISTEMA_POLITICA,
     prompt: `Melhore a política editorial abaixo: preencha as lacunas, deixe as regras verificáveis e remova o que for vago demais para orientar alguém.\n\nPOLÍTICA ATUAL:\n${atual.trim()}`,
   })
@@ -561,7 +561,7 @@ export async function politicaDeExemplos(
     .map((f, i) => `TEXTO ${i + 1} (${f.url}):\n${f.texto}`)
     .join("\n\n---\n\n")
 
-  return gerarTextoIA({
+  return gerarTextoIA({ processo: "comunicacao.politica_editorial",
     system: SISTEMA_POLITICA,
     prompt: `Abaixo estão textos REAIS já publicados por esta entidade. Deduza deles a voz da casa — vocabulário, tom, tratamento do leitor, recorrências de estrutura — e escreva a política editorial que descreve esse jeito de escrever.
 
