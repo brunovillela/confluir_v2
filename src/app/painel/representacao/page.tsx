@@ -85,9 +85,10 @@ export default async function RepresentacaoPage() {
     "empregadores",
     "congressos",
     "congressos_gestao",
+    "congressos_credenciamento",
   ])
   const areas = AREAS.filter((a) =>
-    podeAcessar(sessao.permissoes, a.chave, a.chave === "congressos" ? ["congressos_gestao"] : [])
+    podeAcessar(sessao.permissoes, a.chave, a.chave === "congressos" ? ["congressos_gestao", "congressos_credenciamento"] : [])
   )
 
   return (
