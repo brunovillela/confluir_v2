@@ -31,6 +31,8 @@ import {
 } from "@/lib/db/congressos"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
+import { painelDoDia } from "@/lib/db/congressos-dia"
+import { AtualizarSozinho, CrachasEmLote, DesfazerTroca } from "../dia-componentes"
 import { origemAtual } from "@/lib/tenant-url"
 
 import { regimentoAprovadoAction } from "../actions"
@@ -57,10 +59,11 @@ import {
 
 export const metadata: Metadata = { title: "Congresso — Confluir" }
 
-const ABAS = ["geral", "configuracao", "papeis", "delegacao", "programa", "participantes"] as const
+const ABAS = ["geral", "dia", "configuracao", "papeis", "delegacao", "programa", "participantes"] as const
 type Aba = (typeof ABAS)[number]
 const ROTULO_ABA: Record<Aba, string> = {
   geral: "Visão geral",
+  dia: "Dia do evento",
   configuracao: "Configuração",
   papeis: "Papéis e direitos",
   delegacao: "Delegações",
@@ -76,10 +79,11 @@ export default async function CongressoPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ aba?: string; papel?: string; unidade?: string; situacao?: string; busca?: string }>
+  searchParams: Promise<{ aba?: string; papel?: string; unidade?: string; situacao?: string; busca?: string; sessao?: string }>
 }) {
-  const sessao = await requirePermissao("congressos", ["congressos_gestao"])
+  const sessao = await requirePermissao("congressos", ["congressos_gestao", "congressos_credenciamento"])
   const gestor = podeAcessar(sessao.permissoes, "congressos_gestao")
+  const operador = gestor || podeAcessar(sessao.permissoes, "congressos_credenciamento")
   const { id } = await params
   const sp = await searchParams
   const c = await obterCongresso(id)
@@ -131,6 +135,7 @@ export default async function CongressoPage({
       />
 
       {aba === "geral" && <AbaGeral c={c} gestor={gestor} />}
+      {aba === "dia" && <AbaDia c={c} gestor={gestor} operador={operador} sessaoId={sp.sessao ?? null} />}
       {aba === "configuracao" && <AbaConfiguracao c={c} gestor={gestor} travado={travado} />}
       {aba === "papeis" && <AbaPapeis c={c} gestor={gestor} />}
       {aba === "delegacao" && <AbaDelegacao c={c} gestor={gestor} />}
@@ -312,6 +317,152 @@ async function AbaGeral({ c, gestor }: { c: Congresso; gestor: boolean }) {
           {c.etapaSeguinteNome && <>Etapa seguinte: {c.etapaSeguinteNome}.</>}
         </p>
       )}
+    </div>
+  )
+}
+
+// ── Dia do evento ────────────────────────────────────────────────────────────
+
+async function AbaDia({ c, gestor, operador, sessaoId }: { c: Congresso; gestor: boolean; operador: boolean; sessaoId: string | null }) {
+  const [painel, programa] = await Promise.all([painelDoDia(c, sessaoId), listarPrograma(c.id)])
+  const base = `/painel/representacao/congressos/${c.id}`
+  const q = painel.quorum
+  return (
+    <div className="grid gap-4">
+      <AtualizarSozinho />
+      {operador && (
+        <div className="flex flex-wrap items-start gap-2">
+          <Button asChild>
+            <Link href={`${base}/credenciamento`}>Mesa de credenciamento</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href={`${base}/porta${painel.sessao ? `?sessao=${painel.sessao.id}` : ""}`}>Presença na sessão</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href={`${base}/contingencia`} target="_blank">
+              Lista de contingência
+            </Link>
+          </Button>
+          {gestor && <CrachasEmLote congressoId={c.id} />}
+        </div>
+      )}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>Credenciamento</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-1 text-sm">
+            <div className="text-3xl font-semibold tabular-nums">
+              {painel.credenciados}
+              <span className="text-muted-foreground text-base font-normal"> de {painel.inscritosConfirmados}</span>
+            </div>
+            <div className="text-muted-foreground">confirmados credenciados{painel.aDistancia ? `, ${painel.aDistancia} a distância` : ""}</div>
+            <div>
+              <span className="font-medium tabular-nums">{painel.emExercicio}</span> com direito a voto agora
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>{painel.sessao ? painel.sessao.titulo : "Sem sessões"}</CardTitle>
+            <CardDescription>
+              {painel.sessao?.inicio ? formatarDataHora(painel.sessao.inicio) : "Cadastre as sessões no programa."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-1 text-sm">
+            <div className="text-3xl font-semibold tabular-nums">{painel.presentesNaSessao}</div>
+            <div className="text-muted-foreground">presentes agora, {painel.presentesVotantes} com voto</div>
+            {programa.sessoes.length > 1 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {programa.sessoes.map((s) => (
+                  <Link
+                    key={s.id}
+                    href={`${base}?aba=dia&sessao=${s.id}`}
+                    className={`rounded border px-1.5 py-0.5 text-xs ${s.id === painel.sessao?.id ? "border-primary font-medium" : "text-muted-foreground"}`}
+                  >
+                    {s.titulo}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Quórum</CardTitle>
+            <CardDescription>Sobre quem tem direito a voto agora ({q.base}).</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-1 text-sm">
+            {q.exigido === null ? (
+              <div className="text-muted-foreground">A configuração não exige quórum de instalação.</div>
+            ) : (
+              <>
+                <div className={`text-3xl font-semibold tabular-nums ${q.atingido ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400"}`}>
+                  {q.presentes} / {q.exigido}
+                </div>
+                <div>{q.atingido ? "Quórum atingido." : `Faltam ${q.exigido - q.presentes} para o quórum.`}</div>
+              </>
+            )}
+            <div className="text-muted-foreground">{q.percentual}% dos votantes na sessão</div>
+          </CardContent>
+        </Card>
+      </div>
+      {painel.porBase.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Por base</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Base</TableHead>
+                  <TableHead className="text-right">Confirmados</TableHead>
+                  <TableHead className="text-right">Credenciados</TableHead>
+                  <TableHead className="text-right">Com voto</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {painel.porBase.map((b) => (
+                  <TableRow key={b.nome}>
+                    <TableCell className="font-medium">{b.nome}</TableCell>
+                    <TableCell className="text-right tabular-nums">{b.confirmados}</TableCell>
+                    <TableCell className="text-right tabular-nums">{b.credenciados}</TableCell>
+                    <TableCell className="text-right tabular-nums">{b.emExercicio}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+      <Card>
+        <CardHeader>
+          <CardTitle>Trocas de titular por suplente</CardTitle>
+          <CardDescription>Registradas na mesa de credenciamento, com quem autorizou.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {painel.trocas.length === 0 ? (
+            <p className="text-muted-foreground text-sm">Nenhuma troca.</p>
+          ) : (
+            <ul className="grid gap-2 text-sm">
+              {painel.trocas.map((t) => (
+                <li key={t.id} className="flex flex-wrap items-center justify-between gap-2">
+                  <span>
+                    <span className="font-medium">{t.suplente}</span> no lugar de <span className="font-medium">{t.titular}</span>
+                    <span className="text-muted-foreground">
+                      {" "}
+                      · {formatarDataHora(t.quando)}
+                      {t.autorizadoPor ? ` · autorizado por ${t.autorizadoPor}` : ""}
+                    </span>
+                  </span>
+                  {operador && <DesfazerTroca congressoId={c.id} trocaId={t.id} />}
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

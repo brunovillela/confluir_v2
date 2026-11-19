@@ -183,6 +183,9 @@ export type Participante = {
   observacao: string | null
   /** Quando o link pessoal atual foi gerado (null = sem link). */
   linkGeradoEm: string | null
+  credenciadoEm: string | null
+  documentoConferido: boolean
+  modalidade: "presencial" | "distancia"
 }
 
 export type VersaoConfig = {
@@ -387,7 +390,7 @@ export async function listarPrograma(congressoId: string): Promise<{ eixos: Eixo
 }
 
 const CAMPOS_PARTICIPANTE =
-  "id, nome, nome_social, cpf, email, telefone, genero, filiacao_id, usuario_id, papel_id, unidade_id, grupo_id, titular_id, situacao, origem, inscrito_em, acessibilidade, observacao, token_gerado_em"
+  "id, nome, nome_social, cpf, email, telefone, genero, filiacao_id, usuario_id, papel_id, unidade_id, grupo_id, titular_id, situacao, origem, inscrito_em, acessibilidade, observacao, token_gerado_em, credenciado_em, documento_conferido, modalidade"
 
 function mapParticipante(p: Record<string, unknown>): Participante {
   return {
@@ -410,6 +413,9 @@ function mapParticipante(p: Record<string, unknown>): Participante {
     acessibilidade: t(p.acessibilidade),
     observacao: t(p.observacao),
     linkGeradoEm: t(p.token_gerado_em),
+    credenciadoEm: t(p.credenciado_em),
+    documentoConferido: p.documento_conferido === true,
+    modalidade: p.modalidade === "distancia" ? "distancia" : "presencial",
   }
 }
 

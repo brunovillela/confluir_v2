@@ -728,7 +728,7 @@ export const MODULOS: Modulo[] = [
     icone: "Megaphone",
     descricao: "Votações, oposição, acordos coletivos, negociações e empregadores",
     chave: "assembleias",
-    chavesAlternativas: ["oposicao", "oposicao_configurar", "oposicao_avaliar", "acordos_coletivos", "negociacoes", "empregadores", "congressos", "congressos_gestao"],
+    chavesAlternativas: ["oposicao", "oposicao_configurar", "oposicao_avaliar", "acordos_coletivos", "negociacoes", "empregadores", "congressos", "congressos_gestao", "congressos_credenciamento"],
   },
   {
     titulo: "Congressos e conferências",
@@ -736,7 +736,7 @@ export const MODULOS: Modulo[] = [
     icone: "Landmark",
     descricao: "Regimento, delegações, participantes, grupos e programa",
     chave: "congressos",
-    chavesAlternativas: ["congressos_gestao"],
+    chavesAlternativas: ["congressos_gestao", "congressos_credenciamento"],
     oculto: true,
   },
   {

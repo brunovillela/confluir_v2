@@ -10,6 +10,9 @@ import { minhaInscricao } from "@/lib/db/congressos-inscricao"
 import { obterOrganizacao } from "@/lib/db/organizacao"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { tenantAtual } from "@/lib/tenant"
+import QRCode from "qrcode"
+
+import { PresencaSala } from "./presenca-sala"
 
 export const metadata: Metadata = {
   title: "Minha participação — Confluir",
@@ -38,6 +41,11 @@ export default async function MinhaParticipacaoPage({
   const [m, org] = await Promise.all([minhaInscricao(token, tenantId), obterOrganizacao()])
   if (!m) notFound()
   const s = SITUACAO[m.situacao] ?? SITUACAO.inscrito
+  // QR para a mesa achar a pessoa sem digitar: leva o próprio token, que já está na URL desta página.
+  const qrMesa =
+    !m.credenciado && m.situacao === "confirmado"
+      ? await QRCode.toDataURL(`CGRP:${token}`, { errorCorrectionLevel: "M", margin: 1, width: 360 })
+      : null
   const entidade = org?.nomeFantasia ?? org?.nomeRazao ?? null
 
   return (
@@ -101,6 +109,30 @@ export default async function MinhaParticipacaoPage({
         </CardContent>
       </Card>
 
+      {qrMesa && (
+        <Card>
+          <CardHeader>
+            <CardTitle>No credenciamento</CardTitle>
+          </CardHeader>
+          <CardContent className="grid justify-items-center gap-2 text-center text-sm">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={qrMesa} alt="QR para a mesa de credenciamento" className="size-56 rounded-lg border bg-white p-2" />
+            <p className="text-muted-foreground">Mostre este QR na mesa: a equipe acha a sua inscrição sem digitar.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {m.credenciado && m.modalidade === "presencial" && m.sessoes.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Presença nas sessões</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PresencaSala token={token} sessoes={m.sessoes.map((x) => ({ id: x.id, titulo: x.titulo }))} />
+          </CardContent>
+        </Card>
+      )}
+
       {m.sessoes.length > 0 && (
         <Card>
           <CardHeader>
@@ -114,6 +146,12 @@ export default async function MinhaParticipacaoPage({
                   <span>
                     {x.titulo}
                     {x.local && <span className="text-muted-foreground"> · {x.local}</span>}
+                    {x.presente && (
+                      <span className="ml-2 inline-flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-400">
+                        <CheckCircle2 className="size-3.5" />
+                        presente
+                      </span>
+                    )}
                   </span>
                 </li>
               ))}

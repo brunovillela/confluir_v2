@@ -162,6 +162,7 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
       { chave: "empregadores", rotulo: "Empregadores e fontes pagadoras" },
       { chave: "congressos", rotulo: "Congressos e conferências — consultar" },
       { chave: "congressos_gestao", rotulo: "Congressos e conferências — configurar e gerir participantes" },
+      { chave: "congressos_credenciamento", rotulo: "Congressos e conferências — mesa de credenciamento, porta e quórum" },
     ],
   },
   {

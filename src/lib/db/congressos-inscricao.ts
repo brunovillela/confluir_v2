@@ -317,7 +317,9 @@ export type MinhaInscricao = {
   resumo: string | null
   unidade: string | null
   grupo: string | null
-  sessoes: { titulo: string; inicio: string | null; local: string | null }[]
+  sessoes: { id: string; titulo: string; inicio: string | null; local: string | null; presente: boolean }[]
+  credenciado: boolean
+  modalidade: string
 }
 
 /** Página do link pessoal: a situação da pessoa e o programa. */
@@ -326,7 +328,7 @@ export async function minhaInscricao(token: string, tenantId: string): Promise<M
   const admin = await createAdminClient()
   const { data: p } = await admin
     .from("congresso_participantes")
-    .select("id, congresso_id, nome, nome_social, situacao, papel_id, unidade_id, grupo_id, inscrito_em")
+    .select("id, congresso_id, nome, nome_social, situacao, papel_id, unidade_id, grupo_id, inscrito_em, credenciado_em, modalidade")
     .eq("emp_proprietaria_id", tenantId)
     .eq("token_hash", hashToken(token))
     .maybeSingle()
@@ -338,7 +340,7 @@ export async function minhaInscricao(token: string, tenantId: string): Promise<M
     p.grupo_id ? admin.from("congresso_grupos").select("nome").eq("id", p.grupo_id).maybeSingle() : Promise.resolve({ data: null }),
     admin
       .from("congresso_sessoes")
-      .select("titulo, inicio, local, grupo_id")
+      .select("id, titulo, inicio, local, grupo_id")
       .eq("emp_proprietaria_id", tenantId)
       .eq("congresso_id", p.congresso_id)
       .order("inicio", { nullsFirst: false }),
@@ -353,6 +355,12 @@ export async function minhaInscricao(token: string, tenantId: string): Promise<M
           .lte("inscrito_em", p.inscrito_em)
       : Promise.resolve({ count: null }),
   ])
+  const { data: minhas } = await admin
+    .from("congresso_presencas")
+    .select("sessao_id")
+    .eq("emp_proprietaria_id", tenantId)
+    .eq("participante_id", p.id)
+  const presente = new Set((minhas ?? []).map((x) => x.sessao_id as string))
   const ev = c.data?.evento_id
     ? (await admin.from("eventos").select("inicio, termino, local").eq("id", c.data.evento_id).maybeSingle()).data
     : null
@@ -374,7 +382,9 @@ export async function minhaInscricao(token: string, tenantId: string): Promise<M
     grupo: t(grupo.data?.nome),
     sessoes: (sessoes.data ?? [])
       .filter((s) => !s.grupo_id || s.grupo_id === p.grupo_id)
-      .map((s) => ({ titulo: s.titulo as string, inicio: t(s.inicio), local: t(s.local) })),
+      .map((s) => ({ id: s.id as string, titulo: s.titulo as string, inicio: t(s.inicio), local: t(s.local), presente: presente.has(s.id as string) })),
+    credenciado: !!p.credenciado_em,
+    modalidade: (p.modalidade as string) ?? "presencial",
   }
 }
 

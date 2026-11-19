@@ -26,6 +26,16 @@ import {
   vagasDaBase,
 } from "@/lib/congressos/regras"
 import { casarPapel, conferirLinhas, lerGrade } from "@/lib/congressos/importacao"
+import { codigoAtual, codigoRecente, codigoValido } from "@/lib/congressos/codigo-sala"
+import {
+  calcularQuorum,
+  conferirSubstituicao,
+  cpfParcial,
+  emExercicio,
+  lerQr,
+  prazoCredenciamento,
+  type PessoaTroca,
+} from "@/lib/congressos/credenciamento"
 
 test.describe("catálogo e normalização", () => {
   test("chaves únicas e padrões válidos", () => {
@@ -323,6 +333,106 @@ test.describe("importação de listas", () => {
     expect(r[1].unidadeId).toBe("u2")
     expect(r[2].motivo).toContain("Campos")
     expect(r[4].motivo).toBe("CPF inválido.")
+  })
+})
+
+test.describe("credenciamento", () => {
+  test("prazo por categoria, com e sem justificativa", () => {
+    const c = normalizarConfig({
+      valores: { "credenciamento.titular_ate": "2027-06-08T20:00:00Z", "credenciamento.suplente_ate": "2027-06-09T15:00:00Z" },
+    })
+    const depois = new Date("2027-06-09T10:00:00Z")
+    expect(prazoCredenciamento(c, "delegado", depois)).toMatchObject({ permitido: false })
+    expect(prazoCredenciamento(c, "suplente", depois)).toMatchObject({ permitido: true, exigeJustificativa: false })
+    const flex = aplicarMudancas(c, { "credenciamento.apos_prazo": "justificativa" }).config
+    expect(prazoCredenciamento(flex, "delegado", depois)).toMatchObject({ permitido: true, exigeJustificativa: true })
+    expect(prazoCredenciamento(normalizarConfig({}), "delegado", depois).permitido).toBe(true)
+  })
+
+  const pessoa = (id: string, extra: Partial<PessoaTroca> = {}): PessoaTroca => ({
+    id,
+    categoria: "delegado",
+    unidadeId: "u1",
+    titularId: null,
+    credenciado: false,
+    situacao: "confirmado",
+    inscritoEm: "2027-05-01T10:00:00Z",
+    ...extra,
+  })
+
+  test("suplente assume titular ausente, com autorização", () => {
+    const c = normalizarConfig({})
+    const base = {
+      config: c,
+      titular: pessoa("t1"),
+      suplente: pessoa("s1", { categoria: "suplente" }),
+      suplentesDaBase: [],
+      substituidos: new Set<string>(),
+      assumiram: new Set<string>(),
+      autorizadoPor: "Coordenação de Macaé",
+    }
+    expect(conferirSubstituicao(base).ok).toBe(true)
+    expect(conferirSubstituicao({ ...base, autorizadoPor: null }).erro).toContain("coordenação da base")
+    expect(conferirSubstituicao({ ...base, titular: pessoa("t1", { credenciado: true }) }).erro).toContain("titular ausente")
+    expect(conferirSubstituicao({ ...base, suplente: pessoa("s1", { categoria: "suplente", unidadeId: "u2" }) }).erro).toContain("bases diferentes")
+    expect(conferirSubstituicao({ ...base, suplente: pessoa("s1", { categoria: "suplente", titularId: "t9" }) }).erro).toContain("outro titular")
+    expect(conferirSubstituicao({ ...base, assumiram: new Set(["s1"]) }).erro).toContain("já assumiu")
+  })
+
+  test("pela ordem da base, o primeiro suplente assume antes", () => {
+    const c = aplicarMudancas(normalizarConfig({}), { "credenciamento.suplente_assume": "ordem", "credenciamento.autoriza_troca": "ninguem" }).config
+    const s1 = pessoa("s1", { categoria: "suplente", inscritoEm: "2027-05-01T09:00:00Z" })
+    const s2 = pessoa("s2", { categoria: "suplente", inscritoEm: "2027-05-01T11:00:00Z" })
+    const d = { config: c, titular: pessoa("t1"), suplentesDaBase: [s1, s2], substituidos: new Set<string>(), assumiram: new Set<string>(), autorizadoPor: null }
+    expect(conferirSubstituicao({ ...d, suplente: s2 }).erro).toContain("outro suplente")
+    expect(conferirSubstituicao({ ...d, suplente: s1 }).ok).toBe(true)
+  })
+
+  test("quem está em exercício e o quórum", () => {
+    const pessoas = [
+      { id: "t1", situacao: "confirmado", credenciado: true, categoria: "delegado" as const, direitos: DIREITOS_PADRAO.delegado },
+      { id: "t2", situacao: "confirmado", credenciado: false, categoria: "delegado" as const, direitos: DIREITOS_PADRAO.delegado },
+      { id: "t3", situacao: "confirmado", credenciado: true, categoria: "delegado" as const, direitos: DIREITOS_PADRAO.delegado },
+      { id: "s1", situacao: "confirmado", credenciado: true, categoria: "suplente" as const, direitos: DIREITOS_PADRAO.suplente },
+      { id: "s2", situacao: "confirmado", credenciado: true, categoria: "suplente" as const, direitos: DIREITOS_PADRAO.suplente },
+      { id: "o1", situacao: "confirmado", credenciado: true, categoria: "observador" as const, direitos: DIREITOS_PADRAO.observador },
+      { id: "e1", situacao: "lista_espera", credenciado: true, categoria: "delegado" as const, direitos: DIREITOS_PADRAO.delegado },
+    ]
+    const r = emExercicio(pessoas, [{ titularId: "t3", suplenteId: "s1" }])
+    expect([...r].sort()).toEqual(["s1", "t1"])
+    const c = normalizarConfig({ valores: { "presenca.quorum_instalacao": 50 } })
+    expect(calcularQuorum(c, 9, 4)).toMatchObject({ exigido: 5, atingido: false })
+    expect(calcularQuorum(c, 9, 5).atingido).toBe(true)
+    expect(calcularQuorum(normalizarConfig({}), 9, 1).atingido).toBeNull()
+  })
+
+  test("leitura dos QR", () => {
+    expect(lerQr("CGRC:abcDEF123_-xyz")).toEqual({ tipo: "cracha", codigo: "abcDEF123_-xyz" })
+    const token = "a".repeat(32)
+    expect(lerQr(`CGRP:${token}`)).toEqual({ tipo: "pessoal", token })
+    expect(lerQr(`https://nf.confluir.app/congresso/eu/${token}?nova=1`)).toEqual({ tipo: "pessoal", token })
+    expect(lerQr("CGRS:3f1c2b7e-1111-4111-8111-222222222222:AB12CD")).toEqual({
+      tipo: "sala",
+      sessaoId: "3f1c2b7e-1111-4111-8111-222222222222",
+      codigo: "AB12CD",
+    })
+    expect(lerQr("qualquer coisa")).toBeNull()
+    expect(cpfParcial("12345678909")).toBe("***.456.789-**")
+  })
+
+  test("código da sala muda por janela e aceita a anterior", () => {
+    const semente = "semente-de-teste"
+    const t = Date.parse("2027-06-09T12:00:00Z")
+    const { codigo } = codigoAtual(semente, 20, t)
+    expect(codigo).toMatch(/^[A-Z2-9]{6}$/)
+    expect(codigoValido(semente, 20, codigo, t + 5000)).toBe(true)
+    expect(codigoValido(semente, 20, codigo, t + 25000)).toBe(true)
+    expect(codigoValido(semente, 20, codigo, t + 45000)).toBe(false)
+    expect(codigoValido("outra", 20, codigo, t)).toBe(false)
+    // fora da validade: recente (expirou) × nunca foi desta sala (não confere)
+    expect(codigoRecente(semente, 20, codigo, t + 45000)).toBe(true)
+    expect(codigoRecente(semente, 20, codigo, t + 3600000)).toBe(false)
+    expect(codigoRecente(semente, 20, "ZZZZZZ", t + 45000)).toBe(false)
   })
 })
 
