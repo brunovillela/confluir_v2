@@ -378,6 +378,18 @@ export default async function EventoPage({
                   Excel
                 </a>
               </Button>
+              {filiacao.filiados > 0 && (
+                <Button asChild variant="outline" size="sm">
+                  <a
+                    href={`/painel/eventos/${id}/confirmados/xlsx?filiados=1`}
+                    download
+                    title="Excel só com os confirmados que são filiados"
+                  >
+                    <FileSpreadsheet />
+                    Excel só filiados
+                  </a>
+                </Button>
+              )}
               <Button asChild variant="outline" size="sm">
                 <a
                   href={`/painel/eventos/${id}/confirmados/pdf`}

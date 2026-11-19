@@ -25,13 +25,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const evento = await obterEvento(id)
   if (!evento) return new Response("Não encontrado", { status: 404 })
 
-  const { campos, linhas } = await relacaoDeConfirmados(id)
+  // `?filiados=1`: só quem está ligado a uma filiação (o selo "filiado" da lista).
+  const soFiliados = new URL(request.url).searchParams.get("filiados") === "1"
+  const relacao = await relacaoDeConfirmados(id)
+  const { campos } = relacao
+  const linhas = soFiliados ? relacao.linhas.filter((l) => l.filiacao_id) : relacao.linhas
   await registrarExportacao(request, {
     usuarioId: sessao.usuario.id,
     recurso: "eventos_confirmados",
     formato: "xlsx",
     quantidade: linhas.length,
-    filtros: { evento: evento.titulo ?? id },
+    filtros: { evento: evento.titulo ?? id, soFiliados },
   })
 
   const colunas: ColunaXlsx<LinhaConfirmado>[] = [
@@ -52,5 +56,5 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   ]
 
   const bytes = planilhaXlsx("Confirmados", colunas, linhas)
-  return respostaXlsx(`confirmados-${evento.slug || id.slice(0, 8)}`, bytes)
+  return respostaXlsx(`confirmados-${soFiliados ? "filiados-" : ""}${evento.slug || id.slice(0, 8)}`, bytes)
 }

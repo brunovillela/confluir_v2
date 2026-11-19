@@ -6,7 +6,7 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 
 ## 19/11/2026 — Eventos: relação de confirmados em Excel e PDF
 
-- Eventos → página do evento: no quadro Inscrições, "Baixar confirmados" entrega a relação de quem está confirmado em Excel (nome, CPF, e-mail, telefone, filiado, convidado e quem convidou, RSVP, presenças e as respostas dos campos extras) ou em PDF, para levar a sistemas que não conversam com o Confluir — portaria, hotel, buffet, credenciamento. "Lista p/ assinatura" gera o PDF com uma coluna para colher a assinatura na porta.
+- Eventos → página do evento: no quadro Inscrições, "Baixar confirmados" entrega a relação de quem está confirmado em Excel (nome, CPF, e-mail, telefone, filiado, convidado e quem convidou, RSVP, presenças e as respostas dos campos extras) ou em PDF, para levar a sistemas que não conversam com o Confluir — portaria, hotel, buffet, credenciamento. "Excel só filiados" traz a mesma planilha apenas com os filiados, e "Lista p/ assinatura" gera o PDF com uma coluna para colher a assinatura na porta.
 
 ## 17/11/2026 — Meu perfil: Meus veículos
 
