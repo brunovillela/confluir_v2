@@ -2,7 +2,7 @@
 
 # Dicionário de dados do Confluir
 
-Gerado a partir do banco de produção (catálogo do Postgres + comentários). **425 tabelas** no schema `public`, **252** com dado pessoal (1321 colunas etiquetadas).
+Gerado a partir do banco de produção (catálogo do Postgres + comentários). **430 tabelas** no schema `public`, **256** com dado pessoal (1340 colunas etiquetadas).
 
 - Etiquetas LGPD: cada tabela termina o comentário com `[lgpd:<categorias>|titulares:<quem>]` e cada coluna com dado pessoal com `[lgpd:<categoria>]` (Onda A4).
 - Para mudar uma descrição ou classificação: migração com `comment on …` (`npm run db:nova`), aplicar, e `npm run db:dicionario`.
@@ -14,9 +14,9 @@ Gerado a partir do banco de produção (catálogo do Postgres + comentários). *
 
 | Categoria | Tabelas |
 |---|---|
-| identificação | 196 |
-| **sensível: sindical** | 62 |
-| trabalhista | 54 |
+| identificação | 197 |
+| **sensível: sindical** | 64 |
+| trabalhista | 55 |
 | financeiro | 50 |
 | **credencial (nunca exportar)** | 21 |
 | **sensível: saúde** | 18 |
@@ -28,9 +28,9 @@ Gerado a partir do banco de produção (catálogo do Postgres + comentários). *
 | Filiação e portal do associado | 62 | 42 | [dicionario/filiacao.md](dicionario/filiacao.md) | [er/filiacao.md](er/filiacao.md) |
 | Empregadores e grupos empresariais | 4 | 0 | [dicionario/empregadores.md](dicionario/empregadores.md) | [er/empregadores.md](er/empregadores.md) |
 | Votações e assembleias | 33 | 15 | [dicionario/votacao.md](dicionario/votacao.md) | [er/votacao.md](er/votacao.md) |
-| Representação, acordos e negociações | 38 | 19 | [dicionario/representacao.md](dicionario/representacao.md) | [er/representacao.md](er/representacao.md) |
+| Representação, acordos e negociações | 41 | 22 | [dicionario/representacao.md](dicionario/representacao.md) | [er/representacao.md](er/representacao.md) |
 | Diretoria e ofícios | 11 | 8 | [dicionario/diretoria.md](dicionario/diretoria.md) | [er/diretoria.md](er/diretoria.md) |
-| Pessoal (RH da entidade) | 63 | 42 | [dicionario/pessoal.md](dicionario/pessoal.md) | [er/pessoal.md](er/pessoal.md) |
+| Pessoal (RH da entidade) | 64 | 43 | [dicionario/pessoal.md](dicionario/pessoal.md) | [er/pessoal.md](er/pessoal.md) |
 | Saúde do trabalhador | 13 | 11 | [dicionario/saude.md](dicionario/saude.md) | [er/saude.md](er/saude.md) |
 | Jurídico | 5 | 4 | [dicionario/juridico.md](dicionario/juridico.md) | [er/juridico.md](er/juridico.md) |
 | Financeiro | 31 | 22 | [dicionario/financeiro.md](dicionario/financeiro.md) | [er/financeiro.md](er/financeiro.md) |
@@ -40,5 +40,5 @@ Gerado a partir do banco de produção (catálogo do Postgres + comentários). *
 | Cessão de espaços | 10 | 2 | [dicionario/cessao.md](dicionario/cessao.md) | [er/cessao.md](er/cessao.md) |
 | Veículos e condutores | 23 | 14 | [dicionario/veiculos.md](dicionario/veiculos.md) | [er/veiculos.md](er/veiculos.md) |
 | Comunicação, eventos e avisos | 29 | 9 | [dicionario/comunicacao.md](dicionario/comunicacao.md) | [er/comunicacao.md](er/comunicacao.md) |
-| Ferramentas administrativas | 8 | 5 | [dicionario/ferramentas.md](dicionario/ferramentas.md) | [er/ferramentas.md](er/ferramentas.md) |
+| Ferramentas administrativas | 9 | 5 | [dicionario/ferramentas.md](dicionario/ferramentas.md) | [er/ferramentas.md](er/ferramentas.md) |
 | Plataforma, acesso e auditoria | 36 | 25 | [dicionario/plataforma.md](dicionario/plataforma.md) | [er/plataforma.md](er/plataforma.md) |

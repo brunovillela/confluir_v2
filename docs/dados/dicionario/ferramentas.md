@@ -2,7 +2,7 @@
 
 # Ferramentas administrativas
 
-8 tabelas. Diagrama: [er/ferramentas.md](../er/ferramentas.md).
+9 tabelas. Diagrama: [er/ferramentas.md](../er/ferramentas.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -14,6 +14,7 @@
 | [demandas_departamentos](#demandas_departamentos) | — | Junção N:N entre tarefa de demanda e departamento envolvido (lib/db/departamentos.ts). |
 | [ferramentas_anomalias](#ferramentas_anomalias) | identificação | Registro de anomalia/não conformidade com investigação de causa raiz (5 porquês) e providências, da tela Ferramentas > Anomalias. Origem Bub… |
 | [projeto](#projeto) | — | Projetos da entidade (orçamento, prazo, autorização, centro de custo), migrados do Bubble; compras e ordens podem ser ligadas a um projeto. … |
+| [projeto_marcos](#projeto_marcos) | — | Marcos (etapas com data prevista) de um projeto, em Ferramentas > Projetos. Marco vencido sem conclusão põe o projeto em "Atrasado" na carte… |
 
 ## assinaturas
 
@@ -248,3 +249,24 @@ Projetos da entidade (orçamento, prazo, autorização, centro de custo), migrad
 Únicas: `UNIQUE (bubble_id)`
 
 Índices: `projeto_bubble_id_key`, `projeto_pkey`
+
+## projeto_marcos
+
+Marcos (etapas com data prevista) de um projeto, em Ferramentas > Projetos. Marco vencido sem conclusão põe o projeto em "Atrasado" na carteira (lib/projetos-constantes.ts → situacaoDoProjeto).
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `projeto_id` | uuid | não |  | → projeto (**cascade**) |  |  |
+| `titulo` | text | não |  |  | nenhum | O que deve estar pronto no marco (ex.: "Contratar o espaço"). |
+| `data_prevista` | date | não |  |  | nenhum | Data em que o marco deve estar cumprido. |
+| `concluido_em` | date | sim |  |  | nenhum | Data em que o marco foi dado por cumprido; nulo = em aberto. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Índices: `projeto_marcos_emp_idx`, `projeto_marcos_pkey`, `projeto_marcos_projeto_idx`

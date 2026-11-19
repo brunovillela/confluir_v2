@@ -90,7 +90,7 @@ export const SECOES: Secao[] = [
   { id: "propostas", titulo: "Propostas", descricao: "De onde vêm, limites por grupo e trava do relatório.", aplicada: true },
   { id: "apreciacao", titulo: "Apreciação nos grupos", descricao: "Se os grupos votam as propostas e o que cada resultado faz.", aplicada: true },
   { id: "plenaria", titulo: "Plenária", descricao: "Rito de fala, maioria e forma de votar.", aplicada: true },
-  { id: "mocoes", titulo: "Moções", descricao: "Como uma moção chega à plenária.", aplicada: false },
+  { id: "mocoes", titulo: "Moções", descricao: "Como uma moção chega à plenária.", aplicada: true },
   { id: "divulgacao", titulo: "Divulgação", descricao: "O que é público e o que é reservado.", aplicada: false },
   { id: "encerramento", titulo: "Encerramento", descricao: "Certificados, relatório e resoluções.", aplicada: false },
 ]
@@ -532,6 +532,17 @@ export const AJUSTES: Ajuste[] = [
 
   // ── Moções ──
   {
+    chave: "mocoes.tipos", secao: "mocoes", rotulo: "Tipos de moção", tipo: "texto", padrao: "Apoio, Aplauso, Repúdio, Recomendação, Solidariedade",
+    ajuda: "Separados por vírgula. Vazio = sem tipo.",
+  },
+  {
+    chave: "mocoes.quem_apresenta", secao: "mocoes", rotulo: "Quem apresenta a moção", tipo: "escolha", padrao: "participantes",
+    opcoes: [
+      { valor: "participantes", rotulo: "Quem tem direito de propor, pelo link pessoal" },
+      { valor: "comissao", rotulo: "Só a comissão registra" },
+    ],
+  },
+  {
     chave: "mocoes.habilitacao", secao: "mocoes", rotulo: "Como a moção chega à plenária", tipo: "escolha", padrao: "assinaturas",
     opcoes: [
       { valor: "assinaturas", rotulo: "Por assinaturas" },
@@ -556,6 +567,35 @@ export const AJUSTES: Ajuste[] = [
     ],
     visivelSe: [{ chave: "mocoes.habilitacao", igual: "assinaturas" }],
   },
+  {
+    chave: "mocoes.combinacao", secao: "mocoes", rotulo: "Número e percentual", tipo: "escolha", padrao: "ou",
+    opcoes: [
+      { valor: "ou", rotulo: "Basta atingir um dos dois" },
+      { valor: "e", rotulo: "Precisa atingir os dois" },
+    ],
+    visivelSe: [{ chave: "mocoes.habilitacao", igual: "assinaturas" }],
+  },
+  {
+    chave: "mocoes.denominador", secao: "mocoes", rotulo: "O percentual conta", tipo: "escolha", padrao: "credenciados",
+    opcoes: [
+      { valor: "credenciados", rotulo: "Os credenciados com direito a assinar" },
+      { valor: "confirmados", rotulo: "Os inscritos confirmados com direito a assinar" },
+    ],
+    visivelSe: [{ chave: "mocoes.habilitacao", igual: "assinaturas" }],
+  },
+  {
+    chave: "mocoes.aceite_comissao", secao: "mocoes", rotulo: "Além do mínimo, a comissão precisa aceitar a moção", tipo: "booleano", padrao: false,
+    visivelSe: [{ chave: "mocoes.habilitacao", igual: "assinaturas" }],
+  },
+  {
+    chave: "mocoes.meio", secao: "mocoes", rotulo: "Meio de assinatura", tipo: "escolha", padrao: "ambos",
+    opcoes: [
+      { valor: "ambos", rotulo: "Eletrônico e papel" },
+      { valor: "eletronico", rotulo: "Só eletrônico (link pessoal ou estação da mesa)" },
+      { valor: "papel", rotulo: "Só papel (a mesa lança os nomes)" },
+    ],
+  },
+  { chave: "mocoes.retirar", secao: "mocoes", rotulo: "Quem assinou pode retirar a assinatura até o protocolo", tipo: "booleano", padrao: true },
   { chave: "mocoes.prazo", secao: "mocoes", rotulo: "Prazo de entrega", tipo: "datahora", padrao: null },
   {
     chave: "mocoes.nomes_visiveis", secao: "mocoes", rotulo: "Quem vê os nomes de quem assinou", tipo: "escolha", padrao: "credenciados",

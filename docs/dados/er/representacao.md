@@ -104,6 +104,29 @@ erDiagram
     uuid congresso_id FK
     uuid eixo_id FK
   }
+  congresso_mocao_assinaturas {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid mocao_id FK
+    uuid participante_id FK
+    uuid unidade_id FK
+    uuid registrado_por FK
+  }
+  congresso_mocao_eventos {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid mocao_id FK
+  }
+  congresso_mocoes {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid unidade_id FK
+    uuid proponente_id FK
+    uuid decidida_por FK
+  }
   congresso_papeis {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -184,6 +207,7 @@ erDiagram
     uuid congresso_id FK
     uuid votacao_id FK
     uuid proposta_id FK
+    uuid mocao_id FK
   }
   congresso_votacoes {
     uuid id PK
@@ -294,6 +318,17 @@ erDiagram
   congresso_grupo_funcoes }o--|| congressos : "congresso_id"
   congresso_grupos }o--o| congresso_eixos : "eixo_id"
   congresso_grupos }o--|| congressos : "congresso_id"
+  congresso_mocao_assinaturas }o--o| congresso_unidades : "unidade_id"
+  congresso_mocao_assinaturas }o--o| usuarios : "registrado_por"
+  congresso_mocao_assinaturas }o--|| congresso_mocoes : "mocao_id"
+  congresso_mocao_assinaturas }o--|| congresso_participantes : "participante_id"
+  congresso_mocao_assinaturas }o--|| congressos : "congresso_id"
+  congresso_mocao_eventos }o--|| congresso_mocoes : "mocao_id"
+  congresso_mocao_eventos }o--|| congressos : "congresso_id"
+  congresso_mocoes }o--o| congresso_participantes : "proponente_id"
+  congresso_mocoes }o--o| congresso_unidades : "unidade_id"
+  congresso_mocoes }o--o| usuarios : "decidida_por"
+  congresso_mocoes }o--|| congressos : "congresso_id"
   congresso_papeis }o--|| congressos : "congresso_id"
   congresso_participante_historico }o--o| congresso_participantes : "participante_id"
   congresso_participante_historico }o--o| usuarios : "autor_id"
@@ -328,7 +363,8 @@ erDiagram
   congresso_substituicoes }o--|| congresso_participantes : "titular_id"
   congresso_substituicoes }o--|| congressos : "congresso_id"
   congresso_unidades }o--|| congressos : "congresso_id"
-  congresso_votacao_itens }o--|| congresso_propostas : "proposta_id"
+  congresso_votacao_itens }o--o| congresso_mocoes : "mocao_id"
+  congresso_votacao_itens }o--o| congresso_propostas : "proposta_id"
   congresso_votacao_itens }o--|| congresso_votacoes : "votacao_id"
   congresso_votacao_itens }o--|| congressos : "congresso_id"
   congresso_votacoes }o--o| congresso_sessoes : "sessao_id"

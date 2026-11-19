@@ -2,7 +2,7 @@
 
 # Representação, acordos e negociações
 
-38 tabelas. Diagrama: [er/representacao.md](../er/representacao.md).
+41 tabelas. Diagrama: [er/representacao.md](../er/representacao.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -22,6 +22,9 @@
 | [congresso_eixos](#congresso_eixos) | — | Eixos temáticos do congresso. |
 | [congresso_grupo_funcoes](#congresso_grupo_funcoes) | **sensível: sindical** | Coordenação e relatoria de cada grupo de trabalho, eleitas no grupo ou indicadas pela comissão. |
 | [congresso_grupos](#congresso_grupos) | — | Grupos de trabalho (GT) do congresso, com eixo e vagas. |
+| [congresso_mocao_assinaturas](#congresso_mocao_assinaturas) | **sensível: sindical** | Assinaturas de moções: participante, versão e hash do texto lido, papel e base naquele instante, meio (link pessoal, estação da mesa, papel)… |
+| [congresso_mocao_eventos](#congresso_mocao_eventos) | identificação | Trilha da moção (criação, nova versão, assinatura retirada, protocolo, habilitação, resultado). Só inserção. |
+| [congresso_mocoes](#congresso_mocoes) | **sensível: sindical** | Moções do congresso: texto com versão e hash, base de origem, proponente, código público do QR, situação e o limiar de assinaturas calculado… |
 | [congresso_papeis](#congresso_papeis) | — | Papéis do congresso (delegado, nato, suplente, observador, convidado…) com a matriz de direitos em jsonb (voz, voto, assinar moção, candidat… |
 | [congresso_participante_historico](#congresso_participante_historico) | **sensível: sindical** | Trilha de cada participante (só inserção): inscrição, troca de papel ou base, lista de espera, cancelamento. |
 | [congresso_participantes](#congresso_participantes) | identificação, **sensível: sindical** | Pessoas do congresso: delegados, natos, suplentes, observadores, convidados. Podem ser filiados ou não. A participação revela atuação sindic… |
@@ -453,6 +456,97 @@ Checks: `congresso_grupos_nome_check` `CHECK ((length(TRIM(BOTH FROM nome)) > 0)
 
 Índices: `congresso_grupos_pkey`
 
+## congresso_mocao_assinaturas
+
+Assinaturas de moções: participante, versão e hash do texto lido, papel e base naquele instante, meio (link pessoal, estação da mesa, papel), modalidade e nível de prova de presença, IP e navegador. Retirar marca retirada_em; nada é apagado.
+
+- **LGPD:** **sensível: sindical** · titulares: delegados que assinam moções
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
+| `mocao_id` | uuid | não |  | → congresso_mocoes (**cascade**) |  |  |
+| `participante_id` | uuid | não |  | → congresso_participantes (**cascade**) |  |  |
+| `versao` | integer | não |  |  |  |  |
+| `texto_hash` | text | não |  |  |  |  |
+| `papel` | text | sim |  |  |  |  |
+| `categoria` | text | sim |  |  |  |  |
+| `unidade_id` | uuid | sim |  | → congresso_unidades (set null) |  |  |
+| `meio` | text | não |  |  |  |  |
+| `modalidade` | text | não | `'presencial'::text` |  |  |  |
+| `nivel` | text | sim |  |  |  |  |
+| `ip` | text | sim |  |  | identificação | IP de onde a assinatura foi feita (prova da assinatura eletrônica). |
+| `navegador` | text | sim |  |  | identificação | Navegador usado na assinatura (prova da assinatura eletrônica). |
+| `registrado_por` | uuid | sim |  | → usuarios (set null) | identificação | Usuário que lançou a assinatura na estação da mesa ou a partir do papel. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `retirada_em` | timestamp with time zone | sim |  |  |  |  |
+
+Checks: `congresso_mocao_assinaturas_meio_check` `CHECK ((meio = ANY (ARRAY['link'::text, 'estacao'::text, 'papel'::text])))`; `congresso_mocao_assinaturas_modalidade_check` `CHECK ((modalidade = ANY (ARRAY['presencial'::text, 'distancia'::text])))`; `congresso_mocao_assinaturas_nivel_check` `CHECK (((nivel IS NULL) OR (nivel = ANY (ARRAY['A'::text, 'B'::text, 'C'::text, 'D'::text, 'E'::text]))))`; `congresso_mocao_assinaturas_versao_check` `CHECK ((versao > 0))`
+
+Índices: `congresso_mocao_assinaturas_mocao`, `congresso_mocao_assinaturas_pkey`, `congresso_mocao_assinaturas_uma`
+
+## congresso_mocao_eventos
+
+Trilha da moção (criação, nova versão, assinatura retirada, protocolo, habilitação, resultado). Só inserção.
+
+- **LGPD:** identificação · titulares: proponentes e comissão de congressos
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
+| `mocao_id` | uuid | não |  | → congresso_mocoes (**cascade**) |  |  |
+| `acao` | text | não |  |  |  |  |
+| `detalhe` | jsonb | não | `'{}'::jsonb` |  |  |  |
+| `autor` | text | sim |  |  | identificação | Nome de quem fez o ato. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Índices: `congresso_mocao_eventos_mocao`, `congresso_mocao_eventos_pkey`
+
+## congresso_mocoes
+
+Moções do congresso: texto com versão e hash, base de origem, proponente, código público do QR, situação e o limiar de assinaturas calculado e gravado no protocolo.
+
+- **LGPD:** **sensível: sindical** · titulares: proponentes de moções em congressos
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
+| `numero` | integer | não |  |  |  |  |
+| `codigo` | text | não |  |  | nenhum | Código público da moção (QR e verificação). Não dá acesso a assinar: a assinatura exige o link pessoal ou a estação da mesa. |
+| `tipo` | text | sim |  |  |  |  |
+| `titulo` | text | não |  |  |  |  |
+| `destinatario` | text | sim |  |  |  |  |
+| `texto` | text | não |  |  |  |  |
+| `versao` | integer | não | `1` |  |  |  |
+| `texto_hash` | text | não |  |  | nenhum | SHA-256 do texto da versão atual; cada assinatura grava o hash do texto que leu. |
+| `unidade_id` | uuid | sim |  | → congresso_unidades (set null) |  |  |
+| `proponente_id` | uuid | sim |  | → congresso_participantes (set null) | **sensível: sindical** | Participante que apresentou a moção (nulo quando a comissão registrou). |
+| `proponente_nome` | text | sim |  |  | **sensível: sindical** | Nome de quem apresentou (participante ou usuário do painel). |
+| `situacao` | text | não | `'coleta'::text` |  |  |  |
+| `protocolada_em` | timestamp with time zone | sim |  |  |  |  |
+| `limiar` | jsonb | sim |  |  | nenhum | Limiar gravado no protocolo: alternativas (número, percentual), exigido, atingido e o denominador daquele momento. |
+| `decisao_motivo` | text | sim |  |  | nenhum | Motivo da habilitação ou da não habilitação pela comissão. |
+| `decidida_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem decidiu a habilitação. |
+| `decidida_em` | timestamp with time zone | sim |  |  |  |  |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | sim |  |  |  |  |
+
+Checks: `congresso_mocoes_numero_check` `CHECK ((numero > 0))`; `congresso_mocoes_situacao_check` `CHECK ((situacao = ANY (ARRAY['coleta'::text, 'protocolada'::text, 'habilitada'::text, 'nao_habilitada'::text, 'aprovada'::text, 'rejeitada'::text, 'retirada'::text])))`; `congresso_mocoes_texto_check` `CHECK ((length(TRIM(BOTH FROM texto)) > 0))`; `congresso_mocoes_titulo_check` `CHECK ((length(TRIM(BOTH FROM titulo)) > 0))`; `congresso_mocoes_versao_check` `CHECK ((versao > 0))`
+
+Índices: `congresso_mocoes_codigo`, `congresso_mocoes_numero`, `congresso_mocoes_pkey`
+
 ## congresso_papeis
 
 Papéis do congresso (delegado, nato, suplente, observador, convidado…) com a matriz de direitos em jsonb (voz, voto, assinar moção, candidatar-se, quórum…).
@@ -746,9 +840,12 @@ Propostas de cada votação da plenária (uma, ou várias numa votação em bloc
 | `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
 | `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
 | `votacao_id` | uuid | não |  | → congresso_votacoes (**cascade**) |  |  |
-| `proposta_id` | uuid | não |  | → congresso_propostas (**cascade**) |  |  |
+| `proposta_id` | uuid | sim |  | → congresso_propostas (**cascade**) |  |  |
+| `mocao_id` | uuid | sim |  | → congresso_mocoes (**cascade**) | nenhum | Moção votada (quando o item não é uma proposta). |
 
-Índices: `congresso_votacao_itens_pkey`, `congresso_votacao_itens_proposta`, `congresso_votacao_itens_um`
+Checks: `congresso_votacao_itens_um_alvo` `CHECK (((proposta_id IS NULL) <> (mocao_id IS NULL)))`
+
+Índices: `congresso_votacao_itens_mocao`, `congresso_votacao_itens_pkey`, `congresso_votacao_itens_proposta`, `congresso_votacao_itens_um`, `congresso_votacao_itens_um_mocao`
 
 ## congresso_votacoes
 

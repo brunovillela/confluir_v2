@@ -46,6 +46,7 @@ import {
   resultadoPlenaria,
   separarPropostas,
 } from "@/lib/congressos/relatoria"
+import { calcularLimiar, codigoMocao, lerCodigoMocao, podeAssinar, quantoFalta, tiposDeMocao } from "@/lib/congressos/mocoes"
 
 test.describe("catálogo e normalização", () => {
   test("chaves únicas e padrões válidos", () => {
@@ -512,5 +513,71 @@ test.describe("relatoria e plenária", () => {
       "Lutar pela redução da jornada",
       "Defender a Petrobras pública",
     ])
+  })
+})
+
+test.describe("moções", () => {
+  const base = { numero: 0, percentual: 0, combinacao: "ou" as const, percentualDe: "congresso" as const, denominadorCongresso: 100, denominadorBase: 23, validas: 0, validasDaBase: 0 }
+
+  test("limiar do Congrenf: 90% da base de origem ou 20 delegados", () => {
+    const regra = { ...base, numero: 20, percentual: 90, percentualDe: "base_origem" as const }
+    expect(calcularLimiar({ ...regra, validas: 19, validasDaBase: 20 }).atingido).toBe(false)
+    expect(calcularLimiar({ ...regra, validas: 20, validasDaBase: 3 }).atingido).toBe(true)
+    const pelaBase = calcularLimiar({ ...regra, validas: 21, validasDaBase: 21 })
+    expect(pelaBase.alternativas[1]).toMatchObject({ exigido: 21, atingido: true })
+    expect(quantoFalta(calcularLimiar({ ...regra, validas: 15, validasDaBase: 19 }))).toBe("Faltam 2 para 90% da base de origem (21 de 23).")
+  })
+
+  test("limiar com \"e\", percentual do congresso e sem base de origem", () => {
+    expect(calcularLimiar({ ...base, percentual: 10, validas: 10 }).atingido).toBe(true)
+    expect(calcularLimiar({ ...base, percentual: 10, validas: 9 }).atingido).toBe(false)
+    expect(calcularLimiar({ ...base, numero: 5, percentual: 10, combinacao: "e", validas: 7 }).atingido).toBe(false)
+    const semBase = calcularLimiar({ ...base, percentual: 90, percentualDe: "base_origem", denominadorBase: null, validas: 50 })
+    expect(semBase.atingido).toBe(false)
+    expect(semBase.aviso).toBeTruthy()
+    expect(calcularLimiar({ ...base }).atingido).toBe(true)
+  })
+
+  const pedido = {
+    situacao: "coleta",
+    prazo: null,
+    direito: true,
+    categoria: "delegado",
+    emExercicio: true,
+    credenciado: true,
+    modalidade: "presencial" as const,
+    meio: "link" as const,
+    meioPermitido: "ambos" as const,
+    regraLocal: "so_local" as const,
+    provaExigida: "C" as const,
+    presenteNaSessao: true,
+    codigoValido: false,
+  }
+
+  test("quem pode assinar e com que prova", () => {
+    expect(podeAssinar(pedido)).toMatchObject({ pode: false, precisaCodigo: true })
+    expect(podeAssinar({ ...pedido, codigoValido: true })).toMatchObject({ pode: true, nivel: "C" })
+    expect(podeAssinar({ ...pedido, meio: "estacao" })).toMatchObject({ pode: true, nivel: "D" })
+    expect(podeAssinar({ ...pedido, provaExigida: "B" })).toMatchObject({ pode: true, nivel: "B" })
+    expect(podeAssinar({ ...pedido, provaExigida: "A", presenteNaSessao: false })).toMatchObject({ pode: true, nivel: "A" })
+    expect(podeAssinar({ ...pedido, modalidade: "distancia" }).pode).toBe(false)
+    expect(podeAssinar({ ...pedido, modalidade: "distancia", regraLocal: "local_ou_distancia" })).toMatchObject({ pode: true, nivel: null })
+    expect(podeAssinar({ ...pedido, direito: false }).motivo).toContain("não assina")
+    expect(podeAssinar({ ...pedido, categoria: "suplente", emExercicio: false }).pode).toBe(false)
+    expect(podeAssinar({ ...pedido, credenciado: false }).pode).toBe(false)
+    expect(podeAssinar({ ...pedido, situacao: "protocolada" }).pode).toBe(false)
+    expect(podeAssinar({ ...pedido, prazo: "2027-06-10T09:00:00Z", agora: Date.parse("2027-06-10T09:01:00Z") }).pode).toBe(false)
+    expect(podeAssinar({ ...pedido, meioPermitido: "papel", codigoValido: true }).pode).toBe(false)
+    expect(podeAssinar({ ...pedido, meio: "papel", meioPermitido: "eletronico" }).pode).toBe(false)
+    expect(podeAssinar({ ...pedido, meio: "papel" })).toMatchObject({ pode: true, nivel: "E" })
+  })
+
+  test("código da moção", () => {
+    const c = codigoMocao(new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7]))
+    expect(c).toMatch(/^M[A-Z2-9]{7}$/)
+    expect(lerCodigoMocao(`https://x.confluir.app/congresso/mocao/${c}`)).toBe(c)
+    expect(lerCodigoMocao(`CGRM:${c.toLowerCase()}`)).toBe(c)
+    expect(lerCodigoMocao("qualquer coisa")).toBeNull()
+    expect(tiposDeMocao("Apoio, Repúdio, Apoio")).toEqual(["Apoio", "Repúdio"])
   })
 })

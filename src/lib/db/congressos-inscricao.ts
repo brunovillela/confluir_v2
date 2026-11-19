@@ -81,7 +81,7 @@ export async function salvarPaginaPublica(
   aberta: boolean
 ): Promise<{ erro?: string }> {
   if (aberta && !slug) return { erro: "Defina o endereço da página antes de abrir a inscrição." }
-  if (slug === "eu") return { erro: "Esse endereço é reservado. Escolha outro." }
+  if (slug === "eu" || slug === "mocao") return { erro: "Esse endereço é reservado. Escolha outro." }
   const admin = await createAdminClient()
   const emp = await tenantAtual()
   const { error } = await admin

@@ -24,6 +24,7 @@ export default async function PlenariaPage({ params, searchParams }: { params: P
   const base = `/painel/representacao/congressos/${id}`
   const nomeEixo = new Map(d.eixos.map((e) => [e.id, e.nome]))
   const numero = new Map(d.propostas.map((p) => [p.id, p.numero]))
+  const numeroMocao = new Map(d.mocoes.map((m) => [m.id, m.numero]))
 
   return (
     <>
@@ -66,11 +67,13 @@ export default async function PlenariaPage({ params, searchParams }: { params: P
           classificacao: p.classificacao,
           destaquePor: p.destaquePor,
         }))}
+        mocoes={d.mocoes.map((m) => ({ id: m.id, numero: m.numero, titulo: m.titulo, texto: m.texto, tipo: m.tipo, situacao: m.situacao }))}
         votacoes={d.votacoes
-          .filter((v) => v.propostaIds.some((pid) => numero.has(pid)))
+          .filter((v) => v.propostaIds.some((pid) => numero.has(pid)) || v.mocaoIds.some((mid) => numeroMocao.has(mid)))
           .map((v) => ({
             id: v.id,
             numeros: v.propostaIds.map((pid) => numero.get(pid)).filter((n): n is number => n !== undefined).sort((a, b) => a - b),
+            mocoes: v.mocaoIds.map((mid) => numeroMocao.get(mid)).filter((n): n is number => n !== undefined),
             forma: v.forma,
             placar: v.aFavor !== null ? `${v.aFavor} × ${v.contra ?? 0} × ${v.abstencao ?? 0}` : null,
             resultado: v.resultado,

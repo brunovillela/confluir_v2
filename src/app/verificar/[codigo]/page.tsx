@@ -9,6 +9,7 @@ import { verificarCertificadoRpa } from "@/lib/db/rpa-assinatura"
 import { verificarCertificadoAviso } from "@/lib/db/ferias-aviso"
 import { verificarCertificadoOposicao } from "@/lib/db/oposicao-assinatura"
 import { formatarMomento, verificarCertificado } from "@/lib/db/oficios-assinatura"
+import { ROTULO_SITUACAO_MOCAO, verificarMocao, type VerificacaoMocao } from "@/lib/db/congressos-mocoes"
 import { formatarData } from "@/lib/formato"
 
 export const metadata: Metadata = {
@@ -27,6 +28,8 @@ export default async function VerificarCertificadoPage({
   params: Promise<{ codigo: string }>
 }) {
   const { codigo } = await params
+  const mocao = await verificarMocao(decodeURIComponent(codigo))
+  if (mocao) return <VerificacaoDaMocao v={mocao} />
   const contrato = await verificarCertificadoMinuta(decodeURIComponent(codigo))
   if (contrato) return <VerificacaoContrato v={contrato} />
   const recibo = await verificarCertificadoRpa(decodeURIComponent(codigo))
@@ -275,6 +278,44 @@ function VerificacaoContrato({
           envio, abertura, código de uso único, conferência do CPF e assinatura, com data, hora, IP e
           navegador.
         </p>
+      </div>
+    </main>
+  )
+}
+
+/** Moção de congresso: confirma a moção, a versão do texto (SHA-256) e quantas assinaturas valem. Não mostra nomes. */
+function VerificacaoDaMocao({ v }: { v: VerificacaoMocao }) {
+  return (
+    <main className="mx-auto w-full max-w-xl px-4 py-10">
+      <div className="mb-8 flex flex-col items-center text-center">
+        <Marca variante="completa" />
+        <h1 className="mt-6 text-2xl font-semibold tracking-tight">Verificação de moção</h1>
+      </div>
+      <div className="grid gap-4">
+        <Alert className="border-success/40 text-success-fg">
+          <BadgeCheck />
+          <AlertDescription>
+            Moção <strong>autêntica</strong>, registrada no {v.congresso}.
+          </AlertDescription>
+        </Alert>
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              Moção {v.numero}: {v.titulo}
+            </CardTitle>
+            <CardDescription>{ROTULO_SITUACAO_MOCAO[v.situacao]}</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-2 text-sm">
+            <p>
+              <strong>{v.assinaturas}</strong> assinatura(s) válida(s) na versão {v.versao} do texto
+              {v.protocoladaEm ? `; protocolada em ${formatarMomento(v.protocoladaEm)}` : ""}.
+            </p>
+            <p className="text-muted-foreground font-mono text-xs break-all">SHA-256 do texto: {v.textoHash}</p>
+            <p className="text-muted-foreground text-xs">
+              Compare o resumo com o do documento impresso: se o texto tiver sido alterado, o resumo não confere.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     </main>
   )

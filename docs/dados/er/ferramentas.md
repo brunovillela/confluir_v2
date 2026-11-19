@@ -55,6 +55,11 @@ erDiagram
     uuid autorizacao_autoriza_id FK
     uuid centro_custo_id FK
   }
+  projeto_marcos {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid projeto_id FK
+  }
   assinaturas }o--o| diretoria_atas : "ata_id"
   assinaturas }o--o| usuarios : "assinador_id"
   demandas }o--o| projeto : "projeto_id"
@@ -74,4 +79,5 @@ erDiagram
   ferramentas_anomalias }o--o| usuarios : "responsavel_id"
   projeto }o--o| centros_de_custo : "centro_custo_id"
   projeto }o--o| usuarios : "autorizacao_autoriza_id"
+  projeto_marcos }o--|| projeto : "projeto_id"
 ```

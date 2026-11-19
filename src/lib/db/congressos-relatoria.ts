@@ -19,6 +19,7 @@ import { lerEmLotes } from "@/lib/db/comum"
 import { listarParticipantes, listarPrograma, type Congresso, type Eixo, type Grupo } from "@/lib/db/congressos"
 import { hashToken } from "@/lib/db/congressos-inscricao"
 import { painelDoDia } from "@/lib/db/congressos-dia"
+import { mocoesDaPlenaria, type Mocao } from "@/lib/db/congressos-mocoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -131,6 +132,7 @@ export type Votacao = {
   observacao: string | null
   createdAt: string
   propostaIds: string[]
+  mocaoIds: string[]
 }
 
 const CAMPOS_PROPOSTA =
@@ -277,10 +279,15 @@ async function lerVotacoes(tenantId: string, congressoId: string): Promise<Votac
       .eq("congresso_id", congressoId)
       .is("desfeita_em", null)
       .order("created_at"),
-    admin.from("congresso_votacao_itens").select("votacao_id, proposta_id").eq("emp_proprietaria_id", tenantId).eq("congresso_id", congressoId),
+    admin.from("congresso_votacao_itens").select("votacao_id, proposta_id, mocao_id").eq("emp_proprietaria_id", tenantId).eq("congresso_id", congressoId),
   ])
   const porVotacao = new Map<string, string[]>()
-  for (const i of itens ?? []) porVotacao.set(i.votacao_id as string, [...(porVotacao.get(i.votacao_id as string) ?? []), i.proposta_id as string])
+  const mocoesPorVotacao = new Map<string, string[]>()
+  for (const i of itens ?? []) {
+    const k = i.votacao_id as string
+    if (i.proposta_id) porVotacao.set(k, [...(porVotacao.get(k) ?? []), i.proposta_id as string])
+    if (i.mocao_id) mocoesPorVotacao.set(k, [...(mocoesPorVotacao.get(k) ?? []), i.mocao_id as string])
+  }
   return (vs ?? []).map((v) => ({
     id: v.id as string,
     tipo: v.tipo as Votacao["tipo"],
@@ -294,6 +301,7 @@ async function lerVotacoes(tenantId: string, congressoId: string): Promise<Votac
     observacao: (v.observacao as string | null) ?? null,
     createdAt: v.created_at as string,
     propostaIds: porVotacao.get(v.id as string) ?? [],
+    mocaoIds: mocoesPorVotacao.get(v.id as string) ?? [],
   }))
 }
 
@@ -937,6 +945,7 @@ export async function retirarDestaque(ctx: Contexto, propostaId: string): Promis
 
 export type DadosPlenaria = {
   propostas: Proposta[]
+  mocoes: Mocao[]
   votacoes: Votacao[]
   eixos: Eixo[]
   grupos: Grupo[]
@@ -948,13 +957,15 @@ export type DadosPlenaria = {
 
 export async function dadosDaPlenaria(c: Congresso, sessaoId?: string | null): Promise<DadosPlenaria> {
   const emp = await tenantAtual()
-  const [programa, propostas, votacoes, dia] = await Promise.all([
+  const [programa, propostas, votacoes, dia, mocoes] = await Promise.all([
     listarPrograma(c.id),
     lerPropostas(emp, c.id),
     lerVotacoes(emp, c.id),
     painelDoDia(c, sessaoId).catch(() => null),
+    mocoesDaPlenaria(c).catch(() => [] as Mocao[]),
   ])
   return {
+    mocoes,
     propostas: propostas.filter((p) => ["plenaria", "aprovada", "rejeitada"].includes(p.situacao)).sort((a, b) => a.ordem - b.ordem || a.numero - b.numero),
     votacoes,
     eixos: programa.eixos,
@@ -970,6 +981,7 @@ export async function registrarVotacao(
   ctx: Contexto,
   d: {
     propostaIds: string[]
+    mocaoIds?: string[]
     forma: FormaVotacao
     aFavor?: number | null
     contra?: number | null
@@ -980,17 +992,32 @@ export async function registrarVotacao(
   }
 ): Promise<{ erro?: string; resultado?: ResultadoPlenaria; explicacao?: string }> {
   const ids = [...new Set(d.propostaIds)]
-  if (!ids.length) return { erro: "Escolha a proposta votada." }
+  const mocaoIds = [...new Set(d.mocaoIds ?? [])]
+  if (!ids.length && !mocaoIds.length) return { erro: "Escolha o que foi votado." }
+  if (ids.length && mocaoIds.length) return { erro: "Vote propostas e moções separadamente." }
   const regras = regrasDaRelatoria(ctx.c)
-  if (ids.length > 1 && !regras.emBloco) return { erro: "A configuração não prevê votação em bloco: vote uma a uma." }
+  if (ids.length + mocaoIds.length > 1 && !regras.emBloco) return { erro: "A configuração não prevê votação em bloco: vote uma a uma." }
   if (d.forma === "sem_oposicao" && !regras.semOposicao) return { erro: "A configuração não prevê aprovação sem oposição: registre a votação." }
   const admin = await createAdminClient()
-  const { data: ps } = await admin
-    .from("congresso_propostas")
-    .select("id, numero, situacao, destaque_por")
-    .eq("emp_proprietaria_id", ctx.tenantId)
-    .eq("congresso_id", ctx.c.id)
-    .in("id", ids)
+  if (mocaoIds.length) {
+    const { data: ms } = await admin
+      .from("congresso_mocoes")
+      .select("id, numero, situacao")
+      .eq("emp_proprietaria_id", ctx.tenantId)
+      .eq("congresso_id", ctx.c.id)
+      .in("id", mocaoIds)
+    if ((ms ?? []).length !== mocaoIds.length) return { erro: "Moção não encontrada." }
+    const foraM = (ms ?? []).find((m) => m.situacao !== "habilitada")
+    if (foraM) return { erro: `A moção ${foraM.numero} não está habilitada para a plenária.` }
+  }
+  const { data: ps } = ids.length
+    ? await admin
+        .from("congresso_propostas")
+        .select("id, numero, situacao, destaque_por")
+        .eq("emp_proprietaria_id", ctx.tenantId)
+        .eq("congresso_id", ctx.c.id)
+        .in("id", ids)
+    : { data: [] as { id: string; numero: number; situacao: string; destaque_por: string | null }[] }
   if ((ps ?? []).length !== ids.length) return { erro: "Proposta não encontrada." }
   const fora = (ps ?? []).find((p) => p.situacao !== "plenaria")
   if (fora) return { erro: `A proposta ${fora.numero} não está na pauta da plenária.` }
@@ -1015,7 +1042,7 @@ export async function registrarVotacao(
       emp_proprietaria_id: ctx.tenantId,
       congresso_id: ctx.c.id,
       sessao_id: d.sessaoId ?? null,
-      tipo: ids.length > 1 ? "bloco" : "proposta",
+      tipo: ids.length + mocaoIds.length > 1 ? "bloco" : "proposta",
       forma: d.forma,
       a_favor: d.aFavor ?? null,
       contra: d.contra ?? null,
@@ -1029,9 +1056,18 @@ export async function registrarVotacao(
     .select("id")
     .single()
   if (error) return { erro: error.message }
-  await admin.from("congresso_votacao_itens").insert(ids.map((id) => ({ emp_proprietaria_id: ctx.tenantId, congresso_id: ctx.c.id, votacao_id: v.id, proposta_id: id })))
+  await admin.from("congresso_votacao_itens").insert([
+    ...ids.map((id) => ({ emp_proprietaria_id: ctx.tenantId, congresso_id: ctx.c.id, votacao_id: v.id, proposta_id: id })),
+    ...mocaoIds.map((id) => ({ emp_proprietaria_id: ctx.tenantId, congresso_id: ctx.c.id, votacao_id: v.id, mocao_id: id })),
+  ])
   if (r.resultado !== "empate") {
-    await admin.from("congresso_propostas").update({ situacao: r.resultado, updated_at: agoraIso() }).eq("emp_proprietaria_id", ctx.tenantId).in("id", ids)
+    if (ids.length) await admin.from("congresso_propostas").update({ situacao: r.resultado, updated_at: agoraIso() }).eq("emp_proprietaria_id", ctx.tenantId).in("id", ids)
+    if (mocaoIds.length) {
+      await admin.from("congresso_mocoes").update({ situacao: r.resultado, updated_at: agoraIso() }).eq("emp_proprietaria_id", ctx.tenantId).in("id", mocaoIds)
+      await admin.from("congresso_mocao_eventos").insert(
+        mocaoIds.map((id) => ({ emp_proprietaria_id: ctx.tenantId, congresso_id: ctx.c.id, mocao_id: id, acao: r.resultado, detalhe: { votacao: v.id }, autor: ctx.autor.nome }))
+      )
+    }
   }
   return { resultado: r.resultado, explicacao: r.explicacao }
 }
@@ -1047,10 +1083,12 @@ export async function desfazerVotacao(ctx: Contexto, votacaoId: string): Promise
     .eq("id", votacaoId)
     .maybeSingle()
   if (!v || v.desfeita_em) return { erro: "Votação não encontrada." }
-  const { data: itens } = await admin.from("congresso_votacao_itens").select("proposta_id").eq("emp_proprietaria_id", ctx.tenantId).eq("votacao_id", votacaoId)
+  const { data: itens } = await admin.from("congresso_votacao_itens").select("proposta_id, mocao_id").eq("emp_proprietaria_id", ctx.tenantId).eq("votacao_id", votacaoId)
   await admin.from("congresso_votacoes").update({ desfeita_em: agoraIso(), desfeita_por: ctx.autor.usuarioId ?? null }).eq("id", votacaoId)
-  const ids = (itens ?? []).map((i) => i.proposta_id as string)
+  const ids = (itens ?? []).map((i) => i.proposta_id as string | null).filter((x): x is string => !!x)
+  const mocaoIds = (itens ?? []).map((i) => i.mocao_id as string | null).filter((x): x is string => !!x)
   if (ids.length) await admin.from("congresso_propostas").update({ situacao: "plenaria", updated_at: agoraIso() }).eq("emp_proprietaria_id", ctx.tenantId).in("id", ids)
+  if (mocaoIds.length) await admin.from("congresso_mocoes").update({ situacao: "habilitada", updated_at: agoraIso() }).eq("emp_proprietaria_id", ctx.tenantId).in("id", mocaoIds)
   return {}
 }
 

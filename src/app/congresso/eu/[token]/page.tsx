@@ -10,11 +10,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { obterCongresso } from "@/lib/db/congressos"
 import { minhaInscricao } from "@/lib/db/congressos-inscricao"
 import { acessoDeRelatoria, ROTULO_FUNCAO } from "@/lib/db/congressos-relatoria"
+import { mocoesParaParticipante, participantePeloLink, regrasDasMocoes } from "@/lib/db/congressos-mocoes"
 import { obterOrganizacao } from "@/lib/db/organizacao"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { tenantAtual } from "@/lib/tenant"
 import QRCode from "qrcode"
 
+import { GuardarLink, MocoesDoLink } from "./mocoes-do-link"
 import { PresencaSala } from "./presenca-sala"
 
 export const metadata: Metadata = {
@@ -41,12 +43,17 @@ export default async function MinhaParticipacaoPage({
   const { token } = await params
   const { nova } = await searchParams
   const tenantId = await tenantAtual()
-  const [m, org, relatoria] = await Promise.all([
+  const [m, org, relatoria, eu] = await Promise.all([
     minhaInscricao(token, tenantId),
     obterOrganizacao(),
     acessoDeRelatoria(token, tenantId, (id) => obterCongresso(id)).catch(() => null),
+    participantePeloLink(token, tenantId).catch(() => null),
   ])
   if (!m) notFound()
+  const congresso = eu ? await obterCongresso(eu.congressoId).catch(() => null) : null
+  const mocoes = eu && congresso ? await mocoesParaParticipante(congresso, tenantId, eu.id).catch(() => []) : []
+  const regrasMocao = congresso ? regrasDasMocoes(congresso) : null
+  const podeApresentar = !!eu?.propoe && regrasMocao?.quemApresenta === "participantes"
   const s = SITUACAO[m.situacao] ?? SITUACAO.inscrito
   // QR para a mesa achar a pessoa sem digitar: leva o próprio token, que já está na URL desta página.
   const qrMesa =
@@ -125,6 +132,18 @@ export default async function MinhaParticipacaoPage({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={qrMesa} alt="QR para a mesa de credenciamento" className="size-56 rounded-lg border bg-white p-2" />
             <p className="text-muted-foreground">Mostre este QR na mesa: a equipe acha a sua inscrição sem digitar.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {eu && <GuardarLink token={token} />}
+      {eu && (mocoes.length > 0 || podeApresentar) && m.situacao !== "lista_espera" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Moções</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <MocoesDoLink token={token} mocoes={mocoes} podeApresentar={podeApresentar} />
           </CardContent>
         </Card>
       )}

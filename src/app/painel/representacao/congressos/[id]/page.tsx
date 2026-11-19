@@ -34,6 +34,8 @@ import { podeAcessar } from "@/lib/permissoes"
 import { painelDoDia } from "@/lib/db/congressos-dia"
 import { dadosDaRelatoria, ROTULO_FUNCAO, ROTULO_SITUACAO_PROPOSTA, type SituacaoProposta } from "@/lib/db/congressos-relatoria"
 import { AplicarGrupos, ColarPropostas } from "../relatoria-componentes"
+import { listarMocoes, ROTULO_SITUACAO_MOCAO } from "@/lib/db/congressos-mocoes"
+import { NovaMocaoPainel, ProgressoLimiar } from "../mocoes-componentes"
 import { AtualizarSozinho, CrachasEmLote, DesfazerTroca } from "../dia-componentes"
 import { origemAtual } from "@/lib/tenant-url"
 
@@ -61,12 +63,13 @@ import {
 
 export const metadata: Metadata = { title: "Congresso — Confluir" }
 
-const ABAS = ["geral", "dia", "relatoria", "configuracao", "papeis", "delegacao", "programa", "participantes"] as const
+const ABAS = ["geral", "dia", "relatoria", "mocoes", "configuracao", "papeis", "delegacao", "programa", "participantes"] as const
 type Aba = (typeof ABAS)[number]
 const ROTULO_ABA: Record<Aba, string> = {
   geral: "Visão geral",
   dia: "Dia do evento",
   relatoria: "Relatoria",
+  mocoes: "Moções",
   configuracao: "Configuração",
   papeis: "Papéis e direitos",
   delegacao: "Delegações",
@@ -141,6 +144,7 @@ export default async function CongressoPage({
       {aba === "geral" && <AbaGeral c={c} gestor={gestor} />}
       {aba === "dia" && <AbaDia c={c} gestor={gestor} operador={operador} sessaoId={sp.sessao ?? null} />}
       {aba === "relatoria" && <AbaRelatoria c={c} relator={relator} />}
+      {aba === "mocoes" && <AbaMocoes c={c} relator={relator} />}
       {aba === "configuracao" && <AbaConfiguracao c={c} gestor={gestor} travado={travado} />}
       {aba === "papeis" && <AbaPapeis c={c} gestor={gestor} />}
       {aba === "delegacao" && <AbaDelegacao c={c} gestor={gestor} />}
@@ -1115,6 +1119,60 @@ async function AbaRelatoria({ c, relator }: { c: Congresso; relator: boolean }) 
                   })}
                 </TableBody>
               </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+async function AbaMocoes({ c, relator }: { c: Congresso; relator: boolean }) {
+  const [{ mocoes, regras }, unidades] = await Promise.all([listarMocoes(c), listarUnidades(c.id)])
+  const base = `/painel/representacao/congressos/${c.id}`
+  return (
+    <div className="grid gap-4">
+      {relator && (
+        <div className="flex flex-wrap items-start gap-2">
+          <NovaMocaoPainel congressoId={c.id} tipos={regras.tipos} bases={unidades.map((u) => ({ id: u.id, nome: u.nome }))} />
+          <Button asChild variant="outline">
+            <Link href={`${base}/plenaria`}>Mesa da plenária</Link>
+          </Button>
+        </div>
+      )}
+      <Card>
+        <CardHeader>
+          <CardTitle>Moções</CardTitle>
+          <CardDescription>
+            {regras.quemApresenta === "participantes"
+              ? "Quem tem direito de propor apresenta pelo próprio link pessoal; a comissão também pode registrar."
+              : "As moções são registradas pela comissão."}
+            {regras.prazo ? ` Prazo: ${formatarDataHora(regras.prazo)}.` : ""}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {mocoes.length === 0 ? (
+            <p className="text-muted-foreground text-sm">Nenhuma moção ainda.</p>
+          ) : (
+            <div className="grid gap-3">
+              {mocoes.map((m) => (
+                <div key={m.id} className="grid gap-3 rounded-lg border p-3 md:grid-cols-[minmax(0,1fr)_18rem]">
+                  <div className="min-w-0">
+                    <Link href={`${base}/mocoes/${m.id}`} className="font-medium hover:underline">
+                      {m.numero}. {m.titulo}
+                    </Link>
+                    <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-2 text-xs">
+                      <Badge variant={m.situacao === "aprovada" || m.situacao === "habilitada" ? "success" : m.situacao === "rejeitada" || m.situacao === "nao_habilitada" ? "destructive" : "secondary"}>
+                        {ROTULO_SITUACAO_MOCAO[m.situacao]}
+                      </Badge>
+                      {m.tipo && <span>{m.tipo}</span>}
+                      {m.unidade && <span>· {m.unidade}</span>}
+                      {m.proponenteNome && <span>· {m.proponenteNome}</span>}
+                    </div>
+                  </div>
+                  <ProgressoLimiar limiar={m.limiar} gravado={m.situacao !== "coleta"} />
+                </div>
+              ))}
             </div>
           )}
         </CardContent>

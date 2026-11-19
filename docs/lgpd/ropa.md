@@ -24,14 +24,14 @@
 | P07 | [Diretoria, mandatos e ofícios](#p07) | 8 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P08 | [Saúde do trabalhador (CAT, atendimentos, CIPA)](#p08) | 11 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, trabalhista | sim |
 | P09 | [Jurídico](#p09) | 4 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista | sim |
-| P10 | [Pessoal: RH dos funcionários da entidade](#p10) | 43 | identificação, **sensível: saúde**, financeiro, trabalhista | sim |
+| P10 | [Pessoal: RH dos funcionários da entidade](#p10) | 44 | identificação, **sensível: saúde**, financeiro, trabalhista | sim |
 | P11 | [Financeiro, compras, fornecedores e contratos](#p11) | 38 | identificação, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P12 | [Institucional: custeios, viagens, linhas e patrimônio](#p12) | 10 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P13 | [Hospedagem conveniada e cessão de espaços](#p13) | 12 | identificação, **sensível: filiação/posição sindical**, financeiro, credencial (segredo de acesso, nunca exportar) | sim |
 | P14 | [Frota: veículos e condutores](#p14) | 15 | identificação, financeiro | sim |
 | P15 | [Comunicação, eventos e avisos](#p15) | 9 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P16 | [Contas de acesso, segurança, auditoria e gestão interna](#p16) | 27 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
-| P17 | [Congressos e conferências](#p17) | 10 | identificação, **sensível: filiação/posição sindical** | sim |
+| P17 | [Congressos e conferências](#p17) | 13 | identificação, **sensível: filiação/posição sindical** | sim |
 
 <a id="p01"></a>
 ## P01. Filiação e cadastro do associado
@@ -428,7 +428,7 @@
 <a id="p10"></a>
 ## P10. Pessoal: RH dos funcionários da entidade
 
-**Finalidade.** Gestão dos funcionários da própria entidade: cadastro, ponto, férias, folha e contracheques, diárias, benefícios, SST (ASO, atestados, treinamentos), envio do movimento à contabilidade e o tempo de uso do painel fora do expediente (`pessoal_uso_painel`: só quem, início e fim de cada bloco de uso, sem página nem conteúdo; só de quem tem jornada vinculada).
+**Finalidade.** Gestão dos funcionários da própria entidade: cadastro, ponto, férias, folha e contracheques, diárias, benefícios, SST (ASO, atestados, treinamentos), envio do movimento à contabilidade e o tempo de uso do painel fora do expediente (`pessoal_uso_painel`: só quem, início e fim de cada bloco de uso, sem página nem conteúdo; só de quem tem jornada vinculada) e o motivo que o funcionário informa para esse uso (`pessoal_uso_justificativas`).
 
 **Titulares.** Funcionários da entidade, dependentes (inclusive menores), prestadores autônomos.
 
@@ -451,7 +451,7 @@
 
 **Observações.** Comprovantes mandados ao bot do Telegram (recibo de reembolso, atestado) passam pelo Telegram e pela IA por iniciativa do próprio funcionário; o chat mostra só o período do atestado. Pendências: a resenha do ponto envia à IA até 30 funcionários por nome; `pessoal_folha_competencias.snapshot` guarda cópia de dados pessoais; documentos ainda no CDN do Bubble.
 
-<details><summary>Tabelas (43) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (44) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -495,6 +495,7 @@
 | [pessoal_telegram_arquivos](../dados/dicionario/pessoal.md#pessoal_telegram_arquivos) | identificacao, sens. saude, financeiro | `chat_id` (identificacao), `usuario_id` (identificacao), `passo` (nenhum), `dados` (identificacao), `dados` (financeiro), `dados` (sens. saude), `atualizado_em` (nenhum), `expira_em` (nenhum) |
 | [pessoal_telegram_diarias](../dados/dicionario/pessoal.md#pessoal_telegram_diarias) | identificacao | `chat_id` (identificacao), `usuario_id` (identificacao), `passo` (nenhum), `dados` (identificacao), `atualizado_em` (nenhum), `expira_em` (nenhum) |
 | [pessoal_treinamentos_alunos](../dados/dicionario/pessoal.md#pessoal_treinamentos_alunos) | trabalhista | `data_inicio` (trabalhista), `data_termino` (trabalhista), `certificado_url` (trabalhista) |
+| [pessoal_uso_justificativas](../dados/dicionario/pessoal.md#pessoal_uso_justificativas) | trabalhista | `usuario_id` (identificacao), `motivo` (trabalhista), `detalhe` (trabalhista) |
 | [pessoal_uso_painel](../dados/dicionario/pessoal.md#pessoal_uso_painel) | identificacao | `usuario_id` (identificacao) |
 | [prestadores_servico](../dados/dicionario/pessoal.md#prestadores_servico) | identificacao | `cpf` (identificacao), `nome_completo` (identificacao), `nome_fantasia` (identificacao) |
 | [prestcont_remessa](../dados/dicionario/pessoal.md#prestcont_remessa) | financeiro | `planilha` (financeiro), `valor_total` (financeiro) |
@@ -825,7 +826,7 @@
 <a id="p17"></a>
 ## P17. Congressos e conferências
 
-**Finalidade.** Organizar congressos, plenárias e conferências que a entidade promove ou de que participa: configuração do regimento, delegações, inscrição e lista de participantes (delegados, natos, suplentes, observadores, convidados), programa e grupos de trabalho. Inclui a inscrição pela página pública (com ciência do tratamento, IP e link pessoal guardado só como hash) e a importação de listas por planilha ou ata, que pode ser lida por IA. No dia do evento: credenciamento (com conferência de documento), crachás com código guardado só como hash, troca de titular por suplente com quem autorizou, e presença por sessão com o meio e o nível de prova de que a pessoa estava no local. Na relatoria: funções de coordenação e relatoria dos grupos, propostas com versões e apontamentos registrados com o nome de quem lançou (não de quem falou), contagem da apreciação nos grupos e resultado das votações da plenária, sem voto individual.
+**Finalidade.** Organizar congressos, plenárias e conferências que a entidade promove ou de que participa: configuração do regimento, delegações, inscrição e lista de participantes (delegados, natos, suplentes, observadores, convidados), programa e grupos de trabalho. Inclui a inscrição pela página pública (com ciência do tratamento, IP e link pessoal guardado só como hash) e a importação de listas por planilha ou ata, que pode ser lida por IA. No dia do evento: credenciamento (com conferência de documento), crachás com código guardado só como hash, troca de titular por suplente com quem autorizou, e presença por sessão com o meio e o nível de prova de que a pessoa estava no local. Na relatoria: funções de coordenação e relatoria dos grupos, propostas com versões e apontamentos registrados com o nome de quem lançou (não de quem falou), contagem da apreciação nos grupos e resultado das votações da plenária, sem voto individual. Nas moções: proponente, assinaturas com o hash do texto lido, papel e base no instante, meio (link pessoal, estação da mesa ou papel), modalidade e nível de prova de presença, IP e navegador (prova da assinatura eletrônica); os nomes de quem assinou ficam visíveis conforme a configuração (comissão, credenciados ou público).
 
 **Titulares.** Delegados, observadores e convidados de congressos (filiados ou não), diretores natos.
 
@@ -846,7 +847,7 @@
 
 **Medidas de segurança.** RLS por tenant; permissões próprias (`congressos`, `congressos_gestao`, `congressos_credenciamento`, `congressos_relatoria`); trilhas só com inserção (versões da configuração, histórico do participante e versões das propostas); a IA não recebe a autoria das propostas; acessibilidade visível só a quem organiza.
 
-<details><summary>Tabelas (10) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (13) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -854,6 +855,9 @@
 | [congresso_apreciacoes](../dados/dicionario/representacao.md#congresso_apreciacoes) | identificacao | `autor` (identificacao) |
 | [congresso_crachas](../dados/dicionario/representacao.md#congresso_crachas) | sens. sindical | `codigo_hash` (credencial), `emitido_por` (identificacao), `motivo` (nenhum) |
 | [congresso_grupo_funcoes](../dados/dicionario/representacao.md#congresso_grupo_funcoes) | sens. sindical | _pela existência do registro_ |
+| [congresso_mocao_assinaturas](../dados/dicionario/representacao.md#congresso_mocao_assinaturas) | sens. sindical | `ip` (identificacao), `navegador` (identificacao), `registrado_por` (identificacao) |
+| [congresso_mocao_eventos](../dados/dicionario/representacao.md#congresso_mocao_eventos) | identificacao | `autor` (identificacao) |
+| [congresso_mocoes](../dados/dicionario/representacao.md#congresso_mocoes) | sens. sindical | `codigo` (nenhum), `texto_hash` (nenhum), `proponente_id` (sens. sindical), `proponente_nome` (sens. sindical), `limiar` (nenhum), `decisao_motivo` (nenhum), `decidida_por` (identificacao) |
 | [congresso_participante_historico](../dados/dicionario/representacao.md#congresso_participante_historico) | sens. sindical | `detalhe` (sens. sindical), `autor_id` (identificacao) |
 | [congresso_participantes](../dados/dicionario/representacao.md#congresso_participantes) | identificacao, sens. sindical | `nome` (identificacao), `nome_social` (identificacao), `cpf` (identificacao), `email` (identificacao), `telefone` (identificacao), `genero` (identificacao), `filiacao_id` (sens. sindical), `usuario_id` (identificacao), `papel_id` (sens. sindical), `unidade_id` (sens. sindical), `titular_id` (nenhum), `situacao` (nenhum), `origem` (nenhum), `inscrito_em` (nenhum), `acessibilidade` (sens. saude), `observacao` (identificacao), `token_hash` (credencial), `token_gerado_em` (nenhum), `aceite_em` (nenhum), `inscricao_ip` (identificacao), `credenciado_em` (nenhum), `credenciado_por` (identificacao), `documento_conferido` (nenhum), `modalidade` (nenhum) |
 | [congresso_presencas](../dados/dicionario/representacao.md#congresso_presencas) | sens. sindical | `registrado_por` (identificacao) |
@@ -863,7 +867,7 @@
 
 </details>
 
-<sub>Titulares registrados no banco para estas tabelas: convidados de congressos; delegados; observadores; participantes de congressos; relatores de congressos; suplentes de congressos; usuários que registram a votação.</sub>
+<sub>Titulares registrados no banco para estas tabelas: comissão de congressos; convidados de congressos; delegados; delegados que assinam moções; observadores; participantes de congressos; proponentes; proponentes de moções em congressos; relatores de congressos; suplentes de congressos; usuários que registram a votação.</sub>
 
 ## Fluxos transversais
 
@@ -892,4 +896,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 252 de 252 tabelas com dado pessoal atribuídas a 17 processos.
+Cobertura: 256 de 256 tabelas com dado pessoal atribuídas a 17 processos.

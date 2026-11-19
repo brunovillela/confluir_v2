@@ -93,6 +93,9 @@ O app lê os dados de um tenant com `createAdminClient()` (JWT `authenticated` c
 | `congresso_eixos` | representacao | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `congresso_grupo_funcoes` | representacao | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `congresso_grupos` | representacao | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
+| `congresso_mocao_assinaturas` | representacao | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
+| `congresso_mocao_eventos` | representacao | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
+| `congresso_mocoes` | representacao | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `congresso_papeis` | representacao | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `congresso_participante_historico` | representacao | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `congresso_participantes` | representacao | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
@@ -341,6 +344,7 @@ O app lê os dados de um tenant com `createAdminClient()` (JWT `authenticated` c
 | `pessoal_telegram_diarias` | pessoal | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `pessoal_treinamentos` | pessoal | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `pessoal_treinamentos_alunos` | pessoal | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
+| `pessoal_uso_justificativas` | pessoal | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `pessoal_uso_painel` | pessoal | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `plataforma_admins` | plataforma | sim | — | | | | |
 | `portal_atendimentos` | filiacao | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
@@ -353,6 +357,7 @@ O app lê os dados de um tenant com `createAdminClient()` (JWT `authenticated` c
 | `prestadores_servico` | pessoal | sim | — | | | | |
 | `prestcont_remessa` | pessoal | sim | — | | | | |
 | `projeto` | ferramentas | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
+| `projeto_marcos` | ferramentas | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `push_assinaturas` | comunicacao | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `registro_sindical` | filiacao | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `representacao_documentos` | representacao | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |

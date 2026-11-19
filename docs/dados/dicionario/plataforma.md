@@ -489,6 +489,9 @@ Configuração da IA da entidade (Gestão › Inteligência Artificial, 19/11/20
 | `atualizado_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem salvou a configuração por último. |
 | `updated_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `aviso_teto_mes` | text | sim |  |  |  | Mês (AAAA-MM) do último aviso de teto da IA enviado aos administradores. |
+| `aviso_teto_nivel` | smallint | sim |  |  |  | Nível já avisado no mês de aviso_teto_mes: 80 (perto do teto) ou 100 (atingido). |
+| `chave_aviso_erro_em` | timestamp with time zone | sim |  |  |  | Quando os administradores foram avisados da última recusa da chave da entidade (no máximo um aviso por dia). |
 
 Checks: `ia_config_chave_final_curta` `CHECK (((chave_final IS NULL) OR (length(chave_final) <= 4)))`; `ia_config_limite_positivo` `CHECK (((limite_mensal_usd IS NULL) OR (limite_mensal_usd > (0)::numeric)))`
 
@@ -866,6 +869,7 @@ ACL plana por usuário: uma coluna booleana por área/ação do sistema, mais al
 | `congressos_gestao` | boolean | sim | `false` |  | nenhum | Congressos e conferências: criar, configurar e gerir participantes, delegações e programa. |
 | `congressos_credenciamento` | boolean | sim | `false` |  | nenhum | Congressos e conferências: operar a mesa de credenciamento, a porta das sessões e o painel de quórum. |
 | `congressos_relatoria` | boolean | sim | `false` |  | nenhum | Congressos e conferências: relatoria dos grupos, consolidação das propostas e mesa da plenária. |
+| `gestao_sistema` | boolean | sim | `false` |  | nenhum | Gestão do sistema: inteligência artificial (chave, teto, módulos), integrações (API, webhooks, catracas) e a revisão de acessos. |
 
 Únicas: `UNIQUE (bubble_id)`
 

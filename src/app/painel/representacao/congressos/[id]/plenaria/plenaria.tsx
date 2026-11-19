@@ -22,7 +22,8 @@ type Item = {
   classificacao: "consenso" | "debate" | null
   destaquePor: string | null
 }
-type VotacaoLinha = { id: string; numeros: number[]; forma: string; placar: string | null; resultado: string; createdAt: string }
+type VotacaoLinha = { id: string; numeros: number[]; mocoes: number[]; forma: string; placar: string | null; resultado: string; createdAt: string }
+type MocaoItem = { id: string; numero: number; titulo: string; texto: string; tipo: string | null; situacao: string }
 type Regras = { maioria: string; semOposicao: boolean; emBloco: boolean; destaqueNome: boolean; formaVoto: string; novasPlenaria: string }
 type Resp = { erro?: string; ok?: string }
 
@@ -39,6 +40,7 @@ export function Plenaria({
   regras,
   eixos,
   propostas,
+  mocoes = [],
   votacoes,
 }: {
   congressoId: string
@@ -46,8 +48,10 @@ export function Plenaria({
   regras: Regras
   eixos: { id: string; nome: string }[]
   propostas: Item[]
+  mocoes?: MocaoItem[]
   votacoes: VotacaoLinha[]
 }) {
+  const mocoesNaPauta = mocoes.filter((m) => m.situacao === "habilitada")
   const [msg, setMsg] = useState<Resp | null>(null)
   const pauta = propostas.filter((p) => p.situacao === "plenaria")
   const bloco = regras.emBloco ? pauta.filter((p) => p.classificacao === "consenso" && !p.destaquePor) : []
@@ -62,7 +66,7 @@ export function Plenaria({
         </p>
       )}
 
-      {pauta.length === 0 && (
+      {pauta.length === 0 && mocoesNaPauta.length === 0 && (
         <p className="text-muted-foreground text-sm">Nada na pauta. Envie propostas à plenária na consolidação.</p>
       )}
 
@@ -81,7 +85,7 @@ export function Plenaria({
               </li>
             ))}
           </ul>
-          <Lancamento congressoId={congressoId} sessaoId={sessaoId} ids={bloco.map((p) => p.id)} regras={regras} rotulo="Votar o bloco" aoResultado={setMsg} />
+          <Lancamento congressoId={congressoId} sessaoId={sessaoId} alvo={{ propostaIds: bloco.map((p) => p.id) }} regras={regras} rotulo="Votar o bloco" aoResultado={setMsg} />
         </section>
       )}
 
@@ -96,7 +100,20 @@ export function Plenaria({
             <Destaque congressoId={congressoId} p={p} exigeNome={regras.destaqueNome} aoResultado={setMsg} />
           </div>
           <p className="text-base whitespace-pre-wrap">{p.texto}</p>
-          <Lancamento congressoId={congressoId} sessaoId={sessaoId} ids={[p.id]} regras={regras} rotulo="Resultado" aoResultado={setMsg} />
+          <Lancamento congressoId={congressoId} sessaoId={sessaoId} alvo={{ propostaIds: [p.id] }} regras={regras} rotulo="Resultado" aoResultado={setMsg} />
+        </section>
+      ))}
+
+      {mocoesNaPauta.length > 0 && <h2 className="text-sm font-semibold">Moções habilitadas</h2>}
+      {mocoesNaPauta.map((m) => (
+        <section key={m.id} className="grid gap-2 rounded-lg border border-l-4 border-l-amber-500 p-3">
+          <div className="text-muted-foreground text-xs">
+            <span className="text-foreground text-base font-semibold">Moção {m.numero}</span>
+            {m.tipo ? ` · ${m.tipo}` : ""}
+          </div>
+          <p className="font-medium">{m.titulo}</p>
+          <p className="text-sm whitespace-pre-wrap">{m.texto}</p>
+          <Lancamento congressoId={congressoId} sessaoId={sessaoId} alvo={{ mocaoIds: [m.id] }} regras={regras} rotulo="Resultado" aoResultado={setMsg} />
         </section>
       ))}
 
@@ -108,7 +125,9 @@ export function Plenaria({
           <ul className="divide-y rounded-lg border text-sm">
             {votacoes.map((v) => (
               <li key={v.id} className="flex flex-wrap items-center gap-2 px-3 py-2">
-                <span className="font-semibold tabular-nums">{v.numeros.length > 1 ? `Bloco: ${v.numeros.join(", ")}` : v.numeros[0]}</span>
+                <span className="font-semibold tabular-nums">
+                  {v.mocoes.length ? `Moção ${v.mocoes.join(", ")}` : v.numeros.length > 1 ? `Bloco: ${v.numeros.join(", ")}` : v.numeros[0]}
+                </span>
                 <Badge variant={v.resultado === "aprovada" ? "success" : v.resultado === "rejeitada" ? "destructive" : "warning"}>
                   {v.resultado === "aprovada" ? "Aprovada" : v.resultado === "rejeitada" ? "Rejeitada" : "Empate"}
                 </Badge>
@@ -131,14 +150,14 @@ export function Plenaria({
 function Lancamento({
   congressoId,
   sessaoId,
-  ids,
+  alvo,
   regras,
   rotulo,
   aoResultado,
 }: {
   congressoId: string
   sessaoId: string | null
-  ids: string[]
+  alvo: { propostaIds?: string[]; mocaoIds?: string[] }
   regras: Regras
   rotulo: string
   aoResultado: (r: Resp) => void
@@ -148,9 +167,9 @@ function Lancamento({
   const [pendente, iniciar] = useTransition()
   const forma = regras.formaVoto === "urna" ? "urna" : "contagem"
 
-  function lancar(d: Omit<Parameters<typeof votacaoAction>[1], "propostaIds" | "sessaoId">) {
+  function lancar(d: Omit<Parameters<typeof votacaoAction>[1], "propostaIds" | "mocaoIds" | "sessaoId">) {
     iniciar(async () => {
-      const r = await votacaoAction(congressoId, { ...d, propostaIds: ids, sessaoId })
+      const r = await votacaoAction(congressoId, { ...d, propostaIds: alvo.propostaIds ?? [], mocaoIds: alvo.mocaoIds ?? [], sessaoId })
       aoResultado(r)
     })
   }

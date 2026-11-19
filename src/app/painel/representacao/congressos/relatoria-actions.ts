@@ -250,6 +250,7 @@ export async function votacaoAction(
   congressoId: string,
   d: {
     propostaIds: string[]
+    mocaoIds?: string[]
     forma: FormaVotacao
     aFavor?: number | null
     contra?: number | null

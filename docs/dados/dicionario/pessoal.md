@@ -2,7 +2,7 @@
 
 # Pessoal (RH da entidade)
 
-63 tabelas. Diagrama: [er/pessoal.md](../er/pessoal.md).
+64 tabelas. Diagrama: [er/pessoal.md](../er/pessoal.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -66,6 +66,7 @@
 | [pessoal_telegram_diarias](#pessoal_telegram_diarias) | identificação | Pedido de diária em andamento no bot do Telegram (/diaria): o passo da conversa e as respostas até ali; apagada ao confirmar ou cancelar e e… |
 | [pessoal_treinamentos](#pessoal_treinamentos) | — | Catálogo de treinamentos (carga horária e validade em meses) usado em SST. Herdado do Bubble; cadastrado em Pessoal > Treinamentos. |
 | [pessoal_treinamentos_alunos](#pessoal_treinamentos_alunos) | trabalhista | Participação de um funcionário num treinamento (datas e certificado), usada no controle de vencimentos. Espelho do Bubble; gravada em Pessoa… |
+| [pessoal_uso_justificativas](#pessoal_uso_justificativas) | trabalhista | Motivo que o funcionário informa para o uso do painel fora do expediente num dia (urgência, combinado com a chefia, plantão, compensação, ou… |
 | [pessoal_uso_painel](#pessoal_uso_painel) | identificação | Blocos contínuos de uso do painel por funcionário com jornada vinculada (sinal por minuto com a aba visível e em uso). Base do relatório de … |
 | [prestadores_servico](#prestadores_servico) | identificação | Prestador de serviço pessoa física (CPF, nome) ligado a um fornecedor. Sem uso encontrado no código (possível legado do Bubble). |
 | [prestcont_remessa](#prestcont_remessa) | financeiro | Remessa de prestação de contas de um beneficiário (planilha, período, valor total, ordem de pagamento). Sem uso encontrado no código (possív… |
@@ -1658,6 +1659,31 @@ Participação de um funcionário num treinamento (datas e certificado), usada n
 Únicas: `UNIQUE (bubble_id)`
 
 Índices: `pessoal_treinamentos_alunos_bubble_id_key`, `pessoal_treinamentos_alunos_pkey`
+
+## pessoal_uso_justificativas
+
+Motivo que o funcionário informa para o uso do painel fora do expediente num dia (urgência, combinado com a chefia, plantão, compensação, outro). Aparece no relatório de uso fora do expediente e na fila de conferência do ponto (19/11/2026).
+
+- **LGPD:** trabalhista · titulares: funcionarios
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `usuario_id` | uuid | não |  | → usuarios (**cascade**) | identificação | Quem informou o motivo (o próprio funcionário). |
+| `data` | date | não |  |  |  | Dia (horário de São Paulo) a que o motivo se refere. |
+| `motivo` | text | não |  |  | trabalhista | urgencia, combinado (com a chefia), plantao (ou sobreaviso), compensacao (de horas) ou outro. |
+| `detalhe` | text | sim |  |  | trabalhista | Detalhe livre e curto escrito pelo funcionário (até 300 caracteres). |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Únicas: `UNIQUE (usuario_id, data)`
+
+Checks: `pessoal_uso_justificativas_detalhe_curto` `CHECK (((detalhe IS NULL) OR (length(detalhe) <= 300)))`; `pessoal_uso_justificativas_motivo` `CHECK ((motivo = ANY (ARRAY['urgencia'::text, 'combinado'::text, 'plantao'::text, 'compensacao'::text, 'outro'::text])))`
+
+Índices: `pessoal_uso_justificativas_emp_data_idx`, `pessoal_uso_justificativas_pkey`, `pessoal_uso_justificativas_um_por_dia`
 
 ## pessoal_uso_painel
 
