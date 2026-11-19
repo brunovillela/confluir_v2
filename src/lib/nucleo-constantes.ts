@@ -1,3 +1,5 @@
+import { somarDias } from "./deliberacoes-constantes"
+
 /**
  * Constantes do núcleo de ferramentas (Demandas · Tarefas · Anomalias) seguras
  * para o client — sem `server-only`. Ver [[confluir-ferramentas-administrativas]].
@@ -106,4 +108,26 @@ export function ordenarTarefas<T extends { prazo: string | null; prioridade: Pri
       prazo(a, b) ||
       (a.titulo ?? "").localeCompare(b.titulo ?? "", "pt-BR")
   )
+}
+
+/**
+ * Atraso que ainda gera aviso: tarefa vencida há mais tempo que isso fica só
+ * na caixa de entrada e no lembrete diário. Evita uma enxurrada de avisos das
+ * tarefas antigas no primeiro dia e de quem já sabe que está atrasado.
+ */
+export const DIAS_AVISO_ATRASO_TAREFA = 7
+
+/**
+ * Que aviso de prazo a tarefa pede hoje: "vespera" quando vence amanhã,
+ * "atraso" quando venceu nos últimos DIAS_AVISO_ATRASO_TAREFA dias; senão
+ * nenhum (sem prazo, concluída, longe ou atrasada há muito).
+ */
+export function lembreteDePrazo(
+  t: { prazo: string | null; concluido: boolean },
+  hojeISO: string
+): "vespera" | "atraso" | null {
+  if (t.concluido || !t.prazo) return null
+  if (t.prazo === somarDias(hojeISO, 1)) return "vespera"
+  if (t.prazo < hojeISO && t.prazo >= somarDias(hojeISO, -DIAS_AVISO_ATRASO_TAREFA)) return "atraso"
+  return null
 }

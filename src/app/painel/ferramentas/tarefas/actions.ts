@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 
-import { requirePermissao } from "@/lib/auth"
+import { requirePermissao, requireSessaoPainel } from "@/lib/auth"
 import { podeAcessar } from "@/lib/permissoes"
 import { type EstadoForm } from "@/lib/contas"
 import { ehPrioridadeTarefa, type PrioridadeTarefa } from "@/lib/nucleo-constantes"
@@ -18,6 +18,7 @@ import {
   garantirDemandaDoProjeto,
   obterDemanda,
   paisDaTarefa,
+  responsavelDaTarefa,
   vincularTarefa,
   type DadosTarefa,
 } from "@/lib/db/nucleo"
@@ -33,6 +34,7 @@ function dataISO(valor: string): string | null {
 /** Revalida a lista global e o detalhe do pai (se houver) informado no form. */
 function revalidarTarefa(formData: FormData, extra: { demandaId?: string | null } = {}): void {
   revalidatePath("/painel/ferramentas/tarefas")
+  revalidatePath("/painel/perfil/tarefas")
   const demandaId = texto(formData, "demanda_id") || extra.demandaId
   const projetoId = texto(formData, "projeto_id")
   const anomaliaId = texto(formData, "anomalia_id")
@@ -110,7 +112,7 @@ function avisarResponsavel(
       texto: dados.data_prazo_entrega
         ? `Tarefa atribuída a você: "${titulo}", com prazo até ${d}/${m}/${a}.`
         : `Tarefa atribuída a você: "${titulo}".`,
-      link: "/painel/ferramentas/tarefas?minhas=1",
+      link: "/painel/perfil/tarefas",
       evento: "tarefa_responsavel",
       assunto: "Tarefa atribuída a você",
       exceto: quemCriou,
@@ -126,6 +128,8 @@ export async function criarTarefaAction(
   if ("erro" in acesso) return { erro: acesso.erro }
   const dados = lerDados(formData)
   if (!dados.titulo) return { erro: "Descreva a tarefa." }
+  // Quem pediu é quem cria (o formulário não pergunta): recebe o aviso de atraso.
+  dados.demandante_id ??= acesso.usuarioId
 
   // Tarefa de projeto entra também na demanda do projeto (criada na primeira vez).
   if (dados.projeto_id && !dados.demanda_id) {
@@ -165,8 +169,14 @@ export async function alternarConclusaoTarefaAction(
   const id = texto(formData, "tarefa_id")
   const concluir = texto(formData, "concluir") === "1"
   if (!id) return { erro: "Tarefa inválida." }
-  const acesso = await exigirPermissaoDaTarefa(id, "", texto(formData, "projeto_id"))
-  if ("erro" in acesso) return { erro: acesso.erro }
+  // O responsável conclui (ou reabre) a própria tarefa mesmo sem a permissão
+  // de Tarefas: é o que o aviso de prazo pede dele (Meu perfil → Minhas tarefas).
+  const sessao = await requireSessaoPainel()
+  const proprio = (await responsavelDaTarefa(id)) === String(sessao.usuario.id)
+  if (!proprio) {
+    const acesso = await exigirPermissaoDaTarefa(id, "", texto(formData, "projeto_id"))
+    if ("erro" in acesso) return { erro: acesso.erro }
+  }
 
   const { erro } = await definirConclusaoTarefa(id, concluir)
   if (erro) return { erro }

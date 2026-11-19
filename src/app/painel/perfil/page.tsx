@@ -14,6 +14,7 @@ import {
   HandCoins,
   Handshake,
   HeartPulse,
+  ListTodo,
   Landmark,
   MapPin,
   Phone,
@@ -44,6 +45,7 @@ import { usuarioTemCaixa } from "@/lib/db/caixa"
 import { usuarioTemCartao } from "@/lib/db/compras-pagamento"
 import { contarRemessasDiaria } from "@/lib/db/diarias-historico"
 import { temHistoricoDeVeiculo } from "@/lib/db/veiculos-condutor"
+import { resumoMinhasTarefas } from "@/lib/db/nucleo"
 import { areaDoDiretor, diretoriaDoUsuario } from "@/lib/db/perfil-diretor"
 import {
   listarEnderecos,
@@ -233,7 +235,7 @@ export default async function PerfilPage({
 }) {
   const { usuario, permissoes } = await requireSessaoPainel()
   const { area: avisoArea } = await searchParams
-  const [perfil, telefones, enderecos, temCaixa, temCartao, remessasAnteriores, temVeiculos] = await Promise.all([
+  const [perfil, telefones, enderecos, temCaixa, temCartao, remessasAnteriores, temVeiculos, minhasTarefas] = await Promise.all([
     obterPerfil(usuario.id),
     listarTelefones(usuario.id),
     listarEnderecos(usuario.id),
@@ -241,6 +243,7 @@ export default async function PerfilPage({
     usuarioTemCartao(usuario.id).catch(() => false),
     contarRemessasDiaria(usuario.id).catch(() => 0),
     temHistoricoDeVeiculo(usuario.id).catch(() => false),
+    resumoMinhasTarefas(String(usuario.id)).catch(() => ({ abertas: 0, atrasadas: 0 })),
   ])
   if (!perfil) return null
 
@@ -635,6 +638,16 @@ export default async function PerfilPage({
               descricao={MINHAS_VIAGENS.descricao}
               href={MINHAS_VIAGENS.href}
               icone={MINHAS_VIAGENS.icone}
+            />
+          )}
+          {minhasTarefas.abertas > 0 && (
+            <CartaoArea
+              titulo="Minhas tarefas"
+              descricao={`${minhasTarefas.abertas} pendente${minhasTarefas.abertas === 1 ? "" : "s"}${
+                minhasTarefas.atrasadas ? `, ${minhasTarefas.atrasadas} atrasada${minhasTarefas.atrasadas === 1 ? "" : "s"}` : ""
+              } — as tarefas de que você é o responsável`}
+              href="/painel/perfil/tarefas"
+              icone={ListTodo}
             />
           )}
           {remessasAnteriores > 0 && (

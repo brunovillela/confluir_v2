@@ -6,6 +6,7 @@ import { lembrarOrdensDevolvidas } from "@/lib/db/compras-ordens-devolvidas"
 import { lembrarPendencias, tenantsDoLembrete } from "@/lib/db/pendencias-lembrete"
 import { lembretesDoPortal, type ResultadoLembretesDoPortal } from "@/lib/db/portal-lembretes"
 import { lembrarAssinaturasRpa } from "@/lib/db/rpa-lembretes"
+import { lembrarPrazosDeTarefas } from "@/lib/db/tarefas-lembrete"
 import { createServiceClient } from "@/lib/supabase/admin"
 
 export const runtime = "nodejs"
@@ -50,6 +51,10 @@ export const maxDuration = 300
  *
  * E as ORDENS DE COMPRA DEVOLVIDAS há uma semana ou mais: quem lançou recebe um
  * lembrete por semana (lib/db/compras-ordens-devolvidas.ts).
+ *
+ * E os PRAZOS DAS TAREFAS: na véspera, o responsável; no atraso (até 7 dias),
+ * o responsável e quem pediu — uma vez por tarefa e prazo
+ * (lib/db/tarefas-lembrete.ts). `?etapa=tarefas` roda só esta parte.
  */
 async function handler(req: Request): Promise<Response> {
   const secret = process.env.CRON_SECRET
@@ -173,7 +178,23 @@ async function handler(req: Request): Promise<Response> {
     }
   }
 
-  return Response.json({ verificados: tenants.length, processados: resultados, portal, notas, rpa, cotacao, recebimentos, devolvidas })
+  const tarefas: { tenant: string; vespera: number; atrasadas: number; avisos: number; erros: string[] }[] = []
+  if (!etapa || etapa === "tarefas") {
+    const svc = createServiceClient()
+    for (const t of tenants) {
+      try {
+        const contexto = await contextoDoTenant(t.id, svc)
+        tarefas.push({ tenant: t.id, ...(await lembrarPrazosDeTarefas(svc, t.id, contexto)) })
+      } catch (e) {
+        tarefas.push({ tenant: t.id, vespera: 0, atrasadas: 0, avisos: 0, erros: [e instanceof Error ? e.message : String(e)] })
+      }
+    }
+    for (const r of tarefas) {
+      if (r.erros.length) console.error(`[pendencias/tick] prazos das tarefas (${r.tenant}):`, r.erros.join(" · "))
+    }
+  }
+
+  return Response.json({ verificados: tenants.length, processados: resultados, portal, notas, rpa, cotacao, recebimentos, devolvidas, tarefas })
 }
 
 export const GET = handler

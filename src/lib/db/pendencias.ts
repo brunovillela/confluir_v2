@@ -530,6 +530,32 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
     })
   }
 
+  // Minhas tarefas com o prazo vencido ou vencendo (19/11/2026). Responsável
+  // pode ser qualquer pessoa do painel: sem gate de permissão — o link abre
+  // Meu perfil → Minhas tarefas, aberto a todos.
+  if (amb.usuarioId) {
+    const usuarioId = amb.usuarioId
+    const hojeTarefas = hojeDeliberacoes
+    const minhasAbertas = (q: Consulta) => head(q).eq("demandado_id", usuarioId).not("concluido", "is", true)
+    fontes.push({
+      chave: "tarefas_minhas_atrasadas",
+      titulo: "Suas tarefas atrasadas",
+      descricao: "Tarefas de que você é o responsável com o prazo vencido",
+      href: "/painel/perfil/tarefas?status=atrasadas",
+      tabela: "demandas_check_tarefas",
+      montar: (q) => minhasAbertas(q).lt("data_prazo_entrega", hojeTarefas),
+    })
+    fontes.push({
+      chave: "tarefas_minhas_proximas",
+      titulo: "Suas tarefas que vencem hoje ou amanhã",
+      descricao: "Tarefas de que você é o responsável com o prazo chegando",
+      href: "/painel/perfil/tarefas",
+      tabela: "demandas_check_tarefas",
+      montar: (q) =>
+        minhasAbertas(q).gte("data_prazo_entrega", hojeTarefas).lte("data_prazo_entrega", somarDias(hojeTarefas, 1)),
+    })
+  }
+
   // Relatos de problema ou sugestão sobre o sistema (viram demandas).
   if (pode("ferramentas_demandas", ["ferramentas_tarefas"])) {
     fontes.push({

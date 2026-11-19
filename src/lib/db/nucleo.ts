@@ -909,6 +909,33 @@ export async function paisDaTarefa(id: string): Promise<{ demandaId: string | nu
   return { demandaId: texto(data.demanda_id), projetoId: texto(data.projeto_id), anomaliaId: texto(data.anomalia_id) }
 }
 
+/** Tarefas abertas de que a pessoa é a responsável, e quantas estão atrasadas (Meu perfil). */
+export async function resumoMinhasTarefas(usuarioId: string): Promise<{ abertas: number; atrasadas: number }> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const base = () =>
+    admin
+      .from("demandas_check_tarefas")
+      .select("id", { count: "exact", head: true })
+      .eq("emp_proprietaria_id", emp)
+      .eq("demandado_id", usuarioId)
+      .not("concluido", "is", true)
+  const [abertas, atrasadas] = await Promise.all([base(), base().lt("data_prazo_entrega", hojeISO())])
+  return { abertas: abertas.count ?? 0, atrasadas: atrasadas.count ?? 0 }
+}
+
+/** O responsável (demandado) da tarefa: ele pode concluir a própria tarefa sem a permissão de Tarefas. */
+export async function responsavelDaTarefa(id: string): Promise<string | null> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("demandas_check_tarefas")
+    .select("demandado_id")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  return data ? texto(data.demandado_id) : null
+}
+
 /** A anomalia a que a tarefa pertence (ou null) — decide quem pode mexer nela. */
 export async function anomaliaDaTarefa(id: string): Promise<string | null> {
   const admin = await createAdminClient()

@@ -74,6 +74,10 @@ export const EVENTOS_TELEGRAM = [
   { chave: "deliberacao_responsavel", rotulo: "Deliberação de ata atribuída a você", grupo: "notificacao", acesso: { permissoes: ["deliberacoes_livre", "deliberacoes_reservado", "deliberacoes_restrito"] } },
   // Responsável por tarefa pode ser qualquer pessoa do painel (não só quem tem Tarefas).
   { chave: "tarefa_responsavel", rotulo: "Tarefa atribuída a você", grupo: "notificacao" },
+  // Prazo da tarefa (tick diário): a véspera e o atraso para o responsável;
+  // o atraso também para quem pediu a tarefa (lib/db/tarefas-lembrete.ts).
+  { chave: "tarefa_prazo", rotulo: "Tarefa sua que vence amanhã ou passou do prazo", grupo: "pendencia" },
+  { chave: "tarefa_atrasada", rotulo: "Tarefa que você pediu passou do prazo", grupo: "notificacao" },
   // Avisos a quem precisa AGIR (onda 2, U2): entram só para quem tem a
   // permissão correspondente (ou coordena quem pediu).
   { chave: "pendencia_aprovacao", rotulo: "Ordem de pagamento entrou na sua alçada", grupo: "pendencia", acesso: { permissoes: ["aquisicoes_avaliacoes", "financeiro_pagamento"], alcada: true } },
