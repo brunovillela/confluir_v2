@@ -2,7 +2,7 @@
 
 # Pessoal (RH da entidade)
 
-62 tabelas. Diagrama: [er/pessoal.md](../er/pessoal.md).
+63 tabelas. Diagrama: [er/pessoal.md](../er/pessoal.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -66,6 +66,7 @@
 | [pessoal_telegram_diarias](#pessoal_telegram_diarias) | identificação | Pedido de diária em andamento no bot do Telegram (/diaria): o passo da conversa e as respostas até ali; apagada ao confirmar ou cancelar e e… |
 | [pessoal_treinamentos](#pessoal_treinamentos) | — | Catálogo de treinamentos (carga horária e validade em meses) usado em SST. Herdado do Bubble; cadastrado em Pessoal > Treinamentos. |
 | [pessoal_treinamentos_alunos](#pessoal_treinamentos_alunos) | trabalhista | Participação de um funcionário num treinamento (datas e certificado), usada no controle de vencimentos. Espelho do Bubble; gravada em Pessoa… |
+| [pessoal_uso_painel](#pessoal_uso_painel) | identificação | Blocos contínuos de uso do painel por funcionário com jornada vinculada (sinal por minuto com a aba visível e em uso). Base do relatório de … |
 | [prestadores_servico](#prestadores_servico) | identificação | Prestador de serviço pessoa física (CPF, nome) ligado a um fornecedor. Sem uso encontrado no código (possível legado do Bubble). |
 | [prestcont_remessa](#prestcont_remessa) | financeiro | Remessa de prestação de contas de um beneficiário (planilha, período, valor total, ordem de pagamento). Sem uso encontrado no código (possív… |
 
@@ -1657,6 +1658,27 @@ Participação de um funcionário num treinamento (datas e certificado), usada n
 Únicas: `UNIQUE (bubble_id)`
 
 Índices: `pessoal_treinamentos_alunos_bubble_id_key`, `pessoal_treinamentos_alunos_pkey`
+
+## pessoal_uso_painel
+
+Blocos contínuos de uso do painel por funcionário com jornada vinculada (sinal por minuto com a aba visível e em uso). Base do relatório de uso fora do expediente (Pessoal › Controle de ponto, 19/11/2026). Não guarda página nem conteúdo.
+
+- **LGPD:** identificação · titulares: funcionarios
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `usuario_id` | uuid | não |  | → usuarios (**cascade**) | identificação | Quem estava usando o painel. |
+| `inicio` | timestamp with time zone | não |  |  |  | Início do bloco de uso (um minuto antes do primeiro sinal). |
+| `fim` | timestamp with time zone | não |  |  |  | Último sinal de uso do bloco. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Checks: `pessoal_uso_painel_ordem` `CHECK ((fim >= inicio))`
+
+Índices: `pessoal_uso_painel_emp_inicio_idx`, `pessoal_uso_painel_pkey`, `pessoal_uso_painel_usuario_fim_idx`
 
 ## prestadores_servico
 

@@ -59,6 +59,20 @@ erDiagram
     uuid evento_id PK,FK
     uuid usuario_id PK,FK
   }
+  congresso_apontamentos {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid grupo_id FK
+    uuid proposta_id FK
+  }
+  congresso_apreciacoes {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid grupo_id FK
+    uuid proposta_id FK
+  }
   congresso_config_versoes {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -76,6 +90,13 @@ erDiagram
     uuid id PK
     uuid emp_proprietaria_id FK
     uuid congresso_id FK
+  }
+  congresso_grupo_funcoes {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid grupo_id FK
+    uuid participante_id FK
   }
   congresso_grupos {
     uuid id PK
@@ -115,6 +136,27 @@ erDiagram
     uuid participante_id FK
     uuid registrado_por FK
   }
+  congresso_proposta_origens {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid proposta_id FK
+    uuid origem_id FK
+  }
+  congresso_proposta_versoes {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid proposta_id FK
+  }
+  congresso_propostas {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid eixo_id FK
+    uuid grupo_id FK
+    uuid fundida_em FK
+  }
   congresso_sessoes {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -135,6 +177,21 @@ erDiagram
     uuid id PK
     uuid emp_proprietaria_id FK
     uuid congresso_id FK
+  }
+  congresso_votacao_itens {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid votacao_id FK
+    uuid proposta_id FK
+  }
+  congresso_votacoes {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid sessao_id FK
+    uuid registrado_por FK
+    uuid desfeita_por FK
   }
   congressos {
     uuid id PK
@@ -220,12 +277,21 @@ erDiagram
   ato_eventos }o--o| empresa : "emp_contratante_id"
   ato_eventos_participantes }o--|| ato_eventos : "evento_id"
   ato_eventos_participantes }o--|| usuarios : "usuario_id"
+  congresso_apontamentos }o--o| congresso_grupos : "grupo_id"
+  congresso_apontamentos }o--o| congresso_propostas : "proposta_id"
+  congresso_apontamentos }o--|| congressos : "congresso_id"
+  congresso_apreciacoes }o--|| congresso_grupos : "grupo_id"
+  congresso_apreciacoes }o--|| congresso_propostas : "proposta_id"
+  congresso_apreciacoes }o--|| congressos : "congresso_id"
   congresso_config_versoes }o--o| usuarios : "autor_id"
   congresso_config_versoes }o--|| congressos : "congresso_id"
   congresso_crachas }o--o| usuarios : "emitido_por"
   congresso_crachas }o--|| congresso_participantes : "participante_id"
   congresso_crachas }o--|| congressos : "congresso_id"
   congresso_eixos }o--|| congressos : "congresso_id"
+  congresso_grupo_funcoes }o--|| congresso_grupos : "grupo_id"
+  congresso_grupo_funcoes }o--|| congresso_participantes : "participante_id"
+  congresso_grupo_funcoes }o--|| congressos : "congresso_id"
   congresso_grupos }o--o| congresso_eixos : "eixo_id"
   congresso_grupos }o--|| congressos : "congresso_id"
   congresso_papeis }o--|| congressos : "congresso_id"
@@ -244,6 +310,15 @@ erDiagram
   congresso_presencas }o--|| congresso_participantes : "participante_id"
   congresso_presencas }o--|| congresso_sessoes : "sessao_id"
   congresso_presencas }o--|| congressos : "congresso_id"
+  congresso_proposta_origens }o--|| congresso_propostas : "origem_id"
+  congresso_proposta_origens }o--|| congresso_propostas : "proposta_id"
+  congresso_proposta_origens }o--|| congressos : "congresso_id"
+  congresso_proposta_versoes }o--|| congresso_propostas : "proposta_id"
+  congresso_proposta_versoes }o--|| congressos : "congresso_id"
+  congresso_propostas }o--o| congresso_eixos : "eixo_id"
+  congresso_propostas }o--o| congresso_grupos : "grupo_id"
+  congresso_propostas }o--o| congresso_propostas : "fundida_em"
+  congresso_propostas }o--|| congressos : "congresso_id"
   congresso_sessoes }o--o| congresso_eixos : "eixo_id"
   congresso_sessoes }o--o| congresso_grupos : "grupo_id"
   congresso_sessoes }o--|| congressos : "congresso_id"
@@ -253,6 +328,13 @@ erDiagram
   congresso_substituicoes }o--|| congresso_participantes : "titular_id"
   congresso_substituicoes }o--|| congressos : "congresso_id"
   congresso_unidades }o--|| congressos : "congresso_id"
+  congresso_votacao_itens }o--|| congresso_propostas : "proposta_id"
+  congresso_votacao_itens }o--|| congresso_votacoes : "votacao_id"
+  congresso_votacao_itens }o--|| congressos : "congresso_id"
+  congresso_votacoes }o--o| congresso_sessoes : "sessao_id"
+  congresso_votacoes }o--o| usuarios : "desfeita_por"
+  congresso_votacoes }o--o| usuarios : "registrado_por"
+  congresso_votacoes }o--|| congressos : "congresso_id"
   congressos }o--o| congressos : "etapa_anterior_id"
   congressos }o--o| congressos : "etapa_seguinte_id"
   congressos }o--o| eventos : "evento_id"

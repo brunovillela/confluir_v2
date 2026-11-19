@@ -511,7 +511,7 @@ export function ConfiguracaoForm({
       >
         {mostrarTodas
           ? "Mostrar só as regras já aplicadas"
-          : "Mostrar também local da decisão, propostas, plenária, moções e encerramento"}
+          : "Mostrar também local da decisão, moções, divulgação e encerramento"}
       </button>
 
       {podeEditar && (

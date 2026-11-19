@@ -36,6 +36,16 @@ import {
   prazoCredenciamento,
   type PessoaTroca,
 } from "@/lib/congressos/credenciamento"
+import {
+  abrangencias,
+  classificarApreciacao,
+  conferirCotas,
+  destinoPelosGrupos,
+  grupoTravado,
+  podeNovaNoGrupo,
+  resultadoPlenaria,
+  separarPropostas,
+} from "@/lib/congressos/relatoria"
 
 test.describe("catálogo e normalização", () => {
   test("chaves únicas e padrões válidos", () => {
@@ -440,4 +450,67 @@ test("CPF", () => {
   expect(limparCpf("123.456.789-09")).toBe("12345678909")
   expect(limparCpf("123")).toBeNull()
   expect(limparCpf(null)).toBeNull()
+})
+
+test.describe("relatoria e plenária", () => {
+  test("apreciação no grupo pelas regras configuradas", () => {
+    const sem = { aprovaDireto: 0, vencidaSobe: 0 }
+    expect(classificarApreciacao({ aFavor: 10, contra: 5, abstencao: 1 }, sem).resultado).toBe("plenaria")
+    expect(classificarApreciacao({ aFavor: 5, contra: 5, abstencao: 0 }, sem).resultado).toBe("rejeitada")
+    // Saúde/SC: 70% aprova direto
+    expect(classificarApreciacao({ aFavor: 14, contra: 6, abstencao: 0 }, { aprovaDireto: 70, vencidaSobe: 0 }).resultado).toBe("aprovada_direto")
+    expect(classificarApreciacao({ aFavor: 13, contra: 7, abstencao: 0 }, { aprovaDireto: 70, vencidaSobe: 0 }).resultado).toBe("plenaria")
+    // Plenafup: vencida com mais de 1/3 sobe junto
+    expect(classificarApreciacao({ aFavor: 12, contra: 8, abstencao: 0 }, { aprovaDireto: 0, vencidaSobe: 33 }).resultado).toBe("plenaria_com_vencida")
+    expect(classificarApreciacao({ aFavor: 8, contra: 12, abstencao: 0 }, { aprovaDireto: 0, vencidaSobe: 33 }).resultado).toBe("plenaria_com_vencida")
+    expect(classificarApreciacao({ aFavor: 5, contra: 15, abstencao: 0 }, { aprovaDireto: 0, vencidaSobe: 33 }).resultado).toBe("rejeitada")
+    expect(classificarApreciacao({ aFavor: 0, contra: 0, abstencao: 0 }, sem).resultado).toBe("rejeitada")
+  })
+
+  test("destino de uma proposta apreciada em vários grupos", () => {
+    expect(destinoPelosGrupos([], "um").destino).toBe("pendente")
+    expect(destinoPelosGrupos(["aprovada_direto", "aprovada_direto"], "um").destino).toBe("aprovada")
+    expect(destinoPelosGrupos(["plenaria", "rejeitada", "rejeitada"], "um").destino).toBe("plenaria")
+    expect(destinoPelosGrupos(["plenaria", "rejeitada", "rejeitada"], "mais_de_um").destino).toBe("rejeitada")
+    expect(destinoPelosGrupos(["plenaria", "plenaria_com_vencida", "rejeitada", "rejeitada"], "metade").destino).toBe("plenaria")
+    expect(destinoPelosGrupos(["plenaria", "rejeitada", "rejeitada", "rejeitada"], "metade").destino).toBe("rejeitada")
+    expect(destinoPelosGrupos(["plenaria"], "mais_de_um").destino).toBe("plenaria")
+  })
+
+  test("resultado da plenária pela maioria", () => {
+    expect(resultadoPlenaria({ forma: "sem_oposicao", maioria: "simples" }).resultado).toBe("aprovada")
+    expect(resultadoPlenaria({ forma: "visual", maioria: "simples", declarado: "rejeitada" }).resultado).toBe("rejeitada")
+    expect(resultadoPlenaria({ forma: "visual", maioria: "simples" }).erro).toBeTruthy()
+    expect(resultadoPlenaria({ forma: "contagem", maioria: "simples", aFavor: 40, contra: 30, abstencao: 50 }).resultado).toBe("aprovada")
+    expect(resultadoPlenaria({ forma: "contagem", maioria: "simples", aFavor: 30, contra: 30 }).resultado).toBe("empate")
+    expect(resultadoPlenaria({ forma: "contagem", maioria: "absoluta", aFavor: 50, contra: 10, credenciadosComVoto: 100 }).resultado).toBe("rejeitada")
+    expect(resultadoPlenaria({ forma: "contagem", maioria: "absoluta", aFavor: 51, contra: 10, credenciadosComVoto: 100 }).resultado).toBe("aprovada")
+    expect(resultadoPlenaria({ forma: "contagem", maioria: "dois_tercos", aFavor: 60, contra: 30, abstencao: 0 }).resultado).toBe("aprovada")
+    expect(resultadoPlenaria({ forma: "contagem", maioria: "dois_tercos", aFavor: 59, contra: 30, abstencao: 1 }).resultado).toBe("rejeitada")
+    expect(resultadoPlenaria({ forma: "contagem", maioria: "simples", aFavor: null, contra: 3 }).erro).toBeTruthy()
+  })
+
+  test("propostas novas, trava, cotas, abrangências e caderno colado", () => {
+    expect(podeNovaNoGrupo("livres", 0, 50).pode).toBe(true)
+    expect(podeNovaNoGrupo("proibidas", 0, 0).pode).toBe(false)
+    expect(podeNovaNoGrupo("limitadas", 2, 1).pode).toBe(true)
+    expect(podeNovaNoGrupo("limitadas", 2, 2).pode).toBe(false)
+    const agora = Date.parse("2027-06-10T13:00:00Z")
+    expect(grupoTravado({ trava: null, entregueEm: null, agora }).travado).toBe(false)
+    expect(grupoTravado({ trava: "2027-06-10T12:59:00Z", entregueEm: null, agora }).travado).toBe(true)
+    expect(grupoTravado({ trava: "2027-06-10T14:00:00Z", entregueEm: null, agora }).travado).toBe(false)
+    expect(grupoTravado({ trava: null, entregueEm: "2027-06-10T11:00:00Z", agora }).travado).toBe(true)
+    const ps = [
+      { grupo: "GT 1", eixo: "A" }, { grupo: "GT 1", eixo: "A" }, { grupo: "GT 1", eixo: "B" }, { grupo: "GT 2", eixo: "A" },
+    ]
+    expect(conferirCotas(ps, { porGrupo: 0, porEixo: 0 })).toEqual([])
+    expect(conferirCotas(ps, { porGrupo: 2, porEixo: 0 })).toHaveLength(1)
+    expect(conferirCotas(ps, { porGrupo: 0, porEixo: 1 })[0]).toContain("GT 1, eixo A")
+    expect(abrangencias("Local, Estadual;Nacional, Local")).toEqual(["Local", "Estadual", "Nacional"])
+    expect(abrangencias("")).toEqual([])
+    expect(separarPropostas("1. Lutar pela\nredução da jornada\n\n2) Defender a Petrobras pública\n\n\nx")).toEqual([
+      "Lutar pela redução da jornada",
+      "Defender a Petrobras pública",
+    ])
+  })
 })

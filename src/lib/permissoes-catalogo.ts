@@ -163,6 +163,7 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
       { chave: "congressos", rotulo: "Congressos e conferências — consultar" },
       { chave: "congressos_gestao", rotulo: "Congressos e conferências — configurar e gerir participantes" },
       { chave: "congressos_credenciamento", rotulo: "Congressos e conferências — mesa de credenciamento, porta e quórum" },
+      { chave: "congressos_relatoria", rotulo: "Congressos e conferências — relatoria, consolidação e mesa da plenária" },
     ],
   },
   {

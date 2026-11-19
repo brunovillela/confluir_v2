@@ -358,6 +358,11 @@ erDiagram
     uuid aluno_id FK
     uuid treinamento_id FK
   }
+  pessoal_uso_painel {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid usuario_id FK
+  }
   prestadores_servico {
     uuid id PK
     uuid fornecedor_id FK
@@ -487,6 +492,7 @@ erDiagram
   pessoal_telegram_diarias }o--|| usuarios : "usuario_id"
   pessoal_treinamentos_alunos }o--o| pessoal_treinamentos : "treinamento_id"
   pessoal_treinamentos_alunos }o--o| usuarios : "aluno_id"
+  pessoal_uso_painel }o--|| usuarios : "usuario_id"
   prestadores_servico }o--o| empresa : "fornecedor_id"
   prestcont_remessa }o--o| ordens_pagamento : "ordem_pagamento_id"
   prestcont_remessa }o--o| usuarios : "beneficiario_id"

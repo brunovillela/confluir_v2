@@ -23,7 +23,7 @@ function cor(s: string) {
 }
 
 export default async function CongressosPage() {
-  const sessao = await requirePermissao("congressos", ["congressos_gestao", "congressos_credenciamento"])
+  const sessao = await requirePermissao("congressos", ["congressos_gestao", "congressos_credenciamento", "congressos_relatoria"])
   const gestor = podeAcessar(sessao.permissoes, "congressos_gestao")
   const { ativo, congressos } = await listarCongressos()
 

@@ -249,7 +249,7 @@ export const PROCESSOS = [
     id: "P17",
     nome: "Congressos e conferências",
     tabelas: /^congresso/,
-    finalidade: "Organizar congressos, plenárias e conferências que a entidade promove ou de que participa: configuração do regimento, delegações, inscrição e lista de participantes (delegados, natos, suplentes, observadores, convidados), programa e grupos de trabalho. Inclui a inscrição pela página pública (com ciência do tratamento, IP e link pessoal guardado só como hash) e a importação de listas por planilha ou ata, que pode ser lida por IA. No dia do evento: credenciamento (com conferência de documento), crachás com código guardado só como hash, troca de titular por suplente com quem autorizou, e presença por sessão com o meio e o nível de prova de que a pessoa estava no local.",
+    finalidade: "Organizar congressos, plenárias e conferências que a entidade promove ou de que participa: configuração do regimento, delegações, inscrição e lista de participantes (delegados, natos, suplentes, observadores, convidados), programa e grupos de trabalho. Inclui a inscrição pela página pública (com ciência do tratamento, IP e link pessoal guardado só como hash) e a importação de listas por planilha ou ata, que pode ser lida por IA. No dia do evento: credenciamento (com conferência de documento), crachás com código guardado só como hash, troca de titular por suplente com quem autorizou, e presença por sessão com o meio e o nível de prova de que a pessoa estava no local. Na relatoria: funções de coordenação e relatoria dos grupos, propostas com versões e apontamentos registrados com o nome de quem lançou (não de quem falou), contagem da apreciação nos grupos e resultado das votações da plenária, sem voto individual.",
     titulares: "Delegados, observadores e convidados de congressos (filiados ou não), diretores natos",
     baseLegal: [
       "Art. 11, II, a e art. 7º, V: organização da representação e da deliberação sindical previstas no estatuto (CF art. 8º).",
@@ -258,7 +258,7 @@ export const PROCESSOS = [
     compartilhamento: "Etapa seguinte do processo congressual (ex.: lista de delegados eleitos enviada à federação), quando a configuração prevê.",
     suboperadores: [...BASE, "email", "openai"],
     retencao: "Participantes e trilha: 5 anos após o encerramento do congresso (prazo de contestação de deliberações e eleições); depois, ficam só os totais. Proposta a validar em retencao.md.",
-    seguranca: "RLS por tenant; permissões próprias (`congressos`, `congressos_gestao`); trilhas só com inserção (versões da configuração e histórico do participante); acessibilidade visível só a quem organiza.",
+    seguranca: "RLS por tenant; permissões próprias (`congressos`, `congressos_gestao`, `congressos_credenciamento`, `congressos_relatoria`); trilhas só com inserção (versões da configuração, histórico do participante e versões das propostas); a IA não recebe a autoria das propostas; acessibilidade visível só a quem organiza.",
   },
 ]
 

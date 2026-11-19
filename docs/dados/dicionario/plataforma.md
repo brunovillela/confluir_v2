@@ -865,6 +865,7 @@ ACL plana por usuário: uma coluna booleana por área/ação do sistema, mais al
 | `congressos` | boolean | sim | `false` |  | nenhum | Congressos e conferências: consultar congressos, configuração e participantes. |
 | `congressos_gestao` | boolean | sim | `false` |  | nenhum | Congressos e conferências: criar, configurar e gerir participantes, delegações e programa. |
 | `congressos_credenciamento` | boolean | sim | `false` |  | nenhum | Congressos e conferências: operar a mesa de credenciamento, a porta das sessões e o painel de quórum. |
+| `congressos_relatoria` | boolean | sim | `false` |  | nenhum | Congressos e conferências: relatoria dos grupos, consolidação das propostas e mesa da plenária. |
 
 Únicas: `UNIQUE (bubble_id)`
 

@@ -32,6 +32,8 @@ import {
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 import { painelDoDia } from "@/lib/db/congressos-dia"
+import { dadosDaRelatoria, ROTULO_FUNCAO, ROTULO_SITUACAO_PROPOSTA, type SituacaoProposta } from "@/lib/db/congressos-relatoria"
+import { AplicarGrupos, ColarPropostas } from "../relatoria-componentes"
 import { AtualizarSozinho, CrachasEmLote, DesfazerTroca } from "../dia-componentes"
 import { origemAtual } from "@/lib/tenant-url"
 
@@ -59,11 +61,12 @@ import {
 
 export const metadata: Metadata = { title: "Congresso — Confluir" }
 
-const ABAS = ["geral", "dia", "configuracao", "papeis", "delegacao", "programa", "participantes"] as const
+const ABAS = ["geral", "dia", "relatoria", "configuracao", "papeis", "delegacao", "programa", "participantes"] as const
 type Aba = (typeof ABAS)[number]
 const ROTULO_ABA: Record<Aba, string> = {
   geral: "Visão geral",
   dia: "Dia do evento",
+  relatoria: "Relatoria",
   configuracao: "Configuração",
   papeis: "Papéis e direitos",
   delegacao: "Delegações",
@@ -81,9 +84,10 @@ export default async function CongressoPage({
   params: Promise<{ id: string }>
   searchParams: Promise<{ aba?: string; papel?: string; unidade?: string; situacao?: string; busca?: string; sessao?: string }>
 }) {
-  const sessao = await requirePermissao("congressos", ["congressos_gestao", "congressos_credenciamento"])
+  const sessao = await requirePermissao("congressos", ["congressos_gestao", "congressos_credenciamento", "congressos_relatoria"])
   const gestor = podeAcessar(sessao.permissoes, "congressos_gestao")
   const operador = gestor || podeAcessar(sessao.permissoes, "congressos_credenciamento")
+  const relator = gestor || podeAcessar(sessao.permissoes, "congressos_relatoria")
   const { id } = await params
   const sp = await searchParams
   const c = await obterCongresso(id)
@@ -136,6 +140,7 @@ export default async function CongressoPage({
 
       {aba === "geral" && <AbaGeral c={c} gestor={gestor} />}
       {aba === "dia" && <AbaDia c={c} gestor={gestor} operador={operador} sessaoId={sp.sessao ?? null} />}
+      {aba === "relatoria" && <AbaRelatoria c={c} relator={relator} />}
       {aba === "configuracao" && <AbaConfiguracao c={c} gestor={gestor} travado={travado} />}
       {aba === "papeis" && <AbaPapeis c={c} gestor={gestor} />}
       {aba === "delegacao" && <AbaDelegacao c={c} gestor={gestor} />}
@@ -972,6 +977,137 @@ async function AbaParticipantes({
                             <SituacaoForm congressoId={c.id} id={p.id} situacao={p.situacao} situacoes={SITUACOES_PARTICIPANTE} />
                           ) : (
                             ROTULO_PART.get(p.situacao)
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+async function AbaRelatoria({ c, relator }: { c: Congresso; relator: boolean }) {
+  const d = await dadosDaRelatoria(c)
+  const base = `/painel/representacao/congressos/${c.id}`
+  const contagem = new Map<SituacaoProposta, number>()
+  for (const p of d.propostas) contagem.set(p.situacao, (contagem.get(p.situacao) ?? 0) + 1)
+  const nomeEixo = new Map(d.eixos.map((e) => [e.id, e.nome]))
+  const ORDEM: SituacaoProposta[] = ["em_debate", "entregue", "plenaria", "aprovada", "rejeitada", "fundida", "anais", "retirada"]
+  return (
+    <div className="grid gap-4">
+      {relator && (
+        <div className="flex flex-wrap items-start gap-2">
+          <Button asChild>
+            <Link href={`${base}/consolidacao`}>Consolidação</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href={`${base}/plenaria`}>Mesa da plenária</Link>
+          </Button>
+          {d.regras.haVotacao && <AplicarGrupos congressoId={c.id} />}
+          <ColarPropostas congressoId={c.id} eixos={d.eixos.map((e) => ({ id: e.id, nome: e.nome }))} abrangencias={d.regras.abrangencias} />
+        </div>
+      )}
+      <Card>
+        <CardHeader>
+          <CardTitle>Propostas</CardTitle>
+          <CardDescription>
+            {d.propostas.length === 0
+              ? "Nenhuma proposta ainda. Cole o caderno de teses ou deixe os grupos registrarem as novas."
+              : `${d.propostas.length} proposta(s) no congresso.`}
+          </CardDescription>
+        </CardHeader>
+        {d.propostas.length > 0 && (
+          <CardContent className="flex flex-wrap gap-2 text-sm">
+            {ORDEM.filter((s) => contagem.get(s)).map((s) => (
+              <span key={s} className="rounded-md border px-2 py-1">
+                {ROTULO_SITUACAO_PROPOSTA[s]}: <span className="font-semibold tabular-nums">{contagem.get(s)}</span>
+              </span>
+            ))}
+          </CardContent>
+        )}
+      </Card>
+      {d.alertasCota.length > 0 && (
+        <Alert>
+          <AlertTriangle className="size-4" />
+          <AlertDescription>
+            <ul className="list-disc pl-5">
+              {d.alertasCota.map((a) => (
+                <li key={a}>{a}</li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
+      <Card>
+        <CardHeader>
+          <CardTitle>Grupos</CardTitle>
+          <CardDescription>
+            {d.regras.temGrupos
+              ? "Quem tem coordenação ou relatoria opera o grupo pelo link pessoal; a comissão também pode operar daqui."
+              : "A configuração diz que não há grupos de trabalho: as propostas vão direto à consolidação."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {d.grupos.length === 0 ? (
+            <p className="text-muted-foreground text-sm">Nenhum grupo cadastrado. Crie em Programa e grupos.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Grupo</TableHead>
+                    <TableHead>Relatoria</TableHead>
+                    <TableHead className="text-right">Novas</TableHead>
+                    <TableHead className="text-right">Apontamentos</TableHead>
+                    <TableHead>Relatório</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {d.grupos.map((g) => {
+                    const funcoes = d.funcoes.filter((f) => f.grupoId === g.id)
+                    return (
+                      <TableRow key={g.id}>
+                        <TableCell>
+                          {relator ? (
+                            <Link href={`${base}/grupos/${g.id}`} className="font-medium hover:underline">
+                              {g.nome}
+                            </Link>
+                          ) : (
+                            <span className="font-medium">{g.nome}</span>
+                          )}
+                          {g.eixoId && <div className="text-muted-foreground text-xs">{nomeEixo.get(g.eixoId)}</div>}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {funcoes.length ? (
+                            funcoes.map((f) => (
+                              <div key={f.id}>
+                                {f.nome} <span className="text-muted-foreground text-xs">· {ROTULO_FUNCAO[f.funcao]}</span>
+                              </div>
+                            ))
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {d.propostas.filter((p) => p.grupoId === g.id && p.origem === "grupo").length}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {d.apontamentos.filter((a) => a.grupoId === g.id && !a.retiradoEm).length}
+                        </TableCell>
+                        <TableCell>
+                          {g.relatorioEntregueEm ? (
+                            <Badge variant="success">
+                              <CheckCircle2 className="size-3.5" />
+                              Entregue {formatarDataHora(g.relatorioEntregueEm)}
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary">Em andamento</Badge>
                           )}
                         </TableCell>
                       </TableRow>

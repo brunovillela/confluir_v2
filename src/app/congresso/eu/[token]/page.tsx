@@ -1,12 +1,15 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
-import { CalendarDays, CheckCircle2, Clock, MapPin, XCircle } from "lucide-react"
+import Link from "next/link"
+import { CalendarDays, CheckCircle2, ClipboardList, Clock, MapPin, XCircle } from "lucide-react"
 
 import { AvisoPrivacidade } from "@/components/aviso-privacidade"
 import { Marca } from "@/components/marca"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { obterCongresso } from "@/lib/db/congressos"
 import { minhaInscricao } from "@/lib/db/congressos-inscricao"
+import { acessoDeRelatoria, ROTULO_FUNCAO } from "@/lib/db/congressos-relatoria"
 import { obterOrganizacao } from "@/lib/db/organizacao"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { tenantAtual } from "@/lib/tenant"
@@ -38,7 +41,11 @@ export default async function MinhaParticipacaoPage({
   const { token } = await params
   const { nova } = await searchParams
   const tenantId = await tenantAtual()
-  const [m, org] = await Promise.all([minhaInscricao(token, tenantId), obterOrganizacao()])
+  const [m, org, relatoria] = await Promise.all([
+    minhaInscricao(token, tenantId),
+    obterOrganizacao(),
+    acessoDeRelatoria(token, tenantId, (id) => obterCongresso(id)).catch(() => null),
+  ])
   if (!m) notFound()
   const s = SITUACAO[m.situacao] ?? SITUACAO.inscrito
   // QR para a mesa achar a pessoa sem digitar: leva o próprio token, que já está na URL desta página.
@@ -118,6 +125,28 @@ export default async function MinhaParticipacaoPage({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={qrMesa} alt="QR para a mesa de credenciamento" className="size-56 rounded-lg border bg-white p-2" />
             <p className="text-muted-foreground">Mostre este QR na mesa: a equipe acha a sua inscrição sem digitar.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {relatoria && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Relatoria</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-2 text-sm">
+            {relatoria.grupos.map((g) => (
+              <Link
+                key={g.id}
+                href={`/congresso/eu/${token}/grupo/${g.id}`}
+                className="hover:bg-muted flex items-center gap-2 rounded-md border p-3 font-medium"
+              >
+                <ClipboardList className="size-4" />
+                {g.nome}
+                <span className="text-muted-foreground font-normal">· {ROTULO_FUNCAO[g.funcao]}</span>
+              </Link>
+            ))}
+            <p className="text-muted-foreground text-xs">Registre os apontamentos e as propostas do grupo por aqui, no celular.</p>
           </CardContent>
         </Card>
       )}

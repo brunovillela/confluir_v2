@@ -61,6 +61,7 @@ export type SecaoId =
   | "presenca"
   | "programa"
   | "propostas"
+  | "apreciacao"
   | "plenaria"
   | "mocoes"
   | "local"
@@ -86,8 +87,9 @@ export const SECOES: Secao[] = [
   { id: "credenciamento", titulo: "Credenciamento", descricao: "Prazos, suplentes e crachá.", aplicada: true },
   { id: "presenca", titulo: "Presença e quórum", descricao: "Registro por sessão e quórum.", aplicada: true },
   { id: "local", titulo: "Local da decisão", descricao: "O que pode ser feito a distância e como se prova a presença.", aplicada: false },
-  { id: "propostas", titulo: "Propostas", descricao: "De onde vêm, limites por grupo e trava do relatório.", aplicada: false },
-  { id: "plenaria", titulo: "Plenária", descricao: "Rito de fala, maioria e forma de votar.", aplicada: false },
+  { id: "propostas", titulo: "Propostas", descricao: "De onde vêm, limites por grupo e trava do relatório.", aplicada: true },
+  { id: "apreciacao", titulo: "Apreciação nos grupos", descricao: "Se os grupos votam as propostas e o que cada resultado faz.", aplicada: true },
+  { id: "plenaria", titulo: "Plenária", descricao: "Rito de fala, maioria e forma de votar.", aplicada: true },
   { id: "mocoes", titulo: "Moções", descricao: "Como uma moção chega à plenária.", aplicada: false },
   { id: "divulgacao", titulo: "Divulgação", descricao: "O que é público e o que é reservado.", aplicada: false },
   { id: "encerramento", titulo: "Encerramento", descricao: "Certificados, relatório e resoluções.", aplicada: false },
@@ -470,7 +472,32 @@ export const AJUSTES: Ajuste[] = [
       { valor: "assinaturas", rotulo: "Com assinaturas de delegados" },
     ],
   },
-  { chave: "propostas.trava_relatorio", secao: "propostas", rotulo: "Relatório do grupo trava em", tipo: "datahora", padrao: null },
+  { chave: "propostas.trava_relatorio", secao: "propostas", rotulo: "Relatório do grupo trava em", tipo: "datahora", padrao: null, ajuda: "Vazio = trava quando a relatoria entrega o relatório." },
+  {
+    chave: "propostas.abrangencias", secao: "propostas", rotulo: "Abrangências das propostas", tipo: "texto", padrao: "",
+    ajuda: "Separadas por vírgula. Ex.: Local, Estadual, Nacional. Vazio = não classifica.",
+  },
+  { chave: "propostas.consenso_debate", secao: "propostas", rotulo: "Consolidação classifica cada item como consenso ou debate", tipo: "booleano", padrao: true },
+
+  // ── Apreciação nos grupos ──
+  { chave: "apreciacao.ha_votacao", secao: "apreciacao", rotulo: "Os grupos votam as propostas", tipo: "booleano", padrao: false, ajuda: "Não = o grupo só faz apontamentos, e a relatoria consolida." },
+  {
+    chave: "apreciacao.aprova_direto", secao: "apreciacao", rotulo: "Aprovada direto, sem ir à plenária, com pelo menos", tipo: "numero", padrao: 0, min: 0, max: 100, unidade: "%",
+    ajuda: "0 = nada é aprovado direto no grupo. Ex.: 70%.", visivelSe: [{ chave: "apreciacao.ha_votacao", igual: true }],
+  },
+  {
+    chave: "apreciacao.vencida_sobe", secao: "apreciacao", rotulo: "Posição vencida também vai à plenária com mais de", tipo: "numero", padrao: 0, min: 0, max: 50, unidade: "%",
+    ajuda: "0 = não. Ex.: 33% (1/3).", visivelSe: [{ chave: "apreciacao.ha_votacao", igual: true }],
+  },
+  {
+    chave: "apreciacao.minimo_grupos", secao: "apreciacao", rotulo: "Para ir à plenária, a proposta precisa de maioria em", tipo: "escolha", padrao: "um",
+    opcoes: [
+      { valor: "um", rotulo: "Um grupo" },
+      { valor: "mais_de_um", rotulo: "Mais de um grupo" },
+      { valor: "metade", rotulo: "Ao menos metade dos grupos que a apreciaram" },
+    ],
+    visivelSe: [{ chave: "apreciacao.ha_votacao", igual: true }],
+  },
 
   // ── Plenária ──
   { chave: "plenaria.tempo_fala", secao: "plenaria", rotulo: "Tempo de fala", tipo: "numero", padrao: 3, min: 1, max: 30, unidade: "min" },
