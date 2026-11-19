@@ -6,8 +6,9 @@ import { obterEvento } from "@/lib/db/eventos"
 import { relacaoDeConfirmados } from "@/lib/db/eventos-relacao"
 import { logoDataUri } from "@/lib/db/oficios-assinatura"
 import { obterOrganizacao, urlLogo } from "@/lib/db/organizacao"
+import { cpfParcial, descreverRecorte, lerOpcoesRelacao } from "@/lib/eventos-relacao-opcoes"
 import { registrarExportacao } from "@/lib/exportacoes"
-import { formatarDataHora } from "@/lib/formato"
+import { formatarCnpjCpf, formatarDataHora } from "@/lib/formato"
 import { RelacaoConfirmadosPDF } from "@/lib/pdf/relacao-confirmados"
 
 export const runtime = "nodejs"
@@ -17,6 +18,7 @@ export const maxDuration = 120
 /**
  * Relação de confirmados do evento em PDF (19/11/2026). `?assinatura=1` troca
  * o telefone por uma coluna de assinatura: vira lista de presença em papel.
+ * Os demais recortes (quem, espera, CPF parcial, contato) são os do Excel.
  */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const sessao = await requirePermissao("eventos_gestao")
@@ -24,15 +26,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const evento = await obterEvento(id)
   if (!evento) return new Response("Não encontrado", { status: 404 })
 
-  const assinatura = new URL(request.url).searchParams.get("assinatura") === "1"
-  const [{ linhas }, org] = await Promise.all([relacaoDeConfirmados(id), obterOrganizacao().catch(() => null)])
+  const sp = new URL(request.url).searchParams
+  const assinatura = sp.get("assinatura") === "1"
+  const opcoes = lerOpcoesRelacao(sp)
+  const recorte = descreverRecorte(opcoes)
+  const [{ linhas }, org] = await Promise.all([relacaoDeConfirmados(id, opcoes), obterOrganizacao().catch(() => null)])
   const logo = await logoDataUri(urlLogo(org?.logomarca ?? null))
   await registrarExportacao(request, {
     usuarioId: sessao.usuario.id,
     recurso: "eventos_confirmados",
     formato: "pdf",
     quantidade: linhas.length,
-    filtros: { evento: evento.titulo ?? id, assinatura },
+    filtros: { evento: evento.titulo ?? id, assinatura, recorte },
   })
 
   const quando = [
@@ -48,12 +53,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     evento: evento.titulo ?? "(sem título)",
     quando,
     assinatura,
+    telefone: opcoes.contato,
+    recorte,
     linhas: linhas.map((l) => ({
       nome: l.nome,
-      cpf: l.cpf,
+      cpf: opcoes.cpfParcial ? cpfParcial(l.cpf) : l.cpf ? formatarCnpjCpf(l.cpf) : null,
       telefone: l.telefone,
       filiado: !!l.filiacao_id,
       convidado: !!l.reservada_por,
+      espera: l.situacao === "lista_espera",
     })),
   }) as Parameters<typeof renderToBuffer>[0]
   const pdf = await renderToBuffer(elemento)

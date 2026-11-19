@@ -5,8 +5,6 @@ import {
   ArrowLeft,
   DoorOpen,
   ExternalLink,
-  FileSpreadsheet,
-  FileText,
   ListChecks,
   Pencil,
   TriangleAlert,
@@ -45,6 +43,7 @@ import { contarFiliados } from "@/lib/db/eventos-filiados"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
+import { BaixarRelacao } from "./baixar-relacao"
 import {
   AvaliarInscricao,
   ConciliarFiliadosForm,
@@ -367,50 +366,13 @@ export default async function EventoPage({
               ? "Nenhuma inscrição ainda."
               : `${inscricoes.length} no total.`}
           </CardDescription>
-          {gestor && capacidade.confirmadas > 0 && (
-            <CardAction className="flex flex-wrap items-center justify-end gap-2">
-              <span className="text-muted-foreground text-xs">
-                Baixar confirmados:
-              </span>
-              <Button asChild variant="outline" size="sm">
-                <a href={`/painel/eventos/${id}/confirmados/xlsx`} download>
-                  <FileSpreadsheet />
-                  Excel
-                </a>
-              </Button>
-              {filiacao.filiados > 0 && (
-                <Button asChild variant="outline" size="sm">
-                  <a
-                    href={`/painel/eventos/${id}/confirmados/xlsx?filiados=1`}
-                    download
-                    title="Excel só com os confirmados que são filiados"
-                  >
-                    <FileSpreadsheet />
-                    Excel só filiados
-                  </a>
-                </Button>
-              )}
-              <Button asChild variant="outline" size="sm">
-                <a
-                  href={`/painel/eventos/${id}/confirmados/pdf`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <FileText />
-                  PDF
-                </a>
-              </Button>
-              <Button asChild variant="outline" size="sm">
-                <a
-                  href={`/painel/eventos/${id}/confirmados/pdf?assinatura=1`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title="PDF com coluna de assinatura, para a lista de presença em papel"
-                >
-                  <FileText />
-                  Lista p/ assinatura
-                </a>
-              </Button>
+          {gestor && capacidade.confirmadas + capacidade.listaEspera > 0 && (
+            <CardAction>
+              <BaixarRelacao
+                eventoId={id}
+                confirmados={capacidade.confirmadas}
+                listaEspera={capacidade.listaEspera}
+              />
             </CardAction>
           )}
         </CardHeader>

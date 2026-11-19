@@ -3,13 +3,16 @@ import "server-only"
 import { lerEmLotesPorIds } from "@/lib/db/comum"
 import { listarCampos } from "@/lib/db/eventos-config"
 import { listarInscricoes, type Inscricao } from "@/lib/db/eventos"
+import type { OpcoesRelacao } from "@/lib/eventos-relacao-opcoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
  * RELAÇÃO DE CONFIRMADOS (19/11/2026): a lista que sai do Confluir em Excel
  * ou PDF para sistemas que não conversam com ele (catraca, hotel, buffet,
- * credenciamento de terceiros). Só inscrições CONFIRMADAS e não anonimizadas,
- * em ordem alfabética, com as respostas dos campos extras do evento.
+ * credenciamento de terceiros). Confirmadas (e, se pedido, a lista de espera),
+ * nunca anonimizadas, em ordem alfabética, com as respostas dos campos extras.
+ * O recorte (quem, espera) vem de `OpcoesRelacao`; CPF parcial e contato são
+ * da apresentação, ficam nas rotas.
  */
 
 export type LinhaConfirmado = Inscricao & {
@@ -23,13 +26,31 @@ export type RelacaoConfirmados = {
   linhas: LinhaConfirmado[]
 }
 
-export async function relacaoDeConfirmados(eventoId: string): Promise<RelacaoConfirmados> {
+function entra(i: Inscricao, o: Pick<OpcoesRelacao, "quem" | "espera">): boolean {
+  if (i.anonimizada_em) return false
+  if (i.situacao !== "confirmada" && !(o.espera && i.situacao === "lista_espera")) return false
+  switch (o.quem) {
+    case "filiados":
+      return !!i.filiacao_id
+    case "convidados":
+      return !!i.reservada_por
+    case "nao_filiados":
+      return !i.filiacao_id
+    default:
+      return true
+  }
+}
+
+export async function relacaoDeConfirmados(
+  eventoId: string,
+  opcoes: Pick<OpcoesRelacao, "quem" | "espera"> = { quem: "todos", espera: false }
+): Promise<RelacaoConfirmados> {
   const [inscricoes, todosCampos] = await Promise.all([
-    listarInscricoes({ eventoId, situacao: "confirmada" }),
+    listarInscricoes({ eventoId, situacao: opcoes.espera ? "todas" : "confirmada" }),
     listarCampos(eventoId),
   ])
   const confirmadas = inscricoes
-    .filter((i) => !i.anonimizada_em)
+    .filter((i) => entra(i, opcoes))
     .sort((a, b) => (a.nome ?? "").localeCompare(b.nome ?? "", "pt-BR", { sensitivity: "base" }))
 
   const respostas = new Map<string, Map<string, string>>()

@@ -1,6 +1,7 @@
 import { requirePermissao } from "@/lib/auth"
 import { obterEvento } from "@/lib/db/eventos"
 import { relacaoDeConfirmados, type LinhaConfirmado } from "@/lib/db/eventos-relacao"
+import { cpfParcial, descreverRecorte, lerOpcoesRelacao } from "@/lib/eventos-relacao-opcoes"
 import { registrarExportacao } from "@/lib/exportacoes"
 import { formatarCnpjCpf, formatarTelefone } from "@/lib/formato"
 import { dataXlsx, planilhaXlsx, respostaXlsx, type ColunaXlsx } from "@/lib/xlsx"
@@ -17,7 +18,8 @@ const ROTULO_ORIGEM: Record<string, string> = {
 /**
  * Relação de confirmados do evento em Excel (19/11/2026), para importar em
  * sistemas sem integração com o Confluir. CPF e telefone saem como TEXTO
- * formatado: número no Excel come o zero à esquerda.
+ * formatado: número no Excel come o zero à esquerda. O recorte (quem, lista de
+ * espera, CPF parcial, sem contato) vem da URL — ver `eventos-relacao-opcoes`.
  */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const sessao = await requirePermissao("eventos_gestao")
@@ -25,24 +27,29 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const evento = await obterEvento(id)
   if (!evento) return new Response("Não encontrado", { status: 404 })
 
-  // `?filiados=1`: só quem está ligado a uma filiação (o selo "filiado" da lista).
-  const soFiliados = new URL(request.url).searchParams.get("filiados") === "1"
-  const relacao = await relacaoDeConfirmados(id)
-  const { campos } = relacao
-  const linhas = soFiliados ? relacao.linhas.filter((l) => l.filiacao_id) : relacao.linhas
+  const opcoes = lerOpcoesRelacao(new URL(request.url).searchParams)
+  const { campos, linhas } = await relacaoDeConfirmados(id, opcoes)
   await registrarExportacao(request, {
     usuarioId: sessao.usuario.id,
     recurso: "eventos_confirmados",
     formato: "xlsx",
     quantidade: linhas.length,
-    filtros: { evento: evento.titulo ?? id, soFiliados },
+    filtros: { evento: evento.titulo ?? id, recorte: descreverRecorte(opcoes) },
   })
 
+  const cpf = (l: LinhaConfirmado) => (opcoes.cpfParcial ? cpfParcial(l.cpf) : l.cpf ? formatarCnpjCpf(l.cpf) : null)
   const colunas: ColunaXlsx<LinhaConfirmado>[] = [
     { titulo: "Nome", valor: (l) => l.nome, largura: 36 },
-    { titulo: "CPF", valor: (l) => (l.cpf ? formatarCnpjCpf(l.cpf) : null), largura: 16 },
-    { titulo: "E-mail", valor: (l) => l.email, largura: 32 },
-    { titulo: "Telefone", valor: (l) => (l.telefone ? formatarTelefone(l.telefone) : null), largura: 16 },
+    { titulo: "CPF", valor: cpf, largura: 16 },
+    ...(opcoes.contato
+      ? [
+          { titulo: "E-mail", valor: (l: LinhaConfirmado) => l.email, largura: 32 },
+          { titulo: "Telefone", valor: (l: LinhaConfirmado) => (l.telefone ? formatarTelefone(l.telefone) : null), largura: 16 },
+        ]
+      : []),
+    ...(opcoes.espera
+      ? [{ titulo: "Situação", valor: (l: LinhaConfirmado) => (l.situacao === "lista_espera" ? "Lista de espera" : "Confirmada"), largura: 16 }]
+      : []),
     { titulo: "Filiado", valor: (l) => (l.filiacao_id ? "Sim" : "Não"), largura: 9 },
     { titulo: "Convidado", valor: (l) => (l.reservada_por ? "Sim" : "Não"), largura: 11 },
     { titulo: "Convidado por", valor: (l) => l.convidado_por, largura: 24 },
@@ -55,6 +62,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     ...campos.map((c) => ({ titulo: c.rotulo, valor: (l: LinhaConfirmado) => l.respostas.get(c.id) ?? null, largura: 24 })),
   ]
 
-  const bytes = planilhaXlsx("Confirmados", colunas, linhas)
-  return respostaXlsx(`confirmados-${soFiliados ? "filiados-" : ""}${evento.slug || id.slice(0, 8)}`, bytes)
+  const sufixo = opcoes.quem === "todos" ? "" : `${opcoes.quem.replace("_", "-")}-`
+  const bytes = planilhaXlsx(opcoes.espera ? "Confirmados e espera" : "Confirmados", colunas, linhas)
+  return respostaXlsx(`confirmados-${sufixo}${evento.slug || id.slice(0, 8)}`, bytes)
 }
