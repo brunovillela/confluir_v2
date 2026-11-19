@@ -129,10 +129,12 @@ Tarefa com demandante e demandado, prazo e documentos, filha de demanda, projeto
 | `demanda_id` | uuid | sim |  | → demandas (set null) |  | Demanda-pai (opcional). Junto de projeto_id e anomalia_id compõe o pai polimórfico da tarefa; todos nulos = tarefa solta. |
 | `titulo` | text | sim |  |  |  | Enunciado da tarefa. Substitui o antigo texto em `demanda` (mantido só por compatibilidade). |
 | `prioridade` | text | não | `'media'::text` |  | nenhum | Prioridade da tarefa: alta, media ou baixa (padrão media). Usada para ordenar as listas. |
+| `recorrencia` | text | sim |  |  | nenhum | De quanto em quanto tempo a tarefa se repete: semanal, mensal, trimestral, semestral ou anual; nulo = não repete. Ao concluir, o sistema cria a próxima com o prazo avançado. |
+| `recorrencia_proxima_id` | uuid | sim |  | → demandas_check_tarefas (set null) | nenhum | A tarefa criada quando esta (recorrente) foi concluída; impede criar outra ao reabrir e concluir de novo. |
 
 Únicas: `UNIQUE (bubble_id)`
 
-Checks: `demandas_check_tarefas_prioridade_check` `CHECK ((prioridade = ANY (ARRAY['alta'::text, 'media'::text, 'baixa'::text])))`
+Checks: `demandas_check_tarefas_prioridade_check` `CHECK ((prioridade = ANY (ARRAY['alta'::text, 'media'::text, 'baixa'::text])))`; `demandas_check_tarefas_recorrencia_check` `CHECK (((recorrencia IS NULL) OR (recorrencia = ANY (ARRAY['semanal'::text, 'mensal'::text, 'trimestral'::text, 'semestral'::text, 'anual'::text]))))`
 
 Índices: `demandas_check_tarefas_bubble_id_key`, `demandas_check_tarefas_pkey`, `idx_tarefas_anomalia`, `idx_tarefas_demanda`, `idx_tarefas_demandado`, `idx_tarefas_projeto`
 

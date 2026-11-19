@@ -6,7 +6,10 @@ import { tenantAtual } from "@/lib/tenant"
 import {
   derivarSituacaoTarefa,
   ehPrioridadeTarefa,
+  ehRecorrenciaTarefa,
+  proximoPrazoRecorrente,
   type PrioridadeTarefa,
+  type RecorrenciaTarefa,
   type SituacaoDemanda,
   type SituacaoTarefa,
 } from "@/lib/nucleo-constantes"
@@ -489,7 +492,7 @@ export async function definirSituacaoDemanda(
 // ════════════════════════════════════════════════════════════════════════════
 
 const COLS_TAREFA =
-  "id, titulo, concluido, tipo, prioridade, data_prazo_entrega, data_entrega, demandante_id, demandado_id, demanda_id, projeto_id, anomalia_id"
+  "id, titulo, concluido, tipo, prioridade, recorrencia, data_prazo_entrega, data_entrega, demandante_id, demandado_id, demanda_id, projeto_id, anomalia_id"
 
 async function contarTarefasPorPai(
   coluna: "demanda_id" | "projeto_id" | "anomalia_id",
@@ -537,6 +540,8 @@ export type TarefaLinha = {
   concluido: boolean
   prazo: string | null
   prioridade: PrioridadeTarefa
+  /** De quanto em quanto tempo se repete (nulo = não repete). */
+  recorrencia: RecorrenciaTarefa | null
   demandanteNome: string | null
   /** Responsável: o id serve à edição da tarefa. */
   demandadoId: string | null
@@ -616,6 +621,7 @@ export async function listarTarefas(
         concluido: t.concluido === true,
         prazo: texto(t.data_prazo_entrega),
         prioridade: ehPrioridadeTarefa(t.prioridade) ? t.prioridade : "media",
+        recorrencia: ehRecorrenciaTarefa(t.recorrencia) ? t.recorrencia : null,
         demandanteNome: t.demandante_id
           ? (nomes.get(t.demandante_id as string) ?? null)
           : null,
@@ -681,6 +687,7 @@ export type DadosTarefa = {
   demandante_id: string | null
   demandado_id: string | null
   prioridade?: PrioridadeTarefa
+  recorrencia?: RecorrenciaTarefa | null
   /** Pai opcional — no máximo um preenchido. */
   demanda_id?: string | null
   projeto_id?: string | null
@@ -700,6 +707,7 @@ export async function criarTarefa(
       demandante_id: dados.demandante_id,
       demandado_id: dados.demandado_id,
       prioridade: dados.prioridade ?? "media",
+      recorrencia: dados.recorrencia ?? null,
       demanda_id: dados.demanda_id ?? null,
       projeto_id: dados.projeto_id ?? null,
       anomalia_id: dados.anomalia_id ?? null,
@@ -862,7 +870,13 @@ export async function concluirTarefasPendentes(
  */
 export async function editarTarefa(
   id: string,
-  dados: { titulo: string; demandado_id: string | null; data_prazo_entrega: string | null; prioridade: PrioridadeTarefa }
+  dados: {
+    titulo: string
+    demandado_id: string | null
+    data_prazo_entrega: string | null
+    prioridade: PrioridadeTarefa
+    recorrencia: RecorrenciaTarefa | null
+  }
 ): Promise<{ erro?: string; responsavelAnterior?: string | null }> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
@@ -964,6 +978,52 @@ export async function definirConclusaoTarefa(
     .eq("emp_proprietaria_id", await tenantAtual())
   if (error) return { erro: `Falha ao atualizar tarefa: ${error.message}` }
   return {}
+}
+
+/**
+ * Tarefa RECORRENTE concluída: cria a próxima, igual (título, responsável,
+ * quem pediu, prioridade, vínculo e repetição), com o prazo avançado de um
+ * período, e guarda o elo em `recorrencia_proxima_id` — reabrir e concluir de
+ * novo não cria outra. Sem repetição ou sem prazo, nada acontece.
+ */
+export async function gerarProximaRecorrencia(id: string): Promise<{ erro?: string; prazo?: string }> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: t, error } = await admin
+    .from("demandas_check_tarefas")
+    .select("titulo, tipo, prioridade, recorrencia, recorrencia_proxima_id, data_prazo_entrega, demandante_id, demandado_id, demanda_id, projeto_id, anomalia_id, concluido")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  if (error) return { erro: `Falha ao ler a tarefa: ${error.message}` }
+  const prazo = texto(t?.data_prazo_entrega)
+  if (!t || t.concluido !== true || !ehRecorrenciaTarefa(t.recorrencia) || !prazo || t.recorrencia_proxima_id) return {}
+  const proximo = proximoPrazoRecorrente(prazo, t.recorrencia)
+  const { data: nova, error: erroNova } = await admin
+    .from("demandas_check_tarefas")
+    .insert({
+      titulo: t.titulo,
+      tipo: t.tipo,
+      prioridade: ehPrioridadeTarefa(t.prioridade) ? t.prioridade : "media",
+      recorrencia: t.recorrencia,
+      data_prazo_entrega: proximo,
+      demandante_id: t.demandante_id,
+      demandado_id: t.demandado_id,
+      demanda_id: t.demanda_id,
+      projeto_id: t.projeto_id,
+      anomalia_id: t.anomalia_id,
+      concluido: false,
+      emp_proprietaria_id: emp,
+    })
+    .select("id")
+    .single()
+  if (erroNova) return { erro: `A tarefa foi concluída, mas a próxima não foi criada: ${erroNova.message}` }
+  await admin
+    .from("demandas_check_tarefas")
+    .update({ recorrencia_proxima_id: nova.id })
+    .eq("id", id)
+    .eq("emp_proprietaria_id", emp)
+  return { prazo: proximo }
 }
 
 // ════════════════════════════════════════════════════════════════════════════

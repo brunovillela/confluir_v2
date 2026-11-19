@@ -33,6 +33,7 @@ erDiagram
     uuid projeto_id FK
     uuid anomalia_id FK
     uuid demanda_id FK
+    uuid recorrencia_proxima_id FK
   }
   demandas_comentarios {
     uuid id PK
@@ -62,6 +63,7 @@ erDiagram
   demandas_check }o--o| demandas : "demanda_id"
   demandas_check_tarefas }o--o| demandas : "demanda_id"
   demandas_check_tarefas }o--o| demandas_check : "checklist_id"
+  demandas_check_tarefas }o--o| demandas_check_tarefas : "recorrencia_proxima_id"
   demandas_check_tarefas }o--o| ferramentas_anomalias : "anomalia_id"
   demandas_check_tarefas }o--o| projeto : "projeto_id"
   demandas_check_tarefas }o--o| usuarios : "demandado_id"

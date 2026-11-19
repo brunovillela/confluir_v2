@@ -798,7 +798,7 @@
 | [auth_identidades](../dados/dicionario/plataforma.md#auth_identidades) | identificacao | `cpf` (identificacao), `nome` (identificacao) |
 | [auth_vinculos_pendentes](../dados/dicionario/plataforma.md#auth_vinculos_pendentes) | identificacao | `email` (identificacao), `cpf` (identificacao), `nome` (identificacao) |
 | [demandas](../dados/dicionario/ferramentas.md#demandas) | identificacao | `descricao` (identificacao), `membros_raw` (identificacao), `projeto_id` (nenhum) |
-| [demandas_check_tarefas](../dados/dicionario/ferramentas.md#demandas_check_tarefas) | identificacao | `demandado_documentos` (identificacao), `demandante_documentos` (identificacao), `prioridade` (nenhum) |
+| [demandas_check_tarefas](../dados/dicionario/ferramentas.md#demandas_check_tarefas) | identificacao | `demandado_documentos` (identificacao), `demandante_documentos` (identificacao), `prioridade` (nenhum), `recorrencia` (nenhum), `recorrencia_proxima_id` (nenhum) |
 | [demandas_comentarios](../dados/dicionario/ferramentas.md#demandas_comentarios) | identificacao | `descricao` (identificacao) |
 | [emails_institucionais](../dados/dicionario/filiacao.md#emails_institucionais) | identificacao | `endereco` (identificacao) |
 | [gestao_eventos](../dados/dicionario/plataforma.md#gestao_eventos) | identificacao | `usuario_id` (identificacao), `detalhe` (nenhum) |

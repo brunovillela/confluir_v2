@@ -131,3 +131,44 @@ export function lembreteDePrazo(
   if (t.prazo < hojeISO && t.prazo >= somarDias(hojeISO, -DIAS_AVISO_ATRASO_TAREFA)) return "atraso"
   return null
 }
+
+/** De quanto em quanto tempo a tarefa se repete (nulo = não repete). */
+export const RECORRENCIAS_TAREFA = ["semanal", "mensal", "trimestral", "semestral", "anual"] as const
+export type RecorrenciaTarefa = (typeof RECORRENCIAS_TAREFA)[number]
+
+export const ROTULOS_RECORRENCIA_TAREFA: Record<RecorrenciaTarefa, string> = {
+  semanal: "Toda semana",
+  mensal: "Todo mês",
+  trimestral: "A cada 3 meses",
+  semestral: "A cada 6 meses",
+  anual: "Todo ano",
+}
+
+export function ehRecorrenciaTarefa(v: unknown): v is RecorrenciaTarefa {
+  return typeof v === "string" && (RECORRENCIAS_TAREFA as readonly string[]).includes(v)
+}
+
+const MESES_RECORRENCIA: Record<Exclude<RecorrenciaTarefa, "semanal">, number> = {
+  mensal: 1,
+  trimestral: 3,
+  semestral: 6,
+  anual: 12,
+}
+
+/**
+ * O prazo da próxima tarefa de uma recorrente: o prazo atual avançado de um
+ * período. Nos meses, mantém o dia; se o mês de destino não o tem (31 em
+ * fevereiro), vai ao último dia — e prazo no último dia do mês continua no
+ * último dia (30/04 → 31/05), para "todo fim de mês" não escorregar.
+ */
+export function proximoPrazoRecorrente(prazoISO: string, recorrencia: RecorrenciaTarefa): string {
+  if (recorrencia === "semanal") return somarDias(prazoISO, 7)
+  const [a, m, d] = prazoISO.split("-").map(Number)
+  const ultimoDia = (ano: number, mes: number) => new Date(Date.UTC(ano, mes, 0)).getUTCDate()
+  const fimDoMes = d === ultimoDia(a, m)
+  const total = a * 12 + (m - 1) + MESES_RECORRENCIA[recorrencia]
+  const ano = Math.floor(total / 12)
+  const mes = (total % 12) + 1
+  const dia = fimDoMes ? ultimoDia(ano, mes) : Math.min(d, ultimoDia(ano, mes))
+  return `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`
+}

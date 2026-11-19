@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache"
 import { requirePermissao, requireSessaoPainel } from "@/lib/auth"
 import { podeAcessar } from "@/lib/permissoes"
 import { type EstadoForm } from "@/lib/contas"
-import { ehPrioridadeTarefa, type PrioridadeTarefa } from "@/lib/nucleo-constantes"
+import { ehPrioridadeTarefa, ehRecorrenciaTarefa, type PrioridadeTarefa, type RecorrenciaTarefa } from "@/lib/nucleo-constantes"
 import { avisar, depoisDaResposta, usuariosComPermissao } from "@/lib/db/avisos"
 import {
   atualizarTarefa,
@@ -16,6 +16,7 @@ import {
   editarTarefa,
   excluirTarefa,
   garantirDemandaDoProjeto,
+  gerarProximaRecorrencia,
   obterDemanda,
   paisDaTarefa,
   responsavelDaTarefa,
@@ -77,6 +78,14 @@ function prioridade(formData: FormData): PrioridadeTarefa {
   return ehPrioridadeTarefa(v) ? v : "media"
 }
 
+/** Repetição do formulário; vazia ou fora da lista = não repete. */
+function recorrencia(formData: FormData): RecorrenciaTarefa | null {
+  const v = texto(formData, "recorrencia")
+  return ehRecorrenciaTarefa(v) ? v : null
+}
+
+const ERRO_RECORRENCIA_SEM_PRAZO = "Para repetir a tarefa, informe o prazo: a próxima nasce com ele avançado."
+
 function lerDados(formData: FormData): DadosTarefa {
   return {
     titulo: texto(formData, "titulo"),
@@ -85,6 +94,7 @@ function lerDados(formData: FormData): DadosTarefa {
     demandante_id: texto(formData, "demandante_id") || null,
     demandado_id: texto(formData, "demandado_id") || null,
     prioridade: prioridade(formData),
+    recorrencia: recorrencia(formData),
     demanda_id: texto(formData, "demanda_id") || null,
     projeto_id: texto(formData, "projeto_id") || null,
     anomalia_id: texto(formData, "anomalia_id") || null,
@@ -128,6 +138,7 @@ export async function criarTarefaAction(
   if ("erro" in acesso) return { erro: acesso.erro }
   const dados = lerDados(formData)
   if (!dados.titulo) return { erro: "Descreva a tarefa." }
+  if (dados.recorrencia && !dados.data_prazo_entrega) return { erro: ERRO_RECORRENCIA_SEM_PRAZO }
   // Quem pediu é quem cria (o formulário não pergunta): recebe o aviso de atraso.
   dados.demandante_id ??= acesso.usuarioId
 
@@ -180,7 +191,14 @@ export async function alternarConclusaoTarefaAction(
 
   const { erro } = await definirConclusaoTarefa(id, concluir)
   if (erro) return { erro }
+  // Recorrente: concluir cria a próxima (uma vez só por tarefa).
+  const proxima = concluir ? await gerarProximaRecorrencia(id) : {}
   revalidarTarefa(formData)
+  if (proxima.erro) return { erro: proxima.erro }
+  if (proxima.prazo) {
+    const [a, m, d] = proxima.prazo.split("-")
+    return { ok: `Tarefa concluída. A próxima, com prazo em ${d}/${m}/${a}, já está na lista.` }
+  }
   return { ok: "Tarefa atualizada." }
 }
 
@@ -263,8 +281,10 @@ export async function editarTarefaAction(_prev: EstadoForm, formData: FormData):
     demandado_id: texto(formData, "demandado_id") || null,
     data_prazo_entrega: dataISO(texto(formData, "data_prazo_entrega")),
     prioridade: prioridade(formData),
+    recorrencia: recorrencia(formData),
   }
   if (!dados.titulo) return { erro: "Descreva a tarefa." }
+  if (dados.recorrencia && !dados.data_prazo_entrega) return { erro: ERRO_RECORRENCIA_SEM_PRAZO }
 
   const { erro, responsavelAnterior } = await editarTarefa(id, dados)
   if (erro) return { erro }

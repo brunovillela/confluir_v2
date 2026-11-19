@@ -19,7 +19,16 @@ import { type EstadoForm } from "@/lib/contas"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { type OpcaoPessoa, type TarefaAvulsa } from "@/lib/db/nucleo"
 import { formatarData } from "@/lib/formato"
-import { PRIORIDADES_TAREFA, ROTULOS_PRIORIDADE_TAREFA, type PrioridadeTarefa } from "@/lib/nucleo-constantes"
+import { toast } from "sonner"
+
+import {
+  PRIORIDADES_TAREFA,
+  RECORRENCIAS_TAREFA,
+  ROTULOS_PRIORIDADE_TAREFA,
+  ROTULOS_RECORRENCIA_TAREFA,
+  type PrioridadeTarefa,
+  type RecorrenciaTarefa,
+} from "@/lib/nucleo-constantes"
 
 import {
   alternarConclusaoTarefaAction,
@@ -44,6 +53,20 @@ function SelectPrioridade({ id, padrao = "media" }: { id?: string; padrao?: Prio
       {PRIORIDADES_TAREFA.map((p) => (
         <option key={p} value={p}>
           {id ? ROTULOS_PRIORIDADE_TAREFA[p] : `Prioridade ${ROTULOS_PRIORIDADE_TAREFA[p].toLowerCase()}`}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+/** Repetição da tarefa: ao concluir, a próxima nasce com o prazo avançado. */
+function SelectRecorrencia({ id, padrao = null }: { id?: string; padrao?: RecorrenciaTarefa | null }) {
+  return (
+    <select id={id} name="recorrencia" defaultValue={padrao ?? ""} className={SELECT} aria-label={id ? undefined : "Repetir"}>
+      <option value="">Não repete</option>
+      {RECORRENCIAS_TAREFA.map((r) => (
+        <option key={r} value={r}>
+          {id ? ROTULOS_RECORRENCIA_TAREFA[r] : `Repete: ${ROTULOS_RECORRENCIA_TAREFA[r].toLowerCase()}`}
         </option>
       ))}
     </select>
@@ -89,12 +112,12 @@ export function AdicionarTarefa({
   return (
     <form action={formAction} className="grid gap-2 sm:grid-cols-[1fr_auto]">
       {pai && <input type="hidden" name={pai.campo} value={pai.id} />}
-      <div className="grid gap-2 sm:grid-cols-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <Input
           name="titulo"
           required
           placeholder="Descreva a tarefa"
-          className="sm:col-span-3"
+          className="sm:col-span-2 lg:col-span-4"
         />
         <SelectPessoa nome="demandado_id" rotulo="Responsável (demandado)" pessoas={pessoas} />
         <Input
@@ -104,6 +127,7 @@ export function AdicionarTarefa({
           className="[color-scheme:light] dark:[color-scheme:dark]"
         />
         <SelectPrioridade />
+        <SelectRecorrencia />
       </div>
       <div className="flex items-start">
         <Button type="submit" size="sm" disabled={pendente}>
@@ -128,10 +152,12 @@ export function ToggleTarefa({
   concluido: boolean
   pai?: PaiFixo
 }) {
-  const [estado, formAction, pendente] = useActionState<EstadoForm, FormData>(
-    alternarConclusaoTarefaAction,
-    {}
-  )
+  const [estado, formAction, pendente] = useActionState<EstadoForm, FormData>(async (prev, fd) => {
+    const r = await alternarConclusaoTarefaAction(prev, fd)
+    // Recorrente: avisa que a próxima já nasceu (a linha pode sair da tela).
+    if (r.ok?.includes("próxima")) toast.success(r.ok)
+    return r
+  }, {})
   return (
     <form action={formAction} className="inline">
       <input type="hidden" name="tarefa_id" value={tarefaId} />
@@ -305,6 +331,7 @@ type TarefaEditavel = {
   demandadoNome: string | null
   prazo: string | null
   prioridade: PrioridadeTarefa
+  recorrencia: RecorrenciaTarefa | null
 }
 
 /**
@@ -336,7 +363,9 @@ export function AcoesTarefa({ tarefa, pessoas }: { tarefa: TarefaEditavel; pesso
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Editar tarefa</DialogTitle>
-            <DialogDescription>Se o responsável mudar, a pessoa nova é avisada.</DialogDescription>
+            <DialogDescription>
+              Se o responsável mudar, a pessoa nova é avisada. Tarefa que se repete cria a próxima ao ser concluída.
+            </DialogDescription>
           </DialogHeader>
           <form action={formAction} className="grid gap-3">
             <input type="hidden" name="tarefa_id" value={tarefa.id} />
@@ -344,7 +373,7 @@ export function AcoesTarefa({ tarefa, pessoas }: { tarefa: TarefaEditavel; pesso
               <Label htmlFor={`titulo-${tarefa.id}`}>Tarefa</Label>
               <Input id={`titulo-${tarefa.id}`} name="titulo" required defaultValue={tarefa.titulo ?? ""} />
             </div>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div className="grid gap-1.5">
                 <Label htmlFor={`responsavel-${tarefa.id}`}>Responsável</Label>
                 <select
@@ -374,6 +403,10 @@ export function AcoesTarefa({ tarefa, pessoas }: { tarefa: TarefaEditavel; pesso
               <div className="grid gap-1.5">
                 <Label htmlFor={`prioridade-${tarefa.id}`}>Prioridade</Label>
                 <SelectPrioridade id={`prioridade-${tarefa.id}`} padrao={tarefa.prioridade} />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor={`recorrencia-${tarefa.id}`}>Repetir</Label>
+                <SelectRecorrencia id={`recorrencia-${tarefa.id}`} padrao={tarefa.recorrencia} />
               </div>
             </div>
             {estado.erro && <p className="text-destructive text-sm">{estado.erro}</p>}

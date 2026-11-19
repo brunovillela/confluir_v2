@@ -2,6 +2,7 @@
 
 import { useId, useState, useSyncExternalStore } from "react"
 import Link from "next/link"
+import { Repeat } from "lucide-react"
 
 import { PessoaNome } from "@/components/pessoa-nome"
 import { Badge } from "@/components/ui/badge"
@@ -21,6 +22,7 @@ import {
   PRIORIDADES_TAREFA,
   ROTULOS_PAI_TAREFA,
   ROTULOS_PRIORIDADE_TAREFA,
+  ROTULOS_RECORRENCIA_TAREFA,
   ROTULOS_SITUACAO_TAREFA,
   type OrdemTarefas,
   type PrioridadeTarefa,
@@ -197,6 +199,18 @@ export function TarefasLista({
                     className={`line-clamp-2 ${t.concluido ? "text-muted-foreground line-through" : ""}`}
                   >
                     {t.titulo ?? "(sem título)"}
+                    {t.recorrencia && (
+                      <span
+                        className="text-muted-foreground ml-1.5 inline-flex align-[-2px]"
+                        title={`Repete: ${ROTULOS_RECORRENCIA_TAREFA[t.recorrencia].toLowerCase()}`}
+                      >
+                        <Repeat
+                          className="size-3.5"
+                          role="img"
+                          aria-label={`Repete: ${ROTULOS_RECORRENCIA_TAREFA[t.recorrencia].toLowerCase()}`}
+                        />
+                      </span>
+                    )}
                   </span>
                 </TableCell>
                 {!pai && (

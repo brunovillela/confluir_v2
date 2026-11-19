@@ -246,6 +246,8 @@ modulo,tabela,coluna,categoria,titulares,descricao
 "ferramentas","demandas_check_tarefas","demandado_documentos","identificacao","funcionários, diretores","Arquivos anexados pelo demandado; podem conter dados pessoais."
 "ferramentas","demandas_check_tarefas","demandante_documentos","identificacao","funcionários, diretores","Arquivos anexados pelo demandante; podem conter dados pessoais."
 "ferramentas","demandas_check_tarefas","prioridade","nenhum","funcionários, diretores","Prioridade da tarefa: alta, media ou baixa (padrão media). Usada para ordenar as listas."
+"ferramentas","demandas_check_tarefas","recorrencia","nenhum","funcionários, diretores","De quanto em quanto tempo a tarefa se repete: semanal, mensal, trimestral, semestral ou anual; nulo = não repete. Ao concluir, o sistema cria a próxima com o prazo avançado."
+"ferramentas","demandas_check_tarefas","recorrencia_proxima_id","nenhum","funcionários, diretores","A tarefa criada quando esta (recorrente) foi concluída; impede criar outra ao reabrir e concluir de novo."
 "ferramentas","demandas_comentarios","","identificacao","funcionários, diretores","Comentário em uma demanda (origem Bubble), lido em lib/db/nucleo.ts. Tabela vazia."
 "ferramentas","demandas_comentarios","descricao","identificacao","funcionários, diretores","Texto livre do comentário."
 "financeiro","despesas","","financeiro;identificacao","favorecidos pessoa física","Espelho vazio de Financeiro - Despesas do Bubble (migração inicial). Sem uso encontrado no código (possível legado do Bubble); as despesas vivem nas ordens de pagamento."
