@@ -26,7 +26,7 @@ function rotulosEscopos(escopos: string[]): string {
 
 /** Chaves de leitura, webhooks de saída e o log de entregas (onda 5, A9). */
 export default async function ApiPage({ searchParams }: { searchParams: Promise<{ editar?: string; novo?: string }> }) {
-  await requirePermissao("configuracoes")
+  await requirePermissao("gestao_sistema")
   const sp = await searchParams
   const [{ disponivel, chaves }, { webhooks }, entregas, origem] = await Promise.all([listarChavesApi(), listarWebhooks(), listarEntregas(undefined, 50), origemAtual()])
   const editando = sp.editar ? (webhooks.find((w) => w.id === sp.editar) ?? null) : null

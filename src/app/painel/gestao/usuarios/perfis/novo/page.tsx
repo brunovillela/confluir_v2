@@ -11,7 +11,7 @@ import { PerfilForm } from "../perfil-forms"
 export const metadata: Metadata = { title: "Novo perfil — Confluir" }
 
 export default async function NovoPerfilPage() {
-  await requirePermissao("permissoes", ["configuracoes"])
+  await requirePermissao("permissoes", ["gestao_sistema"])
 
   return (
     <>

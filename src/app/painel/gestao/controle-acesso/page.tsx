@@ -93,7 +93,7 @@ function CartaoAgente({ a, agora }: { a: AgenteAcesso; agora: number }) {
  * visitantes). Cadastro com código de pareamento e lista de verificação.
  */
 export default async function ControleAcessoPage() {
-  await requirePermissao("configuracoes")
+  await requirePermissao("gestao_sistema")
   const [{ disponivel, agentes }, sedes, origem] = await Promise.all([listarAgentes(), listarSedes(), origemAtual()])
   // eslint-disable-next-line react-hooks/purity -- instante da renderização (status online/offline)
   const agora = Date.now()

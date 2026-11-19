@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "Documentação da API — Confluir" 
 
 /** Gerada do catálogo: endpoints, parâmetros, campos e o formato dos webhooks. */
 export default async function ApiDocsPage() {
-  await requirePermissao("configuracoes")
+  await requirePermissao("gestao_sistema")
   const origem = await origemAtual()
   return (
     <>

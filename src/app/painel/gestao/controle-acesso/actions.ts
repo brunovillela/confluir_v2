@@ -15,7 +15,7 @@ function campo(fd: FormData, nome: string): string {
 export type EstadoCodigo = EstadoForm & { codigo?: string }
 
 export async function cadastrarAgenteAction(_prev: EstadoCodigo, fd: FormData): Promise<EstadoCodigo> {
-  const sessao = await requirePermissao("configuracoes")
+  const sessao = await requirePermissao("gestao_sistema")
   const r = await cadastrarAgente({ nome: campo(fd, "nome"), sedeId: campo(fd, "sede_id"), conector: campo(fd, "conector") }, sessao.usuario.id as string)
   if (r.erro) return { erro: r.erro, campo: r.campo }
   revalidatePath(ROTA)
@@ -23,7 +23,7 @@ export async function cadastrarAgenteAction(_prev: EstadoCodigo, fd: FormData): 
 }
 
 export async function novoCodigoAction(_prev: EstadoCodigo, fd: FormData): Promise<EstadoCodigo> {
-  await requirePermissao("configuracoes")
+  await requirePermissao("gestao_sistema")
   const r = await novoCodigoAgente(campo(fd, "agente_id"))
   if (r.erro) return { erro: r.erro }
   revalidatePath(ROTA)
@@ -31,7 +31,7 @@ export async function novoCodigoAction(_prev: EstadoCodigo, fd: FormData): Promi
 }
 
 export async function verificarAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
-  const sessao = await requirePermissao("configuracoes")
+  const sessao = await requirePermissao("gestao_sistema")
   const r = await solicitarVerificacao(campo(fd, "agente_id"), sessao.usuario.id as string)
   if (r.erro) return { erro: r.erro }
   revalidatePath(ROTA)
@@ -39,7 +39,7 @@ export async function verificarAction(_prev: EstadoForm, fd: FormData): Promise<
 }
 
 export async function desligarAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
-  await requirePermissao("configuracoes")
+  await requirePermissao("gestao_sistema")
   const r = await desligarAgente(campo(fd, "agente_id"))
   if (r.erro) return { erro: r.erro }
   revalidatePath(ROTA)

@@ -62,7 +62,7 @@ type Busca = {
 }
 
 export default async function IAPage({ searchParams }: { searchParams: Promise<Busca> }) {
-  await requirePermissao("configuracoes")
+  await requirePermissao("gestao_sistema")
   const sp = await searchParams
   const periodo = PERIODOS.some((p) => p.valor === sp.periodo) ? sp.periodo! : "mes"
   const aba = ABAS.find((a) => a.valor === sp.por) ?? ABAS[0]

@@ -2,6 +2,7 @@ import "server-only"
 import OpenAI from "openai"
 import { cache } from "react"
 
+import { avisarChaveRecusada, conferirTetoIA } from "@/lib/db/ia-avisos"
 import { configIAParaChamada, custoDoMes, type ConfigIAPublica } from "@/lib/db/ia-config"
 import { PROCESSO_NAO_IDENTIFICADO, processoIA } from "@/lib/ia-processos"
 import { usuarioIdAtual } from "@/lib/sessao-atual"
@@ -94,6 +95,15 @@ function erroIA(e: unknown, origem: OrigemChave, modelo: string): string {
   return `Falha ao chamar a IA: ${msg}`
 }
 
+/** A OpenAI recusou a chave (inválida, sem permissão ou sem créditos): a Gestão precisa agir. */
+function chaveRecusada(e: unknown): boolean {
+  return (
+    e instanceof OpenAI.AuthenticationError ||
+    e instanceof OpenAI.PermissionDeniedError ||
+    (e instanceof OpenAI.RateLimitError && e.code === "insufficient_quota")
+  )
+}
+
 type Resposta = OpenAI.Responses.Response
 
 /** A IA recusou (bloco de recusa ou filtro de conteúdo)? */
@@ -180,6 +190,7 @@ async function preparar(ctx: ContextoIA, tipo: TipoChamada): Promise<Preparo> {
   if (registro && config?.limiteMensalUsd && config.bloquearNoLimite) {
     const gasto = await custoDoMes(registro.emp)
     if (gasto >= config.limiteMensalUsd) {
+      await conferirTetoIA(registro.emp, config.limiteMensalUsd, true)
       return {
         erro: "O teto mensal de IA da entidade foi atingido. A IA volta no dia 1º ou quando a Gestão aumentar o teto.",
         registro,
@@ -206,9 +217,14 @@ function custoEstimado(config: ConfigIAPublica | null, entrada: number, cacheado
 /** Grava a chamada em ia_uso. Nunca derruba a chamada de IA. */
 async function registrar(
   base: RegistroBase | null,
-  r: { modelo: string; origem: OrigemChave; inicio: number; resposta?: Resposta; erro?: string }
+  r: { modelo: string; origem: OrigemChave; inicio: number; resposta?: Resposta; erro?: string; recusaChave?: boolean }
 ): Promise<void> {
   if (!base) return
+  // Avisos aos administradores (depois da resposta, sem atrasar a chamada).
+  if (r.resposta && base.config?.limiteMensalUsd) {
+    await conferirTetoIA(base.emp, base.config.limiteMensalUsd, base.config.bloquearNoLimite)
+  }
+  if (r.recusaChave && r.erro) await avisarChaveRecusada(base.emp, r.erro)
   try {
     const u = r.resposta?.usage
     const entrada = u?.input_tokens ?? 0
@@ -293,7 +309,7 @@ async function chamarTextoIA(system: string, prompt: string, maxTokens: number, 
     return { texto, truncado: cortada(resposta) }
   } catch (e) {
     const erro = erroIA(e, origem, modelo)
-    await registrar(p.registro, { modelo, origem, inicio, erro })
+    await registrar(p.registro, { modelo, origem, inicio, erro, recusaChave: origem === "entidade" && chaveRecusada(e) })
     return { erro }
   }
 }
@@ -404,7 +420,7 @@ async function chamarJsonIANaEntidade(
     return { dados }
   } catch (e) {
     const erro = erroIA(e, origem, modelo)
-    await registrar(p.registro, { modelo, origem, inicio, erro })
+    await registrar(p.registro, { modelo, origem, inicio, erro, recusaChave: origem === "entidade" && chaveRecusada(e) })
     return { erro }
   }
 }

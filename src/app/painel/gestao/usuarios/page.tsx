@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, ShieldCheck, Users } from "lucide-react"
+import { ArrowLeft, ShieldCheck, UserCheck, Users } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -24,7 +24,7 @@ import { ConcederAcesso, OnboardingLote } from "./usuarios-forms"
 export const metadata: Metadata = { title: "Usuários e permissões — Confluir" }
 
 export default async function UsuariosPage() {
-  await requirePermissao("permissoes", ["configuracoes"])
+  await requirePermissao("permissoes", ["gestao_sistema"])
   const [acessos, previa] = await Promise.all([
     listarAcessos(),
     previaOnboarding(),
@@ -41,6 +41,12 @@ export default async function UsuariosPage() {
           </Link>
         </Button>
         <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/painel/gestao/usuarios/revisao">
+              <UserCheck />
+              Revisão de acessos
+            </Link>
+          </Button>
           <Button variant="outline" size="sm" asChild>
             <Link href="/painel/gestao/usuarios/quadro">
               <Users />

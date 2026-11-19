@@ -28,7 +28,7 @@ export default async function QuadroPage({
 }: {
   searchParams: Promise<{ filtro?: string; busca?: string }>
 }) {
-  await requirePermissao("permissoes", ["configuracoes"])
+  await requirePermissao("permissoes", ["gestao_sistema"])
   const { filtro: filtroBruto, busca = "" } = await searchParams
   const pessoas = await listarQuadro()
 

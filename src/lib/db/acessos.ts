@@ -68,7 +68,7 @@ export async function listarAcessos(): Promise<AcessoLinha[]> {
         email: u?.email ?? null,
         temLogin: u?.temLogin ?? false,
         totalPermissoes: CHAVES_PERMISSAO.filter((c) => p[c] === true).length,
-        ehAdmin: p.permissoes === true || p.configuracoes === true,
+        ehAdmin: p.permissoes === true || p.configuracoes === true || p.gestao_sistema === true,
         contaFuncao: u?.contaFuncao ?? false,
         ocupanteAtual: ocupantes.get(p.usuario_id as string) ?? null,
       }

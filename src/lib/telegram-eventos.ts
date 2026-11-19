@@ -101,6 +101,9 @@ export const EVENTOS_TELEGRAM = [
   // Pedido de saúde do portal (RIPD de saúde, R2): só a equipe de saúde, e o
   // texto é sempre genérico — sem nome, CPF nem título (avisos.ts, `sensivel`).
   { chave: "atendimento_saude", rotulo: "Pedido de saúde pelo portal (equipe de saúde; aviso sem dados do filiado)", grupo: "pendencia", acesso: { permissoes: ["saude_atendimento", "saude_gestao"] } },
+  // Gestão › IA (19/11/2026): teto mensal a 80% e a 100% (uma vez cada por mês)
+  // e chave da entidade recusada pela OpenAI (no máximo uma vez por dia).
+  { chave: "gestao_ia", rotulo: "IA da entidade: teto mensal perto do fim ou atingido, e chave da OpenAI recusada", grupo: "notificacao", acesso: { permissoes: ["gestao_sistema"] } },
   { chave: "lembrete_pendencias", rotulo: "Lembrete diário do que está esperando você", grupo: "resumo" },
   { chave: "resumo_vencimentos", rotulo: "Resumo diário de vencimentos das áreas que você cuida", grupo: "resumo", acesso: { permissoes: PERMISSOES_VENCIMENTOS } },
   { chave: "resumo_semanal", rotulo: "Resumo semanal de gestão (segunda-feira)", grupo: "resumo" },

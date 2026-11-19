@@ -9,6 +9,7 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
+  UserCheck,
   UserCog,
   Users,
   type LucideIcon,
@@ -20,7 +21,7 @@ import { listarAgentes } from "@/lib/acesso-agente"
 import { ONLINE_ATE_MS } from "@/lib/acesso-agente-constantes"
 import { listarChavesApi } from "@/lib/api-publica"
 import { requirePermissao } from "@/lib/auth"
-import { listarAcessos } from "@/lib/db/acessos"
+import { revisarAcessos, ROTULO_MOTIVO, type MotivoRevisao } from "@/lib/db/acessos-revisao"
 import { segundoFatorAtivo } from "@/lib/db/acessos-mfa"
 import { mesAtual, obterConfigIA } from "@/lib/db/ia-config"
 import { resumoUsoIA } from "@/lib/db/ia-uso"
@@ -47,7 +48,7 @@ const GRUPOS: { titulo: string; areas: Area[] }[] = [
         descricao: "Chave de API própria, modelo, teto mensal e o uso por pessoa, processo, departamento e módulo",
         href: "/painel/gestao/ia",
         icone: Sparkles,
-        chave: "configuracoes",
+        chave: "gestao_sistema",
       },
     ],
   },
@@ -60,7 +61,15 @@ const GRUPOS: { titulo: string; areas: Area[] }[] = [
         href: "/painel/gestao/usuarios",
         icone: ShieldCheck,
         chave: "permissoes",
-        chavesAlternativas: ["configuracoes"],
+        chavesAlternativas: ["gestao_sistema"],
+      },
+      {
+        titulo: "Revisão de acessos",
+        descricao: "Desligados, diretores fora do mandato e contas paradas que ainda têm acesso",
+        href: "/painel/gestao/usuarios/revisao",
+        icone: UserCheck,
+        chave: "gestao_sistema",
+        chavesAlternativas: ["permissoes"],
       },
       {
         titulo: "Perfis de acesso",
@@ -68,7 +77,7 @@ const GRUPOS: { titulo: string; areas: Area[] }[] = [
         href: "/painel/gestao/usuarios/perfis",
         icone: UserCog,
         chave: "permissoes",
-        chavesAlternativas: ["configuracoes"],
+        chavesAlternativas: ["gestao_sistema"],
       },
       {
         titulo: "Quadro da entidade",
@@ -76,7 +85,7 @@ const GRUPOS: { titulo: string; areas: Area[] }[] = [
         href: "/painel/gestao/usuarios/quadro",
         icone: Users,
         chave: "permissoes",
-        chavesAlternativas: ["configuracoes"],
+        chavesAlternativas: ["gestao_sistema"],
       },
       {
         titulo: "Auditoria",
@@ -84,7 +93,7 @@ const GRUPOS: { titulo: string; areas: Area[] }[] = [
         href: "/painel/gestao/auditoria",
         icone: ScrollText,
         chave: "institucional_auditoria",
-        chavesAlternativas: ["configuracoes", "permissoes"],
+        chavesAlternativas: ["gestao_sistema", "permissoes"],
       },
     ],
   },
@@ -96,14 +105,14 @@ const GRUPOS: { titulo: string; areas: Area[] }[] = [
         descricao: "Chaves de leitura e avisos a outros sistemas",
         href: "/painel/gestao/api",
         icone: Plug,
-        chave: "configuracoes",
+        chave: "gestao_sistema",
       },
       {
         titulo: "Controle de acesso",
         descricao: "Agente da recepção que liga o Confluir às catracas",
         href: "/painel/gestao/controle-acesso",
         icone: ScanFace,
-        chave: "configuracoes",
+        chave: "gestao_sistema",
       },
     ],
   },
@@ -121,8 +130,8 @@ function n(qtd: number, singular: string, plural: string): string {
 /** Saúde do sistema: o que merece a atenção do administrador agora. */
 async function sinais(podeUsuarios: boolean, podeConfig: boolean): Promise<Sinal[]> {
   const lista: Sinal[] = []
-  const [acessos, chaves, webhooks, agentes, ia, usoMes] = await Promise.all([
-    podeUsuarios ? listarAcessos() : Promise.resolve(null),
+  const [revisao, chaves, webhooks, agentes, ia, usoMes] = await Promise.all([
+    podeUsuarios ? revisarAcessos() : Promise.resolve(null),
     podeConfig ? listarChavesApi() : Promise.resolve(null),
     podeConfig ? listarWebhooks() : Promise.resolve(null),
     podeConfig ? listarAgentes() : Promise.resolve(null),
@@ -130,7 +139,20 @@ async function sinais(podeUsuarios: boolean, podeConfig: boolean): Promise<Sinal
     podeConfig ? resumoUsoIA(mesAtual().de, mesAtual().ate) : Promise.resolve(null),
   ])
 
-  if (acessos) {
+  if (revisao) {
+    const acessos = revisao.acessos
+    // Revisão de acessos: desligados e diretores fora do mandato são alerta;
+    // parados há 90 dias e nunca usados, só lembrete.
+    const graves: MotivoRevisao[] = ["desligado", "diretor_fora"]
+    for (const m of ["desligado", "diretor_fora", "sem_login", "nunca_entrou"] as MotivoRevisao[]) {
+      const qtd = revisao.contagem[m]
+      if (!qtd) continue
+      lista.push({
+        texto: `${ROTULO_MOTIVO[m]} e ainda com acesso: ${n(qtd, "pessoa", "pessoas")}`,
+        href: `/painel/gestao/usuarios/revisao?motivo=${m}`,
+        alerta: graves.includes(m),
+      })
+    }
     const pessoas = acessos.filter((a) => !a.contaFuncao)
     const semLogin = pessoas.filter((a) => !a.temLogin)
     lista.push({
@@ -202,10 +224,10 @@ async function sinais(podeUsuarios: boolean, podeConfig: boolean): Promise<Sinal
 }
 
 export default async function GestaoPage() {
-  const sessao = await requirePermissao("configuracoes", ["permissoes", "institucional_auditoria"])
+  const sessao = await requirePermissao("gestao_sistema", ["permissoes", "institucional_auditoria"])
   const p = sessao.permissoes
-  const podeUsuarios = podeAcessar(p, "permissoes", ["configuracoes"])
-  const podeConfig = podeAcessar(p, "configuracoes")
+  const podeUsuarios = podeAcessar(p, "permissoes", ["gestao_sistema"])
+  const podeConfig = podeAcessar(p, "gestao_sistema")
   const grupos = GRUPOS.map((g) => ({ ...g, areas: g.areas.filter((a) => podeAcessar(p, a.chave, a.chavesAlternativas)) })).filter((g) => g.areas.length)
   const lista = await sinais(podeUsuarios, podeConfig)
 

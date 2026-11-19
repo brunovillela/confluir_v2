@@ -207,7 +207,6 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
     area: "Institucional",
     flags: [
       { chave: "configuracoes", rotulo: "Organização (identidade e sedes)" },
-      { chave: "institucional_auditoria", rotulo: "Auditoria (quem alterou o quê)" },
       { chave: "registro_mte", rotulo: "Registro sindical (MTE)" },
       { chave: "ferramentas_emails_internos", rotulo: "E-mails institucionais" },
       { chave: "ferramentas_linhas_telefone", rotulo: "Linhas institucionais" },
@@ -225,7 +224,14 @@ export const CATALOGO_PERMISSOES: AreaPermissao[] = [
         chave: "custeio_institucional_autorizacao",
         rotulo: "Custeio institucional — autorizar (custeio e pagamentos extraordinários)",
       },
+    ],
+  },
+  {
+    area: "Gestão",
+    flags: [
+      { chave: "gestao_sistema", rotulo: "Gestão do sistema (IA, integrações e revisão de acessos)" },
       { chave: "permissoes", rotulo: "Gerenciar usuários e permissões" },
+      { chave: "institucional_auditoria", rotulo: "Auditoria (quem alterou o quê)" },
     ],
   },
 ]

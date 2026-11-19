@@ -44,7 +44,7 @@ export default async function AcessoPage({
   params: Promise<{ id: string }>
   searchParams: Promise<{ nova?: string; conta?: string; mfa?: string }>
 }) {
-  await requirePermissao("permissoes", ["configuracoes"])
+  await requirePermissao("permissoes", ["gestao_sistema"])
   const { id } = await params
   const { nova, conta, mfa } = await searchParams
 

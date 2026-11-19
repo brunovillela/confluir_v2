@@ -588,7 +588,7 @@ export function AcessoLogin({
   )
 }
 
-export function RevogarAcesso({ acessoId }: { acessoId: string }) {
+export function RevogarAcesso({ acessoId, voltar, nome }: { acessoId: string; voltar?: string; nome?: string | null }) {
   const [estado, formAction, pendente] = useActionState<EstadoForm, FormData>(
     revogarAcessoAction,
     {}
@@ -597,9 +597,10 @@ export function RevogarAcesso({ acessoId }: { acessoId: string }) {
     <form
       action={formAction}
       onSubmit={(e) => {
-        confirmarEnvio(e, "Revogar o acesso desta pessoa? O perfil de permissões é removido (o cadastro de usuário permanece).")}}
+        confirmarEnvio(e, `Revogar o acesso ${nome ? `de ${nome}` : "desta pessoa"}? O perfil de permissões é removido (o cadastro de usuário permanece).`)}}
     >
       <input type="hidden" name="acesso_id" value={acessoId} />
+      {voltar && <input type="hidden" name="voltar" value={voltar} />}
       <Button type="submit" variant="outline" size="sm" disabled={pendente}>
         {pendente ? (
           <Loader2 className="animate-spin" />

@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   const sessao = await getSessaoPainel()
   if (
     !sessao ||
-    !podeAcessar(sessao.permissoes, "permissoes", ["configuracoes"])
+    !podeAcessar(sessao.permissoes, "permissoes", ["gestao_sistema"])
   ) {
     return Response.json({ sugestoes: [] }, { status: 403 })
   }

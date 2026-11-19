@@ -24,7 +24,7 @@ function alcadaLabel(v: number | null): string {
 }
 
 export default async function PerfisPage() {
-  await requirePermissao("permissoes", ["configuracoes"])
+  await requirePermissao("permissoes", ["gestao_sistema"])
   const perfis = await listarPerfis()
 
   return (

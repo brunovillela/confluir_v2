@@ -23,11 +23,11 @@ const ROTA = "/painel/gestao/ia"
 /**
  * A chave de API chega aqui pelo formulário e daqui só sai cifrada para o
  * banco: nenhuma action devolve a chave, e a tela só conhece os 4 últimos
- * caracteres. Só administradores (configuracoes) mexem na IA.
+ * caracteres. Só quem tem a Gestão do sistema (gestao_sistema) mexe na IA.
  */
 
 export async function salvarChaveAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
-  const sessao = await requirePermissao("configuracoes")
+  const sessao = await requirePermissao("gestao_sistema")
   const chave = String(fd.get("chave") ?? "").trim()
   if (!chaveParecida(chave)) {
     return { erro: "Isso não parece uma chave da OpenAI (começa com sk- e não tem espaços).", campo: "chave" }
@@ -45,7 +45,7 @@ export async function salvarChaveAction(_prev: EstadoForm, fd: FormData): Promis
 }
 
 export async function testarChaveSalvaAction(): Promise<EstadoForm> {
-  const sessao = await requirePermissao("configuracoes")
+  const sessao = await requirePermissao("gestao_sistema")
   const { config, chave } = await configIAParaChamada(await tenantAtual())
   if (!config.temChave) return { erro: "Não há chave da entidade cadastrada." }
   if (!chave) return { erro: "A chave guardada não pôde ser lida neste servidor (a chave de cifra mudou). Cadastre-a de novo." }
@@ -57,7 +57,7 @@ export async function testarChaveSalvaAction(): Promise<EstadoForm> {
 }
 
 export async function removerChaveAction(): Promise<EstadoForm> {
-  const sessao = await requirePermissao("configuracoes")
+  const sessao = await requirePermissao("gestao_sistema")
   const r = await removerChaveIA(String(sessao.usuario.id))
   if (r.erro) return { erro: r.erro }
   revalidatePath(ROTA)
@@ -73,7 +73,7 @@ function numeroOuNulo(fd: FormData, nome: string): number | null | "invalido" {
 }
 
 export async function salvarPreferenciasAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
-  const sessao = await requirePermissao("configuracoes")
+  const sessao = await requirePermissao("gestao_sistema")
   const campos = {
     limite: numeroOuNulo(fd, "limite_mensal_usd"),
     entrada: numeroOuNulo(fd, "preco_entrada"),

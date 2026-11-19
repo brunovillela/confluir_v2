@@ -158,7 +158,7 @@ export async function buscarGlobal(sessao: SessaoPainel, busca: string): Promise
       buscar: () => fornecedores(termo, emp),
     })
   }
-  if (pode("permissoes", ["configuracoes"])) {
+  if (pode("permissoes", ["gestao_sistema"])) {
     tarefas.push({ grupo: { chave: "usuarios", titulo: "Usuários do painel" }, buscar: () => usuarios(termo) })
   }
   if (pode("financeiro_pagamento", ["financeiro_leitura"])) {

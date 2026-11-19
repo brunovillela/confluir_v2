@@ -12,7 +12,7 @@ import {
 } from "@/lib/db/perfis"
 
 const CHAVE = "permissoes"
-const ALT = ["configuracoes"]
+const ALT = ["gestao_sistema"]
 const BASE = "/painel/gestao/usuarios/perfis"
 
 function texto(formData: FormData, campo: string): string {

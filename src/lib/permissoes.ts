@@ -890,7 +890,7 @@ export const MODULOS: Modulo[] = [
     href: "/painel/gestao",
     icone: "Settings",
     descricao: "Inteligência artificial, integrações, usuários, perfis de acesso e auditoria",
-    chave: "configuracoes",
+    chave: "gestao_sistema",
     chavesAlternativas: ["permissoes", "institucional_auditoria"],
   },
   {
@@ -898,7 +898,7 @@ export const MODULOS: Modulo[] = [
     href: "/painel/gestao/ia",
     icone: "Sparkles",
     descricao: "Chave de API própria, modelo, teto mensal e o uso da IA por pessoa, processo, departamento e módulo",
-    chave: "configuracoes",
+    chave: "gestao_sistema",
     oculto: true,
   },
   {
@@ -988,7 +988,7 @@ export const MODULOS: Modulo[] = [
     icone: "Users",
     descricao: "Acesso ao painel e permissões por área",
     chave: "permissoes",
-    chavesAlternativas: ["configuracoes"],
+    chavesAlternativas: ["gestao_sistema"],
     oculto: true,
   },
   {
@@ -996,7 +996,7 @@ export const MODULOS: Modulo[] = [
     href: "/painel/gestao/api",
     icone: "Plug",
     descricao: "Chaves de leitura para contador, Power BI e site; webhooks que avisam outros sistemas",
-    chave: "configuracoes",
+    chave: "gestao_sistema",
     oculto: true,
   },
   {
@@ -1004,7 +1004,7 @@ export const MODULOS: Modulo[] = [
     href: "/painel/gestao/controle-acesso",
     icone: "ScanFace",
     descricao: "Agente da recepção que liga o Confluir às catracas da sede",
-    chave: "configuracoes",
+    chave: "gestao_sistema",
     oculto: true,
   },
   {
@@ -1013,7 +1013,7 @@ export const MODULOS: Modulo[] = [
     icone: "ScrollText",
     descricao: "Quem alterou o quê nas tabelas sensíveis",
     chave: "institucional_auditoria",
-    chavesAlternativas: ["configuracoes", "permissoes"],
+    chavesAlternativas: ["gestao_sistema", "permissoes"],
     oculto: true,
   },
   {

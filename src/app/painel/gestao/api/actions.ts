@@ -17,7 +17,7 @@ export type EstadoChave = EstadoForm & { token?: string }
 export type EstadoWebhook = EstadoForm & { segredo?: string }
 
 export async function criarChaveAction(_prev: EstadoChave, fd: FormData): Promise<EstadoChave> {
-  const sessao = await requirePermissao("configuracoes")
+  const sessao = await requirePermissao("gestao_sistema")
   const r = await criarChaveApi(campo(fd, "nome"), sessao.usuario.id as string, fd.getAll("escopos").map(String))
   if (r.erro) return { erro: r.erro, campo: r.campo }
   revalidatePath(ROTA)
@@ -25,7 +25,7 @@ export async function criarChaveAction(_prev: EstadoChave, fd: FormData): Promis
 }
 
 export async function escoposChaveAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
-  await requirePermissao("configuracoes")
+  await requirePermissao("gestao_sistema")
   const r = await atualizarEscoposChaveApi(campo(fd, "chave_id"), fd.getAll("escopos").map(String))
   if (r.erro) return { erro: r.erro }
   revalidatePath(ROTA)
@@ -33,7 +33,7 @@ export async function escoposChaveAction(_prev: EstadoForm, fd: FormData): Promi
 }
 
 export async function revogarChaveAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
-  await requirePermissao("configuracoes")
+  await requirePermissao("gestao_sistema")
   const r = await revogarChaveApi(campo(fd, "chave_id"))
   if (r.erro) return { erro: r.erro }
   revalidatePath(ROTA)
@@ -41,7 +41,7 @@ export async function revogarChaveAction(_prev: EstadoForm, fd: FormData): Promi
 }
 
 export async function salvarWebhookAction(_prev: EstadoWebhook, fd: FormData): Promise<EstadoWebhook> {
-  const sessao = await requirePermissao("configuracoes")
+  const sessao = await requirePermissao("gestao_sistema")
   const r = await salvarWebhook(
     campo(fd, "webhook_id") || null,
     { url: campo(fd, "url"), eventos: fd.getAll("eventos").map(String), descricao: campo(fd, "descricao") || null, ativo: fd.get("ativo") !== null },
@@ -53,7 +53,7 @@ export async function salvarWebhookAction(_prev: EstadoWebhook, fd: FormData): P
 }
 
 export async function excluirWebhookAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
-  await requirePermissao("configuracoes")
+  await requirePermissao("gestao_sistema")
   const r = await excluirWebhook(campo(fd, "webhook_id"))
   if (r.erro) return { erro: r.erro }
   revalidatePath(ROTA)
@@ -61,14 +61,14 @@ export async function excluirWebhookAction(_prev: EstadoForm, fd: FormData): Pro
 }
 
 export async function testarWebhookAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
-  const sessao = await requirePermissao("configuracoes")
+  const sessao = await requirePermissao("gestao_sistema")
   const n = await emitirEvento("teste", { mensagem: campo(fd, "mensagem") || "Evento de teste do Confluir", enviadoPor: sessao.usuario.email ?? null })
   revalidatePath(ROTA)
   return n ? { ok: `Teste enviado para ${n} webhook(s). Veja o resultado nas entregas em instantes.` } : { erro: "Nenhum webhook ativo inscrito no evento \"teste\"." }
 }
 
 export async function reenviarEntregaAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
-  await requirePermissao("configuracoes")
+  await requirePermissao("gestao_sistema")
   const r = await reenviarEntrega(campo(fd, "entrega_id"))
   if (r.erro) return { erro: r.erro }
   revalidatePath(ROTA)

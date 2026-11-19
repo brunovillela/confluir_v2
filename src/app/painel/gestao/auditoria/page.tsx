@@ -39,7 +39,7 @@ export default async function AuditoriaPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>
 }) {
-  await requirePermissao("institucional_auditoria", ["configuracoes", "permissoes"])
+  await requirePermissao("institucional_auditoria", ["gestao_sistema", "permissoes"])
   const params = await searchParams
   const aba = params.aba === "exportacoes" || params.aba === "api" ? params.aba : "alteracoes"
   if (aba !== "alteracoes") {

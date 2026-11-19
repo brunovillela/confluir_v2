@@ -18,7 +18,7 @@ export default async function PerfilPage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  await requirePermissao("permissoes", ["configuracoes"])
+  await requirePermissao("permissoes", ["gestao_sistema"])
   const { id } = await params
   const perfil = await perfilComChaves(id)
   if (!perfil) notFound()

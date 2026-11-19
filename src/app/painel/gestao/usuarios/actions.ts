@@ -34,7 +34,7 @@ import { tenantAtual } from "@/lib/tenant"
 import { CHAVES_PERMISSAO } from "@/lib/permissoes-catalogo"
 
 const CHAVE = "permissoes"
-const ALT = ["configuracoes"]
+const ALT = ["gestao_sistema"]
 
 function texto(formData: FormData, campo: string): string {
   return String(formData.get(campo) ?? "").trim()
@@ -360,6 +360,13 @@ export async function revogarAcessoAction(
   const { erro } = await revogarAcesso(id)
   if (erro) return { erro }
   revalidatePath("/painel/gestao/usuarios")
+  // A revisão de acessos revoga da própria lista e volta para ela.
+  const voltar = texto(formData, "voltar")
+  if (voltar === "/painel/gestao/usuarios/revisao") {
+    revalidatePath(voltar)
+    revalidatePath("/painel/gestao")
+    redirect(voltar)
+  }
   redirect("/painel/gestao/usuarios")
 }
 
