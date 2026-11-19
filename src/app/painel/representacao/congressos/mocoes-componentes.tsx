@@ -91,7 +91,7 @@ export function MocaoForm({
   aoConcluir?: (r: Resp & { id?: string; codigo?: string }) => void
 }) {
   const [d, setD] = useState<DadosMocaoForm>({
-    tipo: inicial?.tipo ?? tipos[0] ?? null,
+    tipo: inicial?.tipo ?? null,
     titulo: inicial?.titulo ?? "",
     destinatario: inicial?.destinatario ?? "",
     texto: inicial?.texto ?? "",
@@ -120,6 +120,7 @@ export function MocaoForm({
           <div className="grid gap-1">
             <Label htmlFor="mocao-tipo">Tipo</Label>
             <SelectNativo id="mocao-tipo" value={d.tipo ?? ""} onChange={(e) => setD({ ...d, tipo: e.target.value || null })}>
+              <option value="">Escolha…</option>
               {tipos.map((t) => (
                 <option key={t} value={t}>
                   {t}

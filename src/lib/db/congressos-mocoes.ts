@@ -500,7 +500,10 @@ export async function assinar(
   if (d.textoHash && d.textoHash !== m.textoHash) return { erro: "O texto da moção mudou enquanto você lia. Leia de novo antes de assinar." }
   const dia = await dadosDoDia(ctx.c.id)
   const { resposta, pessoa, info } = await avaliar(ctx.c, ctx.tenantId, m, dia, d.participanteId, d.meio, d.codigoSala ?? null)
-  if (!resposta.pode || !pessoa) return { erro: resposta.motivo, precisaCodigo: resposta.precisaCodigo }
+  if (!resposta.pode || !pessoa) {
+    if (resposta.precisaCodigo && d.codigoSala) return { erro: "O código não confere ou já mudou. Leia o código que está na tela agora.", precisaCodigo: true }
+    return { erro: resposta.motivo, precisaCodigo: resposta.precisaCodigo }
+  }
   const admin = await createAdminClient()
   const { error } = await admin.from("congresso_mocao_assinaturas").insert({
     emp_proprietaria_id: ctx.tenantId,
