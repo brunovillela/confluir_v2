@@ -222,3 +222,66 @@ export function horaDoDia(min: number): string {
   const m = Math.min(Math.max(Math.round(min), 0), DIA_MIN)
   return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`
 }
+
+// ── Motivo informado pelo funcionário (19/11/2026) ───────────────────────────
+
+export type MotivoUso = "urgencia" | "combinado" | "plantao" | "compensacao" | "outro"
+
+export const MOTIVOS_USO: { chave: MotivoUso; rotulo: string }[] = [
+  { chave: "urgencia", rotulo: "Urgência" },
+  { chave: "combinado", rotulo: "Combinado com a chefia" },
+  { chave: "plantao", rotulo: "Plantão ou sobreaviso" },
+  { chave: "compensacao", rotulo: "Compensação de horas" },
+  { chave: "outro", rotulo: "Outro" },
+]
+
+export type JustificativaUso = { motivo: MotivoUso; detalhe: string | null }
+
+export function rotuloMotivoUso(j: JustificativaUso): string {
+  const r = MOTIVOS_USO.find((m) => m.chave === j.motivo)?.rotulo ?? "Outro"
+  return j.detalhe ? `${r}: ${j.detalhe}` : r
+}
+
+// ── Cruzamento com o espelho de ponto (19/11/2026) ───────────────────────────
+
+export const ALERTA_USO_SEM_MARCACAO = "Uso do sistema fora do horário sem marcação"
+
+const minutosDaBatida = (b: string): number | null => horaParaMinutos(b)
+
+/**
+ * O uso fora do expediente do dia que NÃO está coberto pelas batidas do
+ * espelho (pares entrada–saída). Uso às 21h com saída batida às 17h, uso no
+ * almoço com o intervalo batido inteiro, uso no sábado sem batida: tudo isso
+ * é indício de hora extra ou intervalo não registrado. O uso DENTRO da
+ * jornada não entra (é expediente, com ou sem batida).
+ */
+export function usoSemMarcacao(dia: DiaUso, batidas: string[]): { minutos: number; trechos: [number, number][] } {
+  const pares: [number, number][] = []
+  for (let i = 0; i + 1 < batidas.length; i += 2) {
+    const a = minutosDaBatida(batidas[i])
+    const b = minutosDaBatida(batidas[i + 1])
+    if (a !== null && b !== null && b > a) pares.push([a, b])
+  }
+  const trechos: [number, number][] = []
+  for (const t of dia.trechos) {
+    if (t.categoria === "dentro") continue
+    // Subtrai os pares batidos do trecho.
+    let partes: [number, number][] = [[t.inicio, t.fim]]
+    for (const [a, b] of pares) {
+      partes = partes.flatMap(([x, y]): [number, number][] => {
+        if (b <= x || a >= y) return [[x, y]]
+        const r: [number, number][] = []
+        if (a > x) r.push([x, a])
+        if (b < y) r.push([b, y])
+        return r
+      })
+    }
+    trechos.push(...partes.filter(([x, y]) => y > x))
+  }
+  return { minutos: trechos.reduce((s, [x, y]) => s + (y - x), 0), trechos }
+}
+
+/** "1h15 (21:10–22:25)" — o detalhe do alerta na fila de conferência. */
+export function textoUsoSemMarcacao(r: { minutos: number; trechos: [number, number][] }): string {
+  return `${textoMinutos(r.minutos)} (${r.trechos.map(([a, b]) => `${horaDoDia(a)}–${horaDoDia(b)}`).join(", ")})`
+}

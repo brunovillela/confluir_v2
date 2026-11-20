@@ -143,6 +143,14 @@ async function Detalhe({ usuarioId, mes, hrefMes }: { usuarioId: string; mes: st
                                     .join(", ")})`
                               )
                               .join(" · ")}
+                        {d.motivos.get(dia.data) && (
+                          <div className="mt-1">
+                            Motivo informado: <strong>{d.motivos.get(dia.data)}</strong>
+                          </div>
+                        )}
+                        {dia.foraTotal > 0 && !d.motivos.get(dia.data) && (
+                          <div className="text-muted-foreground mt-1">Sem motivo informado</div>
+                        )}
                       </td>
                     </tr>
                   )
@@ -318,6 +326,9 @@ export default async function UsoForaDoExpedientePage({
                           <td className="py-2 pr-3 text-right font-semibold tabular-nums">{textoMinutos(l.resumo.considerado)}</td>
                           <td className="py-2 text-right tabular-nums" title="dias acima da tolerância / dias com algum uso fora">
                             {l.resumo.diasComFora ? `${l.resumo.diasAcimaTolerancia}/${l.resumo.diasComFora}` : "—"}
+                            {l.diasComMotivo > 0 && (
+                              <div className="text-muted-foreground text-xs font-normal">{l.diasComMotivo} com motivo</div>
+                            )}
                           </td>
                         </tr>
                       ))}

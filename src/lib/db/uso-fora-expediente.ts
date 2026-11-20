@@ -3,14 +3,22 @@ import "server-only"
 import { esquemaAusente, lerEmLotes, lerEmLotesPorIds } from "@/lib/db/comum"
 import { jornadasVinculadas, type JornadaVinculada } from "@/lib/db/pessoal-sst"
 import { feriadosNacionais } from "@/lib/feriados"
+import type { MarcacoesEspelho } from "@/lib/ponto-marcacoes-ajuste"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import {
+  MOTIVOS_USO,
+  TOLERANCIA_DIARIA_MIN,
   apurarUso,
   diasDoPeriodo,
   resumirUso,
+  rotuloMotivoUso,
+  textoUsoSemMarcacao,
+  usoSemMarcacao,
   type BlocoUso,
   type DiaUso,
+  type JustificativaUso,
+  type MotivoUso,
   type ResumoUso,
 } from "@/lib/uso-fora-expediente"
 
@@ -157,7 +165,14 @@ async function registrandoDesde(): Promise<string | null> {
   return data?.inicio ? String(data.inicio) : null
 }
 
-export type LinhaUsoFora = { usuarioId: string; nome: string; jornada: string; resumo: ResumoUso }
+export type LinhaUsoFora = {
+  usuarioId: string
+  nome: string
+  jornada: string
+  resumo: ResumoUso
+  /** Dias com uso fora em que o funcionário informou o motivo. */
+  diasComMotivo: number
+}
 
 export type UsoForaDoMes = {
   disponivel: boolean
@@ -177,11 +192,12 @@ export async function usoForaDoExpediente(competencia: string): Promise<UsoForaD
   const ids = [...new Set(vinculos.map((v) => v.funcionario_id).filter(Boolean))]
   const blocos = await blocosDoPeriodo(ids, p)
   if (!blocos) return { disponivel: false, competencia, linhas: [], desde: null }
-  const [jornadas, afast, nomesMap, desde] = await Promise.all([
+  const [jornadas, afast, nomesMap, desde, motivos] = await Promise.all([
     jornadasVinculadas(ids),
     afastamentosDoPeriodo(ids, p),
     nomes(ids),
     registrandoDesde(),
+    justificativasDoPeriodo(ids, p),
   ])
   const feriados = feriadosDoPeriodo(p)
   const linhas = ids
@@ -192,7 +208,14 @@ export async function usoForaDoExpediente(competencia: string): Promise<UsoForaD
         feriados,
         afastamentos: afast.get(id) ?? new Map(),
       }).filter((d) => d.data >= p.de && d.data <= p.ate)
-      return { usuarioId: id, nome: nomesMap.get(id) ?? "(sem nome)", jornada: j.nome, resumo: resumirUso(dias) }
+      const m = motivos.get(id)
+      return {
+        usuarioId: id,
+        nome: nomesMap.get(id) ?? "(sem nome)",
+        jornada: j.nome,
+        resumo: resumirUso(dias),
+        diasComMotivo: dias.filter((d) => d.foraTotal > 0 && m?.has(d.data)).length,
+      }
     })
     .sort((a, b) => b.resumo.considerado - a.resumo.considerado || b.resumo.foraTotal - a.resumo.foraTotal || a.nome.localeCompare(b.nome, "pt-BR"))
   return { disponivel: true, competencia, linhas, desde }
@@ -204,16 +227,19 @@ export type UsoForaDoFuncionario = {
   jornada: JornadaVinculada | null
   dias: DiaUso[]
   resumo: ResumoUso
+  /** Motivo informado pelo funcionário: data → "Combinado com a chefia: …". */
+  motivos: Map<string, string>
 }
 
 /** O mês de uma pessoa, dia a dia, com os trechos de uso. */
 export async function usoForaDoFuncionario(usuarioId: string, competencia: string): Promise<UsoForaDoFuncionario> {
   const p = periodoDoMes(competencia)
-  const [blocos, jornadas, afast, nomesMap] = await Promise.all([
+  const [blocos, jornadas, afast, nomesMap, motivos] = await Promise.all([
     blocosDoPeriodo([usuarioId], p),
     jornadasVinculadas([usuarioId]),
     afastamentosDoPeriodo([usuarioId], p),
     nomes([usuarioId]),
+    justificativasDoPeriodo([usuarioId], p),
   ])
   const jornada = jornadas.get(usuarioId) ?? null
   const dias = jornada
@@ -228,5 +254,135 @@ export async function usoForaDoFuncionario(usuarioId: string, competencia: strin
     jornada,
     dias,
     resumo: resumirUso(dias),
+    motivos: new Map([...(motivos.get(usuarioId) ?? new Map<string, JustificativaUso>())].map(([d, j]) => [d, rotuloMotivoUso(j)])),
   }
 }
+
+// ── Motivo informado pelo funcionário ────────────────────────────────────────
+
+/** Motivos do período: usuarioId → (data → motivo). Vazio sem a tabela. */
+async function justificativasDoPeriodo(ids: string[], p: Periodo): Promise<Map<string, Map<string, JustificativaUso>>> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const mapa = new Map<string, Map<string, JustificativaUso>>()
+  const linhas = await lerEmLotesPorIds<{ usuario_id: string; data: string; motivo: MotivoUso; detalhe: string | null }>(
+    ids,
+    (fatia, de, ate) =>
+      admin
+        .from("pessoal_uso_justificativas")
+        .select("id, usuario_id, data, motivo, detalhe")
+        .eq("emp_proprietaria_id", emp)
+        .in("usuario_id", fatia)
+        .gte("data", p.de)
+        .lte("data", p.ate)
+        .order("data")
+        .order("id")
+        .range(de, ate)
+  ).catch(() => [])
+  for (const l of linhas) {
+    const m = mapa.get(l.usuario_id) ?? new Map<string, JustificativaUso>()
+    m.set(String(l.data).slice(0, 10), { motivo: l.motivo, detalhe: l.detalhe })
+    mapa.set(l.usuario_id, m)
+  }
+  return mapa
+}
+
+/** Hoje (AAAA-MM-DD) no horário de São Paulo. */
+export function hojeEmSaoPaulo(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date())
+}
+
+/** O motivo que a pessoa já informou hoje, ou null. "indisponivel" = sem a tabela. */
+export async function motivoDeHoje(usuarioId: string): Promise<JustificativaUso | null | "indisponivel"> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data, error } = await admin
+    .from("pessoal_uso_justificativas")
+    .select("motivo, detalhe")
+    .eq("emp_proprietaria_id", emp)
+    .eq("usuario_id", usuarioId)
+    .eq("data", hojeEmSaoPaulo())
+    .maybeSingle()
+  if (error) return esquemaAusente(error) ? "indisponivel" : null
+  return data ? { motivo: data.motivo as MotivoUso, detalhe: data.detalhe ?? null } : null
+}
+
+/** Grava (ou troca) o motivo de hoje da pessoa. */
+export async function salvarMotivoDeHoje(usuarioId: string, motivo: string, detalhe: string): Promise<string | null> {
+  if (!MOTIVOS_USO.some((m) => m.chave === motivo)) return "Escolha o motivo."
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { error } = await admin.from("pessoal_uso_justificativas").upsert(
+    {
+      emp_proprietaria_id: emp,
+      usuario_id: usuarioId,
+      data: hojeEmSaoPaulo(),
+      motivo,
+      detalhe: detalhe.trim().slice(0, 300) || null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "usuario_id,data" }
+  )
+  return error ? "Não foi possível salvar: " + error.message : null
+}
+
+// ── Cruzamento com o espelho de ponto ────────────────────────────────────────
+
+export type AlertaUso = { texto: string; motivo: string | null }
+
+/** Mês mais frequente nas datas do espelho (a competência do registro). */
+function competenciaDasMarcacoes(m: MarcacoesEspelho | null): string | null {
+  const conta = new Map<string, number>()
+  for (const d of m?.dias ?? []) if (/^\d{4}-\d{2}/.test(d.data)) conta.set(d.data.slice(0, 7), (conta.get(d.data.slice(0, 7)) ?? 0) + 1)
+  return [...conta].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
+}
+
+/**
+ * Para cada registro de ponto (na mesma ordem), os dias do mês em que o
+ * funcionário usou o sistema fora do horário sem marcação que cubra o uso
+ * (data → alerta). Dia já conferido pela gestão não entra. Sem a tabela de
+ * uso, ou sem jornada vinculada, o mapa vem vazio.
+ */
+export async function alertasDeUsoNasMarcacoes(
+  regs: { funcionarioId: string | null; marcacoes: MarcacoesEspelho | null }[]
+): Promise<Map<string, AlertaUso>[]> {
+  const saida = regs.map(() => new Map<string, AlertaUso>())
+  const porComp = new Map<string, number[]>()
+  regs.forEach((r, i) => {
+    const c = r.funcionarioId ? competenciaDasMarcacoes(r.marcacoes) : null
+    if (c) porComp.set(c, [...(porComp.get(c) ?? []), i])
+  })
+  for (const [comp, idx] of porComp) {
+    const p = periodoDoMes(comp)
+    const ids = [...new Set(idx.map((i) => regs[i].funcionarioId!))]
+    const blocos = await blocosDoPeriodo(ids, p)
+    if (!blocos || blocos.size === 0) continue
+    const comUso = ids.filter((id) => blocos.has(id))
+    const [jornadas, afast, motivos] = await Promise.all([
+      jornadasVinculadas(comUso),
+      afastamentosDoPeriodo(comUso, p),
+      justificativasDoPeriodo(comUso, p),
+    ])
+    const feriados = feriadosDoPeriodo(p)
+    for (const i of idx) {
+      const { funcionarioId, marcacoes } = regs[i]
+      const j = jornadas.get(funcionarioId!)
+      if (!j || !blocos.has(funcionarioId!)) continue
+      const dias = apurarUso(blocos.get(funcionarioId!)!, j.dias, {
+        feriados,
+        afastamentos: afast.get(funcionarioId!) ?? new Map(),
+      })
+      for (const d of dias) {
+        if (d.foraTotal === 0 || d.data < p.de || d.data > p.ate) continue
+        const doEspelho = marcacoes?.dias.find((x) => x.data === d.data)
+        if (doEspelho?.conferido || marcacoes?.usoConferido?.includes(d.data)) continue
+        const r = usoSemMarcacao(d, doEspelho?.marcacoes ?? [])
+        if (r.minutos <= TOLERANCIA_DIARIA_MIN) continue
+        const m = motivos.get(funcionarioId!)?.get(d.data)
+        saida[i].set(d.data, { texto: textoUsoSemMarcacao(r), motivo: m ? rotuloMotivoUso(m) : null })
+      }
+    }
+  }
+  return saida
+}
+

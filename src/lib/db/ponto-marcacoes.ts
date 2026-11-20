@@ -7,6 +7,8 @@ import { esquemaAusente, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { gerarJsonIADePdf, type EsquemaJsonIA } from "@/lib/ia"
 import { mesclarLeitura, mesmoDia, type AjusteMarcacao, type MarcacoesEspelho } from "@/lib/ponto-marcacoes-ajuste"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { alertasDeUsoNasMarcacoes, type AlertaUso } from "@/lib/db/uso-fora-expediente"
+import { ALERTA_USO_SEM_MARCACAO } from "@/lib/uso-fora-expediente"
 
 /**
  * MARCAÇÕES DO ESPELHO DE PONTO (16/10/2026).
@@ -305,19 +307,33 @@ export type DiaDetalhado = {
   ajustado: boolean
   /** Conferido como está (o alerta é real). */
   conferido: boolean
+  /** Uso do sistema fora do horário sem marcação: quanto, quando e o motivo informado. */
+  detalheUso?: string | null
+  /** O dia não está nas marcações do espelho (entrou só pelo uso do sistema). */
+  semDia?: boolean
 }
 
 const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
 
-/** O mês dia a dia, com o total trabalhado, o intervalo e os alertas de cada dia. */
-export function detalharDias(m: MarcacoesEspelho | null): DiaDetalhado[] {
+function textoDoUso(u: AlertaUso): string {
+  return u.motivo ? `${u.texto} · motivo informado: ${u.motivo}` : `${u.texto} · sem motivo informado`
+}
+
+/**
+ * O mês dia a dia, com o total trabalhado, o intervalo e os alertas de cada dia.
+ * `uso` (data → alerta) acrescenta o uso do sistema fora do horário sem
+ * marcação — inclusive em dias que não estão no espelho.
+ */
+export function detalharDias(m: MarcacoesEspelho | null, uso?: Map<string, AlertaUso>): DiaDetalhado[] {
   if (!m || !Array.isArray(m.dias)) return []
   const o = avaliarJornada(m)
   const em = (lista: string[] | undefined, d: string) => Boolean(lista?.includes(d))
   const seguidos = (o?.seteDiasSeguidos ?? []).map((s) => s.split(" a "))
-  return m.dias.map((d) => {
+  const detalhados = m.dias.map((d): DiaDetalhado => {
     const ps = pares(d.marcacoes)
     const alertas: string[] = []
+    const u = uso?.get(d.data)
+    if (u) alertas.push(ALERTA_USO_SEM_MARCACAO)
     if (em(o?.jornadaAcima10, d.data)) alertas.push("Jornada acima de 10 h")
     if (em(o?.intervaloCurto, d.data)) alertas.push("Intervalo menor que 1 h")
     if (em(o?.interjornadaCurta, d.data)) alertas.push("Menos de 11 h desde a jornada anterior")
@@ -334,8 +350,28 @@ export function detalharDias(m: MarcacoesEspelho | null): DiaDetalhado[] {
       alertas,
       ajustado: d.ajustado === true,
       conferido: d.conferido === true,
+      ...(u ? { detalheUso: textoDoUso(u) } : {}),
     }
   })
+  if (!uso?.size) return detalhados
+  const noEspelho = new Set(m.dias.map((d) => d.data))
+  for (const [data, u] of uso) {
+    if (noEspelho.has(data)) continue
+    detalhados.push({
+      data,
+      diaSemana: DIAS_SEMANA[new Date(`${data}T12:00:00Z`).getUTCDay()],
+      ocorrencia: null,
+      marcacoes: [],
+      trabalhadoMin: 0,
+      intervaloMin: null,
+      alertas: [ALERTA_USO_SEM_MARCACAO],
+      ajustado: false,
+      conferido: m.usoConferido?.includes(data) === true,
+      detalheUso: textoDoUso(u),
+      semDia: true,
+    })
+  }
+  return detalhados.sort((a, b) => a.data.localeCompare(b.data))
 }
 
 // ── Fila de conferência (16/11/2026) ─────────────────────────────────────────
@@ -365,12 +401,17 @@ export async function diasParaConferir(remessaId: string): Promise<ConferenciaFu
     if (esquemaAusente(error)) return []
     throw new Error(`Falha ao ler as marcações: ${error.message}`)
   }
-  const linhas = ((data ?? []) as { id: string; funcionario_id: string | null; marcacoes: MarcacoesEspelho | null }[])
-    .filter((r) => r.funcionario_id)
-    .map((r) => ({
+  const regs = ((data ?? []) as { id: string; funcionario_id: string | null; marcacoes: MarcacoesEspelho | null }[]).filter(
+    (r) => r.funcionario_id
+  )
+  const uso = await alertasDeUsoNasMarcacoes(regs.map((r) => ({ funcionarioId: String(r.funcionario_id), marcacoes: r.marcacoes })))
+  const linhas = regs
+    .map((r, i) => ({
       registroId: String(r.id),
       funcionarioId: String(r.funcionario_id),
-      dias: detalharDias(r.marcacoes).filter((d) => d.alertas.length > 0 && !d.ajustado && !d.conferido),
+      dias: detalharDias(r.marcacoes, uso[i]).filter(
+        (d) => d.alertas.length > 0 && !d.ajustado && !d.conferido
+      ),
     }))
     .filter((l) => l.dias.length > 0)
   const nomes = await nomesDosUsuarios(linhas.map((l) => l.funcionarioId))
@@ -398,14 +439,21 @@ export async function contagemDiasParaConferir(
   if (nomes.size === 0) return { total: 0, remessas: [] }
   const { data: regs, error: e2 } = await client
     .from("pessoal_registro_ponto")
-    .select("remessa_id, marcacoes")
+    .select("remessa_id, funcionario_id, marcacoes")
     .in("remessa_id", [...nomes.keys()])
     .not("marcacoes", "is", null)
     .range(0, 4999)
   if (e2) return null
+  const lidos = (regs ?? []) as { remessa_id: string; funcionario_id: string | null; marcacoes: MarcacoesEspelho | null }[]
+  // O uso fora do horário não pode derrubar o contador da caixa de entrada.
+  const uso = await alertasDeUsoNasMarcacoes(
+    lidos.map((r) => ({ funcionarioId: r.funcionario_id ? String(r.funcionario_id) : null, marcacoes: r.marcacoes }))
+  ).catch((): Map<string, AlertaUso>[] => [])
   const porRemessa = new Map<string, number>()
-  for (const r of (regs ?? []) as { remessa_id: string; marcacoes: MarcacoesEspelho | null }[]) {
-    const n = detalharDias(r.marcacoes).filter((d) => d.alertas.length > 0 && !d.ajustado && !d.conferido).length
+  for (const [i, r] of lidos.entries()) {
+    const n = detalharDias(r.marcacoes, uso[i]).filter(
+      (d) => d.alertas.length > 0 && !d.ajustado && !d.conferido
+    ).length
     if (n) porRemessa.set(String(r.remessa_id), (porRemessa.get(String(r.remessa_id)) ?? 0) + n)
   }
   const remessas = [...porRemessa].map(([id, dias]) => ({ id, nome: nomes.get(id)!, dias })).sort((a, b) => b.dias - a.dias)

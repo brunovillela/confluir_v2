@@ -1,7 +1,15 @@
 import { expect, test } from "playwright/test"
 
 import type { JornadaDia } from "../../src/lib/pessoal-sst-constantes"
-import { apurarUso, diasDoPeriodo, resumirUso, textoMinutos } from "../../src/lib/uso-fora-expediente"
+import {
+  apurarUso,
+  diasDoPeriodo,
+  resumirUso,
+  rotuloMotivoUso,
+  textoMinutos,
+  textoUsoSemMarcacao,
+  usoSemMarcacao,
+} from "../../src/lib/uso-fora-expediente"
 
 // Seg–sex 08–12 e 13–17.
 const jornada: JornadaDia[] = [1, 2, 3, 4, 5].map((d) => ({
@@ -85,5 +93,30 @@ test.describe("uso fora do expediente", () => {
   test("dias de um afastamento cortados ao mês", () => {
     expect(diasDoPeriodo("2026-10-30", "2026-11-02", "2026-11-01", "2026-11-30")).toEqual(["2026-11-01", "2026-11-02"])
     expect(diasDoPeriodo("2026-11-05", null, "2026-11-01", "2026-11-30")).toEqual(["2026-11-05"])
+  })
+
+  test("uso fora do horário sem marcação que o cubra", () => {
+    const [dia] = apurarUso(
+      [bloco("2026-11-18", "07:30", "08:30"), bloco("2026-11-18", "12:10", "12:40"), bloco("2026-11-18", "17:00", "18:30")],
+      jornada,
+      semNada
+    )
+    // Batidas 08:00–12:00 e 13:00–18:00: as 17h–18h estão batidas; sobra 07:30–08:00, o almoço e 18:00–18:30.
+    const r = usoSemMarcacao(dia, ["08:00", "12:00", "13:00", "18:00"])
+    expect(r.trechos).toEqual([[450, 480], [730, 760], [1080, 1110]])
+    expect(r.minutos).toBe(90)
+    expect(textoUsoSemMarcacao(r)).toBe("1h30 (07:30–08:00, 12:10–12:40, 18:00–18:30)")
+    // Batidas cobrindo tudo (entrada 07:00, almoço sem saída, saída 19:00): nada sobra.
+    expect(usoSemMarcacao(dia, ["07:00", "19:00"]).minutos).toBe(0)
+    // Sábado sem batida: o uso inteiro conta.
+    const [sab] = apurarUso([bloco("2026-11-21", "10:00", "10:45")], jornada, semNada)
+    expect(usoSemMarcacao(sab, []).minutos).toBe(45)
+    // Batida ímpar: o último horário sozinho não cobre nada.
+    expect(usoSemMarcacao(sab, ["09:00"]).minutos).toBe(45)
+  })
+
+  test("motivo informado em uma frase", () => {
+    expect(rotuloMotivoUso({ motivo: "combinado", detalhe: null })).toBe("Combinado com a chefia")
+    expect(rotuloMotivoUso({ motivo: "urgencia", detalhe: "fechamento da folha" })).toBe("Urgência: fechamento da folha")
   })
 })

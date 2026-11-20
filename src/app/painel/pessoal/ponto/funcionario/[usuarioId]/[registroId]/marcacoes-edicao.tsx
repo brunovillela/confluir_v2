@@ -26,6 +26,10 @@ export type DiaEdicao = {
   conferido: boolean
   /** Texto do que o espelho trazia, para o título do selo "Ajustado". */
   original: string | null
+  /** Uso do sistema fora do horário sem marcação (quanto, quando e o motivo). */
+  detalheUso?: string | null
+  /** O dia não está no espelho: entrou só pelo uso do sistema. */
+  semDia?: boolean
 }
 
 /**
@@ -151,6 +155,7 @@ export function MarcacoesEdicao({
                           </Badge>
                         ))}
                       </div>
+                      {d.detalheUso && <p className="text-muted-foreground mt-1 text-xs">{d.detalheUso}</p>}
                     </TableCell>
                     <TableCell className="text-right whitespace-nowrap">
                       {editando !== d.data && (
@@ -310,7 +315,7 @@ function FormDia({
             Está certo como está
           </Button>
         )}
-        {!novo && (
+        {!novo && !dia?.semDia && (
           <Button type="submit" size="sm" variant="outline" name="retirar" value="1" disabled={pendente}>
             <Trash2 />
             Retirar o dia

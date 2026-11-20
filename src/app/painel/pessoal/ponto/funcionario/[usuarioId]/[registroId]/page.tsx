@@ -15,6 +15,7 @@ import { urlArquivoPessoal } from "@/lib/db/pessoal"
 import { funcionarioDaArea } from "@/lib/db/pessoal-area"
 import { carregarBasePonto, rotuloCompetenciaPonto } from "@/lib/db/ponto-analise"
 import { detalharDias, type MarcacoesEspelho } from "@/lib/db/ponto-marcacoes"
+import { alertasDeUsoNasMarcacoes } from "@/lib/db/uso-fora-expediente"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { descreverAjuste, lidoOriginal, textoDiaMarcado } from "@/lib/ponto-marcacoes-ajuste"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -90,7 +91,9 @@ export default async function RegistroPontoPage({
   ]
 
   const marcacoes = (reg.marcacoes ?? null) as MarcacoesEspelho | null
-  const dias = detalharDias(marcacoes)
+  // Uso do sistema fora do horário sem marcação que cubra o uso (19/11/2026).
+  const [usoDoMes] = await alertasDeUsoNasMarcacoes([{ funcionarioId: usuarioId, marcacoes }]).catch(() => [undefined])
+  const dias = detalharDias(marcacoes, usoDoMes)
   const ajustes = [...(marcacoes?.ajustes ?? [])].reverse()
   // Dia retirado à mão: some da tabela, então o "voltar ao espelho" fica no histórico (no ajuste mais recente).
   const retirados = new Set(

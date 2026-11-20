@@ -47,6 +47,12 @@ export type MarcacoesEspelho = {
    * Gravada a partir de 16/11/2026 (leituras antigas não têm).
    */
   jornada?: string[][]
+  /**
+   * Dias SEM marcação no espelho em que o alerta de uso do sistema fora do
+   * horário foi conferido como está pela gestão (19/11/2026). Dia que está
+   * nas marcações usa o `conferido` do próprio dia.
+   */
+  usoConferido?: string[]
 }
 
 const HORA = /^([01]?\d|2[0-3])[:hH]?([0-5]\d)$/
@@ -154,6 +160,12 @@ export function desfazerAjustes(
 }
 
 /** Confirma o dia como está (o alerta é real): fica marcado e sai da fila de conferência. */
+/** Dia sem marcação: o alerta de uso fora do horário conferido como está. */
+export function conferirUsoSemDia(atual: MarcacoesEspelho, data: string): MarcacoesEspelho {
+  if (atual.usoConferido?.includes(data)) return atual
+  return { ...atual, usoConferido: [...(atual.usoConferido ?? []), data].sort() }
+}
+
 export function conferirDia(
   atual: MarcacoesEspelho,
   data: string,
@@ -185,7 +197,9 @@ export function conferirDia(
  * continuam como estão (inclusive os retirados), e o histórico é mantido.
  */
 export function mesclarLeitura(nova: MarcacoesEspelho, anterior: MarcacoesEspelho | null): MarcacoesEspelho {
-  if (!anterior?.ajustes?.length) return nova
+  // O que a gestão já conferiu do uso fora do horário vale para a leitura nova.
+  const usoConferido = anterior?.usoConferido?.length ? { usoConferido: anterior.usoConferido } : {}
+  if (!anterior?.ajustes?.length) return { ...nova, ...usoConferido }
   // O que valeu à mão em cada dia desde o último "desfeito": o último estado,
   // se houve ajuste, e se foi conferido.
   const porDia = new Map<string, AjusteMarcacao[]>()
@@ -209,7 +223,7 @@ export function mesclarLeitura(nova: MarcacoesEspelho, anterior: MarcacoesEspelh
     })
   }
   dias.sort((a, b) => a.data.localeCompare(b.data))
-  return { ...nova, dias, ajustes: anterior.ajustes }
+  return { ...nova, dias, ajustes: anterior.ajustes, ...usoConferido }
 }
 
 /** "08:00 12:00 13:00 17:00 (Feriado)" — como o dia aparece nos históricos de ajuste. */

@@ -53,7 +53,7 @@ export function DiasParaConferir({
         <CardDescription>
           {fila.length === 0
             ? "Nenhum dia com alerta esperando conferência nas marcações desta remessa."
-            : `${total} dia(s) com alerta nas marcações que ninguém olhou ainda. Muitos são erro de leitura do espelho (um horário lido errado vira marcação incompleta ou intervalo curto): Ajustar abre o dia para corrigir. Se o alerta é real, "Está certo" tira o dia da fila.`}
+            : `${total} dia(s) com alerta nas marcações que ninguém olhou ainda. Muitos são erro de leitura do espelho (um horário lido errado vira marcação incompleta ou intervalo curto): Ajustar abre o dia para corrigir. Se o alerta é real, "Está certo" tira o dia da fila. O uso do sistema fora do horário sem marcação que cubra o uso é indício de hora extra ou intervalo não registrado.`}
         </CardDescription>
       </CardHeader>
       {fila.length > 0 && (
@@ -95,14 +95,17 @@ export function DiasParaConferir({
                           {ddmm(d.data)} {d.diaSemana}
                         </span>
                         <span className="min-w-40 tabular-nums">
-                          {d.marcacoes.length ? d.marcacoes.join("  ") : (d.ocorrencia ?? "—")}
+                          {d.marcacoes.length ? d.marcacoes.join("  ") : d.semDia ? "não está no espelho" : (d.ocorrencia ?? "—")}
                         </span>
-                        <span className="flex flex-1 flex-wrap gap-1">
-                          {d.alertas.map((a) => (
-                            <Badge key={a} variant="warning">
-                              {a}
-                            </Badge>
-                          ))}
+                        <span className="flex flex-1 flex-col gap-1">
+                          <span className="flex flex-wrap gap-1">
+                            {d.alertas.map((a) => (
+                              <Badge key={a} variant="warning">
+                                {a}
+                              </Badge>
+                            ))}
+                          </span>
+                          {d.detalheUso && <span className="text-muted-foreground text-xs">Uso no sistema: {d.detalheUso}</span>}
                         </span>
                         <span className="flex gap-1">
                           <Button variant="ghost" size="sm" className="h-7" asChild>

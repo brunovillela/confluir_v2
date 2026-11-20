@@ -1,12 +1,17 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Clock } from "lucide-react"
+import { useActionState, useEffect, useState } from "react"
+import { Clock, Loader2 } from "lucide-react"
 
+import { motivoDeHojeAction, salvarMotivoUsoAction, type EstadoMotivo } from "@/app/painel/uso/actions"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { SelectNativo } from "@/components/ui/select-nativo"
 import {
   dentroDaJornada,
   type JornadaDia,
 } from "@/lib/pessoal-sst-constantes"
+import { MOTIVOS_USO } from "@/lib/uso-fora-expediente"
 
 /**
  * Faixa fixa exibida quando o funcionário usa o sistema FORA do horário da
@@ -51,15 +56,102 @@ export function AlertaForaJornada({ dias }: { dias: JornadaDia[] }) {
       role="status"
       // Sem sticky próprio: quem gruda é o bloco do cabeçalho, em
       // `painel/layout.tsx`. Dois sticky em top-0 se sobrepõem.
-      className="border-warning/40 bg-warning/15 text-warning-fg flex items-center gap-2 border-b px-4 py-2 text-sm"
+      className="border-warning/40 bg-warning/15 text-warning-fg flex items-start gap-2 border-b px-4 py-2 text-sm"
     >
-      <Clock className="size-4 shrink-0" />
-      <span>
-        Você está acessando o sistema <strong>fora do seu horário de
-        trabalho</strong>. Horas fora da jornada contratada podem gerar passivo
-        trabalhista — combine com a gestão antes de trabalhar agora. O tempo de uso
-        fora do horário fica registrado para o departamento de pessoal.
-      </span>
+      <Clock className="mt-0.5 size-4 shrink-0" />
+      <div className="grid min-w-0 flex-1 gap-1.5">
+        <span>
+          Você está acessando o sistema <strong>fora do seu horário de
+          trabalho</strong>. Horas fora da jornada contratada podem gerar passivo
+          trabalhista — combine com a gestão antes de trabalhar agora. O tempo de uso
+          fora do horário fica registrado para o departamento de pessoal.
+        </span>
+        <MotivoDoDia />
+      </div>
     </div>
+  )
+}
+
+/**
+ * O funcionário informa por que está usando o sistema fora do horário hoje
+ * (urgência, combinado com a chefia…). Aparece no relatório de uso fora do
+ * expediente e na conferência do ponto. Um motivo por dia, que dá para trocar.
+ */
+function MotivoDoDia() {
+  const [rotulo, setRotulo] = useState<string | null>(null)
+  const [disponivel, setDisponivel] = useState(false)
+  const [abrindo, setAbrindo] = useState(false)
+  const [estado, formAction, pendente] = useActionState<EstadoMotivo, FormData>(async (anterior, dados) => {
+    const r = await salvarMotivoUsoAction(anterior, dados)
+    if (r.rotulo) {
+      setRotulo(r.rotulo)
+      setAbrindo(false)
+    }
+    return r
+  }, {})
+
+  useEffect(() => {
+    let vivo = true
+    motivoDeHojeAction()
+      .then((m) => {
+        if (!vivo) return
+        setDisponivel(m.estado !== "indisponivel")
+        if (m.estado === "informado") setRotulo(m.rotulo)
+      })
+      .catch(() => {})
+    return () => {
+      vivo = false
+    }
+  }, [])
+
+  if (!disponivel) return null
+  if (!abrindo) {
+    return (
+      <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+        {rotulo ? (
+          <>
+            <span>
+              Motivo de hoje: <strong>{rotulo}</strong>
+            </span>
+            <Button type="button" variant="link" size="sm" className="text-warning-fg h-auto p-0 text-xs underline" onClick={() => setAbrindo(true)}>
+              Trocar
+            </Button>
+          </>
+        ) : (
+          <Button type="button" variant="outline" size="sm" className="h-7 bg-transparent text-xs" onClick={() => setAbrindo(true)}>
+            Informar o motivo
+          </Button>
+        )}
+      </span>
+    )
+  }
+  return (
+    <form action={formAction} className="flex flex-wrap items-center gap-2 text-xs">
+      <label className="sr-only" htmlFor="uso-motivo">
+        Motivo
+      </label>
+      <SelectNativo id="uso-motivo" name="motivo" required defaultValue="" className="h-8 w-56 bg-background">
+        <option value="" disabled>
+          Por que está usando agora?
+        </option>
+        {MOTIVOS_USO.map((m) => (
+          <option key={m.chave} value={m.chave}>
+            {m.rotulo}
+          </option>
+        ))}
+      </SelectNativo>
+      <label className="sr-only" htmlFor="uso-detalhe">
+        Detalhe (opcional)
+      </label>
+      <Input id="uso-detalhe" name="detalhe" maxLength={300} placeholder="Detalhe (opcional)" className="bg-background h-8 w-64" />
+      <Button type="submit" size="sm" className="h-8" disabled={pendente}>
+        {pendente && <Loader2 className="animate-spin" />}
+        Salvar
+      </Button>
+      <Button type="button" variant="ghost" size="sm" className="h-8" onClick={() => setAbrindo(false)} disabled={pendente}>
+        Cancelar
+      </Button>
+      {estado.erro && <span className="text-destructive">{estado.erro}</span>}
+    </form>
   )
 }

@@ -389,6 +389,39 @@ depois, intervalo, dia livre, afastamento) e os horários de cada trecho fora.
 
 <Print src="pessoal/ponto-fora-expediente.png" alt="Página Uso fora do expediente: os quadros com o tempo a considerar, as pessoas com uso fora, fim de semana e feriado e férias ou afastamento; o dia a dia de um funcionário com a linha de 0 a 24 horas de cada dia e os horários do uso fora; e a tabela por funcionário com as seis colunas e o total a considerar." legenda="O tempo fora separado por motivo, e o dia a dia de cada um numa linha de 24 horas." />
 
+### O motivo informado pelo funcionário
+
+Na faixa amarela que aparece fora do horário, o funcionário clica em
+**Informar o motivo** e escolhe por que está usando o sistema naquele momento:
+**Urgência**, **Combinado com a chefia**, **Plantão ou sobreaviso**,
+**Compensação de horas** ou **Outro**, com um detalhe opcional. É um motivo por
+dia, e dá para trocar no mesmo dia em **Trocar**.
+
+No relatório, o dia a dia mostra **Motivo informado** (ou **Sem motivo
+informado**) ao lado de cada dia com uso fora, e a coluna **Dias** diz quantos
+desses dias têm motivo. Assim fica fácil separar o que foi combinado do que
+pede uma conversa.
+
+### Uso sem marcação no ponto
+
+A fila **Dias para conferir** da remessa ganhou o alerta **Uso do sistema fora
+do horário sem marcação**. Ele aparece quando o funcionário usou o sistema fora
+da jornada num horário que as batidas do espelho não cobrem: uso às 21 h com a
+saída batida às 17 h, uso no almoço com o intervalo batido inteiro, uso no
+sábado sem batida nenhuma. É indício de hora extra ou de intervalo não
+registrado. Até 10 minutos no dia não geram alerta.
+
+- O detalhe mostra quanto tempo, em que horários e o motivo que o funcionário
+  informou (ou "sem motivo informado").
+- O dia pode nem estar no espelho (um sábado sem batida). Nesse caso, a fila
+  mostra "não está no espelho". **Ajustar** abre o dia para incluir as batidas,
+  e **Está certo** tira o dia da fila sem incluí-lo.
+- O mesmo alerta aparece no mês do funcionário, na tabela das marcações.
+- Só entra quem tem jornada vinculada, e só a partir de quando o uso passou a
+  ser registrado.
+
+<Print src="pessoal/ponto-uso-sem-marcacao.png" alt="Fila Dias para conferir da remessa de março filtrada pelo alerta Uso do sistema fora do horário sem marcação: três dias do Carlos, cada um com as batidas (ou não está no espelho, no sábado), o alerta, o tempo e os horários do uso no sistema, o motivo informado ou sem motivo informado, e os botões Ajustar e Está certo." legenda="Uso do sistema fora do horário que as batidas não cobrem, com o motivo que o funcionário informou." />
+
 <Aviso tipo="nota" titulo="O funcionário sabe">
   Quem usa o sistema fora do horário vê a faixa amarela avisando que o tempo
   fica registrado para o departamento de pessoal. O número é um indício para

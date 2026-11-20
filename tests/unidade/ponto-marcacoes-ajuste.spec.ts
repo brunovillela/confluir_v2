@@ -2,6 +2,7 @@ import { expect, test } from "playwright/test"
 
 import {
   aplicarAjuste,
+  conferirUsoSemDia,
   descreverAjuste,
   desfazerAjustes,
   lerBatidas,
@@ -104,5 +105,15 @@ test.describe("ajuste das marcações do espelho", () => {
     expect(mesmoDia(a, { ocorrencia: "Feriado", marcacoes: ["08:00", "17:00"] })).toBe(false)
     expect(mesmoDia(a, null)).toBe(false)
     expect(mesmoDia(null, null)).toBe(true)
+  })
+
+  test("dia fora do espelho conferido pelo uso do sistema sobrevive à nova leitura", () => {
+    const m = conferirUsoSemDia(lido(), "2026-03-07")
+    expect(m.usoConferido).toEqual(["2026-03-07"])
+    expect(conferirUsoSemDia(m, "2026-03-07")).toBe(m)
+    expect(m.dias).toEqual(lido().dias)
+    expect(mesclarLeitura(lido(), m).usoConferido).toEqual(["2026-03-07"])
+    const comAjuste = aplicarAjuste(m, { data: "2026-03-02", marcacoes: ["08:00", "17:00"], ocorrencia: null }, quem)
+    expect(mesclarLeitura(lido(), comAjuste).usoConferido).toEqual(["2026-03-07"])
   })
 })

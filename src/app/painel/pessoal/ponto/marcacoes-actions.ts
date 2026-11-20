@@ -10,7 +10,7 @@ import { jornadaDoFuncionario } from "@/lib/db/pessoal-sst"
 import { duasCasas } from "@/lib/horas"
 import { apurarMes } from "@/lib/ponto-apuracao"
 import { avisar, depoisDaResposta } from "@/lib/db/avisos"
-import { aplicarAjuste, conferirDia, desfazerAjustes, lerBatidas, mesmoDia, type MarcacoesEspelho } from "@/lib/ponto-marcacoes-ajuste"
+import { aplicarAjuste, conferirDia, conferirUsoSemDia, desfazerAjustes, lerBatidas, mesmoDia, type MarcacoesEspelho } from "@/lib/ponto-marcacoes-ajuste"
 import { escolherJornada, leituraDasMarcacoes } from "@/lib/ponto-recalculo"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -159,8 +159,11 @@ async function conferir(registroId: string, data: string, sessao: Sessao, motivo
   if (!achado) return { erro: "Registro não encontrado." }
   const { admin, reg } = achado
   const atual = (reg.marcacoes ?? null) as MarcacoesEspelho | null
-  if (!atual?.dias.some((d) => d.data === data)) return { erro: "Esse dia não está nas marcações." }
-  const novo = conferirDia(atual, data, { ...quemE(sessao), motivo: motivo.slice(0, 300) || null, em: new Date().toISOString() })
+  if (!atual) return { erro: "Esse registro não tem marcações." }
+  // Dia fora do espelho (entrou na fila pelo uso do sistema): fica marcado como visto.
+  const semDia = !atual.dias.some((d) => d.data === data)
+  if (semDia && !/^\d{4}-\d{2}-\d{2}$/.test(data)) return { erro: "Dia inválido." }
+  const novo = semDia ? conferirUsoSemDia(atual, data) : conferirDia(atual, data, { ...quemE(sessao), motivo: motivo.slice(0, 300) || null, em: new Date().toISOString() })
   if (novo === atual) return { ok: "Esse dia já estava conferido." }
   const { error } = await admin.from("pessoal_registro_ponto").update({ marcacoes: novo }).eq("id", registroId)
   if (error) return { erro: `Não foi possível salvar: ${error.message}` }

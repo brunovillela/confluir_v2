@@ -155,7 +155,7 @@ export const PROCESSOS = [
     id: "P10",
     nome: "Pessoal: RH dos funcionários da entidade",
     tabelas: /^(aso$|pes_|pessoal_|prestadores_|prestcont_|empresa_departamentos_integrantes$)/,
-    finalidade: "Gestão dos funcionários da própria entidade: cadastro, ponto, férias, folha e contracheques, diárias, benefícios, SST (ASO, atestados, treinamentos), envio do movimento à contabilidade e o tempo de uso do painel fora do expediente (`pessoal_uso_painel`: só quem, início e fim de cada bloco de uso, sem página nem conteúdo; só de quem tem jornada vinculada).",
+    finalidade: "Gestão dos funcionários da própria entidade: cadastro, ponto, férias, folha e contracheques, diárias, benefícios, SST (ASO, atestados, treinamentos), envio do movimento à contabilidade e o tempo de uso do painel fora do expediente (`pessoal_uso_painel`: só quem, início e fim de cada bloco de uso, sem página nem conteúdo; só de quem tem jornada vinculada) e o motivo que o funcionário informa para esse uso (`pessoal_uso_justificativas`).",
     titulares: "Funcionários da entidade, dependentes (inclusive menores), prestadores autônomos",
     baseLegal: [
       "Art. 7º, II e V: obrigações trabalhistas, previdenciárias e fiscais; contrato de trabalho.",
