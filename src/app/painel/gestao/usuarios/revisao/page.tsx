@@ -11,6 +11,7 @@ import { requirePermissao } from "@/lib/auth"
 import { revisarAcessos, ROTULO_MOTIVO, type MotivoRevisao } from "@/lib/db/acessos-revisao"
 
 import { RevogarAcesso } from "../usuarios-forms"
+import { CicloHistorico, RevisaoPeriodica } from "./periodica"
 
 export const metadata: Metadata = { title: "Revisão de acessos — Confluir" }
 
@@ -23,8 +24,8 @@ const VARIANTE: Record<MotivoRevisao, "destructive" | "warning" | "secondary"> =
   nunca_entrou: "secondary",
 }
 
-export default async function RevisaoAcessosPage({ searchParams }: { searchParams: Promise<{ motivo?: string }> }) {
-  await requirePermissao("gestao_sistema", ["permissoes"])
+export default async function RevisaoAcessosPage({ searchParams }: { searchParams: Promise<{ motivo?: string; ciclo?: string }> }) {
+  const sessao = await requirePermissao("gestao_sistema", ["permissoes"])
   const sp = await searchParams
   const filtro = ORDEM.find((m) => m === sp.motivo) ?? null
   const revisao = await revisarAcessos()
@@ -44,9 +45,15 @@ export default async function RevisaoAcessosPage({ searchParams }: { searchParam
           <h1 className="text-2xl font-semibold tracking-tight">Revisão de acessos</h1>
         </div>
         <p className="text-muted-foreground mt-1 text-xs">
-          Quem continua com acesso ao painel e talvez não precise mais. Confira cada caso: a revogação é sempre manual.
+          Quem continua com acesso ao painel e talvez não precise mais: os sinais que o sistema encontra sozinho e a confirmação periódica pelos
+          coordenadores. A revogação é sempre manual.
         </p>
       </div>
+
+      {sp.ciclo && /^[0-9a-f-]{36}$/i.test(sp.ciclo) && <CicloHistorico cicloId={sp.ciclo} />}
+      <RevisaoPeriodica acessos={revisao.acessos} usuarioId={String(sessao.usuario.id)} />
+
+      <h2 className="mt-2 text-lg font-semibold tracking-tight">Sinais automáticos</h2>
 
       {!revisao.disponivel && (
         <Alert>

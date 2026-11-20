@@ -22,6 +22,7 @@ import { ONLINE_ATE_MS } from "@/lib/acesso-agente-constantes"
 import { listarChavesApi } from "@/lib/api-publica"
 import { requirePermissao } from "@/lib/auth"
 import { revisarAcessos, ROTULO_MOTIVO, type MotivoRevisao } from "@/lib/db/acessos-revisao"
+import { DIAS_ENTRE_REVISOES, saudeRevisaoPeriodica } from "@/lib/db/acessos-revisao-ciclo"
 import { segundoFatorAtivo } from "@/lib/db/acessos-mfa"
 import { mesAtual, obterConfigIA } from "@/lib/db/ia-config"
 import { resumoUsoIA } from "@/lib/db/ia-uso"
@@ -130,8 +131,9 @@ function n(qtd: number, singular: string, plural: string): string {
 /** Saúde do sistema: o que merece a atenção do administrador agora. */
 async function sinais(podeUsuarios: boolean, podeConfig: boolean): Promise<Sinal[]> {
   const lista: Sinal[] = []
-  const [revisao, chaves, webhooks, agentes, ia, usoMes] = await Promise.all([
+  const [revisao, periodica, chaves, webhooks, agentes, ia, usoMes] = await Promise.all([
     podeUsuarios ? revisarAcessos() : Promise.resolve(null),
+    podeUsuarios ? saudeRevisaoPeriodica() : Promise.resolve(null),
     podeConfig ? listarChavesApi() : Promise.resolve(null),
     podeConfig ? listarWebhooks() : Promise.resolve(null),
     podeConfig ? listarAgentes() : Promise.resolve(null),
@@ -152,6 +154,26 @@ async function sinais(podeUsuarios: boolean, podeConfig: boolean): Promise<Sinal
         href: `/painel/gestao/usuarios/revisao?motivo=${m}`,
         alerta: graves.includes(m),
       })
+    }
+    // Revisão periódica pelos coordenadores: em andamento, vencida ou atrasada.
+    if (periodica?.disponivel) {
+      const href = "/painel/gestao/usuarios/revisao#periodica"
+      if (periodica.aberto) {
+        lista.push({
+          texto: `Revisão periódica de acessos em andamento (${periodica.aberto.titulo})${periodica.pendentes ? `: ${n(periodica.pendentes, "item pendente", "itens pendentes")}` : ": tudo respondido, pode encerrar"}${periodica.prazoVencido ? " — prazo vencido" : ""}`,
+          href,
+          alerta: periodica.prazoVencido && periodica.pendentes > 0,
+        })
+      } else if (periodica.diasDesdeUltima === null || periodica.diasDesdeUltima >= DIAS_ENTRE_REVISOES) {
+        lista.push({
+          texto:
+            periodica.diasDesdeUltima === null
+              ? "Nenhuma revisão periódica de acessos pelos coordenadores foi feita ainda"
+              : `Última revisão periódica de acessos há ${periodica.diasDesdeUltima} dias: está na hora de uma nova`,
+          href,
+          alerta: false,
+        })
+      }
     }
     const pessoas = acessos.filter((a) => !a.contaFuncao)
     const semLogin = pessoas.filter((a) => !a.temLogin)

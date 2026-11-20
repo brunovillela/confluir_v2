@@ -31,6 +31,7 @@ import { classificarPessoa } from "@/lib/db/quadro"
 import { colunasDoNascimento } from "@/lib/nascimento"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
+import { marcarRevogadoNaRevisao } from "@/lib/db/acessos-revisao-ciclo"
 import { CHAVES_PERMISSAO } from "@/lib/permissoes-catalogo"
 
 const CHAVE = "permissoes"
@@ -353,10 +354,12 @@ export async function revogarAcessoAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  await requirePermissao(CHAVE, ALT)
+  const sessao = await requirePermissao(CHAVE, ALT)
   const id = texto(formData, "acesso_id")
   if (!id) return { erro: "Acesso inválido." }
 
+  // Na revisão periódica aberta, o item dessa pessoa fica resolvido.
+  await marcarRevogadoNaRevisao(id, String(sessao.usuario.id))
   const { erro } = await revogarAcesso(id)
   if (erro) return { erro }
   revalidatePath("/painel/gestao/usuarios")

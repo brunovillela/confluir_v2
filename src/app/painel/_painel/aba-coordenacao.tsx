@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { FileText, HandCoins, PiggyBank, Receipt, ShoppingCart, TreePalm, Users } from "lucide-react"
+import { FileText, HandCoins, KeyRound, PiggyBank, Receipt, ShoppingCart, TreePalm, Users } from "lucide-react"
 
 import { AvaliacaoOrdemForm } from "@/app/painel/compras/avaliacoes/avaliacao-ordem-form"
 import {
@@ -8,6 +8,8 @@ import {
   decidirFaltaCoordenadorAction,
 } from "@/app/painel/coordenador/actions"
 import { DecisaoPedido } from "@/app/painel/coordenador/decisao-pedido"
+import { ResumoDoAcesso } from "@/app/painel/gestao/usuarios/revisao/periodica"
+import { RespostaItem } from "@/components/gestao/revisao-periodica"
 import { AvatarPessoa, PessoaNome } from "@/components/pessoa-nome"
 import { compacto } from "@/components/graficos/base"
 import { BarraHud, CartaoHud, KpiHud, ListaHud } from "@/components/painel/hud"
@@ -16,6 +18,7 @@ import { Badge } from "@/components/ui/badge"
 import type { SessaoPainel } from "@/lib/auth"
 import { ROTULOS_SITUACAO_PROCESSO } from "@/lib/compras-constantes"
 import { DecisaoRemessaCompacta } from "@/components/remessa-avaliacao-form"
+import { ROTULO_DECISAO, revisaoDoCoordenador } from "@/lib/db/acessos-revisao-ciclo"
 import { areaDoCoordenador } from "@/lib/db/coordenador"
 import { agruparPorRemessa } from "@/lib/db/diarias"
 import { formatarData, formatarMoeda } from "@/lib/formato"
@@ -36,7 +39,7 @@ export async function AbaCoordenacao({
   depto?: string
   salvo?: string
 }) {
-  const a = await areaDoCoordenador(sessao, depto)
+  const [a, revisao] = await Promise.all([areaDoCoordenador(sessao, depto), revisaoDoCoordenador(String(sessao.usuario.id))])
   if (!a) {
     return (
       <Alert>
@@ -82,6 +85,36 @@ export async function AbaCoordenacao({
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Avaliação registrada.</AlertDescription>
         </Alert>
+      )}
+
+      {revisao && (
+        <CartaoHud
+          id="revisao-acessos"
+          titulo={`Revisão de acessos — ${revisao.ciclo.titulo}`}
+          descricao={`Até ${formatarData(revisao.ciclo.prazo)}, confirme se cada pessoa da sua equipe ainda precisa do acesso ao Confluir. Quem retira ou ajusta é a Gestão: a sua resposta vai para ela. Dá para mudar a resposta até a revisão ser encerrada.`}
+          icone={KeyRound}
+        >
+          <ul className="divide-y">
+            {[...revisao.itens]
+              .sort((x, y) => Number(Boolean(x.decisao)) - Number(Boolean(y.decisao)) || x.nome.localeCompare(y.nome, "pt-BR"))
+              .map((i) => (
+                <li key={i.id} className="grid gap-2 py-3 sm:grid-cols-[1fr_22rem]">
+                  <div>
+                    <p className="text-sm font-medium">{i.nome}</p>
+                    <ResumoDoAcesso item={i} />
+                    {i.departamento && a.outros.length > 0 && <span className="text-muted-foreground block text-xs">{i.departamento}</span>}
+                    {i.decisao && (
+                      <Badge variant={i.decisao === "manter" ? "success" : i.decisao === "retirar" ? "destructive" : "warning"} className="mt-1">
+                        {ROTULO_DECISAO[i.decisao]}
+                      </Badge>
+                    )}
+                    {i.tratadoEm && <span className="text-muted-foreground block text-xs">Resolvido pela Gestão: {i.tratamento}</span>}
+                  </div>
+                  {!i.tratadoEm && <RespostaItem itemId={i.id} nome={i.nome} observacao={i.observacao} />}
+                </li>
+              ))}
+          </ul>
+        </CartaoHud>
       )}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

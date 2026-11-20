@@ -22,6 +22,9 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "ia_config",
   "ia_uso",
   "gestao_eventos",
+  "acessos_revisao_ciclos",
+  "acessos_revisao_itens",
+  "ia_cota_avisos",
   // Pessoal › uso do painel fora do expediente (20261119203000_pessoal_uso_painel.sql).
   "pessoal_uso_painel",
   "pessoal_uso_justificativas", // 20261119230000_pessoal_uso_justificativas.sql

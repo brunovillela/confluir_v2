@@ -1,6 +1,6 @@
 import "server-only"
 
-import { avisarQuemPode, depoisDaResposta } from "@/lib/db/avisos"
+import { avisar, avisarQuemPode, depoisDaResposta, usuariosComPermissao } from "@/lib/db/avisos"
 import { inicioDoMes } from "@/lib/db/ia-config"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -89,5 +89,65 @@ export async function avisarChaveRecusada(emp: string, motivo: string): Promise<
     })
   } catch (e) {
     console.error("avisarChaveRecusada:", e)
+  }
+}
+
+/**
+ * Cota mensal do departamento a 80% e 100%: avisa quem tem a Gestão do sistema
+ * e o coordenador do departamento, uma vez por nível por mês (a marca é a
+ * linha em ia_cota_avisos — o insert que conflita não avisa de novo).
+ */
+export async function conferirCotaIA(emp: string, departamentoId: string, limite: number, bloqueia: boolean): Promise<void> {
+  try {
+    const admin = await createAdminClient()
+    depoisDaResposta(async () => {
+      const { data: linhas } = await admin.rpc("ia_uso_custo_por_departamento", { p_emp: emp, p_de: inicioDoMes().toISOString() })
+      const linha = ((linhas ?? []) as Record<string, unknown>[]).find((l) => String(l.departamento_id) === departamentoId)
+      const gasto = Number(linha?.custo ?? 0) || 0
+      const nivel = gasto >= limite ? 100 : gasto >= limite * 0.8 ? 80 : null
+      if (!nivel) return
+      const mes = mesDeBrasilia()
+      // Marca o 80% junto com o 100% (quem pula direto não recebe os dois).
+      const niveis = nivel === 100 ? [80, 100] : [80]
+      const { data: novas } = await admin
+        .from("ia_cota_avisos")
+        .upsert(
+          niveis.map((n) => ({ emp_proprietaria_id: emp, departamento_id: departamentoId, mes, nivel: n })),
+          { onConflict: "emp_proprietaria_id,departamento_id,mes,nivel", ignoreDuplicates: true }
+        )
+        .select("nivel")
+      if (!(novas ?? []).some((n) => Number(n.nivel) === nivel)) return
+
+      const { data: d } = await admin
+        .from("empresa_departamentos")
+        .select("departamento, coordenador_id")
+        .eq("emp_proprietaria_id", emp)
+        .eq("id", departamentoId)
+        .maybeSingle()
+      const nome = String(d?.departamento ?? "o departamento")
+      const texto =
+        nivel === 100
+          ? bloqueia
+            ? `A IA de ${nome} atingiu a cota do mês (${usd(gasto)} de ${usd(limite)}) e está parada para o departamento até o dia 1º ou até a cota subir.`
+            : `A IA de ${nome} atingiu a cota do mês (${usd(gasto)} de ${usd(limite)}). A cota só alerta: a IA continua funcionando.`
+          : `A IA de ${nome} chegou a 80% da cota do mês (${usd(gasto)} de ${usd(limite)}).${bloqueia ? " Ao atingir a cota, ela para para o departamento." : ""}`
+      const amb = { client: admin, tenantId: emp }
+      const destinatarios = await usuariosComPermissao("gestao_sistema", [], amb)
+      if (d?.coordenador_id) {
+        const { data: u } = await admin
+          .from("usuarios")
+          .select("id, nome_completo, nome_guerra, email")
+          .eq("id", String(d.coordenador_id))
+          .maybeSingle()
+        if (u) destinatarios.push({ id: String(u.id), nome: (u.nome_completo ?? u.nome_guerra ?? null) as string | null, email: (u.email ?? null) as string | null, permissoes: {} })
+      }
+      await avisar(
+        destinatarios,
+        { texto, link: LINK, evento: "ia_cota_departamento", assunto: nivel === 100 ? `Cota de IA de ${nome} atingida` : `IA de ${nome} perto da cota` },
+        amb
+      )
+    })
+  } catch (e) {
+    console.error("conferirCotaIA:", e)
   }
 }

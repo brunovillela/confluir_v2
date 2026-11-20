@@ -36,6 +36,8 @@ export type ConfigIAPublica = {
   modelosProcesso: Record<string, string>
   /** Preços dos modelos além do geral (US$ por 1 milhão de tokens). */
   precosModelos: Record<string, PrecosModelo>
+  /** Cota mensal por departamento (id → US$). */
+  cotasDepartamento: Record<string, number>
   segredosConfigurados: boolean
 }
 
@@ -49,7 +51,7 @@ export function modeloValido(m: string): boolean {
 type Linha = Record<string, unknown>
 
 const COLUNAS =
-  "chave_cifrada, chave_versao, chave_final, chave_definida_em, chave_definida_por, chave_testada_em, chave_teste_erro, modelo, ia_ativa, modulos_desligados, limite_mensal_usd, bloquear_no_limite, preco_entrada_usd_milhao, preco_entrada_cache_usd_milhao, preco_saida_usd_milhao, modelos_processo, precos_modelos"
+  "chave_cifrada, chave_versao, chave_final, chave_definida_em, chave_definida_por, chave_testada_em, chave_teste_erro, modelo, ia_ativa, modulos_desligados, limite_mensal_usd, bloquear_no_limite, preco_entrada_usd_milhao, preco_entrada_cache_usd_milhao, preco_saida_usd_milhao, modelos_processo, precos_modelos, cotas_departamento"
 
 function num(v: unknown): number | null {
   if (v === null || v === undefined || v === "") return null
@@ -73,6 +75,16 @@ function lerModelos(v: unknown): Record<string, string> {
   const r: Record<string, string> = {}
   if (!v || typeof v !== "object" || Array.isArray(v)) return r
   for (const [k, m] of Object.entries(v as Record<string, unknown>)) if (typeof m === "string" && modeloValido(m)) r[k] = m
+  return r
+}
+
+function lerCotas(v: unknown): Record<string, number> {
+  const r: Record<string, number> = {}
+  if (!v || typeof v !== "object" || Array.isArray(v)) return r
+  for (const [k, n] of Object.entries(v as Record<string, unknown>)) {
+    const x = num(n)
+    if (x !== null && x > 0) r[k] = x
+  }
   return r
 }
 
@@ -122,6 +134,7 @@ function publica(disponivel: boolean, l: Linha | null, emp: string): ConfigIAPub
     precoSaida: num(l?.preco_saida_usd_milhao),
     modelosProcesso: lerModelos(l?.modelos_processo),
     precosModelos: lerPrecos(l?.precos_modelos),
+    cotasDepartamento: lerCotas(l?.cotas_departamento),
     segredosConfigurados: segredosConfigurados(),
   }
 }
@@ -161,6 +174,18 @@ export const custoDoMes = cache(async (emp: string): Promise<number> => {
     return Number(data ?? 0) || 0
   } catch {
     return 0
+  }
+})
+
+/** Custo estimado do mês corrente por departamento (cota por departamento). */
+export const custoPorDepartamentoNoMes = cache(async (emp: string): Promise<Map<string, number>> => {
+  try {
+    const admin = await createAdminClient()
+    const { data, error } = await admin.rpc("ia_uso_custo_por_departamento", { p_emp: emp, p_de: inicioDoMes().toISOString() })
+    if (error) return new Map()
+    return new Map(((data ?? []) as Linha[]).map((l) => [String(l.departamento_id), Number(l.custo ?? 0) || 0]))
+  } catch {
+    return new Map()
   }
 })
 
@@ -302,5 +327,24 @@ export async function salvarModelosProcessoIA(
   }
   if (JSON.stringify(antes.precosModelos) !== JSON.stringify(precos)) detalhe.push("preços por modelo atualizados")
   if (detalhe.length) await registrarEvento("modelos_processo", detalhe.join(" · "), usuarioId)
+  return {}
+}
+
+/** Cotas mensais por departamento (US$). Departamento sem cota = sem limite próprio. */
+export async function salvarCotasIA(cotas: Record<string, number>, nomes: Map<string, string>, usuarioId: string): Promise<{ erro?: string }> {
+  const antes = await obterConfigIA()
+  const r = await gravar({ cotas_departamento: cotas }, usuarioId)
+  if (r.erro) return r
+  const mudou = Object.keys({ ...antes.cotasDepartamento, ...cotas }).filter((k) => antes.cotasDepartamento[k] !== cotas[k])
+  if (mudou.length) {
+    await registrarEvento(
+      "cotas_departamento",
+      mudou
+        .slice(0, 8)
+        .map((k) => `${nomes.get(k) ?? "departamento"}: ${cotas[k] ? `US$ ${cotas[k]}` : "sem cota"}`)
+        .join("; ") + (mudou.length > 8 ? ` (+${mudou.length - 8})` : ""),
+      usuarioId
+    )
+  }
   return {}
 }

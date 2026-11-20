@@ -17,6 +17,7 @@ import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 import {
   removerChaveAction,
   salvarChaveAction,
+  salvarCotasAction,
   salvarModelosProcessoAction,
   salvarPreferenciasAction,
   testarChaveSalvaAction,
@@ -354,6 +355,62 @@ export function ModelosProcessoForm({ inicial }: { inicial: ModelosProcessoInici
         <Button type="submit" disabled={pendente}>
           {pendente ? <Loader2 className="animate-spin" /> : <Save />}
           Salvar modelos
+        </Button>
+      </div>
+      <Retorno estado={estado} />
+    </form>
+  )
+}
+
+export type CotaLinha = { id: string; nome: string; cota: number | null; gasto: number }
+
+function usdBR(n: number): string {
+  return `US$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+/** Cota mensal por departamento; em branco = sem cota própria (vale só o teto geral). */
+export function CotasForm({ linhas, bloqueia }: { linhas: CotaLinha[]; bloqueia: boolean }) {
+  const [estado, action, pendente] = useActionState<EstadoForm, FormData>(salvarCotasAction, {})
+  const envio = useEnvioFormulario(action, estado, { manter: true })
+  return (
+    <form action={action} {...envio} className="grid gap-4">
+      <ErroNoCampo estado={estado} />
+      <ul className="divide-y">
+        {linhas.map((l) => {
+          const fracao = l.cota ? l.gasto / l.cota : null
+          return (
+            <li key={l.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+              <div className="min-w-0">
+                <label htmlFor={`cota-${l.id}`} className="text-sm">
+                  {l.nome}
+                </label>
+                <p className={`text-xs ${fracao !== null && fracao >= 0.8 ? "text-warning-fg" : "text-muted-foreground"}`}>
+                  {usdBR(l.gasto)} neste mês
+                  {l.cota ? ` · ${Math.round((fracao ?? 0) * 100)}% da cota` : ""}
+                </p>
+              </div>
+              <Input
+                id={`cota-${l.id}`}
+                name={`cota:${l.id}`}
+                inputMode="decimal"
+                defaultValue={br(l.cota)}
+                placeholder="sem cota"
+                className="w-32"
+              />
+            </li>
+          )
+        })}
+      </ul>
+      <p className="text-muted-foreground text-xs">
+        {bloqueia
+          ? "Com \"Parar a IA ao atingir o teto\" marcado na Configuração, o departamento que atinge a cota fica sem IA até o dia 1º."
+          : "Como \"Parar a IA ao atingir o teto\" está desmarcado na Configuração, a cota só avisa."}{" "}
+        A Gestão e o coordenador são avisados a 80% e a 100%. Conta pelo departamento de quem pediu (o que coordena; senão, o primeiro de que faz parte).
+      </p>
+      <div>
+        <Button type="submit" disabled={pendente}>
+          {pendente ? <Loader2 className="animate-spin" /> : <Save />}
+          Salvar cotas
         </Button>
       </div>
       <Retorno estado={estado} />

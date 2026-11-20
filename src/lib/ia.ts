@@ -2,8 +2,8 @@ import "server-only"
 import OpenAI from "openai"
 import { cache } from "react"
 
-import { avisarChaveRecusada, conferirTetoIA } from "@/lib/db/ia-avisos"
-import { configIAParaChamada, custoDoMes, precosDoModelo, type ConfigIAPublica } from "@/lib/db/ia-config"
+import { avisarChaveRecusada, conferirCotaIA, conferirTetoIA } from "@/lib/db/ia-avisos"
+import { configIAParaChamada, custoDoMes, custoPorDepartamentoNoMes, precosDoModelo, type ConfigIAPublica } from "@/lib/db/ia-config"
 import { PROCESSO_NAO_IDENTIFICADO, processoIA } from "@/lib/ia-processos"
 import { usuarioIdAtual } from "@/lib/sessao-atual"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -132,6 +132,8 @@ type RegistroBase = {
   modulo: string
   tipo: TipoChamada
   usuarioId: string | null
+  /** Departamento da pessoa (cota por departamento e registro); undefined = calcular no registro. */
+  departamentoId?: string | null
 }
 
 type Preparo =
@@ -176,7 +178,8 @@ async function preparar(ctx: ContextoIA, tipo: TipoChamada): Promise<Preparo> {
     config = lida.config.disponivel ? lida.config : null
     chaveEntidade = lida.chave
     const usuarioId = ctx.usuarioId !== undefined ? ctx.usuarioId : await usuarioIdAtual()
-    registro = { emp, config, processo: proc.chave, modulo: proc.modulo, tipo, usuarioId }
+    const departamentoId = usuarioId ? await departamentoDe(usuarioId) : null
+    registro = { emp, config, processo: proc.chave, modulo: proc.modulo, tipo, usuarioId, departamentoId }
   } catch {
     // Fora de uma entidade: chave da plataforma, sem registro.
   }
@@ -193,6 +196,19 @@ async function preparar(ctx: ContextoIA, tipo: TipoChamada): Promise<Preparo> {
       await conferirTetoIA(registro.emp, config.limiteMensalUsd, true)
       return {
         erro: "O teto mensal de IA da entidade foi atingido. A IA volta no dia 1º ou quando a Gestão aumentar o teto.",
+        registro,
+      }
+    }
+  }
+
+  // Cota mensal do departamento da pessoa (Gestão › IA › Cotas por departamento).
+  const cota = registro?.departamentoId ? config?.cotasDepartamento?.[registro.departamentoId] : undefined
+  if (registro?.departamentoId && cota && config?.bloquearNoLimite) {
+    const gasto = (await custoPorDepartamentoNoMes(registro.emp)).get(registro.departamentoId) ?? 0
+    if (gasto >= cota) {
+      await conferirCotaIA(registro.emp, registro.departamentoId, cota, true)
+      return {
+        erro: "A cota mensal de IA do seu departamento foi atingida. Ela volta no dia 1º ou quando a Gestão aumentar a cota.",
         registro,
       }
     }
@@ -234,13 +250,18 @@ async function registrar(
   if (r.resposta && base.config?.limiteMensalUsd) {
     await conferirTetoIA(base.emp, base.config.limiteMensalUsd, base.config.bloquearNoLimite)
   }
+  const cota = base.departamentoId ? base.config?.cotasDepartamento?.[base.departamentoId] : undefined
+  if (r.resposta && base.departamentoId && cota) {
+    await conferirCotaIA(base.emp, base.departamentoId, cota, base.config!.bloquearNoLimite)
+  }
   if (r.recusaChave && r.erro) await avisarChaveRecusada(base.emp, r.erro)
   try {
     const u = r.resposta?.usage
     const entrada = u?.input_tokens ?? 0
     const cacheados = u?.input_tokens_details?.cached_tokens ?? 0
     const saida = u?.output_tokens ?? 0
-    const departamentoId = base.usuarioId ? await departamentoDe(base.usuarioId) : null
+    const departamentoId =
+      base.departamentoId !== undefined ? base.departamentoId : base.usuarioId ? await departamentoDe(base.usuarioId) : null
     const admin = await createAdminClient()
     await admin.from("ia_uso").insert({
       emp_proprietaria_id: base.emp,

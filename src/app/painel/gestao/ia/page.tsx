@@ -11,13 +11,15 @@ import { SelectNativo } from "@/components/ui/select-nativo"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
 import { nomesDosUsuarios } from "@/lib/db/comum"
-import { mesAtual, obterConfigIA } from "@/lib/db/ia-config"
+import { custoPorDepartamentoNoMes, mesAtual, obterConfigIA } from "@/lib/db/ia-config"
+import { listarDepartamentosCompletos } from "@/lib/db/departamentos"
+import { tenantAtual } from "@/lib/tenant"
 import { listarChamadasIA, listarEventosGestao, resumoUsoIA, rotuloAcaoGestao, rotuloOrigem, type Dimensao } from "@/lib/db/ia-uso"
 import { formatarDataHora } from "@/lib/formato"
 import { MODELO_IA } from "@/lib/ia"
 import { MODULOS_IA, PROCESSOS_IA, processoIA, tituloModuloIA } from "@/lib/ia-processos"
 
-import { ChaveForm, ModelosProcessoForm, PreferenciasForm, RemoverChaveBotao, TestarChaveBotao, type UsoProcesso } from "./forms"
+import { ChaveForm, CotasForm, ModelosProcessoForm, PreferenciasForm, RemoverChaveBotao, TestarChaveBotao, type UsoProcesso } from "./forms"
 import { intervalo, PERIODOS, PERIODOS_PLANILHA } from "./periodos"
 import { dolares, GraficoDiario, Indicador, TabelaUso, tokens } from "./uso"
 
@@ -49,6 +51,7 @@ export default async function IAPage({ searchParams }: { searchParams: Promise<B
   const aba = ABAS.find((a) => a.valor === sp.por) ?? ABAS[0]
   const { de, ate } = intervalo(periodo)
 
+  const [deptosTodos, gastoDeptos] = await Promise.all([listarDepartamentosCompletos(), custoPorDepartamentoNoMes(await tenantAtual())])
   const [config, resumo, historico, eventos, resumoMes, resumo30] = await Promise.all([
     obterConfigIA(),
     resumoUsoIA(de, ate),
@@ -79,6 +82,11 @@ export default async function IAPage({ searchParams }: { searchParams: Promise<B
     ...new Set([modeloGeral, MODELO_IA, "gpt-5.5", "gpt-5.4-mini", "gpt-5.4-nano", ...Object.values(config.modelosProcesso), ...resumo.por.modelo.map((m) => m.chave)]),
   ].filter(Boolean)
   const trocados = Object.keys(config.modelosProcesso).length
+  const linhasCota = deptosTodos
+    .filter((d) => !d.legado || config.cotasDepartamento[d.id])
+    .map((d) => ({ id: d.id, nome: d.nome, cota: config.cotasDepartamento[d.id] ?? null, gasto: gastoDeptos.get(d.id) ?? 0 }))
+  const comCota = linhasCota.filter((l) => l.cota)
+  const cotasNoLimite = comCota.filter((l) => l.gasto >= l.cota! * 0.8)
   const definidaPor = config.chaveDefinidaPor ? (await nomesDosUsuarios([config.chaveDefinidaPor])).get(config.chaveDefinidaPor) : null
 
   const total = resumo.total
@@ -441,6 +449,33 @@ export default async function IAPage({ searchParams }: { searchParams: Promise<B
               precoSaida: config.precoSaida,
             }}
           />
+        </CardContent>
+      </Card>
+
+      {/* ── Cotas por departamento ────────────────────────────────────── */}
+      <Card id="cotas">
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base">Cotas por departamento</CardTitle>
+            <Badge variant={cotasNoLimite.length ? "warning" : "secondary"}>
+              {comCota.length === 0
+                ? "nenhuma cota"
+                : cotasNoLimite.length
+                  ? `${cotasNoLimite.length} perto ou acima da cota`
+                  : `${comCota.length} com cota`}
+            </Badge>
+          </div>
+          <CardDescription className="text-xs">
+            Um limite mensal de custo estimado para cada departamento, além do teto geral. Em branco, o departamento não tem cota própria.
+            {!temPrecos && " Sem os preços do modelo, o custo não é estimado e a cota não tem efeito."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {linhasCota.length === 0 ? (
+            <p className="text-muted-foreground text-sm">Nenhum departamento cadastrado (Institucional → Organização → Departamentos).</p>
+          ) : (
+            <CotasForm linhas={linhasCota} bloqueia={config.bloquearNoLimite} />
+          )}
         </CardContent>
       </Card>
 

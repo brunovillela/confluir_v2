@@ -14,9 +14,11 @@ import {
   registrarTesteChaveIA,
   removerChaveIA,
   salvarChaveIA,
+  salvarCotasIA,
   salvarModelosProcessoIA,
   salvarPreferenciasIA,
 } from "@/lib/db/ia-config"
+import { listarDepartamentosCompletos } from "@/lib/db/departamentos"
 import { MODELO_IA, testarChaveIA } from "@/lib/ia"
 import { MODULOS_IA, PROCESSOS_IA } from "@/lib/ia-processos"
 import { tenantAtual } from "@/lib/tenant"
@@ -172,4 +174,25 @@ export async function salvarModelosProcessoAction(_prev: EstadoForm, fd: FormDat
         ? ` Sem preço para ${semPreco.join(", ")}: o custo dessas chamadas não entra na estimativa nem no teto.`
         : ""),
   }
+}
+
+/** Cotas mensais por departamento. Campo `cota:<departamento_id>`; em branco = sem cota. */
+export async function salvarCotasAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  const sessao = await requirePermissao("gestao_sistema")
+  const deptos = (await listarDepartamentosCompletos()).filter((d) => !d.legado)
+  const nomes = new Map(deptos.map((d) => [d.id, d.nome]))
+  const cotas: Record<string, number> = {}
+  for (const [nome] of fd.entries()) {
+    if (!nome.startsWith("cota:")) continue
+    const id = nome.slice("cota:".length)
+    if (!nomes.has(id)) continue
+    const v = numeroOuNulo(fd, nome)
+    if (v === "invalido" || v === 0) return { erro: "Use um número maior que zero (ex.: 5,00) ou deixe em branco.", campo: nome }
+    if (v !== null) cotas[id] = v
+  }
+  const r = await salvarCotasIA(cotas, nomes, String(sessao.usuario.id))
+  if (r.erro) return { erro: r.erro }
+  revalidatePath(ROTA)
+  const n = Object.keys(cotas).length
+  return { ok: n ? `${n} ${n === 1 ? "departamento com cota" : "departamentos com cota"}.` : "Nenhum departamento com cota." }
 }

@@ -213,6 +213,7 @@ const ROTULO_ACAO: Record<string, string> = {
   chave_testada: "Testou a chave de IA",
   preferencias: "Alterou a configuração da IA",
   modelos_processo: "Alterou o modelo por processo",
+  cotas_departamento: "Alterou as cotas por departamento",
 }
 
 export function rotuloAcaoGestao(acao: string): string {

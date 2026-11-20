@@ -108,6 +108,10 @@ export const EVENTOS_TELEGRAM = [
   // Gestão › IA (19/11/2026): teto mensal a 80% e a 100% (uma vez cada por mês)
   // e chave da entidade recusada pela OpenAI (no máximo uma vez por dia).
   { chave: "gestao_ia", rotulo: "IA da entidade: teto mensal perto do fim ou atingido, e chave da OpenAI recusada", grupo: "notificacao", acesso: { permissoes: ["gestao_sistema"] } },
+  // Gestão (20/11/2026): revisão periódica de acessos aberta (coordenador confirma a equipe)
+  // e cota mensal de IA do departamento a 80% e a 100%.
+  { chave: "revisao_acessos", rotulo: "Revisão de acessos: confirmar quem da sua equipe ainda precisa do acesso", grupo: "notificacao", acesso: { permissoes: ["gestao_sistema"], coordenador: true } },
+  { chave: "ia_cota_departamento", rotulo: "IA do departamento: cota mensal perto do fim ou atingida", grupo: "notificacao", acesso: { permissoes: ["gestao_sistema"], coordenador: true } },
   { chave: "lembrete_pendencias", rotulo: "Lembrete diário do que está esperando você", grupo: "resumo" },
   { chave: "resumo_vencimentos", rotulo: "Resumo diário de vencimentos das áreas que você cuida", grupo: "resumo", acesso: { permissoes: PERMISSOES_VENCIMENTOS } },
   { chave: "resumo_semanal", rotulo: "Resumo semanal de gestão (segunda-feira)", grupo: "resumo" },
