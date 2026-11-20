@@ -12,11 +12,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { requirePermissao } from "@/lib/auth"
 import { ROTULO_MEIO, ROTULO_NIVEL } from "@/lib/congressos/mocoes"
 import { listarUnidades, obterCongresso } from "@/lib/db/congressos"
+import { iaPermitida, listarSugestoes } from "@/lib/db/congressos-ia"
 import { dadosDaMocao, EXPLICA_LOCAL, EXPLICA_NOMES, ROTULO_SITUACAO_MOCAO } from "@/lib/db/congressos-mocoes"
 import { formatarDataHora } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 import { origemAtual } from "@/lib/tenant-url"
 
+import { TriagemMocao } from "../../../ia-componentes"
 import { AcoesMocao, LancarAssinatura, MocaoForm, ProgressoLimiar, RetirarAssinaturaMesa } from "../../../mocoes-componentes"
 
 export const metadata: Metadata = { title: "Moção — Confluir" }
@@ -40,7 +42,13 @@ export default async function MocaoPage({ params }: { params: Promise<{ id: stri
   const { id, mocaoId } = await params
   const c = await obterCongresso(id)
   if (!c) notFound()
-  const [d, unidades, origem] = await Promise.all([dadosDaMocao(c, mocaoId), listarUnidades(id), origemAtual()])
+  const iaLigada = decide && !iaPermitida(c, false)
+  const [d, unidades, origem, triagens] = await Promise.all([
+    dadosDaMocao(c, mocaoId),
+    listarUnidades(id),
+    origemAtual(),
+    iaLigada ? listarSugestoes(c, { mocaoId, funcoes: ["triagem_mocao"], pendentes: true }) : Promise.resolve([]),
+  ])
   if (!d) notFound()
   const m = d.mocao
   const linkPublico = `${origem}/congresso/mocao/${m.codigo}`
@@ -92,6 +100,17 @@ export default async function MocaoPage({ params }: { params: Promise<{ id: stri
               <p className="whitespace-pre-wrap">{m.texto}</p>
               <p className="text-muted-foreground font-mono text-[11px] break-all">SHA-256: {m.textoHash}</p>
               {m.decisaoMotivo && <p className="text-sm">Motivo registrado: {m.decisaoMotivo}</p>}
+              {iaLigada && (
+                <TriagemMocao
+                  congressoId={id}
+                  mocaoId={mocaoId}
+                  pendenteInicial={triagens[0] ?? null}
+                  tipoAtual={m.tipo}
+                  destinatarioAtual={m.destinatario}
+                  emColeta={emColeta}
+                  assinada={atuais.some((a) => !a.retiradaEm)}
+                />
+              )}
             </CardContent>
           </Card>
 

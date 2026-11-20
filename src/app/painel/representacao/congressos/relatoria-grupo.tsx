@@ -12,7 +12,10 @@ import { Label } from "@/components/ui/label"
 import { SelectNativo } from "@/components/ui/select-nativo"
 import { Textarea } from "@/components/ui/textarea"
 import { ROTULO_APRECIACAO } from "@/lib/congressos/relatoria"
+import type { Sugestao } from "@/lib/db/congressos-ia"
 import type { DadosDoGrupo, TipoApontamento } from "@/lib/db/congressos-relatoria"
+
+import { RedacaoIA, SinteseGrupo } from "./ia-componentes"
 
 import {
   apontamentoAction,
@@ -37,7 +40,15 @@ const ROTULO_TIPO = new Map(TIPOS.map((t) => [t.valor, t.rotulo]))
  * Tela da relatoria do grupo — feita para o celular e para digitar rápido.
  * A mesma tela serve ao painel e ao relator pelo link pessoal (`acesso`).
  */
-export function RelatoriaGrupo({ acesso, d }: { acesso: Acesso; d: DadosDoGrupo }) {
+/** O que a IA tem para este grupo (Fase 5); ausente = sem IA. */
+export type IAdoGrupo = {
+  ligada: boolean
+  redacoes: Record<string, Sugestao>
+  sintese: { texto: string; em: string | null; por: string | null } | null
+  sintesePendente: Sugestao | null
+}
+
+export function RelatoriaGrupo({ acesso, d, ia }: { acesso: Acesso; d: DadosDoGrupo; ia?: IAdoGrupo }) {
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null)
   const [alvo, setAlvo] = useState<string>("")
   const [tipo, setTipo] = useState<TipoApontamento>("apontamento")
@@ -152,6 +163,7 @@ export function RelatoriaGrupo({ acesso, d }: { acesso: Acesso; d: DadosDoGrupo 
             travado={travado}
             acesso={acesso}
             grupoId={grupoId}
+            ia={ia?.ligada ? { redacao: ia.redacoes[p.id] ?? null } : null}
             aoApontar={() => apontarEm(p.id)}
             aoResultado={avisar}
           />
@@ -166,6 +178,10 @@ export function RelatoriaGrupo({ acesso, d }: { acesso: Acesso; d: DadosDoGrupo 
       )}
 
       {!travado && <NovaProposta d={d} acesso={acesso} aoResultado={avisar} />}
+
+      {ia && (ia.ligada || ia.sintese) && (
+        <SinteseGrupo acesso={acesso} grupoId={grupoId} salva={ia.sintese} pendenteInicial={ia.sintesePendente} iaLigada={ia.ligada} />
+      )}
 
       {!travado && (
         <div className="grid gap-2 rounded-lg border border-dashed p-3">
@@ -242,6 +258,7 @@ function CartaoProposta({
   travado,
   acesso,
   grupoId,
+  ia,
   aoApontar,
   aoResultado,
 }: {
@@ -253,6 +270,7 @@ function CartaoProposta({
   travado: boolean
   acesso: Acesso
   grupoId: string
+  ia: { redacao: Sugestao | null } | null
   aoApontar: () => void
   aoResultado: (r: { erro?: string; ok?: string }) => void
 }) {
@@ -311,6 +329,9 @@ function CartaoProposta({
         </div>
       ) : (
         <p className="text-sm whitespace-pre-wrap">{p.texto}</p>
+      )}
+      {ia && editavel && !editando && (
+        <RedacaoIA key={p.versao} acesso={acesso} grupoId={grupoId} propostaId={p.id} textoAtual={p.texto} inicial={ia.redacao} aoResultado={aoResultado} />
       )}
       {apontamentos.length > 0 && (
         <div className="bg-muted/40 rounded-md p-2">

@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react"
 
 import { RelatoriaGrupo } from "@/app/painel/representacao/congressos/relatoria-grupo"
 import { obterCongresso } from "@/lib/db/congressos"
+import { iaDoGrupo } from "@/lib/db/congressos-ia"
 import { acessoDeRelatoria, dadosDoGrupoPorLink, ROTULO_FUNCAO } from "@/lib/db/congressos-relatoria"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -22,6 +23,7 @@ export default async function RelatoriaPeloLinkPage({ params }: { params: Promis
   if (!acesso) notFound()
   const d = await dadosDoGrupoPorLink(acesso, grupoId)
   if (!d) notFound()
+  const ia = await iaDoGrupo(acesso.congresso, tenantId, grupoId, true)
   const funcao = acesso.grupos.find((g) => g.id === grupoId)?.funcao
 
   return (
@@ -38,7 +40,7 @@ export default async function RelatoriaPeloLinkPage({ params }: { params: Promis
           {funcao ? ` · ${ROTULO_FUNCAO[funcao]}` : ""}
         </p>
       </div>
-      <RelatoriaGrupo acesso={{ token }} d={d} />
+      <RelatoriaGrupo acesso={{ token }} d={d} ia={ia} />
     </main>
   )
 }

@@ -478,6 +478,20 @@ export const AJUSTES: Ajuste[] = [
     ajuda: "Separadas por vírgula. Ex.: Local, Estadual, Nacional. Vazio = não classifica.",
   },
   { chave: "propostas.consenso_debate", secao: "propostas", rotulo: "Consolidação classifica cada item como consenso ou debate", tipo: "booleano", padrao: true },
+  {
+    chave: "propostas.ia", secao: "propostas", rotulo: "Sugestões da IA na relatoria", tipo: "escolha", padrao: "comissao_e_relatoria",
+    opcoes: [
+      { valor: "comissao_e_relatoria", rotulo: "Comissão e relatoria dos grupos" },
+      { valor: "comissao", rotulo: "Só a comissão, no painel" },
+      { valor: "desligada", rotulo: "Desligada" },
+    ],
+    ajuda: "A IA só sugere: redação, fusão, eixo, abrangência, contradições, síntese. Nada muda sem o aceite de uma pessoa, e os textos vão sem nomes.",
+  },
+  {
+    chave: "propostas.competencia", secao: "propostas", rotulo: "O que cabe a este congresso decidir", tipo: "texto", padrao: "",
+    ajuda: "Ajuda a IA a apontar o que está fora da competência. Ex.: pauta do ACT, organização e lutas do sindicato. A decisão é da comissão.",
+    visivelSe: [{ chave: "propostas.ia", diferente: "desligada" }],
+  },
 
   // ── Apreciação nos grupos ──
   { chave: "apreciacao.ha_votacao", secao: "apreciacao", rotulo: "Os grupos votam as propostas", tipo: "booleano", padrao: false, ajuda: "Não = o grupo só faz apontamentos, e a relatoria consolida." },

@@ -2,12 +2,14 @@
 
 # Plataforma, acesso e auditoria
 
-36 tabelas. Diagrama: [er/plataforma.md](../er/plataforma.md).
+39 tabelas. Diagrama: [er/plataforma.md](../er/plataforma.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
 | [acesso_agente_comandos](#acesso_agente_comandos) | — | Fila de comandos para o agente da sede: o painel pede, o agente busca no contato seguinte e devolve o resultado. Nesta etapa só "verificar". |
 | [acesso_agentes](#acesso_agentes) | **credencial (nunca exportar)** | Agente do controle de acesso instalado no computador da recepção de uma sede (lib/acesso-agente.ts): pareamento por código, token, último co… |
+| [acessos_revisao_ciclos](#acessos_revisao_ciclos) | identificação | Campanha de revisão periódica de acessos (Gestão › Usuários › Revisão de acessos, 20/11/2026): quando abriu, prazo e quando encerrou. |
+| [acessos_revisao_itens](#acessos_revisao_itens) | identificação | Cada pessoa com acesso ao painel numa revisão periódica: quem revisa (coordenador do departamento ou a Gestão), o retrato do acesso, a decis… |
 | [analitica_atualizacoes](#analitica_atualizacoes) | — | Controle técnico da última atualização de cada visão materializada analítica (fato_filiacao_mensal, fato_frota_mensal etc.) e quanto tempo l… |
 | [api_chaves](#api_chaves) | **credencial (nunca exportar)** | Chave de acesso à API pública do tenant (lib/api-publica.ts): guarda só o prefixo e o hash, escopos permitidos, uso e revogação. |
 | [api_requisicoes](#api_requisicoes) | identificação | Log de cada requisição à API pública /api/v1 (achado M6 da RIPD da base multi-entidade): chave, rota, parâmetros, status HTTP e quantidade d… |
@@ -23,6 +25,7 @@
 | [empresa_sede](#empresa_sede) | — | Sedes e subsedes da entidade com endereço e telefones. Usadas no rodapé dos ofícios, na agenda, em cobranças e na cessão de espaços. |
 | [gestao_eventos](#gestao_eventos) | identificação | O que os administradores mudaram na Gestão (chave de IA cadastrada ou removida, teto, modelo, módulos desligados) e quem mudou. Só se acresc… |
 | [ia_config](#ia_config) | **credencial (nunca exportar)** | Configuração da IA da entidade (Gestão › Inteligência Artificial, 19/11/2026): chave de API própria cifrada pela aplicação, modelo, teto men… |
+| [ia_cota_avisos](#ia_cota_avisos) | — | Avisos de cota de IA já enviados por departamento, mês (AAAA-MM) e nível (80 ou 100), para não repetir (20/11/2026). |
 | [ia_uso](#ia_uso) | identificação | Uma linha por chamada à IA (lib/ia.ts): quem pediu, processo, módulo, departamento, modelo, tokens, custo estimado e resultado. Não guarda o… |
 | [lgpd_bloqueios_litigio](#lgpd_bloqueios_litigio) | identificação | Bloqueio por litígio (legal hold, item 4 da seção 4 de retencao.md): enquanto vigente, a pessoa (CPF ou e-mail) ou o registro (tabela + id) … |
 | [lgpd_exportacoes](#lgpd_exportacoes) | identificação | Livro de exportações (achado M5 da RIPD da base multi-entidade): uma linha por arquivo com dado pessoal gerado no painel (planilha, PDF, CNA… |
@@ -102,6 +105,58 @@ Agente do controle de acesso instalado no computador da recepção de uma sede (
 Checks: `acesso_agentes_conector_check` `CHECK ((conector = ANY (ARRAY['simulado'::text, 'controlid_local'::text])))`
 
 Índices: `acesso_agentes_codigo_idx`, `acesso_agentes_emp_idx`, `acesso_agentes_pkey`, `acesso_agentes_token_hash_key`
+
+## acessos_revisao_ciclos
+
+Campanha de revisão periódica de acessos (Gestão › Usuários › Revisão de acessos, 20/11/2026): quando abriu, prazo e quando encerrou.
+
+- **LGPD:** identificação · titulares: funcionarios
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `titulo` | text | não |  |  | nenhum | Nome da campanha (ex.: 4º trimestre de 2026). |
+| `aberto_em` | timestamp with time zone | não | `now()` |  |  |  |
+| `aberto_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem abriu a revisão. |
+| `prazo` | date | não |  |  | nenhum | Data-limite para os coordenadores responderem. |
+| `encerrado_em` | timestamp with time zone | sim |  |  |  |  |
+| `encerrado_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem encerrou a revisão. |
+
+Índices: `acessos_revisao_ciclos_emp_idx`, `acessos_revisao_ciclos_pkey`, `acessos_revisao_ciclos_um_aberto`
+
+## acessos_revisao_itens
+
+Cada pessoa com acesso ao painel numa revisão periódica: quem revisa (coordenador do departamento ou a Gestão), o retrato do acesso, a decisão e o que a Gestão fez (20/11/2026).
+
+- **LGPD:** identificação · titulares: funcionarios
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `ciclo_id` | uuid | não |  | → acessos_revisao_ciclos (**cascade**) |  |  |
+| `usuario_id` | uuid | não |  | → usuarios (**cascade**) | identificação | Pessoa cujo acesso está sendo revisado. |
+| `departamento_id` | uuid | sim |  | → empresa_departamentos (set null) | nenhum | Departamento pelo qual o coordenador revisa; nulo quando a Gestão revisa direto. |
+| `revisor_id` | uuid | sim |  | → usuarios (set null) | identificação | Coordenador que confirma; nulo = a Gestão (sem coordenador, ou a pessoa é o próprio coordenador). |
+| `acesso_resumo` | jsonb | não | `'{}'::jsonb` |  | nenhum | Retrato do acesso quando a revisão abriu: {"perfis": [nomes], "diretas": [rótulos das permissões diretas], "total": n}. |
+| `decisao` | text | sim |  |  | nenhum | manter, retirar ou ajustar; nulo = sem resposta. |
+| `observacao` | text | sim |  |  | identificação | O que ajustar, ou o motivo, nas palavras do revisor. |
+| `decidido_em` | timestamp with time zone | sim |  |  |  |  |
+| `decidido_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem respondeu. |
+| `tratado_em` | timestamp with time zone | sim |  |  |  |  |
+| `tratado_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem da Gestão resolveu (revogou, ajustou ou manteve). |
+| `tratamento` | text | sim |  |  | nenhum | O que a Gestão fez, em poucas palavras. |
+
+Únicas: `UNIQUE (ciclo_id, usuario_id)`
+
+Checks: `acessos_revisao_itens_decisao_valida` `CHECK (((decisao IS NULL) OR (decisao = ANY (ARRAY['manter'::text, 'retirar'::text, 'ajustar'::text]))))`
+
+Índices: `acessos_revisao_itens_ciclo_idx`, `acessos_revisao_itens_pkey`, `acessos_revisao_itens_revisor_idx`, `acessos_revisao_itens_unico`
 
 ## analitica_atualizacoes
 
@@ -494,10 +549,31 @@ Configuração da IA da entidade (Gestão › Inteligência Artificial, 19/11/20
 | `chave_aviso_erro_em` | timestamp with time zone | sim |  |  |  | Quando os administradores foram avisados da última recusa da chave da entidade (no máximo um aviso por dia). |
 | `modelos_processo` | jsonb | não | `'{}'::jsonb` |  | nenhum | Modelo de IA por processo: {"<chave do processo de lib/ia-processos.ts>": "<modelo>"}. Processo ausente usa o modelo geral. |
 | `precos_modelos` | jsonb | não | `'{}'::jsonb` |  | nenhum | Preços por modelo, em US$ por 1 milhão de tokens: {"<modelo>": {"entrada": n, "cache": n, "saida": n}}, para estimar o custo das chamadas que usam modelos além do geral. |
+| `cotas_departamento` | jsonb | não | `'{}'::jsonb` |  | nenhum | Cota mensal de IA por departamento: {"<departamento_id>": limite em US$}. Trava e avisa como o teto geral. |
 
 Checks: `ia_config_chave_final_curta` `CHECK (((chave_final IS NULL) OR (length(chave_final) <= 4)))`; `ia_config_limite_positivo` `CHECK (((limite_mensal_usd IS NULL) OR (limite_mensal_usd > (0)::numeric)))`
 
 Índices: `ia_config_pkey`
+
+## ia_cota_avisos
+
+Avisos de cota de IA já enviados por departamento, mês (AAAA-MM) e nível (80 ou 100), para não repetir (20/11/2026).
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| 🔑 `departamento_id` | uuid | não |  | → empresa_departamentos (**cascade**) |  |  |
+| 🔑 `mes` | text | não |  |  |  |  |
+| 🔑 `nivel` | smallint | não |  |  |  |  |
+| `avisado_em` | timestamp with time zone | não | `now()` |  |  |  |
+
+Checks: `ia_cota_avisos_nivel_valido` `CHECK ((nivel = ANY (ARRAY[80, 100])))`
+
+Índices: `ia_cota_avisos_pkey`
 
 ## ia_uso
 

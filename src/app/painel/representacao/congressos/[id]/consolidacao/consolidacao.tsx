@@ -11,9 +11,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { SelectNativo } from "@/components/ui/select-nativo"
 import { Textarea } from "@/components/ui/textarea"
+import type { Sugestao } from "@/lib/db/congressos-ia"
 import type { SituacaoProposta } from "@/lib/db/congressos-relatoria"
 import { semAcento } from "@/lib/texto"
 
+import { RedacaoIA } from "../../ia-componentes"
 import { ajustarAction, desfazerFusaoAction, fundirAction, versaoConsolidacaoAction } from "../../relatoria-actions"
 
 export type ItemConsolidacao = {
@@ -30,6 +32,7 @@ export type ItemConsolidacao = {
   classificacao: "consenso" | "debate" | null
   apontamentos: { id: string; tipo: string; texto: string; grupo: string }[]
   apreciacoes: { grupo: string; placar: string; resultado: string }[]
+  redacaoIA: Sugestao | null
 }
 
 const SITUACOES: { valor: SituacaoProposta | "abertas" | "todas"; rotulo: string }[] = [
@@ -60,6 +63,7 @@ export function Consolidacao({
   grupos,
   abrangencias,
   consensoDebate,
+  iaLigada = false,
 }: {
   congressoId: string
   itens: ItemConsolidacao[]
@@ -67,6 +71,7 @@ export function Consolidacao({
   grupos: string[]
   abrangencias: string[]
   consensoDebate: boolean
+  iaLigada?: boolean
 }) {
   const [filtro, setFiltro] = useState<string>("abertas")
   const [eixo, setEixo] = useState("")
@@ -264,6 +269,7 @@ export function Consolidacao({
               key={p.id}
               p={p}
               congressoId={congressoId}
+              iaLigada={iaLigada}
               marcada={marcadas.has(p.id)}
               aoMarcar={(v) =>
                 setMarcadas((s) => {
@@ -285,12 +291,14 @@ export function Consolidacao({
 function Cartao({
   p,
   congressoId,
+  iaLigada,
   marcada,
   aoMarcar,
   aoResultado,
 }: {
   p: ItemConsolidacao
   congressoId: string
+  iaLigada: boolean
   marcada: boolean
   aoMarcar: (v: boolean) => void
   aoResultado: (r: { erro?: string; ok?: string }) => void
@@ -374,6 +382,9 @@ function Cartao({
         </div>
       ) : (
         <p className="text-sm whitespace-pre-wrap">{p.texto}</p>
+      )}
+      {iaLigada && !fechada && !editando && (
+        <RedacaoIA key={p.versao} acesso={{ congressoId }} grupoId={null} propostaId={p.id} textoAtual={p.texto} inicial={p.redacaoIA} aoResultado={aoResultado} />
       )}
       {p.apontamentos.length > 0 && (
         <ul className="bg-muted/40 grid gap-1 rounded-md p-2 text-sm">

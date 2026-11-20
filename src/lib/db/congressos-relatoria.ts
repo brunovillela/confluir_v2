@@ -613,7 +613,7 @@ export async function novaVersao(
   ctx: Contexto,
   propostaId: string,
   texto: string,
-  motivo: "grupo" | "consolidacao" | "plenaria" | "correcao",
+  motivo: "grupo" | "consolidacao" | "plenaria" | "correcao" | "redacao_ia",
   grupoId?: string
 ): Promise<{ erro?: string }> {
   const p = await lerProposta(ctx, propostaId)

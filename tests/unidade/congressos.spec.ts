@@ -28,6 +28,21 @@ import {
 import { casarPapel, conferirLinhas, lerGrade } from "@/lib/congressos/importacao"
 import { codigoAtual, codigoRecente, codigoValido } from "@/lib/congressos/codigo-sala"
 import {
+  alertasDeSentido,
+  blocos,
+  lerCaderno,
+  lerCorrelacao,
+  lerMesclagem,
+  lerRefino,
+  lerRegimento,
+  lerTriagem,
+  lerTriagemMocao,
+  listaParaIA,
+  semDadosPessoais,
+  sugestaoObsoleta,
+  usoPorFuncao,
+} from "@/lib/congressos/ia"
+import {
   calcularQuorum,
   conferirSubstituicao,
   cpfParcial,
@@ -579,5 +594,84 @@ test.describe("moções", () => {
     expect(lerCodigoMocao(`CGRM:${c.toLowerCase()}`)).toBe(c)
     expect(lerCodigoMocao("qualquer coisa")).toBeNull()
     expect(tiposDeMocao("Apoio, Repúdio, Apoio")).toEqual(["Apoio", "Repúdio"])
+  })
+})
+
+test.describe("congressos — IA na relatoria", () => {
+  test("tira dados pessoais e autoria do que vai à IA", () => {
+    expect(semDadosPessoais("Contato 123.456.789-09, ana@x.org, (22) 99876-5432; reajuste de 10%")).toBe(
+      "Contato [CPF], [e-mail], [telefone]; reajuste de 10%"
+    )
+    expect(listaParaIA([{ numero: 7, texto: "Garantir  PLR\nintegral", eixo: "ACT", grupo: "GT 1" }], { comGrupo: true })).toBe("P7 [GT 1]: Garantir PLR integral")
+  })
+
+  test("blocos não separam o eixo que cabe inteiro", () => {
+    const b = blocos([["a", [1, 2, 3]], ["b", [4, 5]], ["c", [6, 7, 8, 9, 10, 11]]], 5)
+    expect(b).toEqual([[1, 2, 3, 4, 5], [6, 7, 8, 9, 10], [11]])
+    expect(blocos([["a", [1, 2, 3]], ["b", [4, 5, 6]]], 5)).toEqual([[1, 2, 3], [4, 5, 6]])
+  })
+
+  test("alerta quando a redação nova parece mudar o sentido", () => {
+    expect(alertasDeSentido("Lutar pela manutenção do regime de turno", "Lutar pela manutenção do regime de turno de 12 horas")[0]).toContain("Números")
+    expect(alertasDeSentido("Não aceitar a venda das refinarias", "Aceitar a venda das refinarias")[0]).toContain("Negação")
+    expect(alertasDeSentido("O sindicato deve exigir PLR", "O sindicato pode sugerir PLR").some((a) => a.includes("Força"))).toBe(true)
+    expect(alertasDeSentido("Garantir o reajuste de 10% para todos os trabalhadores", "Garantir reajuste de 10% a todos os trabalhadores")).toEqual([])
+  })
+
+  test("lê as respostas da IA só com propostas enviadas", () => {
+    expect(lerRefino({ texto: "Texto melhor aqui", muda_sentido: true, alerta: "x" }, "Texto ruim")).toMatchObject({ mudaSentido: true })
+    expect(lerRefino({ texto: "Igual" }, "Igual")).toBeNull()
+    expect(lerRefino({ texto: "P6: Proposta de teste" }, "Proposta de teste")).toBeNull()
+    expect(lerRefino({ texto: "Proposta 12 - Garantir PLR" }, "garantir plr")?.texto).toBe("Garantir PLR")
+    expect(lerRefino({ texto: "10% de reajuste" }, "x")?.texto).toBe("10% de reajuste")
+    const validos = new Set([1, 2, 3, 4])
+    expect(lerMesclagem({ grupos: [{ propostas: ["P1", 2, 99], texto: "Unida", motivo: "m" }, { propostas: [2, 3], texto: "Outra" }, { propostas: [3, 4], texto: "Terceira" }] }, validos)).toEqual([
+      { numeros: [1, 2], texto: "Unida", motivo: "m" },
+      { numeros: [3, 4], texto: "Terceira", motivo: "" },
+    ])
+    const atuais = new Map([[1, { eixo: "ACT", abrangencia: null }], [2, { eixo: "ACT", abrangencia: "Local" }]])
+    expect(
+      lerTriagem(
+        { propostas: [{ proposta: "P1", eixo: "saúde", abrangencia: "nacional", fora_competencia: "" }, { proposta: 2, eixo: "ACT", abrangencia: "Local" }, { proposta: 9, eixo: "Saúde" }] },
+        atuais,
+        ["ACT", "Saúde"],
+        ["Local", "Nacional"]
+      )
+    ).toEqual([{ numero: 1, eixo: "Saúde", motivoEixo: "", abrangencia: "Nacional", foraCompetencia: null }])
+    const grupos = new Map<number, string | null>([[1, "g1"], [2, "g1"], [3, "g2"]])
+    expect(lerCorrelacao({ pares: [{ a: 1, b: 2, relacao: "igual" }, { a: 3, b: 1, relacao: "contraditoria", motivo: "m" }, { a: 1, b: 3, relacao: "igual" }, { a: 2, b: 3, relacao: "talvez" }] }, grupos)).toEqual([
+      { a: 1, b: 3, relacao: "contraditoria", motivo: "m" },
+    ])
+    expect(lerTriagemMocao({ tipo: "repúdio", destinatario: "Petrobras", alerta_conteudo: "" }, ["Apoio", "Repúdio"])).toMatchObject({ tipo: "Repúdio", alertaConteudo: null })
+    expect(lerCaderno({ propostas: [{ texto: "Primeira proposta", eixo: "act" }, { texto: "primeira proposta" }, { texto: "x" }] }, ["ACT"])).toEqual([
+      { texto: "Primeira proposta", eixo: "ACT", origem: "" },
+    ])
+  })
+
+  test("regimento lido vira só ajustes válidos do catálogo", () => {
+    const r = lerRegimento({
+      ajustes: [
+        { chave: "plenaria.maioria", valor: "absoluta", artigo: "Art. 12", trecho: "maioria absoluta" },
+        { chave: "plenaria.maioria", valor: "simples", artigo: "Art. 13" },
+        { chave: "plenaria.maioria_x", valor: "1" },
+        { chave: "propostas.ia", valor: "talvez" },
+        { chave: "propostas.consenso_debate", valor: false, artigo: "Art. 9" },
+      ],
+    })
+    expect(r.map((a) => [a.chave, a.valor, a.artigo])).toEqual([
+      ["propostas.consenso_debate", false, "Art. 9"],
+      ["plenaria.maioria", "absoluta", "Art. 12"],
+    ])
+  })
+
+  test("uso medido e sugestão velha", () => {
+    expect(usoPorFuncao([{ funcao: "mesclagem", situacao: "aceita" }, { funcao: "refino", situacao: "recusada" }, { funcao: "mesclagem", situacao: "ajustada" }, { funcao: "mesclagem", situacao: "pendente" }])).toEqual([
+      { funcao: "refino", total: 1, aceitas: 0, recusadas: 1, pendentes: 0 },
+      { funcao: "mesclagem", total: 3, aceitas: 2, recusadas: 0, pendentes: 1 },
+    ])
+    const atuais = new Map([["a", { versao: 2, situacao: "entregue" }], ["b", { versao: 1, situacao: "fundida" }]])
+    expect(sugestaoObsoleta({ a: 2 }, atuais)).toBe(false)
+    expect(sugestaoObsoleta({ a: 1 }, atuais)).toBe(true)
+    expect(sugestaoObsoleta({ b: 1 }, atuais)).toBe(true)
   })
 })

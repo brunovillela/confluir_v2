@@ -2,7 +2,7 @@
 
 # Representação, acordos e negociações
 
-41 tabelas. Diagrama: [er/representacao.md](../er/representacao.md).
+42 tabelas. Diagrama: [er/representacao.md](../er/representacao.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -34,6 +34,7 @@
 | [congresso_propostas](#congresso_propostas) | — | Propostas do congresso: caderno de teses, etapas anteriores, novas no grupo ou em plenária, e as nascidas de fusão. O texto atual é a última… |
 | [congresso_sessoes](#congresso_sessoes) | — | Sessões do programa (plenária, mesa, grupo, setorial, atividade conjunta…), com horário. |
 | [congresso_substituicoes](#congresso_substituicoes) | **sensível: sindical** | Suplente que assume no lugar de um titular, com quem autorizou. Desfazer não apaga: marca desfeita_em. |
+| [congresso_sugestoes_ia](#congresso_sugestoes_ia) | identificação | Sugestões da IA na relatoria do congresso (redação, fusão, eixo, abrangência, competência, correlação entre grupos, síntese, triagem de moçã… |
 | [congresso_unidades](#congresso_unidades) | — | Bases, entidades, segmentos ou ramos que formam as delegações, com limite de delegados e número de sócios para o cálculo de vagas. |
 | [congresso_votacao_itens](#congresso_votacao_itens) | — | Propostas de cada votação da plenária (uma, ou várias numa votação em bloco). |
 | [congresso_votacoes](#congresso_votacoes) | identificação | Resultado de cada votação da plenária (de uma proposta ou de um bloco): forma, contagem do crachá, maioria aplicada e resultado. Votos indiv… |
@@ -451,6 +452,9 @@ Grupos de trabalho (GT) do congresso, com eixo e vagas.
 | `updated_at` | timestamp with time zone | sim |  |  |  |  |
 | `relatorio_entregue_em` | timestamp with time zone | sim |  |  | nenhum | Quando o relatório do grupo foi entregue; depois disso o grupo não altera mais propostas nem apontamentos. |
 | `relatorio_entregue_por` | text | sim |  |  | identificação | Nome de quem entregou o relatório (relator pelo link pessoal ou usuário do painel). |
+| `sintese` | text | sim |  |  | nenhum | Síntese do grupo (resumo e minuta do relatório), revista por uma pessoa antes de guardar. |
+| `sintese_em` | timestamp with time zone | sim |  |  | nenhum | Quando a síntese foi guardada. |
+| `sintese_por` | text | sim |  |  | identificação | Quem guardou a síntese. |
 
 Checks: `congresso_grupos_nome_check` `CHECK ((length(TRIM(BOTH FROM nome)) > 0))`; `congresso_grupos_vagas_check` `CHECK (((vagas IS NULL) OR (vagas > 0)))`
 
@@ -707,7 +711,7 @@ Cada versão do texto de uma proposta, com o motivo (grupo, consolidação, fus�
 | `autor` | text | sim |  |  | identificação | Nome de quem registrou a versão. |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 
-Checks: `congresso_proposta_versoes_motivo_check` `CHECK ((motivo = ANY (ARRAY['criada'::text, 'grupo'::text, 'consolidacao'::text, 'fusao'::text, 'plenaria'::text, 'correcao'::text])))`; `congresso_proposta_versoes_versao_check` `CHECK ((versao > 0))`
+Checks: `congresso_proposta_versoes_motivo_check` `CHECK ((motivo = ANY (ARRAY['criada'::text, 'grupo'::text, 'consolidacao'::text, 'fusao'::text, 'plenaria'::text, 'correcao'::text, 'redacao_ia'::text])))`; `congresso_proposta_versoes_versao_check` `CHECK ((versao > 0))`
 
 Índices: `congresso_proposta_versoes_pkey`, `congresso_proposta_versoes_um`
 
@@ -799,6 +803,35 @@ Suplente que assume no lugar de um titular, com quem autorizou. Desfazer não ap
 Checks: `congresso_substituicoes_pessoas` `CHECK ((titular_id <> suplente_id))`
 
 Índices: `congresso_substituicoes_pkey`, `congresso_substituicoes_suplente`, `congresso_substituicoes_titular`
+
+## congresso_sugestoes_ia
+
+Sugestões da IA na relatoria do congresso (redação, fusão, eixo, abrangência, competência, correlação entre grupos, síntese, triagem de moção, leitura do caderno e do regimento), com aceite ou recusa de quem revisou. Os textos enviados à IA vão sem nomes de pessoas.
+
+- **LGPD:** identificação · titulares: relatores e comissão de congressos
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
+| `lote` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `funcao` | text | não |  |  |  |  |
+| `grupo_id` | uuid | sim |  | → congresso_grupos (**cascade**) |  |  |
+| `mocao_id` | uuid | sim |  | → congresso_mocoes (**cascade**) |  |  |
+| `proposta_ids` | uuid[] | não | `'{}'::uuid[]` |  |  |  |
+| `conteudo` | jsonb | não | `'{}'::jsonb` |  | nenhum | O que a IA sugeriu (texto, propostas envolvidas, motivo, alertas). Não guarda nomes de pessoas. |
+| `situacao` | text | não | `'pendente'::text` |  |  |  |
+| `pedida_por` | text | sim |  |  | identificação | Nome de quem pediu a sugestão. |
+| `decidida_por` | text | sim |  |  | identificação | Nome de quem aceitou ou recusou. |
+| `decidida_em` | timestamp with time zone | sim |  |  |  |  |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Checks: `congresso_sugestoes_ia_funcao_check` `CHECK ((funcao = ANY (ARRAY['refino'::text, 'mesclagem'::text, 'eixo'::text, 'abrangencia'::text, 'competencia'::text, 'correlacao'::text, 'sintese'::text, 'triagem_mocao'::text, 'caderno'::text, 'regimento'::text])))`; `congresso_sugestoes_ia_situacao_check` `CHECK ((situacao = ANY (ARRAY['pendente'::text, 'aceita'::text, 'ajustada'::text, 'recusada'::text, 'obsoleta'::text])))`
+
+Índices: `congresso_sugestoes_ia_congresso`, `congresso_sugestoes_ia_pkey`, `congresso_sugestoes_ia_propostas`
 
 ## congresso_unidades
 

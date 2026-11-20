@@ -14,6 +14,22 @@ erDiagram
     uuid id PK
     uuid sede_id FK
   }
+  acessos_revisao_ciclos {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid aberto_por FK
+    uuid encerrado_por FK
+  }
+  acessos_revisao_itens {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid ciclo_id FK
+    uuid usuario_id FK
+    uuid departamento_id FK
+    uuid revisor_id FK
+    uuid decidido_por FK
+    uuid tratado_por FK
+  }
   analitica_atualizacoes {
     text fato PK
   }
@@ -80,6 +96,12 @@ erDiagram
     uuid emp_proprietaria_id PK,FK
     uuid chave_definida_por FK
     uuid atualizado_por FK
+  }
+  ia_cota_avisos {
+    uuid emp_proprietaria_id PK,FK
+    uuid departamento_id PK,FK
+    text mes PK
+    smallint nivel PK
   }
   ia_uso {
     uuid id PK
@@ -181,6 +203,14 @@ erDiagram
   }
   acesso_agente_comandos }o--|| acesso_agentes : "agente_id"
   acesso_agentes }o--o| empresa_sede : "sede_id"
+  acessos_revisao_ciclos }o--o| usuarios : "aberto_por"
+  acessos_revisao_ciclos }o--o| usuarios : "encerrado_por"
+  acessos_revisao_itens }o--o| empresa_departamentos : "departamento_id"
+  acessos_revisao_itens }o--o| usuarios : "decidido_por"
+  acessos_revisao_itens }o--o| usuarios : "revisor_id"
+  acessos_revisao_itens }o--o| usuarios : "tratado_por"
+  acessos_revisao_itens }o--|| acessos_revisao_ciclos : "ciclo_id"
+  acessos_revisao_itens }o--|| usuarios : "usuario_id"
   api_requisicoes }o--o| api_chaves : "chave_id"
   auditoria_regras }o--o| usuarios : "atualizado_por"
   empresa }o--o| empresa : "mesclado_em_id"
@@ -195,6 +225,7 @@ erDiagram
   gestao_eventos }o--o| usuarios : "usuario_id"
   ia_config }o--o| usuarios : "atualizado_por"
   ia_config }o--o| usuarios : "chave_definida_por"
+  ia_cota_avisos }o--|| empresa_departamentos : "departamento_id"
   ia_uso }o--o| empresa_departamentos : "departamento_id"
   ia_uso }o--o| usuarios : "usuario_id"
   lgpd_bloqueios_litigio }o--o| usuarios : "criado_por"

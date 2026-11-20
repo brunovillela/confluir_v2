@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { obterCongresso } from "@/lib/db/congressos"
+import { iaDoGrupo } from "@/lib/db/congressos-ia"
 import { dadosDoGrupo, opcoesDeFuncao, ROTULO_FUNCAO } from "@/lib/db/congressos-relatoria"
 import { formatarDataHora } from "@/lib/formato"
+import { tenantAtual } from "@/lib/tenant"
 
 import { FuncoesGrupo, ReabrirRelatorio } from "../../../relatoria-componentes"
 import { RelatoriaGrupo } from "../../../relatoria-grupo"
@@ -20,7 +22,7 @@ export default async function GrupoRelatoriaPage({ params }: { params: Promise<{
   const { id, grupoId } = await params
   const c = await obterCongresso(id)
   if (!c) notFound()
-  const [d, pessoas] = await Promise.all([dadosDoGrupo(c, grupoId), opcoesDeFuncao(id)])
+  const [d, pessoas, ia] = await Promise.all([dadosDoGrupo(c, grupoId), opcoesDeFuncao(id), tenantAtual().then((t) => iaDoGrupo(c, t, grupoId, false))])
   if (!d) notFound()
   const base = `/painel/representacao/congressos/${id}`
 
@@ -45,7 +47,7 @@ export default async function GrupoRelatoriaPage({ params }: { params: Promise<{
       </div>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="min-w-0">
-          <RelatoriaGrupo acesso={{ congressoId: id }} d={d} />
+          <RelatoriaGrupo acesso={{ congressoId: id }} d={d} ia={ia} />
         </div>
         <Card className="h-fit">
           <CardHeader>

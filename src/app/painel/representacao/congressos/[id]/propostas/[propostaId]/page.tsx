@@ -25,6 +25,7 @@ const MOTIVO: Record<string, string> = {
   fusao: "Fusão",
   plenaria: "Plenária",
   correcao: "Correção",
+  redacao_ia: "Redação sugerida pela IA e aceita",
 }
 const FORMA: Record<string, string> = { sem_oposicao: "sem oposição", visual: "crachá (contraste visual)", contagem: "contagem", urna: "urna" }
 

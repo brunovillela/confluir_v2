@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { Sparkles } from "lucide-react"
 
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { requirePermissao } from "@/lib/auth"
 import { ROTULO_APRECIACAO } from "@/lib/congressos/relatoria"
 import { obterCongresso } from "@/lib/db/congressos"
+import { iaPermitida, listarSugestoes } from "@/lib/db/congressos-ia"
 import { dadosDaRelatoria, ROTULO_APONTAMENTO, ROTULO_ORIGEM_PROPOSTA } from "@/lib/db/congressos-relatoria"
 
 import { AplicarGrupos } from "../../relatoria-componentes"
@@ -20,7 +22,10 @@ export default async function ConsolidacaoPage({ params }: { params: Promise<{ i
   const { id } = await params
   const c = await obterCongresso(id)
   if (!c) notFound()
-  const d = await dadosDaRelatoria(c)
+  const iaLigada = !iaPermitida(c, false)
+  const [d, sugestoes] = await Promise.all([dadosDaRelatoria(c), iaLigada ? listarSugestoes(c, { pendentes: true }) : Promise.resolve([])])
+  const redacao = new Map(sugestoes.filter((s) => s.funcao === "refino").map((s) => [s.propostaIds[0], s]))
+  const pendentesAssistente = sugestoes.filter((s) => ["mesclagem", "eixo", "abrangencia", "competencia", "correlacao"].includes(s.funcao)).length
   const base = `/painel/representacao/congressos/${id}`
   const nomeGrupo = new Map(d.grupos.map((g) => [g.id, g.nome]))
   const entregues = d.grupos.filter((g) => g.relatorioEntregueEm).length
@@ -43,6 +48,7 @@ export default async function ConsolidacaoPage({ params }: { params: Promise<{ i
     apreciacoes: d.apreciacoes
       .filter((a) => a.propostaId === p.id)
       .map((a) => ({ grupo: nomeGrupo.get(a.grupoId) ?? "Grupo", placar: `${a.aFavor} × ${a.contra} × ${a.abstencao}`, resultado: ROTULO_APRECIACAO[a.resultado] })),
+    redacaoIA: redacao.get(p.id) ?? null,
   }))
 
   return (
@@ -58,6 +64,14 @@ export default async function ConsolidacaoPage({ params }: { params: Promise<{ i
         </div>
         <div className="flex flex-wrap gap-2">
           {d.regras.haVotacao && <AplicarGrupos congressoId={id} />}
+          {iaLigada && (
+            <Button asChild size="sm">
+              <Link href={`${base}/assistente`}>
+                <Sparkles />
+                Assistente da IA{pendentesAssistente ? ` · ${pendentesAssistente}` : ""}
+              </Link>
+            </Button>
+          )}
           <Button asChild variant="outline" size="sm">
             <Link href={`${base}/plenaria`}>Mesa da plenária</Link>
           </Button>
@@ -85,6 +99,7 @@ export default async function ConsolidacaoPage({ params }: { params: Promise<{ i
         grupos={d.grupos.map((g) => g.nome)}
         abrangencias={d.regras.abrangencias}
         consensoDebate={d.regras.consensoDebate}
+        iaLigada={iaLigada}
       />
     </>
   )

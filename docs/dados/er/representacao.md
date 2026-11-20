@@ -196,6 +196,13 @@ erDiagram
     uuid registrado_por FK
     uuid desfeita_por FK
   }
+  congresso_sugestoes_ia {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid grupo_id FK
+    uuid mocao_id FK
+  }
   congresso_unidades {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -362,6 +369,9 @@ erDiagram
   congresso_substituicoes }o--|| congresso_participantes : "suplente_id"
   congresso_substituicoes }o--|| congresso_participantes : "titular_id"
   congresso_substituicoes }o--|| congressos : "congresso_id"
+  congresso_sugestoes_ia }o--o| congresso_grupos : "grupo_id"
+  congresso_sugestoes_ia }o--o| congresso_mocoes : "mocao_id"
+  congresso_sugestoes_ia }o--|| congressos : "congresso_id"
   congresso_unidades }o--|| congressos : "congresso_id"
   congresso_votacao_itens }o--o| congresso_mocoes : "mocao_id"
   congresso_votacao_itens }o--o| congresso_propostas : "proposta_id"

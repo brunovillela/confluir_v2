@@ -135,6 +135,7 @@ Tarefa com demandante e demandado, prazo e documentos, filha de demanda, projeto
 | `recorrencia` | text | sim |  |  | nenhum | De quanto em quanto tempo a tarefa se repete: semanal, mensal, trimestral, semestral ou anual; nulo = não repete. Ao concluir, o sistema cria a próxima com o prazo avançado. |
 | `recorrencia_proxima_id` | uuid | sim |  | → demandas_check_tarefas (set null) | nenhum | A tarefa criada quando esta (recorrente) foi concluída; impede criar outra ao reabrir e concluir de novo. |
 | `procedimento_id` | uuid | sim |  | → fa_documentos (set null) | nenhum | Documento (Ferramentas > Documentos) com o procedimento que a tarefa segue; quem executa abre a versão mais recente pela tarefa. |
+| `iniciada_em` | timestamp with time zone | sim |  |  | nenhum | Quando a tarefa passou a Em andamento (quadro de tarefas); nulo = A fazer. Concluída continua em `concluido`. |
 
 Únicas: `UNIQUE (bubble_id)`
 

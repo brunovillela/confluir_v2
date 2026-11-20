@@ -50,6 +50,9 @@ export const PROCESSOS_IA: ProcessoIA[] = [
   { chave: "representacao.acordos_comparacao", titulo: "Comparação de acordos coletivos", modulo: "representacao" },
   { chave: "representacao.empregador_reuniao_ata", titulo: "Leitura da ata de reunião com o empregador", modulo: "representacao" },
   { chave: "representacao.congresso_importacao", titulo: "Importação de participantes de congresso", modulo: "representacao" },
+  { chave: "representacao.congresso_relatoria", titulo: "Sugestões na relatoria do congresso (redação, fusão, eixo, contradições, síntese)", modulo: "representacao" },
+  { chave: "representacao.congresso_mocao", titulo: "Triagem de moção de congresso", modulo: "representacao" },
+  { chave: "representacao.congresso_documentos", titulo: "Leitura do caderno de teses e do regimento do congresso", modulo: "representacao" },
   // Comunicação
   { chave: "comunicacao.resumo_noticias", titulo: "Resumo de notícias", modulo: "comunicacao" },
   { chave: "comunicacao.resumo_prompt", titulo: "Melhoria do prompt do resumo", modulo: "comunicacao" },

@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
-import { AJUSTE_POR_CHAVE, descreverValor, valor } from "@/lib/congressos/config"
+import { AJUSTE_POR_CHAVE, AJUSTES, descreverValor, valor } from "@/lib/congressos/config"
 import { gerarSlug, resumoDireitos } from "@/lib/congressos/regras"
 import {
   listarPapeis,
@@ -36,6 +36,7 @@ import { dadosDaRelatoria, ROTULO_FUNCAO, ROTULO_SITUACAO_PROPOSTA, type Situaca
 import { AplicarGrupos, ColarPropostas } from "../relatoria-componentes"
 import { listarMocoes, ROTULO_SITUACAO_MOCAO } from "@/lib/db/congressos-mocoes"
 import { NovaMocaoPainel, ProgressoLimiar } from "../mocoes-componentes"
+import { LerRegimento } from "../ia-componentes"
 import { AtualizarSozinho, CrachasEmLote, DesfazerTroca } from "../dia-componentes"
 import { origemAtual } from "@/lib/tenant-url"
 
@@ -509,6 +510,24 @@ async function AbaConfiguracao({ c, gestor, travado }: { c: Congresso; gestor: b
             </CardContent>
           )}
         </Card>
+        {gestor && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Preencher pelo regimento</CardTitle>
+              <CardDescription>
+                A IA lê o regimento e propõe cada ajuste com o artigo de origem. Você confere item a item; o que aplicar vira uma versão nova, marcada
+                como vinda do regimento.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <LerRegimento
+                congressoId={c.id}
+                exigeDeliberacao={travado}
+                valoresAtuais={Object.fromEntries(AJUSTES.map((a) => [a.chave, descreverValor(a, c.config.valores[a.chave] ?? null)]))}
+              />
+            </CardContent>
+          </Card>
+        )}
         <ConfiguracaoForm congressoId={c.id} config={c.config} travado={travado} podeEditar={gestor} />
       </div>
       <Card className="h-fit">
@@ -1013,6 +1032,11 @@ async function AbaRelatoria({ c, relator }: { c: Congresso; relator: boolean }) 
           <Button asChild variant="outline">
             <Link href={`${base}/plenaria`}>Mesa da plenária</Link>
           </Button>
+          {valor(c.config, "propostas.ia") !== "desligada" && (
+            <Button asChild variant="outline">
+              <Link href={`${base}/assistente`}>Assistente da IA · ler o caderno</Link>
+            </Button>
+          )}
           {d.regras.haVotacao && <AplicarGrupos congressoId={c.id} />}
           <ColarPropostas congressoId={c.id} eixos={d.eixos.map((e) => ({ id: e.id, nome: e.nome }))} abrangencias={d.regras.abrangencias} />
         </div>

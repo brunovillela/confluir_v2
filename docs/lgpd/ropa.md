@@ -30,8 +30,8 @@
 | P13 | [Hospedagem conveniada e cessão de espaços](#p13) | 12 | identificação, **sensível: filiação/posição sindical**, financeiro, credencial (segredo de acesso, nunca exportar) | sim |
 | P14 | [Frota: veículos e condutores](#p14) | 16 | identificação, financeiro | sim |
 | P15 | [Comunicação, eventos e avisos](#p15) | 9 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
-| P16 | [Contas de acesso, segurança, auditoria e gestão interna](#p16) | 28 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
-| P17 | [Congressos e conferências](#p17) | 13 | identificação, **sensível: filiação/posição sindical** | sim |
+| P16 | [Contas de acesso, segurança, auditoria e gestão interna](#p16) | 30 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
+| P17 | [Congressos e conferências](#p17) | 14 | identificação, **sensível: filiação/posição sindical** | sim |
 
 <a id="p01"></a>
 ## P01. Filiação e cadastro do associado
@@ -765,7 +765,7 @@
 <a id="p16"></a>
 ## P16. Contas de acesso, segurança, auditoria e gestão interna
 
-**Finalidade.** Autenticar usuários, controlar perfis e permissões, registrar a trilha de auditoria e as tentativas de acesso, registrar as saídas de dados (livro de exportações `lgpd_exportacoes` e log da API `api_requisicoes`), atender pedidos de titulares, aplicar os prazos de retenção (motor de retenção: regras `lgpd_regras_retencao`, livro `lgpd_retencao_execucoes` e bloqueios por litígio `lgpd_bloqueios_litigio`), integrar sistemas (API/webhooks), administrar a IA da entidade (chave de API própria cifrada `ia_config`, registro de uso por pessoa, processo e departamento `ia_uso` — sem o conteúdo — e o livro de alterações da Gestão `gestao_eventos`) e organizar demandas internas.
+**Finalidade.** Autenticar usuários, controlar perfis e permissões, registrar a trilha de auditoria e as tentativas de acesso, registrar as saídas de dados (livro de exportações `lgpd_exportacoes` e log da API `api_requisicoes`), atender pedidos de titulares, aplicar os prazos de retenção (motor de retenção: regras `lgpd_regras_retencao`, livro `lgpd_retencao_execucoes` e bloqueios por litígio `lgpd_bloqueios_litigio`), integrar sistemas (API/webhooks), administrar a IA da entidade (chave de API própria cifrada `ia_config`, registro de uso por pessoa, processo e departamento `ia_uso` — sem o conteúdo — e o livro de alterações da Gestão `gestao_eventos`), conduzir a revisão periódica de acessos pelos coordenadores (`acessos_revisao_ciclos`/`acessos_revisao_itens`: quem tem acesso, a decisão de manter, retirar ou ajustar e o que a Gestão fez) e organizar demandas internas.
 
 **Titulares.** Usuários do sistema (funcionários, diretores, filiados no portal), administradores da plataforma.
 
@@ -788,11 +788,13 @@
 
 **Observações.** Pendência: a `auditoria` copia em claro códigos e tokens com nomes fora da lista de ocultos.
 
-<details><summary>Tabelas (28) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (30) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
 | [acesso_agentes](../dados/dicionario/plataforma.md#acesso_agentes) | credencial | `codigo_hash` (credencial), `token_hash` (credencial), `token_prefixo` (credencial) |
+| [acessos_revisao_ciclos](../dados/dicionario/plataforma.md#acessos_revisao_ciclos) | identificacao | `titulo` (nenhum), `aberto_por` (identificacao), `prazo` (nenhum), `encerrado_por` (identificacao) |
+| [acessos_revisao_itens](../dados/dicionario/plataforma.md#acessos_revisao_itens) | identificacao | `usuario_id` (identificacao), `departamento_id` (nenhum), `revisor_id` (identificacao), `acesso_resumo` (nenhum), `decisao` (nenhum), `observacao` (identificacao), `decidido_por` (identificacao), `tratado_por` (identificacao), `tratamento` (nenhum) |
 | [api_chaves](../dados/dicionario/plataforma.md#api_chaves) | credencial | `prefixo` (credencial), `hash` (credencial) |
 | [api_requisicoes](../dados/dicionario/plataforma.md#api_requisicoes) | identificacao | `parametros` (identificacao), `origem_ip` (identificacao) |
 | [assinaturas](../dados/dicionario/ferramentas.md#assinaturas) | identificacao | _pela existência do registro_ |
@@ -801,12 +803,12 @@
 | [auth_identidades](../dados/dicionario/plataforma.md#auth_identidades) | identificacao | `cpf` (identificacao), `nome` (identificacao) |
 | [auth_vinculos_pendentes](../dados/dicionario/plataforma.md#auth_vinculos_pendentes) | identificacao | `email` (identificacao), `cpf` (identificacao), `nome` (identificacao) |
 | [demandas](../dados/dicionario/ferramentas.md#demandas) | identificacao | `descricao` (identificacao), `membros_raw` (identificacao), `projeto_id` (nenhum) |
-| [demandas_check_tarefas](../dados/dicionario/ferramentas.md#demandas_check_tarefas) | identificacao | `demandado_documentos` (identificacao), `demandante_documentos` (identificacao), `prioridade` (nenhum), `recorrencia` (nenhum), `recorrencia_proxima_id` (nenhum), `procedimento_id` (nenhum) |
+| [demandas_check_tarefas](../dados/dicionario/ferramentas.md#demandas_check_tarefas) | identificacao | `demandado_documentos` (identificacao), `demandante_documentos` (identificacao), `prioridade` (nenhum), `recorrencia` (nenhum), `recorrencia_proxima_id` (nenhum), `procedimento_id` (nenhum), `iniciada_em` (nenhum) |
 | [demandas_comentarios](../dados/dicionario/ferramentas.md#demandas_comentarios) | identificacao | `descricao` (identificacao) |
 | [demandas_tarefa_comentarios](../dados/dicionario/ferramentas.md#demandas_tarefa_comentarios) | identificacao | `autor_id` (identificacao), `texto` (identificacao), `anexo_caminho` (identificacao), `anexo_nome` (nenhum) |
 | [emails_institucionais](../dados/dicionario/filiacao.md#emails_institucionais) | identificacao | `endereco` (identificacao) |
 | [gestao_eventos](../dados/dicionario/plataforma.md#gestao_eventos) | identificacao | `usuario_id` (identificacao), `detalhe` (nenhum) |
-| [ia_config](../dados/dicionario/plataforma.md#ia_config) | credencial | `chave_cifrada` (credencial), `chave_final` (credencial), `chave_definida_por` (identificacao), `chave_teste_erro` (nenhum), `atualizado_por` (identificacao), `modelos_processo` (nenhum), `precos_modelos` (nenhum) |
+| [ia_config](../dados/dicionario/plataforma.md#ia_config) | credencial | `chave_cifrada` (credencial), `chave_final` (credencial), `chave_definida_por` (identificacao), `chave_teste_erro` (nenhum), `atualizado_por` (identificacao), `modelos_processo` (nenhum), `precos_modelos` (nenhum), `cotas_departamento` (nenhum) |
 | [ia_uso](../dados/dicionario/plataforma.md#ia_uso) | identificacao | `usuario_id` (identificacao), `erro` (nenhum) |
 | [lgpd_bloqueios_litigio](../dados/dicionario/plataforma.md#lgpd_bloqueios_litigio) | identificacao | `cpf` (identificacao), `email` (identificacao), `motivo` (identificacao), `processo` (identificacao), `criado_por` (identificacao), `encerrado_por` (identificacao) |
 | [lgpd_exportacoes](../dados/dicionario/plataforma.md#lgpd_exportacoes) | identificacao | `usuario_id` (identificacao), `filtros` (identificacao) |
@@ -849,7 +851,7 @@
 
 **Medidas de segurança.** RLS por tenant; permissões próprias (`congressos`, `congressos_gestao`, `congressos_credenciamento`, `congressos_relatoria`); trilhas só com inserção (versões da configuração, histórico do participante e versões das propostas); a IA não recebe a autoria das propostas; acessibilidade visível só a quem organiza.
 
-<details><summary>Tabelas (13) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (14) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -865,11 +867,12 @@
 | [congresso_presencas](../dados/dicionario/representacao.md#congresso_presencas) | sens. sindical | `registrado_por` (identificacao) |
 | [congresso_proposta_versoes](../dados/dicionario/representacao.md#congresso_proposta_versoes) | identificacao | `autor` (identificacao) |
 | [congresso_substituicoes](../dados/dicionario/representacao.md#congresso_substituicoes) | sens. sindical | `autorizado_por` (identificacao), `registrado_por` (identificacao), `desfeita_por` (identificacao) |
+| [congresso_sugestoes_ia](../dados/dicionario/representacao.md#congresso_sugestoes_ia) | identificacao | `conteudo` (nenhum), `pedida_por` (identificacao), `decidida_por` (identificacao) |
 | [congresso_votacoes](../dados/dicionario/representacao.md#congresso_votacoes) | identificacao | `registrado_por` (identificacao), `desfeita_por` (identificacao) |
 
 </details>
 
-<sub>Titulares registrados no banco para estas tabelas: comissão de congressos; convidados de congressos; delegados; delegados que assinam moções; observadores; participantes de congressos; proponentes; proponentes de moções em congressos; relatores de congressos; suplentes de congressos; usuários que registram a votação.</sub>
+<sub>Titulares registrados no banco para estas tabelas: comissão de congressos; convidados de congressos; delegados; delegados que assinam moções; observadores; participantes de congressos; proponentes; proponentes de moções em congressos; relatores; relatores de congressos; suplentes de congressos; usuários que registram a votação.</sub>
 
 ## Fluxos transversais
 
@@ -898,4 +901,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 258 de 258 tabelas com dado pessoal atribuídas a 17 processos.
+Cobertura: 261 de 261 tabelas com dado pessoal atribuídas a 17 processos.
