@@ -7,8 +7,10 @@ import type { MarcacoesEspelho } from "@/lib/ponto-marcacoes-ajuste"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import {
+  JANELA_MOTIVO_DIAS,
   MOTIVOS_USO,
   TOLERANCIA_DIARIA_MIN,
+  podeInformarMotivo,
   apurarUso,
   diasDoPeriodo,
   resumirUso,
@@ -229,6 +231,8 @@ export type UsoForaDoFuncionario = {
   resumo: ResumoUso
   /** Motivo informado pelo funcionário: data → "Combinado com a chefia: …". */
   motivos: Map<string, string>
+  /** Motivo como foi gravado (para o formulário de troca no Meu perfil). */
+  justificativas: Map<string, JustificativaUso>
 }
 
 /** O mês de uma pessoa, dia a dia, com os trechos de uso. */
@@ -255,6 +259,7 @@ export async function usoForaDoFuncionario(usuarioId: string, competencia: strin
     dias,
     resumo: resumirUso(dias),
     motivos: new Map([...(motivos.get(usuarioId) ?? new Map<string, JustificativaUso>())].map(([d, j]) => [d, rotuloMotivoUso(j)])),
+    justificativas: motivos.get(usuarioId) ?? new Map<string, JustificativaUso>(),
   }
 }
 
@@ -309,14 +314,20 @@ export async function motivoDeHoje(usuarioId: string): Promise<JustificativaUso 
 
 /** Grava (ou troca) o motivo de hoje da pessoa. */
 export async function salvarMotivoDeHoje(usuarioId: string, motivo: string, detalhe: string): Promise<string | null> {
+  return salvarMotivoDoDia(usuarioId, hojeEmSaoPaulo(), motivo, detalhe)
+}
+
+/** Grava (ou troca) o motivo de um dia, dentro da janela (JANELA_MOTIVO_DIAS). */
+export async function salvarMotivoDoDia(usuarioId: string, data: string, motivo: string, detalhe: string): Promise<string | null> {
   if (!MOTIVOS_USO.some((m) => m.chave === motivo)) return "Escolha o motivo."
+  if (!podeInformarMotivo(data, hojeEmSaoPaulo())) return `O motivo só pode ser informado para hoje ou para os últimos ${JANELA_MOTIVO_DIAS} dias.`
   const admin = await createAdminClient()
   const emp = await tenantAtual()
   const { error } = await admin.from("pessoal_uso_justificativas").upsert(
     {
       emp_proprietaria_id: emp,
       usuario_id: usuarioId,
-      data: hojeEmSaoPaulo(),
+      data,
       motivo,
       detalhe: detalhe.trim().slice(0, 300) || null,
       updated_at: new Date().toISOString(),

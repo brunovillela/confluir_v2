@@ -237,6 +237,16 @@ export const MOTIVOS_USO: { chave: MotivoUso; rotulo: string }[] = [
 
 export type JustificativaUso = { motivo: MotivoUso; detalhe: string | null }
 
+/** Até quantos dias para trás o funcionário ainda informa ou troca o motivo. */
+export const JANELA_MOTIVO_DIAS = 60
+
+/** O dia (AAAA-MM-DD) aceita motivo hoje? Não aceita dia futuro nem mais antigo que a janela. */
+export function podeInformarMotivo(data: string, hoje: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || data > hoje) return false
+  const dias = (Date.parse(`${hoje}T12:00:00Z`) - Date.parse(`${data}T12:00:00Z`)) / 86400000
+  return Number.isFinite(dias) && dias <= JANELA_MOTIVO_DIAS
+}
+
 export function rotuloMotivoUso(j: JustificativaUso): string {
   const r = MOTIVOS_USO.find((m) => m.chave === j.motivo)?.rotulo ?? "Outro"
   return j.detalhe ? `${r}: ${j.detalhe}` : r

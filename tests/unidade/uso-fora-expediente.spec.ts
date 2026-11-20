@@ -4,6 +4,7 @@ import type { JornadaDia } from "../../src/lib/pessoal-sst-constantes"
 import {
   apurarUso,
   diasDoPeriodo,
+  podeInformarMotivo,
   resumirUso,
   rotuloMotivoUso,
   textoMinutos,
@@ -118,5 +119,13 @@ test.describe("uso fora do expediente", () => {
   test("motivo informado em uma frase", () => {
     expect(rotuloMotivoUso({ motivo: "combinado", detalhe: null })).toBe("Combinado com a chefia")
     expect(rotuloMotivoUso({ motivo: "urgencia", detalhe: "fechamento da folha" })).toBe("Urgência: fechamento da folha")
+  })
+
+  test("motivo de dias anteriores só dentro da janela", () => {
+    expect(podeInformarMotivo("2026-11-19", "2026-11-19")).toBe(true)
+    expect(podeInformarMotivo("2026-09-20", "2026-11-19")).toBe(true) // 60 dias
+    expect(podeInformarMotivo("2026-09-19", "2026-11-19")).toBe(false) // 61 dias
+    expect(podeInformarMotivo("2026-11-20", "2026-11-19")).toBe(false) // futuro
+    expect(podeInformarMotivo("19/11/2026", "2026-11-19")).toBe(false)
   })
 })

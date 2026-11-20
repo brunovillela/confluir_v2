@@ -10,59 +10,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requirePermissao } from "@/lib/auth"
 import { horarioDoDiaJornada } from "@/lib/pessoal-sst-constantes"
 import { competenciaValida, usoForaDoExpediente, usoForaDoFuncionario } from "@/lib/db/uso-fora-expediente"
+import { CATEGORIAS_FORA, TOLERANCIA_DIARIA_MIN, textoMinutos } from "@/lib/uso-fora-expediente"
 import {
-  CATEGORIAS_FORA,
-  TOLERANCIA_DIARIA_MIN,
-  horaDoDia,
-  textoMinutos,
-  type DiaUso,
-  type TrechoUso,
-} from "@/lib/uso-fora-expediente"
+  LegendaLinhaDoDia,
+  LinhaDoDia,
+  dataBr,
+  deslocarMes,
+  mesAtualSP,
+  rotuloMes,
+  textoOndeCaiu,
+} from "@/components/pessoal/uso-linha-do-dia"
 
 export const metadata: Metadata = { title: "Uso fora do expediente — Confluir" }
 
-const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
-
-function mesAtual(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit" }).format(new Date()).slice(0, 7)
-}
-
-function deslocar(comp: string, delta: number): string {
-  const [a, m] = comp.split("-").map(Number)
-  const d = new Date(Date.UTC(a, m - 1 + delta, 1))
-  return d.toISOString().slice(0, 7)
-}
-
-const rotuloMes = (comp: string) => `${MESES[Number(comp.slice(5, 7)) - 1]} de ${comp.slice(0, 4)}`
-const dataBr = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
-
-const COR: Record<TrechoUso["categoria"], string> = {
-  dentro: "bg-success/70",
-  antes: "bg-warning",
-  depois: "bg-warning",
-  intervalo: "bg-warning/60",
-  sem_expediente: "bg-destructive/70",
-  feriado: "bg-destructive/70",
-  afastado: "bg-destructive",
-}
-
-/** Linha de 0 a 24 h com os trechos de uso do dia. */
-function LinhaDoDia({ dia }: { dia: DiaUso }) {
-  return (
-    <div className="bg-muted relative h-3 w-full min-w-40 overflow-hidden rounded-sm" aria-hidden>
-      {[6, 12, 18].map((h) => (
-        <span key={h} className="bg-border absolute top-0 h-full w-px" style={{ left: `${(h / 24) * 100}%` }} />
-      ))}
-      {dia.trechos.map((t, i) => (
-        <span
-          key={i}
-          className={`absolute top-0 h-full ${COR[t.categoria]}`}
-          style={{ left: `${(t.inicio / 1440) * 100}%`, width: `max(2px, ${((t.fim - t.inicio) / 1440) * 100}%)` }}
-        />
-      ))}
-    </div>
-  )
-}
 
 async function Detalhe({ usuarioId, mes, hrefMes }: { usuarioId: string; mes: string; hrefMes: string }) {
   const d = await usoForaDoFuncionario(usuarioId, mes)
@@ -114,7 +74,6 @@ async function Detalhe({ usuarioId, mes, hrefMes }: { usuarioId: string; mes: st
               </thead>
               <tbody>
                 {d.dias.map((dia) => {
-                  const foraTrechos = dia.trechos.filter((t) => t.categoria !== "dentro")
                   return (
                     <tr key={dia.data} className={`border-b align-top last:border-0 ${dia.foraTotal === 0 ? "text-muted-foreground" : ""}`}>
                       <td className="py-2 pr-3 whitespace-nowrap">
@@ -132,17 +91,7 @@ async function Detalhe({ usuarioId, mes, hrefMes }: { usuarioId: string; mes: st
                         )}
                       </td>
                       <td className="py-2 text-xs">
-                        {foraTrechos.length === 0
-                          ? "—"
-                          : CATEGORIAS_FORA.filter((c) => dia.fora[c.chave] > 0)
-                              .map(
-                                (c) =>
-                                  `${c.rotulo}: ${textoMinutos(dia.fora[c.chave])} (${foraTrechos
-                                    .filter((t) => t.categoria === c.chave)
-                                    .map((t) => `${horaDoDia(t.inicio)}–${horaDoDia(t.fim)}`)
-                                    .join(", ")})`
-                              )
-                              .join(" · ")}
+                        {textoOndeCaiu(dia)}
                         {d.motivos.get(dia.data) && (
                           <div className="mt-1">
                             Motivo informado: <strong>{d.motivos.get(dia.data)}</strong>
@@ -159,23 +108,7 @@ async function Detalhe({ usuarioId, mes, hrefMes }: { usuarioId: string; mes: st
             </table>
           </div>
         )}
-        <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-          <span className="flex items-center gap-1">
-            <span className="bg-success/70 inline-block size-3 rounded-sm" /> dentro da jornada
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="bg-warning inline-block size-3 rounded-sm" /> antes ou depois do horário
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="bg-warning/60 inline-block size-3 rounded-sm" /> intervalo
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="bg-destructive/70 inline-block size-3 rounded-sm" /> dia sem expediente ou feriado
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="bg-destructive inline-block size-3 rounded-sm" /> férias ou afastamento
-          </span>
-        </div>
+        <LegendaLinhaDoDia />
         {comFora.length > 0 && (
           <p className="text-muted-foreground text-xs">
             {comFora.length} dia(s) com uso fora do expediente.{" "}
@@ -197,7 +130,7 @@ export default async function UsoForaDoExpedientePage({
 }) {
   await requirePermissao("pessoal_gestao")
   const sp = await searchParams
-  const atual = mesAtual()
+  const atual = mesAtualSP()
   const mes = competenciaValida(sp.mes) ?? atual
   const dados = await usoForaDoExpediente(mes)
   const href = (m: string, f?: string) => `/painel/pessoal/ponto/fora-do-expediente?mes=${m}${f ? `&funcionario=${f}#detalhe` : ""}`
@@ -230,14 +163,14 @@ export default async function UsoForaDoExpedientePage({
 
       <nav className="flex flex-wrap items-center gap-2 text-sm" aria-label="Mês">
         <Button variant="outline" size="sm" asChild>
-          <Link href={href(deslocar(mes, -1))} aria-label="Mês anterior">
+          <Link href={href(deslocarMes(mes, -1))} aria-label="Mês anterior">
             <ChevronLeft />
           </Link>
         </Button>
         <span className="min-w-40 text-center font-medium">{rotuloMes(mes).replace(/^./, (c) => c.toUpperCase())}</span>
         {mes < atual ? (
           <Button variant="outline" size="sm" asChild>
-            <Link href={href(deslocar(mes, 1))} aria-label="Mês seguinte">
+            <Link href={href(deslocarMes(mes, 1))} aria-label="Mês seguinte">
               <ChevronRight />
             </Link>
           </Button>

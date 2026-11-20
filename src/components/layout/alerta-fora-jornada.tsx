@@ -1,6 +1,7 @@
 "use client"
 
 import { useActionState, useEffect, useState } from "react"
+import Link from "next/link"
 import { Clock, Loader2 } from "lucide-react"
 
 import { motivoDeHojeAction, salvarMotivoUsoAction, type EstadoMotivo } from "@/app/painel/uso/actions"
@@ -122,6 +123,9 @@ function MotivoDoDia() {
             Informar o motivo
           </Button>
         )}
+        <Link href="/painel/perfil/ponto#uso-fora" className="underline underline-offset-2">
+          Ver o meu uso e os dias anteriores
+        </Link>
       </span>
     )
   }
