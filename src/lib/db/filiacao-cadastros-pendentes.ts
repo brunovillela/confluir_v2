@@ -2,7 +2,7 @@ import "server-only"
 
 import { ehArquivo } from "@/lib/db/filiacao-documentos"
 import { normalizarMatricula } from "@/lib/db/filiacao-matricula"
-import { lerEmLotes as lerLotes } from "@/lib/db/comum"
+import { hojeSP, lerEmLotes as lerLotes } from "@/lib/db/comum"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
 import { cpfConfiavel, validarCpf } from "@/lib/cpf"
 import { camposFaltandoNoVinculo, ROTULO_FALTA_VINCULO } from "@/lib/filiacao"
@@ -10,6 +10,7 @@ import { configSaudeCadastros } from "@/lib/db/organizacao"
 import {
   type ChaveCampoSaude,
   chaveCategoriaDaFonte,
+  motivoNascimentoSuspeito,
   niveisPadrao,
   ROTULO_CAMPO_SAUDE,
 } from "@/lib/saude-cadastros"
@@ -53,6 +54,7 @@ export const TIPOS_PENDENCIA = [
   "lgpd",
   "desconto",
   "historico",
+  "nascimento",
   "motivo_saida",
   "vinculo",
 ] as const
@@ -66,6 +68,7 @@ export const ROTULO_PENDENCIA: Record<TipoPendencia, string> = {
   lgpd: "Termo LGPD não aceito",
   desconto: "Termo de desconto não aceito",
   historico: "Sem vínculo em aberto",
+  nascimento: "Data de nascimento suspeita",
   motivo_saida: "Vínculo encerrado sem motivo",
   vinculo: "Vínculo incompleto",
 }
@@ -116,6 +119,7 @@ type Cadastro = {
   matricula_sindical: string | null
   tl_lgpd_id: string | null
   tl_desconto_id: string | null
+  nascimento_data: string | null
 }
 
 type LinhaVinculo = {
@@ -194,7 +198,7 @@ export async function cadastrosPendentes(): Promise<CadastrosPendentes> {
     lerLotes<Cadastro>((de, ate) =>
       admin
         .from("filiacoes")
-        .select("id, nome_completo, cpf, matricula_sindical, tl_lgpd_id, tl_desconto_id")
+        .select("id, nome_completo, cpf, matricula_sindical, tl_lgpd_id, tl_desconto_id, nascimento_data")
         .eq("emp_proprietaria_id", emp)
         .eq("filiacao_condicao", "Ativo")
         .not("filiacao_excluida", "is", true)
@@ -251,6 +255,15 @@ export async function cadastrosPendentes(): Promise<CadastrosPendentes> {
     const atual = correntePorFiliado.get(id)
     if (!atual || dataDeFiliacao(v) > dataDeFiliacao(atual)) correntePorFiliado.set(id, v)
   }
+  // Datas de TODOS os vínculos de cada filiado, para conferir o nascimento.
+  const datasDosVinculos = new Map<string, { filiacao: string | null; adesao: string | null; admissao: string | null }[]>()
+  for (const v of vinculos) {
+    const id = v.filiado_id as string
+    const lista = datasDosVinculos.get(id) ?? []
+    lista.push({ filiacao: v.data_filiacao, adesao: v.filiacao_data_adesao, admissao: v.data_entrada_admissao })
+    datasDosVinculos.set(id, lista)
+  }
+  const hoje = hojeSP()
   // Quem tem vínculo encerrado sem o motivo da desfiliação (alimenta o churn).
   const semMotivo = new Set(
     vinculos.filter((v) => !aberto(v) && !v.desfiliacao_motivo).map((v) => v.filiado_id as string)
@@ -264,6 +277,7 @@ export async function cadastrosPendentes(): Promise<CadastrosPendentes> {
     lgpd: 0,
     desconto: 0,
     historico: 0,
+    nascimento: 0,
     motivo_saida: 0,
     vinculo: 0,
   }
@@ -291,6 +305,7 @@ export async function cadastrosPendentes(): Promise<CadastrosPendentes> {
     if (!nome || !nome.includes(" ")) faltas.push("nome")
     if (termos.lgpd && c.tl_lgpd_id !== termos.lgpd && comConta.has(cpf)) faltas.push("lgpd")
     if (termos.desconto && c.tl_desconto_id !== termos.desconto) faltas.push("desconto")
+    if (motivoNascimentoSuspeito(c.nascimento_data, datasDosVinculos.get(c.id) ?? [], hoje)) faltas.push("nascimento")
     if (semMotivo.has(c.id)) faltas.push("motivo_saida")
     if (!v) faltas.push("historico")
     else faltas.push(...camposFaltandoNoVinculo({ ...v, temFicha: ehArquivo(v.ficha_filiacao) }))

@@ -51,6 +51,13 @@ export const CAMPOS_SAUDE = [
   { chave: "desconto", rotulo: "Termo de desconto não aceito", grupo: "cadastro" },
   { chave: "historico", rotulo: "Sem vínculo em aberto", grupo: "cadastro" },
   {
+    chave: "nascimento",
+    rotulo: "Data de nascimento suspeita",
+    grupo: "cadastro",
+    ajuda:
+      "No futuro (século trocado: 1949 gravado como 2049), menos de 14 ou mais de 110 anos, igual à data de filiação ou admissão, ou depois da filiação. A votação confere o nascimento: com a data errada, a pessoa é barrada.",
+  },
+  {
     chave: "motivo_saida",
     rotulo: "Vínculo encerrado sem motivo",
     grupo: "cadastro",
@@ -156,7 +163,8 @@ export function niveisPadrao(base: BaseCategoria): NiveisCategoria {
   const tudo = Object.fromEntries(
     CAMPOS_SAUDE.map((c) => [c.chave, "pendencia"])
   ) as NiveisCategoria
-  const comMotivo = { ...tudo, motivo_saida: "apontamento" } as NiveisCategoria
+  // Nascimento suspeito (19/11/2026) também nasce apontamento: eram 227 ativos.
+  const comMotivo = { ...tudo, motivo_saida: "apontamento", nascimento: "apontamento" } as NiveisCategoria
   return base === "fundo_pensao" ? { ...comMotivo, v_cargo: "normal", v_lotacao: "normal" } : comMotivo
 }
 
@@ -185,4 +193,46 @@ export function normalizarConfigSaude(
     }
   }
   return config
+}
+
+// ── Data de nascimento suspeita (19/11/2026) ────────────────────────────────
+
+/**
+ * Por que a data de nascimento do cadastro parece errada — ou null. Nasceu do
+ * caso de um eleitor barrado na votação: o CPF era de um filiado com o
+ * nascimento igual à data de filiação (campo trocado na migração). A maior
+ * parte, porém, é século trocado na importação: 1949 gravado como 2049.
+ *
+ * `hoje` e as datas em AAAA-MM-DD. `vinculos`: as datas de filiação, adesão e
+ * admissão de TODOS os vínculos do filiado.
+ */
+export function motivoNascimentoSuspeito(
+  nascimento: string | null,
+  vinculos: { filiacao?: string | null; adesao?: string | null; admissao?: string | null }[],
+  hoje: string
+): { motivo: string; sugestao: string | null } | null {
+  const n = (nascimento ?? "").slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(n)) return null
+  const ano = Number(n.slice(0, 4))
+  const anoHoje = Number(hoje.slice(0, 4))
+  const idade = anoHoje - ano - (hoje.slice(5) < n.slice(5) ? 1 : 0)
+  if (n > hoje) {
+    // Século trocado: o mesmo dia, cem anos antes, dá uma idade plausível.
+    const seculo = `${ano - 100}${n.slice(4)}`
+    const idadeSeculo = idade + 100
+    return {
+      motivo: "Data no futuro",
+      sugestao: idadeSeculo >= 14 && idadeSeculo <= 110 ? seculo : null,
+    }
+  }
+  const datas = vinculos.flatMap((v) => [v.filiacao, v.adesao, v.admissao]).map((d) => (d ?? "").slice(0, 10))
+  if (datas.includes(n)) return { motivo: "Igual à data de filiação ou admissão de um vínculo", sugestao: null }
+  if (idade < 14) return { motivo: `Idade de ${idade} anos`, sugestao: null }
+  if (idade > 110) return { motivo: `Idade de ${idade} anos`, sugestao: null }
+  const filiacoes = vinculos
+    .flatMap((v) => [v.filiacao, v.adesao])
+    .map((d) => (d ?? "").slice(0, 10))
+    .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
+  if (filiacoes.some((d) => d < n)) return { motivo: "Filiação anterior ao nascimento", sugestao: null }
+  return null
 }

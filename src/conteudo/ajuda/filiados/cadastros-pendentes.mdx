@@ -66,6 +66,13 @@ cadastro) com pelo menos uma destas inconsistências:
   aceita o termo; sem conta, a falta do aceite não é pendência.
 - **Termo de desconto não aceito** — idem, para a autorização de desconto.
 - **Sem vínculo em aberto** — não há vínculo de filiação sem data de saída.
+- **Data de nascimento suspeita** — a data está no futuro (o mais comum é o
+  século trocado na importação: 1949 gravado como 2049), dá menos de 14 ou
+  mais de 110 anos, é igual à data de filiação ou de admissão de um vínculo,
+  ou vem depois da filiação. Importa na votação: quem digita o CPF no primeiro
+  acesso tem o nascimento conferido com o cadastro e, com a data errada, é
+  barrado. No padrão é **apontamento**. Corrija na ficha, conferindo com a
+  pessoa ou com um documento.
 - **Vínculo encerrado sem motivo** — algum vínculo já encerrado (com data de
   desfiliação) não tem o motivo da desfiliação, que alimenta o churn. Comum em
   quem saiu de uma empresa e segue filiado por outra fonte. No padrão é
