@@ -1,6 +1,6 @@
 "use client"
 
-import { type ReactNode, useActionState, useState } from "react"
+import { type ReactNode, useActionState, useEffect, useState } from "react"
 import { Check, Link2, Loader2, Pencil, Plus, RotateCcw, Save, Trash2, Unlink, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -36,6 +36,7 @@ import {
   desvincularTarefaAction,
   editarTarefaAction,
   excluirTarefaAction,
+  opcoesDeProcedimentoAction,
   vincularTarefaAction,
 } from "./actions"
 
@@ -67,6 +68,52 @@ function SelectRecorrencia({ id, padrao = null }: { id?: string; padrao?: Recorr
       {RECORRENCIAS_TAREFA.map((r) => (
         <option key={r} value={r}>
           {id ? ROTULOS_RECORRENCIA_TAREFA[r] : `Repete: ${ROTULOS_RECORRENCIA_TAREFA[r].toLowerCase()}`}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+/** Opções de procedimento: uma leitura por página, dividida entre os seletores. */
+let opcoesProcedimento: Promise<{ id: string; nome: string }[]> | null = null
+
+/**
+ * Procedimento que a tarefa segue (um documento de Ferramentas → Documentos).
+ * As opções carregam ao montar; a atual aparece mesmo antes de carregar.
+ */
+function SelectProcedimento({
+  id,
+  padrao = null,
+  padraoNome = null,
+}: {
+  id?: string
+  padrao?: string | null
+  padraoNome?: string | null
+}) {
+  const [opcoes, setOpcoes] = useState<{ id: string; nome: string }[] | null>(null)
+  useEffect(() => {
+    let vivo = true
+    opcoesProcedimento ??= opcoesDeProcedimentoAction().catch(() => [])
+    opcoesProcedimento.then((o) => vivo && setOpcoes(o))
+    return () => {
+      vivo = false
+    }
+  }, [])
+  const lista = opcoes ?? (padrao ? [{ id: padrao, nome: padraoNome ?? "(procedimento atual)" }] : [])
+  const comAtual = padrao && !lista.some((o) => o.id === padrao) ? [{ id: padrao, nome: padraoNome ?? "(procedimento atual)" }, ...lista] : lista
+  return (
+    <select
+      id={id}
+      name="procedimento_id"
+      defaultValue={padrao ?? ""}
+      key={opcoes ? "carregado" : "inicial"}
+      className={SELECT}
+      aria-label={id ? undefined : "Procedimento"}
+    >
+      <option value="">{id ? "Nenhum" : "Sem procedimento"}</option>
+      {comAtual.map((o) => (
+        <option key={o.id} value={o.id}>
+          {id ? o.nome : `Procedimento: ${o.nome}`}
         </option>
       ))}
     </select>
@@ -128,6 +175,9 @@ export function AdicionarTarefa({
         />
         <SelectPrioridade />
         <SelectRecorrencia />
+        <div className="sm:col-span-2 lg:col-span-4">
+          <SelectProcedimento />
+        </div>
       </div>
       <div className="flex items-start">
         <Button type="submit" size="sm" disabled={pendente}>
@@ -332,6 +382,8 @@ type TarefaEditavel = {
   prazo: string | null
   prioridade: PrioridadeTarefa
   recorrencia: RecorrenciaTarefa | null
+  procedimentoId: string | null
+  procedimentoNome: string | null
 }
 
 /**
@@ -407,6 +459,14 @@ export function AcoesTarefa({ tarefa, pessoas }: { tarefa: TarefaEditavel; pesso
               <div className="grid gap-1.5">
                 <Label htmlFor={`recorrencia-${tarefa.id}`}>Repetir</Label>
                 <SelectRecorrencia id={`recorrencia-${tarefa.id}`} padrao={tarefa.recorrencia} />
+              </div>
+              <div className="grid gap-1.5 sm:col-span-2">
+                <Label htmlFor={`procedimento-${tarefa.id}`}>Procedimento</Label>
+                <SelectProcedimento
+                  id={`procedimento-${tarefa.id}`}
+                  padrao={tarefa.procedimentoId}
+                  padraoNome={tarefa.procedimentoNome}
+                />
               </div>
             </div>
             {estado.erro && <p className="text-destructive text-sm">{estado.erro}</p>}

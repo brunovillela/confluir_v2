@@ -28,9 +28,9 @@
 | P11 | [Financeiro, compras, fornecedores e contratos](#p11) | 38 | identificação, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P12 | [Institucional: custeios, viagens, linhas e patrimônio](#p12) | 10 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P13 | [Hospedagem conveniada e cessão de espaços](#p13) | 12 | identificação, **sensível: filiação/posição sindical**, financeiro, credencial (segredo de acesso, nunca exportar) | sim |
-| P14 | [Frota: veículos e condutores](#p14) | 15 | identificação, financeiro | sim |
+| P14 | [Frota: veículos e condutores](#p14) | 16 | identificação, financeiro | sim |
 | P15 | [Comunicação, eventos e avisos](#p15) | 9 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
-| P16 | [Contas de acesso, segurança, auditoria e gestão interna](#p16) | 27 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
+| P16 | [Contas de acesso, segurança, auditoria e gestão interna](#p16) | 28 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P17 | [Congressos e conferências](#p17) | 13 | identificação, **sensível: filiação/posição sindical** | sim |
 
 <a id="p01"></a>
@@ -693,12 +693,13 @@
 
 **Observações.** Pendência: cópias da CNH em jsonb de unificação de condutores.
 
-<details><summary>Tabelas (15) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (16) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
 | [cnh](../dados/dicionario/veiculos.md#cnh) | identificacao | `numero` (identificacao), `categoria` (identificacao), `registro` (identificacao), `vencimento` (identificacao), `arquivo` (identificacao) |
 | [ferramentas_anomalias](../dados/dicionario/ferramentas.md#ferramentas_anomalias) | identificacao | `descricao_detalhada` (identificacao), `envolvidos_raw` (identificacao), `fato` (identificacao) |
+| [ferramentas_anomalias_sugestoes](../dados/dicionario/ferramentas.md#ferramentas_anomalias_sugestoes) | identificacao | `origem` (nenhum), `chave` (nenhum), `fato` (identificacao), `descricao` (identificacao), `link` (nenhum), `situacao` (nenhum), `decidido_por` (identificacao) |
 | [veiculo_contratos_aluguel](../dados/dicionario/veiculos.md#veiculo_contratos_aluguel) | identificacao | `uso` (nenhum), `uso_justificativa` (nenhum), `condutor_dedicado_id` (identificacao) |
 | [veiculos](../dados/dicionario/veiculos.md#veiculos) | identificacao | `condutor` (identificacao) |
 | [veiculos_abastecimentos](../dados/dicionario/veiculos.md#veiculos_abastecimentos) | identificacao | `condutor_informado` (identificacao), `comprovante_url` (nenhum) |
@@ -715,7 +716,7 @@
 
 </details>
 
-<sub>Titulares registrados no banco para estas tabelas: condutores; diretores; envolvidos; funcionários; usuários do sistema.</sub>
+<sub>Titulares registrados no banco para estas tabelas: condutores; diretores; envolvidos; funcionarios; funcionários; usuários do sistema.</sub>
 
 <a id="p15"></a>
 ## P15. Comunicação, eventos e avisos
@@ -787,7 +788,7 @@
 
 **Observações.** Pendência: a `auditoria` copia em claro códigos e tokens com nomes fora da lista de ocultos.
 
-<details><summary>Tabelas (27) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (28) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -800,8 +801,9 @@
 | [auth_identidades](../dados/dicionario/plataforma.md#auth_identidades) | identificacao | `cpf` (identificacao), `nome` (identificacao) |
 | [auth_vinculos_pendentes](../dados/dicionario/plataforma.md#auth_vinculos_pendentes) | identificacao | `email` (identificacao), `cpf` (identificacao), `nome` (identificacao) |
 | [demandas](../dados/dicionario/ferramentas.md#demandas) | identificacao | `descricao` (identificacao), `membros_raw` (identificacao), `projeto_id` (nenhum) |
-| [demandas_check_tarefas](../dados/dicionario/ferramentas.md#demandas_check_tarefas) | identificacao | `demandado_documentos` (identificacao), `demandante_documentos` (identificacao), `prioridade` (nenhum), `recorrencia` (nenhum), `recorrencia_proxima_id` (nenhum) |
+| [demandas_check_tarefas](../dados/dicionario/ferramentas.md#demandas_check_tarefas) | identificacao | `demandado_documentos` (identificacao), `demandante_documentos` (identificacao), `prioridade` (nenhum), `recorrencia` (nenhum), `recorrencia_proxima_id` (nenhum), `procedimento_id` (nenhum) |
 | [demandas_comentarios](../dados/dicionario/ferramentas.md#demandas_comentarios) | identificacao | `descricao` (identificacao) |
+| [demandas_tarefa_comentarios](../dados/dicionario/ferramentas.md#demandas_tarefa_comentarios) | identificacao | `autor_id` (identificacao), `texto` (identificacao), `anexo_caminho` (identificacao), `anexo_nome` (nenhum) |
 | [emails_institucionais](../dados/dicionario/filiacao.md#emails_institucionais) | identificacao | `endereco` (identificacao) |
 | [gestao_eventos](../dados/dicionario/plataforma.md#gestao_eventos) | identificacao | `usuario_id` (identificacao), `detalhe` (nenhum) |
 | [ia_config](../dados/dicionario/plataforma.md#ia_config) | credencial | `chave_cifrada` (credencial), `chave_final` (credencial), `chave_definida_por` (identificacao), `chave_teste_erro` (nenhum), `atualizado_por` (identificacao) |
@@ -896,4 +898,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 256 de 256 tabelas com dado pessoal atribuídas a 17 processos.
+Cobertura: 258 de 258 tabelas com dado pessoal atribuídas a 17 processos.

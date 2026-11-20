@@ -2,7 +2,7 @@
 
 # Dicionário de dados do Confluir
 
-Gerado a partir do banco de produção (catálogo do Postgres + comentários). **430 tabelas** no schema `public`, **256** com dado pessoal (1340 colunas etiquetadas).
+Gerado a partir do banco de produção (catálogo do Postgres + comentários). **432 tabelas** no schema `public`, **258** com dado pessoal (1354 colunas etiquetadas).
 
 - Etiquetas LGPD: cada tabela termina o comentário com `[lgpd:<categorias>|titulares:<quem>]` e cada coluna com dado pessoal com `[lgpd:<categoria>]` (Onda A4).
 - Para mudar uma descrição ou classificação: migração com `comment on …` (`npm run db:nova`), aplicar, e `npm run db:dicionario`.
@@ -14,7 +14,7 @@ Gerado a partir do banco de produção (catálogo do Postgres + comentários). *
 
 | Categoria | Tabelas |
 |---|---|
-| identificação | 197 |
+| identificação | 199 |
 | **sensível: sindical** | 64 |
 | trabalhista | 55 |
 | financeiro | 50 |
@@ -40,5 +40,5 @@ Gerado a partir do banco de produção (catálogo do Postgres + comentários). *
 | Cessão de espaços | 10 | 2 | [dicionario/cessao.md](dicionario/cessao.md) | [er/cessao.md](er/cessao.md) |
 | Veículos e condutores | 23 | 14 | [dicionario/veiculos.md](dicionario/veiculos.md) | [er/veiculos.md](er/veiculos.md) |
 | Comunicação, eventos e avisos | 29 | 9 | [dicionario/comunicacao.md](dicionario/comunicacao.md) | [er/comunicacao.md](er/comunicacao.md) |
-| Ferramentas administrativas | 9 | 5 | [dicionario/ferramentas.md](dicionario/ferramentas.md) | [er/ferramentas.md](er/ferramentas.md) |
+| Ferramentas administrativas | 11 | 7 | [dicionario/ferramentas.md](dicionario/ferramentas.md) | [er/ferramentas.md](er/ferramentas.md) |
 | Plataforma, acesso e auditoria | 36 | 25 | [dicionario/plataforma.md](dicionario/plataforma.md) | [er/plataforma.md](er/plataforma.md) |

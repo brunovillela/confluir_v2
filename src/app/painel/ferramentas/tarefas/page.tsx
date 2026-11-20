@@ -7,8 +7,10 @@ import { ListChecks, TriangleAlert } from "lucide-react"
 
 import { requirePermissao } from "@/lib/auth"
 import { listarPessoasAtribuiveis, listarTarefas, type TarefaLinha } from "@/lib/db/nucleo"
+import { tarefaDaConversa } from "@/lib/db/tarefa-conversa"
 import { podeAcessar } from "@/lib/permissoes"
 
+import { ConversaTarefa } from "./conversa-tarefa"
 import { AdicionarTarefa } from "./tarefa-forms"
 import { TarefasLista } from "./tarefas-lista"
 
@@ -17,7 +19,7 @@ export const metadata: Metadata = { title: "Tarefas — Confluir" }
 const SELECT_FILTRO =
   "border-input bg-background text-foreground h-9 max-w-52 truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 
-type Params = { busca?: string; status?: string; minhas?: string; responsavel?: string }
+type Params = { busca?: string; status?: string; minhas?: string; responsavel?: string; conversa?: string }
 
 /** Atrasadas agrupadas por responsável, da pessoa com mais para a com menos. */
 function atrasadasPorPessoa(tarefas: TarefaLinha[]): { id: string | null; nome: string; quantidade: number }[] {
@@ -54,11 +56,12 @@ export default async function TarefasPage({
   const minhas = brutos.minhas === "1"
   const responsavel = minhas ? eu : (brutos.responsavel ?? "").trim() || undefined
 
-  const [{ disponivel, tarefas: todas }, pessoas, atrasadasGerais] = await Promise.all([
+  const [{ disponivel, tarefas: todas }, pessoas, atrasadasGerais, tarefaDoAviso] = await Promise.all([
     listarTarefas({ busca, status, demandadoId: responsavel }),
     listarPessoasAtribuiveis(),
     // O quadro de atrasadas por pessoa: quem acompanha a equipe (lista geral).
     minhas ? Promise.resolve(null) : listarTarefas({ status: "atrasadas" }),
+    brutos.conversa ? tarefaDaConversa(brutos.conversa, { id: eu, permissoes: sessao.permissoes }) : Promise.resolve(null),
   ])
   // Tarefa de anomalia qualquer um executa; o CONTEÚDO da anomalia (nome e
   // link) só vai para quem tem a permissão de Anomalias — nem chega ao cliente.
@@ -69,6 +72,9 @@ export default async function TarefasPage({
 
   return (
     <>
+      {tarefaDoAviso && (
+        <ConversaTarefa tarefaId={tarefaDoAviso.id} titulo={tarefaDoAviso.titulo} abertaDeInicio semBotao />
+      )}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Tarefas</h1>

@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
+import { listarSugestoesPendentes } from "@/lib/db/anomalias-sugestoes"
 import { listarAnomalias, resumoAnomalias } from "@/lib/db/nucleo"
 import { formatarData } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
@@ -22,6 +23,8 @@ import {
   derivarEstagioAnomalia,
   ROTULOS_ESTAGIO_ANOMALIA,
 } from "@/lib/nucleo-constantes"
+
+import { SugestoesAnomalia } from "./sugestoes"
 
 export const metadata: Metadata = { title: "Anomalias — Confluir" }
 
@@ -45,9 +48,10 @@ export default async function AnomaliasPage({
       ? brutos.estagio
       : "abertas"
 
-  const [resumo, anomalias] = await Promise.all([
+  const [resumo, anomalias, sugestoes] = await Promise.all([
     resumoAnomalias(),
     listarAnomalias({ busca, estagio }),
+    listarSugestoesPendentes(),
   ])
 
   return (
@@ -82,6 +86,8 @@ export default async function AnomaliasPage({
         <CardResumo rotulo="Em aberto" valor={resumo.abertas} />
         <CardResumo rotulo="Eficácia verificada" valor={resumo.verificadas} />
       </div>
+
+      <SugestoesAnomalia sugestoes={sugestoes} />
 
       <form
         className="flex flex-wrap items-center gap-2"

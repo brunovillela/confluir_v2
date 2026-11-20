@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { requirePermissao } from "@/lib/auth"
+import { tarefasDoProcedimento } from "@/lib/db/documentos"
+import { podeAcessar } from "@/lib/permissoes"
 import {
   listarCategoriasDocumentos,
   obterDocumento,
@@ -40,11 +42,12 @@ export default async function DocumentoPage({
   params: Promise<{ id: string }>
   searchParams: Promise<{ editar?: string; salvo?: string; erroArquivo?: string }>
 }) {
-  await requirePermissao("ferramentas_documentos")
+  const sessao = await requirePermissao("ferramentas_documentos")
+  const veTarefas = podeAcessar(sessao.permissoes, "ferramentas_tarefas", ["ferramentas_demandas"])
   const { id } = await params
   const brutos = await searchParams
 
-  const doc = await obterDocumento(id)
+  const [doc, tarefas] = await Promise.all([obterDocumento(id), tarefasDoProcedimento(id)])
   if (!doc) notFound()
 
   const editando = brutos.editar === "1"
@@ -187,6 +190,35 @@ export default async function DocumentoPage({
           )}
         </CardContent>
       </Card>
+
+      {tarefas.length > 0 && (
+        <Card>
+          <CardContent>
+            <p className="mb-1 text-sm font-medium">
+              Tarefas que seguem este procedimento{" "}
+              <span className="text-muted-foreground font-normal">({tarefas.length})</span>
+            </p>
+            <p className="text-muted-foreground mb-3 text-xs">
+              Quem executa a tarefa abre a versão mais recente deste documento pela própria tarefa.
+            </p>
+            <ul className="grid divide-y text-sm">
+              {tarefas.map((t) => (
+                <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 py-1.5">
+                  <span className={t.concluido ? "text-muted-foreground line-through" : ""}>{t.titulo ?? "(sem título)"}</span>
+                  <span className="text-muted-foreground text-xs">
+                    {t.concluido ? "Concluída" : t.prazo ? `Prazo ${formatarData(t.prazo)}` : "Sem prazo"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {veTarefas && (
+              <Link href="/painel/ferramentas/tarefas" className="text-primary mt-2 inline-block text-xs hover:underline">
+                Ir para Tarefas
+              </Link>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <GrupoColapsavel
         titulo="Adicionar nova versão"

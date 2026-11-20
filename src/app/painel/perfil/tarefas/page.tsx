@@ -7,8 +7,10 @@ import { Card, CardContent } from "@/components/ui/card"
 import { VoltarPerfil } from "@/components/voltar-perfil"
 import { requireSessaoPainel } from "@/lib/auth"
 import { listarTarefas } from "@/lib/db/nucleo"
+import { tarefaDaConversa } from "@/lib/db/tarefa-conversa"
 import { podeAcessar } from "@/lib/permissoes"
 
+import { ConversaTarefa } from "../../ferramentas/tarefas/conversa-tarefa"
 import { TarefasLista } from "../../ferramentas/tarefas/tarefas-lista"
 
 export const metadata: Metadata = { title: "Minhas tarefas — Confluir" }
@@ -31,10 +33,10 @@ type Filtro = (typeof FILTROS)[number]["valor"]
 export default async function MinhasTarefasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>
+  searchParams: Promise<{ status?: string; conversa?: string }>
 }) {
   const sessao = await requireSessaoPainel()
-  const { status: bruto } = await searchParams
+  const { status: bruto, conversa } = await searchParams
   const status: Filtro = FILTROS.some((f) => f.valor === bruto) ? (bruto as Filtro) : "pendentes"
   const eu = String(sessao.usuario.id)
   const p = sessao.permissoes
@@ -42,9 +44,12 @@ export default async function MinhasTarefasPage({
   const veProjetos = podeAcessar(p, "ferramentas_projetos", ["ferramentas_projetos_edicao"])
   const veAnomalias = podeAcessar(p, "ferramentas_anomalias")
 
-  const [{ tarefas: lista }, { tarefas: abertas }] = await Promise.all([
+  const [{ tarefas: lista }, { tarefas: abertas }, tarefaDoAviso] = await Promise.all([
     listarTarefas({ status, demandadoId: eu }),
     listarTarefas({ status: "pendentes", demandadoId: eu }),
+    // O link do aviso de mensagem (?conversa=<id>) abre a conversa direto —
+    // também para quem pediu a tarefa, que não a vê nesta lista.
+    conversa ? tarefaDaConversa(conversa, { id: eu, permissoes: p }) : Promise.resolve(null),
   ])
   // De onde vem a tarefa (demanda, projeto, anomalia): só o nome e o link
   // para quem tem a permissão daquela área.
@@ -62,6 +67,9 @@ export default async function MinhasTarefasPage({
   return (
     <>
       <VoltarPerfil />
+      {tarefaDoAviso && (
+        <ConversaTarefa tarefaId={tarefaDoAviso.id} titulo={tarefaDoAviso.titulo} abertaDeInicio semBotao />
+      )}
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Minhas tarefas</h1>
         <p className="text-muted-foreground mt-1 text-xs">

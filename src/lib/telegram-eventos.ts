@@ -78,6 +78,8 @@ export const EVENTOS_TELEGRAM = [
   // o atraso também para quem pediu a tarefa (lib/db/tarefas-lembrete.ts).
   { chave: "tarefa_prazo", rotulo: "Tarefa sua que vence amanhã ou passou do prazo", grupo: "pendencia" },
   { chave: "tarefa_atrasada", rotulo: "Tarefa que você pediu passou do prazo", grupo: "notificacao" },
+  // Conversa da tarefa: o texto da mensagem não sai do painel (só quem escreveu e a tarefa).
+  { chave: "tarefa_comentario", rotulo: "Mensagem nova numa tarefa sua ou que você pediu", grupo: "notificacao" },
   // Avisos a quem precisa AGIR (onda 2, U2): entram só para quem tem a
   // permissão correspondente (ou coordena quem pediu).
   { chave: "pendencia_aprovacao", rotulo: "Ordem de pagamento entrou na sua alçada", grupo: "pendencia", acesso: { permissoes: ["aquisicoes_avaliacoes", "financeiro_pagamento"], alcada: true } },
@@ -96,6 +98,8 @@ export const EVENTOS_TELEGRAM = [
   { chave: "pendencia_recebimentos", rotulo: "Fornecimento a receber", grupo: "pendencia", acesso: { permissoes: ["aquisicoes_recebimentos", "aquisicoes_compras_edicao"] } },
   { chave: "pendencia_caixa", rotulo: "Despesa lançada no seu caixa a reconhecer, despesa sua não reconhecida ou aporte recusado", grupo: "pendencia" },
   { chave: "veiculos_manutencao", rotulo: "Revisão preventiva da frota próxima ou vencida", grupo: "pendencia", acesso: { permissoes: ["veiculos_gestao"] } },
+  // Sugestões de anomalia do tick diário: só a contagem (podem citar funcionário ou condutor).
+  { chave: "anomalia_sugerida", rotulo: "Sugestões de anomalia do sistema para avaliar", grupo: "pendencia", acesso: { permissoes: ["ferramentas_anomalias"] } },
   { chave: "feedback_sistema", rotulo: "Relato de problema ou sugestão sobre o sistema (quem cuida das demandas)", grupo: "pendencia", acesso: { permissoes: ["ferramentas_demandas", "ferramentas_tarefas"] } },
   { chave: "atendimento_filiado", rotulo: "Solicitação ou resposta de filiado pelo portal (quem cuida das demandas)", grupo: "pendencia", acesso: { permissoes: ["ferramentas_demandas", "ferramentas_tarefas"] } },
   // Pedido de saúde do portal (RIPD de saúde, R2): só a equipe de saúde, e o

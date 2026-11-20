@@ -556,6 +556,18 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
     })
   }
 
+  // Sugestões de anomalia do sistema esperando quem tem Anomalias (19/11/2026).
+  if (pode("ferramentas_anomalias")) {
+    fontes.push({
+      chave: "anomalias_sugeridas",
+      titulo: "Sugestões de anomalia a avaliar",
+      descricao: "O sistema achou ocorrências que podem ser anomalias: abra ou descarte",
+      href: "/painel/ferramentas/anomalias#sugestoes",
+      tabela: "ferramentas_anomalias_sugestoes",
+      montar: (q) => head(q).eq("situacao", "pendente"),
+    })
+  }
+
   // Relatos de problema ou sugestão sobre o sistema (viram demandas).
   if (pode("ferramentas_demandas", ["ferramentas_tarefas"])) {
     fontes.push({

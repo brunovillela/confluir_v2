@@ -8,8 +8,12 @@ import { type EstadoForm } from "@/lib/contas"
 import { concluirTarefasPendentes, definirSituacaoDemanda, demandaDoProjeto } from "@/lib/db/nucleo"
 import {
   atualizarProjeto,
+  criarMarco,
   criarProjeto,
   definirFinalizado,
+  definirMarcoConcluido,
+  editarMarco,
+  excluirMarco,
   type DadosProjeto,
 } from "@/lib/db/projetos"
 
@@ -100,4 +104,61 @@ export async function alternarFinalizadoAction(
   revalidatePath("/painel/ferramentas/projetos")
   revalidatePath(`/painel/ferramentas/projetos/${id}`)
   redirect(`/painel/ferramentas/projetos/${id}?salvo=1`)
+}
+
+// ── Marcos (etapas com data) ────────────────────────────────────────────────
+
+function revalidarMarcos(projetoId: string | undefined): void {
+  revalidatePath("/painel/ferramentas/projetos")
+  if (projetoId) revalidatePath(`/painel/ferramentas/projetos/${projetoId}`)
+}
+
+function lerMarco(formData: FormData): { titulo: string; dataPrevista: string | null } {
+  return { titulo: texto(formData, "titulo"), dataPrevista: dataISO(texto(formData, "data_prevista")) }
+}
+
+export async function criarMarcoAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  await requirePermissao("ferramentas_projetos_edicao")
+  const projetoId = texto(formData, "projeto_id")
+  const { titulo, dataPrevista } = lerMarco(formData)
+  if (!projetoId) return { erro: "Projeto inválido." }
+  if (!titulo) return { erro: "Diga o que deve estar pronto no marco." }
+  if (!dataPrevista) return { erro: "Informe a data prevista do marco." }
+  const { erro } = await criarMarco(projetoId, { titulo, dataPrevista })
+  if (erro) return { erro }
+  revalidarMarcos(projetoId)
+  return { ok: "Marco criado." }
+}
+
+export async function editarMarcoAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  await requirePermissao("ferramentas_projetos_edicao")
+  const id = texto(formData, "marco_id")
+  const { titulo, dataPrevista } = lerMarco(formData)
+  if (!id) return { erro: "Marco inválido." }
+  if (!titulo) return { erro: "Diga o que deve estar pronto no marco." }
+  if (!dataPrevista) return { erro: "Informe a data prevista do marco." }
+  const { erro, projetoId } = await editarMarco(id, { titulo, dataPrevista })
+  if (erro) return { erro }
+  revalidarMarcos(projetoId)
+  return { ok: "Marco salvo." }
+}
+
+export async function alternarMarcoAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  await requirePermissao("ferramentas_projetos_edicao")
+  const id = texto(formData, "marco_id")
+  if (!id) return { erro: "Marco inválido." }
+  const { erro, projetoId } = await definirMarcoConcluido(id, texto(formData, "concluir") === "1")
+  if (erro) return { erro }
+  revalidarMarcos(projetoId)
+  return { ok: "Marco atualizado." }
+}
+
+export async function excluirMarcoAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  await requirePermissao("ferramentas_projetos_edicao")
+  const id = texto(formData, "marco_id")
+  if (!id) return { erro: "Marco inválido." }
+  const { erro, projetoId } = await excluirMarco(id)
+  if (erro) return { erro }
+  revalidarMarcos(projetoId)
+  return { ok: "Marco excluído." }
 }

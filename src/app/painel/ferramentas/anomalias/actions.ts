@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
+import { abrirAnomaliaDaSugestao, descartarSugestao } from "@/lib/db/anomalias-sugestoes"
+
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import {
@@ -67,4 +69,27 @@ export async function atualizarAnomaliaAction(
   revalidatePath("/painel/ferramentas/anomalias")
   revalidatePath(`/painel/ferramentas/anomalias/${id}`)
   redirect(`/painel/ferramentas/anomalias/${id}?salvo=1`)
+}
+
+// ── Sugestões do sistema ─────────────────────────────────────────────────────
+
+/** Abre a anomalia já preenchida a partir da sugestão e leva à página dela. */
+export async function abrirSugestaoAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const sessao = await requirePermissao("ferramentas_anomalias")
+  const id = String(formData.get("sugestao_id") ?? "")
+  if (!id) return { erro: "Sugestão inválida." }
+  const { erro, anomaliaId } = await abrirAnomaliaDaSugestao(id, String(sessao.usuario.id))
+  if (erro || !anomaliaId) return { erro: erro ?? "Falha ao abrir a anomalia." }
+  revalidatePath("/painel/ferramentas/anomalias")
+  redirect(`/painel/ferramentas/anomalias/${anomaliaId}?salvo=1`)
+}
+
+export async function descartarSugestaoAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const sessao = await requirePermissao("ferramentas_anomalias")
+  const id = String(formData.get("sugestao_id") ?? "")
+  if (!id) return { erro: "Sugestão inválida." }
+  const { erro } = await descartarSugestao(id, String(sessao.usuario.id))
+  if (erro) return { erro }
+  revalidatePath("/painel/ferramentas/anomalias")
+  return { ok: "Sugestão descartada." }
 }

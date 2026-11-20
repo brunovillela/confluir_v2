@@ -21,10 +21,14 @@ e a finalização.
     **Detalhamento** e, se for o caso, **Projeto estratégico**.
   </Passo>
   <Passo titulo="Acompanhe">
-    A página do projeto mostra as **tarefas** do projeto e as **solicitações de
-    compra vinculadas**, com o valor solicitado. A lista traz os totais de projetos,
-    de orçamento em andamento e do solicitado em Aquisição, com busca pelo título e
-    filtros por tipo e situação.
+    A página do projeto mostra os **marcos**, as **tarefas** do projeto e as
+    **solicitações de compra vinculadas**, com o valor solicitado.
+  </Passo>
+  <Passo titulo="Marque as etapas com data">
+    **Marcos** são as etapas do projeto com data prevista, como "Contratar o espaço"
+    até 15/12. Quem tem **Projetos — editar** usa **Novo marco**, dá o marco por
+    cumprido no botão da linha (ou o reabre), edita no lápis e exclui na lixeira. Cada
+    marco mostra se foi cumprido, se venceu ou em quantos dias vence.
   </Passo>
   <Passo titulo="Finalize">
     **Marcar como finalizado** tira o projeto da visão padrão, que mostra os **Em
@@ -32,6 +36,24 @@ e a finalização.
     finalizadas junto. **Reabrir projeto** o traz de volta, mas não reabre as tarefas.
   </Passo>
 </PassoAPasso>
+
+### Carteira de projetos
+
+A lista de projetos é a **carteira**: cada projeto em andamento recebe uma situação,
+calculada pelo sistema, e a lista mostra primeiro o que pede ação.
+
+| Situação | Quando |
+|---|---|
+| **Atrasado** | Há marco com a data vencida e não cumprido, ou o término previsto já passou sem o projeto ser finalizado |
+| **Atenção** | Há tarefas atrasadas, marco vencendo em até 7 dias ou o solicitado em Aquisição passou do orçamento |
+| **No prazo** | Nenhum dos casos acima |
+
+O motivo aparece embaixo da situação, na lista, e no alto da página do projeto. Os
+quadros do topo contam os projetos em andamento: estratégicos, atrasados e que
+precisam de atenção (o clique filtra a lista), além do orçamento e do solicitado. Cada
+linha traz o andamento das tarefas, o próximo marco e o orçamento com quanto já foi
+solicitado. Os filtros são busca pelo título, tipo, andamento, situação e **Só
+estratégicos**.
 
 ### Tarefas do projeto
 
@@ -112,6 +134,22 @@ Mexe nas tarefas do projeto quem tem **Projetos — editar**, **Tarefas** ou **D
     (**Suas tarefas atrasadas** e **Suas tarefas que vencem hoje ou amanhã**) e no
     lembrete diário.
   </Passo>
+  <Passo titulo="Converse na tarefa">
+    O balão na linha da tarefa abre a **conversa**: mensagens com um **anexo** opcional
+    (PDF, imagem, Word, Excel, CSV ou texto, até 3 MB), como "feito, segue o
+    arquivo". O número ao lado do balão diz quantas mensagens há. Cada mensagem avisa
+    o responsável e quem pediu a tarefa (menos quem escreveu) com **Mensagem nova numa
+    tarefa sua ou que você pediu**: o aviso diz só quem escreveu e a tarefa, e o link
+    abre a conversa. Conversam quem tem Tarefas ou Demandas, o responsável, quem pediu,
+    quem vê Projetos (nas tarefas de projeto) e quem tem Anomalias (nas providências).
+  </Passo>
+  <Passo titulo="Ligue o procedimento">
+    Se a tarefa segue um roteiro da entidade (o "como fazemos aqui"), guarde o roteiro
+    em **Ferramentas → Documentos** e escolha-o em **Procedimento**, ao criar ou editar
+    a tarefa. A linha ganha o ícone de livro, que abre a versão mais recente do
+    documento, também para o responsável que não tem a permissão de Documentos. A
+    tarefa que se repete leva o procedimento para a próxima.
+  </Passo>
   <Passo titulo="Minhas tarefas">
     Qualquer pessoa do painel pode ser responsável por uma tarefa, mesmo sem a
     permissão Tarefas. Em **Meu perfil → Minhas tarefas** ela vê as tarefas que são
@@ -139,6 +177,19 @@ Uma anomalia é uma **não conformidade**: um problema registrado para ser apura
 tratado. Ela tem cartão próprio em Ferramentas.
 
 <PassoAPasso>
+  <Passo titulo="Avalie as sugestões do sistema">
+    Todo dia o sistema procura o que pode ser anomalia e põe na fila **Sugestões do
+    sistema**, no alto da lista, com a origem, o fato e o link para conferir:
+    devolução de veículo com **km fora do normal** (últimos 30 dias); **ordem de
+    pagamento devolvida 3 vezes ou mais**; **ponto com marcação incompleta em 3 dias
+    ou mais** no mesmo mês; **fornecedor com 3 compras canceladas** em 90 dias; e
+    **condutor com 3 infrações de trânsito** em 12 meses. **Abrir anomalia** cria a
+    anomalia já preenchida, com você na apuração; **Descartar** tira da fila de vez.
+    A mesma ocorrência não é sugerida duas vezes, e as recorrências (compras e
+    infrações) no máximo uma vez por trimestre. As sugestões entram na caixa de
+    entrada, e o aviso **Sugestões de anomalia do sistema para avaliar** (sem nomes,
+    só a contagem) pode ser ligado em Meu perfil → Avisos.
+  </Passo>
   <Passo titulo="Registre">
     Em **Nova anomalia**, descreva o **Fato: o que aconteceu** (obrigatório) e a
     **Conformidade: o que era esperado**. Informe a **Data da ocorrência**, o

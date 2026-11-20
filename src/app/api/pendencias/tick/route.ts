@@ -7,6 +7,7 @@ import { lembrarPendencias, tenantsDoLembrete } from "@/lib/db/pendencias-lembre
 import { lembretesDoPortal, type ResultadoLembretesDoPortal } from "@/lib/db/portal-lembretes"
 import { lembrarAssinaturasRpa } from "@/lib/db/rpa-lembretes"
 import { lembrarPrazosDeTarefas } from "@/lib/db/tarefas-lembrete"
+import { gerarSugestoesDeAnomalia } from "@/lib/db/anomalias-sugestoes"
 import { createServiceClient } from "@/lib/supabase/admin"
 
 export const runtime = "nodejs"
@@ -55,6 +56,11 @@ export const maxDuration = 300
  * E os PRAZOS DAS TAREFAS: na véspera, o responsável; no atraso (até 7 dias),
  * o responsável e quem pediu — uma vez por tarefa e prazo
  * (lib/db/tarefas-lembrete.ts). `?etapa=tarefas` roda só esta parte.
+ *
+ * E as SUGESTÕES DE ANOMALIA: km fora do normal, ordem devolvida 3+ vezes,
+ * ponto incompleto recorrente, compras canceladas e infrações recorrentes
+ * viram sugestões para quem tem Anomalias (lib/db/anomalias-sugestoes.ts).
+ * `?etapa=anomalias` roda só esta parte.
  */
 async function handler(req: Request): Promise<Response> {
   const secret = process.env.CRON_SECRET
@@ -194,7 +200,23 @@ async function handler(req: Request): Promise<Response> {
     }
   }
 
-  return Response.json({ verificados: tenants.length, processados: resultados, portal, notas, rpa, cotacao, recebimentos, devolvidas, tarefas })
+  const anomalias: { tenant: string; novas: number; erros: string[] }[] = []
+  if (!etapa || etapa === "anomalias") {
+    const svc = createServiceClient()
+    for (const t of tenants) {
+      try {
+        const contexto = await contextoDoTenant(t.id, svc)
+        anomalias.push({ tenant: t.id, ...(await gerarSugestoesDeAnomalia(svc, t.id, contexto)) })
+      } catch (e) {
+        anomalias.push({ tenant: t.id, novas: 0, erros: [e instanceof Error ? e.message : String(e)] })
+      }
+    }
+    for (const r of anomalias) {
+      if (r.erros.length) console.error(`[pendencias/tick] sugestões de anomalia (${r.tenant}):`, r.erros.join(" · "))
+    }
+  }
+
+  return Response.json({ verificados: tenants.length, processados: resultados, portal, notas, rpa, cotacao, recebimentos, devolvidas, tarefas, anomalias })
 }
 
 export const GET = handler

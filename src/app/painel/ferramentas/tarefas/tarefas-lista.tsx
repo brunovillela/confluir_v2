@@ -2,7 +2,7 @@
 
 import { useId, useState, useSyncExternalStore } from "react"
 import Link from "next/link"
-import { Repeat } from "lucide-react"
+import { BookOpen, Repeat } from "lucide-react"
 
 import { PessoaNome } from "@/components/pessoa-nome"
 import { Badge } from "@/components/ui/badge"
@@ -29,6 +29,7 @@ import {
   type SituacaoTarefa,
 } from "@/lib/nucleo-constantes"
 
+import { ConversaTarefa } from "./conversa-tarefa"
 import { AcoesTarefa, DesvincularTarefa, ToggleTarefa, type PaiFixo } from "./tarefa-forms"
 
 const CLASSE_SITUACAO: Record<SituacaoTarefa, string> = {
@@ -103,7 +104,6 @@ export function TarefasLista({
   /** Com a lista de responsáveis possíveis, cada linha ganha Editar e Excluir. */
   pessoas?: OpcaoPessoa[]
 }) {
-  const comAcoes = Boolean(pessoas) || Boolean(pai && desvincular)
   // O servidor não conhece a escolha do navegador: lá, e na hidratação, é o prazo.
   const ordem = useSyncExternalStore(assinarOrdem, lerOrdem, () => "prazo" as const)
   // Filtro de prioridade: vale só nesta tela (não fica lembrado, para não esconder tarefas depois).
@@ -185,7 +185,7 @@ export function TarefasLista({
               <TableHead>Prazo</TableHead>
               <TableHead>Prioridade</TableHead>
               <TableHead>Situação</TableHead>
-              {comAcoes && <TableHead className="w-px"><span className="sr-only">Ações</span></TableHead>}
+              <TableHead className="w-px"><span className="sr-only">Ações</span></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -199,6 +199,18 @@ export function TarefasLista({
                     className={`line-clamp-2 ${t.concluido ? "text-muted-foreground line-through" : ""}`}
                   >
                     {t.titulo ?? "(sem título)"}
+                    {t.procedimentoId && (
+                      <a
+                        href={`/painel/perfil/tarefas/procedimento/${t.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary ml-1.5 inline-flex align-[-2px] hover:opacity-80"
+                        title={`Procedimento: ${t.procedimentoNome ?? "abrir"}`}
+                        aria-label={`Abrir o procedimento ${t.procedimentoNome ?? ""}`.trim()}
+                      >
+                        <BookOpen className="size-3.5" />
+                      </a>
+                    )}
                     {t.recorrencia && (
                       <span
                         className="text-muted-foreground ml-1.5 inline-flex align-[-2px]"
@@ -251,14 +263,13 @@ export function TarefasLista({
                     {ROTULOS_SITUACAO_TAREFA[t.situacao]}
                   </Badge>
                 </TableCell>
-                {comAcoes && (
-                  <TableCell className="py-1">
-                    <div className="flex items-center justify-end">
-                      {pessoas && <AcoesTarefa tarefa={t} pessoas={pessoas} />}
-                      {pai && desvincular && <DesvincularTarefa tarefaId={t.id} titulo={t.titulo} pai={pai} />}
-                    </div>
-                  </TableCell>
-                )}
+                <TableCell className="py-1">
+                  <div className="flex items-center justify-end">
+                    <ConversaTarefa tarefaId={t.id} titulo={t.titulo} quantidade={t.mensagens} />
+                    {pessoas && <AcoesTarefa tarefa={t} pessoas={pessoas} />}
+                    {pai && desvincular && <DesvincularTarefa tarefaId={t.id} titulo={t.titulo} pai={pai} />}
+                  </div>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

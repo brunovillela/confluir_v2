@@ -2,7 +2,7 @@
 
 # Ferramentas administrativas
 
-9 tabelas. Diagrama: [er/ferramentas.md](../er/ferramentas.md).
+11 tabelas. Diagrama: [er/ferramentas.md](../er/ferramentas.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -12,7 +12,9 @@
 | [demandas_check_tarefas](#demandas_check_tarefas) | identificação | Tarefa com demandante e demandado, prazo e documentos, filha de demanda, projeto ou anomalia (pai polimórfico). Lida em lib/db/nucleo.ts; or… |
 | [demandas_comentarios](#demandas_comentarios) | identificação | Comentário em uma demanda (origem Bubble), lido em lib/db/nucleo.ts. Tabela vazia. |
 | [demandas_departamentos](#demandas_departamentos) | — | Junção N:N entre tarefa de demanda e departamento envolvido (lib/db/departamentos.ts). |
+| [demandas_tarefa_comentarios](#demandas_tarefa_comentarios) | identificação | Conversa de uma tarefa (Ferramentas > Tarefas e Meu perfil > Minhas tarefas): mensagens do responsável, de quem pediu e de quem cuida das ta… |
 | [ferramentas_anomalias](#ferramentas_anomalias) | identificação | Registro de anomalia/não conformidade com investigação de causa raiz (5 porquês) e providências, da tela Ferramentas > Anomalias. Origem Bub… |
+| [ferramentas_anomalias_sugestoes](#ferramentas_anomalias_sugestoes) | identificação | Anomalias sugeridas pelo sistema (km fora do normal, ordem devolvida 3+ vezes, ponto incompleto recorrente, compras canceladas, infrações re… |
 | [projeto](#projeto) | — | Projetos da entidade (orçamento, prazo, autorização, centro de custo), migrados do Bubble; compras e ordens podem ser ligadas a um projeto. … |
 | [projeto_marcos](#projeto_marcos) | — | Marcos (etapas com data prevista) de um projeto, em Ferramentas > Projetos. Marco vencido sem conclusão põe o projeto em "Atrasado" na carte… |
 
@@ -132,12 +134,13 @@ Tarefa com demandante e demandado, prazo e documentos, filha de demanda, projeto
 | `prioridade` | text | não | `'media'::text` |  | nenhum | Prioridade da tarefa: alta, media ou baixa (padrão media). Usada para ordenar as listas. |
 | `recorrencia` | text | sim |  |  | nenhum | De quanto em quanto tempo a tarefa se repete: semanal, mensal, trimestral, semestral ou anual; nulo = não repete. Ao concluir, o sistema cria a próxima com o prazo avançado. |
 | `recorrencia_proxima_id` | uuid | sim |  | → demandas_check_tarefas (set null) | nenhum | A tarefa criada quando esta (recorrente) foi concluída; impede criar outra ao reabrir e concluir de novo. |
+| `procedimento_id` | uuid | sim |  | → fa_documentos (set null) | nenhum | Documento (Ferramentas > Documentos) com o procedimento que a tarefa segue; quem executa abre a versão mais recente pela tarefa. |
 
 Únicas: `UNIQUE (bubble_id)`
 
 Checks: `demandas_check_tarefas_prioridade_check` `CHECK ((prioridade = ANY (ARRAY['alta'::text, 'media'::text, 'baixa'::text])))`; `demandas_check_tarefas_recorrencia_check` `CHECK (((recorrencia IS NULL) OR (recorrencia = ANY (ARRAY['semanal'::text, 'mensal'::text, 'trimestral'::text, 'semestral'::text, 'anual'::text]))))`
 
-Índices: `demandas_check_tarefas_bubble_id_key`, `demandas_check_tarefas_pkey`, `idx_tarefas_anomalia`, `idx_tarefas_demanda`, `idx_tarefas_demandado`, `idx_tarefas_projeto`
+Índices: `demandas_check_tarefas_bubble_id_key`, `demandas_check_tarefas_pkey`, `demandas_check_tarefas_procedimento_idx`, `idx_tarefas_anomalia`, `idx_tarefas_demanda`, `idx_tarefas_demandado`, `idx_tarefas_projeto`
 
 ## demandas_comentarios
 
@@ -174,6 +177,27 @@ Junção N:N entre tarefa de demanda e departamento envolvido (lib/db/departamen
 | 🔑 `departamento_id` | uuid | não |  | → empresa_departamentos (**cascade**) |  |  |
 
 Índices: `demandas_departamentos_pkey`
+
+## demandas_tarefa_comentarios
+
+Conversa de uma tarefa (Ferramentas > Tarefas e Meu perfil > Minhas tarefas): mensagens do responsável, de quem pediu e de quem cuida das tarefas, com anexo opcional no bucket documentos.
+
+- **LGPD:** identificação · titulares: funcionarios,diretores
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `tarefa_id` | uuid | não |  | → demandas_check_tarefas (**cascade**) |  |  |
+| `autor_id` | uuid | sim |  | → usuarios (set null) | identificação | Quem escreveu a mensagem. |
+| `texto` | text | não | `''::text` |  | identificação | Texto livre da mensagem; pode citar pessoas. |
+| `anexo_caminho` | text | sim |  |  | identificação | Caminho do anexo no bucket documentos (tarefas/<tarefa>/<arquivo>); nulo = sem anexo. |
+| `anexo_nome` | text | sim |  |  | nenhum | Nome original do arquivo anexado. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Índices: `demandas_tarefa_comentarios_emp_idx`, `demandas_tarefa_comentarios_pkey`, `demandas_tarefa_comentarios_tarefa_idx`
 
 ## ferramentas_anomalias
 
@@ -212,6 +236,34 @@ Registro de anomalia/não conformidade com investigação de causa raiz (5 porqu
 Únicas: `UNIQUE (bubble_id)`
 
 Índices: `ferramentas_anomalias_bubble_id_key`, `ferramentas_anomalias_pkey`
+
+## ferramentas_anomalias_sugestoes
+
+Anomalias sugeridas pelo sistema (km fora do normal, ordem devolvida 3+ vezes, ponto incompleto recorrente, compras canceladas, infrações recorrentes), que quem tem Anomalias abre ou descarta (Ferramentas > Anomalias).
+
+- **LGPD:** identificação · titulares: funcionarios,diretores,envolvidos
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `origem` | text | não |  |  | nenhum | De onde veio a sugestão: km_anormal, ordem_devolvida, ponto_incompleto, compras_canceladas ou infracoes_condutor. |
+| `chave` | text | não |  |  | nenhum | Identifica a ocorrência na origem (ex.: o id da movimentação), para não sugerir a mesma coisa duas vezes. |
+| `fato` | text | não |  |  | identificação | Resumo pronto do fato; pode citar o condutor ou o funcionário. |
+| `descricao` | text | sim |  |  | identificação | Detalhe pronto para a descrição da anomalia; pode citar pessoas. |
+| `data_ocorrencia` | date | sim |  |  |  |  |
+| `link` | text | sim |  |  | nenhum | Caminho no painel para conferir a origem. |
+| `situacao` | text | não | `'pendente'::text` |  | nenhum | pendente (a avaliar), aberta (virou anomalia) ou descartada. |
+| `anomalia_id` | uuid | sim |  | → ferramentas_anomalias (set null) |  |  |
+| `decidido_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem abriu ou descartou a sugestão. |
+| `decidido_em` | timestamp with time zone | sim |  |  |  |  |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Checks: `ferramentas_anomalias_sugestoes_origem_check` `CHECK ((origem = ANY (ARRAY['km_anormal'::text, 'ordem_devolvida'::text, 'ponto_incompleto'::text, 'compras_canceladas'::text, 'infracoes_condutor'::text])))`; `ferramentas_anomalias_sugestoes_situacao_check` `CHECK ((situacao = ANY (ARRAY['pendente'::text, 'aberta'::text, 'descartada'::text])))`
+
+Índices: `ferramentas_anomalias_sugestoes_chave_idx`, `ferramentas_anomalias_sugestoes_pendentes_idx`, `ferramentas_anomalias_sugestoes_pkey`
 
 ## projeto
 

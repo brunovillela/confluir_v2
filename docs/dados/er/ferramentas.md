@@ -34,6 +34,7 @@ erDiagram
     uuid anomalia_id FK
     uuid demanda_id FK
     uuid recorrencia_proxima_id FK
+    uuid procedimento_id FK
   }
   demandas_comentarios {
     uuid id PK
@@ -44,10 +45,22 @@ erDiagram
     uuid tarefa_id PK,FK
     uuid departamento_id PK,FK
   }
+  demandas_tarefa_comentarios {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid tarefa_id FK
+    uuid autor_id FK
+  }
   ferramentas_anomalias {
     uuid id PK
     uuid emp_proprietaria_id FK
     uuid responsavel_id FK
+  }
+  ferramentas_anomalias_sugestoes {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid anomalia_id FK
+    uuid decidido_por FK
   }
   projeto {
     uuid id PK
@@ -69,6 +82,7 @@ erDiagram
   demandas_check_tarefas }o--o| demandas : "demanda_id"
   demandas_check_tarefas }o--o| demandas_check : "checklist_id"
   demandas_check_tarefas }o--o| demandas_check_tarefas : "recorrencia_proxima_id"
+  demandas_check_tarefas }o--o| fa_documentos : "procedimento_id"
   demandas_check_tarefas }o--o| ferramentas_anomalias : "anomalia_id"
   demandas_check_tarefas }o--o| projeto : "projeto_id"
   demandas_check_tarefas }o--o| usuarios : "demandado_id"
@@ -76,7 +90,11 @@ erDiagram
   demandas_comentarios }o--o| demandas : "demanda_id"
   demandas_departamentos }o--|| demandas_check_tarefas : "tarefa_id"
   demandas_departamentos }o--|| empresa_departamentos : "departamento_id"
+  demandas_tarefa_comentarios }o--o| usuarios : "autor_id"
+  demandas_tarefa_comentarios }o--|| demandas_check_tarefas : "tarefa_id"
   ferramentas_anomalias }o--o| usuarios : "responsavel_id"
+  ferramentas_anomalias_sugestoes }o--o| ferramentas_anomalias : "anomalia_id"
+  ferramentas_anomalias_sugestoes }o--o| usuarios : "decidido_por"
   projeto }o--o| centros_de_custo : "centro_custo_id"
   projeto }o--o| usuarios : "autorizacao_autoriza_id"
   projeto_marcos }o--|| projeto : "projeto_id"

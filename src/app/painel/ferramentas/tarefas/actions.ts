@@ -7,6 +7,8 @@ import { podeAcessar } from "@/lib/permissoes"
 import { type EstadoForm } from "@/lib/contas"
 import { ehPrioridadeTarefa, ehRecorrenciaTarefa, type PrioridadeTarefa, type RecorrenciaTarefa } from "@/lib/nucleo-constantes"
 import { avisar, depoisDaResposta, usuariosComPermissao } from "@/lib/db/avisos"
+import { removerAnexosDaTarefa } from "@/lib/db/tarefa-conversa"
+import { opcoesDeProcedimento } from "@/lib/db/documentos"
 import {
   atualizarTarefa,
   criarTarefa,
@@ -95,6 +97,7 @@ function lerDados(formData: FormData): DadosTarefa {
     demandado_id: texto(formData, "demandado_id") || null,
     prioridade: prioridade(formData),
     recorrencia: recorrencia(formData),
+    procedimento_id: texto(formData, "procedimento_id") || null,
     demanda_id: texto(formData, "demanda_id") || null,
     projeto_id: texto(formData, "projeto_id") || null,
     anomalia_id: texto(formData, "anomalia_id") || null,
@@ -282,6 +285,7 @@ export async function editarTarefaAction(_prev: EstadoForm, formData: FormData):
     data_prazo_entrega: dataISO(texto(formData, "data_prazo_entrega")),
     prioridade: prioridade(formData),
     recorrencia: recorrencia(formData),
+    procedimento_id: texto(formData, "procedimento_id") || null,
   }
   if (!dados.titulo) return { erro: "Descreva a tarefa." }
   if (dados.recorrencia && !dados.data_prazo_entrega) return { erro: ERRO_RECORRENCIA_SEM_PRAZO }
@@ -300,8 +304,19 @@ export async function excluirTarefaAction(_prev: EstadoForm, formData: FormData)
   const acesso = await exigirPermissaoDaTarefa(id, "")
   if ("erro" in acesso) return { erro: acesso.erro }
   const pais = await paisDaTarefa(id)
+  await removerAnexosDaTarefa(id)
   const { erro } = await excluirTarefa(id)
   if (erro) return { erro }
   revalidarPais(pais)
   return { ok: "Tarefa excluída." }
+}
+
+/** Documentos que podem ser o procedimento da tarefa (o seletor carrega ao abrir). */
+export async function opcoesDeProcedimentoAction(): Promise<{ id: string; nome: string }[]> {
+  await requirePermissao("ferramentas_tarefas", [
+    "ferramentas_demandas",
+    "ferramentas_anomalias",
+    "ferramentas_projetos_edicao",
+  ])
+  return opcoesDeProcedimento()
 }

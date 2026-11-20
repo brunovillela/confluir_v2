@@ -502,3 +502,60 @@ export async function excluirCategoriaDocumento(
   if (error) return { erro: `Não foi possível excluir: ${error.message}` }
   return {}
 }
+
+// ── Procedimentos (documento ligado a tarefas) ───────────────────────────────
+
+/** Documentos que podem ser o procedimento de uma tarefa (todos, pelo título). */
+export async function opcoesDeProcedimento(): Promise<{ id: string; nome: string }[]> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("fa_documentos")
+    .select("id, documento")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .order("documento")
+    .limit(1000)
+  return (data ?? []).map((d) => ({ id: String(d.id), nome: texto(d.documento) ?? "(documento sem título)" }))
+}
+
+/** URL assinada da versão mais recente do documento (ou null, sem arquivo). */
+export async function urlVersaoMaisRecente(documentoId: string): Promise<string | null> {
+  const admin = await createAdminClient()
+  const { data: doc } = await admin
+    .from("fa_documentos")
+    .select("bubble_id")
+    .eq("id", documentoId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (!doc) return null
+  const { data: v } = await admin
+    .from("fa_documentos_versao")
+    .select("arquivo_url")
+    .eq("documento_raw", doc.bubble_id)
+    .not("arquivo_url", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  return urlArquivoDocumento(texto(v?.arquivo_url))
+}
+
+export type TarefaDoProcedimento = { id: string; titulo: string | null; concluido: boolean; prazo: string | null }
+
+/** Tarefas que seguem o procedimento (página do documento), abertas primeiro. */
+export async function tarefasDoProcedimento(documentoId: string): Promise<TarefaDoProcedimento[]> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("demandas_check_tarefas")
+    .select("id, titulo, concluido, data_prazo_entrega")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("procedimento_id", documentoId)
+    .order("concluido", { ascending: true })
+    .order("data_prazo_entrega", { ascending: true, nullsFirst: false })
+    .limit(200)
+  if (error) return []
+  return (data ?? []).map((t) => ({
+    id: String(t.id),
+    titulo: texto(t.titulo),
+    concluido: t.concluido === true,
+    prazo: texto(t.data_prazo_entrega),
+  }))
+}

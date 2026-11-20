@@ -123,6 +123,7 @@ O app lê os dados de um tenant com `createAdminClient()` (JWT `authenticated` c
 | `demandas_check_tarefas` | ferramentas | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `demandas_comentarios` | ferramentas | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `demandas_departamentos` | ferramentas | sim | — | | | | |
+| `demandas_tarefa_comentarios` | ferramentas | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `despesas` | financeiro | sim | — | | | | |
 | `dir_liberacao_historico` | diretoria | sim | — | | | | |
 | `diretoria_atas` | diretoria | sim | — | | | | |
@@ -161,6 +162,7 @@ O app lê os dados de um tenant com `createAdminClient()` (JWT `authenticated` c
 | `fa_documentos_categorias_junction` | compras | sim | `tenant_isolation_pai` | ALL | authenticated | `(EXISTS ( SELECT 1    FROM fa_documentos p   WHERE ((p.id = fa_documentos_categorias_junction.documento_id) AND (p.emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid))))` | `(EXISTS ( SELECT 1    FROM fa_documentos p   WHERE ((p.id = fa_documentos_categorias_junction.documento_id) AND (p.emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid))))` |
 | `fa_documentos_versao` | compras | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `ferramentas_anomalias` | ferramentas | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
+| `ferramentas_anomalias_sugestoes` | ferramentas | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `fil_reemb_hospedagem` | hospedagem | sim | — | | | | |
 | `filiacao_atualizacoes_lote` | filiacao | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `filiacao_atualizacoes_lote_itens` | filiacao | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |

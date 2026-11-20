@@ -1,5 +1,6 @@
 import "server-only"
-import { texto } from "@/lib/db/comum"
+import { esquemaAusente, hojeSP, lerEmLotesPorIds, texto } from "@/lib/db/comum"
+import { situacaoDoProjeto, type NivelProjeto } from "@/lib/projetos-constantes"
 import { tenantAtual } from "@/lib/tenant"
 
 import { derivarSituacao } from "@/lib/db/compras"
@@ -78,6 +79,161 @@ async function gastoPorProjeto(
   return mapa
 }
 
+// ── Marcos e tarefas por projeto (carteira) ──────────────────────────────────
+
+export type MarcoProjeto = {
+  id: string
+  titulo: string
+  dataPrevista: string
+  concluidoEm: string | null
+}
+
+function paraMarco(m: Record<string, unknown>): MarcoProjeto {
+  return {
+    id: String(m.id),
+    titulo: texto(m.titulo) ?? "(sem título)",
+    dataPrevista: String(m.data_prevista),
+    concluidoEm: texto(m.concluido_em),
+  }
+}
+
+/** Marcos de vários projetos, por data. Sem a tabela (antes da migração), nenhum. */
+async function marcosPorProjeto(projetoIds: string[]): Promise<Map<string, MarcoProjeto[]>> {
+  const mapa = new Map<string, MarcoProjeto[]>()
+  if (projetoIds.length === 0) return mapa
+  const admin = await createAdminClient()
+  try {
+    const linhas = await lerEmLotesPorIds(projetoIds, (fatia, de, ate) =>
+      admin
+        .from("projeto_marcos")
+        .select("id, projeto_id, titulo, data_prevista, concluido_em")
+        .in("projeto_id", fatia)
+        .order("data_prevista")
+        .order("id")
+        .range(de, ate)
+    )
+    for (const m of linhas) {
+      const pid = String(m.projeto_id)
+      mapa.set(pid, [...(mapa.get(pid) ?? []), paraMarco(m)])
+    }
+  } catch (e) {
+    if (!esquemaAusente(e as { code?: string })) throw e
+  }
+  return mapa
+}
+
+export type TarefasDoProjeto = { total: number; concluidas: number; atrasadas: number }
+
+/**
+ * Tarefas de cada projeto: as que têm o projeto e as que entraram direto na
+ * demanda do projeto (o mesmo critério da página do projeto), sem repetir.
+ */
+async function tarefasPorProjeto(projetoIds: string[]): Promise<Map<string, TarefasDoProjeto>> {
+  const mapa = new Map<string, TarefasDoProjeto>()
+  if (projetoIds.length === 0) return mapa
+  const admin = await createAdminClient()
+  const hoje = hojeSP()
+  try {
+    const demandas = await lerEmLotesPorIds(projetoIds, (fatia, de, ate) =>
+      admin.from("demandas").select("id, projeto_id").in("projeto_id", fatia).order("id").range(de, ate)
+    )
+    const projetoDaDemanda = new Map(demandas.map((d) => [String(d.id), String(d.projeto_id)]))
+    const colunas = "id, projeto_id, demanda_id, concluido, data_prazo_entrega"
+    const [doProjeto, daDemanda] = await Promise.all([
+      lerEmLotesPorIds(projetoIds, (fatia, de, ate) =>
+        admin.from("demandas_check_tarefas").select(colunas).in("projeto_id", fatia).order("id").range(de, ate)
+      ),
+      lerEmLotesPorIds([...projetoDaDemanda.keys()], (fatia, de, ate) =>
+        admin.from("demandas_check_tarefas").select(colunas).in("demanda_id", fatia).order("id").range(de, ate)
+      ),
+    ])
+    const vistas = new Set<string>()
+    for (const t of [...doProjeto, ...daDemanda]) {
+      const id = String(t.id)
+      if (vistas.has(id)) continue
+      vistas.add(id)
+      const pid = texto(t.projeto_id) ?? projetoDaDemanda.get(String(t.demanda_id))
+      if (!pid) continue
+      const atual = mapa.get(pid) ?? { total: 0, concluidas: 0, atrasadas: 0 }
+      atual.total += 1
+      if (t.concluido === true) atual.concluidas += 1
+      else if (texto(t.data_prazo_entrega) && String(t.data_prazo_entrega) < hoje) atual.atrasadas += 1
+      mapa.set(pid, atual)
+    }
+  } catch (e) {
+    if (!esquemaAusente(e as { code?: string })) throw e
+  }
+  return mapa
+}
+
+/** Os marcos de um projeto, por data (página do projeto). */
+export async function listarMarcos(projetoId: string): Promise<MarcoProjeto[]> {
+  return (await marcosPorProjeto([projetoId])).get(projetoId) ?? []
+}
+
+async function marcoDoTenant(id: string) {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("projeto_marcos")
+    .select("id, projeto_id")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  return data ? { admin, projetoId: String(data.projeto_id) } : null
+}
+
+export async function criarMarco(
+  projetoId: string,
+  dados: { titulo: string; dataPrevista: string }
+): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: projeto } = await admin.from("projeto").select("id").eq("id", projetoId).eq("emp_proprietaria_id", emp).maybeSingle()
+  if (!projeto) return { erro: "Projeto não encontrado." }
+  const { error } = await admin.from("projeto_marcos").insert({
+    emp_proprietaria_id: emp,
+    projeto_id: projetoId,
+    titulo: dados.titulo,
+    data_prevista: dados.dataPrevista,
+  })
+  if (error) return { erro: `Falha ao criar o marco: ${error.message}` }
+  return {}
+}
+
+export async function editarMarco(
+  id: string,
+  dados: { titulo: string; dataPrevista: string }
+): Promise<{ erro?: string; projetoId?: string }> {
+  const m = await marcoDoTenant(id)
+  if (!m) return { erro: "Marco não encontrado." }
+  const { error } = await m.admin
+    .from("projeto_marcos")
+    .update({ titulo: dados.titulo, data_prevista: dados.dataPrevista, updated_at: new Date().toISOString() })
+    .eq("id", id)
+  if (error) return { erro: `Falha ao salvar o marco: ${error.message}` }
+  return { projetoId: m.projetoId }
+}
+
+/** Dá o marco por cumprido (hoje) ou o reabre. */
+export async function definirMarcoConcluido(id: string, concluido: boolean): Promise<{ erro?: string; projetoId?: string }> {
+  const m = await marcoDoTenant(id)
+  if (!m) return { erro: "Marco não encontrado." }
+  const { error } = await m.admin
+    .from("projeto_marcos")
+    .update({ concluido_em: concluido ? hojeSP() : null, updated_at: new Date().toISOString() })
+    .eq("id", id)
+  if (error) return { erro: `Falha ao atualizar o marco: ${error.message}` }
+  return { projetoId: m.projetoId }
+}
+
+export async function excluirMarco(id: string): Promise<{ erro?: string; projetoId?: string }> {
+  const m = await marcoDoTenant(id)
+  if (!m) return { erro: "Marco não encontrado." }
+  const { error } = await m.admin.from("projeto_marcos").delete().eq("id", id)
+  if (error) return { erro: `Falha ao excluir o marco: ${error.message}` }
+  return { projetoId: m.projetoId }
+}
+
 // ── Listagem ────────────────────────────────────────────────────────────────
 
 export type ProjetoLinha = {
@@ -91,6 +247,11 @@ export type ProjetoLinha = {
   estrategico: boolean | null
   gastoCompras: number
   solicitacoes: number
+  tarefas: TarefasDoProjeto
+  /** O próximo marco em aberto (o de data mais próxima, mesmo vencido). */
+  proximoMarco: MarcoProjeto | null
+  marcos: { total: number; concluidos: number }
+  situacao: { nivel: NivelProjeto; motivos: string[] }
 }
 
 export type FiltroProjetos = {
@@ -122,10 +283,16 @@ export async function listarProjetos(
   if (error) throw new Error(`Falha ao listar projetos: ${error.message}`)
 
   const linhas = data ?? []
-  const gastos = await gastoPorProjeto(linhas.map((p) => p.id))
+  const ids = linhas.map((p) => p.id as string)
+  const [gastos, marcos, tarefas] = await Promise.all([gastoPorProjeto(ids), marcosPorProjeto(ids), tarefasPorProjeto(ids)])
+  const hoje = hojeSP()
 
   return linhas.map((p) => {
     const g = gastos.get(p.id)
+    const ms = marcos.get(p.id) ?? []
+    const ts = tarefas.get(p.id) ?? { total: 0, concluidas: 0, atrasadas: 0 }
+    const orcamento = numero(p.orcamento)
+    const gasto = g?.total ?? 0
     return {
       id: p.id,
       titulo: texto(p.descricao_sumaria),
@@ -135,8 +302,21 @@ export async function listarProjetos(
       termino_previsao: texto(p.termino_previsao),
       finalizado: p.finalizado as boolean | null,
       estrategico: p.estrategico as boolean | null,
-      gastoCompras: g?.total ?? 0,
+      gastoCompras: gasto,
       solicitacoes: g?.solicitacoes ?? 0,
+      tarefas: ts,
+      proximoMarco: ms.find((m) => !m.concluidoEm) ?? null,
+      marcos: { total: ms.length, concluidos: ms.filter((m) => m.concluidoEm).length },
+      situacao: situacaoDoProjeto(
+        {
+          finalizado: p.finalizado === true,
+          terminoPrevisao: texto(p.termino_previsao),
+          marcos: ms.map((m) => ({ titulo: m.titulo, dataPrevista: m.dataPrevista, concluido: Boolean(m.concluidoEm) })),
+          tarefasAtrasadas: ts.atrasadas,
+          saldo: orcamento != null ? orcamento - gasto : null,
+        },
+        hoje
+      ),
     }
   })
 }

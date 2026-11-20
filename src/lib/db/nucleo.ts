@@ -1,6 +1,7 @@
 import "server-only"
 import { esquemaAusente, lerEmLotes, nomesDosUsuarios as nomesDosUsuariosBase, texto } from "@/lib/db/comum"
 import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
+import { contarMensagens } from "@/lib/db/tarefa-conversa"
 import { tenantAtual } from "@/lib/tenant"
 
 import {
@@ -40,6 +41,17 @@ function hojeISO(): string {
 
 /** Nomes de usuários preferindo nome de guerra (padrão do Núcleo). */
 const nomesDosUsuarios = (ids: string[]) => nomesDosUsuariosBase(ids, "guerra")
+
+/** Título dos documentos (procedimentos das tarefas). Sem a coluna/tabela, nenhum. */
+async function nomesDosDocumentos(ids: string[]): Promise<Map<string, string>> {
+  const mapa = new Map<string, string>()
+  const unicos = [...new Set(ids)]
+  if (!unicos.length) return mapa
+  const admin = await createAdminClient()
+  const { data } = await admin.from("fa_documentos").select("id, documento").in("id", unicos)
+  for (const d of data ?? []) mapa.set(String(d.id), texto(d.documento) ?? "(documento sem título)")
+  return mapa
+}
 
 export type OpcaoPessoa = { id: string; nome: string }
 
@@ -492,7 +504,7 @@ export async function definirSituacaoDemanda(
 // ════════════════════════════════════════════════════════════════════════════
 
 const COLS_TAREFA =
-  "id, titulo, concluido, tipo, prioridade, recorrencia, data_prazo_entrega, data_entrega, demandante_id, demandado_id, demanda_id, projeto_id, anomalia_id"
+  "id, titulo, concluido, tipo, prioridade, recorrencia, procedimento_id, data_prazo_entrega, data_entrega, demandante_id, demandado_id, demanda_id, projeto_id, anomalia_id"
 
 async function contarTarefasPorPai(
   coluna: "demanda_id" | "projeto_id" | "anomalia_id",
@@ -542,6 +554,11 @@ export type TarefaLinha = {
   prioridade: PrioridadeTarefa
   /** De quanto em quanto tempo se repete (nulo = não repete). */
   recorrencia: RecorrenciaTarefa | null
+  /** Quantas mensagens a conversa da tarefa tem. */
+  mensagens: number
+  /** Documento com o procedimento que a tarefa segue. */
+  procedimentoId: string | null
+  procedimentoNome: string | null
   demandanteNome: string | null
   /** Responsável: o id serve à edição da tarefa. */
   demandadoId: string | null
@@ -604,7 +621,11 @@ export async function listarTarefas(
     ),
     fotosDosUsuarios(linhas.map((t) => t.demandado_id as string | null)),
   ])
-  const paiNomes = await resolverNomesDosPais(linhas)
+  const [paiNomes, mensagens, procedimentos] = await Promise.all([
+    resolverNomesDosPais(linhas),
+    contarMensagens(linhas.map((t) => String(t.id))),
+    nomesDosDocumentos(linhas.map((t) => texto(t.procedimento_id)).filter((v): v is string => !!v)),
+  ])
 
   return {
     disponivel: true,
@@ -622,6 +643,9 @@ export async function listarTarefas(
         prazo: texto(t.data_prazo_entrega),
         prioridade: ehPrioridadeTarefa(t.prioridade) ? t.prioridade : "media",
         recorrencia: ehRecorrenciaTarefa(t.recorrencia) ? t.recorrencia : null,
+        mensagens: mensagens.get(String(t.id)) ?? 0,
+        procedimentoId: texto(t.procedimento_id),
+        procedimentoNome: t.procedimento_id ? (procedimentos.get(String(t.procedimento_id)) ?? null) : null,
         demandanteNome: t.demandante_id
           ? (nomes.get(t.demandante_id as string) ?? null)
           : null,
@@ -688,6 +712,7 @@ export type DadosTarefa = {
   demandado_id: string | null
   prioridade?: PrioridadeTarefa
   recorrencia?: RecorrenciaTarefa | null
+  procedimento_id?: string | null
   /** Pai opcional — no máximo um preenchido. */
   demanda_id?: string | null
   projeto_id?: string | null
@@ -708,6 +733,7 @@ export async function criarTarefa(
       demandado_id: dados.demandado_id,
       prioridade: dados.prioridade ?? "media",
       recorrencia: dados.recorrencia ?? null,
+      procedimento_id: dados.procedimento_id ?? null,
       demanda_id: dados.demanda_id ?? null,
       projeto_id: dados.projeto_id ?? null,
       anomalia_id: dados.anomalia_id ?? null,
@@ -876,6 +902,7 @@ export async function editarTarefa(
     data_prazo_entrega: string | null
     prioridade: PrioridadeTarefa
     recorrencia: RecorrenciaTarefa | null
+    procedimento_id: string | null
   }
 ): Promise<{ erro?: string; responsavelAnterior?: string | null }> {
   const admin = await createAdminClient()
@@ -991,7 +1018,7 @@ export async function gerarProximaRecorrencia(id: string): Promise<{ erro?: stri
   const emp = await tenantAtual()
   const { data: t, error } = await admin
     .from("demandas_check_tarefas")
-    .select("titulo, tipo, prioridade, recorrencia, recorrencia_proxima_id, data_prazo_entrega, demandante_id, demandado_id, demanda_id, projeto_id, anomalia_id, concluido")
+    .select("titulo, tipo, prioridade, recorrencia, recorrencia_proxima_id, procedimento_id, data_prazo_entrega, demandante_id, demandado_id, demanda_id, projeto_id, anomalia_id, concluido")
     .eq("id", id)
     .eq("emp_proprietaria_id", emp)
     .maybeSingle()
@@ -1006,6 +1033,7 @@ export async function gerarProximaRecorrencia(id: string): Promise<{ erro?: stri
       tipo: t.tipo,
       prioridade: ehPrioridadeTarefa(t.prioridade) ? t.prioridade : "media",
       recorrencia: t.recorrencia,
+      procedimento_id: t.procedimento_id,
       data_prazo_entrega: proximo,
       demandante_id: t.demandante_id,
       demandado_id: t.demandado_id,

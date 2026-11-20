@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Pencil } from "lucide-react"
+import { ArrowLeft, CircleAlert, Pencil } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -18,13 +18,17 @@ import {
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
 import { demandaDoProjeto, listarPessoasAtribuiveis, listarTarefas, listarTarefasAvulsas } from "@/lib/db/nucleo"
-import { obterProjeto } from "@/lib/db/projetos"
+import { hojeSP } from "@/lib/db/comum"
+import { listarMarcos, obterProjeto } from "@/lib/db/projetos"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
+import { situacaoDoProjeto } from "@/lib/projetos-constantes"
 
 import { Dado, Linha } from "../../dados-resumo"
 import { IncluirTarefas } from "../../tarefas/tarefa-forms"
 import { TarefasLista } from "../../tarefas/tarefas-lista"
+import { SeloSituacaoProjeto } from "../selo-situacao"
+import { MarcosProjeto } from "./marcos"
 import { ProjetoAcoes } from "./projeto-acoes"
 
 export const metadata: Metadata = { title: "Projeto — Confluir" }
@@ -46,12 +50,13 @@ export default async function ProjetoPage({
   const { id } = await params
   const { salvo } = await searchParams
 
-  const [projeto, tarefas, demanda, pessoas, avulsas] = await Promise.all([
+  const [projeto, tarefas, demanda, pessoas, avulsas, marcos] = await Promise.all([
     obterProjeto(id),
     listarTarefas({ paiTipo: "projeto", paiId: id }),
     demandaDoProjeto(id),
     editaTarefas ? listarPessoasAtribuiveis() : Promise.resolve([]),
     editaTarefas ? listarTarefasAvulsas() : Promise.resolve([]),
+    listarMarcos(id),
   ])
   if (!projeto) notFound()
   const concluidas = tarefas.tarefas.filter((t) => t.concluido).length
@@ -66,6 +71,18 @@ export default async function ProjetoPage({
           projeto.termino_previsao ? ` a ${formatarData(projeto.termino_previsao)}` : ""
         }`
       : "—"
+  const hoje = hojeSP()
+  // A mesma conta da carteira (lista de projetos), com as tarefas já lidas.
+  const situacao = situacaoDoProjeto(
+    {
+      finalizado: projeto.finalizado === true,
+      terminoPrevisao: projeto.termino_previsao,
+      marcos: marcos.map((m) => ({ titulo: m.titulo, dataPrevista: m.dataPrevista, concluido: Boolean(m.concluidoEm) })),
+      tarefasAtrasadas: tarefas.tarefas.filter((t) => t.situacao === "atrasada").length,
+      saldo,
+    },
+    hoje
+  )
   const usoOrcamento =
     projeto.orcamento != null && projeto.orcamento > 0
       ? (projeto.gastoCompras / projeto.orcamento) * 100
@@ -91,15 +108,7 @@ export default async function ProjetoPage({
           <h1 className="text-2xl font-semibold tracking-tight">
             {projeto.titulo ?? "(sem título)"}
           </h1>
-          {projeto.finalizado ? (
-            <Badge variant="outline" className="text-muted-foreground">
-              Finalizado
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="border-success/40 text-success-fg">
-              Em andamento
-            </Badge>
-          )}
+          <SeloSituacaoProjeto nivel={situacao.nivel} motivos={situacao.motivos} />
           {projeto.estrategico && <Badge variant="secondary">Estratégico</Badge>}
         </div>
         {editor && (
@@ -114,6 +123,19 @@ export default async function ProjetoPage({
           </div>
         )}
       </div>
+
+      {situacao.motivos.length > 0 && (
+        <Alert variant={situacao.nivel === "atrasado" ? "destructive" : "warning"}>
+          <CircleAlert />
+          <AlertDescription>
+            <ul className="grid gap-0.5">
+              {situacao.motivos.map((m) => (
+                <li key={m}>{m}</li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
@@ -165,6 +187,12 @@ export default async function ProjetoPage({
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardContent>
+          <MarcosProjeto projetoId={id} marcos={marcos} hoje={hoje} editor={editor && !projeto.finalizado} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="grid gap-4">
