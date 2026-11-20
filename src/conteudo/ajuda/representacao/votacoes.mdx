@@ -431,9 +431,13 @@ link pessoal do e-mail.
 Dois selos aparecem na lista de aptos, e os dois significam "a secretaria
 precisa olhar":
 
-- **CPF em conflito** — o CPF informado é de um filiado com outro nome ou
-  nascimento, ou já está em outro apto da rodada, ou não bate com o CPF da
-  lista na hora da confirmação.
+- **CPF em conflito** — o CPF informado é de um filiado **ativo** com outro
+  nascimento (ou com nome que não bate nem com a ficha nem com a lista da
+  empresa), ou já está em outro apto da rodada, ou não bate com o CPF da lista
+  na hora da confirmação. Ficha **inativa** com dado antigo não trava mais: o
+  voto é liberado pela lista da empresa e o apto fica com **Conferir cadastro**
+  para a ficha ser acertada. Nascimento impossível na ficha (no futuro ou com
+  idade fora do plausível) também não trava.
 - **Conferir cadastro** — o eleitor avisou que o **nome da lista está errado**
   (botão "Meu nome está diferente na lista") ou que **o e-mail não é dele**
   (botão "Não sou eu"). Também aparece quando o eleitor é **filiado** e o nome da

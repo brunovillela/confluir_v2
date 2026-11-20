@@ -3,6 +3,7 @@ import "server-only"
 import { limparCpf, validarCpf } from "@/lib/cpf"
 import { escopoAptos, filtroAptos } from "@/lib/db/votacao-escopo"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { motivoNascimentoSuspeito } from "@/lib/saude-cadastros"
 import { tenantAtual } from "@/lib/tenant"
 import { semAcento } from "@/lib/texto"
 
@@ -262,41 +263,73 @@ export async function registrarDadosEleitor(dados: {
 
   const nomeDaLista = meus.map((a) => a.nome_completo).find(Boolean) ?? null
 
-  // 2. CPF de filiado: nome e nascimento têm de bater com o cadastro DA
-  //    ENTIDADE — que é o registro mais confiável e vem ANTES da lista da
-  //    empregadora. Os dois podem divergir (nome de solteira na lista, nome
-  //    de casada na filiação): quem manda é o da entidade.
-  const { data: filiado } = await admin
+  // 2. CPF de filiado: a ficha da entidade confere nome e nascimento.
+  //    AJUSTE 19/11/2026 (eleitores da SLB barrados em massa): a regra
+  //    antiga pegava UMA ficha qualquer do CPF (até excluída) e exigia nome e
+  //    nascimento idênticos. Os barrados eram todos de fichas INATIVAS, com
+  //    dado antigo errado (nascimento igual à data de filiação, ano 2025,
+  //    nome de solteira). Agora:
+  //    - ficha excluída não conta; com várias, basta uma conferir;
+  //    - nascimento suspeito na ficha (futuro, idade impossível) não conta;
+  //    - ficha ATIVA: o nome pode bater com a ficha OU com a lista da
+  //      empresa (casamento), e o nascimento plausível tem de bater;
+  //    - só fichas INATIVAS que não conferem: a referência passa a ser a
+  //      lista da empresa (como para quem não é filiado) e o voto é liberado,
+  //      com "Conferir cadastro" para a secretaria acertar a ficha.
+  const { data: fichasDoCpf } = await admin
     .from("filiacoes")
-    .select("id, nome_completo, nascimento_data")
+    .select("id, nome_completo, nascimento_data, filiacao_condicao")
     .eq("emp_proprietaria_id", emp)
     .eq("cpf", cpf)
-    .limit(1)
-    .maybeSingle()
+    .not("filiacao_excluida", "is", true)
+    .limit(10)
+  const fichas = (fichasDoCpf ?? []) as {
+    id: string
+    nome_completo: string | null
+    nascimento_data: string | null
+    filiacao_condicao: string | null
+  }[]
+  const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date())
+  const nascimentoConfere = (f: (typeof fichas)[number]) => {
+    const n = f.nascimento_data ? String(f.nascimento_data).slice(0, 10) : null
+    return !n || n === dados.nascimento || motivoNascimentoSuspeito(n, [], hoje) !== null
+  }
+  const nomeDaListaUtil = nomeDaLista && temSobrenome(nomeDaLista) ? nomeDaLista : null
+  const confere = (f: (typeof fichas)[number]) =>
+    nascimentoConfere(f) &&
+    (nomesConferem(nome, f.nome_completo) ||
+      // Nome de casada etc.: vale o da lista, só para ficha ATIVA (a inativa
+      // cai no caminho da lista logo abaixo, de todo jeito).
+      (f.filiacao_condicao === "Ativo" && nomeDaListaUtil !== null && nomesConferem(nome, nomeDaListaUtil)))
+  const filiado = fichas.find(confere) ?? null
+  const temAtiva = fichas.some((f) => f.filiacao_condicao === "Ativo")
   let identidadeConferida = false
   let divergenciaDaLista: string | null = null
   if (filiado) {
-    const nomeOk = nomesConferem(nome, filiado.nome_completo as string | null)
-    const nascCadastro = filiado.nascimento_data ? String(filiado.nascimento_data).slice(0, 10) : null
-    const nascOk = !nascCadastro || nascCadastro === dados.nascimento
-    if (!nomeOk || !nascOk) {
-      await marcarConflito("Nome ou nascimento não conferem com o cadastro de filiado deste CPF.")
-      return {
-        erro: "Os dados informados não conferem com o cadastro da entidade para este CPF. Procure o sindicato para liberar o seu voto.",
-      }
-    }
     identidadeConferida = true
-    // A lista da empresa está com outro nome: não barra (quem manda é o
-    // cadastro da entidade), mas fica anotado — a marca é gravada DEPOIS da
-    // atualização final, que limpa os conflitos antigos.
-    if (nomeDaLista && temSobrenome(nomeDaLista) && !nomesConferem(nome, nomeDaLista)) {
+    // A lista da empresa está com outro nome: não barra, mas fica anotado — a
+    // marca é gravada DEPOIS da atualização final, que limpa conflitos antigos.
+    if (nomeDaListaUtil && !nomesConferem(nome, nomeDaListaUtil)) {
       divergenciaDaLista = `Nome da lista ("${nomeDaLista}") difere do cadastro de filiação ("${filiado.nome_completo ?? nome}"). O voto foi liberado pelo cadastro da entidade.`
+    } else if (!nomesConferem(nome, filiado.nome_completo)) {
+      divergenciaDaLista = `Nome do cadastro de filiação ("${filiado.nome_completo ?? ""}") difere do declarado e da lista ("${nome}"). O voto foi liberado pela lista da empresa; atualize a ficha.`
+    } else if (filiado.nascimento_data && String(filiado.nascimento_data).slice(0, 10) !== dados.nascimento) {
+      divergenciaDaLista = `Nascimento da ficha de filiação (${String(filiado.nascimento_data).slice(0, 10)}) parece errado; o eleitor informou ${dados.nascimento}. O voto foi liberado; confira e atualize a ficha.`
     }
+  } else if (fichas.length > 0 && temAtiva) {
+    await marcarConflito("Nome ou nascimento não conferem com o cadastro de filiado (ativo) deste CPF.")
+    return {
+      erro: "Os dados informados não conferem com o cadastro da entidade para este CPF. Procure o sindicato para liberar o seu voto.",
+    }
+  } else if (fichas.length > 0) {
+    // Só fichas inativas, que não conferem: segue pela lista da empresa (2b).
+    divergenciaDaLista = `Ficha de filiado inativa deste CPF ("${fichas[0].nome_completo ?? "sem nome"}") não confere com o declarado ("${nome}"). O voto foi liberado pela lista da empresa; atualize a ficha.`
   }
 
-  // 2b. CPF que NÃO é de filiado: a única referência é a lista da empresa.
-  //     É o que protege quem teve o e-mail digitado errado — se o link cair
-  //     na caixa de outra pessoa, ela não vota no lugar do titular.
+  // 2b. CPF sem ficha que confira (não filiado ou ficha inativa divergente):
+  //     a referência é a lista da empresa. É o que protege quem teve o e-mail
+  //     digitado errado — se o link cair na caixa de outra pessoa, ela não
+  //     vota no lugar do titular.
   if (!filiado && nomeDaLista && temSobrenome(nomeDaLista) && !nomesConferem(nome, nomeDaLista)) {
     await marcarConflito(
       `Nome declarado ("${nome}") não confere com o nome da lista de aptos ("${nomeDaLista}").`

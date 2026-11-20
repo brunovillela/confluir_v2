@@ -16,6 +16,7 @@ import {
 } from "@/lib/db/votacao-primeiro-acesso"
 import { enviarEmail } from "@/lib/email"
 import { caixaAviso, escaparHtml, paragrafo, textoSuave, tituloEmail } from "@/lib/email-layout"
+import { motivoNascimentoSuspeito } from "@/lib/saude-cadastros"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -312,18 +313,21 @@ export async function vincularPorLinkUnico(dados: {
   }
 
   // Ficha de filiado do CPF: o cadastro da entidade vale mais que a lista.
-  const { data: filiado } = await admin
+  // 19/11/2026: ficha excluída não conta, basta uma ficha conferir e nascimento
+  // impossível na ficha (futuro, idade fora do plausível) é ignorado.
+  const { data: fichas } = await admin
     .from("filiacoes")
     .select("nome_completo, nascimento_data")
     .eq("emp_proprietaria_id", emp)
     .eq("cpf", cpf)
-    .limit(1)
-    .maybeSingle()
-  let filiadoConfere = false
-  if (filiado) {
-    const nasc = filiado.nascimento_data ? String(filiado.nascimento_data).slice(0, 10) : null
-    filiadoConfere = nomesConferem(nome, txt(filiado.nome_completo)) && (!nasc || nasc === dados.nascimento)
-  }
+    .not("filiacao_excluida", "is", true)
+    .limit(10)
+  const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date())
+  const filiadoConfere = (fichas ?? []).some((f) => {
+    const nasc = f.nascimento_data ? String(f.nascimento_data).slice(0, 10) : null
+    const nascOk = !nasc || nasc === dados.nascimento || motivoNascimentoSuspeito(nasc, [], hoje) !== null
+    return nascOk && nomesConferem(nome, txt(f.nome_completo))
+  })
 
   const marcar = async (ids: string[], motivo: string) => {
     if (ids.length === 0) return
