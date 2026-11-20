@@ -135,6 +135,7 @@ export type ChamadaIA = {
   modelo: string
   origem: string
   tokensEntrada: number
+  tokensEntradaCache: number
   tokensSaida: number
   custo: number | null
   duracaoMs: number | null
@@ -152,17 +153,22 @@ export type FiltroChamadas = {
   soFalhas?: boolean
 }
 
-/** Histórico das chamadas (as mais recentes primeiro), até `limite`. */
-export async function listarChamadasIA(f: FiltroChamadas, limite = 100): Promise<{ disponivel: boolean; chamadas: ChamadaIA[] }> {
+/** Histórico das chamadas (as mais recentes primeiro), `limite` a partir de `deslocamento` (até 1.000 por vez). */
+export async function listarChamadasIA(
+  f: FiltroChamadas,
+  limite = 100,
+  deslocamento = 0
+): Promise<{ disponivel: boolean; chamadas: ChamadaIA[] }> {
   const admin = await createAdminClient()
   let q = admin
     .from("ia_uso")
-    .select("id, criado_em, usuario_id, departamento_id, processo, modulo, modelo, origem_chave, tokens_entrada, tokens_saida, custo_estimado_usd, duracao_ms, sucesso, erro")
+    .select("id, criado_em, usuario_id, departamento_id, processo, modulo, modelo, origem_chave, tokens_entrada, tokens_entrada_cache, tokens_saida, custo_estimado_usd, duracao_ms, sucesso, erro")
     .eq("emp_proprietaria_id", await tenantAtual())
     .gte("criado_em", f.de.toISOString())
     .lt("criado_em", f.ate.toISOString())
     .order("criado_em", { ascending: false })
-    .limit(limite)
+    .order("id", { ascending: false })
+    .range(deslocamento, deslocamento + Math.min(limite, 1000) - 1)
   if (f.usuarioId === "") q = q.is("usuario_id", null)
   else if (f.usuarioId) q = q.eq("usuario_id", f.usuarioId)
   if (f.departamentoId === "") q = q.is("departamento_id", null)
@@ -189,6 +195,7 @@ export async function listarChamadasIA(f: FiltroChamadas, limite = 100): Promise
       modelo: String(l.modelo),
       origem: String(l.origem_chave),
       tokensEntrada: Number(l.tokens_entrada ?? 0),
+      tokensEntradaCache: Number(l.tokens_entrada_cache ?? 0),
       tokensSaida: Number(l.tokens_saida ?? 0),
       custo: l.custo_estimado_usd === null ? null : Number(l.custo_estimado_usd),
       duracaoMs: l.duracao_ms === null ? null : Number(l.duracao_ms),
@@ -205,6 +212,7 @@ const ROTULO_ACAO: Record<string, string> = {
   chave_removida: "Removeu a chave de IA",
   chave_testada: "Testou a chave de IA",
   preferencias: "Alterou a configuração da IA",
+  modelos_processo: "Alterou o modelo por processo",
 }
 
 export function rotuloAcaoGestao(acao: string): string {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
 import { KeyRound, Loader2, PlugZap, Save, Trash2 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -11,9 +11,16 @@ import { ErroNoCampo } from "@/components/ui/erro-no-campo"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { type EstadoForm } from "@/lib/contas"
-import { MODULOS_IA } from "@/lib/ia-processos"
+import { MODULOS_IA, PROCESSOS_IA } from "@/lib/ia-processos"
+import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
-import { removerChaveAction, salvarChaveAction, salvarPreferenciasAction, testarChaveSalvaAction } from "./actions"
+import {
+  removerChaveAction,
+  salvarChaveAction,
+  salvarModelosProcessoAction,
+  salvarPreferenciasAction,
+  testarChaveSalvaAction,
+} from "./actions"
 
 function Retorno({ estado }: { estado: EstadoForm }) {
   if (estado.ok) {
@@ -155,7 +162,7 @@ export function PreferenciasForm({ inicial }: { inicial: PreferenciasIniciais })
       </fieldset>
 
       <div className="grid gap-1.5">
-        <Label htmlFor="modelo">Modelo</Label>
+        <Label htmlFor="modelo">Modelo geral</Label>
         <Input
           id="modelo"
           name="modelo"
@@ -165,12 +172,12 @@ export function PreferenciasForm({ inicial }: { inicial: PreferenciasIniciais })
           maxLength={64}
         />
         <p className="text-muted-foreground text-xs">
-          Em branco, vale o padrão. Um modelo menor (ex.: gpt-5.4-mini) custa menos; a chave precisa ter acesso a ele.
+          Em branco, vale o padrão. Um modelo menor (ex.: gpt-5.4-mini) custa menos; a chave precisa ter acesso a ele. Para trocar só em alguns processos, use o Modelo por processo, abaixo.
         </p>
       </div>
 
       <fieldset className="grid gap-2">
-        <legend className="mb-1 text-sm font-medium">Preços do modelo (US$ por 1 milhão de tokens)</legend>
+        <legend className="mb-1 text-sm font-medium">Preços do modelo geral (US$ por 1 milhão de tokens)</legend>
         <p className="text-muted-foreground text-xs">
           Copie da página de preços da OpenAI. Servem para estimar o custo no relatório e no teto; sem eles, o relatório mostra só os tokens.
         </p>
@@ -218,6 +225,135 @@ export function PreferenciasForm({ inicial }: { inicial: PreferenciasIniciais })
         <Button type="submit" disabled={pendente}>
           {pendente ? <Loader2 className="animate-spin" /> : <Save />}
           Salvar configuração
+        </Button>
+      </div>
+      <Retorno estado={estado} />
+    </form>
+  )
+}
+
+export type UsoProcesso = { chamadas: number; tokens: number; custo: number | null }
+
+export type ModelosProcessoIniciais = {
+  modeloGeral: string
+  modelos: Record<string, string>
+  precos: Record<string, { entrada: number | null; cache: number | null; saida: number | null }>
+  sugestoes: string[]
+  /** Uso dos últimos 30 dias por processo, para escolher onde vale trocar. */
+  uso: Record<string, UsoProcesso>
+  temTeto: boolean
+}
+
+const fmtInteiro = new Intl.NumberFormat("pt-BR")
+
+function resumoUso(u: UsoProcesso | undefined): string {
+  if (!u || u.chamadas === 0) return "sem uso em 30 dias"
+  const custo = u.custo === null ? "" : ` · US$ ${u.custo.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return `${fmtInteiro.format(u.chamadas)} ${u.chamadas === 1 ? "chamada" : "chamadas"} · ${fmtInteiro.format(u.tokens)} tokens${custo} em 30 dias`
+}
+
+/**
+ * Modelo por processo: em branco, o processo usa o modelo geral. Os campos são
+ * controlados (os preços aparecem para cada modelo escolhido), por isso o
+ * formulário não reinicia depois de salvar (`manter`).
+ */
+export function ModelosProcessoForm({ inicial }: { inicial: ModelosProcessoIniciais }) {
+  const [estado, action, pendente] = useActionState<EstadoForm, FormData>(salvarModelosProcessoAction, {})
+  const envio = useEnvioFormulario(action, estado, { manter: true })
+  const [modelos, setModelos] = useState<Record<string, string>>(inicial.modelos)
+  const usados = [...new Set(Object.values(modelos).map((m) => m.trim()).filter((m) => m && m !== inicial.modeloGeral))].sort()
+  const modulos = MODULOS_IA.map((mod) => ({
+    ...mod,
+    processos: PROCESSOS_IA.filter((p) => p.modulo === mod.slug),
+  })).filter((m) => m.processos.length > 0)
+
+  return (
+    <form action={action} {...envio} className="grid gap-5">
+      <ErroNoCampo estado={estado} />
+      <datalist id="modelos-ia">
+        {inicial.sugestoes.map((m) => (
+          <option key={m} value={m} />
+        ))}
+      </datalist>
+
+      <div className="grid gap-2">
+        {modulos.map((mod) => {
+          const trocados = mod.processos.filter((p) => (modelos[p.chave] ?? "").trim()).length
+          // Abre pelo que está salvo: apagar o campo não fecha o grupo na mão de quem edita.
+          const salvos = mod.processos.filter((p) => inicial.modelos[p.chave]).length
+          return (
+            <details key={mod.slug} className="rounded-lg border px-3 py-2" open={salvos > 0 || undefined}>
+              <summary className="cursor-pointer text-sm font-medium">
+                {mod.titulo}
+                <span className="text-muted-foreground ml-2 text-xs font-normal">
+                  {trocados ? `${trocados} com modelo próprio` : "todos no modelo geral"}
+                </span>
+              </summary>
+              <ul className="mt-2 divide-y">
+                {mod.processos.map((p) => (
+                  <li key={p.chave} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                    <div className="min-w-0">
+                      <label htmlFor={`modelo-${p.chave}`} className="text-sm">
+                        {p.titulo}
+                      </label>
+                      <p className="text-muted-foreground text-xs">{resumoUso(inicial.uso[p.chave])}</p>
+                    </div>
+                    <Input
+                      id={`modelo-${p.chave}`}
+                      name={`modelo:${p.chave}`}
+                      list="modelos-ia"
+                      value={modelos[p.chave] ?? ""}
+                      onChange={(e) => setModelos((atual) => ({ ...atual, [p.chave]: e.target.value }))}
+                      placeholder={`geral (${inicial.modeloGeral})`}
+                      className="w-56 font-mono text-xs"
+                      maxLength={64}
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )
+        })}
+      </div>
+
+      {usados.length > 0 && (
+        <fieldset className="grid gap-3">
+          <legend className="mb-1 text-sm font-medium">Preços dos outros modelos (US$ por 1 milhão de tokens)</legend>
+          <p className="text-muted-foreground text-xs">
+            Para estimar o custo das chamadas desses modelos.
+            {inicial.temTeto ? " Sem preço, elas não contam no teto mensal." : ""}
+          </p>
+          {usados.map((m) => {
+            const p = inicial.precos[m]
+            return (
+              <div key={m} className="flex flex-wrap items-end gap-3">
+                <span className="w-44 pb-2 font-mono text-xs">{m}</span>
+                {(["entrada", "cache", "saida"] as const).map((campo) => (
+                  <div key={campo} className="grid gap-1.5">
+                    <Label htmlFor={`preco-${m}-${campo}`} className="text-xs">
+                      {campo === "entrada" ? "Entrada" : campo === "cache" ? "Entrada em cache" : "Saída"}
+                    </Label>
+                    <Input
+                      id={`preco-${m}-${campo}`}
+                      name={`preco:${m}:${campo}`}
+                      inputMode="decimal"
+                      defaultValue={br(p?.[campo] ?? null)}
+                      className="w-28"
+                    />
+                  </div>
+                ))}
+              </div>
+            )
+          })}
+        </fieldset>
+      )}
+
+      <div>
+        <Button type="submit" disabled={pendente}>
+          {pendente ? <Loader2 className="animate-spin" /> : <Save />}
+          Salvar modelos
         </Button>
       </div>
       <Retorno estado={estado} />

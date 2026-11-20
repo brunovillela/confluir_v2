@@ -50,19 +50,54 @@ O registro guarda quem pediu, o processo, o módulo e o departamento da pessoa
 naquele momento — **nunca o texto enviado nem a resposta**. Chamadas do bot do
 Telegram aparecem com a pessoa do bot; tarefas agendadas aparecem sem pessoa.
 
+## Planilha do uso
+
+Em **Planilha do uso**, escolha o período (este mês, mês passado, últimos 90
+dias, este ano ou ano passado) e clique em **Baixar planilha (XLSX)**. Ela traz,
+em abas:
+
+- **Mês x departamento**: chamadas, tokens e custo estimado de cada
+  departamento em cada mês — a base para a prestação de contas ou para ratear o
+  custo entre os departamentos;
+- os resumos **por departamento, pessoa, processo, módulo e modelo**;
+- **Chamadas**: cada chamada do período, com data, pessoa, departamento,
+  processo, modelo, tokens, custo, duração e resultado.
+
+Como no registro, a planilha não tem o texto enviado nem a resposta. O download
+entra no livro de exportações (Gestão → Auditoria).
+
 ## Configuração
 
 - **IA ligada na entidade**: desmarcado, nenhuma tela chama a IA e os botões
   avisam que ela está desligada.
 - **Módulos com IA**: desmarque um módulo para desligar só a IA dele (por
   exemplo, Comunicação), mantendo as demais.
-- **Modelo**: em branco, vale o padrão da plataforma. Um modelo menor custa
-  menos; a chave precisa ter acesso a ele.
-- **Preços do modelo**: copie da página de preços da OpenAI (US$ por 1 milhão
+- **Modelo geral**: em branco, vale o padrão da plataforma. Um modelo menor
+  custa menos; a chave precisa ter acesso a ele.
+- **Preços do modelo geral**: copie da página de preços da OpenAI (US$ por 1 milhão
   de tokens). Sem eles, o relatório mostra só os tokens.
 - **Teto mensal**: o custo estimado máximo do mês. Com **Parar a IA ao atingir
   o teto**, a IA para até o dia 1º; sem isso, o teto só aparece como alerta
   (aqui e na Saúde do sistema, a partir de 80%).
+
+## Modelo por processo
+
+Um único modelo para tudo costuma sair caro: redigir uma mensagem curta não
+precisa do mesmo modelo que lê um PDF de 40 páginas. Em **Modelo por
+processo**, os processos aparecem agrupados por módulo, cada um com o uso dos
+últimos 30 dias (chamadas, tokens e custo) — comece pelos que mais gastam.
+
+- Escreva o modelo no campo do processo (a lista sugere os mais comuns). Em
+  branco, o processo usa o **modelo geral**.
+- Com a chave da entidade cadastrada, cada modelo novo é **testado antes de
+  salvar**: se ele não responder (nome errado, sem acesso), nada é salvo.
+- Para ler PDF e imagem (CAT, contracheque, nota fiscal, cupom), o modelo
+  precisa aceitar arquivos. Na dúvida, deixe esses no modelo geral.
+- **Preços dos outros modelos**: para cada modelo escolhido além do geral,
+  informe os preços (US$ por 1 milhão de tokens). Sem eles, as chamadas desse
+  modelo ficam sem custo estimado e não contam no teto mensal.
+
+O histórico de chamadas e a planilha mostram o modelo usado em cada chamada.
 
 Cada mudança na chave e na configuração entra em **Alterações**, com quem fez e
 quando.

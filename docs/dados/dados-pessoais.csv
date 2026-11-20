@@ -751,6 +751,8 @@ modulo,tabela,coluna,categoria,titulares,descricao
 "plataforma","ia_config","chave_definida_por","identificacao","funcionarios","Quem cadastrou a chave atual."
 "plataforma","ia_config","chave_teste_erro","nenhum","funcionarios","Erro do último teste (nulo = deu certo)."
 "plataforma","ia_config","atualizado_por","identificacao","funcionarios","Quem salvou a configuração por último."
+"plataforma","ia_config","modelos_processo","nenhum","funcionarios","Modelo de IA por processo: {""<chave do processo de lib/ia-processos.ts>"": ""<modelo>""}. Processo ausente usa o modelo geral."
+"plataforma","ia_config","precos_modelos","nenhum","funcionarios","Preços por modelo, em US$ por 1 milhão de tokens: {""<modelo>"": {""entrada"": n, ""cache"": n, ""saida"": n}}, para estimar o custo das chamadas que usam modelos além do geral."
 "plataforma","ia_uso","","identificacao","funcionarios","Uma linha por chamada à IA (lib/ia.ts): quem pediu, processo, módulo, departamento, modelo, tokens, custo estimado e resultado. Não guarda o texto enviado nem o devolvido (19/11/2026)."
 "plataforma","ia_uso","usuario_id","identificacao","funcionarios","Quem estava logado quando a IA foi chamada; nulo em tarefa agendada, bot ou fluxo público."
 "plataforma","ia_uso","erro","nenhum","funcionarios","Mensagem de erro amigável quando a chamada falhou (nunca o conteúdo)."

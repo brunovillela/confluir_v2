@@ -492,6 +492,8 @@ Configuração da IA da entidade (Gestão › Inteligência Artificial, 19/11/20
 | `aviso_teto_mes` | text | sim |  |  |  | Mês (AAAA-MM) do último aviso de teto da IA enviado aos administradores. |
 | `aviso_teto_nivel` | smallint | sim |  |  |  | Nível já avisado no mês de aviso_teto_mes: 80 (perto do teto) ou 100 (atingido). |
 | `chave_aviso_erro_em` | timestamp with time zone | sim |  |  |  | Quando os administradores foram avisados da última recusa da chave da entidade (no máximo um aviso por dia). |
+| `modelos_processo` | jsonb | não | `'{}'::jsonb` |  | nenhum | Modelo de IA por processo: {"<chave do processo de lib/ia-processos.ts>": "<modelo>"}. Processo ausente usa o modelo geral. |
+| `precos_modelos` | jsonb | não | `'{}'::jsonb` |  | nenhum | Preços por modelo, em US$ por 1 milhão de tokens: {"<modelo>": {"entrada": n, "cache": n, "saida": n}}, para estimar o custo das chamadas que usam modelos além do geral. |
 
 Checks: `ia_config_chave_final_curta` `CHECK (((chave_final IS NULL) OR (length(chave_final) <= 4)))`; `ia_config_limite_positivo` `CHECK (((limite_mensal_usd IS NULL) OR (limite_mensal_usd > (0)::numeric)))`
 

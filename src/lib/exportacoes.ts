@@ -42,6 +42,7 @@ export const RECURSOS_EXPORTACAO = {
   deliberacoes: { rotulo: "Deliberações das atas", categorias: ["identificacao"] },
   oposicao_dossie: { rotulo: "Dossiê da oposição", categorias: ["identificacao", "cpf", "sindical", "trabalhista"] },
   eventos_confirmados: { rotulo: "Relação de confirmados do evento", categorias: ["identificacao", "cpf", "sindical"] },
+  ia_uso: { rotulo: "Uso da IA (Gestão)", categorias: ["identificacao"] },
 } as const satisfies Record<string, { rotulo: string; categorias: readonly CategoriaExportada[] }>
 
 export type RecursoExportacao = keyof typeof RECURSOS_EXPORTACAO

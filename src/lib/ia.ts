@@ -3,7 +3,7 @@ import OpenAI from "openai"
 import { cache } from "react"
 
 import { avisarChaveRecusada, conferirTetoIA } from "@/lib/db/ia-avisos"
-import { configIAParaChamada, custoDoMes, type ConfigIAPublica } from "@/lib/db/ia-config"
+import { configIAParaChamada, custoDoMes, precosDoModelo, type ConfigIAPublica } from "@/lib/db/ia-config"
 import { PROCESSO_NAO_IDENTIFICADO, processoIA } from "@/lib/ia-processos"
 import { usuarioIdAtual } from "@/lib/sessao-atual"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -198,7 +198,7 @@ async function preparar(ctx: ContextoIA, tipo: TipoChamada): Promise<Preparo> {
     }
   }
 
-  const modelo = config?.modelo || MODELO_IA
+  const modelo = modeloDaChamada(config, proc.chave)
   if (chaveEntidade) {
     return { client: new OpenAI({ apiKey: chaveEntidade }), modelo, origem: "entidade", registro }
   }
@@ -207,11 +207,21 @@ async function preparar(ctx: ContextoIA, tipo: TipoChamada): Promise<Preparo> {
   return { client: new OpenAI({ apiKey }), modelo, origem: "plataforma", registro }
 }
 
-/** Custo estimado em US$ pelos preços da Gestão; null sem preços. */
-function custoEstimado(config: ConfigIAPublica | null, entrada: number, cacheados: number, saida: number): number | null {
-  if (!config || config.precoEntrada === null || config.precoSaida === null) return null
-  const precoCache = config.precoEntradaCache ?? config.precoEntrada
-  return ((entrada - cacheados) * config.precoEntrada + cacheados * precoCache + saida * config.precoSaida) / 1_000_000
+/**
+ * Modelo de uma chamada: o do processo (Gestão › IA › Modelo por processo),
+ * senão o geral da entidade, senão o padrão da plataforma.
+ */
+export function modeloDaChamada(config: ConfigIAPublica | null, processo: string): string {
+  return config?.modelosProcesso?.[processo] || config?.modelo || MODELO_IA
+}
+
+/** Custo estimado em US$ pelos preços da Gestão para o modelo usado; null sem preços. */
+function custoEstimado(config: ConfigIAPublica | null, modelo: string, entrada: number, cacheados: number, saida: number): number | null {
+  if (!config) return null
+  const p = precosDoModelo(config, modelo, config.modelo || MODELO_IA)
+  if (!p || p.entrada === null || p.saida === null) return null
+  const precoCache = p.cache ?? p.entrada
+  return ((entrada - cacheados) * p.entrada + cacheados * precoCache + saida * p.saida) / 1_000_000
 }
 
 /** Grava a chamada em ia_uso. Nunca derruba a chamada de IA. */
@@ -245,7 +255,7 @@ async function registrar(
       tokens_entrada_cache: cacheados,
       tokens_saida: saida,
       tokens_raciocinio: u?.output_tokens_details?.reasoning_tokens ?? 0,
-      custo_estimado_usd: u ? custoEstimado(base.config, entrada, cacheados, saida) : null,
+      custo_estimado_usd: u ? custoEstimado(base.config, r.modelo, entrada, cacheados, saida) : null,
       duracao_ms: Date.now() - r.inicio,
       sucesso: !r.erro,
       erro: r.erro ? r.erro.slice(0, 300) : null,
@@ -258,7 +268,7 @@ async function registrar(
 /** Registra a recusa da Gestão (IA desligada, teto, sem chave) e devolve a mensagem. */
 async function recusarPreparo(p: { erro: string; registro: RegistroBase | null }): Promise<string> {
   await registrar(p.registro, {
-    modelo: p.registro?.config?.modelo || MODELO_IA,
+    modelo: p.registro ? modeloDaChamada(p.registro.config, p.registro.processo) : MODELO_IA,
     origem: "bloqueada",
     inicio: Date.now(),
     erro: p.erro,

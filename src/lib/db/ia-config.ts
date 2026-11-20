@@ -32,13 +32,24 @@ export type ConfigIAPublica = {
   precoEntrada: number | null
   precoEntradaCache: number | null
   precoSaida: number | null
+  /** Modelo por processo (chave de lib/ia-processos.ts → modelo). */
+  modelosProcesso: Record<string, string>
+  /** Preços dos modelos além do geral (US$ por 1 milhão de tokens). */
+  precosModelos: Record<string, PrecosModelo>
   segredosConfigurados: boolean
+}
+
+export type PrecosModelo = { entrada: number | null; cache: number | null; saida: number | null }
+
+/** Nome de modelo aceito (o mesmo critério do modelo geral). */
+export function modeloValido(m: string): boolean {
+  return /^[A-Za-z0-9._:-]{2,64}$/.test(m)
 }
 
 type Linha = Record<string, unknown>
 
 const COLUNAS =
-  "chave_cifrada, chave_versao, chave_final, chave_definida_em, chave_definida_por, chave_testada_em, chave_teste_erro, modelo, ia_ativa, modulos_desligados, limite_mensal_usd, bloquear_no_limite, preco_entrada_usd_milhao, preco_entrada_cache_usd_milhao, preco_saida_usd_milhao"
+  "chave_cifrada, chave_versao, chave_final, chave_definida_em, chave_definida_por, chave_testada_em, chave_teste_erro, modelo, ia_ativa, modulos_desligados, limite_mensal_usd, bloquear_no_limite, preco_entrada_usd_milhao, preco_entrada_cache_usd_milhao, preco_saida_usd_milhao, modelos_processo, precos_modelos"
 
 function num(v: unknown): number | null {
   if (v === null || v === undefined || v === "") return null
@@ -57,6 +68,38 @@ const linhaDaEntidade = cache(async (emp: string): Promise<{ disponivel: boolean
     return { disponivel: false, linha: null }
   }
 })
+
+function lerModelos(v: unknown): Record<string, string> {
+  const r: Record<string, string> = {}
+  if (!v || typeof v !== "object" || Array.isArray(v)) return r
+  for (const [k, m] of Object.entries(v as Record<string, unknown>)) if (typeof m === "string" && modeloValido(m)) r[k] = m
+  return r
+}
+
+function lerPrecos(v: unknown): Record<string, PrecosModelo> {
+  const r: Record<string, PrecosModelo> = {}
+  if (!v || typeof v !== "object" || Array.isArray(v)) return r
+  for (const [k, p] of Object.entries(v as Record<string, unknown>)) {
+    if (!p || typeof p !== "object") continue
+    const o = p as Record<string, unknown>
+    r[k] = { entrada: num(o.entrada), cache: num(o.cache), saida: num(o.saida) }
+  }
+  return r
+}
+
+/**
+ * Preços que valem para um modelo: os próprios (precos_modelos) ou, se for o
+ * modelo geral da entidade, os preços gerais. Sem preço de entrada e saída,
+ * null (o custo daquela chamada fica sem estimativa).
+ */
+export function precosDoModelo(config: ConfigIAPublica, modelo: string, modeloGeral: string): PrecosModelo | null {
+  const proprio = config.precosModelos[modelo]
+  if (proprio && proprio.entrada !== null && proprio.saida !== null) return proprio
+  if (modelo === modeloGeral && config.precoEntrada !== null && config.precoSaida !== null) {
+    return { entrada: config.precoEntrada, cache: config.precoEntradaCache, saida: config.precoSaida }
+  }
+  return null
+}
 
 function publica(disponivel: boolean, l: Linha | null, emp: string): ConfigIAPublica {
   const temChave = Boolean(l?.chave_cifrada)
@@ -77,6 +120,8 @@ function publica(disponivel: boolean, l: Linha | null, emp: string): ConfigIAPub
     precoEntrada: num(l?.preco_entrada_usd_milhao),
     precoEntradaCache: num(l?.preco_entrada_cache_usd_milhao),
     precoSaida: num(l?.preco_saida_usd_milhao),
+    modelosProcesso: lerModelos(l?.modelos_processo),
+    precosModelos: lerPrecos(l?.precos_modelos),
     segredosConfigurados: segredosConfigurados(),
   }
 }
@@ -198,7 +243,7 @@ export type PreferenciasIA = {
 }
 
 export async function salvarPreferenciasIA(p: PreferenciasIA, usuarioId: string): Promise<{ erro?: string }> {
-  if (p.modelo && !/^[A-Za-z0-9._:-]{2,64}$/.test(p.modelo)) return { erro: "Nome de modelo inválido." }
+  if (p.modelo && !modeloValido(p.modelo)) return { erro: "Nome de modelo inválido." }
   if (p.limiteMensalUsd !== null && p.limiteMensalUsd <= 0) return { erro: "O teto mensal precisa ser maior que zero." }
   if (p.limiteMensalUsd !== null && (p.precoEntrada === null || p.precoSaida === null)) {
     return { erro: "Para usar o teto mensal, informe os preços de entrada e de saída (o custo é estimado por eles)." }
@@ -227,5 +272,35 @@ export async function salvarPreferenciasIA(p: PreferenciasIA, usuarioId: string)
   if ([...antes.modulosDesligados].sort().join(",") !== desl) mudancas.push(`módulos desligados: ${desl || "nenhum"}`)
   if (antes.precoEntrada !== p.precoEntrada || antes.precoSaida !== p.precoSaida || antes.precoEntradaCache !== p.precoEntradaCache) mudancas.push("preços atualizados")
   if (mudancas.length) await registrarEvento("preferencias", mudancas.join("; "), usuarioId)
+  return {}
+}
+
+/**
+ * Modelo por processo e os preços dos modelos além do geral. Processos fora
+ * do catálogo e modelos inválidos já chegam filtrados pela action.
+ */
+export async function salvarModelosProcessoIA(
+  modelos: Record<string, string>,
+  precos: Record<string, PrecosModelo>,
+  usuarioId: string
+): Promise<{ erro?: string }> {
+  for (const m of Object.values(modelos)) if (!modeloValido(m)) return { erro: `Nome de modelo inválido: ${m}` }
+  const antes = await obterConfigIA()
+  const r = await gravar({ modelos_processo: modelos, precos_modelos: precos }, usuarioId)
+  if (r.erro) return r
+  const mudou = Object.keys({ ...antes.modelosProcesso, ...modelos }).filter(
+    (k) => (antes.modelosProcesso[k] ?? "") !== (modelos[k] ?? "")
+  )
+  const detalhe: string[] = []
+  if (mudou.length) {
+    detalhe.push(
+      mudou
+        .slice(0, 8)
+        .map((k) => `${k}: ${modelos[k] ?? "modelo geral"}`)
+        .join("; ") + (mudou.length > 8 ? ` (+${mudou.length - 8})` : "")
+    )
+  }
+  if (JSON.stringify(antes.precosModelos) !== JSON.stringify(precos)) detalhe.push("preços por modelo atualizados")
+  if (detalhe.length) await registrarEvento("modelos_processo", detalhe.join(" · "), usuarioId)
   return {}
 }

@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, KeyRound, ShieldCheck, Sparkles } from "lucide-react"
+import { ArrowLeft, FileSpreadsheet, KeyRound, ShieldCheck, Sparkles } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -11,38 +11,19 @@ import { SelectNativo } from "@/components/ui/select-nativo"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
 import { nomesDosUsuarios } from "@/lib/db/comum"
-import { inicioDoMes, mesAtual, obterConfigIA } from "@/lib/db/ia-config"
+import { mesAtual, obterConfigIA } from "@/lib/db/ia-config"
 import { listarChamadasIA, listarEventosGestao, resumoUsoIA, rotuloAcaoGestao, rotuloOrigem, type Dimensao } from "@/lib/db/ia-uso"
 import { formatarDataHora } from "@/lib/formato"
 import { MODELO_IA } from "@/lib/ia"
 import { MODULOS_IA, PROCESSOS_IA, processoIA, tituloModuloIA } from "@/lib/ia-processos"
 
-import { ChaveForm, PreferenciasForm, RemoverChaveBotao, TestarChaveBotao } from "./forms"
+import { ChaveForm, ModelosProcessoForm, PreferenciasForm, RemoverChaveBotao, TestarChaveBotao, type UsoProcesso } from "./forms"
+import { intervalo, PERIODOS, PERIODOS_PLANILHA } from "./periodos"
 import { dolares, GraficoDiario, Indicador, TabelaUso, tokens } from "./uso"
 
 export const metadata: Metadata = { title: "Inteligência Artificial — Confluir" }
 
 const ROTA = "/painel/gestao/ia"
-
-const PERIODOS = [
-  { valor: "mes", rotulo: "Este mês" },
-  { valor: "mes_anterior", rotulo: "Mês passado" },
-  { valor: "7d", rotulo: "7 dias" },
-  { valor: "30d", rotulo: "30 dias" },
-  { valor: "90d", rotulo: "90 dias" },
-] as const
-
-function intervalo(periodo: string): { de: Date; ate: Date } {
-  const agora = new Date()
-  const inicio = inicioDoMes(agora)
-  if (periodo === "mes_anterior") {
-    const de = inicioDoMes(new Date(inicio.getTime() - 24 * 3600_000))
-    return { de, ate: inicio }
-  }
-  const dias = { "7d": 7, "30d": 30, "90d": 90 }[periodo]
-  if (dias) return { de: new Date(agora.getTime() - dias * 24 * 3600_000), ate: new Date(agora.getTime() + 60_000) }
-  return { de: inicio, ate: new Date(agora.getTime() + 60_000) }
-}
 
 const ABAS: { valor: Dimensao; rotulo: string; coluna: string; filtro: string }[] = [
   { valor: "usuario", rotulo: "Por pessoa", coluna: "Pessoa", filtro: "pessoa" },
@@ -68,7 +49,7 @@ export default async function IAPage({ searchParams }: { searchParams: Promise<B
   const aba = ABAS.find((a) => a.valor === sp.por) ?? ABAS[0]
   const { de, ate } = intervalo(periodo)
 
-  const [config, resumo, historico, eventos, resumoMes] = await Promise.all([
+  const [config, resumo, historico, eventos, resumoMes, resumo30] = await Promise.all([
     obterConfigIA(),
     resumoUsoIA(de, ate),
     listarChamadasIA(
@@ -85,12 +66,26 @@ export default async function IAPage({ searchParams }: { searchParams: Promise<B
     ),
     listarEventosGestao("ia", 15),
     periodo === "mes" ? null : resumoUsoIA(mesAtual().de, mesAtual().ate),
+    periodo === "30d" ? null : resumoUsoIA(intervalo("30d").de, intervalo("30d").ate),
   ])
+  const usoPorProcesso: Record<string, UsoProcesso> = Object.fromEntries(
+    (periodo === "30d" ? resumo : resumo30!).por.processo.map((l) => [
+      l.chave,
+      { chamadas: l.chamadas, tokens: l.tokensEntrada + l.tokensSaida, custo: l.custo },
+    ])
+  )
+  const modeloGeral = config.modelo || MODELO_IA
+  const sugestoesModelo = [
+    ...new Set([modeloGeral, MODELO_IA, "gpt-5.5", "gpt-5.4-mini", "gpt-5.4-nano", ...Object.values(config.modelosProcesso), ...resumo.por.modelo.map((m) => m.chave)]),
+  ].filter(Boolean)
+  const trocados = Object.keys(config.modelosProcesso).length
   const definidaPor = config.chaveDefinidaPor ? (await nomesDosUsuarios([config.chaveDefinidaPor])).get(config.chaveDefinidaPor) : null
 
   const total = resumo.total
   const totalTokens = total ? total.tokensEntrada + total.tokensSaida : 0
-  const temPrecos = config.precoEntrada !== null && config.precoSaida !== null
+  const temPrecos =
+    (config.precoEntrada !== null && config.precoSaida !== null) ||
+    Object.values(config.precosModelos).some((p) => p.entrada !== null && p.saida !== null)
   const custoMes = (periodo === "mes" ? resumo.total?.custo : resumoMes?.total?.custo) ?? 0
   const fracaoTeto = config.limiteMensalUsd ? Math.min(1, custoMes / config.limiteMensalUsd) : null
 
@@ -286,6 +281,38 @@ export default async function IAPage({ searchParams }: { searchParams: Promise<B
         </CardContent>
       </Card>
 
+      {/* ── Planilha ──────────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <FileSpreadsheet className="text-muted-foreground size-4" />
+            Planilha do uso
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Para a prestação de contas ou o rateio do custo: mês × departamento, resumos por departamento, pessoa, processo, módulo e modelo, e todas as
+            chamadas do período. Sem o texto enviado — o registro não o guarda.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form method="get" action={`${ROTA}/exportar`} className="flex flex-wrap items-end gap-3">
+            <label className="grid gap-1 text-xs">
+              Período
+              <SelectNativo name="periodo" defaultValue={PERIODOS_PLANILHA.some((p) => p.valor === periodo) ? periodo : "mes"} className="w-44">
+                {PERIODOS_PLANILHA.map((p) => (
+                  <option key={p.valor} value={p.valor}>
+                    {p.rotulo}
+                  </option>
+                ))}
+              </SelectNativo>
+            </label>
+            <Button type="submit" size="sm" variant="outline">
+              <FileSpreadsheet />
+              Baixar planilha (XLSX)
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
       {/* ── Histórico ─────────────────────────────────────────────────── */}
       <Card id="historico">
         <CardHeader>
@@ -412,6 +439,33 @@ export default async function IAPage({ searchParams }: { searchParams: Promise<B
               precoEntrada: config.precoEntrada,
               precoEntradaCache: config.precoEntradaCache,
               precoSaida: config.precoSaida,
+            }}
+          />
+        </CardContent>
+      </Card>
+
+      {/* ── Modelo por processo ───────────────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base">Modelo por processo</CardTitle>
+            <Badge variant="secondary">{trocados ? `${trocados} com modelo próprio` : "todos no modelo geral"}</Badge>
+          </div>
+          <CardDescription className="text-xs">
+            Um modelo menor nos processos simples (redigir textos curtos, resumos) e o modelo geral onde a leitura pesa (PDF, CAT, contracheque). É a maior alavanca
+            de custo. Em branco, o processo usa o modelo geral ({modeloGeral}). Com a chave da entidade, cada modelo novo é testado antes de salvar; para ler PDF e
+            imagem, o modelo precisa aceitar arquivos.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ModelosProcessoForm
+            inicial={{
+              modeloGeral,
+              modelos: config.modelosProcesso,
+              precos: config.precosModelos,
+              sugestoes: sugestoesModelo,
+              uso: usoPorProcesso,
+              temTeto: config.limiteMensalUsd !== null,
             }}
           />
         </CardContent>

@@ -7,15 +7,18 @@ import { type EstadoForm } from "@/lib/contas"
 import {
   chaveParecida,
   configIAParaChamada,
+  modeloValido,
   obterConfigIA,
+  type PrecosModelo,
   registrarEventoGestaoIA,
   registrarTesteChaveIA,
   removerChaveIA,
   salvarChaveIA,
+  salvarModelosProcessoIA,
   salvarPreferenciasIA,
 } from "@/lib/db/ia-config"
-import { testarChaveIA } from "@/lib/ia"
-import { MODULOS_IA } from "@/lib/ia-processos"
+import { MODELO_IA, testarChaveIA } from "@/lib/ia"
+import { MODULOS_IA, PROCESSOS_IA } from "@/lib/ia-processos"
 import { tenantAtual } from "@/lib/tenant"
 
 const ROTA = "/painel/gestao/ia"
@@ -105,4 +108,68 @@ export async function salvarPreferenciasAction(_prev: EstadoForm, fd: FormData):
   revalidatePath(ROTA)
   revalidatePath("/painel/gestao")
   return { ok: "Configuração salva." }
+}
+
+/**
+ * Modelo por processo. Campos: `modelo:<chave do processo>` (em branco = modelo
+ * geral) e `preco:<modelo>:<entrada|cache|saida>`. Com a chave da entidade,
+ * cada modelo novo é testado antes de salvar: um nome errado ou sem acesso
+ * faria aquele processo falhar para todo mundo.
+ */
+export async function salvarModelosProcessoAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  const sessao = await requirePermissao("gestao_sistema")
+  const validos = new Set(PROCESSOS_IA.map((p) => p.chave))
+  const config = await obterConfigIA()
+  const geral = config.modelo || MODELO_IA
+
+  const modelos: Record<string, string> = {}
+  for (const [nome, valor] of fd.entries()) {
+    if (!nome.startsWith("modelo:")) continue
+    const chave = nome.slice("modelo:".length)
+    const m = String(valor).trim()
+    if (!m || !validos.has(chave)) continue
+    if (!modeloValido(m)) return { erro: `Nome de modelo inválido: "${m}".`, campo: nome }
+    if (m !== geral) modelos[chave] = m
+  }
+
+  const usados = new Set(Object.values(modelos))
+  const precos: Record<string, PrecosModelo> = {}
+  for (const m of usados) {
+    const lido: PrecosModelo = { entrada: null, cache: null, saida: null }
+    for (const campo of ["entrada", "cache", "saida"] as const) {
+      const nome = `preco:${m}:${campo}`
+      const v = numeroOuNulo(fd, nome)
+      if (v === "invalido") return { erro: "Use um número (ex.: 0,25).", campo: nome }
+      lido[campo] = v
+    }
+    if ((lido.entrada === null) !== (lido.saida === null)) {
+      return { erro: `Informe os preços de entrada e de saída do ${m} (ou deixe os dois em branco).`, campo: `preco:${m}:${lido.entrada === null ? "entrada" : "saida"}` }
+    }
+    if (lido.entrada !== null) precos[m] = lido
+  }
+
+  // Testa só os modelos que entram agora, com a chave da entidade.
+  const novos = [...usados].filter((m) => !Object.values(config.modelosProcesso).includes(m))
+  if (novos.length) {
+    const { chave } = await configIAParaChamada(await tenantAtual())
+    if (chave) {
+      for (const m of novos) {
+        const erro = await testarChaveIA(chave, m)
+        if (erro) return { erro: `O modelo "${m}" não respondeu com a chave da entidade, e nada foi salvo. ${erro}` }
+      }
+    }
+  }
+
+  const r = await salvarModelosProcessoIA(modelos, precos, String(sessao.usuario.id))
+  if (r.erro) return { erro: r.erro }
+  revalidatePath(ROTA)
+  const n = Object.keys(modelos).length
+  const semPreco = [...usados].filter((m) => !precos[m])
+  return {
+    ok:
+      (n === 0 ? "Todos os processos usam o modelo geral." : `${n} ${n === 1 ? "processo usa" : "processos usam"} um modelo próprio.`) +
+      (semPreco.length && config.precoEntrada !== null
+        ? ` Sem preço para ${semPreco.join(", ")}: o custo dessas chamadas não entra na estimativa nem no teto.`
+        : ""),
+  }
 }
