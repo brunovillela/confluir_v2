@@ -6,6 +6,7 @@ import { linkCriarSenha } from "@/lib/auth-email-constantes"
 import { cpfConfiavel, grafiasDoCpf } from "@/lib/cpf"
 import { avisoValidadeLinkHtml, enviarEmail } from "@/lib/email"
 import { botaoEmail, linkReserva, tituloEmail } from "@/lib/email-layout"
+import { encerrarSessoes } from "@/lib/db/acessos-mfa"
 import { ehContaFuncao, ocupantesAtuais } from "@/lib/db/contas-funcao"
 import { garantirPerfilPadrao } from "@/lib/db/perfis"
 import {
@@ -374,15 +375,23 @@ export async function concederAcesso(
   return { id: data.id as string }
 }
 
-export async function revogarAcesso(id: string): Promise<{ erro?: string }> {
+/**
+ * Revoga o acesso ao painel: apaga a linha de permissões, os perfis
+ * atribuídos (senão voltariam sozinhos se o acesso fosse concedido de novo) e
+ * encerra as sessões de login da pessoa em todos os aparelhos (22/11/2026).
+ * O cadastro e o histórico ficam.
+ */
+export async function revogarAcesso(id: string): Promise<{ erro?: string; sessoes?: number }> {
   const admin = await createAdminClient()
-  const { error } = await admin
-    .from("permissoes")
-    .delete()
-    .eq("id", id)
-    .eq("emp_proprietaria_id", await tenantAtual())
+  const emp = await tenantAtual()
+  const { data: linha } = await admin.from("permissoes").select("usuario_id").eq("id", id).eq("emp_proprietaria_id", emp).maybeSingle()
+  const { error } = await admin.from("permissoes").delete().eq("id", id).eq("emp_proprietaria_id", emp)
   if (error) return { erro: `Falha ao revogar acesso: ${error.message}` }
-  return {}
+  const usuarioId = linha?.usuario_id ? String(linha.usuario_id) : null
+  if (!usuarioId) return {}
+  await admin.from("usuario_perfis").delete().eq("usuario_id", usuarioId).eq("emp_proprietaria_id", emp)
+  const { encerradas } = await encerrarSessoes(usuarioId)
+  return { sessoes: encerradas }
 }
 
 // ── Login / integração (conta de acesso) ────────────────────────────────────

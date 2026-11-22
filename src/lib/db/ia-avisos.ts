@@ -72,7 +72,12 @@ export async function conferirTetoIA(emp: string, limite: number, bloqueia: bool
 }
 
 /** A OpenAI recusou a chave da entidade: avisa os administradores (uma vez por dia). */
-export async function avisarChaveRecusada(emp: string, motivo: string): Promise<void> {
+export async function avisarChaveRecusada(
+  emp: string,
+  motivo: string,
+  /** Texto e assunto próprios (ex.: chave ilegível, achada pelo teste diário). */
+  proprio?: { texto: string; assunto: string }
+): Promise<void> {
   try {
     const admin = await createAdminClient()
     depoisDaResposta(async () => {
@@ -88,10 +93,12 @@ export async function avisarChaveRecusada(emp: string, motivo: string): Promise<
         "gestao_sistema",
         [],
         {
-          texto: `A OpenAI recusou a chave de IA da entidade: ${motivo} Enquanto isso, as funções de IA falham. Confira em Gestão › Inteligência Artificial.`,
+          texto:
+            proprio?.texto ??
+            `A OpenAI recusou a chave de IA da entidade: ${motivo} Enquanto isso, as funções de IA falham. Confira em Gestão › Inteligência Artificial.`,
           link: LINK,
           evento: "gestao_ia",
-          assunto: "Chave de IA da entidade recusada",
+          assunto: proprio?.assunto ?? "Chave de IA da entidade recusada",
         },
         { client: admin, tenantId: emp }
       )

@@ -48,6 +48,7 @@
  "funcao:cat_sentenca(p text)": "3516d1edf58f4aadfdd99f3ab6e7c781",
  "funcao:cat_titulo(p text)": "511f8d0ed8fa8e68faab6aacae1c525c",
  "funcao:conceder_viagens_solicitar(p_usuario uuid, p_emp uuid)": "e0a7556ccc7a21c5e3ca3121f26f9cb8",
+ "funcao:encerrar_sessoes_usuario(p_emp uuid, p_usuario uuid)": "be0077474b09b1796909e05842d12e68",
  "funcao:f_unaccent(text)": "7d015c1e17f5116c541b2b5237413253",
  "funcao:filiacao_atribuir_matricula(p_emp uuid, p_id uuid)": "5e97a1fdafdb3c41514ecf066dfabb5a",
  "funcao:filiacao_desconto_comunicacao_imutavel()": "4f395789a65f3825bc6d54dd3d93be5b",

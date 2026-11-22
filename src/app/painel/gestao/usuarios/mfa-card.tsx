@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { segundoFatorAtivo } from "@/lib/db/acessos-mfa"
 
-import { RedefinirSegundoFator } from "./mfa-form"
+import { EncerrarSessoes, RedefinirSegundoFator } from "./mfa-form"
 
 /** Ficha do usuário: situação do 2FA e a redefinição pela gestão. */
 export async function CartaoSegundoFator({
@@ -49,6 +49,14 @@ export async function CartaoSegundoFator({
           )}
         </div>
         {ativo && <RedefinirSegundoFator usuarioId={usuarioId} acessoId={acessoId} />}
+        {ativo !== null && (
+          <div className="grid gap-2 border-t pt-3">
+            <p className="text-muted-foreground text-xs">
+              Sessões abertas: celular perdido, computador compartilhado ou desligamento — tire a pessoa de todos os aparelhos. Revogar o acesso já faz isso.
+            </p>
+            <EncerrarSessoes usuarioId={usuarioId} />
+          </div>
+        )}
       </CardContent>
     </Card>
   )

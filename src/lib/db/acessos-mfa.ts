@@ -61,3 +61,15 @@ export async function redefinirSegundoFator(usuarioId: string): Promise<{ erro?:
   }
   return { removidos }
 }
+
+/**
+ * Encerra todas as sessões de login da pessoa (todos os aparelhos): ela
+ * precisa entrar de novo. Usado ao revogar o acesso e no botão "Encerrar
+ * sessões" da ficha. Função encerrar_sessoes_usuario (só service role).
+ */
+export async function encerrarSessoes(usuarioId: string): Promise<{ erro?: string; encerradas: number }> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin.rpc("encerrar_sessoes_usuario", { p_emp: await tenantAtual(), p_usuario: usuarioId })
+  if (error) return { erro: "Não foi possível encerrar as sessões.", encerradas: 0 }
+  return { encerradas: Number(data ?? 0) || 0 }
+}

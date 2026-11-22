@@ -62,6 +62,21 @@ export async function redefinirSegundoFatorAction(
   return { ok: "Verificação redefinida." }
 }
 
+/** Encerra as sessões de login da pessoa em todos os aparelhos. */
+export async function encerrarSessoesAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  await requirePermissao(CHAVE, ALT)
+  const usuarioId = texto(formData, "usuario_id")
+  if (!usuarioId) return { erro: "Usuário inválido." }
+  const { encerrarSessoes } = await import("@/lib/db/acessos-mfa")
+  const r = await encerrarSessoes(usuarioId)
+  if (r.erro) return { erro: r.erro }
+  return {
+    ok: r.encerradas
+      ? `${r.encerradas} ${r.encerradas === 1 ? "sessão encerrada" : "sessões encerradas"}. A pessoa precisa entrar de novo em todos os aparelhos.`
+      : "Não havia sessão aberta.",
+  }
+}
+
 export async function salvarPerfisUsuarioAction(
   _prev: EstadoForm,
   formData: FormData

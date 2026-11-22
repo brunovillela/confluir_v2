@@ -597,7 +597,7 @@ export function RevogarAcesso({ acessoId, voltar, nome }: { acessoId: string; vo
     <form
       action={formAction}
       onSubmit={(e) => {
-        confirmarEnvio(e, `Revogar o acesso ${nome ? `de ${nome}` : "desta pessoa"}? O perfil de permissões é removido (o cadastro de usuário permanece).`)}}
+        confirmarEnvio(e, `Revogar o acesso ${nome ? `de ${nome}` : "desta pessoa"}? As permissões e os perfis saem, e a pessoa é desconectada em todos os aparelhos. O cadastro e o histórico ficam.`)}}
     >
       <input type="hidden" name="acesso_id" value={acessoId} />
       {voltar && <input type="hidden" name="voltar" value={voltar} />}
