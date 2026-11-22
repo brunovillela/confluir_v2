@@ -147,7 +147,7 @@ export default async function RegistrarOposicaoPage({
           </h1>
         </CardTitle>
         <CardDescription className="grid gap-2">
-          {campanha.detalhe_desconto && <span>{campanha.detalhe_desconto}</span>}
+          {campanha.detalhe_desconto && <span className="whitespace-pre-line">{campanha.detalhe_desconto}</span>}
           <span className="flex flex-wrap items-center gap-2">
             <span>
               Prazo: {formatarData(campanha.prazo_inicio)} a{" "}

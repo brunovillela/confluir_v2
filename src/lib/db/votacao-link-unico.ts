@@ -528,12 +528,26 @@ export const PROVEDORES_PESSOAIS = [
 ]
 
 /** Domínios dos e-mails corporativos das listas de aptos das votações abertas. */
+// Guardado por 5 min, por entidade (22/11/2026): a Oposição chama isto a cada
+// pedido de código de não filiado, e a leitura percorre todos os aptos das
+// votações abertas (milhares de linhas). Domínio novo numa lista leva até 5 min.
+const DOMINIOS_VALIDADE_MS = 5 * 60 * 1000
+const dominiosGuardados = new Map<string, { dominios: Set<string>; ate: number }>()
+
 export const dominiosCorporativosAbertos = cache(async (): Promise<Set<string>> => {
+  const emp = await tenantAtual()
+  const guardado = dominiosGuardados.get(emp)
+  if (guardado && guardado.ate > Date.now()) return guardado.dominios
+  const dominios = await lerDominiosCorporativos(emp)
+  dominiosGuardados.set(emp, { dominios, ate: Date.now() + DOMINIOS_VALIDADE_MS })
+  return dominios
+})
+
+async function lerDominiosCorporativos(emp: string): Promise<Set<string>> {
   const votacoes = await votacoesAbertas()
   const dominios = new Set<string>()
   if (votacoes.length === 0) return dominios
   const admin = await createAdminClient()
-  const emp = await tenantAtual()
   const rodadaIds = [...new Set(votacoes.map((v) => v.rodadaId))]
   for (let de = 0; ; de += 1000) {
     const { data } = await admin
@@ -551,7 +565,7 @@ export const dominiosCorporativosAbertos = cache(async (): Promise<Set<string>> 
     if ((data ?? []).length < 1000) break
   }
   return dominios
-})
+}
 
 /** Os registros (ainda sem voto) deste e-mail corporativo nas votações abertas. */
 export async function aptosAbertosPorEmail(

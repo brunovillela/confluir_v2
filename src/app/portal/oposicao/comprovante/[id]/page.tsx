@@ -365,11 +365,9 @@ export default async function ComprovantePage({
               <dt className="text-muted-foreground text-xs">Campanha</dt>
               <dd className="mt-0.5 text-sm">
                 {c.campanhaNome ?? "—"}
+                {/* O detalhe pode ter parágrafos e lista (22/11/2026): em bloco, com as quebras. */}
                 {c.detalhe_desconto && (
-                  <span className="text-muted-foreground">
-                    {" "}
-                    — {c.detalhe_desconto}
-                  </span>
+                  <span className="text-muted-foreground mt-1 block whitespace-pre-line">{c.detalhe_desconto}</span>
                 )}
               </dd>
             </div>

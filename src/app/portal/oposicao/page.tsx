@@ -327,7 +327,7 @@ async function ListaCampanhas({
                 {campanha.nome ?? "Contribuição assistencial"}
               </CardTitle>
               <CardDescription className="grid gap-2">
-                {campanha.detalhe_desconto && <span>{campanha.detalhe_desconto}</span>}
+                {campanha.detalhe_desconto && <span className="whitespace-pre-line">{campanha.detalhe_desconto}</span>}
                 {/* Quanto falta, com destaque perto do fim (A106). Depois de
                     registrada, o que importa é o resultado — o prazo sai. */}
                 {(!minha || minha.situacao === "desistente" || minha.situacao === "aguardando_documento") && (

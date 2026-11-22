@@ -4,6 +4,10 @@
 
 O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga. É o mesmo conteúdo do aviso "O que há de novo" dentro do sistema. O detalhe técnico de cada entrega está no histórico do git; as decisões de arquitetura, em [`docs/arquitetura/adr/`](../arquitetura/adr/LEIA-ME.md).
 
+## 22/11/2026 — Oposição: texto do desconto com parágrafos
+
+- Oposição: o detalhe do desconto da campanha aparece com os parágrafos e a lista como foram escritos — na página da oposição, na lista de campanhas do trabalhador e no comprovante. Antes, as quebras de linha sumiam e tudo virava uma linha só.
+
 ## 19/11/2026 — Eventos: relação de confirmados em Excel e PDF
 
 - Votações, primeiro acesso: quem digita o CPF não é mais barrado por ficha de filiado INATIVA com dado antigo (nome de solteira, nascimento errado) — o voto é liberado pela lista da empresa e o apto fica com "Conferir cadastro" para a secretaria acertar a ficha. Na ficha ativa, vale o nome da ficha ou o da lista (nome de casada), e nascimento impossível na ficha (no futuro, ano 2025) não conta. Quem estava travado é só tentar de novo.

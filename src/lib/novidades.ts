@@ -13,6 +13,13 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-22",
+    titulo: "Oposição: texto do desconto com parágrafos",
+    itens: [
+      "Oposição: o detalhe do desconto da campanha aparece com os parágrafos e a lista como foram escritos — na página da oposição, na lista de campanhas do trabalhador e no comprovante. Antes, as quebras de linha sumiam e tudo virava uma linha só.",
+    ],
+  },
+  {
     id: "2026-11-19",
     titulo: "Eventos: relação de confirmados em Excel e PDF",
     itens: [
