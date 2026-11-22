@@ -13,7 +13,7 @@ import {
 import { podeNaOposicao, regrasDaEntidade, requireOposicao } from "@/lib/db/oposicao-regras"
 import { formatarDataHora } from "@/lib/formato"
 import { nomeEntidade } from "@/lib/db/organizacao"
-import { DECISOES_JURIDICAS, rotuloOpcao } from "@/lib/oposicao-constantes"
+import { DECISOES_JURIDICAS, padraoDaDecisao, rotuloOpcao } from "@/lib/oposicao-constantes"
 import { avisoPrivacidadePadrao } from "@/lib/oposicao-orientacoes"
 
 import { AvisoPrivacidadeForm, RegrasEntidadeForm } from "../gestao-forms"
@@ -72,7 +72,7 @@ export default async function DecisoesJuridicasPage() {
               {DECISOES_JURIDICAS.map((d) => (
                 <div key={d.chave}>
                   <dt className="text-muted-foreground text-xs">{d.rotulo}</dt>
-                  <dd className="mt-0.5 text-sm">{rotuloOpcao(d.chave, entidade.regras[d.chave]) ?? "Não decidido"}</dd>
+                  <dd className="mt-0.5 text-sm">{rotuloOpcao(d.chave, entidade.regras[d.chave] ?? padraoDaDecisao(d.chave)) ?? "Não decidido"}</dd>
                 </div>
               ))}
             </dl>

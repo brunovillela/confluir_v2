@@ -177,8 +177,8 @@ export function perguntasGerais(c: CampanhaParaOrientacao, entidade: string): Pe
 export function perguntasDeAcesso(entidade: string): PerguntaFrequente[] {
   return [
     {
-      pergunta: "Sou filiado ou não filiado?",
-      resposta: `Filiado é quem é associado a ${entidade} hoje. Quem nunca se filiou ou já se desfiliou usa "Não sou filiado". Se você se desfiliou e entrar como filiado, o sistema segue com você como não filiado.`,
+      pergunta: "Preciso saber se sou filiado?",
+      resposta: `Não. Digite o CPF: o sistema confere no cadastro de ${entidade} e mostra o caminho certo. Filiado com e-mail no cadastro recebe o código nesse e-mail; filiado sem e-mail informa nome, data de nascimento e um e-mail seu; quem não é filiado (ou já se desfiliou) informa o nome e um e-mail seu.`,
     },
     {
       pergunta: "O código de acesso não chegou. O que faço?",
@@ -187,7 +187,7 @@ export function perguntasDeAcesso(entidade: string): PerguntaFrequente[] {
     },
     {
       pergunta: "Sou filiado, mas não tenho mais acesso ao e-mail do cadastro.",
-      resposta: `Procure ${entidade} pelos canais de atendimento para atualizar o e-mail do cadastro. Depois, peça o código de novo.`,
+      resposta: `Procure ${entidade} pelos canais de atendimento para atualizar o e-mail do cadastro. Depois, peça o código de novo. Se o seu cadastro não tem e-mail nenhum, a própria tela pede um e-mail seu, depois de conferir o seu nome e a data de nascimento.`,
     },
     {
       pergunta: 'Aparece "código inválido ou expirado".',

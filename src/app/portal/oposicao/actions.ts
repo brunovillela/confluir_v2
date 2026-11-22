@@ -315,6 +315,86 @@ export async function confirmarCodigoTrabalhador(
   redirect(destinoDaOposicao(texto(fd, "voltar")))
 }
 
+// ── Entrada pelo CPF (22/11/2026) ────────────────────────────────────────────
+// A pessoa digita o CPF e o sistema escolhe o caminho (lib/db/oposicao-acesso-cpf):
+// filiado ativo com e-mail recebe o código já neste passo; filiado ativo sem
+// e-mail e trabalhador seguem para o formulário de cada um.
+
+export type EstadoEntradaCpf = EstadoAcessoOposicao & {
+  rota?: "filiado" | "filiado_sem_email" | "trabalhador"
+  /** O CPF que decidiu o caminho (os passos seguintes o levam escondido). */
+  cpf?: string
+}
+
+/** A campanha da qual a entrada veio (/portal/oposicao/<id>), para a regra do filiado sem e-mail. */
+function campanhaDoVoltar(voltar: string): string | null {
+  return /^\/portal\/oposicao\/([0-9a-f-]{36})(?:[/?]|$)/i.exec(voltar)?.[1] ?? null
+}
+
+async function enviarAosEmailsDoCadastro(cpf: string, emails: string[]): Promise<string> {
+  const { enviarCodigoAcesso } = await import("@/lib/codigo-acesso")
+  for (const email of emails) {
+    await registrarVinculoPendente({ email, tipo: "filiado", cpf })
+    const { erro } = await enviarCodigoAcesso({
+      email,
+      metadata: { tipo: "filiado" },
+      next: "/portal/oposicao",
+      contexto: CONTEXTO_CODIGO,
+      semLink: true,
+    })
+    if (erro) console.warn("[oposicao] código do filiado não enviado a um dos e-mails:", erro)
+  }
+  const lista = emails.map(mascararEmailMedio)
+  return lista.length === 1
+    ? `Você é filiado: o código foi para o e-mail do seu cadastro, ${lista[0]}.`
+    : `Você é filiado: o código foi para os e-mails do seu cadastro, ${lista.join(", ")}. Use o código de qualquer um deles.`
+}
+
+export async function identificarCpf(_prev: EstadoEntradaCpf, fd: FormData): Promise<EstadoEntradaCpf> {
+  const cpf = limparCpf(texto(fd, "cpf"))
+  if (!validarCpf(cpf)) return { erro: "CPF inválido." }
+  const erroHumano = await exigirHumano(fd)
+  if (erroHumano) return { erro: erroHumano }
+  const { rotaDoCpf } = await import("@/lib/db/oposicao-acesso-cpf")
+  const r = await rotaDoCpf(cpf)
+  if (r.rota === "filiado") return { rota: "filiado", cpf, ok: await enviarAosEmailsDoCadastro(cpf, r.emails) }
+  return { rota: r.rota, cpf }
+}
+
+/** Filiado ativo sem e-mail no cadastro: nome + nascimento + e-mail novo, conferidos com a ficha. */
+export async function enviarCodigoFiliadoSemEmail(
+  _prev: EstadoAcessoOposicao,
+  fd: FormData
+): Promise<EstadoAcessoOposicao> {
+  const cpf = limparCpf(texto(fd, "cpf"))
+  const nome = texto(fd, "nome")
+  const nascimento = texto(fd, "nascimento")
+  const email = texto(fd, "email").toLowerCase()
+  if (!validarCpf(cpf)) return { erro: "CPF inválido." }
+  if (nome.split(/\s+/).filter((p) => p.length > 1).length < 2) return { erro: "Informe o nome completo, com sobrenome." }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(nascimento)) return { erro: "Informe a data de nascimento." }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { erro: "Informe um e-mail válido." }
+  const conferencia = await conferirEmail(email, texto(fd, "forcar") === "1")
+  if (conferencia) return conferencia
+  const erroHumano = await exigirHumano(fd)
+  if (erroHumano) return { erro: erroHumano }
+  const { liberarFiliadoSemEmail, regraFiliadoSemEmail } = await import("@/lib/db/oposicao-acesso-cpf")
+  const regra = await regraFiliadoSemEmail(campanhaDoVoltar(texto(fd, "voltar")))
+  const liberado = await liberarFiliadoSemEmail({ cpf, nome, nascimento, email, regra })
+  if (liberado.erro) return { erro: liberado.erro }
+  await registrarVinculoPendente({ email, tipo: "filiado", cpf })
+  const { enviarCodigoAcesso } = await import("@/lib/codigo-acesso")
+  const { erro } = await enviarCodigoAcesso({
+    email,
+    metadata: { tipo: "filiado" },
+    next: "/portal/oposicao",
+    contexto: CONTEXTO_CODIGO,
+    semLink: true,
+  })
+  if (erro) return { erro }
+  return { ok: `E-mail cadastrado. Código enviado para ${mascararEmail(email)}.`, email }
+}
+
 // ── Fluxo da oposição ────────────────────────────────────────────────────────
 
 async function campanhaNoPrazo(
@@ -503,6 +583,21 @@ export async function confirmarOposicao(
     exigeDoc
   )
   if (erro || !id) return { erro: erro ?? "Falha ao registrar." }
+  // Filiado sem e-mail que entrou conferido só pelo nome (22/11/2026): a
+  // marca vai para a trilha da oposição e o checklist da avaliação a mostra.
+  if (sessao.perfil === "filiado" && sessao.refId) {
+    const { entrouSoPeloNome } = await import("@/lib/db/oposicao-acesso-cpf")
+    if (await entrouSoPeloNome(sessao.refId)) {
+      await registrarEvento(
+        id,
+        "identidade_so_pelo_nome",
+        "Filiado sem e-mail e sem nascimento confiável na ficha: entrou conferido só pelo nome. Confira a identidade antes de aprovar.",
+        ip,
+        ua,
+        { campanhaId: campanha.id }
+      )
+    }
+  }
   // De onde veio quem registrou (15/11/2026), para o funil por origem.
   await registrarEvento(id, "origem_registrada", `origem:${(await origemDoAcesso()) ?? "nenhuma"}`, ip, ua, {
     campanhaId: campanha.id,

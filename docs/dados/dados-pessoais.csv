@@ -936,6 +936,7 @@ modulo,tabela,coluna,categoria,titulares,descricao
 "financeiro","ordens_pagamento","tipo","trabalhista","fornecedores PF, funcionários, diretores, filiados, convidados (beneficiários)","Origem da ordem; o tipo Folha de pagamento revela salário de funcionário."
 "financeiro","ordens_pagamento","valor_pago","financeiro","fornecedores PF, funcionários, diretores, filiados, convidados (beneficiários)",""
 "financeiro","ordens_pagamento","beneficiario_usuario_id","identificacao","fornecedores PF, funcionários, diretores, filiados, convidados (beneficiários)","Funcionário ou diretor beneficiário (diária, reembolso, folha)."
+"filiacao","oposicao_regras","filiado_sem_email","nenhum","usuários do sistema","Filiado ativo sem e-mail no cadastro, na entrada da oposição: nome_nascimento (confere nome e nascimento; sem nascimento na ficha, procurar o sindicato), nome_basta (sem nascimento na ficha, basta o nome; a equipe confere na avaliação) ou sindicato (sempre procurar o sindicato). Nulo = nome_nascimento."
 "financeiro","ordens_pagamento","pagador_id","identificacao","fornecedores PF, funcionários, diretores, filiados, convidados (beneficiários)","Usuário que efetuou o pagamento."
 "financeiro","ordens_pagamento","beneficiario_nome_avulso","identificacao","fornecedores PF, funcionários, diretores, filiados, convidados (beneficiários)","Nome de beneficiário sem cadastro."
 "financeiro","ordens_pagamento","beneficiario_doc_avulso","identificacao","fornecedores PF, funcionários, diretores, filiados, convidados (beneficiários)","CPF ou CNPJ do beneficiário avulso."

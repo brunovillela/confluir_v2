@@ -224,6 +224,33 @@ export const DECISOES_JURIDICAS = [
     ],
   },
   {
+    // 22/11/2026: a entrada começa pelo CPF; o filiado ATIVO sem e-mail no
+    // cadastro informa nome, nascimento e um e-mail novo. Tem padrão (não
+    // impede abrir nem tira do ar campanha já aberta).
+    chave: "filiado_sem_email",
+    rotulo: "Filiado sem e-mail no cadastro",
+    ajuda:
+      "Na entrada, a pessoa digita o CPF. Filiado ativo sem e-mail informa nome, data de nascimento e um e-mail seu, conferidos com a ficha; o e-mail vai para o cadastro, com registro no prontuário.",
+    padrao: "nome_nascimento",
+    opcoes: [
+      {
+        chave: "nome_nascimento",
+        rotulo: "Conferir nome e nascimento",
+        efeito: "Sem data de nascimento na ficha, a pessoa é orientada a procurar o sindicato.",
+      },
+      {
+        chave: "nome_basta",
+        rotulo: "Conferir nome e nascimento; sem nascimento na ficha, basta o nome",
+        efeito: "Sem nascimento na ficha, o nome que confere libera a entrada; a oposição chega marcada para a equipe conferir na avaliação e o nascimento informado vai para a ficha.",
+      },
+      {
+        chave: "sindicato",
+        rotulo: "Sempre pelo sindicato",
+        efeito: "O filiado sem e-mail não entra sozinho: a tela orienta procurar o sindicato para cadastrar o e-mail.",
+      },
+    ],
+  },
+  {
     chave: "segregacao",
     rotulo: "Permissões no painel",
     ajuda: "Quem pode configurar a campanha e quem pode avaliar as oposições.",
@@ -243,14 +270,22 @@ export const CHAVES_DECISAO: ChaveDecisao[] = DECISOES_JURIDICAS.map((d) => d.ch
 
 export const REGRAS_VAZIAS: RegrasOposicao = Object.fromEntries(CHAVES_DECISAO.map((c) => [c, null])) as RegrasOposicao
 
-/** A decisão que vale: a da campanha, ou o padrão da entidade. */
-export function regrasEfetivas(campanha: RegrasOposicao, entidade: RegrasOposicao): RegrasOposicao {
-  return Object.fromEntries(CHAVES_DECISAO.map((c) => [c, campanha[c] ?? entidade[c] ?? null])) as RegrasOposicao
+/** O valor do sistema para a decisão que tem padrão (as outras precisam ser decididas). */
+export function padraoDaDecisao(chave: ChaveDecisao): string | null {
+  const d = DECISOES_JURIDICAS.find((x) => x.chave === chave)
+  return d && "padrao" in d ? d.padrao : null
 }
 
-/** As decisões ainda em branco (rótulos), para a mensagem que impede abrir. */
+/** A decisão que vale: a da campanha, o padrão da entidade ou o do sistema. */
+export function regrasEfetivas(campanha: RegrasOposicao, entidade: RegrasOposicao): RegrasOposicao {
+  return Object.fromEntries(
+    CHAVES_DECISAO.map((c) => [c, campanha[c] ?? entidade[c] ?? padraoDaDecisao(c)])
+  ) as RegrasOposicao
+}
+
+/** As decisões ainda em branco (rótulos), para a mensagem que impede abrir. Decisão com padrão nunca falta. */
 export function decisoesFaltando(regras: RegrasOposicao): string[] {
-  return DECISOES_JURIDICAS.filter((d) => !regras[d.chave]).map((d) => d.rotulo)
+  return DECISOES_JURIDICAS.filter((d) => !regras[d.chave] && !("padrao" in d)).map((d) => d.rotulo)
 }
 
 export function rotuloOpcao(chave: ChaveDecisao, valor: string | null): string | null {

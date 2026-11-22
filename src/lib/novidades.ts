@@ -16,6 +16,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-11-22",
     titulo: "Oposição: texto do desconto com parágrafos",
     itens: [
+      "Oposição: a entrada começa pelo CPF — não é mais preciso escolher entre \"Sou filiado\" e \"Não sou filiado\". O sistema confere o cadastro e mostra o caminho: filiado com e-mail recebe o código nos e-mails do cadastro; filiado sem e-mail informa nome, data de nascimento e um e-mail seu, conferidos com a ficha (o e-mail entra no cadastro, com registro no prontuário); quem não é filiado informa nome e e-mail. Em Decisões jurídicas, a nova decisão \"Filiado sem e-mail no cadastro\" define o que fazer quando a ficha não tem nascimento — procurar o sindicato ou entrar só pelo nome, com aviso no checklist da avaliação —, no padrão da entidade e por campanha.",
       "Oposição: o detalhe do desconto da campanha aparece com os parágrafos e a lista como foram escritos — na página da oposição, na lista de campanhas do trabalhador e no comprovante. Antes, as quebras de linha sumiam e tudo virava uma linha só.",
     ],
   },

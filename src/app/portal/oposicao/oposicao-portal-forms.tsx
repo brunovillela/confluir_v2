@@ -1,7 +1,7 @@
 "use client"
 
 import { useActionState, useEffect, useRef, useState, type ReactNode } from "react"
-import { KeyRound, Loader2, Mail, RotateCw } from "lucide-react"
+import { ArrowRight, KeyRound, Loader2, Mail, RotateCw } from "lucide-react"
 
 import { DicaDaCaixa } from "@/components/auth/dica-da-caixa"
 import { Turnstile } from "@/components/auth/turnstile"
@@ -9,7 +9,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { textoValidade } from "@/lib/auth-email-constantes"
 import { validarCpf } from "@/lib/cpf"
 import { mascaraCpf } from "@/lib/mascaras"
@@ -18,51 +17,158 @@ import { descritoPor, renovarTurnstile } from "../campos-entrada"
 import {
   confirmarCodigoFiliado,
   confirmarCodigoTrabalhador,
-  enviarCodigoFiliado,
+  enviarCodigoFiliadoSemEmail,
   enviarCodigoTrabalhador,
+  identificarCpf,
   type EstadoAcessoOposicao,
+  type EstadoEntradaCpf,
 } from "./actions"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario";
 
 type Estado = EstadoAcessoOposicao
-type Aba = "trabalhador" | "filiado"
 
 /** Espera para reenviar: a cadência de lib/codigo-acesso.ts (1 código por minuto). */
 const ESPERA_REENVIO_S = 60
 
 /**
- * Entrada da Oposição para quem não está logado: o não filiado (nome, CPF e
- * e-mail) ou o filiado (CPF → e-mail do cadastro), os dois por código no
- * e-mail. As abas são o `Tabs` do sistema (A180): a escolhida é anunciada
- * pelo leitor de tela e trocada pelas setas, e não só pela cor. Os dois
- * formulários ficam montados (`forceMount`, o inativo só escondido), como na
- * entrada do portal: o Turnstile de cada um é desenhado no carregamento e o
- * código já pedido não se perde ao olhar a outra aba.
+ * Entrada da Oposição para quem não está logado — PELO CPF (22/11/2026). Antes
+ * a pessoa escolhia "Sou filiado" ou "Não sou filiado" e quem se enganava caía
+ * no caminho errado; o filiado sem e-mail não tinha saída. Agora digita o CPF
+ * e o servidor decide (identificarCpf):
+ *  - filiado ativo com e-mail: o código já vai para os e-mails do cadastro;
+ *  - filiado ativo sem e-mail: nome, nascimento e um e-mail novo;
+ *  - os demais: como trabalhador (nome e e-mail), com o CPF já informado.
+ * O formulário do CPF fica montado no caso do filiado (é ele que reenvia o
+ * código, com o Turnstile renovado a cada envio).
  */
-export function AcessoNaoFiliado({ voltar }: { voltar?: string } = {}) {
-  const [aba, setAba] = useState<Aba>("trabalhador")
+export function AcessoPorCpf({ voltar }: { voltar?: string } = {}) {
+  const [cpf, setCpf] = useState("")
+  const [cpfTocado, setCpfTocado] = useState(false)
+  const [rota, setRota] = useState<{ rota: NonNullable<EstadoEntradaCpf["rota"]>; cpf: string; aviso?: string; serie: number } | null>(null)
+  const [espera, setEspera] = useState(0)
+  const formCpf = useRef<HTMLFormElement>(null)
+  const [estado, acao, pendente] = useActionState(async (prev: EstadoEntradaCpf, fd: FormData) => {
+    const r = await identificarCpf(prev, fd)
+    renovarTurnstile(formCpf.current)
+    if (r.rota && r.cpf) {
+      setRota((a) => ({ rota: r.rota!, cpf: r.cpf!, aviso: r.ok, serie: (a?.serie ?? 0) + 1 }))
+      if (r.rota === "filiado") setEspera(ESPERA_REENVIO_S)
+    }
+    return r
+  }, {})
+  useEffect(() => {
+    if (espera <= 0) return
+    const t = window.setTimeout(() => setEspera((s) => s - 1), 1000)
+    return () => window.clearTimeout(t)
+  }, [espera])
+  const erroCpf = erroDoCpf(cpf, cpfTocado)
+  const trocar = () => {
+    setRota(null)
+    setEspera(0)
+  }
+  // Depois de decidido o caminho, o formulário do CPF só segue visível para o
+  // filiado (reenviar o código); nos outros, sai da frente.
+  const escondeCpf = rota !== null && rota.rota !== "filiado"
 
   return (
-    <Tabs value={aba} onValueChange={(v) => setAba(v === "filiado" ? "filiado" : "trabalhador")}>
-      {/* 44 px no toque (DESIGN.md), como as abas da entrada do portal. */}
-      <TabsList
-        aria-label="Como você quer se identificar"
-        className="w-full group-data-horizontal/tabs:h-10 pointer-coarse:group-data-horizontal/tabs:h-11"
+    <div className="grid gap-4">
+      <form
+        ref={formCpf}
+        action={acao}
+        onSubmit={(e) => {
+          setCpfTocado(true)
+          if (erroDoCpf(cpf, true)) {
+            e.preventDefault()
+            e.currentTarget.querySelector<HTMLInputElement>('input[name="cpf"]')?.focus()
+          }
+        }}
+        className={escondeCpf ? "hidden" : "grid gap-3"}
       >
-        <TabsTrigger value="trabalhador" className="flex-1">
-          Não sou filiado
-        </TabsTrigger>
-        <TabsTrigger value="filiado" className="flex-1">
-          Sou filiado
-        </TabsTrigger>
-      </TabsList>
-      <TabsContent value="trabalhador" forceMount className="pt-2 data-[state=inactive]:hidden">
-        <FormTrabalhador voltar={voltar} />
-      </TabsContent>
-      <TabsContent value="filiado" forceMount className="pt-2 data-[state=inactive]:hidden">
-        <FormFiliado voltar={voltar} />
-      </TabsContent>
-    </Tabs>
+        {rota ? (
+          <>
+            <input type="hidden" name="cpf" value={rota.cpf} />
+            <p className="text-sm">
+              CPF <strong>{mascaraCpf(rota.cpf)}</strong>{" "}
+              <button type="button" onClick={trocar} className="text-primary text-xs underline underline-offset-2">
+                Trocar CPF
+              </button>
+            </p>
+          </>
+        ) : (
+          <CampoCpf
+            id="e-cpf"
+            rotulo="Seu CPF"
+            valor={cpf}
+            aoMudar={(v) => {
+              setCpf(v)
+              if (v.replace(/\D/g, "").length === 11) setCpfTocado(true)
+            }}
+            aoSair={() => setCpfTocado(true)}
+            erro={erroCpf}
+            dica="Conferimos no cadastro do sindicato e mostramos o caminho certo para você: filiado ou não, não precisa saber antes."
+          />
+        )}
+        <Mensagens estado={estado} />
+        <Turnstile acao="codigo_oposicao" />
+        {rota?.rota === "filiado" ? (
+          <BotaoPedido enviado pendente={pendente} espera={espera} />
+        ) : (
+          <Button type="submit" disabled={pendente}>
+            {pendente ? <Loader2 className="animate-spin" /> : <ArrowRight />}
+            Continuar
+          </Button>
+        )}
+      </form>
+
+      {rota?.rota === "filiado" && (
+        <PassoCodigo
+          key={rota.serie}
+          idPrefixo="f"
+          aviso={rota.aviso}
+          confirmar={confirmarCodigoFiliado}
+          ocultos={{ cpf: rota.cpf, voltar: voltar ?? "" }}
+          ajuda={
+            <>
+              <li>Olhe o e-mail pessoal e também o da empresa, se ele estiver no seu cadastro.</li>
+              <li>Não reconhece esses e-mails ou não usa mais? Procure o sindicato para atualizar o cadastro.</li>
+            </>
+          }
+        />
+      )}
+
+      {rota && rota.rota !== "filiado" && (
+        <div className="grid gap-3">
+          <p className="text-sm">
+            CPF <strong>{mascaraCpf(rota.cpf)}</strong>{" "}
+            <button type="button" onClick={trocar} className="text-primary text-xs underline underline-offset-2">
+              Trocar CPF
+            </button>
+          </p>
+          {rota.rota === "filiado_sem_email" ? (
+            <>
+              <Alert variant="info">
+                <AlertDescription>
+                  Você é filiado, mas o seu cadastro está sem e-mail. Confirme o seu nome completo e a data de
+                  nascimento, como estão no cadastro, e informe um e-mail seu: ele passa a ser o e-mail do seu
+                  cadastro e recebe o código de acesso.
+                </AlertDescription>
+              </Alert>
+              <FormFiliadoSemEmail key={rota.serie} cpf={rota.cpf} voltar={voltar} />
+            </>
+          ) : (
+            <>
+              <Alert variant="info">
+                <AlertDescription>
+                  Não há filiação ativa com este CPF: siga como trabalhador. Informe o seu nome e um e-mail seu para
+                  receber o código.
+                </AlertDescription>
+              </Alert>
+              <FormTrabalhador key={rota.serie} voltar={voltar} cpfFixo={rota.cpf} />
+            </>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -332,9 +438,9 @@ function ConferenciaEmail({
   )
 }
 
-function FormTrabalhador({ voltar }: { voltar?: string }) {
+function FormTrabalhador({ voltar, cpfFixo }: { voltar?: string; cpfFixo?: string }) {
   const [nome, setNome] = useState("")
-  const [cpf, setCpf] = useState("")
+  const [cpf, setCpf] = useState(cpfFixo ? mascaraCpf(cpfFixo) : "")
   const [email, setEmail] = useState("")
   const [cpfTocado, setCpfTocado] = useState(false)
   // O que foi pedido fica guardado: mexer nos campos depois do envio não
@@ -383,18 +489,23 @@ function FormTrabalhador({ voltar }: { voltar?: string }) {
             onChange={(e) => setNome(e.target.value)}
           />
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <CampoCpf
-            id="t-cpf"
-            rotulo="CPF"
-            valor={cpf}
-            aoMudar={(v) => {
-              setCpf(v)
-              if (v.replace(/\D/g, "").length === 11) setCpfTocado(true)
-            }}
-            aoSair={() => setCpfTocado(true)}
-            erro={erroCpf}
-          />
+        <div className={cpfFixo ? "grid gap-3" : "grid gap-3 sm:grid-cols-2"}>
+          {/* Na entrada pelo CPF (22/11/2026) o CPF já veio do passo anterior. */}
+          {cpfFixo ? (
+            <input type="hidden" name="cpf" value={cpfFixo} />
+          ) : (
+            <CampoCpf
+              id="t-cpf"
+              rotulo="CPF"
+              valor={cpf}
+              aoMudar={(v) => {
+                setCpf(v)
+                if (v.replace(/\D/g, "").length === 11) setCpfTocado(true)
+              }}
+              aoSair={() => setCpfTocado(true)}
+              erro={erroCpf}
+            />
+          )}
           <div className="grid gap-1.5">
             <Label htmlFor="t-email">E-mail</Label>
             <Input
@@ -432,43 +543,72 @@ function FormTrabalhador({ voltar }: { voltar?: string }) {
   )
 }
 
-function FormFiliado({ voltar }: { voltar?: string }) {
-  const [cpf, setCpf] = useState("")
-  const [cpfTocado, setCpfTocado] = useState(false)
-  const [pedido, setPedido] = useState<{ cpf: string; aviso?: string; serie: number } | null>(null)
+/**
+ * Filiado ativo sem e-mail no cadastro (22/11/2026): nome e nascimento
+ * conferidos com a ficha e um e-mail novo, que vai para o cadastro e recebe o
+ * código. Sem nascimento na ficha, vale a decisão "Filiado sem e-mail no
+ * cadastro" da campanha (ou o padrão da entidade).
+ */
+function FormFiliadoSemEmail({ cpf, voltar }: { cpf: string; voltar?: string }) {
+  const [nome, setNome] = useState("")
+  const [nascimento, setNascimento] = useState("")
+  const [email, setEmail] = useState("")
+  const [pedido, setPedido] = useState<{ email: string; aviso?: string; serie: number } | null>(null)
   const formPedido = useRef<HTMLFormElement>(null)
-  const pedidoCodigo = usePedidoCodigo(formPedido, enviarCodigoFiliado, (fd, r) =>
-    setPedido((p) => ({ cpf: String(fd.get("cpf") ?? ""), aviso: r.ok, serie: (p?.serie ?? 0) + 1 }))
+  const pedidoCodigo = usePedidoCodigo(formPedido, enviarCodigoFiliadoSemEmail, (fd, r) =>
+    setPedido((p) => ({ email: r.email ?? String(fd.get("email") ?? ""), aviso: r.ok, serie: (p?.serie ?? 0) + 1 }))
   )
-  const erroCpf = erroDoCpf(cpf, cpfTocado)
 
   return (
     <div className="grid gap-4">
-      <form
-        ref={formPedido}
-        action={pedidoCodigo.acao}
-        onSubmit={(e) => {
-          setCpfTocado(true)
-          if (erroDoCpf(cpf, true)) {
-            // Barrado aqui: o foco vai ao CPF, que já mostra o porquê.
-            e.preventDefault()
-            e.currentTarget.querySelector<HTMLInputElement>('input[name="cpf"]')?.focus()
-          }
-        }}
-        className="grid gap-3"
-      >
-        <CampoCpf
-          id="f-cpf"
-          rotulo="CPF do filiado"
-          valor={cpf}
-          aoMudar={(v) => {
-            setCpf(v)
-            if (v.replace(/\D/g, "").length === 11) setCpfTocado(true)
-          }}
-          aoSair={() => setCpfTocado(true)}
-          erro={erroCpf}
-          dica="Enviaremos o código para os e-mails do seu cadastro no sindicato e mostraremos quais, em parte."
+      <form ref={formPedido} action={pedidoCodigo.acao} className="grid gap-3">
+        <input type="hidden" name="cpf" value={cpf} />
+        <input type="hidden" name="voltar" value={voltar ?? ""} />
+        <ConferenciaEmail
+          estado={pedidoCodigo.estado}
+          pendente={pedidoCodigo.pendente}
+          aoAceitar={(v) => setEmail(v)}
         />
+        <div className="grid gap-1.5">
+          <Label htmlFor="s-nome">Nome completo</Label>
+          <Input
+            id="s-nome"
+            name="nome"
+            autoComplete="name"
+            required
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+          />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-1.5">
+            <Label htmlFor="s-nascimento">Data de nascimento</Label>
+            <Input
+              id="s-nascimento"
+              name="nascimento"
+              type="date"
+              required
+              value={nascimento}
+              onChange={(e) => setNascimento(e.target.value)}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="s-email">E-mail</Label>
+            <Input
+              id="s-email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              aria-describedby="s-email-dica"
+            />
+            <p id="s-email-dica" className="text-muted-foreground text-xs">
+              Prefira o pessoal (Gmail, por exemplo): e-mails de empresa costumam barrar as nossas mensagens.
+            </p>
+          </div>
+        </div>
         <Mensagens estado={pedidoCodigo.estado} />
         <Turnstile acao="codigo_oposicao" />
         <BotaoPedido enviado={Boolean(pedido)} pendente={pedidoCodigo.pendente} espera={pedidoCodigo.espera} />
@@ -477,19 +617,11 @@ function FormFiliado({ voltar }: { voltar?: string }) {
       {pedido && (
         <PassoCodigo
           key={pedido.serie}
-          idPrefixo="f"
+          idPrefixo="s"
           aviso={pedido.aviso}
           confirmar={confirmarCodigoFiliado}
-          ocultos={{ cpf: pedido.cpf, voltar: voltar ?? "" }}
-          ajuda={
-            <>
-              <li>Olhe o e-mail pessoal e também o da empresa, se ele estiver no seu cadastro.</li>
-              <li>
-                Não é mais filiado? Use a aba <strong>Não sou filiado</strong> com um e-mail seu. Não usa mais
-                esses e-mails? Procure o sindicato para atualizar o cadastro.
-              </li>
-            </>
-          }
+          ocultos={{ cpf, voltar: voltar ?? "" }}
+          email={pedido.email}
         />
       )}
     </div>

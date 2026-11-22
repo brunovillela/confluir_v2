@@ -23,6 +23,7 @@ import { formatarDataHora } from "@/lib/formato"
 import { mascaraCpf } from "@/lib/mascaras"
 import {
   DECISOES_JURIDICAS,
+  padraoDaDecisao,
   MEIOS_ENVIO,
   type RegrasOposicao,
   ROTULO_SITUACAO_OPOSITOR,
@@ -450,7 +451,7 @@ export function RegrasEntidadeForm({ regras }: { regras: RegrasOposicao }) {
                   type="radio"
                   name={`regra_${d.chave}`}
                   value={o.chave}
-                  defaultChecked={regras[d.chave] === o.chave}
+                  defaultChecked={(regras[d.chave] ?? padraoDaDecisao(d.chave)) === o.chave}
                   className="mt-0.5 size-4"
                 />
                 <span>

@@ -129,7 +129,7 @@ export async function vincularIdentidade(dados: {
     if (!cadastro.emails.has(email)) {
       return {
         ok: false,
-        erro: "Não foi possível concluir o acesso com este CPF e este e-mail. Tente pela aba “Sou filiado” (o código vai ao e-mail cadastrado no sindicato) ou procure o sindicato.",
+        erro: "Não foi possível concluir o acesso com este CPF e este e-mail. Volte ao início, digite o CPF e use o caminho indicado (o código vai ao e-mail cadastrado no sindicato) ou procure o sindicato.",
       }
     }
     tipo = "filiado"

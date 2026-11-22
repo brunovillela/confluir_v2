@@ -13,6 +13,7 @@ import type { CampanhaDetalhe, OpcaoFonte } from "@/lib/db/oposicao"
 import { CampoTempoVideo } from "./campo-tempo-video"
 import {
   DECISOES_JURIDICAS,
+  padraoDaDecisao,
   MODOS_FORMALIZACAO,
   MOTIVOS_AVALIACAO,
   rotuloOpcao,
@@ -148,7 +149,7 @@ export function CampanhaForm({
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
           {DECISOES_JURIDICAS.map((d) => {
-            const padrao = rotuloOpcao(d.chave, regrasEntidade[d.chave])
+            const padrao = rotuloOpcao(d.chave, regrasEntidade[d.chave] ?? padraoDaDecisao(d.chave))
             return (
               <div key={d.chave} className="grid gap-1.5">
                 <Label htmlFor={`regra_${d.chave}`}>{d.rotulo}</Label>

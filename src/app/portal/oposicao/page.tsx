@@ -32,7 +32,7 @@ import { getVisualizacaoPortal } from "@/lib/visualizacao-filiado"
 
 import { sairDaOposicao } from "./actions"
 import { GuardarOrigem } from "./guardar-origem"
-import { AcessoNaoFiliado } from "./oposicao-portal-forms"
+import { AcessoPorCpf } from "./oposicao-portal-forms"
 import { PerguntasFrequentes } from "./orientacoes"
 import { PrazoOposicao } from "./prazo-oposicao"
 import { fraseResultado, VARIANTE_SITUACAO_PORTAL } from "./situacao-portal"
@@ -147,7 +147,7 @@ export default async function OposicaoPortalPage({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <AcessoNaoFiliado voltar={destino && destino !== "/portal/oposicao" ? destino : undefined} />
+              <AcessoPorCpf voltar={destino && destino !== "/portal/oposicao" ? destino : undefined} />
             </CardContent>
           </Card>
           <Card>
@@ -156,9 +156,9 @@ export default async function OposicaoPortalPage({
                 Como funciona
               </CardTitle>
               <CardDescription>
-                1. Escolha <strong>Sou filiado</strong> (o código vai para os e-mails do seu cadastro) ou{" "}
-                <strong>Não sou filiado</strong> (informe nome, CPF e um e-mail seu). 2. Digite o código que chegou
-                no e-mail. 3. Abra a campanha, leia as instruções e siga os passos até o comprovante.
+                1. Digite o seu <strong>CPF</strong>: o sistema confere no cadastro e mostra o seu caminho (filiado
+                com e-mail recebe o código nos e-mails do cadastro; os demais informam um e-mail seu). 2. Digite o
+                código que chegou no e-mail. 3. Abra a campanha, leia as instruções e siga os passos até o comprovante.
               </CardDescription>
             </CardHeader>
             <CardContent>

@@ -55,7 +55,10 @@ export default async function OpositorPage({
   // A coluna guarda só o dia; a hora da decisão vem da trilha (M13).
   const decisaoEm =
     [...o.eventos].reverse().find((e) => e.evento === "aprovada" || e.evento === "reprovada")?.created_at ?? null
+  // Filiado sem e-mail que entrou conferido só pelo nome (22/11/2026).
+  const soPeloNome = o.eventos.some((e) => e.evento === "identidade_so_pelo_nome")
   const algumProblema =
+    soPeloNome ||
     q.noPrazo === false ||
     q.cartaNoPrazo === false ||
     q.outrasDoCpf > 0 ||
@@ -264,6 +267,12 @@ export default async function OpositorPage({
                   : "Identificação incompleta: CPF inválido ou nome em branco"
               }
             />
+            {soPeloNome && (
+              <Requisito
+                ok={false}
+                label="Identidade conferida só pelo nome: filiado sem e-mail e sem nascimento confiável na ficha, que cadastrou o e-mail ao entrar. Confira antes de aprovar."
+              />
+            )}
           </ul>
           {algumProblema && avaliavel && (
             <Alert variant="warning">

@@ -11,17 +11,28 @@ direto aquela campanha; se ela já encerrou, a pessoa cai na sua lista.
 
 ## Quem entra por onde
 
+A pessoa começa pelo **CPF**, sem precisar saber se é filiada: o sistema
+confere no cadastro e mostra o caminho.
+
 <PassoAPasso>
-  <Passo titulo="Sou filiado">
-    Informa o CPF. O código vai para os e-mails do cadastro (até três), e a tela
-    mostra para quais, em parte (`jo***a@gm***.com`). CPF sem cadastro com
-    e-mail recebe o aviso para usar **Não sou filiado** ou procurar o sindicato.
-    O filiado também pode entrar pelo **Portal do associado**.
+  <Passo titulo="Filiado ativo com e-mail">
+    O código vai na hora para os e-mails do cadastro (até três), e a tela
+    mostra para quais, em parte (`jo***a@gm***.com`). O filiado também pode
+    entrar pelo **Portal do associado**.
   </Passo>
-  <Passo titulo="Não sou filiado">
-    Informa nome, CPF e um e-mail seu. O e-mail é conferido antes (domínio que
-    não recebe, erro de digitação, e-mail de empresa que costuma barrar as
-    mensagens). Quem já foi filiado e se desfiliou entra por aqui.
+  <Passo titulo="Filiado ativo sem e-mail">
+    Informa nome completo, data de nascimento e um e-mail seu. Nome e
+    nascimento são conferidos com a ficha; o e-mail vai para o cadastro, com
+    registro no prontuário, e recebe o código. Quando a ficha não tem
+    nascimento, vale a decisão **Filiado sem e-mail no cadastro** (padrão da
+    entidade ou da campanha): procurar o sindicato, ou entrar só pelo nome — e
+    aí a oposição chega com o aviso "Identidade conferida só pelo nome" no
+    checklist da avaliação.
+  </Passo>
+  <Passo titulo="Os demais">
+    Quem não tem filiação ativa (nunca se filiou ou já se desfiliou) informa
+    nome e um e-mail seu. O e-mail é conferido antes (domínio que não recebe,
+    erro de digitação, e-mail de empresa que costuma barrar as mensagens).
   </Passo>
 </PassoAPasso>
 
