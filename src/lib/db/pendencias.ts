@@ -8,6 +8,7 @@ import type { SessaoPainel } from "@/lib/auth"
 import { alcadaDoUsuario } from "@/lib/db/compras"
 import { contagemPendenciasDesconto, exclusoesNaoCumpridas } from "@/lib/db/desconto-comunicacoes"
 import { contagemDiasParaConferir } from "@/lib/db/ponto-marcacoes"
+import { funcionariosSemJornada } from "@/lib/db/jornada-pendentes"
 import { DIAS_SILENCIO_COBRANCA, empresasParaCobrar, relacoesDoRhALancar } from "@/lib/db/repasse"
 import { SITUACAO_EM_AUTORIZACAO } from "@/lib/db/ordens-ciclo"
 import { situacaoDosPlanos } from "@/lib/db/veiculos-manutencoes"
@@ -238,6 +239,15 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
       },
     }
     fontes.push(fonte)
+    fontes.push({
+      chave: "sem_jornada",
+      titulo: "Funcionários sem jornada vinculada",
+      descricao: "Sem jornada, o uso fora do expediente não é registrado e o ponto não tem com o que comparar",
+      href: "/painel/pessoal/atribuicoes/jornadas",
+      tabela: "pessoal_jornada_funcionarios",
+      montar: (q) => head(q),
+      contarCom: async () => (await funcionariosSemJornada(client, emp))?.total ?? null,
+    })
   }
   if (pode("pessoal_gestao", ["pessoal_faltas_justificadas"])) {
     fontes.push({

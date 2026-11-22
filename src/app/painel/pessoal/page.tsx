@@ -24,6 +24,9 @@ import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area";
 import { requirePermissao } from "@/lib/auth";
 import { resumoPessoal } from "@/lib/db/pessoal-dashboard";
 import { resumoSST } from "@/lib/db/pessoal-sst";
+import { funcionariosSemJornada } from "@/lib/db/jornada-pendentes";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { tenantAtual } from "@/lib/tenant";
 
 export const metadata: Metadata = { title: "Pessoal — Confluir" };
 
@@ -91,6 +94,9 @@ export default async function PessoalPage() {
 
   const r = await resumoPessoal();
   const sst = veGestao ? await resumoSST() : null;
+  const semJornada = veGestao
+    ? await funcionariosSemJornada(await createAdminClient(), await tenantAtual())
+    : null;
 
   const plural = (n: number, um: string, muitos: string) =>
     `${n} ${n === 1 ? um : muitos}`;
@@ -165,6 +171,13 @@ export default async function PessoalPage() {
       href: "/painel/pessoal/atestados?aba=ausencias",
       icone: Stethoscope,
       texto: `${plural(r.ausentesHoje, "funcionário ausente", "funcionários ausentes")} hoje.`,
+    });
+  }
+  if (semJornada && semJornada.total > 0) {
+    alertas.push({
+      href: "/painel/pessoal/atribuicoes/jornadas",
+      icone: Clock4,
+      texto: `${plural(semJornada.total, "funcionário ativo", "funcionários ativos")} sem jornada vinculada: sem ela, o uso fora do expediente não é registrado.`,
     });
   }
   if (sst?.ativo && sst.treinamentosPendentes > 0) {
