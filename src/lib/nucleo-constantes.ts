@@ -172,3 +172,94 @@ export function proximoPrazoRecorrente(prazoISO: string, recorrencia: Recorrenci
   const dia = fimDoMes ? ultimoDia(ano, mes) : Math.min(d, ultimoDia(ano, mes))
   return `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`
 }
+
+// ── Quadro, carga e calendário (Onda 1, 19/11/2026) ─────────────────────────
+
+/** Colunas do quadro de tarefas (A fazer · Em andamento · Feito). */
+export const COLUNAS_QUADRO_TAREFA = ["a_fazer", "em_andamento", "feito"] as const
+export type ColunaQuadroTarefa = (typeof COLUNAS_QUADRO_TAREFA)[number]
+export const ROTULOS_COLUNA_TAREFA: Record<ColunaQuadroTarefa, string> = {
+  a_fazer: "A fazer",
+  em_andamento: "Em andamento",
+  feito: "Feito",
+}
+export function ehColunaTarefa(v: unknown): v is ColunaQuadroTarefa {
+  return typeof v === "string" && (COLUNAS_QUADRO_TAREFA as readonly string[]).includes(v)
+}
+export function colunaDaTarefa(t: { concluido: boolean; emAndamento: boolean }): ColunaQuadroTarefa {
+  return t.concluido ? "feito" : t.emAndamento ? "em_andamento" : "a_fazer"
+}
+/** Concluídas há até tantos dias aparecem na coluna Feito do quadro. */
+export const DIAS_FEITO_NO_QUADRO = 14
+
+/** Segunda-feira da semana de uma data (AAAA-MM-DD). */
+export function segundaDaSemana(dataISO: string): string {
+  const d = new Date(`${dataISO}T12:00:00Z`)
+  const dia = d.getUTCDay() // 0 = domingo
+  return somarDias(dataISO, dia === 0 ? -6 : 1 - dia)
+}
+
+export type CargaPessoa = {
+  id: string | null
+  nome: string
+  abertas: number
+  atrasadas: number
+  estaSemana: number
+  proximaSemana: number
+  semPrazo: number
+}
+
+/**
+ * Carga de trabalho por pessoa: as tarefas ABERTAS de cada responsável, por
+ * prazo — atrasadas, vencendo nesta semana (até domingo), na próxima e sem
+ * prazo. Ordena de quem tem mais atrasadas para quem tem menos.
+ */
+export function cargaPorPessoa(
+  tarefas: { demandadoId: string | null; demandadoNome: string | null; concluido: boolean; prazo: string | null }[],
+  hojeISO: string
+): CargaPessoa[] {
+  const fimSemana = somarDias(segundaDaSemana(hojeISO), 6)
+  const fimProxima = somarDias(fimSemana, 7)
+  const mapa = new Map<string, CargaPessoa>()
+  for (const t of tarefas) {
+    if (t.concluido) continue
+    const chave = t.demandadoId ?? ""
+    const c = mapa.get(chave) ?? {
+      id: t.demandadoId,
+      nome: t.demandadoNome ?? "Sem responsável",
+      abertas: 0,
+      atrasadas: 0,
+      estaSemana: 0,
+      proximaSemana: 0,
+      semPrazo: 0,
+    }
+    c.abertas++
+    if (!t.prazo) c.semPrazo++
+    else if (t.prazo < hojeISO) c.atrasadas++
+    else if (t.prazo <= fimSemana) c.estaSemana++
+    else if (t.prazo <= fimProxima) c.proximaSemana++
+    mapa.set(chave, c)
+  }
+  return [...mapa.values()].sort(
+    (a, b) => b.atrasadas - a.atrasadas || b.abertas - a.abertas || a.nome.localeCompare(b.nome, "pt-BR")
+  )
+}
+
+/** As semanas (segunda a domingo) que cobrem o mês "AAAA-MM", para a grade do calendário. */
+export function semanasDoMes(mes: string): string[][] {
+  const primeiro = `${mes}-01`
+  const [a, m] = mes.split("-").map(Number)
+  const ultimo = `${mes}-${String(new Date(Date.UTC(a, m, 0)).getUTCDate()).padStart(2, "0")}`
+  const semanas: string[][] = []
+  for (let ini = segundaDaSemana(primeiro); ini <= ultimo; ini = somarDias(ini, 7)) {
+    semanas.push(Array.from({ length: 7 }, (_, i) => somarDias(ini, i)))
+  }
+  return semanas
+}
+
+/** Mês anterior ou seguinte de "AAAA-MM". */
+export function deslocarMes(mes: string, delta: number): string {
+  const [a, m] = mes.split("-").map(Number)
+  const total = a * 12 + (m - 1) + delta
+  return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, "0")}`
+}

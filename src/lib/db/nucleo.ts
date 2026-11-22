@@ -504,7 +504,7 @@ export async function definirSituacaoDemanda(
 // ════════════════════════════════════════════════════════════════════════════
 
 const COLS_TAREFA =
-  "id, titulo, concluido, tipo, prioridade, recorrencia, procedimento_id, data_prazo_entrega, data_entrega, demandante_id, demandado_id, demanda_id, projeto_id, anomalia_id"
+  "id, titulo, concluido, iniciada_em, tipo, prioridade, recorrencia, procedimento_id, data_prazo_entrega, data_entrega, demandante_id, demandado_id, demanda_id, projeto_id, anomalia_id"
 
 async function contarTarefasPorPai(
   coluna: "demanda_id" | "projeto_id" | "anomalia_id",
@@ -550,6 +550,10 @@ export type TarefaLinha = {
   titulo: string | null
   situacao: SituacaoTarefa
   concluido: boolean
+  /** Em andamento (quadro): iniciada e ainda não concluída. */
+  emAndamento: boolean
+  /** Quando foi concluída (data de entrega). */
+  concluidaEm: string | null
   prazo: string | null
   prioridade: PrioridadeTarefa
   /** De quanto em quanto tempo se repete (nulo = não repete). */
@@ -640,6 +644,8 @@ export async function listarTarefas(
           hoje
         ),
         concluido: t.concluido === true,
+        emAndamento: t.concluido !== true && Boolean(t.iniciada_em),
+        concluidaEm: texto(t.data_entrega),
         prazo: texto(t.data_prazo_entrega),
         prioridade: ehPrioridadeTarefa(t.prioridade) ? t.prioridade : "media",
         recorrencia: ehRecorrenciaTarefa(t.recorrencia) ? t.recorrencia : null,
@@ -1052,6 +1058,18 @@ export async function gerarProximaRecorrencia(id: string): Promise<{ erro?: stri
     .eq("id", id)
     .eq("emp_proprietaria_id", emp)
   return { prazo: proximo }
+}
+
+/** Põe a tarefa em andamento (agora) ou de volta em A fazer. */
+export async function definirAndamentoTarefa(id: string, emAndamento: boolean): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const { error } = await admin
+    .from("demandas_check_tarefas")
+    .update({ iniciada_em: emAndamento ? new Date().toISOString() : null, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
+  if (error) return { erro: `Falha ao mover a tarefa: ${error.message}` }
+  return {}
 }
 
 // ════════════════════════════════════════════════════════════════════════════

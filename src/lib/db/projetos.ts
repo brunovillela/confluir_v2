@@ -529,3 +529,32 @@ export async function definirFinalizado(
   if (error) return { erro: `Falha ao atualizar situação: ${error.message}` }
   return {}
 }
+
+/** Marcos com data prevista no período (calendário de prazos), com o projeto. */
+export async function marcosNoPeriodo(
+  de: string,
+  ate: string
+): Promise<(MarcoProjeto & { projetoId: string; projetoTitulo: string | null; projetoFinalizado: boolean })[]> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("projeto_marcos")
+    .select("id, projeto_id, titulo, data_prevista, concluido_em, projeto:projeto_id (descricao_sumaria, finalizado)")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .gte("data_prevista", de)
+    .lte("data_prevista", ate)
+    .order("data_prevista")
+    .limit(1000)
+  if (error) {
+    if (esquemaAusente(error)) return []
+    throw new Error(`Falha ao ler os marcos: ${error.message}`)
+  }
+  return (data ?? []).map((m) => {
+    const p = (Array.isArray(m.projeto) ? m.projeto[0] : m.projeto) as { descricao_sumaria?: string | null; finalizado?: boolean | null } | null
+    return {
+      ...paraMarco(m as Record<string, unknown>),
+      projetoId: String(m.projeto_id),
+      projetoTitulo: texto(p?.descricao_sumaria),
+      projetoFinalizado: p?.finalizado === true,
+    }
+  })
+}

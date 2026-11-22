@@ -1,6 +1,8 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ListChecks, Plus, TriangleAlert } from "lucide-react"
+import { Columns3, List, ListChecks, Plus, TriangleAlert } from "lucide-react"
+
+import { AbasVisao } from "@/components/abas-visao"
 
 import { PessoaNome } from "@/components/pessoa-nome"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -16,10 +18,16 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
+import { hojeSP } from "@/lib/db/comum"
 import { listarDemandas, resumoDemandas } from "@/lib/db/nucleo"
 import { formatarData } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 import { SITUACOES_DEMANDA } from "@/lib/nucleo-constantes"
+
+import { QuadroDemandas } from "./quadro-demandas"
+
+/** Demandas Feito que o quadro mostra (as primeiras da lista); o resto fica na lista. */
+const FEITO_NO_QUADRO = 30
 
 export const metadata: Metadata = { title: "Demandas — Confluir" }
 
@@ -32,7 +40,7 @@ const CLASSE_SITUACAO: Record<string, string> = {
   Feito: "text-muted-foreground",
 }
 
-type Params = { busca?: string; situacao?: string; excluida?: string; tipo?: string }
+type Params = { busca?: string; situacao?: string; excluida?: string; tipo?: string; visao?: string }
 
 export default async function DemandasPage({
   searchParams,
@@ -52,11 +60,26 @@ export default async function DemandasPage({
       : ""
   // Vindo da caixa de entrada ("Relatos do sistema a tratar").
   const tipo = (brutos.tipo ?? "").trim().slice(0, 60)
+  const quadro = brutos.visao === "quadro"
 
   const [resumo, demandas] = await Promise.all([
     resumoDemandas(),
-    listarDemandas({ busca, situacao, tipo: tipo || undefined }),
+    // O quadro mostra as três colunas: ignora o filtro de situação.
+    listarDemandas({ busca, situacao: quadro ? "" : situacao, tipo: tipo || undefined }),
   ])
+  const feitas = demandas.filter((d) => d.situacao === "Feito")
+  const doQuadro = quadro
+    ? [...demandas.filter((d) => d.situacao !== "Feito"), ...feitas.slice(0, FEITO_NO_QUADRO)]
+    : []
+  const linkVisao = (v: string) => {
+    const p = new URLSearchParams()
+    if (busca) p.set("busca", busca)
+    if (tipo) p.set("tipo", tipo)
+    if (v === "quadro") p.set("visao", "quadro")
+    else if (situacao) p.set("situacao", situacao)
+    const q = p.toString()
+    return `/painel/ferramentas/demandas${q ? `?${q}` : ""}`
+  }
 
   return (
     <>
@@ -117,10 +140,20 @@ export default async function DemandasPage({
         <CardResumo rotulo="Feito" valor={resumo.feito} />
       </div>
 
+      <AbasVisao
+        atual={quadro ? "quadro" : "lista"}
+        abas={[
+          { id: "lista", rotulo: "Lista", icone: List, href: linkVisao("lista") },
+          { id: "quadro", rotulo: "Quadro", icone: Columns3, href: linkVisao("quadro") },
+        ]}
+      />
+
       <form
         className="flex flex-wrap items-center gap-2"
         action="/painel/ferramentas/demandas"
       >
+        {quadro && <input type="hidden" name="visao" value="quadro" />}
+        {tipo && <input type="hidden" name="tipo" value={tipo} />}
         <input
           type="search"
           name="busca"
@@ -128,76 +161,87 @@ export default async function DemandasPage({
           placeholder="Nome da demanda"
           className={`${SELECT_FILTRO} w-64 max-w-full`}
         />
-        <select name="situacao" defaultValue={situacao} className={SELECT_FILTRO}>
-          <option value="">Todas as situações</option>
-          {SITUACOES_DEMANDA.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
+        {!quadro && (
+          <select name="situacao" defaultValue={situacao} className={SELECT_FILTRO} aria-label="Situação">
+            <option value="">Todas as situações</option>
+            {SITUACOES_DEMANDA.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        )}
         <Button type="submit" variant="outline" size="sm">
           Filtrar
         </Button>
       </form>
 
-      <Card>
-        <CardContent>
-          {demandas.length === 0 ? (
-            <p className="text-muted-foreground py-8 text-center text-sm">
-              <ListChecks className="mx-auto mb-2 size-5" />
-              Nenhuma demanda encontrada com estes filtros.
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Demanda</TableHead>
-                  <TableHead>Responsável</TableHead>
-                  <TableHead>Prazo</TableHead>
-                  <TableHead>Tarefas</TableHead>
-                  <TableHead>Situação</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {demandas.map((d) => (
-                  <TableRow key={d.id}>
-                    <TableCell className="max-w-80">
-                      <Link
-                        href={`/painel/ferramentas/demandas/${d.id}`}
-                        className="text-primary font-medium hover:underline"
-                      >
-                        <span className="line-clamp-2">{d.nome ?? "(sem nome)"}</span>
-                      </Link>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-sm">
-                      {d.responsavelNome ? <PessoaNome nome={d.responsavelNome} fotoUrl={d.responsavelFotoUrl} /> : "—"}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-sm">
-                      {d.prazo ? formatarData(d.prazo) : "—"}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap tabular-nums text-sm">
-                      {d.tarefasTotal > 0
-                        ? `${d.tarefasConcluidas}/${d.tarefasTotal}`
-                        : "—"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={
-                          CLASSE_SITUACAO[d.situacao ?? ""] ?? "text-muted-foreground"
-                        }
-                      >
-                        {d.situacao ?? "—"}
-                      </Badge>
-                    </TableCell>
+      {quadro ? (
+        <QuadroDemandas
+          demandas={doQuadro}
+          editor={editor}
+          feitoOcultas={Math.max(0, feitas.length - FEITO_NO_QUADRO)}
+          hoje={hojeSP()}
+        />
+      ) : (
+        <Card>
+          <CardContent>
+            {demandas.length === 0 ? (
+              <p className="text-muted-foreground py-8 text-center text-sm">
+                <ListChecks className="mx-auto mb-2 size-5" />
+                Nenhuma demanda encontrada com estes filtros.
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Demanda</TableHead>
+                    <TableHead>Responsável</TableHead>
+                    <TableHead>Prazo</TableHead>
+                    <TableHead>Tarefas</TableHead>
+                    <TableHead>Situação</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {demandas.map((d) => (
+                    <TableRow key={d.id}>
+                      <TableCell className="max-w-80">
+                        <Link
+                          href={`/painel/ferramentas/demandas/${d.id}`}
+                          className="text-primary font-medium hover:underline"
+                        >
+                          <span className="line-clamp-2">{d.nome ?? "(sem nome)"}</span>
+                        </Link>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-sm">
+                        {d.responsavelNome ? <PessoaNome nome={d.responsavelNome} fotoUrl={d.responsavelFotoUrl} /> : "—"}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-sm">
+                        {d.prazo ? formatarData(d.prazo) : "—"}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap tabular-nums text-sm">
+                        {d.tarefasTotal > 0
+                          ? `${d.tarefasConcluidas}/${d.tarefasTotal}`
+                          : "—"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={
+                            CLASSE_SITUACAO[d.situacao ?? ""] ?? "text-muted-foreground"
+                          }
+                        >
+                          {d.situacao ?? "—"}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </>
   )
 }

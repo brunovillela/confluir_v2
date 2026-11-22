@@ -5,13 +5,20 @@ import { revalidatePath } from "next/cache"
 import { requirePermissao, requireSessaoPainel } from "@/lib/auth"
 import { podeAcessar } from "@/lib/permissoes"
 import { type EstadoForm } from "@/lib/contas"
-import { ehPrioridadeTarefa, ehRecorrenciaTarefa, type PrioridadeTarefa, type RecorrenciaTarefa } from "@/lib/nucleo-constantes"
+import {
+  ehColunaTarefa,
+  ehPrioridadeTarefa,
+  ehRecorrenciaTarefa,
+  type PrioridadeTarefa,
+  type RecorrenciaTarefa,
+} from "@/lib/nucleo-constantes"
 import { avisar, depoisDaResposta, usuariosComPermissao } from "@/lib/db/avisos"
 import { removerAnexosDaTarefa } from "@/lib/db/tarefa-conversa"
 import { opcoesDeProcedimento } from "@/lib/db/documentos"
 import {
   atualizarTarefa,
   criarTarefa,
+  definirAndamentoTarefa,
   definirConclusaoTarefa,
   demandaDoProjeto,
   desvincularTarefa,
@@ -319,4 +326,40 @@ export async function opcoesDeProcedimentoAction(): Promise<{ id: string; nome: 
     "ferramentas_projetos_edicao",
   ])
   return opcoesDeProcedimento()
+}
+
+/**
+ * Quadro: move a tarefa de coluna. Feito conclui (e, se a tarefa se repete,
+ * cria a próxima); sair de Feito reabre; Em andamento marca o início. Pode
+ * mover quem pode concluir: o responsável ou quem cuida da tarefa.
+ */
+export async function moverTarefaAction(tarefaId: string, coluna: string): Promise<EstadoForm> {
+  if (!tarefaId || !ehColunaTarefa(coluna)) return { erro: "Movimento inválido." }
+  const sessao = await requireSessaoPainel()
+  const proprio = (await responsavelDaTarefa(tarefaId)) === String(sessao.usuario.id)
+  if (!proprio) {
+    const acesso = await exigirPermissaoDaTarefa(tarefaId, "")
+    if ("erro" in acesso) return { erro: acesso.erro }
+  }
+  const pais = await paisDaTarefa(tarefaId)
+  if (coluna === "feito") {
+    const { erro } = await definirConclusaoTarefa(tarefaId, true)
+    if (erro) return { erro }
+    const proxima = await gerarProximaRecorrencia(tarefaId)
+    revalidarPais(pais)
+    revalidatePath("/painel/perfil/tarefas")
+    if (proxima.erro) return { erro: proxima.erro }
+    if (proxima.prazo) {
+      const [a, m, d] = proxima.prazo.split("-")
+      return { ok: `Tarefa concluída. A próxima, com prazo em ${d}/${m}/${a}, já está no quadro.` }
+    }
+    return { ok: "Tarefa concluída." }
+  }
+  const reabrir = await definirConclusaoTarefa(tarefaId, false)
+  if (reabrir.erro) return { erro: reabrir.erro }
+  const { erro } = await definirAndamentoTarefa(tarefaId, coluna === "em_andamento")
+  if (erro) return { erro }
+  revalidarPais(pais)
+  revalidatePath("/painel/perfil/tarefas")
+  return { ok: "Tarefa movida." }
 }
