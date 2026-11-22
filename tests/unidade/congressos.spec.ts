@@ -43,6 +43,18 @@ import {
   usoPorFuncao,
 } from "@/lib/congressos/ia"
 import {
+  codigoCertificado,
+  conferirChapa,
+  direitoAoCertificado,
+  dividirVagas,
+  eleitosDaChapa,
+  frequencia,
+  janelaDeChapas,
+  lembrar,
+  resolucaoAtrasada,
+  resumoResolucoes,
+} from "@/lib/congressos/encerramento"
+import {
   calcularQuorum,
   conferirSubstituicao,
   cpfParcial,
@@ -673,5 +685,69 @@ test.describe("congressos — IA na relatoria", () => {
     expect(sugestaoObsoleta({ a: 2 }, atuais)).toBe(false)
     expect(sugestaoObsoleta({ a: 1 }, atuais)).toBe(true)
     expect(sugestaoObsoleta({ b: 1 }, atuais)).toBe(true)
+  })
+})
+
+test.describe("congressos — encerramento", () => {
+  const c = (id: string, votos: number, inscritaEm = "2027-06-12T12:0" + id.length + ":00Z") => ({ id, votos, inscritaEm })
+
+  test("maioria: a mais votada leva todas; empate é apontado", () => {
+    const r = dividirVagas([c("a", 120), c("b", 80)], 18, "maioria")
+    expect([r.vagas.get("a"), r.vagas.get("b"), r.empate]).toEqual([18, 0, false])
+    const e = dividirVagas([c("a", 90), c("b", 90)], 18, "maioria")
+    expect(e.empate).toBe(true)
+    expect(e.vagas.get("a")).toBe(0)
+  })
+
+  test("proporcional: quociente e maiores restos", () => {
+    // 200 votos, 10 vagas → quociente 20: A 110 (5,5), B 60 (3), C 30 (1,5) → 9 inteiras; resto 0,5 empata A e C, A tem mais votos
+    const r = dividirVagas([c("A", 110), c("B", 60), c("C", 30)], 10, "proporcional")
+    expect([r.vagas.get("A"), r.vagas.get("B"), r.vagas.get("C")]).toEqual([6, 3, 1])
+    const s = dividirVagas([c("A", 50), c("B", 30), c("C", 20)], 18, "proporcional")
+    expect([...s.vagas.values()].reduce((x, y) => x + y, 0)).toBe(18)
+    expect(dividirVagas([c("A", 0)], 5, "proporcional").aviso).toContain("Nenhuma")
+  })
+
+  test("eleitos pela ordem da chapa e conferência da chapa", () => {
+    const m = [
+      { participanteId: "t2", condicao: "titular" as const, ordem: 2 },
+      { participanteId: "t1", condicao: "titular" as const, ordem: 1 },
+      { participanteId: "s1", condicao: "suplente" as const, ordem: 1 },
+      { participanteId: "t3", condicao: "titular" as const, ordem: 3 },
+    ]
+    expect([...eleitosDaChapa(m, 2, 1)].sort()).toEqual(["s1", "t1", "t2"])
+    const membro = (id: string, extra = {}) => ({ participanteId: id, nome: id, condicao: "titular" as const, podeCompor: true, outraChapa: null, ...extra })
+    expect(conferirChapa({ membros: [membro("a"), membro("b")], vagas: 2, suplentes: 0, completa: true }).ok).toBe(true)
+    const r = conferirChapa({ membros: [membro("a"), membro("b", { podeCompor: false }), membro("c", { outraChapa: "1" })], vagas: 4, suplentes: 0, completa: true })
+    expect(r.problemas).toEqual(["Faltam 1 titular(es): o regimento pede a chapa completa, com 4.", "b não pode compor chapa pela regra do congresso.", "c já está na chapa 1."])
+    expect(janelaDeChapas("2027-06-12T15:00:00Z", "2027-06-12T15:15:00Z", Date.parse("2027-06-12T15:16:00Z")).aberta).toBe(false)
+    expect(janelaDeChapas(null, null).aberta).toBe(true)
+  })
+
+  test("certificado pela frequência e código", () => {
+    expect(frequencia(3, 4)).toBe(75)
+    expect(frequencia(2, 0)).toBeNull()
+    expect(direitoAoCertificado({ credenciado: true, frequencia: 75, minimo: 75, regra: "todos" }).tem).toBe(true)
+    expect(direitoAoCertificado({ credenciado: true, frequencia: 50, minimo: 75, regra: "todos" }).motivo).toContain("50%")
+    expect(direitoAoCertificado({ credenciado: false, frequencia: null, minimo: 75, regra: "todos" }).tem).toBe(false)
+    expect(direitoAoCertificado({ credenciado: true, frequencia: null, minimo: 75, regra: "nao" }).tem).toBe(false)
+    expect(codigoCertificado(new Uint8Array([1, 2, 3, 4, 5, 6, 7]))).toMatch(/^C[A-Z2-9]{7}$/)
+  })
+
+  test("acompanhamento das resoluções", () => {
+    expect(resolucaoAtrasada({ prazo: "2027-07-01", situacao: "em_andamento" }, "2027-07-02")).toBe(true)
+    expect(resolucaoAtrasada({ prazo: "2027-07-01", situacao: "cumprida" }, "2027-07-02")).toBe(false)
+    const r = resumoResolucoes([{ prazo: null, situacao: "cumprida" }, { prazo: "2027-01-01", situacao: "a_encaminhar" }, { prazo: null, situacao: "parcial" }, { prazo: null, situacao: "em_andamento" }], "2027-07-02")
+    expect([r.total, r.atrasadas, r.percentualConcluido, r.porSituacao.cumprida]).toEqual([4, 1, 50, 1])
+  })
+
+  test("memória acha o que já foi decidido, sem acento e sem palavras vazias", () => {
+    const candidatos = [
+      { item: "R3", texto: "Lutar pela reposição integral da inflação no acordo coletivo" },
+      { item: "R7", texto: "Defender a Petrobras pública e integrada" },
+    ]
+    expect(lembrar("Reposicao integral da inflacao no proximo acordo", candidatos).map((x) => x.item)).toEqual(["R3"])
+    expect(lembrar("Creche para os filhos dos delegados", candidatos)).toEqual([])
+    expect(lembrar("de a o", candidatos)).toEqual([])
   })
 })

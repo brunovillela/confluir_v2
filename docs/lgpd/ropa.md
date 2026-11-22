@@ -31,7 +31,7 @@
 | P14 | [Frota: veículos e condutores](#p14) | 16 | identificação, financeiro | sim |
 | P15 | [Comunicação, eventos e avisos](#p15) | 9 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P16 | [Contas de acesso, segurança, auditoria e gestão interna](#p16) | 30 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
-| P17 | [Congressos e conferências](#p17) | 14 | identificação, **sensível: filiação/posição sindical** | sim |
+| P17 | [Congressos e conferências](#p17) | 19 | identificação, **sensível: filiação/posição sindical** | sim |
 
 <a id="p01"></a>
 ## P01. Filiação e cadastro do associado
@@ -830,7 +830,7 @@
 <a id="p17"></a>
 ## P17. Congressos e conferências
 
-**Finalidade.** Organizar congressos, plenárias e conferências que a entidade promove ou de que participa: configuração do regimento, delegações, inscrição e lista de participantes (delegados, natos, suplentes, observadores, convidados), programa e grupos de trabalho. Inclui a inscrição pela página pública (com ciência do tratamento, IP e link pessoal guardado só como hash) e a importação de listas por planilha ou ata, que pode ser lida por IA. No dia do evento: credenciamento (com conferência de documento), crachás com código guardado só como hash, troca de titular por suplente com quem autorizou, e presença por sessão com o meio e o nível de prova de que a pessoa estava no local. Na relatoria: funções de coordenação e relatoria dos grupos, propostas com versões e apontamentos registrados com o nome de quem lançou (não de quem falou), contagem da apreciação nos grupos e resultado das votações da plenária, sem voto individual. Nas moções: proponente, assinaturas com o hash do texto lido, papel e base no instante, meio (link pessoal, estação da mesa ou papel), modalidade e nível de prova de presença, IP e navegador (prova da assinatura eletrônica); os nomes de quem assinou ficam visíveis conforme a configuração (comissão, credenciados ou público). Com a IA ligada na configuração, as sugestões (redação, fusão, eixo, contradições, síntese do grupo, triagem de moção, leitura do caderno e do regimento) ficam registradas com quem pediu e quem aceitou ou recusou; os textos vão à IA sem nomes de pessoas e com CPF, e-mail e telefone mascarados.
+**Finalidade.** Organizar congressos, plenárias e conferências que a entidade promove ou de que participa: configuração do regimento, delegações, inscrição e lista de participantes (delegados, natos, suplentes, observadores, convidados), programa e grupos de trabalho. Inclui a inscrição pela página pública (com ciência do tratamento, IP e link pessoal guardado só como hash) e a importação de listas por planilha ou ata, que pode ser lida por IA. No dia do evento: credenciamento (com conferência de documento), crachás com código guardado só como hash, troca de titular por suplente com quem autorizou, e presença por sessão com o meio e o nível de prova de que a pessoa estava no local. Na relatoria: funções de coordenação e relatoria dos grupos, propostas com versões e apontamentos registrados com o nome de quem lançou (não de quem falou), contagem da apreciação nos grupos e resultado das votações da plenária, sem voto individual. Nas moções: proponente, assinaturas com o hash do texto lido, papel e base no instante, meio (link pessoal, estação da mesa ou papel), modalidade e nível de prova de presença, IP e navegador (prova da assinatura eletrônica); os nomes de quem assinou ficam visíveis conforme a configuração (comissão, credenciados ou público). Com a IA ligada na configuração, as sugestões (redação, fusão, eixo, contradições, síntese do grupo, triagem de moção, leitura do caderno e do regimento) ficam registradas com quem pediu e quem aceitou ou recusou; os textos vão à IA sem nomes de pessoas e com CPF, e-mail e telefone mascarados. No encerramento: resoluções com o responsável pelo encaminhamento e o acompanhamento; chapas da eleição da delegação com os candidatos, a hora da inscrição e quem foi eleito (enviados à etapa seguinte quando a comissão manda); certificados com nome, condição de participação e frequência, conferíveis pelo código.
 
 **Titulares.** Delegados, observadores e convidados de congressos (filiados ou não), diretores natos.
 
@@ -851,12 +851,15 @@
 
 **Medidas de segurança.** RLS por tenant; permissões próprias (`congressos`, `congressos_gestao`, `congressos_credenciamento`, `congressos_relatoria`); trilhas só com inserção (versões da configuração, histórico do participante e versões das propostas); a IA não recebe a autoria das propostas; acessibilidade visível só a quem organiza.
 
-<details><summary>Tabelas (14) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (19) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
 | [congresso_apontamentos](../dados/dicionario/representacao.md#congresso_apontamentos) | identificacao | `autor` (identificacao) |
 | [congresso_apreciacoes](../dados/dicionario/representacao.md#congresso_apreciacoes) | identificacao | `autor` (identificacao) |
+| [congresso_certificados](../dados/dicionario/representacao.md#congresso_certificados) | sens. sindical | `codigo` (nenhum), `nome` (identificacao), `emitido_por` (identificacao) |
+| [congresso_chapa_membros](../dados/dicionario/representacao.md#congresso_chapa_membros) | sens. sindical | _pela existência do registro_ |
+| [congresso_chapas](../dados/dicionario/representacao.md#congresso_chapas) | sens. sindical | `inscrita_por` (identificacao) |
 | [congresso_crachas](../dados/dicionario/representacao.md#congresso_crachas) | sens. sindical | `codigo_hash` (credencial), `emitido_por` (identificacao), `motivo` (nenhum) |
 | [congresso_grupo_funcoes](../dados/dicionario/representacao.md#congresso_grupo_funcoes) | sens. sindical | _pela existência do registro_ |
 | [congresso_mocao_assinaturas](../dados/dicionario/representacao.md#congresso_mocao_assinaturas) | sens. sindical | `ip` (identificacao), `navegador` (identificacao), `registrado_por` (identificacao) |
@@ -866,13 +869,15 @@
 | [congresso_participantes](../dados/dicionario/representacao.md#congresso_participantes) | identificacao, sens. sindical | `nome` (identificacao), `nome_social` (identificacao), `cpf` (identificacao), `email` (identificacao), `telefone` (identificacao), `genero` (identificacao), `filiacao_id` (sens. sindical), `usuario_id` (identificacao), `papel_id` (sens. sindical), `unidade_id` (sens. sindical), `titular_id` (nenhum), `situacao` (nenhum), `origem` (nenhum), `inscrito_em` (nenhum), `acessibilidade` (sens. saude), `observacao` (identificacao), `token_hash` (credencial), `token_gerado_em` (nenhum), `aceite_em` (nenhum), `inscricao_ip` (identificacao), `credenciado_em` (nenhum), `credenciado_por` (identificacao), `documento_conferido` (nenhum), `modalidade` (nenhum) |
 | [congresso_presencas](../dados/dicionario/representacao.md#congresso_presencas) | sens. sindical | `registrado_por` (identificacao) |
 | [congresso_proposta_versoes](../dados/dicionario/representacao.md#congresso_proposta_versoes) | identificacao | `autor` (identificacao) |
+| [congresso_resolucao_eventos](../dados/dicionario/representacao.md#congresso_resolucao_eventos) | identificacao | `autor` (identificacao) |
+| [congresso_resolucoes](../dados/dicionario/representacao.md#congresso_resolucoes) | identificacao | `texto` (nenhum), `reservada` (nenhum), `responsavel` (identificacao) |
 | [congresso_substituicoes](../dados/dicionario/representacao.md#congresso_substituicoes) | sens. sindical | `autorizado_por` (identificacao), `registrado_por` (identificacao), `desfeita_por` (identificacao) |
 | [congresso_sugestoes_ia](../dados/dicionario/representacao.md#congresso_sugestoes_ia) | identificacao | `conteudo` (nenhum), `pedida_por` (identificacao), `decidida_por` (identificacao) |
 | [congresso_votacoes](../dados/dicionario/representacao.md#congresso_votacoes) | identificacao | `registrado_por` (identificacao), `desfeita_por` (identificacao) |
 
 </details>
 
-<sub>Titulares registrados no banco para estas tabelas: comissão de congressos; convidados de congressos; delegados; delegados que assinam moções; observadores; participantes de congressos; proponentes; proponentes de moções em congressos; relatores; relatores de congressos; suplentes de congressos; usuários que registram a votação.</sub>
+<sub>Titulares registrados no banco para estas tabelas: candidatos a delegado da etapa seguinte; comissão; comissão de congressos; convidados de congressos; delegados; delegados que assinam moções; observadores; participantes de congressos; proponentes; proponentes de moções em congressos; relatores; relatores de congressos; responsáveis; responsáveis pelas resoluções; suplentes de congressos; usuários que registram a votação.</sub>
 
 ## Fluxos transversais
 
@@ -901,4 +906,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 261 de 261 tabelas com dado pessoal atribuídas a 17 processos.
+Cobertura: 266 de 266 tabelas com dado pessoal atribuídas a 17 processos.

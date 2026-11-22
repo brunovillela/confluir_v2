@@ -64,6 +64,7 @@ export type SecaoId =
   | "apreciacao"
   | "plenaria"
   | "mocoes"
+  | "eleicao"
   | "local"
   | "divulgacao"
   | "encerramento"
@@ -91,8 +92,9 @@ export const SECOES: Secao[] = [
   { id: "apreciacao", titulo: "Apreciação nos grupos", descricao: "Se os grupos votam as propostas e o que cada resultado faz.", aplicada: true },
   { id: "plenaria", titulo: "Plenária", descricao: "Rito de fala, maioria e forma de votar.", aplicada: true },
   { id: "mocoes", titulo: "Moções", descricao: "Como uma moção chega à plenária.", aplicada: true },
-  { id: "divulgacao", titulo: "Divulgação", descricao: "O que é público e o que é reservado.", aplicada: false },
-  { id: "encerramento", titulo: "Encerramento", descricao: "Certificados, relatório e resoluções.", aplicada: false },
+  { id: "eleicao", titulo: "Eleição da delegação", descricao: "Chapas e eleitos para a etapa seguinte.", aplicada: true },
+  { id: "divulgacao", titulo: "Divulgação", descricao: "O que é público e o que é reservado.", aplicada: true },
+  { id: "encerramento", titulo: "Encerramento", descricao: "Certificados, relatório e resoluções.", aplicada: true },
 ]
 
 
@@ -618,6 +620,40 @@ export const AJUSTES: Ajuste[] = [
       { valor: "credenciados", rotulo: "Os credenciados" },
       { valor: "publico", rotulo: "O público" },
     ],
+  },
+
+  // ── Eleição da delegação para a etapa seguinte ──
+  { chave: "eleicao.ha", secao: "eleicao", rotulo: "O congresso elege delegados para a etapa seguinte", tipo: "booleano", padrao: false },
+  {
+    chave: "eleicao.vagas", secao: "eleicao", rotulo: "Delegados titulares a eleger", tipo: "numero", padrao: 18, min: 1, max: 500,
+    ajuda: "Ex.: chapa de 18 à Plenafup.", visivelSe: [{ chave: "eleicao.ha", igual: true }],
+  },
+  { chave: "eleicao.suplentes", secao: "eleicao", rotulo: "Suplentes a eleger", tipo: "numero", padrao: 0, min: 0, max: 500, visivelSe: [{ chave: "eleicao.ha", igual: true }] },
+  {
+    chave: "eleicao.criterio", secao: "eleicao", rotulo: "Como as vagas se dividem", tipo: "escolha", padrao: "maioria",
+    opcoes: [
+      { valor: "maioria", rotulo: "A chapa mais votada leva todas (maioria simples)" },
+      { valor: "proporcional", rotulo: "Proporcional aos votos (quociente e maiores restos)" },
+    ],
+    visivelSe: [{ chave: "eleicao.ha", igual: true }],
+  },
+  {
+    chave: "eleicao.chapa_completa", secao: "eleicao", rotulo: "A chapa precisa ter todos os titulares", tipo: "booleano", padrao: true,
+    visivelSe: [{ chave: "eleicao.ha", igual: true }],
+  },
+  {
+    chave: "eleicao.quem_compoe", secao: "eleicao", rotulo: "Quem pode compor chapa", tipo: "escolha", padrao: "delegados_credenciados",
+    opcoes: [
+      { valor: "delegados_credenciados", rotulo: "Só quem tem direito a voto e está credenciado" },
+      { valor: "credenciados", rotulo: "Qualquer credenciado" },
+      { valor: "participantes", rotulo: "Qualquer participante" },
+    ],
+    visivelSe: [{ chave: "eleicao.ha", igual: true }],
+  },
+  { chave: "eleicao.inscricao_inicio", secao: "eleicao", rotulo: "Inscrição de chapas abre em", tipo: "datahora", padrao: null, visivelSe: [{ chave: "eleicao.ha", igual: true }] },
+  {
+    chave: "eleicao.inscricao_fim", secao: "eleicao", rotulo: "Inscrição de chapas fecha em", tipo: "datahora", padrao: null,
+    ajuda: "Ex.: 12h às 12h15 do último dia (21º Congrenf).", visivelSe: [{ chave: "eleicao.ha", igual: true }],
   },
 
   // ── Divulgação ──

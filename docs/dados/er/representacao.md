@@ -73,6 +73,25 @@ erDiagram
     uuid grupo_id FK
     uuid proposta_id FK
   }
+  congresso_certificados {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid participante_id FK
+  }
+  congresso_chapa_membros {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid chapa_id FK
+    uuid participante_id FK
+    uuid unidade_id FK
+  }
+  congresso_chapas {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+  }
   congresso_config_versoes {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -179,6 +198,22 @@ erDiagram
     uuid eixo_id FK
     uuid grupo_id FK
     uuid fundida_em FK
+  }
+  congresso_resolucao_eventos {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid resolucao_id FK
+  }
+  congresso_resolucoes {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid proposta_id FK
+    uuid mocao_id FK
+    uuid eixo_id FK
+    uuid negociacao_id FK
+    uuid oficio_id FK
   }
   congresso_sessoes {
     uuid id PK
@@ -314,6 +349,13 @@ erDiagram
   congresso_apreciacoes }o--|| congresso_grupos : "grupo_id"
   congresso_apreciacoes }o--|| congresso_propostas : "proposta_id"
   congresso_apreciacoes }o--|| congressos : "congresso_id"
+  congresso_certificados }o--|| congresso_participantes : "participante_id"
+  congresso_certificados }o--|| congressos : "congresso_id"
+  congresso_chapa_membros }o--o| congresso_unidades : "unidade_id"
+  congresso_chapa_membros }o--|| congresso_chapas : "chapa_id"
+  congresso_chapa_membros }o--|| congresso_participantes : "participante_id"
+  congresso_chapa_membros }o--|| congressos : "congresso_id"
+  congresso_chapas }o--|| congressos : "congresso_id"
   congresso_config_versoes }o--o| usuarios : "autor_id"
   congresso_config_versoes }o--|| congressos : "congresso_id"
   congresso_crachas }o--o| usuarios : "emitido_por"
@@ -361,6 +403,14 @@ erDiagram
   congresso_propostas }o--o| congresso_grupos : "grupo_id"
   congresso_propostas }o--o| congresso_propostas : "fundida_em"
   congresso_propostas }o--|| congressos : "congresso_id"
+  congresso_resolucao_eventos }o--|| congresso_resolucoes : "resolucao_id"
+  congresso_resolucao_eventos }o--|| congressos : "congresso_id"
+  congresso_resolucoes }o--o| congresso_eixos : "eixo_id"
+  congresso_resolucoes }o--o| congresso_mocoes : "mocao_id"
+  congresso_resolucoes }o--o| congresso_propostas : "proposta_id"
+  congresso_resolucoes }o--o| negociacoes : "negociacao_id"
+  congresso_resolucoes }o--o| oficios : "oficio_id"
+  congresso_resolucoes }o--|| congressos : "congresso_id"
   congresso_sessoes }o--o| congresso_eixos : "eixo_id"
   congresso_sessoes }o--o| congresso_grupos : "grupo_id"
   congresso_sessoes }o--|| congressos : "congresso_id"

@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import { notFound } from "next/navigation"
 import { CalendarDays, MapPin } from "lucide-react"
 
@@ -7,6 +8,7 @@ import { Marca } from "@/components/marca"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Card, CardContent } from "@/components/ui/card"
 import { descreverValor, AJUSTE_POR_CHAVE, valor } from "@/lib/congressos/config"
+import { encerramento } from "@/lib/db/congressos-encerramento"
 import { congressoPublico } from "@/lib/db/congressos-inscricao"
 import { obterOrganizacao } from "@/lib/db/organizacao"
 import { formatarData } from "@/lib/formato"
@@ -26,6 +28,7 @@ export default async function CongressoPublicoPage({ params }: { params: Promise
   if (!c) notFound()
   const entidade = org?.nomeFantasia ?? org?.nomeRazao ?? null
   const fecha = valor(c.config, "inscricao.fecha")
+  const fim = valor(c.config, "divulgacao.resolucoes") !== false ? await encerramento(c.id, tenantId) : null
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-10">
@@ -56,6 +59,14 @@ export default async function CongressoPublicoPage({ params }: { params: Promise
           )}
         </div>
       </div>
+
+      {fim?.encerradoEm && (
+        <p className="mb-6 text-center">
+          <Link href={`/congresso/${slug}/resolucoes`} className="text-primary font-medium underline underline-offset-4">
+            Ler as resoluções aprovadas
+          </Link>
+        </p>
+      )}
 
       {c.aberta ? (
         <Card>

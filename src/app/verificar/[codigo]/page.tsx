@@ -10,6 +10,7 @@ import { verificarCertificadoAviso } from "@/lib/db/ferias-aviso"
 import { verificarCertificadoOposicao } from "@/lib/db/oposicao-assinatura"
 import { formatarMomento, verificarCertificado } from "@/lib/db/oficios-assinatura"
 import { ROTULO_SITUACAO_MOCAO, verificarMocao, type VerificacaoMocao } from "@/lib/db/congressos-mocoes"
+import { verificarCertificado as verificarCertificadoCongresso, type VerificacaoCertificado } from "@/lib/db/congressos-encerramento"
 import { formatarData } from "@/lib/formato"
 
 export const metadata: Metadata = {
@@ -30,6 +31,8 @@ export default async function VerificarCertificadoPage({
   const { codigo } = await params
   const mocao = await verificarMocao(decodeURIComponent(codigo))
   if (mocao) return <VerificacaoDaMocao v={mocao} />
+  const participacao = await verificarCertificadoCongresso(decodeURIComponent(codigo))
+  if (participacao) return <VerificacaoDeParticipacao v={participacao} />
   const contrato = await verificarCertificadoMinuta(decodeURIComponent(codigo))
   if (contrato) return <VerificacaoContrato v={contrato} />
   const recibo = await verificarCertificadoRpa(decodeURIComponent(codigo))
@@ -313,6 +316,50 @@ function VerificacaoDaMocao({ v }: { v: VerificacaoMocao }) {
             <p className="text-muted-foreground font-mono text-xs break-all">SHA-256 do texto: {v.textoHash}</p>
             <p className="text-muted-foreground text-xs">
               Compare o resumo com o do documento impresso: se o texto tiver sido alterado, o resumo não confere.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    </main>
+  )
+}
+
+function VerificacaoDeParticipacao({ v }: { v: VerificacaoCertificado }) {
+  return (
+    <main className="mx-auto w-full max-w-xl px-4 py-10">
+      <div className="mb-8 flex flex-col items-center text-center">
+        <Marca variante="completa" />
+        <h1 className="mt-6 text-2xl font-semibold tracking-tight">Verificação de certificado</h1>
+      </div>
+      <div className="grid gap-4">
+        {v.revogado ? (
+          <Alert variant="destructive">
+            <Ban />
+            <AlertDescription>
+              Certificado <strong>revogado</strong>
+              {v.motivo ? `: ${v.motivo}` : "."}
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <Alert className="border-success/40 text-success-fg">
+            <BadgeCheck />
+            <AlertDescription>
+              Certificado <strong>autêntico</strong>, emitido pelo {v.congresso}.
+            </AlertDescription>
+          </Alert>
+        )}
+        <Card>
+          <CardHeader>
+            <CardTitle>{v.nome}</CardTitle>
+            <CardDescription>{v.condicao}</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-2 text-sm">
+            <p>
+              Participou do {v.congresso}
+              {v.frequencia !== null ? `, com frequência de ${String(v.frequencia).replace(".", ",")}% das sessões` : ""}.
+            </p>
+            <p className="text-muted-foreground text-xs">
+              Código {v.codigo} · emitido em {formatarData(v.emitidoEm)}
             </p>
           </CardContent>
         </Card>

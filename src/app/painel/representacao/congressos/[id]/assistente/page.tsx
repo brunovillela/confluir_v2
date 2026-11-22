@@ -9,6 +9,7 @@ import { requirePermissao } from "@/lib/auth"
 import { ROTULO_FUNCAO_IA } from "@/lib/congressos/ia"
 import { obterCongresso } from "@/lib/db/congressos"
 import { iaPermitida, listarSugestoes, usoDaIA } from "@/lib/db/congressos-ia"
+import { memoriaDosTextos } from "@/lib/db/congressos-encerramento"
 import { dadosDaRelatoria, ROTULO_ORIGEM_PROPOSTA } from "@/lib/db/congressos-relatoria"
 
 import { Assistente, type PropostaResumo } from "./assistente"
@@ -48,7 +49,13 @@ export default async function AssistentePage({ params }: { params: Promise<{ id:
       },
     ])
   )
-  const abertas = d.propostas.filter((p) => ["em_debate", "entregue", "plenaria"].includes(p.situacao)).length
+  const emAberto = d.propostas.filter((p) => ["em_debate", "entregue", "plenaria"].includes(p.situacao))
+  const abertas = emAberto.length
+  // Memória (sem IA): resoluções de congressos anteriores e cláusulas do acordo vigente parecidas.
+  const memoria = await memoriaDosTextos(
+    c,
+    emAberto.map((p) => ({ id: p.id, texto: p.texto }))
+  )
 
   return (
     <>
@@ -84,6 +91,48 @@ export default async function AssistentePage({ params }: { params: Promise<{ id:
           obsoletas={sugestoes.filter((s) => s.situacao === "obsoleta").length}
         />
       )}
+      <section className="grid gap-2">
+        <h2 className="text-sm font-semibold">
+          Já decidido antes? <span className="text-muted-foreground font-normal">· {memoria.size}</span>
+        </h2>
+        <p className="text-muted-foreground text-xs">
+          Propostas em consolidação parecidas com resoluções de congressos anteriores ou com cláusulas do acordo vigente. É só a fonte, para
+          conferir: a decisão é da relatoria.
+        </p>
+        {memoria.size === 0 ? (
+          <p className="text-muted-foreground text-sm">Nada parecido com o que já foi decidido ou já consta no acordo.</p>
+        ) : (
+          <div className="grid gap-2">
+            {emAberto
+              .filter((p) => memoria.has(p.id))
+              .map((p) => (
+                <div key={p.id} className="grid gap-2 rounded-lg border p-3 md:grid-cols-2">
+                  <div className="text-sm">
+                    <span className="font-semibold">{p.numero}</span> <span className="whitespace-pre-wrap">{p.texto}</span>
+                  </div>
+                  <ul className="grid gap-2 text-sm">
+                    {memoria.get(p.id)!.map((m, i) => (
+                      <li key={i} className="bg-muted/40 rounded-md p-2">
+                        <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
+                          {m.link ? (
+                            <Link href={m.link} className="underline underline-offset-2">
+                              {m.fonte}
+                            </Link>
+                          ) : (
+                            m.fonte
+                          )}
+                          <span>· {Math.round(m.nota * 100)}% parecido</span>
+                          {m.reservada && <span className="text-destructive">· reservada</span>}
+                        </div>
+                        <p className="line-clamp-4 whitespace-pre-wrap">{m.texto}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+          </div>
+        )}
+      </section>
       {uso.length > 0 && (
         <section className="grid gap-2">
           <h2 className="text-sm font-semibold">Quanto a IA ajudou neste congresso</h2>

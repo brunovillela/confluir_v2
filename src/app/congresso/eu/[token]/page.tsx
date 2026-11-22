@@ -1,13 +1,15 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import { CalendarDays, CheckCircle2, ClipboardList, Clock, MapPin, XCircle } from "lucide-react"
+import { Award, CalendarDays, CheckCircle2, ClipboardList, Clock, MapPin, ScrollText, XCircle } from "lucide-react"
 
 import { AvisoPrivacidade } from "@/components/aviso-privacidade"
 import { Marca } from "@/components/marca"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { valor } from "@/lib/congressos/config"
 import { obterCongresso } from "@/lib/db/congressos"
+import { encerramento } from "@/lib/db/congressos-encerramento"
 import { minhaInscricao } from "@/lib/db/congressos-inscricao"
 import { acessoDeRelatoria, ROTULO_FUNCAO } from "@/lib/db/congressos-relatoria"
 import { mocoesParaParticipante, participantePeloLink, regrasDasMocoes } from "@/lib/db/congressos-mocoes"
@@ -53,6 +55,8 @@ export default async function MinhaParticipacaoPage({
   const congresso = eu ? await obterCongresso(eu.congressoId).catch(() => null) : null
   const mocoes = eu && congresso ? await mocoesParaParticipante(congresso, tenantId, eu.id).catch(() => []) : []
   const regrasMocao = congresso ? regrasDasMocoes(congresso) : null
+  const fim = congresso ? await encerramento(congresso.id, tenantId).catch(() => null) : null
+  const certificado = congresso ? valor(congresso.config, "encerramento.certificado") !== "nao" : false
   const podeApresentar = !!eu?.propoe && regrasMocao?.quemApresenta === "participantes"
   const s = SITUACAO[m.situacao] ?? SITUACAO.inscrito
   // QR para a mesa achar a pessoa sem digitar: leva o próprio token, que já está na URL desta página.
@@ -132,6 +136,26 @@ export default async function MinhaParticipacaoPage({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={qrMesa} alt="QR para a mesa de credenciamento" className="size-56 rounded-lg border bg-white p-2" />
             <p className="text-muted-foreground">Mostre este QR na mesa: a equipe acha a sua inscrição sem digitar.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {eu && fim?.encerradoEm && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Encerramento</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-2 text-sm">
+            {certificado && m.credenciado && (
+              <a href={`/congresso/eu/${token}/certificado`} className="hover:bg-muted flex items-center gap-2 rounded-md border p-3 font-medium">
+                <Award className="size-4" />
+                Meu certificado (PDF)
+              </a>
+            )}
+            <Link href={`/congresso/eu/${token}/resolucoes`} className="hover:bg-muted flex items-center gap-2 rounded-md border p-3 font-medium">
+              <ScrollText className="size-4" />
+              Resoluções aprovadas
+            </Link>
           </CardContent>
         </Card>
       )}

@@ -213,6 +213,9 @@ export const MODELOS: Modelo[] = [
       "mocoes.minimo_numero": 20,
       "mocoes.minimo_percentual": 90,
       "mocoes.percentual_de": "base_origem",
+      "eleicao.ha": true,
+      "eleicao.vagas": 18,
+      "eleicao.criterio": "maioria",
     },
   },
   {

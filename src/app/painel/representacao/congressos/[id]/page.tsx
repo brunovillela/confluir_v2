@@ -37,6 +37,9 @@ import { AplicarGrupos, ColarPropostas } from "../relatoria-componentes"
 import { listarMocoes, ROTULO_SITUACAO_MOCAO } from "@/lib/db/congressos-mocoes"
 import { NovaMocaoPainel, ProgressoLimiar } from "../mocoes-componentes"
 import { LerRegimento } from "../ia-componentes"
+import { EncerrarCongresso } from "../encerramento-componentes"
+import { resumoResolucoes } from "@/lib/congressos/encerramento"
+import { dadosDaEleicao, encerramento, indicadoresDoCongresso, listarResolucoes } from "@/lib/db/congressos-encerramento"
 import { AtualizarSozinho, CrachasEmLote, DesfazerTroca } from "../dia-componentes"
 import { origemAtual } from "@/lib/tenant-url"
 
@@ -64,13 +67,14 @@ import {
 
 export const metadata: Metadata = { title: "Congresso — Confluir" }
 
-const ABAS = ["geral", "dia", "relatoria", "mocoes", "configuracao", "papeis", "delegacao", "programa", "participantes"] as const
+const ABAS = ["geral", "dia", "relatoria", "mocoes", "encerramento", "configuracao", "papeis", "delegacao", "programa", "participantes"] as const
 type Aba = (typeof ABAS)[number]
 const ROTULO_ABA: Record<Aba, string> = {
   geral: "Visão geral",
   dia: "Dia do evento",
   relatoria: "Relatoria",
   mocoes: "Moções",
+  encerramento: "Encerramento",
   configuracao: "Configuração",
   papeis: "Papéis e direitos",
   delegacao: "Delegações",
@@ -146,6 +150,7 @@ export default async function CongressoPage({
       {aba === "dia" && <AbaDia c={c} gestor={gestor} operador={operador} sessaoId={sp.sessao ?? null} />}
       {aba === "relatoria" && <AbaRelatoria c={c} relator={relator} />}
       {aba === "mocoes" && <AbaMocoes c={c} relator={relator} />}
+      {aba === "encerramento" && <AbaEncerramento c={c} gestor={gestor} relator={relator} />}
       {aba === "configuracao" && <AbaConfiguracao c={c} gestor={gestor} travado={travado} />}
       {aba === "papeis" && <AbaPapeis c={c} gestor={gestor} />}
       {aba === "delegacao" && <AbaDelegacao c={c} gestor={gestor} />}
@@ -1201,6 +1206,147 @@ async function AbaMocoes({ c, relator }: { c: Congresso; relator: boolean }) {
           )}
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+async function AbaEncerramento({ c, gestor, relator }: { c: Congresso; gestor: boolean; relator: boolean }) {
+  const [fim, ind, rs, eleicao] = await Promise.all([encerramento(c.id), indicadoresDoCongresso(c), listarResolucoes(c), dadosDaEleicao(c)])
+  const hoje = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" })
+  const resumo = resumoResolucoes(rs, hoje)
+  const base = `/painel/representacao/congressos/${c.id}`
+  const eleitos = eleicao.chapas.flatMap((ch) => ch.membros.filter((m) => m.eleito)).length
+  const presencaMedia = ind.sessoes.length ? Math.round(ind.sessoes.reduce((s, x) => s + x.presentes, 0) / ind.sessoes.length) : null
+  const numero = (rotulo: string, v: string | number, detalhe?: string) => (
+    <div className="rounded-lg border p-3">
+      <div className="text-muted-foreground text-xs">{rotulo}</div>
+      <div className="text-2xl font-semibold tabular-nums">{v}</div>
+      {detalhe && <div className="text-muted-foreground text-xs">{detalhe}</div>}
+    </div>
+  )
+  return (
+    <div className="grid gap-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>{fim.encerradoEm ? `Encerrado em ${formatarDataHora(fim.encerradoEm)}` : "Encerramento"}</CardTitle>
+          <CardDescription>
+            {fim.encerradoEm
+              ? `${fim.encerradoPor ? `Por ${fim.encerradoPor}. ` : ""}Resoluções, relatório e certificados estão liberados; cada participante baixa o certificado pelo link pessoal.`
+              : "Ao encerrar, as resoluções do que a plenária aprovou são geradas e o relatório, os certificados e as resoluções públicas ficam disponíveis."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-start gap-2">
+          {gestor && <EncerrarCongresso congressoId={c.id} encerrado={!!fim.encerradoEm} />}
+          <Button asChild variant="outline" size="sm">
+            <Link href={`${base}/encerramento/relatorio`} target="_blank">
+              Relatório final (PDF)
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href={`${base}/encerramento/caderno`} target="_blank">
+              Caderno de resoluções (PDF)
+            </Link>
+          </Button>
+          {c.slug && fim.encerradoEm && valor(c.config, "divulgacao.resolucoes") !== false && (
+            <Button asChild variant="ghost" size="sm">
+              <Link href={`/congresso/${c.slug}/resolucoes`} target="_blank">
+                Página pública das resoluções
+              </Link>
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {numero("Credenciados", ind.credenciados, `de ${ind.inscritos} inscrito(s)`)}
+        {numero("Presença média por sessão", presencaMedia ?? "—", ind.sessoes.length ? `${ind.sessoes.length} sessão(ões)` : "sem sessões")}
+        {numero("Propostas aprovadas", ind.propostas.porSituacao.aprovada ?? 0, `de ${ind.propostas.total} registrada(s)`)}
+        {numero("Moções aprovadas", ind.mocoes.aprovadas, `${ind.mocoes.assinaturas} assinatura(s) válida(s)`)}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>Resoluções · {resumo.total}</CardTitle>
+            <CardDescription>
+              {resumo.total
+                ? `${resumo.percentualConcluido}% concluídas${resumo.atrasadas ? ` · ${resumo.atrasadas} com prazo vencido` : ""} · ${ind.resolucoes.reservadas} reservada(s)`
+                : "Saem do que a plenária aprovou; cada uma ganha responsável, prazo e situação."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {relator && (
+              <Button asChild size="sm">
+                <Link href={`${base}/resolucoes`}>Acompanhar as resoluções</Link>
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Eleição da delegação</CardTitle>
+            <CardDescription>
+              {!eleicao.regras.ha
+                ? "A configuração não prevê eleição de delegados para a etapa seguinte."
+                : eleicao.apurada
+                  ? `${eleitos} eleito(s) para o ${c.etapaSeguinteNome ?? "congresso da etapa seguinte"}.`
+                  : `${eleicao.chapas.length} chapa(s) inscrita(s) · ${eleicao.regras.vagas} vaga(s).`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {relator && eleicao.regras.ha && (
+              <Button asChild size="sm" variant="outline">
+                <Link href={`${base}/eleicao`}>Chapas e votos</Link>
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Certificados</CardTitle>
+            <CardDescription>
+              {valor(c.config, "encerramento.certificado") === "nao"
+                ? "Este congresso não emite certificado."
+                : `Para quem foi credenciado, com frequência mínima de ${valor(c.config, "presenca.frequencia_certificado") ?? 75}% das sessões.`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {gestor && (
+              <Button asChild size="sm" variant="outline">
+                <Link href={`${base}/certificados`}>Ver e emitir</Link>
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {ind.porBase.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Participação por base</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Base</TableHead>
+                  <TableHead className="text-right">Inscritos</TableHead>
+                  <TableHead className="text-right">Credenciados</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {ind.porBase.map((b) => (
+                  <TableRow key={b.base}>
+                    <TableCell>{b.base}</TableCell>
+                    <TableCell className="text-right tabular-nums">{b.inscritos}</TableCell>
+                    <TableCell className="text-right tabular-nums">{b.credenciados}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

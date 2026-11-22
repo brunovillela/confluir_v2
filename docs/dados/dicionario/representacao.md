@@ -2,7 +2,7 @@
 
 # Representação, acordos e negociações
 
-42 tabelas. Diagrama: [er/representacao.md](../er/representacao.md).
+47 tabelas. Diagrama: [er/representacao.md](../er/representacao.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -17,6 +17,9 @@
 | [ato_eventos_participantes](#ato_eventos_participantes) | **sensível: sindical** | Junção ato x usuário participante. Sem uso encontrado no código (possível legado do Bubble), tabela vazia. |
 | [congresso_apontamentos](#congresso_apontamentos) | identificação | Anotações e emendas (acréscimo, supressão, alteração) e dissensos registrados pela relatoria de cada grupo. Só inserção; retirar marca retir… |
 | [congresso_apreciacoes](#congresso_apreciacoes) | identificação | Votação de uma proposta no grupo (a favor, contra, abstenção) e a classificação pela regra do regimento. |
+| [congresso_certificados](#congresso_certificados) | **sensível: sindical** | Certificados de participação: código conferível em /verificar, nome, condição (papel) e frequência no momento da emissão. Revogar não apaga. |
+| [congresso_chapa_membros](#congresso_chapa_membros) | **sensível: sindical** | Quem compõe cada chapa: participante, base, titular ou suplente, ordem e se foi eleito. |
+| [congresso_chapas](#congresso_chapas) | **sensível: sindical** | Chapas inscritas na eleição da delegação para a etapa seguinte, com horário de inscrição, situação (homologada, impugnada, retirada), votos … |
 | [congresso_config_versoes](#congresso_config_versoes) | — | Histórico da configuração de cada congresso (só inserção): quem mudou, por quê e, depois da aprovação do regimento, a deliberação que autori… |
 | [congresso_crachas](#congresso_crachas) | **sensível: sindical** | Vias do crachá de cada participante. Só a via ativa vale; segunda via invalida a anterior. O QR leva um código cujo hash fica aqui. |
 | [congresso_eixos](#congresso_eixos) | — | Eixos temáticos do congresso. |
@@ -32,6 +35,8 @@
 | [congresso_proposta_origens](#congresso_proposta_origens) | — | De quais propostas uma proposta fundida nasceu, para rastrear qualquer resolução até o apontamento inicial. |
 | [congresso_proposta_versoes](#congresso_proposta_versoes) | identificação | Cada versão do texto de uma proposta, com o motivo (grupo, consolidação, fusão, plenária). Só inserção: texto nunca é sobrescrito. |
 | [congresso_propostas](#congresso_propostas) | — | Propostas do congresso: caderno de teses, etapas anteriores, novas no grupo ou em plenária, e as nascidas de fusão. O texto atual é a última… |
+| [congresso_resolucao_eventos](#congresso_resolucao_eventos) | identificação | Acompanhamento de cada resolução: mudança de situação, vínculo, nota. Só inserção. |
+| [congresso_resolucoes](#congresso_resolucoes) | identificação | Resoluções do congresso: o texto aprovado (de uma proposta, de uma moção ou avulsa), marca de reservada (fora do caderno público, como estra… |
 | [congresso_sessoes](#congresso_sessoes) | — | Sessões do programa (plenária, mesa, grupo, setorial, atividade conjunta…), com horário. |
 | [congresso_substituicoes](#congresso_substituicoes) | **sensível: sindical** | Suplente que assume no lugar de um titular, com quem autorizou. Desfazer não apaga: marca desfeita_em. |
 | [congresso_sugestoes_ia](#congresso_sugestoes_ia) | identificação | Sugestões da IA na relatoria do congresso (redação, fusão, eixo, abrangência, competência, correlação entre grupos, síntese, triagem de moçã… |
@@ -333,6 +338,87 @@ Votação de uma proposta no grupo (a favor, contra, abstenção) e a classifica
 Checks: `congresso_apreciacoes_a_favor_check` `CHECK ((a_favor >= 0))`; `congresso_apreciacoes_abstencao_check` `CHECK ((abstencao >= 0))`; `congresso_apreciacoes_contra_check` `CHECK ((contra >= 0))`; `congresso_apreciacoes_resultado_check` `CHECK ((resultado = ANY (ARRAY['aprovada_direto'::text, 'plenaria'::text, 'plenaria_com_vencida'::text, 'rejeitada'::text])))`
 
 Índices: `congresso_apreciacoes_pkey`, `congresso_apreciacoes_um`
+
+## congresso_certificados
+
+Certificados de participação: código conferível em /verificar, nome, condição (papel) e frequência no momento da emissão. Revogar não apaga.
+
+- **LGPD:** **sensível: sindical** · titulares: participantes de congressos
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
+| `participante_id` | uuid | não |  | → congresso_participantes (**cascade**) |  |  |
+| `codigo` | text | não |  |  | nenhum | Código público do certificado (QR e /verificar). |
+| `nome` | text | não |  |  | identificação | Nome como saiu no certificado. |
+| `condicao` | text | não |  |  |  |  |
+| `frequencia` | numeric(5,2) | sim |  |  |  |  |
+| `emitido_em` | timestamp with time zone | não | `now()` |  |  |  |
+| `emitido_por` | text | sim |  |  | identificação | Quem emitiu. |
+| `revogado_em` | timestamp with time zone | sim |  |  |  |  |
+| `revogado_motivo` | text | sim |  |  |  |  |
+
+Únicas: `UNIQUE (codigo)`
+
+Índices: `congresso_certificados_codigo_key`, `congresso_certificados_pkey`, `congresso_certificados_um_valido`
+
+## congresso_chapa_membros
+
+Quem compõe cada chapa: participante, base, titular ou suplente, ordem e se foi eleito.
+
+- **LGPD:** **sensível: sindical** · titulares: candidatos a delegado da etapa seguinte
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
+| `chapa_id` | uuid | não |  | → congresso_chapas (**cascade**) |  |  |
+| `participante_id` | uuid | não |  | → congresso_participantes (**cascade**) |  |  |
+| `unidade_id` | uuid | sim |  | → congresso_unidades (set null) |  |  |
+| `condicao` | text | não | `'titular'::text` |  |  |  |
+| `ordem` | integer | não | `0` |  |  |  |
+| `eleito` | boolean | sim |  |  |  |  |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Checks: `congresso_chapa_membros_condicao_check` `CHECK ((condicao = ANY (ARRAY['titular'::text, 'suplente'::text])))`
+
+Índices: `congresso_chapa_membros_participante`, `congresso_chapa_membros_pkey`, `congresso_chapa_membros_um`
+
+## congresso_chapas
+
+Chapas inscritas na eleição da delegação para a etapa seguinte, com horário de inscrição, situação (homologada, impugnada, retirada), votos e vagas obtidas.
+
+- **LGPD:** **sensível: sindical** · titulares: candidatos a delegado da etapa seguinte
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
+| `numero` | integer | não |  |  |  |  |
+| `nome` | text | não |  |  |  |  |
+| `situacao` | text | não | `'inscrita'::text` |  |  |  |
+| `motivo` | text | sim |  |  |  |  |
+| `votos` | integer | sim |  |  |  |  |
+| `vagas_titulares` | integer | sim |  |  |  |  |
+| `vagas_suplentes` | integer | sim |  |  |  |  |
+| `inscrita_em` | timestamp with time zone | não | `now()` |  |  |  |
+| `inscrita_por` | text | sim |  |  | identificação | Quem registrou a inscrição. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | sim |  |  |  |  |
+
+Checks: `congresso_chapas_nome_check` `CHECK ((length(TRIM(BOTH FROM nome)) > 0))`; `congresso_chapas_numero_check` `CHECK ((numero > 0))`; `congresso_chapas_situacao_check` `CHECK ((situacao = ANY (ARRAY['inscrita'::text, 'homologada'::text, 'impugnada'::text, 'retirada'::text])))`; `congresso_chapas_vagas_suplentes_check` `CHECK (((vagas_suplentes IS NULL) OR (vagas_suplentes >= 0)))`; `congresso_chapas_vagas_titulares_check` `CHECK (((vagas_titulares IS NULL) OR (vagas_titulares >= 0)))`; `congresso_chapas_votos_check` `CHECK (((votos IS NULL) OR (votos >= 0)))`
+
+Índices: `congresso_chapas_numero`, `congresso_chapas_pkey`
 
 ## congresso_config_versoes
 
@@ -750,6 +836,61 @@ Checks: `congresso_propostas_classificacao_check` `CHECK (((classificacao IS NUL
 
 Índices: `congresso_propostas_eixo`, `congresso_propostas_grupo`, `congresso_propostas_numero`, `congresso_propostas_pkey`
 
+## congresso_resolucao_eventos
+
+Acompanhamento de cada resolução: mudança de situação, vínculo, nota. Só inserção.
+
+- **LGPD:** identificação · titulares: comissão e responsáveis
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
+| `resolucao_id` | uuid | não |  | → congresso_resolucoes (**cascade**) |  |  |
+| `acao` | text | não |  |  |  |  |
+| `situacao` | text | sim |  |  |  |  |
+| `detalhe` | text | sim |  |  |  |  |
+| `autor` | text | sim |  |  | identificação | Quem registrou. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Índices: `congresso_resolucao_eventos_pkey`, `congresso_resolucao_eventos_resolucao`
+
+## congresso_resolucoes
+
+Resoluções do congresso: o texto aprovado (de uma proposta, de uma moção ou avulsa), marca de reservada (fora do caderno público, como estratégia de luta), destino, responsável, prazo, situação do cumprimento e vínculo com negociação ou ofício.
+
+- **LGPD:** identificação · titulares: responsáveis pelas resoluções
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
+| `numero` | integer | não |  |  |  |  |
+| `proposta_id` | uuid | sim |  | → congresso_propostas (set null) |  |  |
+| `mocao_id` | uuid | sim |  | → congresso_mocoes (set null) |  |  |
+| `eixo_id` | uuid | sim |  | → congresso_eixos (set null) |  |  |
+| `titulo` | text | sim |  |  |  |  |
+| `texto` | text | não |  |  | nenhum | Texto aprovado, congelado no momento da geração. |
+| `reservada` | boolean | não | `false` |  | nenhum | Resolução reservada: não sai no caderno público, na página do congresso nem na busca entre edições fora do painel. |
+| `destino` | text | não | `'registro'::text` |  |  |  |
+| `responsavel` | text | sim |  |  | identificação | Quem responde pelo encaminhamento (pessoa, diretoria ou departamento). |
+| `prazo` | date | sim |  |  |  |  |
+| `situacao` | text | não | `'a_encaminhar'::text` |  |  |  |
+| `negociacao_id` | uuid | sim |  | → negociacoes (set null) |  |  |
+| `oficio_id` | uuid | sim |  | → oficios (set null) |  |  |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | sim |  |  |  |  |
+
+Checks: `congresso_resolucoes_destino_check` `CHECK ((destino = ANY (ARRAY['registro'::text, 'pauta_act'::text, 'plano_lutas'::text, 'oficio'::text, 'direcao'::text, 'etapa_seguinte'::text])))`; `congresso_resolucoes_numero_check` `CHECK ((numero > 0))`; `congresso_resolucoes_situacao_check` `CHECK ((situacao = ANY (ARRAY['a_encaminhar'::text, 'em_andamento'::text, 'cumprida'::text, 'parcial'::text, 'nao_cumprida'::text, 'prejudicada'::text])))`; `congresso_resolucoes_texto_check` `CHECK ((length(TRIM(BOTH FROM texto)) > 0))`
+
+Índices: `congresso_resolucoes_mocao`, `congresso_resolucoes_numero`, `congresso_resolucoes_pkey`, `congresso_resolucoes_proposta`
+
 ## congresso_sessoes
 
 Sessões do programa (plenária, mesa, grupo, setorial, atividade conjunta…), com horário.
@@ -941,6 +1082,8 @@ Congressos, plenárias e conferências que a entidade promove ou de que particip
 | `updated_at` | timestamp with time zone | sim |  |  |  |  |
 | `slug` | text | sim |  |  | nenhum | Endereço da página pública de inscrição (/congresso/<slug>), único na entidade. |
 | `inscricao_publica` | boolean | não | `false` |  | nenhum | Liga a inscrição pela página pública; a janela de datas vem da configuração (inscricao.abre/fecha). |
+| `encerrado_em` | timestamp with time zone | sim |  |  | nenhum | Quando a comissão encerrou o congresso (resoluções geradas, relatório e certificados liberados). |
+| `encerrado_por` | text | sim |  |  | identificação | Quem encerrou o congresso. |
 
 Checks: `congressos_edicao_check` `CHECK (((edicao IS NULL) OR (edicao > 0)))`; `congressos_modo_check` `CHECK ((modo = ANY (ARRAY['promove'::text, 'participa'::text])))`; `congressos_nome_check` `CHECK ((length(TRIM(BOTH FROM nome)) > 0))`; `congressos_situacao_check` `CHECK ((situacao = ANY (ARRAY['preparacao'::text, 'inscricoes'::text, 'em_andamento'::text, 'encerrado'::text, 'cancelado'::text])))`
 
