@@ -2,7 +2,7 @@
 
 # Ferramentas administrativas
 
-12 tabelas. Diagrama: [er/ferramentas.md](../er/ferramentas.md).
+15 tabelas. Diagrama: [er/ferramentas.md](../er/ferramentas.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -12,8 +12,11 @@
 | [demandas_check_tarefas](#demandas_check_tarefas) | identificação | Tarefa com demandante e demandado, prazo e documentos, filha de demanda, projeto ou anomalia (pai polimórfico). Lida em lib/db/nucleo.ts; or… |
 | [demandas_comentarios](#demandas_comentarios) | identificação | Comentário em uma demanda (origem Bubble), lido em lib/db/nucleo.ts. Tabela vazia. |
 | [demandas_departamentos](#demandas_departamentos) | — | Junção N:N entre tarefa de demanda e departamento envolvido (lib/db/departamentos.ts). |
+| [demandas_etiquetas](#demandas_etiquetas) | — | Etiquetas coloridas da entidade para as tarefas (nome único por entidade, cor de uma paleta fixa). |
 | [demandas_tarefa_comentarios](#demandas_tarefa_comentarios) | identificação | Conversa de uma tarefa (Ferramentas > Tarefas e Meu perfil > Minhas tarefas): mensagens do responsável, de quem pediu e de quem cuida das ta… |
 | [demandas_tarefa_dependencias](#demandas_tarefa_dependencias) | — | Dependência entre tarefas: `tarefa_id` só começa quando `depende_de_id` termina (Gantt de Ferramentas > Tarefas e do projeto). |
+| [demandas_tarefa_etiquetas](#demandas_tarefa_etiquetas) | — | Quais etiquetas cada tarefa tem. |
+| [demandas_tarefa_itens](#demandas_tarefa_itens) | — | Checklist de uma tarefa: os passos marcáveis, com o progresso no cartão (Ferramentas > Tarefas). |
 | [ferramentas_anomalias](#ferramentas_anomalias) | identificação | Registro de anomalia/não conformidade com investigação de causa raiz (5 porquês) e providências, da tela Ferramentas > Anomalias. Origem Bub… |
 | [ferramentas_anomalias_sugestoes](#ferramentas_anomalias_sugestoes) | identificação | Anomalias sugeridas pelo sistema (km fora do normal, ordem devolvida 3+ vezes, ponto incompleto recorrente, compras canceladas, infrações re… |
 | [projeto](#projeto) | — | Projetos da entidade (orçamento, prazo, autorização, centro de custo), migrados do Bubble; compras e ordens podem ser ligadas a um projeto. … |
@@ -181,6 +184,26 @@ Junção N:N entre tarefa de demanda e departamento envolvido (lib/db/departamen
 
 Índices: `demandas_departamentos_pkey`
 
+## demandas_etiquetas
+
+Etiquetas coloridas da entidade para as tarefas (nome único por entidade, cor de uma paleta fixa).
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `nome` | text | não |  |  |  |  |
+| `cor` | text | não | `'cinza'::text` |  |  |  |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Checks: `demandas_etiquetas_cor_check` `CHECK ((cor = ANY (ARRAY['cinza'::text, 'vermelho'::text, 'laranja'::text, 'amarelo'::text, 'verde'::text, 'azul'::text, 'roxo'::text, 'rosa'::text])))`
+
+Índices: `demandas_etiquetas_nome_idx`, `demandas_etiquetas_pkey`
+
 ## demandas_tarefa_comentarios
 
 Conversa de uma tarefa (Ferramentas > Tarefas e Meu perfil > Minhas tarefas): mensagens do responsável, de quem pediu e de quem cuida das tarefas, com anexo opcional no bucket documentos.
@@ -223,6 +246,45 @@ Dependência entre tarefas: `tarefa_id` só começa quando `depende_de_id` termi
 Checks: `demandas_tarefa_dependencias_nao_ela_mesma` `CHECK ((tarefa_id <> depende_de_id))`
 
 Índices: `demandas_tarefa_dependencias_depende_idx`, `demandas_tarefa_dependencias_emp_idx`, `demandas_tarefa_dependencias_par`, `demandas_tarefa_dependencias_pkey`
+
+## demandas_tarefa_etiquetas
+
+Quais etiquetas cada tarefa tem.
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `tarefa_id` | uuid | não |  | → demandas_check_tarefas (**cascade**) |  |  |
+| `etiqueta_id` | uuid | não |  | → demandas_etiquetas (**cascade**) |  |  |
+
+Únicas: `UNIQUE (tarefa_id, etiqueta_id)`
+
+Índices: `demandas_tarefa_etiquetas_emp_idx`, `demandas_tarefa_etiquetas_etiqueta_idx`, `demandas_tarefa_etiquetas_par`, `demandas_tarefa_etiquetas_pkey`
+
+## demandas_tarefa_itens
+
+Checklist de uma tarefa: os passos marcáveis, com o progresso no cartão (Ferramentas > Tarefas).
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `tarefa_id` | uuid | não |  | → demandas_check_tarefas (**cascade**) |  |  |
+| `texto` | text | não |  |  | nenhum | O passo (ex.: "pedir 3 orçamentos"). |
+| `feito` | boolean | não | `false` |  |  |  |
+| `ordem` | integer | não | `0` |  |  |  |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Índices: `demandas_tarefa_itens_emp_idx`, `demandas_tarefa_itens_pkey`, `demandas_tarefa_itens_tarefa_idx`
 
 ## ferramentas_anomalias
 

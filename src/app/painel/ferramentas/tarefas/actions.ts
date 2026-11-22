@@ -14,6 +14,7 @@ import {
 } from "@/lib/nucleo-constantes"
 import { avisar, depoisDaResposta, usuariosComPermissao } from "@/lib/db/avisos"
 import { removerAnexosDaTarefa } from "@/lib/db/tarefa-conversa"
+import { definirEtiquetasDaTarefa } from "@/lib/db/tarefa-extras"
 import { opcoesDeProcedimento } from "@/lib/db/documentos"
 import {
   atualizarTarefa,
@@ -325,6 +326,10 @@ export async function editarTarefaAction(_prev: EstadoForm, formData: FormData):
   if (!dados.titulo) return { erro: "Descreva a tarefa." }
   if (dados.data_inicio && dados.data_prazo_entrega && dados.data_inicio > dados.data_prazo_entrega) {
     return { erro: "O início não pode ser depois do prazo." }
+  }
+  if (formData.has("etiquetas_presente")) {
+    const r = await definirEtiquetasDaTarefa(id, formData.getAll("etiqueta").map(String))
+    if (r.erro) return { erro: r.erro }
   }
   // Só mexe nas dependências quando o formulário as traz (o seletor existe).
   if (formData.has("depende_de_presente")) {

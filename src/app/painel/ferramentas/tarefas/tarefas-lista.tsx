@@ -29,7 +29,9 @@ import {
   type SituacaoTarefa,
 } from "@/lib/nucleo-constantes"
 
+import { ChecklistTarefa } from "./checklist-tarefa"
 import { ConversaTarefa } from "./conversa-tarefa"
+import { EtiquetasChips } from "./etiquetas-chips"
 import { AcoesTarefa, DesvincularTarefa, ToggleTarefa, type PaiFixo } from "./tarefa-forms"
 
 const CLASSE_SITUACAO: Record<SituacaoTarefa, string> = {
@@ -224,6 +226,7 @@ export function TarefasLista({
                       </span>
                     )}
                   </span>
+                  <EtiquetasChips etiquetas={t.etiquetas} className="mt-1" />
                 </TableCell>
                 {!pai && (
                   <TableCell className="whitespace-nowrap text-sm">
@@ -265,6 +268,7 @@ export function TarefasLista({
                 </TableCell>
                 <TableCell className="py-1">
                   <div className="flex items-center justify-end">
+                    <ChecklistTarefa tarefaId={t.id} titulo={t.titulo} total={t.checklist.total} feitos={t.checklist.feitos} />
                     <ConversaTarefa tarefaId={t.id} titulo={t.titulo} quantidade={t.mensagens} />
                     {pessoas && (
                       <AcoesTarefa

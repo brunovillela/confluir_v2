@@ -12,6 +12,7 @@ import { hojeSP } from "@/lib/db/comum"
 import { listarDemandas, listarPessoasAtribuiveis, listarTarefas, type TarefaLinha } from "@/lib/db/nucleo"
 import { marcosNoPeriodo } from "@/lib/db/projetos"
 import { tarefaDaConversa } from "@/lib/db/tarefa-conversa"
+import { listarEtiquetas } from "@/lib/db/tarefa-extras"
 import { somarDias } from "@/lib/deliberacoes-constantes"
 import { cargaPorPessoa, DIAS_FEITO_NO_QUADRO, semanasDoMes } from "@/lib/nucleo-constantes"
 import { podeAcessar } from "@/lib/permissoes"
@@ -19,6 +20,7 @@ import { podeAcessar } from "@/lib/permissoes"
 import { CalendarioPrazos, type ItemCalendario } from "./calendario-prazos"
 import { CargaTrabalho } from "./carga-trabalho"
 import { ConversaTarefa } from "./conversa-tarefa"
+import { GerenciarEtiquetas } from "./gerenciar-etiquetas"
 import { QuadroTarefas } from "./quadro-tarefas"
 import { AdicionarTarefa } from "./tarefa-forms"
 import { TarefasLista } from "./tarefas-lista"
@@ -36,6 +38,7 @@ type Params = {
   conversa?: string
   visao?: string
   mes?: string
+  etiqueta?: string
 }
 
 const VISOES = ["lista", "quadro", "calendario", "gantt", "carga"] as const
@@ -79,6 +82,7 @@ export default async function TarefasPage({
   // "Minhas": as tarefas de que sou o responsável (o link dos avisos).
   const minhas = brutos.minhas === "1"
   const responsavel = minhas ? eu : (brutos.responsavel ?? "").trim() || undefined
+  const etiquetaId = (brutos.etiqueta ?? "").trim() || undefined
   const visao: Visao = (VISOES as readonly string[]).includes(brutos.visao ?? "") ? (brutos.visao as Visao) : "lista"
   const mes = /^\d{4}-\d{2}$/.test(brutos.mes ?? "") ? (brutos.mes as string) : hoje.slice(0, 7)
   const semanas = semanasDoMes(mes)
@@ -88,14 +92,15 @@ export default async function TarefasPage({
   // quadro e o calendário olham todas (o quadro só as concluídas recentes);
   // a carga olha as abertas de todos.
   const statusDaVisao = visao === "lista" ? status : visao === "carga" ? "pendentes" : "todas"
-  const [{ disponivel, tarefas: todas }, pessoas, atrasadasGerais, tarefaDoAviso, marcos, demandas] = await Promise.all([
-    listarTarefas({ busca, status: statusDaVisao, demandadoId: visao === "carga" ? undefined : responsavel }),
+  const [{ disponivel, tarefas: todas }, pessoas, atrasadasGerais, tarefaDoAviso, marcos, demandas, etiquetas] = await Promise.all([
+    listarTarefas({ busca, status: statusDaVisao, demandadoId: visao === "carga" ? undefined : responsavel, etiquetaId }),
     listarPessoasAtribuiveis(),
     // O quadro de atrasadas por pessoa: quem acompanha a equipe (lista geral).
     minhas || visao !== "lista" ? Promise.resolve(null) : listarTarefas({ status: "atrasadas" }),
     brutos.conversa ? tarefaDaConversa(brutos.conversa, { id: eu, permissoes: sessao.permissoes }) : Promise.resolve(null),
     visao === "calendario" && veProjetos && !responsavel ? marcosNoPeriodo(periodo.de, periodo.ate) : Promise.resolve([]),
-    visao === "calendario" && !responsavel ? listarDemandas({ situacao: "abertas" }) : Promise.resolve([]),
+    visao === "calendario" && !responsavel && !etiquetaId ? listarDemandas({ situacao: "abertas" }) : Promise.resolve([]),
+    listarEtiquetas(),
   ])
   // Tarefa de anomalia qualquer um executa; o CONTEÚDO da anomalia (nome e
   // link) só vai para quem tem a permissão de Anomalias — nem chega ao cliente.
@@ -154,6 +159,7 @@ export default async function TarefasPage({
     if (busca) p.set("busca", busca)
     if (minhas) p.set("minhas", "1")
     else if (responsavel) p.set("responsavel", responsavel)
+    if (etiquetaId) p.set("etiqueta", etiquetaId)
     for (const [k, v] of Object.entries(extra)) if (v) p.set(k, v)
     const q = p.toString()
     return `/painel/ferramentas/tarefas${q ? `?${q}` : ""}`
@@ -172,6 +178,7 @@ export default async function TarefasPage({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <GerenciarEtiquetas etiquetas={etiquetas} />
           <Button variant="outline" size="sm" asChild>
             <Link href="/painel/ferramentas/demandas">
               <ListChecks />
@@ -290,6 +297,16 @@ export default async function TarefasPage({
               </option>
             ))}
         </select>
+        {etiquetas.length > 0 && (
+          <select name="etiqueta" defaultValue={etiquetaId ?? ""} className={SELECT_FILTRO} aria-label="Etiqueta">
+            <option value="">Qualquer etiqueta</option>
+            {etiquetas.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.nome}
+              </option>
+            ))}
+          </select>
+        )}
         <Button type="submit" variant="outline" size="sm">
           Filtrar
         </Button>

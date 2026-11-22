@@ -2,6 +2,14 @@ import "server-only"
 import { esquemaAusente, lerEmLotes, nomesDosUsuarios as nomesDosUsuariosBase, texto } from "@/lib/db/comum"
 import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { contarMensagens } from "@/lib/db/tarefa-conversa"
+import {
+  copiarExtrasDaTarefa,
+  etiquetasDasTarefas,
+  progressoDosChecklists,
+  tarefasComEtiqueta,
+  type Etiqueta,
+  type ProgressoChecklist,
+} from "@/lib/db/tarefa-extras"
 import { criaCiclo } from "@/lib/gantt"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -576,6 +584,9 @@ export type TarefaLinha = {
   prazo: string | null
   /** Tarefas de que esta depende (só começa quando elas terminarem). */
   dependeDe: string[]
+  /** Checklist: quantos itens e quantos feitos. */
+  checklist: ProgressoChecklist
+  etiquetas: Etiqueta[]
   prioridade: PrioridadeTarefa
   /** De quanto em quanto tempo se repete (nulo = não repete). */
   recorrencia: RecorrenciaTarefa | null
@@ -598,6 +609,8 @@ export type FiltroTarefas = {
   busca?: string
   status?: "pendentes" | "concluidas" | "atrasadas" | "todas"
   demandadoId?: string
+  /** Só as tarefas com esta etiqueta. */
+  etiquetaId?: string
   /** Restringe a um pai específico (usado nos detalhes de Demanda/Anomalia). */
   paiTipo?: "demanda" | "projeto" | "anomalia"
   paiId?: string
@@ -615,6 +628,11 @@ export async function listarTarefas(
   const busca = (filtro.busca ?? "").trim()
   if (busca) query = query.ilike("titulo", `%${busca}%`)
   if (filtro.demandadoId) query = query.eq("demandado_id", filtro.demandadoId)
+  if (filtro.etiquetaId) {
+    const comEtiqueta = await tarefasComEtiqueta(filtro.etiquetaId)
+    if (!comEtiqueta.length) return { disponivel: true, tarefas: [] }
+    query = query.in("id", comEtiqueta.slice(0, 500))
+  }
   if (filtro.paiTipo === "projeto" && filtro.paiId) {
     // As do projeto e as que entraram direto na demanda do projeto.
     const demanda = await demandaDoProjeto(filtro.paiId)
@@ -646,11 +664,13 @@ export async function listarTarefas(
     ),
     fotosDosUsuarios(linhas.map((t) => t.demandado_id as string | null)),
   ])
-  const [paiNomes, mensagens, procedimentos, dependencias] = await Promise.all([
+  const [paiNomes, mensagens, procedimentos, dependencias, checklists, etiquetas] = await Promise.all([
     resolverNomesDosPais(linhas),
     contarMensagens(linhas.map((t) => String(t.id))),
     nomesDosDocumentos(linhas.map((t) => texto(t.procedimento_id)).filter((v): v is string => !!v)),
     dependenciasDas(linhas.map((t) => String(t.id))),
+    progressoDosChecklists(linhas.map((t) => String(t.id))),
+    etiquetasDasTarefas(linhas.map((t) => String(t.id))),
   ])
 
   return {
@@ -671,6 +691,8 @@ export async function listarTarefas(
         inicio: texto(t.data_inicio),
         prazo: texto(t.data_prazo_entrega),
         dependeDe: dependencias.get(String(t.id)) ?? [],
+        checklist: checklists.get(String(t.id)) ?? { total: 0, feitos: 0 },
+        etiquetas: etiquetas.get(String(t.id)) ?? [],
         prioridade: ehPrioridadeTarefa(t.prioridade) ? t.prioridade : "media",
         recorrencia: ehRecorrenciaTarefa(t.recorrencia) ? t.recorrencia : null,
         mensagens: mensagens.get(String(t.id)) ?? 0,
@@ -1077,6 +1099,7 @@ export async function gerarProximaRecorrencia(id: string): Promise<{ erro?: stri
     .select("id")
     .single()
   if (erroNova) return { erro: `A tarefa foi concluída, mas a próxima não foi criada: ${erroNova.message}` }
+  await copiarExtrasDaTarefa(id, String(nova.id))
   await admin
     .from("demandas_check_tarefas")
     .update({ recorrencia_proxima_id: nova.id })

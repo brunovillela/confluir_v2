@@ -19,13 +19,16 @@ import { type EstadoForm } from "@/lib/contas"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { type OpcaoPessoa, type TarefaAvulsa } from "@/lib/db/nucleo"
 import { formatarData } from "@/lib/formato"
+import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
 import {
+  CLASSES_COR_ETIQUETA,
   PRIORIDADES_TAREFA,
   RECORRENCIAS_TAREFA,
   ROTULOS_PRIORIDADE_TAREFA,
   ROTULOS_RECORRENCIA_TAREFA,
+  type CorEtiqueta,
   type PrioridadeTarefa,
   type RecorrenciaTarefa,
 } from "@/lib/nucleo-constantes"
@@ -39,6 +42,7 @@ import {
   opcoesDeProcedimentoAction,
   vincularTarefaAction,
 } from "./actions"
+import { opcoesDeEtiquetaAction } from "./extras-actions"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -117,6 +121,51 @@ function SelectProcedimento({
         </option>
       ))}
     </select>
+  )
+}
+
+/** Etiquetas da entidade: uma leitura por página, dividida entre os seletores. */
+let opcoesEtiqueta: Promise<{ id: string; nome: string; cor: CorEtiqueta }[]> | null = null
+
+/** Marcar as etiquetas da tarefa (as da entidade; criar e renomear ficam em "Etiquetas", na página de Tarefas). */
+function SelecaoEtiquetas({ marcadas }: { marcadas: { id: string; nome: string; cor: CorEtiqueta }[] }) {
+  const [opcoes, setOpcoes] = useState<{ id: string; nome: string; cor: CorEtiqueta }[] | null>(null)
+  useEffect(() => {
+    let vivo = true
+    opcoesEtiqueta ??= opcoesDeEtiquetaAction().catch(() => [])
+    opcoesEtiqueta.then((o) => vivo && setOpcoes(o))
+    return () => {
+      vivo = false
+    }
+  }, [])
+  const lista = opcoes ?? marcadas
+  const ids = new Set(marcadas.map((m) => m.id))
+  return (
+    <fieldset className="grid gap-1.5 sm:col-span-2">
+      <legend className="mb-1 text-sm font-medium">Etiquetas</legend>
+      <input type="hidden" name="etiquetas_presente" value="1" />
+      {lista.length === 0 ? (
+        <p className="text-muted-foreground text-xs">
+          Nenhuma etiqueta criada. Crie em &quot;Etiquetas&quot;, na página de Tarefas.
+        </p>
+      ) : (
+        <div className="flex flex-wrap gap-1.5" key={opcoes ? "carregado" : "inicial"}>
+          {lista.map((e) => (
+            <label key={e.id} className="cursor-pointer">
+              <input type="checkbox" name="etiqueta" value={e.id} defaultChecked={ids.has(e.id)} className="peer sr-only" />
+              <span
+                className={cn(
+                  "inline-block rounded border-2 border-transparent px-2 py-1 text-xs font-medium opacity-50 peer-checked:border-current peer-checked:opacity-100 peer-focus-visible:ring-2",
+                  CLASSES_COR_ETIQUETA[e.cor]
+                )}
+              >
+                {e.nome}
+              </span>
+            </label>
+          ))}
+        </div>
+      )}
+    </fieldset>
   )
 }
 
@@ -386,6 +435,7 @@ type TarefaEditavel = {
   procedimentoNome: string | null
   inicio: string | null
   dependeDe: string[]
+  etiquetas: { id: string; nome: string; cor: CorEtiqueta }[]
 }
 
 /**
@@ -489,6 +539,7 @@ export function AcoesTarefa({
                   padraoNome={tarefa.procedimentoNome}
                 />
               </div>
+              <SelecaoEtiquetas marcadas={tarefa.etiquetas} />
               {irmas.length > 0 && (
                 <fieldset className="grid gap-1.5 sm:col-span-2">
                   <legend className="mb-1 text-sm font-medium">Depende de</legend>

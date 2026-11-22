@@ -263,3 +263,41 @@ export function deslocarMes(mes: string, delta: number): string {
   const total = a * 12 + (m - 1) + delta
   return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, "0")}`
 }
+
+// ── Etiquetas e checklist (Onda 2, 22/11/2026) ──────────────────────────────
+
+/** Paleta fixa das etiquetas (o banco guarda o nome da cor). */
+export const CORES_ETIQUETA = ["cinza", "vermelho", "laranja", "amarelo", "verde", "azul", "roxo", "rosa"] as const
+export type CorEtiqueta = (typeof CORES_ETIQUETA)[number]
+export const ROTULOS_COR_ETIQUETA: Record<CorEtiqueta, string> = {
+  cinza: "Cinza",
+  vermelho: "Vermelho",
+  laranja: "Laranja",
+  amarelo: "Amarelo",
+  verde: "Verde",
+  azul: "Azul",
+  roxo: "Roxo",
+  rosa: "Rosa",
+}
+/** Classes do chip de cada cor (fundo claro, texto escuro; no escuro, o inverso). */
+export const CLASSES_COR_ETIQUETA: Record<CorEtiqueta, string> = {
+  cinza: "bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100",
+  vermelho: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200",
+  laranja: "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-200",
+  amarelo: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
+  verde: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200",
+  azul: "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200",
+  roxo: "bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-200",
+  rosa: "bg-pink-100 text-pink-800 dark:bg-pink-950 dark:text-pink-200",
+}
+export function ehCorEtiqueta(v: unknown): v is CorEtiqueta {
+  return typeof v === "string" && (CORES_ETIQUETA as readonly string[]).includes(v)
+}
+/** Tamanho máximo do nome da etiqueta e do item do checklist. */
+export const MAX_NOME_ETIQUETA = 30
+export const MAX_ITEM_CHECKLIST = 200
+
+/** Nome da etiqueta limpo: espaços colapsados e no máximo MAX_NOME_ETIQUETA caracteres. */
+export function nomeDeEtiqueta(bruto: string): string {
+  return bruto.replace(/\s+/g, " ").trim().slice(0, MAX_NOME_ETIQUETA)
+}

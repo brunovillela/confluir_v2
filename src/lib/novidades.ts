@@ -16,6 +16,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-11-22",
     titulo: "Oposição: texto do desconto com parágrafos",
     itens: [
+      "Tarefas: checklist e etiquetas. O ícone de lista na tarefa (e no cartão do quadro) abre os passos marcáveis, com o progresso à vista (2/5). Etiquetas, no alto de Tarefas, cria rótulos coloridos como Jurídico ou Urgente; marque-os no lápis da tarefa e filtre por etiqueta em qualquer visão. A tarefa que se repete leva o checklist e as etiquetas para a próxima.",
       "Pessoal: o painel (em Precisa de atenção) e a caixa de entrada avisam quantos funcionários ativos estão sem jornada vinculada, com o atalho para vincular. Sem jornada, o uso fora do expediente não é registrado.",
       "Tarefas: linha do tempo (Gantt). Cada tarefa vira uma barra do início ao prazo, e as setas mostram quem espera por quem: no lápis da tarefa, marque em Depende de as que precisam terminar antes. A barra fica tracejada enquanto aguarda as anteriores, e o responsável é avisado quando a última delas é concluída. Está na aba Linha do tempo de Tarefas e na página do projeto, com os marcos.",
       "Tarefas e Demandas: novas visões em abas. Em Tarefas, o Quadro (A fazer, Em andamento e Feito — arraste o cartão ou use Mover para), o Calendário com os prazos das tarefas, os marcos dos projetos e os prazos das demandas, e a Carga por pessoa (abertas, atrasadas e o que vence nesta semana e na próxima). Em Demandas, o Quadro com A fazer, Fazendo e Feito.",

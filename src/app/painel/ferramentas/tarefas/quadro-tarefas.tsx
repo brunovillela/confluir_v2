@@ -15,7 +15,9 @@ import {
 } from "@/lib/nucleo-constantes"
 
 import { moverTarefaAction } from "./actions"
+import { ChecklistTarefa } from "./checklist-tarefa"
 import { ConversaTarefa } from "./conversa-tarefa"
+import { EtiquetasChips } from "./etiquetas-chips"
 
 const COR_PRIORIDADE = {
   alta: "border-destructive/40 text-destructive",
@@ -63,10 +65,12 @@ export function QuadroTarefas({ tarefas, diasFeito }: { tarefas: TarefaLinha[]; 
                 </a>
               )}
             </span>
-            <span className="-mt-1 -mr-1 shrink-0">
+            <span className="-mt-1 -mr-1 flex shrink-0">
+              <ChecklistTarefa tarefaId={t.id} titulo={t.titulo} total={t.checklist.total} feitos={t.checklist.feitos} />
               <ConversaTarefa tarefaId={t.id} titulo={t.titulo} quantidade={t.mensagens} />
             </span>
           </div>
+          <EtiquetasChips etiquetas={t.etiquetas} />
           {t.paiTipo && (
             <span className="text-muted-foreground line-clamp-1 text-xs">
               {ROTULOS_PAI_TAREFA[t.paiTipo]}

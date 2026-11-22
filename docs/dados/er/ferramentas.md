@@ -45,6 +45,10 @@ erDiagram
     uuid tarefa_id PK,FK
     uuid departamento_id PK,FK
   }
+  demandas_etiquetas {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+  }
   demandas_tarefa_comentarios {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -56,6 +60,17 @@ erDiagram
     uuid emp_proprietaria_id FK
     uuid tarefa_id FK
     uuid depende_de_id FK
+  }
+  demandas_tarefa_etiquetas {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid tarefa_id FK
+    uuid etiqueta_id FK
+  }
+  demandas_tarefa_itens {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid tarefa_id FK
   }
   ferramentas_anomalias {
     uuid id PK
@@ -100,6 +115,9 @@ erDiagram
   demandas_tarefa_comentarios }o--|| demandas_check_tarefas : "tarefa_id"
   demandas_tarefa_dependencias }o--|| demandas_check_tarefas : "depende_de_id"
   demandas_tarefa_dependencias }o--|| demandas_check_tarefas : "tarefa_id"
+  demandas_tarefa_etiquetas }o--|| demandas_check_tarefas : "tarefa_id"
+  demandas_tarefa_etiquetas }o--|| demandas_etiquetas : "etiqueta_id"
+  demandas_tarefa_itens }o--|| demandas_check_tarefas : "tarefa_id"
   ferramentas_anomalias }o--o| usuarios : "responsavel_id"
   ferramentas_anomalias_sugestoes }o--o| ferramentas_anomalias : "anomalia_id"
   ferramentas_anomalias_sugestoes }o--o| usuarios : "decidido_por"
