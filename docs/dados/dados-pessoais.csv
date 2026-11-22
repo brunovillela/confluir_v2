@@ -306,6 +306,7 @@ modulo,tabela,coluna,categoria,titulares,descricao
 "ferramentas","demandas_check_tarefas","recorrencia_proxima_id","nenhum","funcionários, diretores","A tarefa criada quando esta (recorrente) foi concluída; impede criar outra ao reabrir e concluir de novo."
 "ferramentas","demandas_check_tarefas","procedimento_id","nenhum","funcionários, diretores","Documento (Ferramentas > Documentos) com o procedimento que a tarefa segue; quem executa abre a versão mais recente pela tarefa."
 "ferramentas","demandas_check_tarefas","iniciada_em","nenhum","funcionários, diretores","Quando a tarefa passou a Em andamento (quadro de tarefas); nulo = A fazer. Concluída continua em `concluido`."
+"ferramentas","demandas_check_tarefas","data_inicio","nenhum","funcionários, diretores","Quando a tarefa começa (linha do tempo / Gantt); opcional, a barra vai do início ao prazo."
 "ferramentas","demandas_comentarios","","identificacao","funcionários, diretores","Comentário em uma demanda (origem Bubble), lido em lib/db/nucleo.ts. Tabela vazia."
 "ferramentas","demandas_comentarios","descricao","identificacao","funcionários, diretores","Texto livre do comentário."
 "ferramentas","demandas_tarefa_comentarios","","identificacao","funcionarios,diretores","Conversa de uma tarefa (Ferramentas > Tarefas e Meu perfil > Minhas tarefas): mensagens do responsável, de quem pediu e de quem cuida das tarefas, com anexo opcional no bucket documentos."

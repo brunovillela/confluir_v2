@@ -3,9 +3,10 @@ import Link from "next/link"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { CalendarDays, Columns3, Gauge, List, ListChecks, TriangleAlert } from "lucide-react"
+import { CalendarDays, ChartGantt, Columns3, Gauge, List, ListChecks, TriangleAlert } from "lucide-react"
 
 import { AbasVisao } from "@/components/abas-visao"
+import { Gantt } from "@/components/gantt"
 import { requirePermissao } from "@/lib/auth"
 import { hojeSP } from "@/lib/db/comum"
 import { listarDemandas, listarPessoasAtribuiveis, listarTarefas, type TarefaLinha } from "@/lib/db/nucleo"
@@ -37,7 +38,9 @@ type Params = {
   mes?: string
 }
 
-const VISOES = ["lista", "quadro", "calendario", "carga"] as const
+const VISOES = ["lista", "quadro", "calendario", "gantt", "carga"] as const
+/** Na linha do tempo, as concluídas há até tantos dias continuam à vista. */
+const DIAS_CONCLUIDAS_GANTT = 30
 type Visao = (typeof VISOES)[number]
 
 /** Atrasadas agrupadas por responsável, da pessoa com mais para a com menos. */
@@ -202,6 +205,7 @@ export default async function TarefasPage({
           { id: "lista", rotulo: "Lista", icone: List, href: comFiltros({ status: status === "pendentes" ? "" : status }) },
           { id: "quadro", rotulo: "Quadro", icone: Columns3, href: comFiltros({ visao: "quadro" }) },
           { id: "calendario", rotulo: "Calendário", icone: CalendarDays, href: comFiltros({ visao: "calendario" }) },
+          { id: "gantt", rotulo: "Linha do tempo", icone: ChartGantt, href: comFiltros({ visao: "gantt" }) },
           { id: "carga", rotulo: "Carga por pessoa", icone: Gauge, href: comFiltros({ visao: "carga" }) },
         ]}
       />
@@ -320,6 +324,35 @@ export default async function TarefasPage({
                 Filtrado por responsável: só as tarefas da pessoa (marcos e prazos de demanda aparecem em De todos).
               </p>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {visao === "gantt" && (
+        <Card>
+          <CardContent className="grid gap-2">
+            <div>
+              <p className="text-sm font-medium">Linha do tempo</p>
+              <p className="text-muted-foreground text-xs">
+                Cada barra vai do início ao prazo; as setas ligam a tarefa à que espera por ela. Defina o início e o
+                &quot;Depende de&quot; no lápis da tarefa, na Lista. Concluídas há mais de {DIAS_CONCLUIDAS_GANTT} dias saem daqui.
+              </p>
+            </div>
+            <Gantt
+              hoje={hoje}
+              tarefas={tarefas
+                .filter((t) => !t.concluido || (t.concluidaEm ?? "") >= somarDias(hoje, -DIAS_CONCLUIDAS_GANTT))
+                .map((t) => ({
+                  id: t.id,
+                  titulo: t.titulo,
+                  inicio: t.inicio,
+                  prazo: t.prazo,
+                  concluido: t.concluido,
+                  atrasada: t.situacao === "atrasada",
+                  dependeDe: t.dependeDe,
+                  responsavel: t.demandadoNome,
+                }))}
+            />
           </CardContent>
         </Card>
       )}

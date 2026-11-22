@@ -266,7 +266,19 @@ export function TarefasLista({
                 <TableCell className="py-1">
                   <div className="flex items-center justify-end">
                     <ConversaTarefa tarefaId={t.id} titulo={t.titulo} quantidade={t.mensagens} />
-                    {pessoas && <AcoesTarefa tarefa={t} pessoas={pessoas} />}
+                    {pessoas && (
+                      <AcoesTarefa
+                        tarefa={t}
+                        pessoas={pessoas}
+                        irmas={
+                          t.paiTipo
+                            ? tarefas
+                                .filter((o) => o.id !== t.id && o.paiTipo === t.paiTipo && o.paiId === t.paiId && o.paiNome === t.paiNome)
+                                .map((o) => ({ id: o.id, titulo: o.titulo }))
+                            : []
+                        }
+                      />
+                    )}
                     {pai && desvincular && <DesvincularTarefa tarefaId={t.id} titulo={t.titulo} pai={pai} />}
                   </div>
                 </TableCell>

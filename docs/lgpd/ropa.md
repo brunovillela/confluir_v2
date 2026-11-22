@@ -803,7 +803,7 @@
 | [auth_identidades](../dados/dicionario/plataforma.md#auth_identidades) | identificacao | `cpf` (identificacao), `nome` (identificacao) |
 | [auth_vinculos_pendentes](../dados/dicionario/plataforma.md#auth_vinculos_pendentes) | identificacao | `email` (identificacao), `cpf` (identificacao), `nome` (identificacao) |
 | [demandas](../dados/dicionario/ferramentas.md#demandas) | identificacao | `descricao` (identificacao), `membros_raw` (identificacao), `projeto_id` (nenhum) |
-| [demandas_check_tarefas](../dados/dicionario/ferramentas.md#demandas_check_tarefas) | identificacao | `demandado_documentos` (identificacao), `demandante_documentos` (identificacao), `prioridade` (nenhum), `recorrencia` (nenhum), `recorrencia_proxima_id` (nenhum), `procedimento_id` (nenhum), `iniciada_em` (nenhum) |
+| [demandas_check_tarefas](../dados/dicionario/ferramentas.md#demandas_check_tarefas) | identificacao | `demandado_documentos` (identificacao), `demandante_documentos` (identificacao), `prioridade` (nenhum), `recorrencia` (nenhum), `recorrencia_proxima_id` (nenhum), `procedimento_id` (nenhum), `iniciada_em` (nenhum), `data_inicio` (nenhum) |
 | [demandas_comentarios](../dados/dicionario/ferramentas.md#demandas_comentarios) | identificacao | `descricao` (identificacao) |
 | [demandas_tarefa_comentarios](../dados/dicionario/ferramentas.md#demandas_tarefa_comentarios) | identificacao | `autor_id` (identificacao), `texto` (identificacao), `anexo_caminho` (identificacao), `anexo_nome` (nenhum) |
 | [emails_institucionais](../dados/dicionario/filiacao.md#emails_institucionais) | identificacao | `endereco` (identificacao) |

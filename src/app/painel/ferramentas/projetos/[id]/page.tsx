@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
+import { Gantt } from "@/components/gantt"
 import {
   Table,
   TableBody,
@@ -193,6 +194,33 @@ export default async function ProjetoPage({
           <MarcosProjeto projetoId={id} marcos={marcos} hoje={hoje} editor={editor && !projeto.finalizado} />
         </CardContent>
       </Card>
+
+      {(marcos.length > 0 || tarefas.tarefas.some((t) => t.inicio || t.prazo)) && (
+        <Card>
+          <CardContent className="grid gap-3">
+            <div>
+              <p className="text-sm font-medium">Linha do tempo</p>
+              <p className="text-muted-foreground text-xs">
+                As tarefas do projeto do início ao prazo, com as dependências entre elas, e os marcos no alto.
+              </p>
+            </div>
+            <Gantt
+              hoje={hoje}
+              marcos={marcos.map((m) => ({ id: m.id, titulo: m.titulo, data: m.dataPrevista, concluido: Boolean(m.concluidoEm) }))}
+              tarefas={tarefas.tarefas.map((t) => ({
+                id: t.id,
+                titulo: t.titulo,
+                inicio: t.inicio,
+                prazo: t.prazo,
+                concluido: t.concluido,
+                atrasada: t.situacao === "atrasada",
+                dependeDe: t.dependeDe,
+                responsavel: t.demandadoNome,
+              }))}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent className="grid gap-4">

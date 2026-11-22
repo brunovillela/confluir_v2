@@ -2,7 +2,7 @@
 
 # Ferramentas administrativas
 
-11 tabelas. Diagrama: [er/ferramentas.md](../er/ferramentas.md).
+12 tabelas. Diagrama: [er/ferramentas.md](../er/ferramentas.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -13,6 +13,7 @@
 | [demandas_comentarios](#demandas_comentarios) | identificação | Comentário em uma demanda (origem Bubble), lido em lib/db/nucleo.ts. Tabela vazia. |
 | [demandas_departamentos](#demandas_departamentos) | — | Junção N:N entre tarefa de demanda e departamento envolvido (lib/db/departamentos.ts). |
 | [demandas_tarefa_comentarios](#demandas_tarefa_comentarios) | identificação | Conversa de uma tarefa (Ferramentas > Tarefas e Meu perfil > Minhas tarefas): mensagens do responsável, de quem pediu e de quem cuida das ta… |
+| [demandas_tarefa_dependencias](#demandas_tarefa_dependencias) | — | Dependência entre tarefas: `tarefa_id` só começa quando `depende_de_id` termina (Gantt de Ferramentas > Tarefas e do projeto). |
 | [ferramentas_anomalias](#ferramentas_anomalias) | identificação | Registro de anomalia/não conformidade com investigação de causa raiz (5 porquês) e providências, da tela Ferramentas > Anomalias. Origem Bub… |
 | [ferramentas_anomalias_sugestoes](#ferramentas_anomalias_sugestoes) | identificação | Anomalias sugeridas pelo sistema (km fora do normal, ordem devolvida 3+ vezes, ponto incompleto recorrente, compras canceladas, infrações re… |
 | [projeto](#projeto) | — | Projetos da entidade (orçamento, prazo, autorização, centro de custo), migrados do Bubble; compras e ordens podem ser ligadas a um projeto. … |
@@ -136,6 +137,7 @@ Tarefa com demandante e demandado, prazo e documentos, filha de demanda, projeto
 | `recorrencia_proxima_id` | uuid | sim |  | → demandas_check_tarefas (set null) | nenhum | A tarefa criada quando esta (recorrente) foi concluída; impede criar outra ao reabrir e concluir de novo. |
 | `procedimento_id` | uuid | sim |  | → fa_documentos (set null) | nenhum | Documento (Ferramentas > Documentos) com o procedimento que a tarefa segue; quem executa abre a versão mais recente pela tarefa. |
 | `iniciada_em` | timestamp with time zone | sim |  |  | nenhum | Quando a tarefa passou a Em andamento (quadro de tarefas); nulo = A fazer. Concluída continua em `concluido`. |
+| `data_inicio` | date | sim |  |  | nenhum | Quando a tarefa começa (linha do tempo / Gantt); opcional, a barra vai do início ao prazo. |
 
 Únicas: `UNIQUE (bubble_id)`
 
@@ -199,6 +201,28 @@ Conversa de uma tarefa (Ferramentas > Tarefas e Meu perfil > Minhas tarefas): me
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 
 Índices: `demandas_tarefa_comentarios_emp_idx`, `demandas_tarefa_comentarios_pkey`, `demandas_tarefa_comentarios_tarefa_idx`
+
+## demandas_tarefa_dependencias
+
+Dependência entre tarefas: `tarefa_id` só começa quando `depende_de_id` termina (Gantt de Ferramentas > Tarefas e do projeto).
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `tarefa_id` | uuid | não |  | → demandas_check_tarefas (**cascade**) |  |  |
+| `depende_de_id` | uuid | não |  | → demandas_check_tarefas (**cascade**) |  |  |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Únicas: `UNIQUE (tarefa_id, depende_de_id)`
+
+Checks: `demandas_tarefa_dependencias_nao_ela_mesma` `CHECK ((tarefa_id <> depende_de_id))`
+
+Índices: `demandas_tarefa_dependencias_depende_idx`, `demandas_tarefa_dependencias_emp_idx`, `demandas_tarefa_dependencias_par`, `demandas_tarefa_dependencias_pkey`
 
 ## ferramentas_anomalias
 

@@ -20,6 +20,8 @@ import {
   criarTarefa,
   definirAndamentoTarefa,
   definirConclusaoTarefa,
+  definirDependencias,
+  tarefasLiberadasPor,
   demandaDoProjeto,
   desvincularTarefa,
   editarTarefa,
@@ -109,6 +111,30 @@ function lerDados(formData: FormData): DadosTarefa {
     projeto_id: texto(formData, "projeto_id") || null,
     anomalia_id: texto(formData, "anomalia_id") || null,
   }
+}
+
+/**
+ * Concluir libera as tarefas que dependiam desta (todas as anteriores
+ * concluídas): o responsável de cada uma é avisado de que pode começar.
+ */
+function avisarLiberadas(tarefaId: string, quem: string): void {
+  depoisDaResposta(async () => {
+    const liberadas = await tarefasLiberadasPor(tarefaId)
+    if (!liberadas.length) return
+    const pessoas = await usuariosComPermissao(null)
+    for (const t of liberadas) {
+      const destino = pessoas.filter((p) => p.id === t.responsavelId)
+      if (!destino.length) continue
+      const titulo = (t.titulo ?? "(sem título)").slice(0, 120)
+      await avisar(destino, {
+        texto: `A tarefa "${titulo}" pode começar: as tarefas de que ela dependia foram concluídas.`,
+        link: "/painel/perfil/tarefas",
+        evento: "tarefa_liberada",
+        assunto: "Tarefa liberada para começar",
+        exceto: quem,
+      })
+    }
+  })
 }
 
 /**
@@ -203,6 +229,7 @@ export async function alternarConclusaoTarefaAction(
   if (erro) return { erro }
   // Recorrente: concluir cria a próxima (uma vez só por tarefa).
   const proxima = concluir ? await gerarProximaRecorrencia(id) : {}
+  if (concluir) avisarLiberadas(id, String(sessao.usuario.id))
   revalidarTarefa(formData)
   if (proxima.erro) return { erro: proxima.erro }
   if (proxima.prazo) {
@@ -293,8 +320,18 @@ export async function editarTarefaAction(_prev: EstadoForm, formData: FormData):
     prioridade: prioridade(formData),
     recorrencia: recorrencia(formData),
     procedimento_id: texto(formData, "procedimento_id") || null,
+    data_inicio: dataISO(texto(formData, "data_inicio")),
   }
   if (!dados.titulo) return { erro: "Descreva a tarefa." }
+  if (dados.data_inicio && dados.data_prazo_entrega && dados.data_inicio > dados.data_prazo_entrega) {
+    return { erro: "O início não pode ser depois do prazo." }
+  }
+  // Só mexe nas dependências quando o formulário as traz (o seletor existe).
+  if (formData.has("depende_de_presente")) {
+    const deps = formData.getAll("depende_de").map(String).filter(Boolean)
+    const r = await definirDependencias(id, deps)
+    if (r.erro) return { erro: r.erro }
+  }
   if (dados.recorrencia && !dados.data_prazo_entrega) return { erro: ERRO_RECORRENCIA_SEM_PRAZO }
 
   const { erro, responsavelAnterior } = await editarTarefa(id, dados)
@@ -346,6 +383,7 @@ export async function moverTarefaAction(tarefaId: string, coluna: string): Promi
     const { erro } = await definirConclusaoTarefa(tarefaId, true)
     if (erro) return { erro }
     const proxima = await gerarProximaRecorrencia(tarefaId)
+    avisarLiberadas(tarefaId, String(sessao.usuario.id))
     revalidarPais(pais)
     revalidatePath("/painel/perfil/tarefas")
     if (proxima.erro) return { erro: proxima.erro }

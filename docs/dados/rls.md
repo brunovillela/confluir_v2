@@ -132,6 +132,7 @@ O app lê os dados de um tenant com `createAdminClient()` (JWT `authenticated` c
 | `demandas_comentarios` | ferramentas | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `demandas_departamentos` | ferramentas | sim | — | | | | |
 | `demandas_tarefa_comentarios` | ferramentas | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
+| `demandas_tarefa_dependencias` | ferramentas | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `despesas` | financeiro | sim | — | | | | |
 | `dir_liberacao_historico` | diretoria | sim | — | | | | |
 | `diretoria_atas` | diretoria | sim | — | | | | |

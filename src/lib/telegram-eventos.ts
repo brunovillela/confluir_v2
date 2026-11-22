@@ -80,6 +80,8 @@ export const EVENTOS_TELEGRAM = [
   { chave: "tarefa_atrasada", rotulo: "Tarefa que você pediu passou do prazo", grupo: "notificacao" },
   // Conversa da tarefa: o texto da mensagem não sai do painel (só quem escreveu e a tarefa).
   { chave: "tarefa_comentario", rotulo: "Mensagem nova numa tarefa sua ou que você pediu", grupo: "notificacao" },
+  // Dependência (Gantt): a última tarefa anterior foi concluída e esta pode começar.
+  { chave: "tarefa_liberada", rotulo: "Tarefa sua liberada para começar (as anteriores foram concluídas)", grupo: "notificacao" },
   // Avisos a quem precisa AGIR (onda 2, U2): entram só para quem tem a
   // permissão correspondente (ou coordena quem pediu).
   { chave: "pendencia_aprovacao", rotulo: "Ordem de pagamento entrou na sua alçada", grupo: "pendencia", acesso: { permissoes: ["aquisicoes_avaliacoes", "financeiro_pagamento"], alcada: true } },

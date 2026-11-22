@@ -51,6 +51,12 @@ erDiagram
     uuid tarefa_id FK
     uuid autor_id FK
   }
+  demandas_tarefa_dependencias {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid tarefa_id FK
+    uuid depende_de_id FK
+  }
   ferramentas_anomalias {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -92,6 +98,8 @@ erDiagram
   demandas_departamentos }o--|| empresa_departamentos : "departamento_id"
   demandas_tarefa_comentarios }o--o| usuarios : "autor_id"
   demandas_tarefa_comentarios }o--|| demandas_check_tarefas : "tarefa_id"
+  demandas_tarefa_dependencias }o--|| demandas_check_tarefas : "depende_de_id"
+  demandas_tarefa_dependencias }o--|| demandas_check_tarefas : "tarefa_id"
   ferramentas_anomalias }o--o| usuarios : "responsavel_id"
   ferramentas_anomalias_sugestoes }o--o| ferramentas_anomalias : "anomalia_id"
   ferramentas_anomalias_sugestoes }o--o| usuarios : "decidido_por"

@@ -384,13 +384,24 @@ type TarefaEditavel = {
   recorrencia: RecorrenciaTarefa | null
   procedimentoId: string | null
   procedimentoNome: string | null
+  inicio: string | null
+  dependeDe: string[]
 }
 
 /**
  * Editar (título, responsável e prazo) e excluir a tarefa. Responsável novo é
  * avisado; excluir pede confirmação e não tem volta.
  */
-export function AcoesTarefa({ tarefa, pessoas }: { tarefa: TarefaEditavel; pessoas: OpcaoPessoa[] }) {
+export function AcoesTarefa({
+  tarefa,
+  pessoas,
+  irmas = [],
+}: {
+  tarefa: TarefaEditavel
+  pessoas: OpcaoPessoa[]
+  /** Tarefas do mesmo vínculo (demanda, projeto ou anomalia): as que esta pode esperar. */
+  irmas?: { id: string; titulo: string | null }[]
+}) {
   const [aberto, setAberto] = useState(false)
   const [estado, formAction, pendente] = useActionState<EstadoForm, FormData>(async (prev, fd) => {
     const r = await editarTarefaAction(prev, fd)
@@ -443,6 +454,16 @@ export function AcoesTarefa({ tarefa, pessoas }: { tarefa: TarefaEditavel; pesso
                 </select>
               </div>
               <div className="grid gap-1.5">
+                <Label htmlFor={`inicio-${tarefa.id}`}>Início</Label>
+                <Input
+                  id={`inicio-${tarefa.id}`}
+                  name="data_inicio"
+                  type="date"
+                  defaultValue={tarefa.inicio ?? ""}
+                  className="[color-scheme:light] dark:[color-scheme:dark]"
+                />
+              </div>
+              <div className="grid gap-1.5">
                 <Label htmlFor={`prazo-${tarefa.id}`}>Prazo</Label>
                 <Input
                   id={`prazo-${tarefa.id}`}
@@ -468,6 +489,29 @@ export function AcoesTarefa({ tarefa, pessoas }: { tarefa: TarefaEditavel; pesso
                   padraoNome={tarefa.procedimentoNome}
                 />
               </div>
+              {irmas.length > 0 && (
+                <fieldset className="grid gap-1.5 sm:col-span-2">
+                  <legend className="mb-1 text-sm font-medium">Depende de</legend>
+                  <p className="text-muted-foreground -mt-1 text-xs">
+                    Esta tarefa só começa quando as marcadas terminarem; o responsável é avisado quando forem concluídas.
+                  </p>
+                  <input type="hidden" name="depende_de_presente" value="1" />
+                  <div className="grid max-h-36 gap-1 overflow-y-auto rounded-md border p-2">
+                    {irmas.map((i) => (
+                      <label key={i.id} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          name="depende_de"
+                          value={i.id}
+                          defaultChecked={tarefa.dependeDe.includes(i.id)}
+                          className="size-4"
+                        />
+                        <span className="truncate">{i.titulo ?? "(sem título)"}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
             </div>
             {estado.erro && <p className="text-destructive text-sm">{estado.erro}</p>}
             <DialogFooter>

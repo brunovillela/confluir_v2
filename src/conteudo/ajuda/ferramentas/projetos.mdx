@@ -122,6 +122,11 @@ Mexe nas tarefas do projeto quem tem **Projetos — editar**, **Tarefas** ou **D
     - **Calendário**: o mês com os prazos das tarefas, os marcos dos projetos e os
       prazos das demandas em aberto; atrasado em vermelho, concluído riscado. As
       setas trocam o mês.
+    - **Linha do tempo** (Gantt): cada tarefa é uma barra do **Início** ao prazo, e as
+      setas ligam uma tarefa à que espera por ela. A barra tracejada está **aguardando
+      as anteriores**; o contorno vermelho avisa que ela começa antes de a anterior
+      terminar. Concluídas há mais de 30 dias saem da linha do tempo. A página do
+      projeto mostra a mesma linha do tempo, com os marcos no alto.
     - **Carga por pessoa**: para cada responsável, as tarefas abertas, as atrasadas
       e as que vencem nesta semana (segunda a domingo), na próxima e sem prazo. O
       nome e os números levam à lista da pessoa.
@@ -163,6 +168,13 @@ Mexe nas tarefas do projeto quem tem **Projetos — editar**, **Tarefas** ou **D
     tarefa sua ou que você pediu**: o aviso diz só quem escreveu e a tarefa, e o link
     abre a conversa. Conversam quem tem Tarefas ou Demandas, o responsável, quem pediu,
     quem vê Projetos (nas tarefas de projeto) e quem tem Anomalias (nas providências).
+  </Passo>
+  <Passo titulo="Encadeie as tarefas">
+    No lápis da tarefa, **Início** marca quando ela começa e **Depende de** lista as
+    outras tarefas do mesmo vínculo (demanda, projeto ou anomalia): marque as que
+    precisam terminar antes. O sistema recusa dependência em círculo (A espera B que
+    espera A). Quando a última anterior é concluída, o responsável recebe **Tarefa
+    sua liberada para começar**.
   </Passo>
   <Passo titulo="Ligue o procedimento">
     Se a tarefa segue um roteiro da entidade (o "como fazemos aqui"), guarde o roteiro

@@ -2,6 +2,7 @@ import "server-only"
 import { esquemaAusente, lerEmLotes, nomesDosUsuarios as nomesDosUsuariosBase, texto } from "@/lib/db/comum"
 import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { contarMensagens } from "@/lib/db/tarefa-conversa"
+import { criaCiclo } from "@/lib/gantt"
 import { tenantAtual } from "@/lib/tenant"
 
 import {
@@ -50,6 +51,22 @@ async function nomesDosDocumentos(ids: string[]): Promise<Map<string, string>> {
   const admin = await createAdminClient()
   const { data } = await admin.from("fa_documentos").select("id, documento").in("id", unicos)
   for (const d of data ?? []) mapa.set(String(d.id), texto(d.documento) ?? "(documento sem título)")
+  return mapa
+}
+
+/** De que tarefas cada uma depende. Sem a tabela (antes da migração), nenhuma. */
+async function dependenciasDas(ids: string[]): Promise<Map<string, string[]>> {
+  const mapa = new Map<string, string[]>()
+  if (!ids.length) return mapa
+  const admin = await createAdminClient()
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data, error } = await admin
+      .from("demandas_tarefa_dependencias")
+      .select("tarefa_id, depende_de_id")
+      .in("tarefa_id", ids.slice(i, i + 200))
+    if (error) return mapa
+    for (const d of data ?? []) mapa.set(String(d.tarefa_id), [...(mapa.get(String(d.tarefa_id)) ?? []), String(d.depende_de_id)])
+  }
   return mapa
 }
 
@@ -504,7 +521,7 @@ export async function definirSituacaoDemanda(
 // ════════════════════════════════════════════════════════════════════════════
 
 const COLS_TAREFA =
-  "id, titulo, concluido, iniciada_em, tipo, prioridade, recorrencia, procedimento_id, data_prazo_entrega, data_entrega, demandante_id, demandado_id, demanda_id, projeto_id, anomalia_id"
+  "id, titulo, concluido, iniciada_em, data_inicio, tipo, prioridade, recorrencia, procedimento_id, data_prazo_entrega, data_entrega, demandante_id, demandado_id, demanda_id, projeto_id, anomalia_id"
 
 async function contarTarefasPorPai(
   coluna: "demanda_id" | "projeto_id" | "anomalia_id",
@@ -554,7 +571,11 @@ export type TarefaLinha = {
   emAndamento: boolean
   /** Quando foi concluída (data de entrega). */
   concluidaEm: string | null
+  /** Início planejado (linha do tempo). */
+  inicio: string | null
   prazo: string | null
+  /** Tarefas de que esta depende (só começa quando elas terminarem). */
+  dependeDe: string[]
   prioridade: PrioridadeTarefa
   /** De quanto em quanto tempo se repete (nulo = não repete). */
   recorrencia: RecorrenciaTarefa | null
@@ -625,10 +646,11 @@ export async function listarTarefas(
     ),
     fotosDosUsuarios(linhas.map((t) => t.demandado_id as string | null)),
   ])
-  const [paiNomes, mensagens, procedimentos] = await Promise.all([
+  const [paiNomes, mensagens, procedimentos, dependencias] = await Promise.all([
     resolverNomesDosPais(linhas),
     contarMensagens(linhas.map((t) => String(t.id))),
     nomesDosDocumentos(linhas.map((t) => texto(t.procedimento_id)).filter((v): v is string => !!v)),
+    dependenciasDas(linhas.map((t) => String(t.id))),
   ])
 
   return {
@@ -646,7 +668,9 @@ export async function listarTarefas(
         concluido: t.concluido === true,
         emAndamento: t.concluido !== true && Boolean(t.iniciada_em),
         concluidaEm: texto(t.data_entrega),
+        inicio: texto(t.data_inicio),
         prazo: texto(t.data_prazo_entrega),
+        dependeDe: dependencias.get(String(t.id)) ?? [],
         prioridade: ehPrioridadeTarefa(t.prioridade) ? t.prioridade : "media",
         recorrencia: ehRecorrenciaTarefa(t.recorrencia) ? t.recorrencia : null,
         mensagens: mensagens.get(String(t.id)) ?? 0,
@@ -909,6 +933,7 @@ export async function editarTarefa(
     prioridade: PrioridadeTarefa
     recorrencia: RecorrenciaTarefa | null
     procedimento_id: string | null
+    data_inicio: string | null
   }
 ): Promise<{ erro?: string; responsavelAnterior?: string | null }> {
   const admin = await createAdminClient()
@@ -1070,6 +1095,70 @@ export async function definirAndamentoTarefa(id: string, emAndamento: boolean): 
     .eq("emp_proprietaria_id", await tenantAtual())
   if (error) return { erro: `Falha ao mover a tarefa: ${error.message}` }
   return {}
+}
+
+/**
+ * Troca as dependências da tarefa (de que tarefas ela depende). Recusa ciclo
+ * e tarefa de outra entidade.
+ */
+export async function definirDependencias(tarefaId: string, dependeDe: string[]): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const novas = [...new Set(dependeDe.filter((d) => d && d !== tarefaId))]
+  if (novas.length) {
+    const { data: validas } = await admin.from("demandas_check_tarefas").select("id").eq("emp_proprietaria_id", emp).in("id", novas)
+    if ((validas ?? []).length !== novas.length) return { erro: "Alguma tarefa escolhida em Depende de não foi encontrada." }
+    const { data: todas, error } = await admin
+      .from("demandas_tarefa_dependencias")
+      .select("tarefa_id, depende_de_id")
+      .eq("emp_proprietaria_id", emp)
+      .limit(10000)
+    if (error) return { erro: `Falha ao ler as dependências: ${error.message}` }
+    const existentes = (todas ?? []).map((d) => ({ tarefa: String(d.tarefa_id), dependeDe: String(d.depende_de_id) }))
+    if (criaCiclo(existentes, tarefaId, novas)) {
+      return { erro: "Essa dependência fecha um ciclo: uma das tarefas escolhidas já depende, direta ou indiretamente, desta." }
+    }
+  }
+  const { error: erroApagar } = await admin.from("demandas_tarefa_dependencias").delete().eq("tarefa_id", tarefaId).eq("emp_proprietaria_id", emp)
+  if (erroApagar) return { erro: `Falha ao salvar as dependências: ${erroApagar.message}` }
+  if (novas.length) {
+    const { error } = await admin
+      .from("demandas_tarefa_dependencias")
+      .insert(novas.map((d) => ({ emp_proprietaria_id: emp, tarefa_id: tarefaId, depende_de_id: d })))
+    if (error) return { erro: `Falha ao salvar as dependências: ${error.message}` }
+  }
+  return {}
+}
+
+/**
+ * Tarefas que a conclusão de `tarefaId` libera: dependiam dela, não estão
+ * concluídas e agora têm todas as anteriores concluídas.
+ */
+export async function tarefasLiberadasPor(
+  tarefaId: string
+): Promise<{ id: string; titulo: string | null; responsavelId: string | null }[]> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: seguintes, error } = await admin
+    .from("demandas_tarefa_dependencias")
+    .select("tarefa_id")
+    .eq("emp_proprietaria_id", emp)
+    .eq("depende_de_id", tarefaId)
+  if (error || !seguintes?.length) return []
+  const ids = [...new Set(seguintes.map((d) => String(d.tarefa_id)))]
+  const [{ data: tarefas }, { data: deps }] = await Promise.all([
+    admin.from("demandas_check_tarefas").select("id, titulo, demandado_id, concluido").in("id", ids),
+    admin.from("demandas_tarefa_dependencias").select("tarefa_id, depende_de_id").in("tarefa_id", ids),
+  ])
+  const anteriores = [...new Set((deps ?? []).map((d) => String(d.depende_de_id)))]
+  const { data: estados } = await admin.from("demandas_check_tarefas").select("id, concluido").in("id", anteriores)
+  const concluida = new Map((estados ?? []).map((e) => [String(e.id), e.concluido === true]))
+  return (tarefas ?? [])
+    .filter((t) => t.concluido !== true)
+    .filter((t) =>
+      (deps ?? []).filter((d) => String(d.tarefa_id) === String(t.id)).every((d) => concluida.get(String(d.depende_de_id)) === true)
+    )
+    .map((t) => ({ id: String(t.id), titulo: texto(t.titulo), responsavelId: texto(t.demandado_id) }))
 }
 
 // ════════════════════════════════════════════════════════════════════════════
