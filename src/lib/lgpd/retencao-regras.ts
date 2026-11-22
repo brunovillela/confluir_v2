@@ -65,6 +65,18 @@ export const REGRAS_RETENCAO: readonly DefinicaoRegra[] = [
     acao: "eliminar",
     fundamento: "Finalidade esgotada",
   },
+  {
+    codigo: "RT36",
+    titulo: "Registro de uso da IA",
+    descricao:
+      "Tira a pessoa das chamadas de IA antigas (ia_uso: quem pediu e a mensagem de erro). Ficam processo, módulo, departamento, tokens e custo — o histórico de custo continua.",
+    tabela: "ia_uso",
+    colunaAncora: "criado_em",
+    prazoPadraoDias: 730,
+    prazoMinimoDias: 365,
+    acao: "anonimizar",
+    fundamento: "Prestação de contas do custo; a pessoa só importa enquanto o uso é recente",
+  },
 ]
 
 export function definicaoRegra(codigo: string): DefinicaoRegra | null {

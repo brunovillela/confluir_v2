@@ -21,15 +21,34 @@ async function authUserIdDoUsuario(usuarioId: string): Promise<string | null> {
   return data?.auth_user_id ? String(data.auth_user_id) : null
 }
 
+/**
+ * Cache curto (por instância do servidor) da consulta ao Auth: o painel da
+ * Gestão confere o 2FA de cada administrador a cada abertura, e a admin API
+ * custa uma ida ao Auth por pessoa. 10 minutos bastam para um indicador; a
+ * redefinição do fator limpa a entrada da pessoa na hora.
+ */
+const CACHE_MS = 10 * 60_000
+const cache2fa = new Map<string, { valor: boolean | null; ate: number }>()
+
 export async function segundoFatorAtivo(usuarioId: string): Promise<boolean | null> {
+  const chave = `${await tenantAtual()}:${usuarioId}`
+  const guardado = cache2fa.get(chave)
+  if (guardado && guardado.ate > Date.now()) return guardado.valor
   const authId = await authUserIdDoUsuario(usuarioId)
-  if (!authId) return null
-  const admin = await createAdminClient()
-  const { data } = await admin.auth.admin.mfa.listFactors({ userId: authId })
-  return (data?.factors ?? []).some((f) => f.status === "verified")
+  let valor: boolean | null = null
+  if (authId) {
+    const admin = await createAdminClient()
+    const { data, error } = await admin.auth.admin.mfa.listFactors({ userId: authId })
+    // Erro do Auth não vira "sem 2FA" guardado por 10 minutos.
+    if (error) return null
+    valor = (data?.factors ?? []).some((f) => f.status === "verified")
+  }
+  cache2fa.set(chave, { valor, ate: Date.now() + CACHE_MS })
+  return valor
 }
 
 export async function redefinirSegundoFator(usuarioId: string): Promise<{ erro?: string; removidos?: number }> {
+  cache2fa.delete(`${await tenantAtual()}:${usuarioId}`)
   const authId = await authUserIdDoUsuario(usuarioId)
   if (!authId) return { erro: "Esta pessoa ainda não tem conta de acesso." }
   const admin = await createAdminClient()

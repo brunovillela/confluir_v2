@@ -3,7 +3,7 @@ import "server-only"
 import { cache } from "react"
 
 import { esquemaAusente } from "@/lib/db/comum"
-import { cifrarSegredo, decifrarSegredo, segredosConfigurados } from "@/lib/segredos"
+import { cifrarSegredo, decifrarSegredo, decifrarSegredoDetalhado, segredosConfigurados } from "@/lib/segredos"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -24,6 +24,8 @@ export type ConfigIAPublica = {
   chaveTesteErro: string | null
   /** A chave existe mas não decifra (chave de cifra do servidor mudou). */
   chaveIlegivel: boolean
+  /** Legível, mas guardada com uma chave de cifra que não é a atual: recifrar. */
+  chaveRecifrar: boolean
   modelo: string | null
   iaAtiva: boolean
   modulosDesligados: string[]
@@ -38,6 +40,8 @@ export type ConfigIAPublica = {
   precosModelos: Record<string, PrecosModelo>
   /** Cota mensal por departamento (id → US$). */
   cotasDepartamento: Record<string, number>
+  /** R$ por US$ 1 (informado na Gestão); null = só dólar. */
+  cotacaoUsdBrl: number | null
   segredosConfigurados: boolean
 }
 
@@ -51,7 +55,7 @@ export function modeloValido(m: string): boolean {
 type Linha = Record<string, unknown>
 
 const COLUNAS =
-  "chave_cifrada, chave_versao, chave_final, chave_definida_em, chave_definida_por, chave_testada_em, chave_teste_erro, modelo, ia_ativa, modulos_desligados, limite_mensal_usd, bloquear_no_limite, preco_entrada_usd_milhao, preco_entrada_cache_usd_milhao, preco_saida_usd_milhao, modelos_processo, precos_modelos, cotas_departamento"
+  "chave_cifrada, chave_versao, chave_final, chave_definida_em, chave_definida_por, chave_testada_em, chave_teste_erro, modelo, ia_ativa, modulos_desligados, limite_mensal_usd, bloquear_no_limite, preco_entrada_usd_milhao, preco_entrada_cache_usd_milhao, preco_saida_usd_milhao, modelos_processo, precos_modelos, cotas_departamento, cotacao_usd_brl"
 
 function num(v: unknown): number | null {
   if (v === null || v === undefined || v === "") return null
@@ -115,6 +119,9 @@ export function precosDoModelo(config: ConfigIAPublica, modelo: string, modeloGe
 
 function publica(disponivel: boolean, l: Linha | null, emp: string): ConfigIAPublica {
   const temChave = Boolean(l?.chave_cifrada)
+  const leitura = temChave
+    ? decifrarSegredoDetalhado(String(l!.chave_cifrada), Number(l!.chave_versao ?? 0), emp)
+    : { texto: null, recifrar: false }
   return {
     disponivel,
     temChave,
@@ -123,7 +130,8 @@ function publica(disponivel: boolean, l: Linha | null, emp: string): ConfigIAPub
     chaveDefinidaPor: (l?.chave_definida_por as string) ?? null,
     chaveTestadaEm: (l?.chave_testada_em as string) ?? null,
     chaveTesteErro: (l?.chave_teste_erro as string) ?? null,
-    chaveIlegivel: temChave && decifrarSegredo(String(l!.chave_cifrada), Number(l!.chave_versao ?? 0), emp) === null,
+    chaveIlegivel: temChave && leitura.texto === null,
+    chaveRecifrar: temChave && leitura.texto !== null && leitura.recifrar,
     modelo: (l?.modelo as string) || null,
     iaAtiva: l ? l.ia_ativa !== false : true,
     modulosDesligados: Array.isArray(l?.modulos_desligados) ? (l!.modulos_desligados as string[]) : [],
@@ -135,6 +143,7 @@ function publica(disponivel: boolean, l: Linha | null, emp: string): ConfigIAPub
     modelosProcesso: lerModelos(l?.modelos_processo),
     precosModelos: lerPrecos(l?.precos_modelos),
     cotasDepartamento: lerCotas(l?.cotas_departamento),
+    cotacaoUsdBrl: num(l?.cotacao_usd_brl),
     segredosConfigurados: segredosConfigurados(),
   }
 }
@@ -265,6 +274,7 @@ export type PreferenciasIA = {
   precoEntrada: number | null
   precoEntradaCache: number | null
   precoSaida: number | null
+  cotacaoUsdBrl: number | null
 }
 
 export async function salvarPreferenciasIA(p: PreferenciasIA, usuarioId: string): Promise<{ erro?: string }> {
@@ -284,6 +294,7 @@ export async function salvarPreferenciasIA(p: PreferenciasIA, usuarioId: string)
       preco_entrada_usd_milhao: p.precoEntrada,
       preco_entrada_cache_usd_milhao: p.precoEntradaCache,
       preco_saida_usd_milhao: p.precoSaida,
+      cotacao_usd_brl: p.cotacaoUsdBrl,
     },
     usuarioId
   )
@@ -295,6 +306,7 @@ export async function salvarPreferenciasIA(p: PreferenciasIA, usuarioId: string)
   if (antes.bloquearNoLimite !== p.bloquearNoLimite) mudancas.push(p.bloquearNoLimite ? "bloqueia no teto" : "só avisa no teto")
   const desl = [...p.modulosDesligados].sort().join(",")
   if ([...antes.modulosDesligados].sort().join(",") !== desl) mudancas.push(`módulos desligados: ${desl || "nenhum"}`)
+  if (antes.cotacaoUsdBrl !== p.cotacaoUsdBrl) mudancas.push(`cotação: ${p.cotacaoUsdBrl === null ? "só dólar" : `R$ ${p.cotacaoUsdBrl}`}`)
   if (antes.precoEntrada !== p.precoEntrada || antes.precoSaida !== p.precoSaida || antes.precoEntradaCache !== p.precoEntradaCache) mudancas.push("preços atualizados")
   if (mudancas.length) await registrarEvento("preferencias", mudancas.join("; "), usuarioId)
   return {}
@@ -347,4 +359,23 @@ export async function salvarCotasIA(cotas: Record<string, number>, nomes: Map<st
     )
   }
   return {}
+}
+
+/**
+ * Regrava a chave da entidade com a chave de cifra atual (depois de trocar a
+ * SEGREDOS_CHAVE, ou de cadastrá-la quando só havia a derivada). A chave de
+ * API não muda e não sai do servidor.
+ */
+export async function recifrarChaveIA(usuarioId: string): Promise<{ erro?: string }> {
+  const emp = await tenantAtual()
+  const { linha } = await linhaDaEntidade(emp)
+  if (!linha?.chave_cifrada) return { erro: "Não há chave da entidade cadastrada." }
+  const { texto } = decifrarSegredoDetalhado(String(linha.chave_cifrada), Number(linha.chave_versao ?? 0), emp)
+  if (texto === null) {
+    return { erro: "A chave guardada não decifra com nenhuma chave de cifra deste servidor. Configure a antiga em SEGREDOS_CHAVE_ANTERIOR ou cadastre a chave de novo." }
+  }
+  const { cifrado, versao } = cifrarSegredo(texto, emp)
+  const r = await gravar({ chave_cifrada: cifrado, chave_versao: versao }, usuarioId)
+  if (!r.erro) await registrarEvento("chave_recifrada", `Chave terminada em ${String(linha.chave_final ?? "")} regravada com a chave de cifra atual`, usuarioId)
+  return r
 }

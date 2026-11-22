@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server"
 
 import { getSessaoPainel } from "@/lib/auth"
+import { obterConfigIA } from "@/lib/db/ia-config"
 import { listarChamadasIA, resumoUsoIA, rotuloOrigem, type ChamadaIA, type LinhaUso } from "@/lib/db/ia-uso"
 import { registrarExportacao } from "@/lib/exportacoes"
 import { formatarDataHora } from "@/lib/formato"
@@ -32,7 +33,7 @@ function usd(n: number | null, casas = 4): number | null {
   return n === null ? null : Number(n.toFixed(casas))
 }
 
-function colunasResumo(titulo: string, detalhe?: string): ColunaXlsx<LinhaUso>[] {
+function colunasResumo(titulo: string, detalhe?: string, cot: number | null = null): ColunaXlsx<LinhaUso>[] {
   return [
     { titulo, valor: (l) => l.rotulo, largura: 44 },
     ...(detalhe ? [{ titulo: detalhe, valor: (l: LinhaUso) => l.detalhe, largura: 22 }] : []),
@@ -43,6 +44,7 @@ function colunasResumo(titulo: string, detalhe?: string): ColunaXlsx<LinhaUso>[]
     { titulo: "Dos quais em cache", valor: (l) => l.tokensEntradaCache, largura: 16 },
     { titulo: "Tokens de saída", valor: (l) => l.tokensSaida, largura: 16 },
     { titulo: "Custo estimado (US$)", valor: (l) => usd(l.custo), largura: 16 },
+    ...(cot ? [{ titulo: "Custo estimado (R$)", valor: (l: LinhaUso) => (l.custo === null ? null : Number((l.custo * cot).toFixed(2))), largura: 16 }] : []),
     { titulo: "Última chamada", valor: (l) => (l.ultima ? formatarDataHora(l.ultima) : null), largura: 18 },
   ]
 }
@@ -66,7 +68,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   const periodo = PERIODOS_PLANILHA.find((p) => p.valor === sp.get("periodo"))?.valor ?? "mes"
   const { de, ate } = intervalo(periodo)
 
-  const [resumo, chamadas] = await Promise.all([
+  const [resumo, chamadas, config] = await Promise.all([
     resumoUsoIA(de, ate),
     (async () => {
       const todas: ChamadaIA[] = []
@@ -77,7 +79,10 @@ export async function GET(request: NextRequest): Promise<Response> {
       }
       return todas
     })(),
+    obterConfigIA(),
   ])
+  const cot = config.cotacaoUsdBrl
+  const brl = (n: number | null) => (cot && n !== null ? Number((n * cot).toFixed(2)) : null)
   if (!resumo.disponivel) return new Response("O registro de uso da IA não está disponível.", { status: 503 })
 
   // Rateio: mês × departamento, somado a partir das chamadas.
@@ -109,14 +114,15 @@ export async function GET(request: NextRequest): Promise<Response> {
         { titulo: "Tokens de entrada", valor: (r) => r.entrada, largura: 16 },
         { titulo: "Tokens de saída", valor: (r) => r.saida, largura: 16 },
         { titulo: "Custo estimado (US$)", valor: (r) => usd(r.custo), largura: 16 },
+        ...(cot ? [{ titulo: `Custo estimado (R$, a ${cot.toLocaleString("pt-BR", { minimumFractionDigits: 2 })})`, valor: (r: Rateio) => brl(r.custo), largura: 18 }] : []),
       ],
       linhasRateio
     ),
-    aba("Por departamento", colunasResumo("Departamento"), resumo.por.departamento),
-    aba("Por pessoa", colunasResumo("Pessoa"), resumo.por.usuario),
-    aba("Por processo", colunasResumo("Processo", "Módulo"), resumo.por.processo),
-    aba("Por módulo", colunasResumo("Módulo"), resumo.por.modulo),
-    aba("Por modelo", colunasResumo("Modelo"), resumo.por.modelo),
+    aba("Por departamento", colunasResumo("Departamento", undefined, cot), resumo.por.departamento),
+    aba("Por pessoa", colunasResumo("Pessoa", undefined, cot), resumo.por.usuario),
+    aba("Por processo", colunasResumo("Processo", "Módulo", cot), resumo.por.processo),
+    aba("Por módulo", colunasResumo("Módulo", undefined, cot), resumo.por.modulo),
+    aba("Por modelo", colunasResumo("Modelo", undefined, cot), resumo.por.modelo),
     aba<ChamadaIA>(
       "Chamadas",
       [
@@ -132,6 +138,7 @@ export async function GET(request: NextRequest): Promise<Response> {
         { titulo: "Dos quais em cache", valor: (c) => c.tokensEntradaCache, largura: 14 },
         { titulo: "Tokens de saída", valor: (c) => c.tokensSaida, largura: 14 },
         { titulo: "Custo estimado (US$)", valor: (c) => usd(c.custo, 6), largura: 14 },
+        ...(cot ? [{ titulo: "Custo estimado (R$)", valor: (c: ChamadaIA) => (c.custo === null ? null : Number((c.custo * cot).toFixed(4))), largura: 14 }] : []),
         { titulo: "Duração (s)", valor: (c) => (c.duracaoMs === null ? null : Math.round(c.duracaoMs / 100) / 10), largura: 10 },
         { titulo: "Resultado", valor: (c) => (c.sucesso ? "ok" : c.origem === "bloqueada" ? "barrada" : "falhou"), largura: 10 },
         { titulo: "Erro", valor: (c) => c.erro, largura: 50 },

@@ -3,6 +3,7 @@ import "server-only"
 import { esquemaAusente, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { listarAcessos } from "@/lib/db/acessos"
 import { avisar, avisarQuemPode, type Destinatario } from "@/lib/db/avisos"
+import { principaisDoTenant } from "@/lib/db/departamento-principal"
 import { listarDepartamentosCompletos } from "@/lib/db/departamentos"
 import { CHAVES_PERMISSAO, ROTULO_PERMISSAO } from "@/lib/permissoes-catalogo"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -173,8 +174,11 @@ export async function abrirCiclo(titulo: string, prazo: string, usuarioId: strin
 
   // Departamento de cada pessoa pelo qual alguém (que não ela) a revisa.
   const ativos = deptos.filter((d) => !d.legado && d.coordenadorId)
+  // O departamento principal (Gestão › IA › Departamento principal) vem primeiro.
+  const principais = await principaisDoTenant()
   const revisaoDe = (uid: string): { departamentoId: string; revisorId: string } | null => {
-    const d = ativos.find((x) => x.coordenadorId !== uid && x.integrantes.some((i) => i.usuarioId === uid))
+    const doPrincipal = ativos.find((x) => x.id === principais.get(uid) && x.coordenadorId !== uid)
+    const d = doPrincipal ?? ativos.find((x) => x.coordenadorId !== uid && x.integrantes.some((i) => i.usuarioId === uid))
     return d ? { departamentoId: d.id, revisorId: d.coordenadorId! } : null
   }
 

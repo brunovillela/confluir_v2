@@ -52,6 +52,7 @@ Coluna "Hoje": **Auto** = rotina automática no sistema; **Motor** = regra do mo
 | RT33 | Livro de exportações e log da API | P16 | **2 anos** | Prestação de contas | Eliminar | **Não** |
 | RT34 | Pedidos de titulares (`lgpd_solicitacoes`) | P16 | **5 anos** após o atendimento | Prova de cumprimento (art. 18) | Eliminar | **Não** |
 | RT35 | Contas de usuário inativas | P16 | Desativar ao fim do vínculo; eliminar **6 meses** depois | Segurança; finalidade | Eliminar | **Não** |
+| RT36 | Registro de uso da IA (`ia_uso`: quem pediu cada chamada) | P16 | **2 anos** (mínimo 1) | Prestação de contas do custo; finalidade | Anonimizar (tira `usuario_id` e `erro`; ficam processo, departamento, tokens e custo) | **Motor** (simula; real quando ligada) — desde 22/11/2026 |
 
 ## 3. Fora do banco
 

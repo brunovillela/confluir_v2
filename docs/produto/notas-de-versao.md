@@ -8,6 +8,7 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 
 - Oposição: a entrada começa pelo CPF — não é mais preciso escolher entre "Sou filiado" e "Não sou filiado". O sistema confere o cadastro e mostra o caminho: filiado com e-mail recebe o código nos e-mails do cadastro; filiado sem e-mail informa nome, data de nascimento e um e-mail seu, conferidos com a ficha (o e-mail entra no cadastro, com registro no prontuário); quem não é filiado informa nome e e-mail. Em Decisões jurídicas, a nova decisão "Filiado sem e-mail no cadastro" define o que fazer quando a ficha não tem nascimento — procurar o sindicato ou entrar só pelo nome, com aviso no checklist da avaliação —, no padrão da entidade e por campanha.
 - Oposição: o detalhe do desconto da campanha aparece com os parágrafos e a lista como foram escritos — na página da oposição, na lista de campanhas do trabalhador e no comprovante. Antes, as quebras de linha sumiam e tudo virava uma linha só.
+- Gestão → Inteligência Artificial: com a cotação do dólar informada na Configuração, o custo, o teto e as cotas aparecem também em reais (na tela, nos avisos e na planilha). O histórico de chamadas passa de página em página (Mais antigas / Mais recentes). Quem está em mais de um departamento ganha um departamento principal, escolhido pela Gestão, que vale para a cota de IA e para a revisão de acessos. E a chave de IA guardada com uma chave de cifra antiga pode ser regravada com a atual (Recifrar), sem cadastrar de novo.
 
 ## 19/11/2026 — Eventos: relação de confirmados em Excel e PDF
 

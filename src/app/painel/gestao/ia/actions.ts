@@ -9,6 +9,7 @@ import {
   configIAParaChamada,
   modeloValido,
   obterConfigIA,
+  recifrarChaveIA,
   type PrecosModelo,
   registrarEventoGestaoIA,
   registrarTesteChaveIA,
@@ -18,6 +19,7 @@ import {
   salvarModelosProcessoIA,
   salvarPreferenciasIA,
 } from "@/lib/db/ia-config"
+import { definirPrincipais } from "@/lib/db/departamento-principal"
 import { listarDepartamentosCompletos } from "@/lib/db/departamentos"
 import { MODELO_IA, testarChaveIA } from "@/lib/ia"
 import { MODULOS_IA, PROCESSOS_IA } from "@/lib/ia-processos"
@@ -84,10 +86,11 @@ export async function salvarPreferenciasAction(_prev: EstadoForm, fd: FormData):
     entrada: numeroOuNulo(fd, "preco_entrada"),
     cache: numeroOuNulo(fd, "preco_entrada_cache"),
     saida: numeroOuNulo(fd, "preco_saida"),
+    cotacao: numeroOuNulo(fd, "cotacao_usd_brl"),
   }
   for (const [nome, v] of Object.entries(campos)) {
     if (v === "invalido") {
-      const campo = { limite: "limite_mensal_usd", entrada: "preco_entrada", cache: "preco_entrada_cache", saida: "preco_saida" }[nome]
+      const campo = { limite: "limite_mensal_usd", entrada: "preco_entrada", cache: "preco_entrada_cache", saida: "preco_saida", cotacao: "cotacao_usd_brl" }[nome]
       return { erro: "Use um número (ex.: 1,25).", campo }
     }
   }
@@ -103,6 +106,7 @@ export async function salvarPreferenciasAction(_prev: EstadoForm, fd: FormData):
       precoEntrada: campos.entrada as number | null,
       precoEntradaCache: campos.cache as number | null,
       precoSaida: campos.saida as number | null,
+      cotacaoUsdBrl: campos.cotacao === 0 ? null : (campos.cotacao as number | null),
     },
     String(sessao.usuario.id)
   )
@@ -195,4 +199,31 @@ export async function salvarCotasAction(_prev: EstadoForm, fd: FormData): Promis
   revalidatePath(ROTA)
   const n = Object.keys(cotas).length
   return { ok: n ? `${n} ${n === 1 ? "departamento com cota" : "departamentos com cota"}.` : "Nenhum departamento com cota." }
+}
+
+/** Regrava a chave guardada com a chave de cifra atual do servidor. */
+export async function recifrarChaveAction(): Promise<EstadoForm> {
+  const sessao = await requirePermissao("gestao_sistema")
+  const r = await recifrarChaveIA(String(sessao.usuario.id))
+  if (r.erro) return { erro: r.erro }
+  revalidatePath(ROTA)
+  revalidatePath("/painel/gestao")
+  return { ok: "Chave regravada com a chave de cifra atual. Quando nenhuma outra precisar, a chave anterior pode sair do servidor." }
+}
+
+/** Departamento principal de quem está em mais de um. Campo `principal:<usuario_id>`; vazio = automático. */
+export async function salvarPrincipaisAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  const sessao = await requirePermissao("gestao_sistema")
+  const escolhas = new Map<string, string | null>()
+  for (const [nome, valor] of fd.entries()) {
+    if (!nome.startsWith("principal:")) continue
+    escolhas.set(nome.slice("principal:".length), String(valor) || null)
+  }
+  const r = await definirPrincipais(escolhas)
+  if (r.erro) return { erro: r.erro }
+  if (r.alterados) {
+    await registrarEventoGestaoIA("departamento_principal", `${r.alterados} ${r.alterados === 1 ? "pessoa" : "pessoas"} com o departamento principal alterado`, String(sessao.usuario.id))
+  }
+  revalidatePath(ROTA)
+  return { ok: r.alterados ? "Departamentos principais salvos. Valem para as próximas chamadas de IA e a próxima revisão de acessos." : "Nada mudou." }
 }

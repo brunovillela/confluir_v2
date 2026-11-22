@@ -211,6 +211,8 @@ const ROTULO_ACAO: Record<string, string> = {
   chave_cadastrada: "Cadastrou a chave de IA",
   chave_removida: "Removeu a chave de IA",
   chave_testada: "Testou a chave de IA",
+  chave_recifrada: "Regravou a chave com a cifra atual",
+  departamento_principal: "Alterou o departamento principal",
   preferencias: "Alterou a configuração da IA",
   modelos_processo: "Alterou o modelo por processo",
   cotas_departamento: "Alterou as cotas por departamento",

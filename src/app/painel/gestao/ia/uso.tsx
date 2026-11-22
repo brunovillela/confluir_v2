@@ -18,6 +18,15 @@ export function dolares(n: number | null): string {
   return `US$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
+/** US$ e, com a cotação informada, o equivalente em R$ ("US$ 1,20 · R$ 6,48"). */
+export function comReais(n: number | null, cotacao: number | null): string {
+  if (n === null) return "—"
+  if (!cotacao) return dolares(n)
+  const r = n * cotacao
+  const reais = r > 0 && r < 0.01 ? "< R$ 0,01" : `R$ ${r.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return `${dolares(n)} · ${reais}`
+}
+
 /** Número em destaque com rótulo — o indicador não precisa de gráfico. */
 export function Indicador({ rotulo, valor, detalhe }: { rotulo: string; valor: string; detalhe?: string | null }) {
   return (
@@ -100,7 +109,9 @@ export function TabelaUso({
   totalTokens,
   hrefFiltro,
   mostrarCusto,
+  cotacao = null,
 }: {
+  cotacao?: number | null
   linhas: LinhaUso[]
   rotuloColuna: string
   totalTokens: number
@@ -144,7 +155,7 @@ export function TabelaUso({
                     <div className="bg-primary h-1.5 rounded-full" style={{ width: `${Math.max(fatia > 0 ? 2 : 0, Math.round(fatia * 100))}%` }} />
                   </div>
                 </TableCell>
-                {mostrarCusto && <TableCell className="text-right tabular-nums">{dolares(l.custo)}</TableCell>}
+                {mostrarCusto && <TableCell className="text-right tabular-nums">{comReais(l.custo, cotacao)}</TableCell>}
                 <TableCell className="text-right tabular-nums">
                   {l.falhas + l.bloqueadas > 0 ? (
                     <span className="text-destructive">{inteiro.format(l.falhas + l.bloqueadas)}</span>

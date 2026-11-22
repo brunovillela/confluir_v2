@@ -321,6 +321,53 @@ const EXECUTORES: Record<string, Executor> = {
       return { linhas, arquivos: ok.size, falhas }
     },
   },
+  /** RT36: chamadas de IA com mais de 2 anos perdem quem pediu (anonimiza). */
+  RT36: {
+    async coletar(ctx, corte) {
+      const { linhas, limiteAtingido } = await lerPaginado((de, ate) =>
+        ctx.client
+          .from("ia_uso")
+          .select("id, usuario_id")
+          .eq("emp_proprietaria_id", ctx.tenantId)
+          .lt("criado_em", corte)
+          .not("usuario_id", "is", null)
+          .order("id")
+          .range(de, ate)
+      )
+      // CPF e e-mail de quem pediu, para respeitar o bloqueio por litígio.
+      const pessoas = new Map<string, { cpf: string | null; email: string | null }>()
+      const ids = [...new Set(linhas.map((l) => String(l.usuario_id)))]
+      for (const lote of lotes(ids)) {
+        const { data, error } = await ctx.client.from("usuarios").select("id, cpf, email").in("id", lote)
+        if (error) throw new Error(`usuarios: ${error.message}`)
+        for (const u of data ?? []) {
+          pessoas.set(String(u.id), { cpf: texto(u.cpf)?.replace(/D/g, "") ?? null, email: texto(u.email)?.toLowerCase() ?? null })
+        }
+      }
+      return {
+        limiteAtingido,
+        grupos: [
+          {
+            tabela: "ia_uso",
+            candidatos: linhas.map((l) => ({ id: String(l.id), ...(pessoas.get(String(l.usuario_id)) ?? {}) })),
+          },
+        ],
+      }
+    },
+    async aplicar(ctx, grupos) {
+      let linhas = 0
+      for (const lote of lotes((grupos[0]?.candidatos ?? []).map((c) => c.id))) {
+        const { error, count } = await ctx.client
+          .from("ia_uso")
+          .update({ usuario_id: null, erro: null }, { count: "exact" })
+          .eq("emp_proprietaria_id", ctx.tenantId)
+          .in("id", lote)
+        if (error) throw new Error(`ia_uso: ${error.message}`)
+        linhas += count ?? 0
+      }
+      return { linhas, arquivos: 0, falhas: [] }
+    },
+  },
 }
 
 export function regraTemExecutor(codigo: string): boolean {

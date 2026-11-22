@@ -463,6 +463,7 @@ Usuários que integram cada departamento da entidade. Usado em avisos, permissõ
 |---|---|---|---|---|---|---|
 | 🔑 `departamento_id` | uuid | não |  | → empresa_departamentos (**cascade**) |  |  |
 | 🔑 `usuario_id` | uuid | não |  | → usuarios (**cascade**) | trabalhista | Lotação da pessoa no departamento. |
+| `principal` | boolean | não | `false` |  | nenhum | Departamento principal da pessoa, quando ela está em mais de um: é por ele que conta o uso da IA (cota e relatório) e quem revisa o acesso dela. |
 
 Índices: `empresa_departamentos_integrantes_pkey`
 
@@ -550,6 +551,7 @@ Configuração da IA da entidade (Gestão › Inteligência Artificial, 19/11/20
 | `modelos_processo` | jsonb | não | `'{}'::jsonb` |  | nenhum | Modelo de IA por processo: {"<chave do processo de lib/ia-processos.ts>": "<modelo>"}. Processo ausente usa o modelo geral. |
 | `precos_modelos` | jsonb | não | `'{}'::jsonb` |  | nenhum | Preços por modelo, em US$ por 1 milhão de tokens: {"<modelo>": {"entrada": n, "cache": n, "saida": n}}, para estimar o custo das chamadas que usam modelos além do geral. |
 | `cotas_departamento` | jsonb | não | `'{}'::jsonb` |  | nenhum | Cota mensal de IA por departamento: {"<departamento_id>": limite em US$}. Trava e avisa como o teto geral. |
+| `cotacao_usd_brl` | numeric(10,4) | sim |  |  | nenhum | Cotação informada pela Gestão (R$ por US$ 1) para mostrar o custo da IA também em reais. Nulo = só dólar. |
 
 Checks: `ia_config_chave_final_curta` `CHECK (((chave_final IS NULL) OR (length(chave_final) <= 4)))`; `ia_config_limite_positivo` `CHECK (((limite_mensal_usd IS NULL) OR (limite_mensal_usd > (0)::numeric)))`
 

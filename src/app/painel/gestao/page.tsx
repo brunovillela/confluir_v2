@@ -209,6 +209,9 @@ async function sinais(podeUsuarios: boolean, podeConfig: boolean): Promise<Sinal
       href: "/painel/gestao/ia",
       alerta: !ia.iaAtiva || (pct !== null && pct >= 80) || Boolean(ia.temChave && (ia.chaveTesteErro || ia.chaveIlegivel)),
     })
+    if (ia.chaveRecifrar) {
+      lista.push({ texto: "A chave de IA está guardada com uma chave de cifra antiga: recifre com a atual", href: "/painel/gestao/ia", alerta: false })
+    }
     if (t && t.falhas > 0) {
       lista.push({ texto: `${n(t.falhas, "chamada de IA falhou", "chamadas de IA falharam")} neste mês`, href: "/painel/gestao/ia?falhas=1#historico", alerta: t.falhas >= 5 })
     }

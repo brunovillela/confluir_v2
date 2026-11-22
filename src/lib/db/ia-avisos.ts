@@ -22,8 +22,16 @@ function mesDeBrasilia(agora = new Date()): string {
   return new Date(agora.getTime() - 3 * 3600_000).toISOString().slice(0, 7)
 }
 
-function usd(n: number): string {
-  return `US$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+function usd(n: number, cotacao: number | null = null): string {
+  const base = `US$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return cotacao ? `${base} (R$ ${(n * cotacao).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})` : base
+}
+
+/** Cotação informada na Gestão (R$ por US$ 1), para os avisos dizerem também em reais. */
+async function cotacaoDe(admin: Awaited<ReturnType<typeof createAdminClient>>, emp: string): Promise<number | null> {
+  const { data } = await admin.from("ia_config").select("cotacao_usd_brl").eq("emp_proprietaria_id", emp).maybeSingle()
+  const n = Number(data?.cotacao_usd_brl)
+  return Number.isFinite(n) && n > 0 ? n : null
 }
 
 /** Confere o teto depois de uma chamada e avisa ao cruzar 80% ou 100%. */
@@ -44,12 +52,13 @@ export async function conferirTetoIA(emp: string, limite: number, bloqueia: bool
         .or(`aviso_teto_mes.is.null,aviso_teto_mes.neq.${mes},aviso_teto_nivel.is.null,aviso_teto_nivel.lt.${nivel}`)
         .select("emp_proprietaria_id")
       if (!marcada?.length) return
+      const cot = await cotacaoDe(admin, emp)
       const texto =
         nivel === 100
           ? bloqueia
-            ? `A IA da entidade atingiu o teto mensal (${usd(gasto)} de ${usd(limite)}) e está parada até o dia 1º ou até o teto subir.`
-            : `A IA da entidade atingiu o teto mensal (${usd(gasto)} de ${usd(limite)}). O teto só alerta: a IA continua funcionando.`
-          : `A IA da entidade chegou a 80% do teto mensal (${usd(gasto)} de ${usd(limite)}).${bloqueia ? " Ao atingir o teto, ela para." : ""}`
+            ? `A IA da entidade atingiu o teto mensal (${usd(gasto, cot)} de ${usd(limite, cot)}) e está parada até o dia 1º ou até o teto subir.`
+            : `A IA da entidade atingiu o teto mensal (${usd(gasto, cot)} de ${usd(limite, cot)}). O teto só alerta: a IA continua funcionando.`
+          : `A IA da entidade chegou a 80% do teto mensal (${usd(gasto, cot)} de ${usd(limite, cot)}).${bloqueia ? " Ao atingir o teto, ela para." : ""}`
       await avisarQuemPode(
         "gestao_sistema",
         [],
@@ -125,12 +134,13 @@ export async function conferirCotaIA(emp: string, departamentoId: string, limite
         .eq("id", departamentoId)
         .maybeSingle()
       const nome = String(d?.departamento ?? "o departamento")
+      const cot = await cotacaoDe(admin, emp)
       const texto =
         nivel === 100
           ? bloqueia
-            ? `A IA de ${nome} atingiu a cota do mês (${usd(gasto)} de ${usd(limite)}) e está parada para o departamento até o dia 1º ou até a cota subir.`
-            : `A IA de ${nome} atingiu a cota do mês (${usd(gasto)} de ${usd(limite)}). A cota só alerta: a IA continua funcionando.`
-          : `A IA de ${nome} chegou a 80% da cota do mês (${usd(gasto)} de ${usd(limite)}).${bloqueia ? " Ao atingir a cota, ela para para o departamento." : ""}`
+            ? `A IA de ${nome} atingiu a cota do mês (${usd(gasto, cot)} de ${usd(limite, cot)}) e está parada para o departamento até o dia 1º ou até a cota subir.`
+            : `A IA de ${nome} atingiu a cota do mês (${usd(gasto, cot)} de ${usd(limite, cot)}). A cota só alerta: a IA continua funcionando.`
+          : `A IA de ${nome} chegou a 80% da cota do mês (${usd(gasto, cot)} de ${usd(limite, cot)}).${bloqueia ? " Ao atingir a cota, ela para para o departamento." : ""}`
       const amb = { client: admin, tenantId: emp }
       const destinatarios = await usuariosComPermissao("gestao_sistema", [], amb)
       if (d?.coordenador_id) {

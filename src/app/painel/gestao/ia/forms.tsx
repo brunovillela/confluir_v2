@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { CampoSenha } from "@/components/ui/campo-senha"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { ErroNoCampo } from "@/components/ui/erro-no-campo"
+import { SelectNativo } from "@/components/ui/select-nativo"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { type EstadoForm } from "@/lib/contas"
@@ -15,10 +16,12 @@ import { MODULOS_IA, PROCESSOS_IA } from "@/lib/ia-processos"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
 import {
+  recifrarChaveAction,
   removerChaveAction,
   salvarChaveAction,
   salvarCotasAction,
   salvarModelosProcessoAction,
+  salvarPrincipaisAction,
   salvarPreferenciasAction,
   testarChaveSalvaAction,
 } from "./actions"
@@ -89,6 +92,21 @@ export function TestarChaveBotao() {
   )
 }
 
+export function RecifrarChaveBotao() {
+  const [estado, action, pendente] = useActionState<EstadoForm>(recifrarChaveAction, {})
+  return (
+    <form action={action} className="grid gap-2">
+      <div>
+        <Button type="submit" size="sm" variant="outline" disabled={pendente}>
+          {pendente ? <Loader2 className="animate-spin" /> : <KeyRound />}
+          Recifrar com a chave atual
+        </Button>
+      </div>
+      <Retorno estado={estado} />
+    </form>
+  )
+}
+
 export function RemoverChaveBotao({ final }: { final: string | null }) {
   const [estado, action, pendente] = useActionState<EstadoForm>(removerChaveAction, {})
   return (
@@ -120,6 +138,7 @@ export type PreferenciasIniciais = {
   precoEntrada: number | null
   precoEntradaCache: number | null
   precoSaida: number | null
+  cotacaoUsdBrl: number | null
 }
 
 function br(n: number | null): string {
@@ -210,6 +229,20 @@ export function PreferenciasForm({ inicial }: { inicial: PreferenciasIniciais })
             placeholder="sem teto"
             className="w-40"
           />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="cotacao_usd_brl">Cotação do dólar (R$ por US$ 1)</Label>
+          <Input
+            id="cotacao_usd_brl"
+            name="cotacao_usd_brl"
+            inputMode="decimal"
+            defaultValue={br(inicial.cotacaoUsdBrl)}
+            placeholder="só dólar"
+            className="w-40"
+          />
+          <p className="text-muted-foreground text-xs">
+            Com a cotação, o custo, o teto e as cotas aparecem também em reais (aqui, nos avisos e na planilha). Atualize quando quiser; o teto continua em dólar.
+          </p>
         </div>
         <label htmlFor="bloquear_no_limite" className="flex items-start gap-2 text-sm">
           <input id="bloquear_no_limite" type="checkbox" name="bloquear_no_limite" defaultChecked={inicial.bloquearNoLimite} className="mt-0.5" />
@@ -369,7 +402,7 @@ function usdBR(n: number): string {
 }
 
 /** Cota mensal por departamento; em branco = sem cota própria (vale só o teto geral). */
-export function CotasForm({ linhas, bloqueia }: { linhas: CotaLinha[]; bloqueia: boolean }) {
+export function CotasForm({ linhas, bloqueia, cotacao }: { linhas: CotaLinha[]; bloqueia: boolean; cotacao: number | null }) {
   const [estado, action, pendente] = useActionState<EstadoForm, FormData>(salvarCotasAction, {})
   const envio = useEnvioFormulario(action, estado, { manter: true })
   return (
@@ -385,8 +418,9 @@ export function CotasForm({ linhas, bloqueia }: { linhas: CotaLinha[]; bloqueia:
                   {l.nome}
                 </label>
                 <p className={`text-xs ${fracao !== null && fracao >= 0.8 ? "text-warning-fg" : "text-muted-foreground"}`}>
-                  {usdBR(l.gasto)} neste mês
-                  {l.cota ? ` · ${Math.round((fracao ?? 0) * 100)}% da cota` : ""}
+                  {usdBR(l.gasto)}
+                  {cotacao ? ` (R$ ${(l.gasto * cotacao).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})` : ""} neste mês
+                  {l.cota ? ` · ${Math.round((fracao ?? 0) * 100)}% da cota${cotacao ? ` de R$ ${(l.cota * cotacao).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ""}` : ""}
                 </p>
               </div>
               <Input
@@ -411,6 +445,42 @@ export function CotasForm({ linhas, bloqueia }: { linhas: CotaLinha[]; bloqueia:
         <Button type="submit" disabled={pendente}>
           {pendente ? <Loader2 className="animate-spin" /> : <Save />}
           Salvar cotas
+        </Button>
+      </div>
+      <Retorno estado={estado} />
+    </form>
+  )
+}
+
+export type PessoaPrincipal = { usuarioId: string; nome: string; departamentos: { id: string; nome: string }[]; principalId: string | null }
+
+/** Quem está em mais de um departamento: por qual deles conta (IA e revisão de acessos). */
+export function PrincipaisForm({ pessoas }: { pessoas: PessoaPrincipal[] }) {
+  const [estado, action, pendente] = useActionState<EstadoForm, FormData>(salvarPrincipaisAction, {})
+  const envio = useEnvioFormulario(action, estado, { manter: true })
+  return (
+    <form action={action} {...envio} className="grid gap-3">
+      <ul className="divide-y">
+        {pessoas.map((p) => (
+          <li key={p.usuarioId} className="flex flex-wrap items-center justify-between gap-2 py-2">
+            <label htmlFor={`principal-${p.usuarioId}`} className="text-sm">
+              {p.nome}
+            </label>
+            <SelectNativo id={`principal-${p.usuarioId}`} name={`principal:${p.usuarioId}`} defaultValue={p.principalId ?? ""} className="w-60">
+              <option value="">Automático (o que coordena; senão, o primeiro)</option>
+              {p.departamentos.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.nome}
+                </option>
+              ))}
+            </SelectNativo>
+          </li>
+        ))}
+      </ul>
+      <div>
+        <Button type="submit" size="sm" variant="outline" disabled={pendente}>
+          {pendente ? <Loader2 className="animate-spin" /> : <Save />}
+          Salvar departamentos principais
         </Button>
       </div>
       <Retorno estado={estado} />

@@ -140,11 +140,22 @@ type Preparo =
   | { erro: string; registro: RegistroBase | null }
   | { client: OpenAI; modelo: string; origem: OrigemChave; registro: RegistroBase | null }
 
-/** Departamento da pessoa: o que coordena; sem isso, o primeiro que integra. */
+/**
+ * Departamento da pessoa: o principal marcado na Gestão; sem ele, o que
+ * coordena; sem isso, o primeiro que integra.
+ */
 const departamentoDe = cache(async (usuarioId: string): Promise<string | null> => {
   try {
     const admin = await createAdminClient()
     const emp = await tenantAtual()
+    const { data: principal } = await admin
+      .from("empresa_departamentos_integrantes")
+      .select("departamento_id, empresa_departamentos!inner(emp_proprietaria_id)")
+      .eq("usuario_id", usuarioId)
+      .eq("principal", true)
+      .eq("empresa_departamentos.emp_proprietaria_id", emp)
+      .limit(1)
+    if (principal?.[0]?.departamento_id) return String(principal[0].departamento_id)
     const { data: coord } = await admin
       .from("empresa_departamentos")
       .select("id")

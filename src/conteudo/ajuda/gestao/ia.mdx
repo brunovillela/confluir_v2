@@ -43,7 +43,8 @@ ou 90 dias):
 
 Clique numa linha da tabela para ver, no **Histórico de chamadas**, só as
 chamadas dela. O histórico mostra quando, quem, o processo, os tokens, o custo
-e o resultado (ok, falhou ou barrada pela Gestão, com o motivo). Filtre também
+e o resultado (ok, falhou ou barrada pela Gestão, com o motivo), 100 por
+página — **Mais antigas** e **Mais recentes** passam as páginas. Filtre também
 por módulo, processo ou só as falhas.
 
 O registro guarda quem pediu, o processo, o módulo e o departamento da pessoa
@@ -79,6 +80,9 @@ entra no livro de exportações (Gestão → Auditoria).
 - **Teto mensal**: o custo estimado máximo do mês. Com **Parar a IA ao atingir
   o teto**, a IA para até o dia 1º; sem isso, o teto só aparece como alerta
   (aqui e na Saúde do sistema, a partir de 80%).
+- **Cotação do dólar**: quantos reais vale US$ 1. Com ela, o custo, o teto e as
+  cotas aparecem também em reais — na tela, nos avisos e na planilha. O teto
+  continua em dólar; atualize a cotação quando quiser.
 
 ## Cotas por departamento
 
@@ -87,9 +91,12 @@ estimado. Em **Cotas por departamento**, cada departamento mostra quanto gastou
 no mês; preencha a cota de quem precisa de limite (em branco, sem cota
 própria) e **Salvar cotas**.
 
-- A chamada conta para o departamento de quem pediu: o que a pessoa coordena;
-  senão, o primeiro de que faz parte. Quem não está em nenhum departamento só
-  entra no teto geral.
+- A chamada conta para o departamento de quem pediu: o **principal** dela, se
+  a Gestão marcou; senão, o que ela coordena; senão, o primeiro de que faz
+  parte. Quem não está em nenhum departamento só entra no teto geral.
+- **Pessoas em mais de um departamento**: logo abaixo das cotas, escolha o
+  departamento principal de cada uma. Ele vale para a IA (cota e relatório) e
+  para quem revisa o acesso dela na revisão periódica, daqui para a frente.
 - Com **Parar a IA ao atingir o teto** marcado na Configuração, o departamento
   que atinge a cota fica sem IA até o dia 1º (os outros continuam). Desmarcado,
   a cota só avisa.
@@ -136,7 +143,16 @@ uma vez por dia). O aviso chega no sino; por e-mail, Telegram ou celular, ligue
   o dia 1º.
 - **O custo aparece como —.** Faltam os preços do modelo em Configuração.
 - **"Chave ilegível."** O servidor trocou a chave de cifra: a IA volta a usar a
-  conta da plataforma até a chave ser cadastrada de novo.
+  conta da plataforma. Se a chave de cifra antiga ainda existe, quem cuida do
+  servidor a põe em SEGREDOS_CHAVE_ANTERIOR e a chave volta a funcionar; senão,
+  cadastre a chave de novo.
+- **"Recifrar com a chave atual."** A chave da entidade funciona, mas está
+  guardada com uma chave de cifra antiga. O botão a regrava com a atual (a
+  chave de API não muda); depois disso a antiga pode sair do servidor.
+
+**Retenção.** Depois de 2 anos, as chamadas perdem quem pediu (regra RT36 do
+motor de retenção, em Institucional → LGPD): ficam processo, departamento,
+tokens e custo.
 
 <VejaTambem
   links={[

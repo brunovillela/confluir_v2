@@ -456,7 +456,7 @@
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
 | [aso](../dados/dicionario/pessoal.md#aso) | sens. saude, trabalhista | `data` (sens. saude), `tipo` (sens. saude), `arquivo` (sens. saude), `vencimento` (sens. saude), `realizado` (sens. saude) |
-| [empresa_departamentos_integrantes](../dados/dicionario/plataforma.md#empresa_departamentos_integrantes) | trabalhista | `usuario_id` (trabalhista) |
+| [empresa_departamentos_integrantes](../dados/dicionario/plataforma.md#empresa_departamentos_integrantes) | trabalhista | `usuario_id` (trabalhista), `principal` (nenhum) |
 | [pes_atestados_medicos](../dados/dicionario/pessoal.md#pes_atestados_medicos) | identificacao, sens. saude, trabalhista | `cid10` (sens. saude), `atestado` (sens. saude), `consideracao` (sens. saude), `inicio` (sens. saude), `termino` (sens. saude), `quantidade_dias` (sens. saude), `nome_acompanhado` (sens. saude), `filho_menor_6_anos` (sens. saude), `atestado_acompanhamento` (sens. saude), `pericias_retorno` (sens. saude), `aso_retorno_raw` (sens. saude) |
 | [pessoal_anuenio](../dados/dicionario/pessoal.md#pessoal_anuenio) | financeiro, trabalhista | `nivel_atual_data` (trabalhista), `proximo_nivel_data` (trabalhista), `nivel_atual_id` (financeiro) |
 | [pessoal_atividades](../dados/dicionario/pessoal.md#pessoal_atividades) | trabalhista | `funcionarios_raw` (trabalhista), `executores_raw` (trabalhista) |
@@ -782,7 +782,7 @@
 
 **Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Telegram: Exterior; Cloudflare Turnstile: EUA (rede global). Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
-**Retenção.** Registros de acesso e log da API: 6 meses (Marco Civil). Auditoria e livro de exportações: 5 anos. Contas: enquanto ativas. Uso da IA (`ia_uso`) e alterações da Gestão: proposta de 2 anos (a definir). Livro do motor de retenção: só contagens, sem prazo. Bloqueios por litígio: enquanto o processo durar, depois histórico. Códigos RT31–RT35 em retencao.md (proposta a validar); a RT31 já está no motor de retenção.
+**Retenção.** Registros de acesso e log da API: 6 meses (Marco Civil). Auditoria e livro de exportações: 5 anos. Contas: enquanto ativas. Uso da IA (`ia_uso`): quem pediu sai depois de 2 anos (RT36, no motor de retenção; o custo fica). Alterações da Gestão e revisões de acessos: proposta de 5 anos, como a auditoria (a definir). Livro do motor de retenção: só contagens, sem prazo. Bloqueios por litígio: enquanto o processo durar, depois histórico. Códigos RT31–RT35 em retencao.md (proposta a validar); a RT31 já está no motor de retenção.
 
 **Medidas de segurança.** Turnstile e cadência de códigos; MFA; identidade separada do metadata (`auth_identidades`); auditoria sem colunas cifradas; API com escopo por endpoint (CPF só com `filiados_cpf`) e chave só no cabeçalho; livro de exportações e log da API gravados só pelo service_role (a entidade só lê); chave de IA da entidade cifrada na aplicação (AES-256-GCM, chave de cifra fora do banco) e nunca devolvida à tela; `ia_uso` não guarda o texto enviado à IA.
 
@@ -808,7 +808,7 @@
 | [demandas_tarefa_comentarios](../dados/dicionario/ferramentas.md#demandas_tarefa_comentarios) | identificacao | `autor_id` (identificacao), `texto` (identificacao), `anexo_caminho` (identificacao), `anexo_nome` (nenhum) |
 | [emails_institucionais](../dados/dicionario/filiacao.md#emails_institucionais) | identificacao | `endereco` (identificacao) |
 | [gestao_eventos](../dados/dicionario/plataforma.md#gestao_eventos) | identificacao | `usuario_id` (identificacao), `detalhe` (nenhum) |
-| [ia_config](../dados/dicionario/plataforma.md#ia_config) | credencial | `chave_cifrada` (credencial), `chave_final` (credencial), `chave_definida_por` (identificacao), `chave_teste_erro` (nenhum), `atualizado_por` (identificacao), `modelos_processo` (nenhum), `precos_modelos` (nenhum), `cotas_departamento` (nenhum) |
+| [ia_config](../dados/dicionario/plataforma.md#ia_config) | credencial | `chave_cifrada` (credencial), `chave_final` (credencial), `chave_definida_por` (identificacao), `chave_teste_erro` (nenhum), `atualizado_por` (identificacao), `modelos_processo` (nenhum), `precos_modelos` (nenhum), `cotas_departamento` (nenhum), `cotacao_usd_brl` (nenhum) |
 | [ia_uso](../dados/dicionario/plataforma.md#ia_uso) | identificacao | `usuario_id` (identificacao), `erro` (nenhum) |
 | [lgpd_bloqueios_litigio](../dados/dicionario/plataforma.md#lgpd_bloqueios_litigio) | identificacao | `cpf` (identificacao), `email` (identificacao), `motivo` (identificacao), `processo` (identificacao), `criado_por` (identificacao), `encerrado_por` (identificacao) |
 | [lgpd_exportacoes](../dados/dicionario/plataforma.md#lgpd_exportacoes) | identificacao | `usuario_id` (identificacao), `filtros` (identificacao) |

@@ -16,6 +16,11 @@ import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from "node:cr
  *    funcionar sem configurar nada novo. Cadastrar SEGREDOS_CHAVE depois não
  *    quebra o que já foi gravado: a versão 0 continua decifrando.
  *
+ * Troca da SEGREDOS_CHAVE (22/11/2026): ponha a antiga em
+ * SEGREDOS_CHAVE_ANTERIOR. A versão 1 decifra com a atual e, se não der, com a
+ * anterior; a Gestão mostra "recifrar" e regrava com a atual. Depois que tudo
+ * foi recifrado, a anterior pode sair do servidor.
+ *
  * A entidade entra como dado autenticado (AAD): o segredo copiado para outra
  * entidade não decifra.
  */
@@ -64,10 +69,7 @@ export function cifrarSegredo(texto: string, entidadeId: string): { cifrado: str
   return { cifrado: Buffer.concat([iv, cipher.getAuthTag(), dados]).toString("base64"), versao }
 }
 
-/** Decifra. null = adulterado, de outra entidade ou sem a chave daquela versão. */
-export function decifrarSegredo(cifrado: string, versao: number, entidadeId: string): string | null {
-  const chave = chaveDaVersao(versao)
-  if (!chave) return null
+function decifrarCom(chave: Buffer, cifrado: string, entidadeId: string): string | null {
   try {
     const buf = Buffer.from(cifrado, "base64")
     const iv = buf.subarray(0, TAM_IV)
@@ -80,4 +82,35 @@ export function decifrarSegredo(cifrado: string, versao: number, entidadeId: str
   } catch {
     return null
   }
+}
+
+/**
+ * Decifra e diz se o segredo deve ser recifrado com a chave atual: gravado
+ * numa versão que já não é a atual, ou só legível com a SEGREDOS_CHAVE_ANTERIOR.
+ * texto null = adulterado, de outra entidade ou sem nenhuma chave que sirva.
+ */
+export function decifrarSegredoDetalhado(
+  cifrado: string,
+  versao: number,
+  entidadeId: string
+): { texto: string | null; recifrar: boolean } {
+  const atual = versaoAtual()
+  const principal = chaveDaVersao(versao)
+  if (principal) {
+    const texto = decifrarCom(principal, cifrado, entidadeId)
+    if (texto !== null) return { texto, recifrar: versao !== atual }
+  }
+  if (versao === 1) {
+    const anterior = chave32("SEGREDOS_CHAVE_ANTERIOR")
+    if (anterior) {
+      const texto = decifrarCom(anterior, cifrado, entidadeId)
+      if (texto !== null) return { texto, recifrar: true }
+    }
+  }
+  return { texto: null, recifrar: false }
+}
+
+/** Decifra. null = adulterado, de outra entidade ou sem a chave daquela versão. */
+export function decifrarSegredo(cifrado: string, versao: number, entidadeId: string): string | null {
+  return decifrarSegredoDetalhado(cifrado, versao, entidadeId).texto
 }

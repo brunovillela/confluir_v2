@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { requirePermissao } from "@/lib/auth"
 import { nomesDosUsuarios } from "@/lib/db/comum"
 import { custoPorDepartamentoNoMes, mesAtual, obterConfigIA } from "@/lib/db/ia-config"
+import { pessoasEmVariosDepartamentos } from "@/lib/db/departamento-principal"
 import { listarDepartamentosCompletos } from "@/lib/db/departamentos"
 import { tenantAtual } from "@/lib/tenant"
 import { listarChamadasIA, listarEventosGestao, resumoUsoIA, rotuloAcaoGestao, rotuloOrigem, type Dimensao } from "@/lib/db/ia-uso"
@@ -19,9 +20,9 @@ import { formatarDataHora } from "@/lib/formato"
 import { MODELO_IA } from "@/lib/ia"
 import { MODULOS_IA, PROCESSOS_IA, processoIA, tituloModuloIA } from "@/lib/ia-processos"
 
-import { ChaveForm, CotasForm, ModelosProcessoForm, PreferenciasForm, RemoverChaveBotao, TestarChaveBotao, type UsoProcesso } from "./forms"
+import { ChaveForm, CotasForm, ModelosProcessoForm, PrincipaisForm, RecifrarChaveBotao, PreferenciasForm, RemoverChaveBotao, TestarChaveBotao, type UsoProcesso } from "./forms"
 import { intervalo, PERIODOS, PERIODOS_PLANILHA } from "./periodos"
-import { dolares, GraficoDiario, Indicador, TabelaUso, tokens } from "./uso"
+import { comReais, dolares, GraficoDiario, Indicador, TabelaUso, tokens } from "./uso"
 
 export const metadata: Metadata = { title: "Inteligência Artificial — Confluir" }
 
@@ -42,6 +43,7 @@ type Busca = {
   modulo?: string
   departamento?: string
   falhas?: string
+  pagina?: string
 }
 
 export default async function IAPage({ searchParams }: { searchParams: Promise<Busca> }) {
@@ -50,8 +52,14 @@ export default async function IAPage({ searchParams }: { searchParams: Promise<B
   const periodo = PERIODOS.some((p) => p.valor === sp.periodo) ? sp.periodo! : "mes"
   const aba = ABAS.find((a) => a.valor === sp.por) ?? ABAS[0]
   const { de, ate } = intervalo(periodo)
+  const POR_PAGINA = 100
+  const pagina = Math.max(1, Math.min(500, Number.parseInt(sp.pagina ?? "1", 10) || 1))
 
-  const [deptosTodos, gastoDeptos] = await Promise.all([listarDepartamentosCompletos(), custoPorDepartamentoNoMes(await tenantAtual())])
+  const [deptosTodos, gastoDeptos, emVarios] = await Promise.all([
+    listarDepartamentosCompletos(),
+    custoPorDepartamentoNoMes(await tenantAtual()),
+    pessoasEmVariosDepartamentos(),
+  ])
   const [config, resumo, historico, eventos, resumoMes, resumo30] = await Promise.all([
     obterConfigIA(),
     resumoUsoIA(de, ate),
@@ -65,7 +73,9 @@ export default async function IAPage({ searchParams }: { searchParams: Promise<B
         modulo: sp.modulo || null,
         soFalhas: sp.falhas === "1",
       },
-      100
+      // Uma a mais para saber se há página seguinte.
+      POR_PAGINA + 1,
+      (pagina - 1) * POR_PAGINA
     ),
     listarEventosGestao("ia", 15),
     periodo === "mes" ? null : resumoUsoIA(mesAtual().de, mesAtual().ate),
@@ -89,6 +99,8 @@ export default async function IAPage({ searchParams }: { searchParams: Promise<B
   const cotasNoLimite = comCota.filter((l) => l.gasto >= l.cota! * 0.8)
   const definidaPor = config.chaveDefinidaPor ? (await nomesDosUsuarios([config.chaveDefinidaPor])).get(config.chaveDefinidaPor) : null
 
+  const haMais = historico.chamadas.length > POR_PAGINA
+  const chamadasDaPagina = historico.chamadas.slice(0, POR_PAGINA)
   const total = resumo.total
   const totalTokens = total ? total.tokensEntrada + total.tokensSaida : 0
   const temPrecos =
@@ -105,7 +117,7 @@ export default async function IAPage({ searchParams }: { searchParams: Promise<B
     return `${ROTA}?${q.toString()}`
   }
   const filtroDaLinha = (filtro: string) => (chave: string) =>
-    urlCom({ pessoa: null, processo: null, modulo: null, departamento: null, falhas: null, [filtro]: chave || "sem" }) + "#historico"
+    urlCom({ pessoa: null, processo: null, modulo: null, departamento: null, falhas: null, pagina: null, [filtro]: chave || "sem" }) + "#historico"
 
   return (
     <>
@@ -182,8 +194,18 @@ export default async function IAPage({ searchParams }: { searchParams: Promise<B
               {config.chaveTesteErro && <p className="text-destructive text-xs">{config.chaveTesteErro}</p>}
               {config.chaveIlegivel && (
                 <p className="text-destructive text-xs">
-                  A chave guardada não decifra neste servidor (a chave de cifra mudou). Enquanto isso a IA usa a conta da plataforma. Cadastre a chave de novo.
+                  A chave guardada não decifra neste servidor (a chave de cifra mudou). Enquanto isso a IA usa a conta da plataforma. Se a chave de cifra foi
+                  trocada, configure a antiga em SEGREDOS_CHAVE_ANTERIOR e recifre aqui; ou cadastre a chave de novo.
                 </p>
+              )}
+              {config.chaveRecifrar && (
+                <div className="grid gap-2">
+                  <p className="text-warning-fg text-xs">
+                    A chave está guardada com uma chave de cifra que não é mais a atual do servidor (a anterior, ou a derivada usada antes da SEGREDOS_CHAVE).
+                    Ela funciona, mas regrave-a com a atual para poder retirar a antiga.
+                  </p>
+                  <RecifrarChaveBotao />
+                </div>
               )}
               <div className="flex flex-wrap items-start gap-2">
                 <TestarChaveBotao />
@@ -219,7 +241,7 @@ export default async function IAPage({ searchParams }: { searchParams: Promise<B
             <nav className="flex flex-wrap gap-1" aria-label="Período">
               {PERIODOS.map((p) => (
                 <Button key={p.valor} size="sm" variant={p.valor === periodo ? "default" : "outline"} asChild>
-                  <Link href={urlCom({ periodo: p.valor })}>{p.rotulo}</Link>
+                  <Link href={urlCom({ periodo: p.valor, pagina: null })}>{p.rotulo}</Link>
                 </Button>
               ))}
             </nav>
@@ -233,7 +255,17 @@ export default async function IAPage({ searchParams }: { searchParams: Promise<B
               valor={tokens(totalTokens)}
               detalhe={total ? `${tokens(total.tokensEntrada)} entrada · ${tokens(total.tokensSaida)} saída` : null}
             />
-            <Indicador rotulo="Custo estimado" valor={temPrecos ? dolares(total?.custo ?? 0) : "—"} detalhe={temPrecos ? null : "Informe os preços abaixo"} />
+            <Indicador
+              rotulo="Custo estimado"
+              valor={temPrecos ? dolares(total?.custo ?? 0) : "—"}
+              detalhe={
+                !temPrecos
+                  ? "Informe os preços abaixo"
+                  : config.cotacaoUsdBrl
+                    ? `≈ R$ ${((total?.custo ?? 0) * config.cotacaoUsdBrl).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (US$ 1 = R$ ${config.cotacaoUsdBrl.toLocaleString("pt-BR", { minimumFractionDigits: 2 })})`
+                    : null
+              }
+            />
             <Indicador
               rotulo="Falhas"
               valor={tokens(total?.falhas ?? 0)}
@@ -245,7 +277,9 @@ export default async function IAPage({ searchParams }: { searchParams: Promise<B
           {config.limiteMensalUsd !== null && (
             <div className="grid gap-1.5">
               <div className="flex justify-between text-xs">
-                <span>Teto do mês: {dolares(custoMes)} de {dolares(config.limiteMensalUsd)}</span>
+                <span>
+                  Teto do mês: {comReais(custoMes, config.cotacaoUsdBrl)} de {comReais(config.limiteMensalUsd, config.cotacaoUsdBrl)}
+                </span>
                 <span className="text-muted-foreground">{config.bloquearNoLimite ? "para no teto" : "só alerta"}</span>
               </div>
               <Progress value={Math.round((fracaoTeto ?? 0) * 100)} aria-label="Uso do teto mensal" />
@@ -269,6 +303,7 @@ export default async function IAPage({ searchParams }: { searchParams: Promise<B
               rotuloColuna={aba.coluna}
               totalTokens={totalTokens}
               mostrarCusto={temPrecos}
+              cotacao={config.cotacaoUsdBrl}
               hrefFiltro={(l) => filtroDaLinha(aba.filtro)(l.chave)}
             />
           </div>
@@ -325,7 +360,9 @@ export default async function IAPage({ searchParams }: { searchParams: Promise<B
       <Card id="historico">
         <CardHeader>
           <CardTitle className="text-base">Histórico de chamadas</CardTitle>
-          <CardDescription className="text-xs">As 100 mais recentes do período, com os filtros escolhidos.</CardDescription>
+          <CardDescription className="text-xs">
+            Do mais recente para o mais antigo, 100 por página, com os filtros escolhidos. Para todas de uma vez, baixe a planilha.
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
           <form method="get" action={`${ROTA}#historico`} className="flex flex-wrap items-end gap-3">
@@ -375,7 +412,7 @@ export default async function IAPage({ searchParams }: { searchParams: Promise<B
                 `Departamento: ${sp.departamento === "sem" ? "sem departamento" : (resumo.por.departamento.find((d) => d.chave === sp.departamento)?.rotulo ?? "selecionado")}.`}
             </p>
           )}
-          {historico.chamadas.length === 0 ? (
+          {chamadasDaPagina.length === 0 ? (
             <p className="text-muted-foreground text-sm">Nenhuma chamada com esses filtros.</p>
           ) : (
             <div className="overflow-x-auto">
@@ -391,7 +428,7 @@ export default async function IAPage({ searchParams }: { searchParams: Promise<B
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {historico.chamadas.map((c) => (
+                  {chamadasDaPagina.map((c) => (
                     <TableRow key={c.id}>
                       <TableCell className="text-muted-foreground whitespace-nowrap">{formatarDataHora(c.criadoEm)}</TableCell>
                       <TableCell>
@@ -426,6 +463,27 @@ export default async function IAPage({ searchParams }: { searchParams: Promise<B
               </Table>
             </div>
           )}
+          {(pagina > 1 || haMais) && (
+            <nav className="flex flex-wrap items-center justify-between gap-2 text-xs" aria-label="Páginas do histórico">
+              <span className="text-muted-foreground">
+                {chamadasDaPagina.length
+                  ? `Chamadas ${(pagina - 1) * POR_PAGINA + 1}–${(pagina - 1) * POR_PAGINA + chamadasDaPagina.length}`
+                  : `Página ${pagina}: não há chamadas tão antigas`}
+              </span>
+              <span className="flex gap-2">
+                {pagina > 1 && (
+                  <Button size="sm" variant="outline" asChild>
+                    <Link href={urlCom({ pagina: pagina === 2 ? null : String(pagina - 1) }) + "#historico"}>Mais recentes</Link>
+                  </Button>
+                )}
+                {haMais && (
+                  <Button size="sm" variant="outline" asChild>
+                    <Link href={urlCom({ pagina: String(pagina + 1) }) + "#historico"}>Mais antigas</Link>
+                  </Button>
+                )}
+              </span>
+            </nav>
+          )}
         </CardContent>
       </Card>
 
@@ -447,6 +505,7 @@ export default async function IAPage({ searchParams }: { searchParams: Promise<B
               precoEntrada: config.precoEntrada,
               precoEntradaCache: config.precoEntradaCache,
               precoSaida: config.precoSaida,
+              cotacaoUsdBrl: config.cotacaoUsdBrl,
             }}
           />
         </CardContent>
@@ -474,7 +533,22 @@ export default async function IAPage({ searchParams }: { searchParams: Promise<B
           {linhasCota.length === 0 ? (
             <p className="text-muted-foreground text-sm">Nenhum departamento cadastrado (Institucional → Organização → Departamentos).</p>
           ) : (
-            <CotasForm linhas={linhasCota} bloqueia={config.bloquearNoLimite} />
+            <CotasForm linhas={linhasCota} bloqueia={config.bloquearNoLimite} cotacao={config.cotacaoUsdBrl} />
+          )}
+          {emVarios.length > 0 && (
+            <details className="mt-5 border-t pt-4" open={emVarios.some((p) => !p.principalId) || undefined}>
+              <summary className="cursor-pointer text-sm font-medium">
+                Pessoas em mais de um departamento ({emVarios.length})
+                <span className="text-muted-foreground ml-2 text-xs font-normal">
+                  {emVarios.filter((p) => p.principalId).length} com o principal definido
+                </span>
+              </summary>
+              <p className="text-muted-foreground mt-2 text-xs">
+                Escolha por qual departamento cada uma conta: o uso da IA (cota e relatório) e quem revisa o acesso dela na revisão periódica. Vale daqui
+                para a frente; as chamadas já registradas ficam no departamento de antes.
+              </p>
+              <PrincipaisForm pessoas={emVarios} />
+            </details>
           )}
         </CardContent>
       </Card>
