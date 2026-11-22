@@ -16,6 +16,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-11-22",
     titulo: "Oposição: texto do desconto com parágrafos",
     itens: [
+      "Pessoal: a caixa de entrada avisa quem, no mês, passou de 4 h de uso do sistema fora do expediente ou usou o sistema por mais de 10 minutos num dia de férias ou afastamento. No relatório Uso fora do expediente, o nome dessas pessoas ganha uma marca. O registro do uso e os motivos ficam guardados 5 anos (regra RT37 do motor de retenção, em Institucional → LGPD).",
       "Tarefas: checklist e etiquetas. O ícone de lista na tarefa (e no cartão do quadro) abre os passos marcáveis, com o progresso à vista (2/5). Etiquetas, no alto de Tarefas, cria rótulos coloridos como Jurídico ou Urgente; marque-os no lápis da tarefa e filtre por etiqueta em qualquer visão. A tarefa que se repete leva o checklist e as etiquetas para a próxima.",
       "Pessoal: o painel (em Precisa de atenção) e a caixa de entrada avisam quantos funcionários ativos estão sem jornada vinculada, com o atalho para vincular. Sem jornada, o uso fora do expediente não é registrado.",
       "Tarefas: linha do tempo (Gantt). Cada tarefa vira uma barra do início ao prazo, e as setas mostram quem espera por quem: no lápis da tarefa, marque em Depende de as que precisam terminar antes. A barra fica tracejada enquanto aguarda as anteriores, e o responsável é avisado quando a última delas é concluída. Está na aba Linha do tempo de Tarefas e na página do projeto, com os marcos.",

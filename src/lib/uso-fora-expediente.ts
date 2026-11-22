@@ -295,3 +295,32 @@ export function usoSemMarcacao(dia: DiaUso, batidas: string[]): { minutos: numbe
 export function textoUsoSemMarcacao(r: { minutos: number; trechos: [number, number][] }): string {
   return `${textoMinutos(r.minutos)} (${r.trechos.map(([a, b]) => `${horaDoDia(a)}–${horaDoDia(b)}`).join(", ")})`
 }
+
+// ── Aviso ao gestor (caixa de entrada) ───────────────────────────────────────
+
+/** Uso fora a considerar no mês acima disto vira aviso na caixa de entrada. */
+export const LIMITE_AVISO_MES_MIN = 4 * 60
+
+export type AvisoUsoMes = {
+  /** O "a considerar" do mês passou de LIMITE_AVISO_MES_MIN. */
+  acimaDoLimite: boolean
+  /** Dias de férias ou afastamento com mais de TOLERANCIA_DIARIA_MIN de uso. */
+  diasEmAfastamento: number
+}
+
+/**
+ * O que, no mês de uma pessoa, merece aviso ao gestor: muito uso fora do
+ * expediente (risco de hora extra) ou uso em férias e afastamentos (risco de
+ * férias não gozadas). Uma olhada rápida no período, até 10 minutos num dia
+ * (o contracheque no Meu perfil, por exemplo), não conta.
+ */
+export function avisoDoMes(dias: DiaUso[]): AvisoUsoMes {
+  return {
+    acimaDoLimite: dias.reduce((s, d) => s + d.considerado, 0) > LIMITE_AVISO_MES_MIN,
+    diasEmAfastamento: dias.filter((d) => d.fora.afastado > TOLERANCIA_DIARIA_MIN).length,
+  }
+}
+
+export function temAvisoUso(a: AvisoUsoMes): boolean {
+  return a.acimaDoLimite || a.diasEmAfastamento > 0
+}

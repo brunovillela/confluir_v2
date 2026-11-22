@@ -137,6 +137,22 @@ function pessoaDaChave(chave: string): { cpf: string | null; email: string | nul
   return { cpf: digitos.length === 11 ? digitos : null, email: null }
 }
 
+/** CPF e e-mail de cada usuário, para o bloqueio por litígio. */
+async function pessoasDosUsuarios(
+  ctx: Contexto,
+  usuarioIds: string[]
+): Promise<Map<string, { cpf: string | null; email: string | null }>> {
+  const pessoas = new Map<string, { cpf: string | null; email: string | null }>()
+  for (const lote of lotes([...new Set(usuarioIds)])) {
+    const { data, error } = await ctx.client.from("usuarios").select("id, cpf, email").in("id", lote)
+    if (error) throw new Error(`usuarios: ${error.message}`)
+    for (const u of data ?? []) {
+      pessoas.set(String(u.id), { cpf: texto(u.cpf)?.replace(/\D/g, "") ?? null, email: texto(u.email)?.toLowerCase() ?? null })
+    }
+  }
+  return pessoas
+}
+
 // ── Executores ──────────────────────────────────────────────────────────────
 
 const EXECUTORES: Record<string, Executor> = {
@@ -335,15 +351,7 @@ const EXECUTORES: Record<string, Executor> = {
           .range(de, ate)
       )
       // CPF e e-mail de quem pediu, para respeitar o bloqueio por litígio.
-      const pessoas = new Map<string, { cpf: string | null; email: string | null }>()
-      const ids = [...new Set(linhas.map((l) => String(l.usuario_id)))]
-      for (const lote of lotes(ids)) {
-        const { data, error } = await ctx.client.from("usuarios").select("id, cpf, email").in("id", lote)
-        if (error) throw new Error(`usuarios: ${error.message}`)
-        for (const u of data ?? []) {
-          pessoas.set(String(u.id), { cpf: texto(u.cpf)?.replace(/D/g, "") ?? null, email: texto(u.email)?.toLowerCase() ?? null })
-        }
-      }
+      const pessoas = await pessoasDosUsuarios(ctx, linhas.map((l) => String(l.usuario_id)))
       return {
         limiteAtingido,
         grupos: [
@@ -365,6 +373,51 @@ const EXECUTORES: Record<string, Executor> = {
         if (error) throw new Error(`ia_uso: ${error.message}`)
         linhas += count ?? 0
       }
+      return { linhas, arquivos: 0, falhas: [] }
+    },
+  },
+
+  /** RT37: uso do painel fora do expediente e os motivos, após 5 anos. */
+  RT37: {
+    async coletar(ctx, corte) {
+      const usos = await lerPaginado((de, ate) =>
+        ctx.client
+          .from("pessoal_uso_painel")
+          .select("id, usuario_id")
+          .eq("emp_proprietaria_id", ctx.tenantId)
+          .lt("fim", corte)
+          .order("id")
+          .range(de, ate)
+      )
+      // O motivo é de um dia (date): sai junto com o uso daquele dia.
+      const motivos = await lerPaginado((de, ate) =>
+        ctx.client
+          .from("pessoal_uso_justificativas")
+          .select("id, usuario_id")
+          .eq("emp_proprietaria_id", ctx.tenantId)
+          .lt("data", corte.slice(0, 10))
+          .order("id")
+          .range(de, ate)
+      )
+      const pessoas = await pessoasDosUsuarios(
+        ctx,
+        [...usos.linhas, ...motivos.linhas].map((l) => String(l.usuario_id))
+      )
+      const candidato = (l: Record<string, unknown>): Candidato => ({
+        id: String(l.id),
+        ...(pessoas.get(String(l.usuario_id)) ?? {}),
+      })
+      return {
+        limiteAtingido: usos.limiteAtingido || motivos.limiteAtingido,
+        grupos: [
+          { tabela: "pessoal_uso_painel", candidatos: usos.linhas.map(candidato) },
+          { tabela: "pessoal_uso_justificativas", candidatos: motivos.linhas.map(candidato) },
+        ],
+      }
+    },
+    async aplicar(ctx, grupos) {
+      let linhas = 0
+      for (const g of grupos) linhas += await eliminarPorIds(ctx, g.tabela, g.candidatos.map((c) => c.id))
       return { linhas, arquivos: 0, falhas: [] }
     },
   },

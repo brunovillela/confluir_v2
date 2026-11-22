@@ -5,12 +5,13 @@ import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react"
 import { TileIndicador } from "@/components/graficos/tile"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { horarioDoDiaJornada } from "@/lib/pessoal-sst-constantes"
 import { competenciaValida, usoForaDoExpediente, usoForaDoFuncionario } from "@/lib/db/uso-fora-expediente"
-import { CATEGORIAS_FORA, TOLERANCIA_DIARIA_MIN, textoMinutos } from "@/lib/uso-fora-expediente"
+import { CATEGORIAS_FORA, LIMITE_AVISO_MES_MIN, TOLERANCIA_DIARIA_MIN, textoMinutos } from "@/lib/uso-fora-expediente"
 import {
   LegendaLinhaDoDia,
   LinhaDoDia,
@@ -210,7 +211,9 @@ export default async function UsoForaDoExpedientePage({
                   ? `Registrando desde ${new Date(dados.desde).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}. `
                   : "Nenhum uso registrado ainda. "}
                 Clique no nome para ver o dia a dia. Variações de até {TOLERANCIA_DIARIA_MIN} minutos num dia de trabalho não
-                entram no &quot;a considerar&quot; (como no art. 58, § 1º, da CLT).
+                entram no &quot;a considerar&quot; (como no art. 58, § 1º, da CLT). A caixa de entrada avisa quem passa de{" "}
+                {LIMITE_AVISO_MES_MIN / 60} h a considerar no mês ou usa o sistema por mais de {TOLERANCIA_DIARIA_MIN} minutos
+                num dia de férias ou afastamento.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -249,6 +252,18 @@ export default async function UsoForaDoExpedientePage({
                               {l.nome}
                             </Link>
                             <div className="text-muted-foreground text-xs">{l.jornada}</div>
+                            {(l.aviso.acimaDoLimite || l.aviso.diasEmAfastamento > 0) && (
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                {l.aviso.acimaDoLimite && (
+                                  <Badge variant="warning">Acima de {LIMITE_AVISO_MES_MIN / 60} h no mês</Badge>
+                                )}
+                                {l.aviso.diasEmAfastamento > 0 && (
+                                  <Badge variant="error">
+                                    Uso em férias ou afastamento: {l.aviso.diasEmAfastamento} dia(s)
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
                           </td>
                           <td className="py-2 pr-3 text-right tabular-nums">{textoMinutos(l.resumo.total)}</td>
                           {CATEGORIAS_FORA.map((c) => (

@@ -9,6 +9,8 @@ import { alcadaDoUsuario } from "@/lib/db/compras"
 import { contagemPendenciasDesconto, exclusoesNaoCumpridas } from "@/lib/db/desconto-comunicacoes"
 import { contagemDiasParaConferir } from "@/lib/db/ponto-marcacoes"
 import { funcionariosSemJornada } from "@/lib/db/jornada-pendentes"
+import { avisosDeUsoDoMes } from "@/lib/db/uso-fora-expediente"
+import { LIMITE_AVISO_MES_MIN } from "@/lib/uso-fora-expediente"
 import { DIAS_SILENCIO_COBRANCA, empresasParaCobrar, relacoesDoRhALancar } from "@/lib/db/repasse"
 import { SITUACAO_EM_AUTORIZACAO } from "@/lib/db/ordens-ciclo"
 import { situacaoDosPlanos } from "@/lib/db/veiculos-manutencoes"
@@ -248,6 +250,25 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
       montar: (q) => head(q),
       contarCom: async () => (await funcionariosSemJornada(client, emp))?.total ?? null,
     })
+    const usoFora: Fonte = {
+      chave: "uso_fora_aviso",
+      titulo: "Uso fora do expediente para olhar",
+      descricao: `Neste mês: acima de ${LIMITE_AVISO_MES_MIN / 60} h fora do expediente ou uso em férias e afastamentos`,
+      href: "/painel/pessoal/ponto/fora-do-expediente",
+      tabela: "pessoal_uso_painel",
+      montar: (q) => head(q),
+      contarCom: async () => {
+        const a = await avisosDeUsoDoMes().catch(() => null)
+        if (!a) return null
+        const partes = [
+          a.acimaDoLimite ? `${a.acimaDoLimite} acima de ${LIMITE_AVISO_MES_MIN / 60} h no mês` : "",
+          a.emAfastamento ? `${a.emAfastamento} com uso em férias ou afastamento` : "",
+        ].filter(Boolean)
+        if (partes.length) usoFora.descricao = partes.join(" · ")
+        return a.total
+      },
+    }
+    fontes.push(usoFora)
   }
   if (pode("pessoal_gestao", ["pessoal_faltas_justificadas"])) {
     fontes.push({

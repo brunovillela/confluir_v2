@@ -12,6 +12,9 @@ import {
   TOLERANCIA_DIARIA_MIN,
   podeInformarMotivo,
   apurarUso,
+  avisoDoMes,
+  temAvisoUso,
+  type AvisoUsoMes,
   diasDoPeriodo,
   resumirUso,
   rotuloMotivoUso,
@@ -174,6 +177,8 @@ export type LinhaUsoFora = {
   resumo: ResumoUso
   /** Dias com uso fora em que o funcionário informou o motivo. */
   diasComMotivo: number
+  /** Acima do limite do mês ou uso em férias e afastamentos. */
+  aviso: AvisoUsoMes
 }
 
 export type UsoForaDoMes = {
@@ -217,10 +222,29 @@ export async function usoForaDoExpediente(competencia: string): Promise<UsoForaD
         jornada: j.nome,
         resumo: resumirUso(dias),
         diasComMotivo: dias.filter((d) => d.foraTotal > 0 && m?.has(d.data)).length,
+        aviso: avisoDoMes(dias),
       }
     })
     .sort((a, b) => b.resumo.considerado - a.resumo.considerado || b.resumo.foraTotal - a.resumo.foraTotal || a.nome.localeCompare(b.nome, "pt-BR"))
   return { disponivel: true, competencia, linhas, desde }
+}
+
+export type AvisosDeUso = { total: number; acimaDoLimite: number; emAfastamento: number }
+
+/**
+ * Para a caixa de entrada: quantos funcionários, no mês corrente, passaram do
+ * limite de uso fora do expediente ou usaram o sistema em férias ou
+ * afastamento. null = não deu para contar (sem a tabela).
+ */
+export async function avisosDeUsoDoMes(): Promise<AvisosDeUso | null> {
+  const dados = await usoForaDoExpediente(hojeEmSaoPaulo().slice(0, 7))
+  if (!dados.disponivel) return null
+  const comAviso = dados.linhas.filter((l) => temAvisoUso(l.aviso))
+  return {
+    total: comAviso.length,
+    acimaDoLimite: comAviso.filter((l) => l.aviso.acimaDoLimite).length,
+    emAfastamento: comAviso.filter((l) => l.aviso.diasEmAfastamento > 0).length,
+  }
 }
 
 export type UsoForaDoFuncionario = {

@@ -77,6 +77,18 @@ export const REGRAS_RETENCAO: readonly DefinicaoRegra[] = [
     acao: "anonimizar",
     fundamento: "Prestação de contas do custo; a pessoa só importa enquanto o uso é recente",
   },
+  {
+    codigo: "RT37",
+    titulo: "Uso do sistema fora do expediente",
+    descricao:
+      "Elimina os blocos de uso do painel (pessoal_uso_painel: quem, início e fim) e os motivos informados pelo funcionário (pessoal_uso_justificativas) mais antigos que o prazo.",
+    tabela: "pessoal_uso_painel",
+    colunaAncora: "fim",
+    prazoPadraoDias: 1826,
+    prazoMinimoDias: 1826,
+    acao: "eliminar",
+    fundamento: "Prova em pedido de hora extra: prescrição de 5 anos (CF, art. 7º, XXIX), como o ponto",
+  },
 ]
 
 export function definicaoRegra(codigo: string): DefinicaoRegra | null {

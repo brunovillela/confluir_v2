@@ -3,10 +3,12 @@ import { expect, test } from "playwright/test"
 import type { JornadaDia } from "../../src/lib/pessoal-sst-constantes"
 import {
   apurarUso,
+  avisoDoMes,
   diasDoPeriodo,
   podeInformarMotivo,
   resumirUso,
   rotuloMotivoUso,
+  temAvisoUso,
   textoMinutos,
   textoUsoSemMarcacao,
   usoSemMarcacao,
@@ -127,5 +129,20 @@ test.describe("uso fora do expediente", () => {
     expect(podeInformarMotivo("2026-09-19", "2026-11-19")).toBe(false) // 61 dias
     expect(podeInformarMotivo("2026-11-20", "2026-11-19")).toBe(false) // futuro
     expect(podeInformarMotivo("19/11/2026", "2026-11-19")).toBe(false)
+  })
+
+  test("aviso do mês: acima de 4 h ou mais de 10 min num dia de férias", () => {
+    const ferias = { feriados: new Set<string>(), afastamentos: new Map([["2026-11-17", "Férias"], ["2026-11-24", "Férias"]]) }
+    // Uma olhada de 5 min nas férias e 2 h depois do expediente: nada a avisar.
+    const leve = apurarUso([bloco("2026-11-17", "10:00", "10:05"), bloco("2026-11-18", "17:00", "19:00")], jornada, ferias)
+    expect(avisoDoMes(leve)).toEqual({ acimaDoLimite: false, diasEmAfastamento: 0 })
+    expect(temAvisoUso(avisoDoMes(leve))).toBe(false)
+    // 20 min num dia de férias: avisa, mesmo abaixo do limite.
+    const emFerias = apurarUso([bloco("2026-11-24", "10:00", "10:20")], jornada, ferias)
+    expect(avisoDoMes(emFerias)).toEqual({ acimaDoLimite: false, diasEmAfastamento: 1 })
+    // 2 h + 2h30 depois do expediente: passa das 4 h.
+    const muito = apurarUso([bloco("2026-11-18", "17:00", "19:00"), bloco("2026-11-19", "17:00", "19:30")], jornada, semNada)
+    expect(avisoDoMes(muito).acimaDoLimite).toBe(true)
+    expect(temAvisoUso(avisoDoMes(muito))).toBe(true)
   })
 })
