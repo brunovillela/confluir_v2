@@ -31,7 +31,7 @@
 | P14 | [Frota: veículos e condutores](#p14) | 16 | identificação, financeiro | sim |
 | P15 | [Comunicação, eventos e avisos](#p15) | 9 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P16 | [Contas de acesso, segurança, auditoria e gestão interna](#p16) | 30 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
-| P17 | [Congressos e conferências](#p17) | 19 | identificação, **sensível: filiação/posição sindical** | sim |
+| P17 | [Congressos e conferências](#p17) | 23 | identificação, **sensível: filiação/posição sindical** | sim |
 
 <a id="p01"></a>
 ## P01. Filiação e cadastro do associado
@@ -449,7 +449,7 @@
 
 **Medidas de segurança.** RLS por tenant; acesso por permissão do módulo Pessoal; contracheque liberado individualmente ao funcionário.
 
-**Observações.** Comprovantes mandados ao bot do Telegram (recibo de reembolso, atestado) passam pelo Telegram e pela IA por iniciativa do próprio funcionário; o chat mostra só o período do atestado. Pendências: a resenha do ponto envia à IA até 30 funcionários por nome; `pessoal_folha_competencias.snapshot` guarda cópia de dados pessoais; documentos ainda no CDN do Bubble.
+**Observações.** Comprovantes mandados ao bot do Telegram (recibo de reembolso, atestado) passam pelo Telegram e pela IA por iniciativa do próprio funcionário; o chat mostra só o período do atestado. Pendências: a resenha do ponto envia à IA até 30 funcionários por nome (com os totais de uso do sistema fora do expediente, sem horários nem o texto do motivo); `pessoal_folha_competencias.snapshot` guarda cópia de dados pessoais; documentos ainda no CDN do Bubble.
 
 <details><summary>Tabelas (44) e colunas com dado pessoal</summary>
 
@@ -830,7 +830,7 @@
 <a id="p17"></a>
 ## P17. Congressos e conferências
 
-**Finalidade.** Organizar congressos, plenárias e conferências que a entidade promove ou de que participa: configuração do regimento, delegações, inscrição e lista de participantes (delegados, natos, suplentes, observadores, convidados), programa e grupos de trabalho. Inclui a inscrição pela página pública (com ciência do tratamento, IP e link pessoal guardado só como hash) e a importação de listas por planilha ou ata, que pode ser lida por IA. No dia do evento: credenciamento (com conferência de documento), crachás com código guardado só como hash, troca de titular por suplente com quem autorizou, e presença por sessão com o meio e o nível de prova de que a pessoa estava no local. Na relatoria: funções de coordenação e relatoria dos grupos, propostas com versões e apontamentos registrados com o nome de quem lançou (não de quem falou), contagem da apreciação nos grupos e resultado das votações da plenária, sem voto individual. Nas moções: proponente, assinaturas com o hash do texto lido, papel e base no instante, meio (link pessoal, estação da mesa ou papel), modalidade e nível de prova de presença, IP e navegador (prova da assinatura eletrônica); os nomes de quem assinou ficam visíveis conforme a configuração (comissão, credenciados ou público). Com a IA ligada na configuração, as sugestões (redação, fusão, eixo, contradições, síntese do grupo, triagem de moção, leitura do caderno e do regimento) ficam registradas com quem pediu e quem aceitou ou recusou; os textos vão à IA sem nomes de pessoas e com CPF, e-mail e telefone mascarados. No encerramento: resoluções com o responsável pelo encaminhamento e o acompanhamento; chapas da eleição da delegação com os candidatos, a hora da inscrição e quem foi eleito (enviados à etapa seguinte quando a comissão manda); certificados com nome, condição de participação e frequência, conferíveis pelo código.
+**Finalidade.** Organizar congressos, plenárias e conferências que a entidade promove ou de que participa: configuração do regimento, delegações, inscrição e lista de participantes (delegados, natos, suplentes, observadores, convidados), programa e grupos de trabalho. Inclui a inscrição pela página pública (com ciência do tratamento, IP e link pessoal guardado só como hash) e a importação de listas por planilha ou ata, que pode ser lida por IA. No dia do evento: credenciamento (com conferência de documento), crachás com código guardado só como hash, troca de titular por suplente com quem autorizou, e presença por sessão com o meio e o nível de prova de que a pessoa estava no local. Na relatoria: funções de coordenação e relatoria dos grupos, propostas com versões e apontamentos registrados com o nome de quem lançou (não de quem falou), contagem da apreciação nos grupos e resultado das votações da plenária, sem voto individual. Nas moções: proponente, assinaturas com o hash do texto lido, papel e base no instante, meio (link pessoal, estação da mesa ou papel), modalidade e nível de prova de presença, IP e navegador (prova da assinatura eletrônica); os nomes de quem assinou ficam visíveis conforme a configuração (comissão, credenciados ou público). Com a IA ligada na configuração, as sugestões (redação, fusão, eixo, contradições, síntese do grupo, triagem de moção, leitura do caderno e do regimento) ficam registradas com quem pediu e quem aceitou ou recusou; os textos vão à IA sem nomes de pessoas e com CPF, e-mail e telefone mascarados. No encerramento: resoluções com o responsável pelo encaminhamento e o acompanhamento; chapas da eleição da delegação com os candidatos, a hora da inscrição e quem foi eleito (enviados à etapa seguinte quando a comissão manda); certificados com nome, condição de participação e frequência, conferíveis pelo código. Na plenária ao vivo: fila de fala com o nome de quem fala; na votação eletrônica, quem votou e por qual canal fica separado do voto — o voto secreto não tem pessoa, hora nem registro de auditoria (ADR 0021); na votação aberta (nominal), o voto leva o nome, como no crachá erguido.
 
 **Titulares.** Delegados, observadores e convidados de congressos (filiados ou não), diretores natos.
 
@@ -851,7 +851,7 @@
 
 **Medidas de segurança.** RLS por tenant; permissões próprias (`congressos`, `congressos_gestao`, `congressos_credenciamento`, `congressos_relatoria`); trilhas só com inserção (versões da configuração, histórico do participante e versões das propostas); a IA não recebe a autoria das propostas; acessibilidade visível só a quem organiza.
 
-<details><summary>Tabelas (19) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (23) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -861,6 +861,7 @@
 | [congresso_chapa_membros](../dados/dicionario/representacao.md#congresso_chapa_membros) | sens. sindical | _pela existência do registro_ |
 | [congresso_chapas](../dados/dicionario/representacao.md#congresso_chapas) | sens. sindical | `inscrita_por` (identificacao) |
 | [congresso_crachas](../dados/dicionario/representacao.md#congresso_crachas) | sens. sindical | `codigo_hash` (credencial), `emitido_por` (identificacao), `motivo` (nenhum) |
+| [congresso_falas](../dados/dicionario/representacao.md#congresso_falas) | identificacao | `nome` (identificacao), `inscrita_por` (identificacao) |
 | [congresso_grupo_funcoes](../dados/dicionario/representacao.md#congresso_grupo_funcoes) | sens. sindical | _pela existência do registro_ |
 | [congresso_mocao_assinaturas](../dados/dicionario/representacao.md#congresso_mocao_assinaturas) | sens. sindical | `ip` (identificacao), `navegador` (identificacao), `registrado_por` (identificacao) |
 | [congresso_mocao_eventos](../dados/dicionario/representacao.md#congresso_mocao_eventos) | identificacao | `autor` (identificacao) |
@@ -874,10 +875,13 @@
 | [congresso_substituicoes](../dados/dicionario/representacao.md#congresso_substituicoes) | sens. sindical | `autorizado_por` (identificacao), `registrado_por` (identificacao), `desfeita_por` (identificacao) |
 | [congresso_sugestoes_ia](../dados/dicionario/representacao.md#congresso_sugestoes_ia) | identificacao | `conteudo` (nenhum), `pedida_por` (identificacao), `decidida_por` (identificacao) |
 | [congresso_votacoes](../dados/dicionario/representacao.md#congresso_votacoes) | identificacao | `registrado_por` (identificacao), `desfeita_por` (identificacao) |
+| [congresso_votacoes_vivo](../dados/dicionario/representacao.md#congresso_votacoes_vivo) | identificacao | `aberta_por` (identificacao), `fechada_por` (identificacao), `resultado` (nenhum) |
+| [congresso_voto_participacoes](../dados/dicionario/representacao.md#congresso_voto_participacoes) | sens. sindical | _pela existência do registro_ |
+| [congresso_votos_vivo](../dados/dicionario/representacao.md#congresso_votos_vivo) | sens. sindical | `participante_id` (sens. sindical) |
 
 </details>
 
-<sub>Titulares registrados no banco para estas tabelas: candidatos a delegado da etapa seguinte; comissão; comissão de congressos; convidados de congressos; delegados; delegados que assinam moções; observadores; participantes de congressos; proponentes; proponentes de moções em congressos; relatores; relatores de congressos; responsáveis; responsáveis pelas resoluções; suplentes de congressos; usuários que registram a votação.</sub>
+<sub>Titulares registrados no banco para estas tabelas: candidatos a delegado da etapa seguinte; comissão; comissão de congressos; convidados de congressos; delegados; delegados de congressos; delegados de congressos (votação aberta); delegados que assinam moções; mesa da plenária; observadores; participantes de congressos; proponentes; proponentes de moções em congressos; relatores; relatores de congressos; responsáveis; responsáveis pelas resoluções; suplentes de congressos; usuários que registram a votação.</sub>
 
 ## Fluxos transversais
 
@@ -906,4 +910,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 266 de 266 tabelas com dado pessoal atribuídas a 17 processos.
+Cobertura: 270 de 270 tabelas com dado pessoal atribuídas a 17 processos.

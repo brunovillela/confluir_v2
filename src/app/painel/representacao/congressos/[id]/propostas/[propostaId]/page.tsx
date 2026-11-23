@@ -27,7 +27,7 @@ const MOTIVO: Record<string, string> = {
   correcao: "Correção",
   redacao_ia: "Redação sugerida pela IA e aceita",
 }
-const FORMA: Record<string, string> = { sem_oposicao: "sem oposição", visual: "crachá (contraste visual)", contagem: "contagem", urna: "urna" }
+const FORMA: Record<string, string> = { sem_oposicao: "sem oposição", visual: "crachá (contraste visual)", contagem: "contagem", urna: "urna", eletronica: "votação eletrônica" }
 
 /** De onde veio cada proposta: versões, origens da fusão, apontamentos, apreciação nos grupos e votação. */
 export default async function RastroPropostaPage({ params }: { params: Promise<{ id: string; propostaId: string }> }) {

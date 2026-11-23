@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import { Award, CalendarDays, CheckCircle2, ClipboardList, Clock, MapPin, ScrollText, XCircle } from "lucide-react"
+import { Award, CalendarDays, CheckCircle2, ClipboardList, Clock, MapPin, Mic, ScrollText, XCircle } from "lucide-react"
 
 import { AvisoPrivacidade } from "@/components/aviso-privacidade"
 import { Marca } from "@/components/marca"
@@ -138,6 +138,16 @@ export default async function MinhaParticipacaoPage({
             <p className="text-muted-foreground">Mostre este QR na mesa: a equipe acha a sua inscrição sem digitar.</p>
           </CardContent>
         </Card>
+      )}
+
+      {eu && m.credenciado && congresso && !fim?.encerradoEm && (
+        <Link
+          href={`/congresso/eu/${token}/plenaria`}
+          className="bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center gap-2 rounded-lg p-4 text-base font-semibold"
+        >
+          <Mic className="size-5" />
+          Plenária: votar e pedir a palavra
+        </Link>
       )}
 
       {eu && fim?.encerradoEm && (

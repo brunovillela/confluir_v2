@@ -80,7 +80,7 @@ export function destinoPelosGrupos(
 }
 
 export type Maioria = "simples" | "absoluta" | "dois_tercos"
-export type FormaVotacao = "sem_oposicao" | "visual" | "contagem" | "urna"
+export type FormaVotacao = "sem_oposicao" | "visual" | "contagem" | "urna" | "eletronica"
 export type ResultadoPlenaria = "aprovada" | "rejeitada" | "empate"
 
 export const ROTULO_MAIORIA: Record<Maioria, string> = {
@@ -93,7 +93,7 @@ export const ROTULO_MAIORIA: Record<Maioria, string> = {
  * Resultado de uma votação da plenária.
  *  - sem_oposicao: aprovada (ninguém se opôs).
  *  - visual: crachá erguido com contraste claro — a mesa declara o resultado.
- *  - contagem/urna: pela maioria configurada. Simples: a favor > contra
+ *  - contagem/urna/eletronica: pela maioria configurada. Simples: a favor > contra
  *    (abstenção não conta). Absoluta: a favor > metade dos credenciados com
  *    voto. 2/3: a favor ≥ 2/3 dos votantes (com abstenções).
  */

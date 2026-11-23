@@ -38,6 +38,9 @@ export default async function PlenariaPage({ params, searchParams }: { params: P
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button asChild size="sm">
+            <Link href={`${base}/plenaria/ao-vivo`}>Ao vivo: fala e votação eletrônica</Link>
+          </Button>
           <Button asChild variant="outline" size="sm">
             <Link href={`${base}/consolidacao`}>Consolidação</Link>
           </Button>

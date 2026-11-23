@@ -398,8 +398,8 @@ export type SituacaoPessoa = {
 }
 
 /** Presença em curso na sessão atual (nível B). */
-async function presenteAgora(tenantId: string, d: DadosDoDia, participanteId: string): Promise<boolean> {
-  const sessao = sessaoAtual(d.sessoes)
+export async function presenteAgora(tenantId: string, d: DadosDoDia, participanteId: string, sessaoId?: string | null): Promise<boolean> {
+  const sessao = (sessaoId ? d.sessoes.find((x) => x.id === sessaoId) : null) ?? sessaoAtual(d.sessoes)
   if (!sessao) return false
   const admin = await createAdminClient()
   const { data } = await admin
@@ -414,7 +414,7 @@ async function presenteAgora(tenantId: string, d: DadosDoDia, participanteId: st
 }
 
 /** Código da sala vigente (nível C), lido do QR do telão ("CGRS:sessao:codigo"). */
-async function codigoDaSalaConfere(c: Congresso, tenantId: string, texto: string | null): Promise<boolean> {
+export async function codigoDaSalaConfere(c: Congresso, tenantId: string, texto: string | null): Promise<boolean> {
   if (!texto) return false
   const qr = lerQr(texto)
   const admin = await createAdminClient()

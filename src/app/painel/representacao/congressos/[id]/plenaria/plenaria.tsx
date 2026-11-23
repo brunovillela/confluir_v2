@@ -27,7 +27,7 @@ type MocaoItem = { id: string; numero: number; titulo: string; texto: string; ti
 type Regras = { maioria: string; semOposicao: boolean; emBloco: boolean; destaqueNome: boolean; formaVoto: string; novasPlenaria: string }
 type Resp = { erro?: string; ok?: string }
 
-const ROTULO_FORMA: Record<string, string> = { sem_oposicao: "Sem oposição", visual: "Crachá", contagem: "Contagem", urna: "Urna" }
+const ROTULO_FORMA: Record<string, string> = { sem_oposicao: "Sem oposição", visual: "Crachá", contagem: "Contagem", urna: "Urna", eletronica: "Eletrônica" }
 
 /**
  * Mesa da plenária: a pauta em ordem, o bloco do que é consenso, o destaque

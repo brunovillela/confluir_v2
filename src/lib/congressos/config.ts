@@ -545,6 +545,22 @@ export const AJUSTES: Ajuste[] = [
     ],
   },
   { chave: "plenaria.declaracao_voto_max", secao: "plenaria", rotulo: "Declarações de voto por votação", tipo: "numero", padrao: 2, min: 0, max: 20 },
+  { chave: "plenaria.tempo_questao", secao: "plenaria", rotulo: "Questão de ordem, esclarecimento, encaminhamento e declaração de voto", tipo: "numero", padrao: 1, min: 1, max: 10, unidade: "min" },
+  { chave: "plenaria.fala_pelo_link", secao: "plenaria", rotulo: "Inscrição para falar pelo link pessoal", tipo: "booleano", padrao: true, ajuda: "Não = só a mesa inscreve." },
+  {
+    chave: "plenaria.voto_eletronico", secao: "plenaria", rotulo: "Votação eletrônica", tipo: "escolha", padrao: "nao",
+    opcoes: [
+      { valor: "nao", rotulo: "Não: só crachá, contagem ou urna" },
+      { valor: "secreto", rotulo: "Secreta, pelo link pessoal ou na estação da mesa" },
+      { valor: "aberto", rotulo: "Aberta (nominal), pelo link pessoal ou na estação da mesa" },
+      { valor: "mesa_escolhe", rotulo: "A mesa escolhe a cada votação" },
+    ],
+    ajuda: "A mesa abre e fecha cada votação. Uma pessoa, um voto: quem votou pelo celular não vota de novo na estação.",
+  },
+  {
+    chave: "plenaria.parcial_visivel", secao: "plenaria", rotulo: "Mostrar a parcial durante a votação", tipo: "booleano", padrao: false,
+    ajuda: "Não = o telão mostra só quantos já votaram; o placar aparece ao fechar.", visivelSe: [{ chave: "plenaria.voto_eletronico", diferente: "nao" }],
+  },
 
   // ── Moções ──
   {

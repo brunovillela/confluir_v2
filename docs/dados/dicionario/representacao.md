@@ -2,7 +2,7 @@
 
 # Representação, acordos e negociações
 
-47 tabelas. Diagrama: [er/representacao.md](../er/representacao.md).
+52 tabelas. Diagrama: [er/representacao.md](../er/representacao.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -23,6 +23,7 @@
 | [congresso_config_versoes](#congresso_config_versoes) | — | Histórico da configuração de cada congresso (só inserção): quem mudou, por quê e, depois da aprovação do regimento, a deliberação que autori… |
 | [congresso_crachas](#congresso_crachas) | **sensível: sindical** | Vias do crachá de cada participante. Só a via ativa vale; segunda via invalida a anterior. O QR leva um código cujo hash fica aqui. |
 | [congresso_eixos](#congresso_eixos) | — | Eixos temáticos do congresso. |
+| [congresso_falas](#congresso_falas) | identificação | Fila de fala da plenária: quem se inscreveu, tipo (fala, a favor, contra, questão de ordem, esclarecimento, encaminhamento, declaração de vo… |
 | [congresso_grupo_funcoes](#congresso_grupo_funcoes) | **sensível: sindical** | Coordenação e relatoria de cada grupo de trabalho, eleitas no grupo ou indicadas pela comissão. |
 | [congresso_grupos](#congresso_grupos) | — | Grupos de trabalho (GT) do congresso, com eixo e vagas. |
 | [congresso_mocao_assinaturas](#congresso_mocao_assinaturas) | **sensível: sindical** | Assinaturas de moções: participante, versão e hash do texto lido, papel e base naquele instante, meio (link pessoal, estação da mesa, papel)… |
@@ -31,6 +32,7 @@
 | [congresso_papeis](#congresso_papeis) | — | Papéis do congresso (delegado, nato, suplente, observador, convidado…) com a matriz de direitos em jsonb (voz, voto, assinar moção, candidat… |
 | [congresso_participante_historico](#congresso_participante_historico) | **sensível: sindical** | Trilha de cada participante (só inserção): inscrição, troca de papel ou base, lista de espera, cancelamento. |
 | [congresso_participantes](#congresso_participantes) | identificação, **sensível: sindical** | Pessoas do congresso: delegados, natos, suplentes, observadores, convidados. Podem ser filiados ou não. A participação revela atuação sindic… |
+| [congresso_plenaria_estado](#congresso_plenaria_estado) | — | Estado da mesa da plenária: sessão em curso, inscrições abertas, assunto em debate e início da rodada de inscrições. |
 | [congresso_presencas](#congresso_presencas) | **sensível: sindical** | Presença por sessão: entrada, saída, meio (porta, código da sala, chamada, estação, virtual, papel) e nível de prova de que a pessoa estava … |
 | [congresso_proposta_origens](#congresso_proposta_origens) | — | De quais propostas uma proposta fundida nasceu, para rastrear qualquer resolução até o apontamento inicial. |
 | [congresso_proposta_versoes](#congresso_proposta_versoes) | identificação | Cada versão do texto de uma proposta, com o motivo (grupo, consolidação, fusão, plenária). Só inserção: texto nunca é sobrescrito. |
@@ -43,6 +45,9 @@
 | [congresso_unidades](#congresso_unidades) | — | Bases, entidades, segmentos ou ramos que formam as delegações, com limite de delegados e número de sócios para o cálculo de vagas. |
 | [congresso_votacao_itens](#congresso_votacao_itens) | — | Propostas de cada votação da plenária (uma, ou várias numa votação em bloco). |
 | [congresso_votacoes](#congresso_votacoes) | identificação | Resultado de cada votação da plenária (de uma proposta ou de um bloco): forma, contagem do crachá, maioria aplicada e resultado. Votos indiv… |
+| [congresso_votacoes_vivo](#congresso_votacoes_vivo) | identificação | Votação eletrônica aberta pela mesa da plenária: item votado, sigilo (aberta ou secreta), simples ou priorização, base de votantes, abertura… |
+| [congresso_voto_participacoes](#congresso_voto_participacoes) | **sensível: sindical** | Quem votou em cada votação eletrônica e por qual canal (link pessoal ou estação da mesa), separado do voto. |
+| [congresso_votos_vivo](#congresso_votos_vivo) | **sensível: sindical** | Votos da votação eletrônica. Na secreta não há pessoa nem hora, e a tabela não passa pela auditoria (ADR 0021); na aberta (nominal), o voto … |
 | [congressos](#congressos) | — | Congressos, plenárias e conferências que a entidade promove ou de que participa. Cada um aponta para um evento do módulo Eventos e guarda a … |
 | [negociacao_empresas](#negociacao_empresas) | — | Junção negociação coletiva x empresa (fonte pagadora) envolvida. |
 | [negociacao_eventos](#negociacao_eventos) | — | Linha do tempo de uma negociação coletiva: reuniões, propostas e marcos registrados no painel de Negociações. |
@@ -493,6 +498,38 @@ Checks: `congresso_eixos_nome_check` `CHECK ((length(TRIM(BOTH FROM nome)) > 0))
 
 Índices: `congresso_eixos_pkey`
 
+## congresso_falas
+
+Fila de fala da plenária: quem se inscreveu, tipo (fala, a favor, contra, questão de ordem, esclarecimento, encaminhamento, declaração de voto), ordem e cronômetro.
+
+- **LGPD:** identificação · titulares: participantes de congressos
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
+| `sessao_id` | uuid | sim |  | → congresso_sessoes (set null) |  |  |
+| `participante_id` | uuid | sim |  | → congresso_participantes (set null) |  |  |
+| `nome` | text | não |  |  | identificação | Nome de quem fala, como aparece no telão. |
+| `tipo` | text | não | `'fala'::text` |  |  |  |
+| `assunto` | text | sim |  |  |  |  |
+| `situacao` | text | não | `'inscrita'::text` |  |  |  |
+| `ordem` | integer | não | `0` |  |  |  |
+| `segundos` | integer | não |  |  |  |  |
+| `inscrita_em` | timestamp with time zone | não | `now()` |  |  |  |
+| `inscrita_por` | text | sim |  |  | identificação | Quem fez a inscrição (a própria pessoa pelo link ou a mesa). |
+| `inicio_em` | timestamp with time zone | sim |  |  |  |  |
+| `pausada_em` | timestamp with time zone | sim |  |  |  |  |
+| `pausado_ms` | integer | não | `0` |  |  |  |
+| `fim_em` | timestamp with time zone | sim |  |  |  |  |
+
+Checks: `congresso_falas_nome_check` `CHECK ((length(TRIM(BOTH FROM nome)) > 0))`; `congresso_falas_segundos_check` `CHECK ((segundos > 0))`; `congresso_falas_situacao_check` `CHECK ((situacao = ANY (ARRAY['inscrita'::text, 'falando'::text, 'concluida'::text, 'cancelada'::text])))`; `congresso_falas_tipo_check` `CHECK ((tipo = ANY (ARRAY['fala'::text, 'a_favor'::text, 'contra'::text, 'questao_ordem'::text, 'esclarecimento'::text, 'encaminhamento'::text, 'declaracao_voto'::text])))`
+
+Índices: `congresso_falas_congresso`, `congresso_falas_pkey`, `congresso_falas_uma_falando`
+
 ## congresso_grupo_funcoes
 
 Coordenação e relatoria de cada grupo de trabalho, eleitas no grupo ou indicadas pela comissão.
@@ -728,6 +765,26 @@ Pessoas do congresso: delegados, natos, suplentes, observadores, convidados. Pod
 Checks: `congresso_participantes_cpf_check` `CHECK (((cpf IS NULL) OR (cpf ~ '^[0-9]{11}$'::text)))`; `congresso_participantes_modalidade` `CHECK ((modalidade = ANY (ARRAY['presencial'::text, 'distancia'::text])))`; `congresso_participantes_nome_check` `CHECK ((length(TRIM(BOTH FROM nome)) > 0))`; `congresso_participantes_origem_check` `CHECK ((origem = ANY (ARRAY['manual'::text, 'nato'::text, 'inscricao'::text, 'planilha'::text, 'indicacao'::text, 'ata'::text, 'copia'::text])))`; `congresso_participantes_situacao_check` `CHECK ((situacao = ANY (ARRAY['inscrito'::text, 'confirmado'::text, 'lista_espera'::text, 'recusado'::text, 'cancelado'::text])))`
 
 Índices: `congresso_participantes_cpf`, `congresso_participantes_filiacao`, `congresso_participantes_ordem`, `congresso_participantes_pkey`, `congresso_participantes_token`
+
+## congresso_plenaria_estado
+
+Estado da mesa da plenária: sessão em curso, inscrições abertas, assunto em debate e início da rodada de inscrições.
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `sessao_id` | uuid | sim |  | → congresso_sessoes (set null) |  |  |
+| `inscricoes_abertas` | boolean | não | `true` |  |  |  |
+| `assunto` | text | sim |  |  |  |  |
+| `rodada_desde` | timestamp with time zone | não | `now()` |  |  |  |
+| `atualizado_em` | timestamp with time zone | não | `now()` |  |  |  |
+
+Índices: `congresso_plenaria_estado_pkey`
 
 ## congresso_presencas
 
@@ -1049,9 +1106,88 @@ Resultado de cada votação da plenária (de uma proposta ou de um bloco): forma
 | `desfeita_em` | timestamp with time zone | sim |  |  |  |  |
 | `desfeita_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem desfez o lançamento. |
 
-Checks: `congresso_votacoes_a_favor_check` `CHECK (((a_favor IS NULL) OR (a_favor >= 0)))`; `congresso_votacoes_abstencao_check` `CHECK (((abstencao IS NULL) OR (abstencao >= 0)))`; `congresso_votacoes_contra_check` `CHECK (((contra IS NULL) OR (contra >= 0)))`; `congresso_votacoes_forma_check` `CHECK ((forma = ANY (ARRAY['sem_oposicao'::text, 'visual'::text, 'contagem'::text, 'urna'::text])))`; `congresso_votacoes_resultado_check` `CHECK ((resultado = ANY (ARRAY['aprovada'::text, 'rejeitada'::text, 'empate'::text])))`; `congresso_votacoes_tipo_check` `CHECK ((tipo = ANY (ARRAY['proposta'::text, 'bloco'::text])))`
+Checks: `congresso_votacoes_a_favor_check` `CHECK (((a_favor IS NULL) OR (a_favor >= 0)))`; `congresso_votacoes_abstencao_check` `CHECK (((abstencao IS NULL) OR (abstencao >= 0)))`; `congresso_votacoes_contra_check` `CHECK (((contra IS NULL) OR (contra >= 0)))`; `congresso_votacoes_forma_check` `CHECK ((forma = ANY (ARRAY['sem_oposicao'::text, 'visual'::text, 'contagem'::text, 'urna'::text, 'eletronica'::text])))`; `congresso_votacoes_resultado_check` `CHECK ((resultado = ANY (ARRAY['aprovada'::text, 'rejeitada'::text, 'empate'::text])))`; `congresso_votacoes_tipo_check` `CHECK ((tipo = ANY (ARRAY['proposta'::text, 'bloco'::text])))`
 
 Índices: `congresso_votacoes_congresso`, `congresso_votacoes_pkey`
+
+## congresso_votacoes_vivo
+
+Votação eletrônica aberta pela mesa da plenária: item votado, sigilo (aberta ou secreta), simples ou priorização, base de votantes, abertura, fechamento e resultado.
+
+- **LGPD:** identificação · titulares: mesa da plenária
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
+| `sessao_id` | uuid | sim |  | → congresso_sessoes (set null) |  |  |
+| `titulo` | text | não |  |  |  |  |
+| `tipo` | text | não | `'simples'::text` |  |  |  |
+| `sigilo` | text | não | `'secreta'::text` |  |  |  |
+| `proposta_ids` | uuid[] | não | `'{}'::uuid[]` |  |  |  |
+| `mocao_ids` | uuid[] | não | `'{}'::uuid[]` |  |  |  |
+| `itens` | jsonb | não | `'[]'::jsonb` |  |  |  |
+| `maximo_escolhas` | integer | sim |  |  |  |  |
+| `base_votantes` | integer | sim |  |  |  |  |
+| `aberta_em` | timestamp with time zone | não | `now()` |  |  |  |
+| `aberta_por` | text | sim |  |  | identificação | Quem abriu a votação. |
+| `fechada_em` | timestamp with time zone | sim |  |  |  |  |
+| `fechada_por` | text | sim |  |  | identificação | Quem fechou a votação. |
+| `cancelada_em` | timestamp with time zone | sim |  |  |  |  |
+| `resultado` | jsonb | sim |  |  | nenhum | Contagem por opção ou classificação da priorização, gravada no fechamento. |
+| `votacao_id` | uuid | sim |  | → congresso_votacoes (set null) |  |  |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Checks: `congresso_votacoes_vivo_maximo_escolhas_check` `CHECK (((maximo_escolhas IS NULL) OR (maximo_escolhas > 0)))`; `congresso_votacoes_vivo_sigilo_check` `CHECK ((sigilo = ANY (ARRAY['aberta'::text, 'secreta'::text])))`; `congresso_votacoes_vivo_tipo_check` `CHECK ((tipo = ANY (ARRAY['simples'::text, 'priorizacao'::text])))`; `congresso_votacoes_vivo_titulo_check` `CHECK ((length(TRIM(BOTH FROM titulo)) > 0))`
+
+Índices: `congresso_votacoes_vivo_congresso`, `congresso_votacoes_vivo_pkey`, `congresso_votacoes_vivo_uma_aberta`
+
+## congresso_voto_participacoes
+
+Quem votou em cada votação eletrônica e por qual canal (link pessoal ou estação da mesa), separado do voto.
+
+- **LGPD:** **sensível: sindical** · titulares: delegados de congressos
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
+| `votacao_vivo_id` | uuid | não |  | → congresso_votacoes_vivo (**cascade**) |  |  |
+| `participante_id` | uuid | não |  | → congresso_participantes (**cascade**) |  |  |
+| `canal` | text | não |  |  |  |  |
+| `nivel` | text | sim |  |  |  |  |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Checks: `congresso_voto_participacoes_canal_check` `CHECK ((canal = ANY (ARRAY['link'::text, 'estacao'::text])))`
+
+Índices: `congresso_voto_participacoes_pkey`, `congresso_voto_participacoes_um`
+
+## congresso_votos_vivo
+
+Votos da votação eletrônica. Na secreta não há pessoa nem hora, e a tabela não passa pela auditoria (ADR 0021); na aberta (nominal), o voto leva o participante.
+
+- **LGPD:** **sensível: sindical** · titulares: delegados de congressos (votação aberta)
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
+| `votacao_vivo_id` | uuid | não |  | → congresso_votacoes_vivo (**cascade**) |  |  |
+| `opcao` | text | não |  |  |  |  |
+| `participante_id` | uuid | sim |  | → congresso_participantes (**cascade**) | **sensível: sindical** | Só na votação aberta (nominal); nulo na secreta. |
+
+Checks: `congresso_votos_vivo_opcao_check` `CHECK (((length(opcao) >= 1) AND (length(opcao) <= 64)))`
+
+Índices: `congresso_votos_vivo_pkey`, `congresso_votos_vivo_votacao`
 
 ## congressos
 

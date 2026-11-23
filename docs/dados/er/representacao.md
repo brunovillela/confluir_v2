@@ -110,6 +110,13 @@ erDiagram
     uuid emp_proprietaria_id FK
     uuid congresso_id FK
   }
+  congresso_falas {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid sessao_id FK
+    uuid participante_id FK
+  }
   congresso_grupo_funcoes {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -169,6 +176,11 @@ erDiagram
     uuid grupo_id FK
     uuid titular_id FK
     uuid credenciado_por FK
+  }
+  congresso_plenaria_estado {
+    uuid congresso_id PK,FK
+    uuid emp_proprietaria_id FK
+    uuid sessao_id FK
   }
   congresso_presencas {
     uuid id PK
@@ -258,6 +270,27 @@ erDiagram
     uuid sessao_id FK
     uuid registrado_por FK
     uuid desfeita_por FK
+  }
+  congresso_votacoes_vivo {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid sessao_id FK
+    uuid votacao_id FK
+  }
+  congresso_voto_participacoes {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid votacao_vivo_id FK
+    uuid participante_id FK
+  }
+  congresso_votos_vivo {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid votacao_vivo_id FK
+    uuid participante_id FK
   }
   congressos {
     uuid id PK
@@ -362,6 +395,9 @@ erDiagram
   congresso_crachas }o--|| congresso_participantes : "participante_id"
   congresso_crachas }o--|| congressos : "congresso_id"
   congresso_eixos }o--|| congressos : "congresso_id"
+  congresso_falas }o--o| congresso_participantes : "participante_id"
+  congresso_falas }o--o| congresso_sessoes : "sessao_id"
+  congresso_falas }o--|| congressos : "congresso_id"
   congresso_grupo_funcoes }o--|| congresso_grupos : "grupo_id"
   congresso_grupo_funcoes }o--|| congresso_participantes : "participante_id"
   congresso_grupo_funcoes }o--|| congressos : "congresso_id"
@@ -390,6 +426,8 @@ erDiagram
   congresso_participantes }o--o| usuarios : "credenciado_por"
   congresso_participantes }o--o| usuarios : "usuario_id"
   congresso_participantes }o--|| congressos : "congresso_id"
+  congresso_plenaria_estado }o--o| congresso_sessoes : "sessao_id"
+  congresso_plenaria_estado }o--|| congressos : "congresso_id"
   congresso_presencas }o--o| usuarios : "registrado_por"
   congresso_presencas }o--|| congresso_participantes : "participante_id"
   congresso_presencas }o--|| congresso_sessoes : "sessao_id"
@@ -431,6 +469,15 @@ erDiagram
   congresso_votacoes }o--o| usuarios : "desfeita_por"
   congresso_votacoes }o--o| usuarios : "registrado_por"
   congresso_votacoes }o--|| congressos : "congresso_id"
+  congresso_votacoes_vivo }o--o| congresso_sessoes : "sessao_id"
+  congresso_votacoes_vivo }o--o| congresso_votacoes : "votacao_id"
+  congresso_votacoes_vivo }o--|| congressos : "congresso_id"
+  congresso_voto_participacoes }o--|| congresso_participantes : "participante_id"
+  congresso_voto_participacoes }o--|| congresso_votacoes_vivo : "votacao_vivo_id"
+  congresso_voto_participacoes }o--|| congressos : "congresso_id"
+  congresso_votos_vivo }o--o| congresso_participantes : "participante_id"
+  congresso_votos_vivo }o--|| congresso_votacoes_vivo : "votacao_vivo_id"
+  congresso_votos_vivo }o--|| congressos : "congresso_id"
   congressos }o--o| congressos : "etapa_anterior_id"
   congressos }o--o| congressos : "etapa_seguinte_id"
   congressos }o--o| eventos : "evento_id"

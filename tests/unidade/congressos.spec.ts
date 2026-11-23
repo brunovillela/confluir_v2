@@ -55,6 +55,17 @@ import {
   resumoResolucoes,
 } from "@/lib/congressos/encerramento"
 import {
+  apurarSimples,
+  classificarPriorizacao,
+  ordenarFila,
+  podeInscrever,
+  podeVotar,
+  relogio,
+  segundosDaFala,
+  tempoRestante,
+  type PedidoVoto,
+} from "@/lib/congressos/ao-vivo"
+import {
   calcularQuorum,
   conferirSubstituicao,
   cpfParcial,
@@ -749,5 +760,71 @@ test.describe("congressos — encerramento", () => {
     expect(lembrar("Reposicao integral da inflacao no proximo acordo", candidatos).map((x) => x.item)).toEqual(["R3"])
     expect(lembrar("Creche para os filhos dos delegados", candidatos)).toEqual([])
     expect(lembrar("de a o", candidatos)).toEqual([])
+  })
+})
+
+test.describe("congressos — plenária ao vivo", () => {
+  const pedido: PedidoVoto = {
+    aberta: true,
+    votoPlenaria: true,
+    categoria: "delegado",
+    votoSoSubstituindo: false,
+    emExercicio: true,
+    credenciado: true,
+    modalidade: "presencial",
+    canal: "link",
+    regraLocal: "so_local",
+    provaExigida: "B",
+    presenteNaSessao: true,
+    codigoValido: false,
+  }
+
+  test("quem pode votar e com que prova", () => {
+    expect(podeVotar(pedido)).toMatchObject({ pode: true, nivel: "B" })
+    expect(podeVotar({ ...pedido, presenteNaSessao: false }).motivo).toContain("presença")
+    expect(podeVotar({ ...pedido, provaExigida: "C" })).toMatchObject({ pode: false, precisaCodigo: true })
+    expect(podeVotar({ ...pedido, provaExigida: "C", codigoValido: true })).toMatchObject({ pode: true, nivel: "C" })
+    expect(podeVotar({ ...pedido, provaExigida: "D", canal: "estacao", presenteNaSessao: false })).toMatchObject({ pode: true, nivel: "D" })
+    expect(podeVotar({ ...pedido, votoPlenaria: false }).pode).toBe(false)
+    expect(podeVotar({ ...pedido, votoPlenaria: false, votoSoSubstituindo: true, emExercicio: false }).motivo).toContain("Suplente")
+    expect(podeVotar({ ...pedido, credenciado: false }).pode).toBe(false)
+    expect(podeVotar({ ...pedido, aberta: false }).pode).toBe(false)
+    expect(podeVotar({ ...pedido, modalidade: "distancia" }).pode).toBe(false)
+    expect(podeVotar({ ...pedido, modalidade: "distancia", regraLocal: "local_ou_distancia" })).toMatchObject({ pode: true, nivel: null })
+  })
+
+  test("apuração simples e priorização", () => {
+    expect(apurarSimples([{ opcao: "favor" }, { opcao: "favor" }, { opcao: "contra" }, { opcao: "abstencao" }, { opcao: "x" }])).toEqual({ aFavor: 2, contra: 1, abstencao: 1 })
+    const itens = [{ chave: "a", rotulo: "A" }, { chave: "b", rotulo: "B" }, { chave: "c", rotulo: "C" }]
+    expect(classificarPriorizacao(itens, [{ opcao: "b" }, { opcao: "b" }, { opcao: "c" }, { opcao: "a" }]).map((x) => [x.chave, x.votos, x.posicao])).toEqual([
+      ["b", 2, 1],
+      ["a", 1, 2],
+      ["c", 1, 2],
+    ])
+  })
+
+  test("fila de fala: questões passam à frente e limite de oradores", () => {
+    const f = (id: string, tipo: "fala" | "questao_ordem" | "encaminhamento", ordem: number, situacao = "inscrita") => ({ id, tipo, ordem, situacao })
+    expect(ordenarFila([f("1", "fala", 1), f("2", "encaminhamento", 2), f("3", "questao_ordem", 3), f("4", "fala", 0, "concluida")]).map((x) => x.id)).toEqual(["3", "2", "1"])
+    const base = { tipo: "fala" as const, inscricoesAbertas: true, oradoresNaRodada: 2, maxOradores: 3, declaracoesNaRodada: 0, maxDeclaracoes: 2, jaNaFila: false }
+    expect(podeInscrever(base).pode).toBe(true)
+    expect(podeInscrever({ ...base, oradoresNaRodada: 3 }).motivo).toContain("3º orador")
+    expect(podeInscrever({ ...base, inscricoesAbertas: false }).pode).toBe(false)
+    expect(podeInscrever({ ...base, tipo: "questao_ordem", inscricoesAbertas: false }).pode).toBe(true)
+    expect(podeInscrever({ ...base, tipo: "declaracao_voto", declaracoesNaRodada: 2 }).pode).toBe(false)
+    expect(podeInscrever({ ...base, jaNaFila: true }).pode).toBe(false)
+  })
+
+  test("cronômetro com pausa", () => {
+    expect(segundosDaFala("fala", 3, 1)).toBe(180)
+    expect(segundosDaFala("questao_ordem", 3, 1)).toBe(60)
+    const ini = Date.parse("2027-06-11T10:00:00Z")
+    const fala = { segundos: 180, inicioEm: new Date(ini).toISOString(), pausadaEm: null, pausadoMs: 0 }
+    expect(tempoRestante(fala, ini + 60_000)).toBe(120)
+    expect(tempoRestante({ ...fala, pausadoMs: 30_000 }, ini + 60_000)).toBe(150)
+    expect(tempoRestante({ ...fala, pausadaEm: new Date(ini + 10_000).toISOString() }, ini + 99_000)).toBe(170)
+    expect(tempoRestante(fala, ini + 200_000)).toBe(-20)
+    expect(tempoRestante({ ...fala, inicioEm: null })).toBe(180)
+    expect([relogio(125), relogio(9), relogio(-12)]).toEqual(["2:05", "0:09", "-0:12"])
   })
 })
