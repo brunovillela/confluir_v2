@@ -422,7 +422,7 @@ export function NovaCompraForm({
       }}
       className="grid gap-6"
     >
-      <ConfirmacaoAuditoria estado={estado} formRef={formRef} pendente={pendente} />
+      <ConfirmacaoAuditoria estado={estado} formRef={formRef} pendente={pendente} complementoDescricao />
       <ErroNoCampo estado={estado} />
       {(envioErro || estado.erro) && (
         <Alert variant="destructive">

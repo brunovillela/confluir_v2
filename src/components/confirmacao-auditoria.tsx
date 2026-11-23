@@ -2,7 +2,7 @@
 
 import { useState, type RefObject } from "react"
 import { flushSync } from "react-dom"
-import { CircleAlert, CircleCheck, ExternalLink, Loader2, OctagonX, Pencil, Send } from "lucide-react"
+import { CircleAlert, CircleCheck, ExternalLink, Loader2, OctagonX, Pencil, Send, Sparkles } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -14,8 +14,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { JUSTIFICATIVA_MINIMA, type Apontamento, type EstadoComApontamentos } from "@/lib/auditoria-confirmacao"
+import {
+  complementoDaDescricao,
+  EXEMPLO_JUSTIFICATIVA,
+  faltasDaDescricao,
+  JUSTIFICATIVA_MINIMA,
+  type Apontamento,
+  type EstadoComApontamentos,
+} from "@/lib/auditoria-confirmacao"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
 /**
@@ -30,15 +38,24 @@ import { formatarData, formatarMoeda } from "@/lib/formato"
  *    para quem autoriza; possível duplicidade mostra as ordens parecidas.
  * O formulário precisa enviar por onSubmit (sem `action=`), senão o React
  * limpa os campos a cada análise.
+ *
+ * COMPLETAR A DESCRIÇÃO (23/11/2026): com `complementoDescricao`, quando a IA
+ * diz o que falta ("Falta: a finalidade; a quantidade"), a tela pergunta cada
+ * item; as respostas vão no campo oculto "complemento_descricao", que a action
+ * acrescenta à descrição antes de reanalisar. 17 de 85 ordens confirmadas com
+ * esse alerta voltaram de quem autoriza por "falta a finalidade/quantidade".
  */
 export function ConfirmacaoAuditoria({
   estado,
   formRef,
   pendente,
+  complementoDescricao = false,
 }: {
   estado: EstadoComApontamentos
   formRef: RefObject<HTMLFormElement | null>
   pendente: boolean
+  /** A action lê "complemento_descricao" e o acrescenta à descrição. */
+  complementoDescricao?: boolean
 }) {
   const [confirmados, setConfirmados] = useState("")
   const [aberto, setAberto] = useState(false)
@@ -49,6 +66,9 @@ export function ConfirmacaoAuditoria({
   const [ultimo, setUltimo] = useState(estado)
   // Justificativa por regra: sobrevive às reanálises (o texto não se perde ao ajustar).
   const [justificativas, setJustificativas] = useState<Record<string, string>>({})
+  // Respostas ao que a IA disse faltar na descrição (por item).
+  const [faltas, setFaltas] = useState<Record<string, string>>({})
+  const complemento = complementoDaDescricao(faltas)
 
   // Nova resposta da action: compara com a análise anterior.
   if (estado !== ultimo) {
@@ -69,13 +89,26 @@ export function ConfirmacaoAuditoria({
 
   const temBloqueio = lista.some((a) => a.bloqueia)
   const faltaJustificar = lista.filter(
-    (a) => !a.bloqueia && a.pedeJustificativa && (justificativas[a.codigo]?.trim().length ?? 0) < JUSTIFICATIVA_MINIMA
+    (a) =>
+      !a.bloqueia &&
+      a.pedeJustificativa &&
+      ((justificativas[a.codigo]?.trim().length ?? 0) < JUSTIFICATIVA_MINIMA ||
+        // Recusada pelo servidor (repete a descrição…): só segue com outro texto.
+        (!!a.justificativaRecusada && justificativas[a.codigo]?.trim() === a.justificativa?.trim()))
   )
 
   function ajustar() {
     setAberto(false)
     // Ajustou: a próxima análise começa do zero (nada pré-confirmado).
     setConfirmados("")
+  }
+
+  function completarEReanalisar() {
+    flushSync(() => {
+      setConfirmados("")
+      setAberto(false)
+    })
+    formRef.current?.requestSubmit()
   }
 
   function confirmar() {
@@ -94,6 +127,7 @@ export function ConfirmacaoAuditoria({
   return (
     <>
       <input type="hidden" name="confirmados" value={confirmados} />
+      {complementoDescricao && <input type="hidden" name="complemento_descricao" value={complemento} />}
       <input
         type="hidden"
         name="justificativas"
@@ -165,6 +199,39 @@ export function ConfirmacaoAuditoria({
                     ))}
                   </ul>
                 )}
+                {complementoDescricao && a.codigo === "descricao_ia" && faltasDaDescricao(a.detalhe).length > 0 && (
+                  <div className="bg-background mt-2 grid gap-2 rounded border p-2">
+                    <p className="text-xs font-medium">Complete o que falta — entra no fim da descrição:</p>
+                    {faltasDaDescricao(a.detalhe).map((f, i) => (
+                      <div key={f} className="grid gap-1">
+                        <label htmlFor={`falta-${i}`} className="text-muted-foreground text-xs">
+                          {f.charAt(0).toUpperCase() + f.slice(1)}
+                        </label>
+                        <Input
+                          id={`falta-${i}`}
+                          maxLength={200}
+                          value={faltas[f] ?? ""}
+                          onChange={(e) => setFaltas((x) => ({ ...x, [f]: e.target.value }))}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="justify-self-start"
+                      disabled={!complemento || pendente}
+                      onClick={completarEReanalisar}
+                    >
+                      <Sparkles />
+                      Completar e reanalisar
+                    </Button>
+                  </div>
+                )}
+                {complementoDescricao && a.codigo === "descricao_ia" && complemento && persistem.includes(a.codigo) && (
+                  <p className="text-muted-foreground mt-1 text-xs">Já acrescentado à descrição: {complemento}</p>
+                )}
                 {!a.bloqueia && a.pedeJustificativa && (
                   <div className="mt-2 grid gap-1">
                     <label htmlFor={`just-${a.codigo}`} className="text-xs font-medium">
@@ -176,10 +243,14 @@ export function ConfirmacaoAuditoria({
                       maxLength={500}
                       value={justificativas[a.codigo] ?? ""}
                       onChange={(e) => setJustificativas((j) => ({ ...j, [a.codigo]: e.target.value }))}
-                      placeholder="Ex.: é a segunda parcela da mesma compra; a chave é do dono do MEI."
+                      placeholder={EXEMPLO_JUSTIFICATIVA[a.codigo] ?? "Ex.: é a segunda parcela da mesma compra; a chave é do dono do MEI."}
                       className="bg-background text-sm"
                     />
-                    <p className="text-muted-foreground text-xs">Quem autoriza a ordem vê esta justificativa junto do alerta.</p>
+                    {a.justificativaRecusada && justificativas[a.codigo]?.trim() === a.justificativa?.trim() ? (
+                      <p className="text-destructive text-xs">{a.justificativaRecusada}</p>
+                    ) : (
+                      <p className="text-muted-foreground text-xs">Quem autoriza a ordem vê esta justificativa junto do alerta.</p>
+                    )}
                   </div>
                 )}
               </li>

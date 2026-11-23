@@ -6,6 +6,7 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 
 ## 23/11/2026 — Aquisição: valor de compra fora da escala
 
+- Compras: quando a análise da IA diz o que falta na descrição (a finalidade, a quantidade, a especificação), a tela de confirmação abre um campo para cada item, com o botão Completar e reanalisar: a resposta entra na descrição e a ordem vai completa para quem autoriza. E a justificativa do Registrar mesmo assim precisa explicar o motivo: a descrição colada ou só um e-mail ou número não são aceitos, e cada alerta traz um exemplo do que escrever.
 - Auditoria das ordens: a regra Cobrança em duplicidade, na compra, compara também pela data da compra. A compra lançada dias depois (que ganha vencimento novo) passa a ser comparada com a de mesmo fornecedor e valor feita no mesmo período, e a tela de confirmação mostra as duas lado a lado.
 - Aquisição: compras com o valor digitado com a vírgula no lugar errado (R$ 72.500.000,00 em vez de R$ 72.500,00) não distorcem mais os indicadores sem aviso. O painel de Aquisição lista as compras do período cujo valor está fora da escala das ordens de pagamento, e a compra mostra o botão Usar o valor das ordens, que corrige o valor (fica no histórico da ordem). Sete compras migradas do Bubble com esse erro já foram corrigidas: o total dos últimos 12 meses caiu de R$ 84,5 milhões para R$ 8,3 milhões, o valor real.
 

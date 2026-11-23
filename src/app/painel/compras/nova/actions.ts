@@ -80,6 +80,9 @@ export async function criarCompra(
     if (!unidade) return { erro: "Informe a unidade (unidades, caixas, kg, serviço…).", campo: "unidade" }
     produto = comQuantidade(produtoDigitado, quantidade, unidade.slice(0, 40))
   }
+  // O que a IA disse faltar, respondido na tela de confirmação (23/11/2026).
+  const complemento = texto(formData, "complemento_descricao").slice(0, 800)
+  if (complemento) produto = `${produto}${/[.!?]$/.test(produto) ? "" : "."} ${complemento}`
   const observacao = texto(formData, "observacao") || null
   const tipo = texto(formData, "e_produto")
   if (tipo !== "bem" && tipo !== "servico") {

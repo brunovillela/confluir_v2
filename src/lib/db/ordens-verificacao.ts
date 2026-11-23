@@ -8,7 +8,7 @@ import {
   type OrigemOrdem,
   type Severidade,
 } from "@/lib/auditoria-regras-catalogo"
-import { JUSTIFICATIVA_MINIMA, type Apontamento, type OrdemRelacionada } from "@/lib/auditoria-confirmacao"
+import { JUSTIFICATIVA_MINIMA, motivoJustificativaFraca, type Apontamento, type OrdemRelacionada } from "@/lib/auditoria-confirmacao"
 import { contaConferida } from "@/lib/bancos"
 import { mesmoTitular, validarCnpj, validarCpf } from "@/lib/cpf"
 import { regrasConfiguradas, type RegraConfigurada } from "@/lib/db/auditoria-regras"
@@ -96,7 +96,12 @@ export function lerConfirmacao(fd: FormData): Confirmacao {
 }
 
 /** As falhas de um lote, uma por regra (parcelas repetem a mesma). */
-function apontamentosDe(resultados: ResultadoVerificacao[][], confirmacao: Confirmacao): Apontamento[] {
+function apontamentosDe(
+  resultados: ResultadoVerificacao[][],
+  confirmacao: Confirmacao,
+  /** Descrições das ordens: justificativa que só as repete não vale (23/11/2026). */
+  descricoes: (string | null | undefined)[] = []
+): Apontamento[] {
   const vistos = new Map<string, Apontamento>()
   for (const lista of resultados) {
     for (const v of lista) {
@@ -104,6 +109,10 @@ function apontamentosDe(resultados: ResultadoVerificacao[][], confirmacao: Confi
       const bloqueia = v.severidade === "bloquear"
       const pedeJustificativa = !bloqueia && v.justificar !== false
       const justificativa = confirmacao.justificativas?.[v.codigo]
+      const recusada =
+        pedeJustificativa && !confirmacao.semJustificativa && justificativa
+          ? motivoJustificativaFraca(justificativa, descricoes)
+          : null
       vistos.set(v.codigo, {
         codigo: v.codigo,
         titulo: v.titulo,
@@ -113,9 +122,12 @@ function apontamentosDe(resultados: ResultadoVerificacao[][], confirmacao: Confi
         confirmado:
           !bloqueia &&
           confirmacao.codigos.includes(v.codigo) &&
-          (!pedeJustificativa || confirmacao.semJustificativa === true || (justificativa?.length ?? 0) >= JUSTIFICATIVA_MINIMA),
+          (!pedeJustificativa ||
+            confirmacao.semJustificativa === true ||
+            ((justificativa?.length ?? 0) >= JUSTIFICATIVA_MINIMA && !recusada)),
         pedeJustificativa,
         ...(justificativa ? { justificativa } : {}),
+        ...(recusada ? { justificativaRecusada: recusada } : {}),
         ...(v.relacionadas?.length ? { relacionadas: v.relacionadas } : {}),
       })
     }
@@ -913,7 +925,7 @@ export async function inserirOrdensVerificadas(
 
   // Fluxo com confirmação: nada se grava enquanto houver o que mostrar.
   if (ctx.confirmacao) {
-    const apontamentos = apontamentosDe(resultados, ctx.confirmacao)
+    const apontamentos = apontamentosDe(resultados, ctx.confirmacao, linhas.map((l) => t(l.descricao)))
     if (precisaConfirmar(apontamentos)) {
       return { apontamentos, erro: "A análise encontrou apontamentos — confirme ou ajuste antes de registrar." }
     }
@@ -1090,7 +1102,7 @@ export async function reverificarOrdem(
   const anterior = await parecerAnteriorDaIA(ordemId, linha.descricao)
   anterior?.forEach((v, k) => memoIA.set(k, v))
   const { origem, resultados } = await verificarOrdens([linha], ctx, memoIA)
-  const apontamentos = apontamentosDe(resultados, ctx.confirmacao)
+  const apontamentos = apontamentosDe(resultados, ctx.confirmacao, [t(linha.descricao)])
   const registrar = async (motivo: string) => {
     const lista = (resultados[0] ?? []).filter((v) => !origem || !dependeDaOrigem(v.codigo, origem, ctx))
     if (!origem || !lista.length) return
