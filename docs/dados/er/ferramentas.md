@@ -18,6 +18,7 @@ erDiagram
     uuid membro_responsavel_id FK
     uuid criado_por FK
     uuid projeto_id FK
+    uuid formulario_id FK
   }
   demandas_check {
     uuid id PK
@@ -48,6 +49,36 @@ erDiagram
   demandas_etiquetas {
     uuid id PK
     uuid emp_proprietaria_id FK
+  }
+  demandas_formularios {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid responsavel_id FK
+    uuid modelo_id FK
+  }
+  demandas_modelo_itens {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid modelo_id FK
+    uuid procedimento_id FK
+  }
+  demandas_modelos {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+  }
+  demandas_regras {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid demanda_id FK
+    uuid pessoa_id FK
+    uuid etiqueta_id FK
+    uuid criada_por FK
+  }
+  demandas_regras_execucoes {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid regra_id FK
+    uuid tarefa_id FK
   }
   demandas_tarefa_comentarios {
     uuid id PK
@@ -96,6 +127,7 @@ erDiagram
   }
   assinaturas }o--o| diretoria_atas : "ata_id"
   assinaturas }o--o| usuarios : "assinador_id"
+  demandas }o--o| demandas_formularios : "formulario_id"
   demandas }o--o| projeto : "projeto_id"
   demandas }o--o| usuarios : "criado_por"
   demandas }o--o| usuarios : "membro_responsavel_id"
@@ -111,6 +143,16 @@ erDiagram
   demandas_comentarios }o--o| demandas : "demanda_id"
   demandas_departamentos }o--|| demandas_check_tarefas : "tarefa_id"
   demandas_departamentos }o--|| empresa_departamentos : "departamento_id"
+  demandas_formularios }o--o| demandas_modelos : "modelo_id"
+  demandas_formularios }o--o| usuarios : "responsavel_id"
+  demandas_modelo_itens }o--o| fa_documentos : "procedimento_id"
+  demandas_modelo_itens }o--|| demandas_modelos : "modelo_id"
+  demandas_regras }o--o| demandas : "demanda_id"
+  demandas_regras }o--o| demandas_etiquetas : "etiqueta_id"
+  demandas_regras }o--o| usuarios : "criada_por"
+  demandas_regras }o--o| usuarios : "pessoa_id"
+  demandas_regras_execucoes }o--o| demandas_check_tarefas : "tarefa_id"
+  demandas_regras_execucoes }o--|| demandas_regras : "regra_id"
   demandas_tarefa_comentarios }o--o| usuarios : "autor_id"
   demandas_tarefa_comentarios }o--|| demandas_check_tarefas : "tarefa_id"
   demandas_tarefa_dependencias }o--|| demandas_check_tarefas : "depende_de_id"

@@ -15,6 +15,7 @@ import {
 import { avisar, depoisDaResposta, usuariosComPermissao } from "@/lib/db/avisos"
 import { removerAnexosDaTarefa } from "@/lib/db/tarefa-conversa"
 import { definirEtiquetasDaTarefa } from "@/lib/db/tarefa-extras"
+import { aplicarRegras } from "@/lib/db/regras"
 import { opcoesDeProcedimento } from "@/lib/db/documentos"
 import {
   atualizarTarefa,
@@ -186,8 +187,10 @@ export async function criarTarefaAction(
     dados.demanda_id = demanda.id
   }
 
-  const { erro } = await criarTarefa(dados)
+  const { erro, id: novaId } = await criarTarefa(dados)
   if (erro) return { erro }
+  // Automações "quando uma tarefa for criada" (antes do aviso: a regra pode atribuir).
+  if (novaId) await aplicarRegras("tarefa_criada", novaId).catch((e) => console.error("regras:", e))
   avisarResponsavel(dados, acesso.usuarioId)
   revalidarTarefa(formData, { demandaId: dados.demanda_id })
   return { ok: "Tarefa criada." }
@@ -230,7 +233,10 @@ export async function alternarConclusaoTarefaAction(
   if (erro) return { erro }
   // Recorrente: concluir cria a próxima (uma vez só por tarefa).
   const proxima = concluir ? await gerarProximaRecorrencia(id) : {}
-  if (concluir) avisarLiberadas(id, String(sessao.usuario.id))
+  if (concluir) {
+    avisarLiberadas(id, String(sessao.usuario.id))
+    await aplicarRegras("tarefa_concluida", id).catch((e) => console.error("regras:", e))
+  }
   revalidarTarefa(formData)
   if (proxima.erro) return { erro: proxima.erro }
   if (proxima.prazo) {
@@ -389,6 +395,7 @@ export async function moverTarefaAction(tarefaId: string, coluna: string): Promi
     if (erro) return { erro }
     const proxima = await gerarProximaRecorrencia(tarefaId)
     avisarLiberadas(tarefaId, String(sessao.usuario.id))
+    await aplicarRegras("tarefa_concluida", tarefaId).catch((e) => console.error("regras:", e))
     revalidarPais(pais)
     revalidatePath("/painel/perfil/tarefas")
     if (proxima.erro) return { erro: proxima.erro }

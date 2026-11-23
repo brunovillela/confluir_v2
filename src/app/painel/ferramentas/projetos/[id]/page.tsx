@@ -29,6 +29,9 @@ import { Dado, Linha } from "../../dados-resumo"
 import { IncluirTarefas } from "../../tarefas/tarefa-forms"
 import { TarefasLista } from "../../tarefas/tarefas-lista"
 import { SeloSituacaoProjeto } from "../selo-situacao"
+import { listarModelos } from "@/lib/db/modelos"
+
+import { UsarModelo } from "../../modelos/usar-modelo"
 import { MarcosProjeto } from "./marcos"
 import { ProjetoAcoes } from "./projeto-acoes"
 
@@ -51,13 +54,14 @@ export default async function ProjetoPage({
   const { id } = await params
   const { salvo } = await searchParams
 
-  const [projeto, tarefas, demanda, pessoas, avulsas, marcos] = await Promise.all([
+  const [projeto, tarefas, demanda, pessoas, avulsas, marcos, modelos] = await Promise.all([
     obterProjeto(id),
     listarTarefas({ paiTipo: "projeto", paiId: id }),
     demandaDoProjeto(id),
     editaTarefas ? listarPessoasAtribuiveis() : Promise.resolve([]),
     editaTarefas ? listarTarefasAvulsas() : Promise.resolve([]),
     listarMarcos(id),
+    editor ? listarModelos("projeto") : Promise.resolve([]),
   ])
   if (!projeto) notFound()
   const concluidas = tarefas.tarefas.filter((t) => t.concluido).length
@@ -120,6 +124,9 @@ export default async function ProjetoPage({
                 Editar
               </Link>
             </Button>
+            {!projeto.finalizado && (
+              <UsarModelo modo="projeto" alvoId={id} modelos={modelos.map((m) => ({ id: m.id, nome: m.nome }))} />
+            )}
             <ProjetoAcoes projetoId={id} finalizado={projeto.finalizado === true} pendentes={pendentes} />
           </div>
         )}

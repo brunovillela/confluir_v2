@@ -8,6 +8,8 @@ import {
   TriangleAlert,
   Wrench,
   type LucideIcon,
+  LayoutTemplate,
+  Zap,
 } from "lucide-react"
 
 import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
@@ -75,6 +77,20 @@ const AREAS: Area[] = [
     href: "/painel/ferramentas/oficios",
     icone: ScrollText,
     chave: "ferramentas_oficios",
+  },
+  {
+    titulo: "Automações",
+    descricao: "Regras \"quando… então…\" para as tarefas: atribuir, etiquetar, avisar, mudar a prioridade e fechar a demanda",
+    href: "/painel/ferramentas/automacoes",
+    icone: Zap,
+    chave: "ferramentas_demandas",
+  },
+  {
+    titulo: "Modelos e pedidos",
+    descricao: "Modelos de demanda e de projeto com as tarefas prontas, e formulários de pedido que viram demanda",
+    href: "/painel/ferramentas/modelos",
+    icone: LayoutTemplate,
+    chave: "ferramentas_demandas",
   },
 ]
 

@@ -24,6 +24,8 @@ type Trilha = { titulo: string; href: string; segmento: string }
 /** Segmentos de rota que não viram rótulo só com a maiúscula (sigla ou acento). */
 const ROTULOS_SEGMENTO: Record<string, string> = {
   rpa: "RPA",
+  automacoes: "Automações",
+  modelos: "Modelos e pedidos",
   configuracao: "Configuração",
   configuracoes: "Configurações",
   revisao: "Revisão de acessos",

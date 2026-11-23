@@ -14,6 +14,7 @@ import {
   HandCoins,
   Handshake,
   HeartPulse,
+  Inbox,
   ListTodo,
   Landmark,
   MapPin,
@@ -680,6 +681,12 @@ export default async function PerfilPage({
               icone={DESPESAS_CAIXA.icone}
             />
           )}
+          <CartaoArea
+            titulo="Pedidos a outros setores"
+            descricao="Peça pelo formulário do setor e acompanhe os seus pedidos"
+            href="/painel/pedidos"
+            icone={Inbox}
+          />
           <CartaoArea titulo={AVISOS.titulo} descricao={AVISOS.descricao} href={AVISOS.href} icone={AVISOS.icone} />
           <CartaoArea titulo={SEGURANCA.titulo} descricao={SEGURANCA.descricao} href={SEGURANCA.href} icone={SEGURANCA.icone} />
         </div>

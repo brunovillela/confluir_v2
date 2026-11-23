@@ -26,6 +26,9 @@ import { IncluirTarefas } from "../../tarefas/tarefa-forms"
 import { TarefasLista } from "../../tarefas/tarefas-lista"
 import { AtendimentoPainel } from "@/app/painel/filiados/atendimentos/atendimento-painel"
 
+import { listarModelos } from "@/lib/db/modelos"
+
+import { SalvarComoModelo, UsarModelo } from "../../modelos/usar-modelo"
 import { ExcluirDemanda, SituacaoDemanda } from "./demanda-acoes"
 
 export const metadata: Metadata = { title: "Demanda — Confluir" }
@@ -43,12 +46,13 @@ export default async function DemandaPage({
   const { id } = await params
   const { salvo } = await searchParams
 
-  const [demanda, pessoas, resumoExclusao, atendimento, avulsas] = await Promise.all([
+  const [demanda, pessoas, resumoExclusao, atendimento, avulsas, modelos] = await Promise.all([
     obterDemanda(id),
     listarPessoasAtribuiveis(),
     resumoExclusaoDemanda(id),
     atendimentoDaDemanda(id),
     listarTarefasAvulsas(),
+    editor ? listarModelos("demanda") : Promise.resolve([]),
   ])
   if (!demanda) notFound()
 
@@ -87,6 +91,12 @@ export default async function DemandaPage({
             <SituacaoDemanda demandaId={id} situacao={demanda.situacao} pendentes={pendentes} />
           ) : (
             demanda.situacao && <Badge variant="outline">{demanda.situacao}</Badge>
+          )}
+          {editor && (
+            <UsarModelo modo="demanda" alvoId={id} modelos={modelos.map((m) => ({ id: m.id, nome: m.nome }))} pessoas={pessoas} />
+          )}
+          {editor && demanda.tarefas.length > 0 && (
+            <SalvarComoModelo demandaId={id} nomeSugerido={(demanda.nome ?? "Modelo").slice(0, 120)} />
           )}
           {editor && (
             <Button variant="outline" size="sm" asChild>

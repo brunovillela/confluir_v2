@@ -24,6 +24,10 @@ import { formatarData } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 import { SITUACOES_DEMANDA } from "@/lib/nucleo-constantes"
 
+import { listarModelos } from "@/lib/db/modelos"
+import { listarPessoasAtribuiveis } from "@/lib/db/nucleo"
+
+import { UsarModelo } from "../modelos/usar-modelo"
 import { QuadroDemandas } from "./quadro-demandas"
 
 /** Demandas Feito que o quadro mostra (as primeiras da lista); o resto fica na lista. */
@@ -62,10 +66,12 @@ export default async function DemandasPage({
   const tipo = (brutos.tipo ?? "").trim().slice(0, 60)
   const quadro = brutos.visao === "quadro"
 
-  const [resumo, demandas] = await Promise.all([
+  const [resumo, demandas, modelos, pessoas] = await Promise.all([
     resumoDemandas(),
     // O quadro mostra as três colunas: ignora o filtro de situação.
     listarDemandas({ busca, situacao: quadro ? "" : situacao, tipo: tipo || undefined }),
+    editor ? listarModelos("demanda") : Promise.resolve([]),
+    editor ? listarPessoasAtribuiveis() : Promise.resolve([]),
   ])
   const feitas = demandas.filter((d) => d.situacao === "Feito")
   const doQuadro = quadro
@@ -121,6 +127,9 @@ export default async function DemandasPage({
                 Anomalias
               </Link>
             </Button>
+          )}
+          {editor && (
+            <UsarModelo modo="nova_demanda" modelos={modelos.map((m) => ({ id: m.id, nome: m.nome }))} pessoas={pessoas} />
           )}
           {editor && (
             <Button asChild>

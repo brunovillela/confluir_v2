@@ -16,6 +16,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-11-22",
     titulo: "Oposição: texto do desconto com parágrafos",
     itens: [
+      "Ferramentas: automações, modelos e pedidos. Em Automações, regras do tipo \"quando uma tarefa atrasar, mudar a prioridade para Alta\" ou \"quando todas as tarefas forem concluídas, passar a demanda para Feito\". Em Modelos e pedidos, modelos de demanda e de projeto com as tarefas e marcos prontos (os prazos contam a partir de uma data), e formulários de pedido: qualquer pessoa pede ao setor em Pedidos, o pedido vira demanda e quem pediu é avisado quando fica pronto.",
       "Pessoal → Uso fora do expediente: o mês sai em planilha (Excel), por funcionário ou dia a dia, com as horas em HH:MM e em decimal, os horários fora da jornada e o motivo informado.",
       "Controle de ponto: o relatório em PDF do funcionário termina com o uso do sistema fora do expediente dos últimos 12 meses, mês a mês e dia a dia, com o motivo informado. E a resenha da IA passa a considerar esse uso nos riscos, em quem acompanhar e nas recomendações, comparando-o com as horas extras lançadas.",
       "Pessoal: a caixa de entrada avisa quem, no mês, passou de 4 h de uso do sistema fora do expediente ou usou o sistema por mais de 10 minutos num dia de férias ou afastamento. No relatório Uso fora do expediente, o nome dessas pessoas ganha uma marca. O registro do uso e os motivos ficam guardados 5 anos (regra RT37 do motor de retenção, em Institucional → LGPD).",

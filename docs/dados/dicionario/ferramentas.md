@@ -2,7 +2,7 @@
 
 # Ferramentas administrativas
 
-15 tabelas. Diagrama: [er/ferramentas.md](../er/ferramentas.md).
+20 tabelas. Diagrama: [er/ferramentas.md](../er/ferramentas.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -13,6 +13,11 @@
 | [demandas_comentarios](#demandas_comentarios) | identificação | Comentário em uma demanda (origem Bubble), lido em lib/db/nucleo.ts. Tabela vazia. |
 | [demandas_departamentos](#demandas_departamentos) | — | Junção N:N entre tarefa de demanda e departamento envolvido (lib/db/departamentos.ts). |
 | [demandas_etiquetas](#demandas_etiquetas) | — | Etiquetas coloridas da entidade para as tarefas (nome único por entidade, cor de uma paleta fixa). |
+| [demandas_formularios](#demandas_formularios) | identificação | Formulários de pedido por setor: o pedido vira uma demanda do responsável, com as tarefas do modelo (Pedidos). |
+| [demandas_modelo_itens](#demandas_modelo_itens) | — | Tarefas e marcos de um modelo, com o prazo em dias relativos à data de referência. |
+| [demandas_modelos](#demandas_modelos) | — | Modelos de demanda ou de projeto, com as tarefas e marcos pré-montados (Ferramentas > Modelos). |
+| [demandas_regras](#demandas_regras) | identificação | Regras "quando… então…" das tarefas e demandas (Ferramentas > Automações), de uma lista fechada de gatilhos e ações. |
+| [demandas_regras_execucoes](#demandas_regras_execucoes) | — | Cada vez que uma regra agiu (o histórico da Automação); a chave impede agir duas vezes no mesmo atraso. |
 | [demandas_tarefa_comentarios](#demandas_tarefa_comentarios) | identificação | Conversa de uma tarefa (Ferramentas > Tarefas e Meu perfil > Minhas tarefas): mensagens do responsável, de quem pediu e de quem cuida das ta… |
 | [demandas_tarefa_dependencias](#demandas_tarefa_dependencias) | — | Dependência entre tarefas: `tarefa_id` só começa quando `depende_de_id` termina (Gantt de Ferramentas > Tarefas e do projeto). |
 | [demandas_tarefa_etiquetas](#demandas_tarefa_etiquetas) | — | Quais etiquetas cada tarefa tem. |
@@ -75,10 +80,11 @@ Demanda (iniciativa ou pedido interno com responsável, prazo e orçamento) da t
 | `updated_at` | timestamp with time zone | sim | `now()` |  |  |  |
 | `criado_por` | uuid | sim |  | → usuarios |  |  |
 | `projeto_id` | uuid | sim |  | → projeto (set null) | nenhum | Projeto dono desta demanda (criada pelo projeto ao receber a primeira tarefa). Nulo nas demandas comuns; no máximo uma por projeto. |
+| `formulario_id` | uuid | sim |  | → demandas_formularios (set null) | nenhum | Formulário de pedido que originou a demanda (Meus pedidos); nulo nas demais. |
 
 Únicas: `UNIQUE (bubble_id)`
 
-Índices: `demandas_bubble_id_key`, `demandas_pkey`, `demandas_projeto_id_unico`, `idx_demandas_criado_por`
+Índices: `demandas_bubble_id_key`, `demandas_formulario_idx`, `demandas_pkey`, `demandas_projeto_id_unico`, `idx_demandas_criado_por`
 
 ## demandas_check
 
@@ -203,6 +209,120 @@ Etiquetas coloridas da entidade para as tarefas (nome único por entidade, cor d
 Checks: `demandas_etiquetas_cor_check` `CHECK ((cor = ANY (ARRAY['cinza'::text, 'vermelho'::text, 'laranja'::text, 'amarelo'::text, 'verde'::text, 'azul'::text, 'roxo'::text, 'rosa'::text])))`
 
 Índices: `demandas_etiquetas_nome_idx`, `demandas_etiquetas_pkey`
+
+## demandas_formularios
+
+Formulários de pedido por setor: o pedido vira uma demanda do responsável, com as tarefas do modelo (Pedidos).
+
+- **LGPD:** identificação · titulares: funcionarios,diretores
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `nome` | text | não |  |  |  |  |
+| `descricao` | text | sim |  |  |  |  |
+| `responsavel_id` | uuid | sim |  | → usuarios (set null) | identificação | Quem recebe os pedidos do formulário (responsável pela demanda criada). |
+| `modelo_id` | uuid | sim |  | → demandas_modelos (set null) |  |  |
+| `ativo` | boolean | não | `true` |  |  |  |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Índices: `demandas_formularios_emp_idx`, `demandas_formularios_pkey`
+
+## demandas_modelo_itens
+
+Tarefas e marcos de um modelo, com o prazo em dias relativos à data de referência.
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `modelo_id` | uuid | não |  | → demandas_modelos (**cascade**) |  |  |
+| `tipo` | text | não | `'tarefa'::text` |  |  |  |
+| `titulo` | text | não |  |  |  |  |
+| `dias` | integer | não | `0` |  | nenhum | Dias em relação à data de referência informada ao usar o modelo (negativo = antes). |
+| `prioridade` | text | não | `'media'::text` |  |  |  |
+| `procedimento_id` | uuid | sim |  | → fa_documentos (set null) |  |  |
+| `checklist` | text[] | não | `'{}'::text[]` |  |  |  |
+| `ordem` | integer | não | `0` |  |  |  |
+
+Checks: `demandas_modelo_itens_prioridade_check` `CHECK ((prioridade = ANY (ARRAY['alta'::text, 'media'::text, 'baixa'::text])))`; `demandas_modelo_itens_tipo_check` `CHECK ((tipo = ANY (ARRAY['tarefa'::text, 'marco'::text])))`
+
+Índices: `demandas_modelo_itens_modelo_idx`, `demandas_modelo_itens_pkey`
+
+## demandas_modelos
+
+Modelos de demanda ou de projeto, com as tarefas e marcos pré-montados (Ferramentas > Modelos).
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `nome` | text | não |  |  |  |  |
+| `tipo` | text | não | `'demanda'::text` |  |  |  |
+| `descricao` | text | sim |  |  |  |  |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Checks: `demandas_modelos_tipo_check` `CHECK ((tipo = ANY (ARRAY['demanda'::text, 'projeto'::text])))`
+
+Índices: `demandas_modelos_emp_idx`, `demandas_modelos_pkey`
+
+## demandas_regras
+
+Regras "quando… então…" das tarefas e demandas (Ferramentas > Automações), de uma lista fechada de gatilhos e ações.
+
+- **LGPD:** identificação · titulares: funcionarios,diretores
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `gatilho` | text | não |  |  |  |  |
+| `acao` | text | não |  |  |  |  |
+| `demanda_id` | uuid | sim |  | → demandas (**cascade**) |  |  |
+| `pessoa_id` | uuid | sim |  | → usuarios (**cascade**) | identificação | A pessoa da ação (a quem atribuir ou avisar). |
+| `etiqueta_id` | uuid | sim |  | → demandas_etiquetas (**cascade**) |  |  |
+| `ativa` | boolean | não | `true` |  |  |  |
+| `criada_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem criou a regra. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Checks: `demandas_regras_acao_check` `CHECK ((acao = ANY (ARRAY['demanda_feito'::text, 'prioridade_alta'::text, 'atribuir'::text, 'etiquetar'::text, 'avisar'::text])))`; `demandas_regras_gatilho_check` `CHECK ((gatilho = ANY (ARRAY['tarefa_criada'::text, 'tarefa_concluida'::text, 'tarefa_atrasou'::text])))`
+
+Índices: `demandas_regras_emp_idx`, `demandas_regras_pkey`
+
+## demandas_regras_execucoes
+
+Cada vez que uma regra agiu (o histórico da Automação); a chave impede agir duas vezes no mesmo atraso.
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `regra_id` | uuid | não |  | → demandas_regras (**cascade**) |  |  |
+| `tarefa_id` | uuid | sim |  | → demandas_check_tarefas (set null) |  |  |
+| `chave` | text | não |  |  |  |  |
+| `detalhe` | text | sim |  |  | nenhum | O que a regra fez, em texto curto (sem dado pessoal). |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Únicas: `UNIQUE (regra_id, chave)`
+
+Índices: `demandas_regras_execucoes_chave`, `demandas_regras_execucoes_emp_idx`, `demandas_regras_execucoes_pkey`
 
 ## demandas_tarefa_comentarios
 

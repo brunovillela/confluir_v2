@@ -7,6 +7,7 @@ import { lembrarPendencias, tenantsDoLembrete } from "@/lib/db/pendencias-lembre
 import { lembretesDoPortal, type ResultadoLembretesDoPortal } from "@/lib/db/portal-lembretes"
 import { lembrarAssinaturasRpa } from "@/lib/db/rpa-lembretes"
 import { lembrarPrazosDeTarefas } from "@/lib/db/tarefas-lembrete"
+import { aplicarRegrasDeAtraso } from "@/lib/db/regras"
 import { gerarSugestoesDeAnomalia } from "@/lib/db/anomalias-sugestoes"
 import { createServiceClient } from "@/lib/supabase/admin"
 
@@ -184,13 +185,16 @@ async function handler(req: Request): Promise<Response> {
     }
   }
 
-  const tarefas: { tenant: string; vespera: number; atrasadas: number; avisos: number; erros: string[] }[] = []
+  const tarefas: { tenant: string; vespera: number; atrasadas: number; avisos: number; regras?: number; erros: string[] }[] = []
   if (!etapa || etapa === "tarefas") {
     const svc = createServiceClient()
     for (const t of tenants) {
       try {
         const contexto = await contextoDoTenant(t.id, svc)
-        tarefas.push({ tenant: t.id, ...(await lembrarPrazosDeTarefas(svc, t.id, contexto)) })
+        const prazos = await lembrarPrazosDeTarefas(svc, t.id, contexto)
+        // Automações "quando uma tarefa atrasar" (Onda 3).
+        const regras = await aplicarRegrasDeAtraso(svc, t.id, contexto)
+        tarefas.push({ tenant: t.id, ...prazos, regras: regras.agiram, erros: [...prazos.erros, ...regras.erros] })
       } catch (e) {
         tarefas.push({ tenant: t.id, vespera: 0, atrasadas: 0, avisos: 0, erros: [e instanceof Error ? e.message : String(e)] })
       }

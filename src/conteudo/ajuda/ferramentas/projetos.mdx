@@ -218,6 +218,55 @@ Mexe nas tarefas do projeto quem tem **Projetos — editar**, **Tarefas** ou **D
   **Fazendo** avisa que a equipe começou.
 </Aviso>
 
+## Automações
+
+Em **Ferramentas → Automações**, quem tem **Demandas** cria regras que fazem sozinhas o
+trabalho repetido. Cada regra é uma frase montada em três escolhas:
+
+| Quando | Então (o que dá para fazer) |
+|---|---|
+| uma tarefa for criada | atribuir a tarefa sem responsável a uma pessoa · pôr uma etiqueta · avisar uma pessoa |
+| uma tarefa for concluída | passar a demanda para Feito, se todas as tarefas dela estiverem concluídas · avisar uma pessoa |
+| uma tarefa atrasar | mudar a prioridade para Alta · pôr uma etiqueta · avisar uma pessoa |
+
+**Em** limita a regra a uma demanda; sem isso, vale para todas as tarefas. A regra de
+atraso roda uma vez por dia, de manhã, para as tarefas que venceram nos últimos 7 dias.
+Cada regra age uma vez por tarefa e ocasião, e **uma regra não dispara outra**. A lista
+mostra quantas vezes cada regra agiu e a última; o botão liga e desliga a regra sem
+apagá-la. A demanda vinda do portal do filiado não vai para Feito por regra: ela se
+conclui respondendo ao filiado.
+
+## Modelos e pedidos
+
+Em **Ferramentas → Modelos e pedidos**, quem tem **Demandas** monta:
+
+<PassoAPasso>
+  <Passo titulo="Modelos de demanda e de projeto">
+    Um modelo guarda as tarefas de um trabalho que se repete (um congresso, uma campanha
+    salarial, um evento cultural), cada uma com o prazo em dias **antes** ou **depois** de
+    uma data de referência, a prioridade, o procedimento e o checklist. O modelo de
+    projeto também guarda os **marcos**.
+  </Passo>
+  <Passo titulo="Use o modelo">
+    Em **Demandas**, **Nova a partir de modelo** cria a demanda já com as tarefas; na
+    página da demanda, **Aplicar modelo** acrescenta as tarefas; na página do projeto,
+    **Aplicar modelo** cria os marcos e as tarefas. Informe a **data de referência** (o dia
+    do evento ou da entrega): os prazos são contados a partir dela.
+  </Passo>
+  <Passo titulo="Salve uma demanda como modelo">
+    Na página da demanda, **Salvar como modelo** transforma as tarefas dela num modelo,
+    com o prazo de cada uma contado a partir do prazo da demanda, o checklist e o
+    procedimento.
+  </Passo>
+  <Passo titulo="Formulários de pedido">
+    Um formulário (por exemplo, "Pedido à Comunicação") tem quem recebe os pedidos e,
+    se quiser, um modelo de demanda. Ele aparece em **Pedidos** (também em Meu perfil →
+    Pedidos a outros setores) para qualquer pessoa do painel. O pedido vira uma demanda de
+    quem recebe, com as tarefas do modelo, e quem recebe é avisado. Quem pediu acompanha em
+    **Meus pedidos** e é avisado quando a demanda vai para **Feito**.
+  </Passo>
+</PassoAPasso>
+
 ## Anomalias
 
 Uma anomalia é uma **não conformidade**: um problema registrado para ser apurado e

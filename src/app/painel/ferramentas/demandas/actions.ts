@@ -22,6 +22,8 @@ import {
   SITUACOES_DEMANDA,
   type SituacaoDemanda,
 } from "@/lib/nucleo-constantes"
+import { depoisDaResposta } from "@/lib/db/avisos"
+import { avisarPedidoConcluido } from "@/lib/db/pedidos"
 
 function texto(formData: FormData, campo: string): string {
   return String(formData.get(campo) ?? "").trim()
@@ -125,7 +127,10 @@ export async function atualizarDemandaAction(
   const { erro } = await atualizarDemanda(id, dados)
   if (erro) return { erro }
   // Finalizar a demanda conclui as tarefas que ainda estavam abertas (a tela avisa antes).
-  if (dados.situacao === "Feito") await concluirTarefasPendentes({ demandaId: id })
+  if (dados.situacao === "Feito") {
+    await concluirTarefasPendentes({ demandaId: id })
+    depoisDaResposta(() => avisarPedidoConcluido(id))
+  }
   await sincronizarAtendimentoDaDemanda(id, dados.situacao)
   revalidarAtendimento()
   revalidatePath("/painel/ferramentas/demandas")
@@ -155,6 +160,7 @@ export async function definirSituacaoDemandaAction(
   if (erro) return { erro }
   let concluidas = 0
   if (nova === "Feito") {
+    depoisDaResposta(() => avisarPedidoConcluido(id))
     const r = await concluirTarefasPendentes({ demandaId: id })
     if (r.erro) return { erro: r.erro }
     concluidas = r.concluidas
