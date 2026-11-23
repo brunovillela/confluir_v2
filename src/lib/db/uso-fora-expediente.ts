@@ -13,6 +13,7 @@ import {
   podeInformarMotivo,
   apurarUso,
   avisoDoMes,
+  mesesEntre,
   temAvisoUso,
   type AvisoUsoMes,
   diasDoPeriodo,
@@ -285,6 +286,88 @@ export async function usoForaDoFuncionario(usuarioId: string, competencia: strin
     motivos: new Map([...(motivos.get(usuarioId) ?? new Map<string, JustificativaUso>())].map(([d, j]) => [d, rotuloMotivoUso(j)])),
     justificativas: motivos.get(usuarioId) ?? new Map<string, JustificativaUso>(),
   }
+}
+
+// ── Vários meses (relatório do ponto em PDF e resenha da IA) ─────────────────
+
+export type MesUsoFora = {
+  competencia: string
+  resumo: ResumoUso
+  aviso: AvisoUsoMes
+  diasComMotivo: number
+  /** Dias com tempo a considerar, com o motivo informado (se houver). */
+  dias: { dia: DiaUso; motivo: string | null }[]
+}
+
+/**
+ * Uso fora do expediente de várias pessoas em vários meses: id → meses com
+ * algum uso fora (os outros não entram). A jornada é a vinculada hoje. null =
+ * sem a tabela de uso.
+ */
+export async function usoForaPorMeses(ids: string[], competencias: string[]): Promise<Map<string, MesUsoFora[]> | null> {
+  const saida = new Map<string, MesUsoFora[]>()
+  const unicos = [...new Set(ids.filter(Boolean))]
+  if (unicos.length === 0) return saida
+  const jornadas = await jornadasVinculadas(unicos)
+  const comJornada = unicos.filter((id) => jornadas.has(id))
+  if (comJornada.length === 0) return saida
+  for (const comp of [...new Set(competencias)].filter((c) => competenciaValida(c)).sort()) {
+    const p = periodoDoMes(comp)
+    const blocos = await blocosDoPeriodo(comJornada, p)
+    if (!blocos) return null
+    const comUso = comJornada.filter((id) => blocos.has(id))
+    if (comUso.length === 0) continue
+    const [afast, motivos] = await Promise.all([afastamentosDoPeriodo(comUso, p), justificativasDoPeriodo(comUso, p)])
+    const feriados = feriadosDoPeriodo(p)
+    for (const id of comUso) {
+      const dias = apurarUso(blocos.get(id)!, jornadas.get(id)!.dias, {
+        feriados,
+        afastamentos: afast.get(id) ?? new Map(),
+      }).filter((d) => d.data >= p.de && d.data <= p.ate)
+      if (!dias.some((d) => d.foraTotal > 0)) continue
+      const m = motivos.get(id)
+      saida.set(id, [
+        ...(saida.get(id) ?? []),
+        {
+          competencia: comp,
+          resumo: resumirUso(dias),
+          aviso: avisoDoMes(dias),
+          diasComMotivo: dias.filter((d) => d.foraTotal > 0 && m?.has(d.data)).length,
+          dias: dias
+            .filter((d) => d.considerado > 0)
+            .map((d) => {
+              const j = m?.get(d.data)
+              return { dia: d, motivo: j ? rotuloMotivoUso(j) : null }
+            }),
+        },
+      ])
+    }
+  }
+  return saida
+}
+
+export type UsoForaRelatorio = { disponivel: boolean; desde: string | null; meses: MesUsoFora[] }
+
+/** Para o relatório do ponto em PDF: os últimos 12 meses de uso fora de uma pessoa. */
+export async function usoForaParaRelatorio(usuarioId: string): Promise<UsoForaRelatorio> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("pessoal_uso_painel")
+    .select("inicio")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("usuario_id", usuarioId)
+    .order("inicio", { ascending: true })
+    .limit(1)
+    .maybeSingle()
+  if (error) {
+    if (esquemaAusente(error)) return { disponivel: false, desde: null, meses: [] }
+    throw new Error(error.message)
+  }
+  if (!data?.inicio) return { disponivel: true, desde: null, meses: [] }
+  const desde = String(data.inicio)
+  const primeiro = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(desde)).slice(0, 7)
+  const mapa = await usoForaPorMeses([usuarioId], mesesEntre(primeiro, hojeEmSaoPaulo().slice(0, 7)))
+  return { disponivel: mapa !== null, desde, meses: mapa?.get(usuarioId) ?? [] }
 }
 
 // ── Motivo informado pelo funcionário ────────────────────────────────────────

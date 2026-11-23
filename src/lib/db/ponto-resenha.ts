@@ -4,6 +4,8 @@ import { esquemaAusente, nomesDosUsuarios, texto } from "@/lib/db/comum"
 import { OCORRENCIAS, rotuloCompetenciaPonto, type Indicadores } from "@/lib/db/ponto-analise"
 import { gerarJsonIA, MODELO_IA, type EsquemaJsonIA } from "@/lib/ia"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { usoForaPorMeses, type MesUsoFora } from "@/lib/db/uso-fora-expediente"
+import { horasDecimais, LIMITE_AVISO_MES_MIN, TOLERANCIA_DIARIA_MIN } from "@/lib/uso-fora-expediente"
 import { tenantAtual } from "@/lib/tenant"
 
 /**
@@ -11,7 +13,9 @@ import { tenantAtual } from "@/lib/tenant"
  * indicadores já calculados (lib/db/ponto-analise) — nunca os espelhos nem
  * dados de saúde além da contagem de atestados — e redige riscos
  * trabalhistas, quem acompanhar e o que fazer. Fica guardada em
- * pessoal_ponto_resenhas até alguém pedir outra.
+ * pessoal_ponto_resenhas até alguém pedir outra. Desde 22/11/2026 recebe
+ * também o resumo do uso do sistema fora do expediente (horas e dias por
+ * pessoa, nunca os horários nem o texto do motivo).
  */
 
 export type EscopoResenha = "remessa" | "ano" | "departamento"
@@ -86,9 +90,10 @@ Escreva uma resenha do controle de ponto a partir SOMENTE dos indicadores recebi
 - "acompanhar_departamentos": idem para departamentos (vazio se o escopo for um departamento só ou se nenhum se destacar).
 - "recomendacoes": 3 a 6 ações para a gestão (ex.: redistribuir demanda, compensar banco, ajustar escala, revisar registro).
 - "limitacoes": o que os dados não permitem afirmar (meses sem remessa, espelhos não lidos, departamento atual aplicado a anos anteriores).
+- "uso_do_sistema_fora_do_expediente" (quando vier): tempo com o sistema da entidade aberto e em uso fora da jornada contratada. Não é marcação de ponto nem prova de trabalho, mas indica trabalho ou disponibilidade fora do horário (art. 6º, parágrafo único, da CLT; Súmula 428 do TST) e, em férias ou afastamento, risco de férias não gozadas (arts. 129 e 137 da CLT). Use-o em riscos, quem acompanhar e recomendações quando for relevante, comparando com as horas extras registradas no ponto (muito uso fora com pouca hora extra lançada merece verificação). O motivo informado pelo funcionário não afasta o risco.
 Regras: não invente números nem pessoas; use os nomes exatamente como vieram; não especule sobre doenças nem cite diagnósticos; trate horas em formato decimal (7,5 h = 7 h 30 min); seja prudente — "indica", "merece verificação" — quando o dado não for conclusivo.`
 
-function resumoParaIA(ind: Indicadores): string {
+function resumoParaIA(ind: Indicadores, uso: UsoParaIA | null): string {
   const ocorr = OCORRENCIAS.map(
     (o) => `${o.rotulo} (${o.fundamento}): ${ind.ocorrencias[o.id].total} ocorrência(s) em ${ind.ocorrencias[o.id].funcionarios} funcionário(s)`
   )
@@ -145,11 +150,73 @@ function resumoParaIA(ind: Indicadores): string {
         funcionarios_com_alerta: d.emAtencao,
       })),
       funcionarios_ordenados_por_criticidade: pessoas,
+      ...(uso ? { uso_do_sistema_fora_do_expediente: uso } : {}),
       observacao: `Referências: média acima de 2 h extras por dia útil = mais de 44 h no mês. ${ind.pessoas.length > 30 ? `Lista limitada aos 30 mais críticos de ${ind.pessoas.length}.` : ""}`,
     },
     null,
     1
   )
+}
+
+type UsoParaIA = {
+  observacao: string
+  meses_com_registro_de_uso: string[]
+  horas_a_considerar_total: number
+  funcionarios: {
+    nome: string
+    horas_a_considerar: number
+    horas_antes_ou_depois_do_horario: number
+    horas_no_intervalo: number
+    horas_em_dia_sem_expediente_ou_feriado: number
+    horas_em_ferias_ou_afastamento: number
+    dias_acima_da_tolerancia: number
+    dias_em_ferias_ou_afastamento_com_uso: number
+    meses_acima_do_limite: number
+    dias_com_motivo_informado: number
+  }[]
+}
+
+/** Resumo do uso fora do expediente para a IA: horas e dias por pessoa, sem horários nem motivos. */
+async function usoParaIA(ind: Indicadores): Promise<UsoParaIA | null> {
+  const nomes = new Map(ind.pessoas.map((p) => [p.id, p.nome]))
+  // No ano (e no departamento), o ano todo, com o mês corrente e os meses sem
+  // remessa: o uso é registrado independentemente da remessa.
+  const ano = (ind.competencias[0] ?? ind.mesesSemRemessa[0] ?? "").slice(0, 4)
+  const meses =
+    ind.escopo === "remessa" || !/^\d{4}$/.test(ano)
+      ? ind.competencias
+      : Array.from({ length: 12 }, (_, i) => `${ano}-${String(i + 1).padStart(2, "0")}`)
+  const mapa = await usoForaPorMeses([...nomes.keys()], meses).catch(() => null)
+  if (!mapa || mapa.size === 0) return null
+  const soma = (ms: MesUsoFora[], f: (m: MesUsoFora) => number) => ms.reduce((s, m) => s + f(m), 0)
+  const funcionarios = [...mapa]
+    .map(([id, ms]) => ({
+      nome: nomes.get(id) ?? "(sem nome)",
+      minutos: soma(ms, (m) => m.resumo.considerado),
+      horas_a_considerar: horasDecimais(soma(ms, (m) => m.resumo.considerado)),
+      horas_antes_ou_depois_do_horario: horasDecimais(soma(ms, (m) => m.resumo.fora.antes + m.resumo.fora.depois)),
+      horas_no_intervalo: horasDecimais(soma(ms, (m) => m.resumo.fora.intervalo)),
+      horas_em_dia_sem_expediente_ou_feriado: horasDecimais(soma(ms, (m) => m.resumo.fora.sem_expediente + m.resumo.fora.feriado)),
+      horas_em_ferias_ou_afastamento: horasDecimais(soma(ms, (m) => m.resumo.fora.afastado)),
+      dias_acima_da_tolerancia: soma(ms, (m) => m.resumo.diasAcimaTolerancia),
+      dias_em_ferias_ou_afastamento_com_uso: soma(ms, (m) => m.aviso.diasEmAfastamento),
+      meses_acima_do_limite: ms.filter((m) => m.aviso.acimaDoLimite).length,
+      dias_com_motivo_informado: soma(ms, (m) => m.diasComMotivo),
+    }))
+    .filter((f) => f.minutos > 0)
+    .sort((a, b) => b.minutos - a.minutos)
+  if (funcionarios.length === 0) return null
+  const mesesComUso = [...new Set([...mapa.values()].flatMap((ms) => ms.map((m) => m.competencia)))].sort()
+  return {
+    observacao: `Horas em decimal. "A considerar" tira os dias de trabalho com até ${TOLERANCIA_DIARIA_MIN} min fora; em dia livre, feriado, férias e afastamento conta qualquer minuto. Limite de aviso da entidade: ${LIMITE_AVISO_MES_MIN / 60} h a considerar no mês. Só há registro de uso nos meses listados; a lista vai até 30 pessoas, as com mais horas primeiro.`,
+    meses_com_registro_de_uso: mesesComUso.map(rotuloCompetenciaPonto),
+    horas_a_considerar_total: horasDecimais(funcionarios.reduce((s, f) => s + f.minutos, 0)),
+    funcionarios: funcionarios.slice(0, 30).map((f) => {
+      const { minutos, ...resto } = f
+      void minutos
+      return resto
+    }),
+  }
 }
 
 export async function obterResenha(escopo: EscopoResenha, chave: string): Promise<{ disponivel: boolean; resenha: ResenhaGuardada | null }> {
@@ -186,9 +253,10 @@ export async function gerarResenha(
   usuarioId: string
 ): Promise<{ erro?: string }> {
   if (ind.funcionarios === 0) return { erro: "Não há registros de ponto neste recorte." }
+  const uso = await usoParaIA(ind)
   const { dados, erro } = await gerarJsonIA({ processo: "pessoal.ponto_resenha",
     system: SISTEMA,
-    prompt: `Indicadores do controle de ponto:\n\n${resumoParaIA(ind)}`,
+    prompt: `Indicadores do controle de ponto:\n\n${resumoParaIA(ind, uso)}`,
     esquema: ESQUEMA,
   })
   if (erro || !dados) return { erro: erro ?? "A IA não devolveu a resenha." }
@@ -199,7 +267,7 @@ export async function gerarResenha(
       escopo,
       chave,
       conteudo: dados,
-      indicadores: { ...ind, pessoas: ind.pessoas.slice(0, 30) },
+      indicadores: { ...ind, pessoas: ind.pessoas.slice(0, 30), ...(uso ? { usoFora: uso } : {}) },
       modelo: MODELO_IA,
       gerada_em: new Date().toISOString(),
       gerada_por: usuarioId,

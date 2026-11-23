@@ -232,6 +232,14 @@ problema. Há três recortes, cada um com os seus indicadores e a sua resenha:
     perto (funcionários e departamentos) com uma sugestão para cada um, as
     recomendações e as limitações dos dados. Ela fica guardada; **Gerar de
     novo** refaz com os números atuais.
+
+    A resenha também considera o **uso do sistema fora do expediente** de quem
+    tem jornada vinculada (veja [Uso fora do expediente](#uso-fora-do-expediente)):
+    horas antes ou depois do horário, no intervalo, em dia livre e em férias ou
+    afastamento, dias acima da tolerância e meses acima do limite. No ano e no
+    departamento entram todos os meses do ano, inclusive os que ainda não têm
+    remessa. A IA recebe só esses totais por pessoa, sem os horários nem o texto
+    do motivo, e é orientada a compará-los com as horas extras lançadas.
   </Passo>
 </PassoAPasso>
 
@@ -336,6 +344,15 @@ documento para arquivar ou levar a uma conversa. Ele traz a ficha (matrícula,
 cargo, departamento, admissão), a comparação entre anos, os alertas de cada
 ano, o mês a mês (horas extras e pagas, banco nas duas faixas, atestados,
 faltas e ocorrências das marcações) e as isenções de registro.
+
+Se o funcionário tem jornada vinculada, o PDF termina com o **uso do sistema
+fora do expediente** dos últimos 12 meses: uma linha por mês (uso, antes e
+depois do horário, intervalo, dia livre, férias ou afastamento, o tempo a
+considerar, os dias e quantos têm motivo) e, abaixo, cada dia com tempo a
+considerar, onde ele caiu e o motivo informado (ou "sem motivo informado"). O
+mês acima do limite de 4 h sai marcado com \*. Todos os meses são calculados
+com a jornada vinculada **hoje**: se ela mudou no período, o próprio PDF avisa
+que os meses anteriores à mudança podem estar distorcidos.
 
 <Print src="pessoal/ponto-indicadores.png" alt="Aba Indicadores e resenha da remessa, com os totais de horas extras, as ocorrências tiradas das marcações e os funcionários em atenção." legenda="Indicadores da remessa: horas, ocorrências nas marcações e quem merece atenção." />
 

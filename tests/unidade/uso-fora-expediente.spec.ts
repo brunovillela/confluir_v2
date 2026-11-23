@@ -5,6 +5,8 @@ import {
   apurarUso,
   avisoDoMes,
   diasDoPeriodo,
+  horasDecimais,
+  mesesEntre,
   podeInformarMotivo,
   resumirUso,
   rotuloMotivoUso,
@@ -144,5 +146,14 @@ test.describe("uso fora do expediente", () => {
     const muito = apurarUso([bloco("2026-11-18", "17:00", "19:00"), bloco("2026-11-19", "17:00", "19:30")], jornada, semNada)
     expect(avisoDoMes(muito).acimaDoLimite).toBe(true)
     expect(temAvisoUso(avisoDoMes(muito))).toBe(true)
+  })
+
+  test("meses do relatório: do primeiro uso até hoje, no máximo 12", () => {
+    expect(mesesEntre("2026-11", "2026-11")).toEqual(["2026-11"])
+    expect(mesesEntre("2026-11", "2027-02")).toEqual(["2026-11", "2026-12", "2027-01", "2027-02"])
+    expect(mesesEntre("2020-01", "2027-02")).toHaveLength(12)
+    expect(mesesEntre("2020-01", "2027-02")[0]).toBe("2026-03")
+    expect(mesesEntre("2027-03", "2027-02")).toEqual([])
+    expect(horasDecimais(95)).toBe(1.6)
   })
 })

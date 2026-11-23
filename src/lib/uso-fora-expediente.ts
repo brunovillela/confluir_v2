@@ -324,3 +324,21 @@ export function avisoDoMes(dias: DiaUso[]): AvisoUsoMes {
 export function temAvisoUso(a: AvisoUsoMes): boolean {
   return a.acimaDoLimite || a.diasEmAfastamento > 0
 }
+
+/** "AAAA-MM" de `de` até `ate`, inclusive, no máximo os `max` últimos. */
+export function mesesEntre(de: string, ate: string, max = 12): string[] {
+  const meses: string[] = []
+  let [a, m] = ate.split("-").map(Number)
+  while (meses.length < max) {
+    const c = `${a}-${String(m).padStart(2, "0")}`
+    if (c < de) break
+    meses.unshift(c)
+    if (--m === 0) [a, m] = [a - 1, 12]
+  }
+  return meses
+}
+
+/** Horas decimais com uma casa (para a IA): 95 min → 1.6. */
+export function horasDecimais(min: number): number {
+  return Math.round((min / 60) * 10) / 10
+}

@@ -9,13 +9,15 @@ import {
   type ComparacaoAnos,
 } from "@/lib/db/ponto-analise"
 import { listarIsencoesPonto, type IsencaoPonto } from "@/lib/db/ponto-isencoes"
+import { usoForaParaRelatorio, type UsoForaRelatorio } from "@/lib/db/uso-fora-expediente"
 import type { FaixasHE } from "@/lib/faixas-he"
 
 /**
  * RELATÓRIO DO PONTO POR FUNCIONÁRIO (16/11/2026) — o que a tela do
  * funcionário no Ponto mostra, num PDF para arquivar ou levar a uma conversa:
  * a comparação entre anos, os alertas de cada ano, o mês a mês (horas,
- * banco, ausências, ocorrências das marcações) e as isenções de registro.
+ * banco, ausências, ocorrências das marcações), as isenções de registro e o
+ * uso do sistema fora do expediente.
  */
 
 export type MesRelatorioPonto = {
@@ -47,15 +49,18 @@ export type RelatorioPontoFuncionario = {
   /** Do mais recente ao mais antigo. */
   anos: { ano: string; alertas: string[]; meses: MesRelatorioPonto[] }[]
   isencoes: IsencaoPonto[]
+  /** Uso do sistema fora do expediente nos últimos 12 meses (22/11/2026). */
+  usoFora: UsoForaRelatorio
   geradoEm: string
 }
 
 /** null quando o funcionário não é da área do Pessoal. */
 export async function relatorioPontoFuncionario(usuarioId: string): Promise<RelatorioPontoFuncionario | null> {
-  const [funcionario, base, isencoes] = await Promise.all([
+  const [funcionario, base, isencoes, usoFora] = await Promise.all([
     funcionarioDaArea(usuarioId),
     carregarBasePonto(),
     listarIsencoesPonto(usuarioId),
+    usoForaParaRelatorio(usuarioId).catch((): UsoForaRelatorio => ({ disponivel: false, desde: null, meses: [] })),
   ])
   if (!funcionario) return null
   const comparacao = comparacaoAnos(base, { funcionarioId: usuarioId })
@@ -97,6 +102,7 @@ export async function relatorioPontoFuncionario(usuarioId: string): Promise<Rela
     comparacao,
     anos,
     isencoes,
+    usoFora,
     geradoEm: new Date().toISOString(),
   }
 }

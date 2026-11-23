@@ -1,6 +1,8 @@
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer"
 
 import type { RelatorioPontoFuncionario } from "@/lib/db/ponto-relatorio"
+import type { UsoForaRelatorio } from "@/lib/db/uso-fora-expediente"
+import { CATEGORIAS_FORA, LIMITE_AVISO_MES_MIN, TOLERANCIA_DIARIA_MIN, textoMinutos } from "@/lib/uso-fora-expediente"
 import { hhmm as hhmmTela } from "@/lib/horas"
 import { rotuloAteMes, textoVariacao as variacaoTela, variacaoPct } from "@/lib/ponto-comparacao"
 
@@ -52,6 +54,92 @@ function Item({ rotulo, valor }: { rotulo: string; valor: string }) {
       <Text style={s.fichaRotulo}>{rotulo}</Text>
       <Text>{valor}</Text>
     </View>
+  )
+}
+
+const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
+const rotuloMes = (c: string) => `${MESES[Number(c.slice(5, 7)) - 1]}/${c.slice(0, 4)}`
+
+/** Uso do sistema fora do expediente nos últimos 12 meses (22/11/2026). */
+function UsoFora({ uso }: { uso: UsoForaRelatorio }) {
+  if (!uso.disponivel || !uso.desde) return null
+  const desde = data(new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(uso.desde)))
+  const dias = uso.meses.flatMap((m) => m.dias)
+  return (
+    <>
+      <Text style={s.secao}>Uso do sistema fora do expediente</Text>
+      <Text style={s.nota}>
+        Tempo com o Confluir aberto e em uso fora da jornada vinculada, registrado minuto a minuto desde {desde} (sem a
+        página nem o conteúdo). Não é marcação de ponto: indica trabalho ou disponibilidade que merece conferência. &quot;A
+        considerar&quot; tira os dias de trabalho com até {TOLERANCIA_DIARIA_MIN} minutos fora (art. 58, § 1º, da CLT, por
+        analogia); em dia livre, feriado, férias e afastamento conta qualquer minuto. Últimos 12 meses, todos calculados
+        com a jornada vinculada hoje: se ela mudou no período, os meses anteriores à mudança podem estar distorcidos.
+      </Text>
+      {uso.meses.length === 0 ? (
+        <Text style={s.nota}>Nenhum uso fora do expediente no período.</Text>
+      ) : (
+        <>
+          <View style={s.cabeca} wrap={false}>
+            <Text style={s.rotulo}>Mês</Text>
+            <Text style={s.numEstreito}>Uso</Text>
+            <Text style={s.numEstreito}>Ant./dep.</Text>
+            <Text style={s.numEstreito}>Intervalo</Text>
+            <Text style={s.numEstreito}>Dia livre</Text>
+            <Text style={s.numEstreito}>Afast.</Text>
+            <Text style={s.numEstreito}>A consid.</Text>
+            <Text style={s.numEstreito}>Dias</Text>
+            <Text style={s.numEstreito}>Motivo</Text>
+          </View>
+          {uso.meses.map((m) => {
+            const f = m.resumo.fora
+            return (
+              <View key={m.competencia} style={s.linha} wrap={false}>
+                <Text style={s.rotulo}>
+                  {rotuloMes(m.competencia)}
+                  {m.aviso.acimaDoLimite ? " *" : ""}
+                </Text>
+                <Text style={s.numEstreito}>{textoMinutos(m.resumo.total)}</Text>
+                <Text style={s.numEstreito}>{textoMinutos(f.antes + f.depois)}</Text>
+                <Text style={s.numEstreito}>{textoMinutos(f.intervalo)}</Text>
+                <Text style={s.numEstreito}>{textoMinutos(f.sem_expediente + f.feriado)}</Text>
+                <Text style={s.numEstreito}>{textoMinutos(f.afastado)}</Text>
+                <Text style={[s.numEstreito, { fontFamily: "Helvetica-Bold" }]}>{textoMinutos(m.resumo.considerado)}</Text>
+                <Text style={s.numEstreito}>
+                  {m.resumo.diasAcimaTolerancia}/{m.resumo.diasComFora}
+                </Text>
+                <Text style={s.numEstreito}>{m.diasComMotivo || "—"}</Text>
+              </View>
+            )
+          })}
+          <Text style={[s.nota, { marginTop: 4 }]}>
+            Ant./dep.: antes da entrada ou depois da saída. Dia livre: sem expediente na jornada ou feriado. Afast.: férias
+            ou afastamento. Dias: acima da tolerância / com algum uso fora. Motivo: dias em que o funcionário informou o motivo. * Acima de{" "}
+            {LIMITE_AVISO_MES_MIN / 60} h a considerar no mês.
+          </Text>
+          {dias.length > 0 && (
+            <>
+              <Text style={s.subsecao}>Dias com tempo a considerar</Text>
+              {dias.map(({ dia, motivo }) => (
+                <View key={dia.data} style={s.linha} wrap={false}>
+                  <Text style={{ width: 80 }}>
+                    {data(dia.data)} {dia.nomeDia.slice(0, 3).toLowerCase()}
+                  </Text>
+                  <Text style={{ width: 48, textAlign: "right", marginRight: 8 }}>{textoMinutos(dia.considerado)}</Text>
+                  <Text style={s.rotulo}>
+                    {CATEGORIAS_FORA.filter((c) => dia.fora[c.chave] > 0)
+                      .map((c) => `${c.rotulo.toLowerCase()} ${textoMinutos(dia.fora[c.chave])}`)
+                      .join(", ")}
+                    {dia.situacao && dia.situacao !== "Feriado" && dia.situacao !== "Sem expediente" ? ` (${dia.situacao})` : ""}
+                    {" — "}
+                    {motivo ?? "sem motivo informado"}
+                  </Text>
+                </View>
+              ))}
+            </>
+          )}
+        </>
+      )}
+    </>
   )
 }
 
@@ -215,6 +303,8 @@ export function RelatorioPontoFuncionarioPDF({
             ))}
           </>
         )}
+
+        <UsoFora uso={dados.usoFora} />
 
         <View style={s.rodape} fixed>
           <Text>Gerado pelo Confluir em {gerado}. Documento interno do departamento de pessoal.</Text>
