@@ -22,6 +22,7 @@ import { DIAS_AVISO_PRAZO, nivelSigilo, sigilosVisiveis, somarDias } from "@/lib
 import { podeAcessar, type Permissoes } from "@/lib/permissoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
+import { DIAS_OFICIO_PARADO } from "@/lib/oficios-constantes"
 
 /** Mesmo valor de permissoes-resolver.ts: alçada sem teto. */
 const ALCADA_SEM_TETO = Number.MAX_SAFE_INTEGER
@@ -596,6 +597,21 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
       href: "/painel/ferramentas/anomalias#sugestoes",
       tabela: "ferramentas_anomalias_sugestoes",
       montar: (q) => head(q).eq("situacao", "pendente"),
+    })
+  }
+
+  // Ofícios que a pessoa enviou e ainda esperam assinatura (23/11/2026): o
+  // mesmo prazo do primeiro lembrete (lib/db/oficios-lembrete.ts).
+  if (amb.usuarioId && pode("ferramentas_oficios")) {
+    const usuarioId = amb.usuarioId
+    const limite = new Date(Date.now() - DIAS_OFICIO_PARADO * 86_400_000).toISOString()
+    fontes.push({
+      chave: "oficios_parados_assinatura",
+      titulo: "Seus ofícios esperando assinatura",
+      descricao: `Enviados há mais de ${DIAS_OFICIO_PARADO} dias e ainda sem assinatura: reenvie o convite ou finalize com o PDF assinado`,
+      href: "/painel/ferramentas/oficios?situacao=Aguardando%20assinatura",
+      tabela: "oficios",
+      montar: (q) => head(q).eq("enviado_por_id", usuarioId).eq("situacao", "Aguardando assinatura").lte("updated_at", limite),
     })
   }
 

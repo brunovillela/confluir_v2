@@ -94,3 +94,23 @@ export function normalizarAosCuidados(v: string | null | undefined): string | nu
   const resto = linhas.slice(MAX_LINHAS_AOS_CUIDADOS - 1).join(" ")
   return [...cabe, ...(resto ? [resto] : [])].join("\n")
 }
+
+// ── Lembrete do ofício parado em assinatura (23/11/2026) ───────────────────
+
+/** Dias de espera em que sai o lembrete a quem enviou; depois de 14, a cada 14. */
+export const MARCOS_LEMBRETE_ASSINATURA = [3, 7, 14] as const
+export const INTERVALO_LEMBRETE_ASSINATURA = 14
+/** A caixa de entrada mostra o ofício parado a partir deste número de dias. */
+export const DIAS_OFICIO_PARADO = MARCOS_LEMBRETE_ASSINATURA[0]
+
+/**
+ * O marco de lembrete em que a espera está (3, 7, 14, 28, 42…), ou null antes
+ * do primeiro. É a chave do aviso: sai uma vez por marco, mesmo que o tick de
+ * um dia falhe (o marco continua o mesmo até o próximo).
+ */
+export function marcoDoLembreteAssinatura(dias: number): number | null {
+  if (dias < MARCOS_LEMBRETE_ASSINATURA[0]) return null
+  const ultimo = MARCOS_LEMBRETE_ASSINATURA[MARCOS_LEMBRETE_ASSINATURA.length - 1]
+  if (dias < ultimo) return [...MARCOS_LEMBRETE_ASSINATURA].reverse().find((m) => dias >= m) ?? null
+  return ultimo + Math.floor((dias - ultimo) / INTERVALO_LEMBRETE_ASSINATURA) * INTERVALO_LEMBRETE_ASSINATURA
+}

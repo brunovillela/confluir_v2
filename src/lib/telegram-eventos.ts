@@ -38,6 +38,7 @@ type Acesso = {
 
 /** Áreas do resumo de vencimentos (lib/db/vencimentos.ts → vencimentosDoTenant). */
 const PERMISSOES_VENCIMENTOS = [
+  "ferramentas_documentos",
   "aquisicoes_contratos",
   "aquisicoes_contratos_edicao",
   "apoio_institucional",
@@ -89,6 +90,8 @@ export const EVENTOS_TELEGRAM = [
   // Onda 4: menção (@Fulano) na conversa da tarefa; novidade numa tarefa ou demanda que a pessoa segue.
   { chave: "tarefa_mencao", rotulo: "Alguém mencionou você na conversa de uma tarefa", grupo: "notificacao" },
   { chave: "item_seguido", rotulo: "Novidade numa tarefa ou demanda que você segue", grupo: "notificacao" },
+  // Ofício que quem enviou ainda espera assinatura (3, 7, 14 dias e depois a cada 14).
+  { chave: "oficio_assinatura_parada", rotulo: "Ofício que você enviou continua esperando assinatura", grupo: "pendencia" },
   // Avisos a quem precisa AGIR (onda 2, U2): entram só para quem tem a
   // permissão correspondente (ou coordena quem pediu).
   { chave: "pendencia_aprovacao", rotulo: "Ordem de pagamento entrou na sua alçada", grupo: "pendencia", acesso: { permissoes: ["aquisicoes_avaliacoes", "financeiro_pagamento"], alcada: true } },

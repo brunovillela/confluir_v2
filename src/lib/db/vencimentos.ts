@@ -20,7 +20,8 @@ import { createServiceClient } from "@/lib/supabase/admin"
  * institucionais, acordos coletivos (vigência do empregador), CNH, seguro e
  * locação dos veículos, ASO, férias com concessivo vencendo, treinamentos,
  * faturas de viagem, ordens vencidas, mandatos da diretoria e assentos nas
- * instâncias, convênios e reuniões da CIPA.
+ * instâncias, convênios, reuniões da CIPA e a vigência dos documentos da
+ * entidade (Ferramentas → Documentos, 23/11/2026).
  *
  * Cada fonte usa a MESMA janela que a sua tela (30/90/120 dias) e a mesma
  * permissão. Roda fora de requisição (cron /api/vencimentos/tick): service
@@ -562,6 +563,44 @@ async function cipa(f: Fonte): Promise<ItemVencimento[]> {
     .filter((i): i is ItemVencimento => i !== null)
 }
 
+/**
+ * Documentos da entidade (Ferramentas → Documentos: alvarás, certidões,
+ * estatuto): a versão mais recente de cada um, com fim de vigência nos
+ * próximos 60 dias ou já vencida. "Sem vigência" não entra.
+ */
+async function documentos(f: Fonte): Promise<ItemVencimento[]> {
+  const { data: docs } = await f.svc
+    .from("fa_documentos")
+    .select("id, bubble_id, documento")
+    .eq("emp_proprietaria_id", f.tenantId)
+  const porBubble = new Map((docs ?? []).filter((d) => d.bubble_id).map((d) => [String(d.bubble_id), d]))
+  if (porBubble.size === 0) return []
+  const versoes = await lerEmLotes<Record<string, unknown>>((de, ate) =>
+    f.svc
+      .from("fa_documentos_versao")
+      .select("id, documento_raw, vigencia_termino, sem_vigencia, created_at")
+      .in("documento_raw", [...porBubble.keys()].slice(0, 500))
+      .order("id")
+      .range(de, ate)
+  )
+  // A versão vigente é a mais recente de cada documento.
+  const ultima = new Map<string, Record<string, unknown>>()
+  for (const v of versoes) {
+    const chave = String(v.documento_raw)
+    const atual = ultima.get(chave)
+    if (!atual || String(v.created_at ?? "") > String(atual.created_at ?? "")) ultima.set(chave, v)
+  }
+  const limite = somarDias(f.hoje, 60)
+  return [...ultima.entries()]
+    .filter(([, v]) => v.sem_vigencia !== true && texto(v.vigencia_termino) && String(v.vigencia_termino).slice(0, 10) <= limite)
+    .map(([chave, v]) => {
+      const d = porBubble.get(chave)!
+      return item(texto(d.documento) ?? "Documento", v.vigencia_termino, `/painel/ferramentas/documentos/${d.id}`, f.hoje)
+    })
+    .filter((i): i is ItemVencimento => i !== null)
+    .sort((a, b) => a.data.localeCompare(b.data))
+}
+
 // ── Reunião ──────────────────────────────────────────────────────────────────
 
 export async function vencimentosDoTenant(tenantId: string): Promise<GrupoVencimento[]> {
@@ -592,6 +631,7 @@ export async function vencimentosDoTenant(tenantId: string): Promise<GrupoVencim
     { chave: "mandatos", titulo: "Mandato da diretoria", permissao: { chave: "diretoria_mandatos", alternativas: ["configuracoes"] }, itens: await seguro(() => mandatos(f)) },
     { chave: "assentos", titulo: "Assentos nas instâncias", permissao: { chave: "diretoria_mandatos", alternativas: ["configuracoes"] }, itens: await seguro(() => assentos(f)) },
     { chave: "convenios", titulo: "Convênios", permissao: { chave: "filiacao_convenios", alternativas: ["filiacao_gestao"] }, itens: await seguro(() => convenios(f)) },
+    { chave: "documentos", titulo: "Documentos da entidade (vigência)", permissao: { chave: "ferramentas_documentos", alternativas: [] }, itens: await seguro(() => documentos(f)) },
     { chave: "cipa", titulo: "Reuniões da CIPA", permissao: { chave: "saude_cat", alternativas: ["saude_atendimento", "saude_gestao"] }, itens: await seguro(() => cipa(f)) },
   ]
   return grupos.filter((g) => g.itens.length > 0)

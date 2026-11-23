@@ -7,6 +7,7 @@ import { lembrarPendencias, tenantsDoLembrete } from "@/lib/db/pendencias-lembre
 import { lembretesDoPortal, type ResultadoLembretesDoPortal } from "@/lib/db/portal-lembretes"
 import { lembrarAssinaturasRpa } from "@/lib/db/rpa-lembretes"
 import { lembrarPrazosDeTarefas } from "@/lib/db/tarefas-lembrete"
+import { lembrarOficiosParados } from "@/lib/db/oficios-lembrete"
 import { aplicarRegrasDeAtraso } from "@/lib/db/regras"
 import { gerarSugestoesDeAnomalia } from "@/lib/db/anomalias-sugestoes"
 import { createServiceClient } from "@/lib/supabase/admin"
@@ -62,6 +63,10 @@ export const maxDuration = 300
  * ponto incompleto recorrente, compras canceladas e infrações recorrentes
  * viram sugestões para quem tem Anomalias (lib/db/anomalias-sugestoes.ts).
  * `?etapa=anomalias` roda só esta parte.
+ *
+ * E os OFÍCIOS PARADOS EM ASSINATURA: quem enviou é lembrado aos 3, 7 e 14
+ * dias de espera e depois a cada 14 (lib/db/oficios-lembrete.ts).
+ * `?etapa=oficios` roda só esta parte.
  */
 async function handler(req: Request): Promise<Response> {
   const secret = process.env.CRON_SECRET
@@ -220,7 +225,23 @@ async function handler(req: Request): Promise<Response> {
     }
   }
 
-  return Response.json({ verificados: tenants.length, processados: resultados, portal, notas, rpa, cotacao, recebimentos, devolvidas, tarefas, anomalias })
+  const oficios: { tenant: string; parados: number; avisos: number; erros: string[] }[] = []
+  if (!etapa || etapa === "oficios") {
+    const svc = createServiceClient()
+    for (const t of tenants) {
+      try {
+        const contexto = await contextoDoTenant(t.id, svc)
+        oficios.push({ tenant: t.id, ...(await lembrarOficiosParados(svc, t.id, contexto)) })
+      } catch (e) {
+        oficios.push({ tenant: t.id, parados: 0, avisos: 0, erros: [e instanceof Error ? e.message : String(e)] })
+      }
+    }
+    for (const r of oficios) {
+      if (r.erros.length) console.error(`[pendencias/tick] ofícios parados em assinatura (${r.tenant}):`, r.erros.join(" · "))
+    }
+  }
+
+  return Response.json({ verificados: tenants.length, processados: resultados, portal, notas, rpa, cotacao, recebimentos, devolvidas, tarefas, anomalias, oficios })
 }
 
 export const GET = handler
