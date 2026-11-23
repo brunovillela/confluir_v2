@@ -3,6 +3,7 @@ import "server-only"
 import { randomUUID } from "node:crypto"
 
 import { esquemaAusente, lerEmLotesPorIds, nomesDosUsuarios, texto } from "@/lib/db/comum"
+import { mencionadoNaTarefa } from "@/lib/db/seguidores"
 import { podeAcessar, type Permissoes } from "@/lib/permissoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -14,7 +15,8 @@ import { tenantAtual } from "@/lib/tenant"
  *
  * Quem vê e escreve: quem cuida de Tarefas ou Demandas; o responsável e quem
  * pediu a tarefa; quem vê Projetos, nas tarefas de projeto; quem tem
- * Anomalias, nas providências de anomalia.
+ * Anomalias, nas providências de anomalia; e quem foi mencionado nela: a
+ * menção (@Fulano) abre a conversa daquela tarefa à pessoa (Onda 4).
  */
 
 const BUCKET = "documentos"
@@ -69,7 +71,8 @@ export async function tarefaDaConversa(
     t.demandado_id === pessoa.id ||
     t.demandante_id === pessoa.id ||
     (Boolean(t.projeto_id) && podeAcessar(p, "ferramentas_projetos", ["ferramentas_projetos_edicao"])) ||
-    (Boolean(t.anomalia_id) && podeAcessar(p, "ferramentas_anomalias"))
+    (Boolean(t.anomalia_id) && podeAcessar(p, "ferramentas_anomalias")) ||
+    (await mencionadoNaTarefa(String(t.id), pessoa.id))
   if (!pode) return null
   return {
     id: String(t.id),

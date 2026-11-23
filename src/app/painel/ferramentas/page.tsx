@@ -10,6 +10,7 @@ import {
   type LucideIcon,
   LayoutTemplate,
   Zap,
+  ChartColumn,
 } from "lucide-react"
 
 import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area"
@@ -91,6 +92,14 @@ const AREAS: Area[] = [
     href: "/painel/ferramentas/modelos",
     icone: LayoutTemplate,
     chave: "ferramentas_demandas",
+  },
+  {
+    titulo: "Painéis",
+    descricao: "O trabalho de cada departamento: vazão da semana, tempo até concluir, atrasadas por pessoa e projetos",
+    href: "/painel/ferramentas/paineis",
+    icone: ChartColumn,
+    chave: "ferramentas_tarefas",
+    chavesAlternativas: ["ferramentas_demandas"],
   },
 ]
 

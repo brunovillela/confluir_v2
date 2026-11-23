@@ -13,11 +13,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { type EstadoForm } from "@/lib/contas"
 import type { MensagemTarefa } from "@/lib/db/tarefa-conversa"
+import { partesComMencoes, type PessoaMencionavel } from "@/lib/ferramentas-acompanhamento"
 import { formatarDataHora } from "@/lib/formato"
 
+import { BotaoSeguir } from "../botao-seguir"
+import { CampoMencao } from "./campo-mencao"
 import { carregarConversaAction, enviarMensagemTarefaAction } from "./conversa-actions"
 
 const ACEITA = ".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.csv,.txt"
@@ -45,6 +47,10 @@ export function ConversaTarefa({
   const [aberta, setAberta] = useState(abertaDeInicio)
   const [mensagens, setMensagens] = useState<MensagemTarefa[] | null>(null)
   const [eu, setEu] = useState<string | null>(null)
+  const [pessoas, setPessoas] = useState<PessoaMencionavel[]>([])
+  const [seguir, setSeguir] = useState<{ seguindo: boolean; total: number } | null>(null)
+  // Muda a cada envio com sucesso: o campo recomeça vazio.
+  const [envios, setEnvios] = useState(0)
   const [erroLeitura, setErroLeitura] = useState<string | null>(null)
   const [erroArquivo, setErroArquivo] = useState<string | null>(null)
   const fim = useRef<HTMLDivElement>(null)
@@ -56,12 +62,16 @@ export function ConversaTarefa({
       setErroLeitura(null)
       setMensagens(r.mensagens ?? [])
       setEu(r.eu ?? null)
+      setPessoas(r.pessoas ?? [])
     }
   }, [tarefaId])
 
   const [estado, enviar, enviando] = useActionState<EstadoForm, FormData>(async (prev, fd) => {
     const r = await enviarMensagemTarefaAction(prev, fd)
-    if (r.ok) await carregar()
+    if (r.ok) {
+      setEnvios((n) => n + 1)
+      await carregar()
+    }
     return r
   }, {})
 
@@ -75,6 +85,8 @@ export function ConversaTarefa({
         setErroLeitura(null)
         setMensagens(r.mensagens ?? [])
         setEu(r.eu ?? null)
+        setPessoas(r.pessoas ?? [])
+        setSeguir({ seguindo: Boolean(r.seguindo), total: r.seguidores ?? 0 })
       }
     })
     return () => {
@@ -108,6 +120,11 @@ export function ConversaTarefa({
         <DialogHeader>
           <DialogTitle>Conversa da tarefa</DialogTitle>
           <DialogDescription className="line-clamp-2">{titulo ?? "(sem título)"}</DialogDescription>
+          {seguir && (
+            <div>
+              <BotaoSeguir tipo="tarefa" id={tarefaId} seguindo={seguir.seguindo} total={seguir.total} />
+            </div>
+          )}
         </DialogHeader>
 
         <div className="max-h-[50vh] overflow-y-auto pr-1">
@@ -119,7 +136,7 @@ export function ConversaTarefa({
             </p>
           ) : mensagens.length === 0 ? (
             <p className="text-muted-foreground py-4 text-center text-sm">
-              Nenhuma mensagem ainda. Escreva para o responsável ou para quem pediu a tarefa; eles são avisados.
+              Nenhuma mensagem ainda. Escreva para o responsável ou para quem pediu a tarefa; eles e quem segue a tarefa são avisados. Com @, você chama outra pessoa.
             </p>
           ) : (
             <ol className="grid gap-3" aria-label="Mensagens">
@@ -132,7 +149,19 @@ export function ConversaTarefa({
                     <span className="text-foreground font-medium">{m.autorId === eu ? "Você" : m.autorNome}</span>
                     <time dateTime={m.criadoEm}>{formatarDataHora(m.criadoEm)}</time>
                   </span>
-                  {m.texto && <p className="whitespace-pre-wrap">{m.texto}</p>}
+                  {m.texto && (
+                    <p className="whitespace-pre-wrap">
+                      {partesComMencoes(m.texto, pessoas).map((parte, i) =>
+                        parte.mencao ? (
+                          <span key={i} className="text-primary font-medium">
+                            {parte.texto}
+                          </span>
+                        ) : (
+                          parte.texto
+                        )
+                      )}
+                    </p>
+                  )}
                   {m.anexoNome && (
                     m.anexoUrl ? (
                       <a href={m.anexoUrl} className="text-primary inline-flex items-center gap-1 text-xs hover:underline" target="_blank" rel="noreferrer">
@@ -169,7 +198,7 @@ export function ConversaTarefa({
             <Label htmlFor={`msg-${tarefaId}`} className="sr-only">
               Mensagem
             </Label>
-            <Textarea id={`msg-${tarefaId}`} name="texto" rows={3} maxLength={4000} placeholder="Escreva uma mensagem" />
+            <CampoMencao key={envios} id={`msg-${tarefaId}`} pessoas={pessoas} eu={eu} />
             <div className="flex flex-wrap items-center justify-between gap-2">
               <label className="text-muted-foreground flex min-w-0 items-center gap-2 text-xs">
                 <Paperclip className="size-3.5 shrink-0" />
@@ -180,7 +209,11 @@ export function ConversaTarefa({
                 Enviar
               </Button>
             </div>
-            {(erroArquivo ?? estado.erro) && <p className="text-destructive text-sm">{erroArquivo ?? estado.erro}</p>}
+            {erroArquivo ?? estado.erro ? (
+              <p className="text-destructive text-sm">{erroArquivo ?? estado.erro}</p>
+            ) : (
+              estado.ok && <p className="text-success-fg text-sm">{estado.ok}</p>
+            )}
           </form>
         )}
       </DialogContent>

@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 
 import { avisar, type Destinatario } from "@/lib/db/avisos"
 import { esquemaAusente, hojeSP } from "@/lib/db/comum"
+import { avisarSeguidores } from "@/lib/db/seguidores"
 import type { ContextoEmail } from "@/lib/email"
 import { somarDias } from "@/lib/deliberacoes-constantes"
 import { DIAS_AVISO_ATRASO_TAREFA, lembreteDePrazo } from "@/lib/nucleo-constantes"
@@ -26,7 +27,8 @@ function curto(titulo: string | null): string {
  *  • vence amanhã → o responsável recebe "vence amanhã";
  *  • venceu (até DIAS_AVISO_ATRASO_TAREFA dias atrás) → o responsável recebe
  *    "atrasada" e quem pediu a tarefa (demandante), se for outra pessoa,
- *    recebe "passou do prazo".
+ *    recebe "passou do prazo"; quem segue a tarefa ou a demanda dela também
+ *    (Onda 4).
  * Cada aviso sai uma vez por tarefa e prazo (chave em avisos_entregas ou o
  * texto no sino): mudar o prazo gera os avisos do prazo novo. Tarefa atrasada
  * há mais tempo segue só na caixa de entrada e no lembrete diário.
@@ -40,7 +42,7 @@ export async function lembrarPrazosDeTarefas(
   const hoje = hojeSP()
   const { data, error } = await client
     .from("demandas_check_tarefas")
-    .select("id, titulo, concluido, data_prazo_entrega, demandante_id, demandado_id")
+    .select("id, titulo, concluido, data_prazo_entrega, demandante_id, demandado_id, demanda_id")
     .eq("emp_proprietaria_id", tenantId)
     .not("concluido", "is", true)
     .not("demandado_id", "is", null)
@@ -59,6 +61,7 @@ export async function lembrarPrazosDeTarefas(
       prazo: t(l.data_prazo_entrega),
       responsavel: t(l.demandado_id),
       pediu: t(l.demandante_id),
+      demanda: t(l.demanda_id),
       tipo: lembreteDePrazo({ prazo: t(l.data_prazo_entrega), concluido: l.concluido === true }, hoje),
     }))
     .filter((x) => x.tipo && x.prazo && x.responsavel)
@@ -133,6 +136,18 @@ export async function lembrarPrazosDeTarefas(
           amb
         )
       }
+      // Quem segue a tarefa ou a demanda dela (Onda 4), menos quem já foi avisado acima.
+      avisos += await avisarSeguidores(
+        { tarefaId: a.id, demandaId: a.demanda },
+        {
+          texto: `A tarefa "${a.titulo}", que você segue, passou do prazo (${dataBR(prazo)}) e não foi concluída.`,
+          link: `/painel/perfil/tarefas?conversa=${a.id}`,
+          assunto: "Tarefa que você segue está atrasada",
+          chaveEntrega: `tarefa:${a.id}:atraso-seguidor:${prazo}`,
+        },
+        [a.responsavel, a.pediu],
+        amb
+      )
     } catch (e) {
       erros.push(`${a.id}: ${e instanceof Error ? e.message : String(e)}`)
     }

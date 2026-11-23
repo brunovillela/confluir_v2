@@ -47,7 +47,8 @@ export function ticks(max: number, passos = 4): number[] {
   const bruto = max / passos
   const pot = 10 ** Math.floor(Math.log10(bruto))
   const norm = bruto / pot
-  const passo = (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10) * pot
+  // Passo mínimo de 1: contagens pequenas não repetem rótulo ("0, 1, 1, 2").
+  const passo = Math.max(1, (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10) * pot)
   const n = Math.ceil(max / passo)
   return Array.from({ length: n + 1 }, (_, i) => i * passo)
 }

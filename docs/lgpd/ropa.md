@@ -30,7 +30,7 @@
 | P13 | [Hospedagem conveniada e cessão de espaços](#p13) | 12 | identificação, **sensível: filiação/posição sindical**, financeiro, credencial (segredo de acesso, nunca exportar) | sim |
 | P14 | [Frota: veículos e condutores](#p14) | 16 | identificação, financeiro | sim |
 | P15 | [Comunicação, eventos e avisos](#p15) | 9 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
-| P16 | [Contas de acesso, segurança, auditoria e gestão interna](#p16) | 33 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
+| P16 | [Contas de acesso, segurança, auditoria e gestão interna](#p16) | 35 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P17 | [Congressos e conferências](#p17) | 23 | identificação, **sensível: filiação/posição sindical** | sim |
 
 <a id="p01"></a>
@@ -788,7 +788,7 @@
 
 **Observações.** Pendência: a `auditoria` copia em claro códigos e tokens com nomes fora da lista de ocultos.
 
-<details><summary>Tabelas (33) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (35) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -805,8 +805,10 @@
 | [demandas](../dados/dicionario/ferramentas.md#demandas) | identificacao | `descricao` (identificacao), `membros_raw` (identificacao), `projeto_id` (nenhum), `formulario_id` (nenhum) |
 | [demandas_check_tarefas](../dados/dicionario/ferramentas.md#demandas_check_tarefas) | identificacao | `demandado_documentos` (identificacao), `demandante_documentos` (identificacao), `prioridade` (nenhum), `recorrencia` (nenhum), `recorrencia_proxima_id` (nenhum), `procedimento_id` (nenhum), `iniciada_em` (nenhum), `data_inicio` (nenhum) |
 | [demandas_comentarios](../dados/dicionario/ferramentas.md#demandas_comentarios) | identificacao | `descricao` (identificacao) |
+| [demandas_filtros_salvos](../dados/dicionario/ferramentas.md#demandas_filtros_salvos) | identificacao | `usuario_id` (identificacao), `consulta` (nenhum) |
 | [demandas_formularios](../dados/dicionario/ferramentas.md#demandas_formularios) | identificacao | `responsavel_id` (identificacao) |
 | [demandas_regras](../dados/dicionario/ferramentas.md#demandas_regras) | identificacao | `pessoa_id` (identificacao), `criada_por` (identificacao) |
+| [demandas_seguidores](../dados/dicionario/ferramentas.md#demandas_seguidores) | identificacao | `usuario_id` (identificacao), `origem` (nenhum) |
 | [demandas_tarefa_comentarios](../dados/dicionario/ferramentas.md#demandas_tarefa_comentarios) | identificacao | `autor_id` (identificacao), `texto` (identificacao), `anexo_caminho` (identificacao), `anexo_nome` (nenhum) |
 | [email_envios](../dados/dicionario/plataforma.md#email_envios) | identificacao | `detalhe` (nenhum), `usuario_id` (identificacao), `destinatario` (identificacao), `dominio` (nenhum), `erro` (nenhum), `rejeicao` (nenhum) |
 | [emails_institucionais](../dados/dicionario/filiacao.md#emails_institucionais) | identificacao | `endereco` (identificacao) |
@@ -833,7 +835,7 @@
 <a id="p17"></a>
 ## P17. Congressos e conferências
 
-**Finalidade.** Organizar congressos, plenárias e conferências que a entidade promove ou de que participa: configuração do regimento, delegações, inscrição e lista de participantes (delegados, natos, suplentes, observadores, convidados), programa e grupos de trabalho. Inclui a inscrição pela página pública (com ciência do tratamento, IP e link pessoal guardado só como hash) e a importação de listas por planilha ou ata, que pode ser lida por IA. No dia do evento: credenciamento (com conferência de documento), crachás com código guardado só como hash, troca de titular por suplente com quem autorizou, e presença por sessão com o meio e o nível de prova de que a pessoa estava no local. Na relatoria: funções de coordenação e relatoria dos grupos, propostas com versões e apontamentos registrados com o nome de quem lançou (não de quem falou), contagem da apreciação nos grupos e resultado das votações da plenária, sem voto individual. Nas moções: proponente, assinaturas com o hash do texto lido, papel e base no instante, meio (link pessoal, estação da mesa ou papel), modalidade e nível de prova de presença, IP e navegador (prova da assinatura eletrônica); os nomes de quem assinou ficam visíveis conforme a configuração (comissão, credenciados ou público). Com a IA ligada na configuração, as sugestões (redação, fusão, eixo, contradições, síntese do grupo, triagem de moção, leitura do caderno e do regimento) ficam registradas com quem pediu e quem aceitou ou recusou; os textos vão à IA sem nomes de pessoas e com CPF, e-mail e telefone mascarados. No encerramento: resoluções com o responsável pelo encaminhamento e o acompanhamento; chapas da eleição da delegação com os candidatos, a hora da inscrição e quem foi eleito (enviados à etapa seguinte quando a comissão manda); certificados com nome, condição de participação e frequência, conferíveis pelo código. Na plenária ao vivo: fila de fala com o nome de quem fala; na votação eletrônica, quem votou e por qual canal fica separado do voto — o voto secreto não tem pessoa, hora nem registro de auditoria (ADR 0021); na votação aberta (nominal), o voto leva o nome, como no crachá erguido.
+**Finalidade.** Organizar congressos, plenárias e conferências que a entidade promove ou de que participa: configuração do regimento, delegações, inscrição e lista de participantes (delegados, natos, suplentes, observadores, convidados), programa e grupos de trabalho. Inclui a inscrição pela página pública (com ciência do tratamento, IP e link pessoal guardado só como hash) e a importação de listas por planilha ou ata, que pode ser lida por IA. No dia do evento: credenciamento (com conferência de documento), crachás com código guardado só como hash, troca de titular por suplente com quem autorizou, e presença por sessão com o meio e o nível de prova de que a pessoa estava no local. Na relatoria: funções de coordenação e relatoria dos grupos, propostas com versões e apontamentos registrados com o nome de quem lançou (não de quem falou), contagem da apreciação nos grupos e resultado das votações da plenária, sem voto individual. Nas moções: proponente, assinaturas com o hash do texto lido, papel e base no instante, meio (link pessoal, estação da mesa ou papel), modalidade e nível de prova de presença, IP e navegador (prova da assinatura eletrônica); os nomes de quem assinou ficam visíveis conforme a configuração (comissão, credenciados ou público). Com a IA ligada na configuração, as sugestões (redação, fusão, eixo, contradições, síntese do grupo, triagem de moção, leitura do caderno e do regimento) ficam registradas com quem pediu e quem aceitou ou recusou; os textos vão à IA sem nomes de pessoas e com CPF, e-mail e telefone mascarados. No encerramento: resoluções com o responsável pelo encaminhamento e o acompanhamento; chapas da eleição da delegação com os candidatos, a hora da inscrição e quem foi eleito (enviados à etapa seguinte quando a comissão manda); certificados com nome, condição de participação e frequência, conferíveis pelo código. Na plenária ao vivo: fila de fala com o nome de quem fala; na votação eletrônica, quem votou e por qual canal fica separado do voto — o voto secreto não tem pessoa, hora nem registro de auditoria (ADR 0021); na votação aberta (nominal), o voto leva o nome, como no crachá erguido. Na indicação pela entidade: os dados dos indicados e o representante legal que assina (nome, CPF, cargo, IP e navegador, como prova da assinatura). Na creche: nome, nascimento e cuidados de saúde das crianças (alergia, medicação), informados pelo responsável — dado de criança tratado com o consentimento do responsável (LGPD, art. 14, §1º) e visto só por quem tem a gestão do congresso.
 
 **Titulares.** Delegados, observadores e convidados de congressos (filiados ou não), diretores natos.
 
@@ -913,4 +915,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 273 de 273 tabelas com dado pessoal atribuídas a 17 processos.
+Cobertura: 275 de 275 tabelas com dado pessoal atribuídas a 17 processos.

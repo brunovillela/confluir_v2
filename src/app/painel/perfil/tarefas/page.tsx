@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { Bell, ListChecks, MessageSquare } from "lucide-react"
 
 import { TileIndicador } from "@/components/graficos/tile"
 import { Button } from "@/components/ui/button"
@@ -7,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { VoltarPerfil } from "@/components/voltar-perfil"
 import { requireSessaoPainel } from "@/lib/auth"
 import { listarTarefas } from "@/lib/db/nucleo"
+import { itensSeguidos } from "@/lib/db/seguidores"
 import { tarefaDaConversa } from "@/lib/db/tarefa-conversa"
 import { podeAcessar } from "@/lib/permissoes"
 
@@ -44,13 +46,16 @@ export default async function MinhasTarefasPage({
   const veProjetos = podeAcessar(p, "ferramentas_projetos", ["ferramentas_projetos_edicao"])
   const veAnomalias = podeAcessar(p, "ferramentas_anomalias")
 
-  const [{ tarefas: lista }, { tarefas: abertas }, tarefaDoAviso] = await Promise.all([
+  const [{ tarefas: lista }, { tarefas: abertas }, tarefaDoAviso, seguidos] = await Promise.all([
     listarTarefas({ status, demandadoId: eu }),
     listarTarefas({ status: "pendentes", demandadoId: eu }),
     // O link do aviso de mensagem (?conversa=<id>) abre a conversa direto —
     // também para quem pediu a tarefa, que não a vê nesta lista.
     conversa ? tarefaDaConversa(conversa, { id: eu, permissoes: p }) : Promise.resolve(null),
+    itensSeguidos(eu),
   ])
+  // O que a pessoa segue (Onda 4): demanda só para quem vê Demandas.
+  const seguidosVisiveis = seguidos.filter((i) => i.tipo === "tarefa" || veDemandas)
   // De onde vem a tarefa (demanda, projeto, anomalia): só o nome e o link
   // para quem tem a permissão daquela área.
   const tarefas = lista.map((t) => {
@@ -101,6 +106,37 @@ export default async function MinhasTarefasPage({
           />
         </CardContent>
       </Card>
+
+      {seguidosVisiveis.length > 0 && (
+        <Card>
+          <CardContent>
+            <p className="mb-1 flex items-center gap-2 text-sm font-medium">
+              <Bell className="text-muted-foreground size-4" />
+              O que você segue <span className="text-muted-foreground font-normal">({seguidosVisiveis.length})</span>
+            </p>
+            <p className="text-muted-foreground mb-3 text-xs">
+              Você recebe os avisos destas tarefas e demandas. Para deixar de seguir, abra e clique em Seguindo.
+            </p>
+            <ul className="grid divide-y">
+              {seguidosVisiveis.map((i) => (
+                <li key={`${i.tipo}-${i.id}`} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+                  <Link
+                    href={i.tipo === "tarefa" ? `/painel/perfil/tarefas?conversa=${i.id}` : `/painel/ferramentas/demandas/${i.id}`}
+                    className={`hover:text-primary flex min-w-0 items-center gap-2 hover:underline ${i.concluido ? "text-muted-foreground line-through" : ""}`}
+                  >
+                    {i.tipo === "tarefa" ? <MessageSquare className="size-3.5 shrink-0" /> : <ListChecks className="size-3.5 shrink-0" />}
+                    <span className="truncate">{i.titulo}</span>
+                  </Link>
+                  <span className="text-muted-foreground text-xs">
+                    {i.tipo === "tarefa" ? "Tarefa" : "Demanda"}
+                    {i.mencao ? " · você foi mencionado" : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
     </>
   )
 }

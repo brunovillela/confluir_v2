@@ -2,7 +2,7 @@
 
 # Ferramentas administrativas
 
-20 tabelas. Diagrama: [er/ferramentas.md](../er/ferramentas.md).
+22 tabelas. Diagrama: [er/ferramentas.md](../er/ferramentas.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -13,11 +13,13 @@
 | [demandas_comentarios](#demandas_comentarios) | identificação | Comentário em uma demanda (origem Bubble), lido em lib/db/nucleo.ts. Tabela vazia. |
 | [demandas_departamentos](#demandas_departamentos) | — | Junção N:N entre tarefa de demanda e departamento envolvido (lib/db/departamentos.ts). |
 | [demandas_etiquetas](#demandas_etiquetas) | — | Etiquetas coloridas da entidade para as tarefas (nome único por entidade, cor de uma paleta fixa). |
+| [demandas_filtros_salvos](#demandas_filtros_salvos) | identificação | Atalhos de filtro de Tarefas e Demandas, da pessoa ou compartilhados com a equipe. |
 | [demandas_formularios](#demandas_formularios) | identificação | Formulários de pedido por setor: o pedido vira uma demanda do responsável, com as tarefas do modelo (Pedidos). |
 | [demandas_modelo_itens](#demandas_modelo_itens) | — | Tarefas e marcos de um modelo, com o prazo em dias relativos à data de referência. |
 | [demandas_modelos](#demandas_modelos) | — | Modelos de demanda ou de projeto, com as tarefas e marcos pré-montados (Ferramentas > Modelos). |
 | [demandas_regras](#demandas_regras) | identificação | Regras "quando… então…" das tarefas e demandas (Ferramentas > Automações), de uma lista fechada de gatilhos e ações. |
 | [demandas_regras_execucoes](#demandas_regras_execucoes) | — | Cada vez que uma regra agiu (o histórico da Automação); a chave impede agir duas vezes no mesmo atraso. |
+| [demandas_seguidores](#demandas_seguidores) | identificação | Quem segue uma tarefa ou uma demanda e recebe os avisos dela (Ferramentas). A menção na conversa inscreve a pessoa. |
 | [demandas_tarefa_comentarios](#demandas_tarefa_comentarios) | identificação | Conversa de uma tarefa (Ferramentas > Tarefas e Meu perfil > Minhas tarefas): mensagens do responsável, de quem pediu e de quem cuida das ta… |
 | [demandas_tarefa_dependencias](#demandas_tarefa_dependencias) | — | Dependência entre tarefas: `tarefa_id` só começa quando `depende_de_id` termina (Gantt de Ferramentas > Tarefas e do projeto). |
 | [demandas_tarefa_etiquetas](#demandas_tarefa_etiquetas) | — | Quais etiquetas cada tarefa tem. |
@@ -210,6 +212,29 @@ Checks: `demandas_etiquetas_cor_check` `CHECK ((cor = ANY (ARRAY['cinza'::text, 
 
 Índices: `demandas_etiquetas_nome_idx`, `demandas_etiquetas_pkey`
 
+## demandas_filtros_salvos
+
+Atalhos de filtro de Tarefas e Demandas, da pessoa ou compartilhados com a equipe.
+
+- **LGPD:** identificação · titulares: funcionarios,diretores
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `usuario_id` | uuid | não |  | → usuarios (**cascade**) | identificação | Quem salvou o filtro. |
+| `pagina` | text | não |  |  |  |  |
+| `nome` | text | não |  |  |  |  |
+| `consulta` | text | não | `''::text` |  | nenhum | A consulta da página (parâmetros da URL, como responsavel=… e status=…), sem texto livre além da busca. |
+| `compartilhado` | boolean | não | `false` |  |  |  |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Checks: `demandas_filtros_salvos_consulta_check` `CHECK ((char_length(consulta) <= 500))`; `demandas_filtros_salvos_nome_check` `CHECK (((char_length(nome) >= 1) AND (char_length(nome) <= 60)))`; `demandas_filtros_salvos_pagina_check` `CHECK ((pagina = ANY (ARRAY['tarefas'::text, 'demandas'::text])))`
+
+Índices: `demandas_filtros_salvos_idx`, `demandas_filtros_salvos_pkey`
+
 ## demandas_formularios
 
 Formulários de pedido por setor: o pedido vira uma demanda do responsável, com as tarefas do modelo (Pedidos).
@@ -323,6 +348,28 @@ Cada vez que uma regra agiu (o histórico da Automação); a chave impede agir d
 Únicas: `UNIQUE (regra_id, chave)`
 
 Índices: `demandas_regras_execucoes_chave`, `demandas_regras_execucoes_emp_idx`, `demandas_regras_execucoes_pkey`
+
+## demandas_seguidores
+
+Quem segue uma tarefa ou uma demanda e recebe os avisos dela (Ferramentas). A menção na conversa inscreve a pessoa.
+
+- **LGPD:** identificação · titulares: funcionarios,diretores
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `usuario_id` | uuid | não |  | → usuarios (**cascade**) | identificação | A pessoa que segue. |
+| `tarefa_id` | uuid | sim |  | → demandas_check_tarefas (**cascade**) |  |  |
+| `demanda_id` | uuid | sim |  | → demandas (**cascade**) |  |  |
+| `origem` | text | não | `'manual'::text` |  | nenhum | manual = a pessoa escolheu seguir; mencao = foi mencionada na conversa da tarefa. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Checks: `demandas_seguidores_alvo_check` `CHECK ((num_nonnulls(tarefa_id, demanda_id) = 1))`; `demandas_seguidores_origem_check` `CHECK ((origem = ANY (ARRAY['manual'::text, 'mencao'::text])))`
+
+Índices: `demandas_seguidores_demanda_uniq`, `demandas_seguidores_pkey`, `demandas_seguidores_tarefa_uniq`, `demandas_seguidores_usuario_idx`
 
 ## demandas_tarefa_comentarios
 

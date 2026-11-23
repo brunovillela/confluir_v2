@@ -27,7 +27,9 @@ import { TarefasLista } from "../../tarefas/tarefas-lista"
 import { AtendimentoPainel } from "@/app/painel/filiados/atendimentos/atendimento-painel"
 
 import { listarModelos } from "@/lib/db/modelos"
+import { estadoDeSeguir } from "@/lib/db/seguidores"
 
+import { BotaoSeguir } from "../../botao-seguir"
 import { SalvarComoModelo, UsarModelo } from "../../modelos/usar-modelo"
 import { ExcluirDemanda, SituacaoDemanda } from "./demanda-acoes"
 
@@ -46,13 +48,14 @@ export default async function DemandaPage({
   const { id } = await params
   const { salvo } = await searchParams
 
-  const [demanda, pessoas, resumoExclusao, atendimento, avulsas, modelos] = await Promise.all([
+  const [demanda, pessoas, resumoExclusao, atendimento, avulsas, modelos, seguir] = await Promise.all([
     obterDemanda(id),
     listarPessoasAtribuiveis(),
     resumoExclusaoDemanda(id),
     atendimentoDaDemanda(id),
     listarTarefasAvulsas(),
     editor ? listarModelos("demanda") : Promise.resolve([]),
+    estadoDeSeguir(String(sessao.usuario.id), { demandaId: id }),
   ])
   if (!demanda) notFound()
 
@@ -87,6 +90,7 @@ export default async function DemandaPage({
           {demanda.nome ?? "(sem nome)"}
         </h1>
         <div className="flex flex-wrap items-center gap-2">
+          <BotaoSeguir tipo="demanda" id={id} seguindo={seguir.seguindo} total={seguir.total} />
           {editor ? (
             <SituacaoDemanda demandaId={id} situacao={demanda.situacao} pendentes={pendentes} />
           ) : (

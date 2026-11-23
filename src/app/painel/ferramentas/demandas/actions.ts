@@ -24,6 +24,7 @@ import {
 } from "@/lib/nucleo-constantes"
 import { depoisDaResposta } from "@/lib/db/avisos"
 import { avisarPedidoConcluido } from "@/lib/db/pedidos"
+import { avisarSituacaoAosSeguidores } from "@/lib/db/seguidores"
 
 function texto(formData: FormData, campo: string): string {
   return String(formData.get(campo) ?? "").trim()
@@ -112,10 +113,11 @@ export async function atualizarDemandaAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  await requirePermissao("ferramentas_demandas")
+  const sessao = await requirePermissao("ferramentas_demandas")
   const id = texto(formData, "demanda_id")
   if (!id) return { erro: "Demanda inválida." }
   const dados = lerDados(formData)
+  const antes = (await obterDemanda(id))?.situacao ?? null
   if (!dados.nome) return { erro: "Informe o nome da demanda." }
 
   // Demanda que nasceu de uma solicitação do portal: a situação conversa com
@@ -130,6 +132,9 @@ export async function atualizarDemandaAction(
   if (dados.situacao === "Feito") {
     await concluirTarefasPendentes({ demandaId: id })
     depoisDaResposta(() => avisarPedidoConcluido(id))
+  }
+  if (antes !== dados.situacao) {
+    depoisDaResposta(() => avisarSituacaoAosSeguidores(id, dados.situacao, String(sessao.usuario.id)))
   }
   await sincronizarAtendimentoDaDemanda(id, dados.situacao)
   revalidarAtendimento()
@@ -147,7 +152,7 @@ export async function definirSituacaoDemandaAction(
   _prev: EstadoForm,
   formData: FormData
 ): Promise<EstadoForm> {
-  await requirePermissao("ferramentas_demandas")
+  const sessao = await requirePermissao("ferramentas_demandas")
   const id = texto(formData, "demanda_id")
   const nova = situacao(texto(formData, "situacao"))
   if (!id) return { erro: "Demanda inválida." }
@@ -158,6 +163,7 @@ export async function definirSituacaoDemandaAction(
 
   const { erro } = await definirSituacaoDemanda(id, nova)
   if (erro) return { erro }
+  depoisDaResposta(() => avisarSituacaoAosSeguidores(id, nova, String(sessao.usuario.id)))
   let concluidas = 0
   if (nova === "Feito") {
     depoisDaResposta(() => avisarPedidoConcluido(id))

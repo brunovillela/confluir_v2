@@ -26,6 +26,7 @@ const ROTULOS_SEGMENTO: Record<string, string> = {
   rpa: "RPA",
   automacoes: "Automações",
   modelos: "Modelos e pedidos",
+  paineis: "Painéis",
   configuracao: "Configuração",
   configuracoes: "Configurações",
   revisao: "Revisão de acessos",

@@ -13,10 +13,14 @@ import { listarDemandas, listarPessoasAtribuiveis, listarTarefas, type TarefaLin
 import { marcosNoPeriodo } from "@/lib/db/projetos"
 import { tarefaDaConversa } from "@/lib/db/tarefa-conversa"
 import { listarEtiquetas } from "@/lib/db/tarefa-extras"
+import { listarFiltrosSalvos } from "@/lib/db/filtros-salvos"
+import { departamentosComIntegrantes } from "@/lib/db/paineis"
+import { consultaCanonica } from "@/lib/ferramentas-acompanhamento"
 import { somarDias } from "@/lib/deliberacoes-constantes"
 import { cargaPorPessoa, DIAS_FEITO_NO_QUADRO, semanasDoMes } from "@/lib/nucleo-constantes"
 import { podeAcessar } from "@/lib/permissoes"
 
+import { FiltrosSalvos } from "../filtros-salvos"
 import { CalendarioPrazos, type ItemCalendario } from "./calendario-prazos"
 import { CargaTrabalho } from "./carga-trabalho"
 import { ConversaTarefa } from "./conversa-tarefa"
@@ -39,6 +43,7 @@ type Params = {
   visao?: string
   mes?: string
   etiqueta?: string
+  departamento?: string
 }
 
 const VISOES = ["lista", "quadro", "calendario", "gantt", "carga"] as const
@@ -76,6 +81,7 @@ export default async function TarefasPage({
   const status =
     brutos.status === "concluidas" ||
     brutos.status === "atrasadas" ||
+    brutos.status === "semana" ||
     brutos.status === "todas"
       ? brutos.status
       : "pendentes"
@@ -83,6 +89,8 @@ export default async function TarefasPage({
   const minhas = brutos.minhas === "1"
   const responsavel = minhas ? eu : (brutos.responsavel ?? "").trim() || undefined
   const etiquetaId = (brutos.etiqueta ?? "").trim() || undefined
+  const [deptos, filtrosSalvos] = await Promise.all([departamentosComIntegrantes(), listarFiltrosSalvos("tarefas", eu)])
+  const depto = deptos.find((d) => d.id === (brutos.departamento ?? "").trim()) ?? null
   const visao: Visao = (VISOES as readonly string[]).includes(brutos.visao ?? "") ? (brutos.visao as Visao) : "lista"
   const mes = /^\d{4}-\d{2}$/.test(brutos.mes ?? "") ? (brutos.mes as string) : hoje.slice(0, 7)
   const semanas = semanasDoMes(mes)
@@ -93,13 +101,19 @@ export default async function TarefasPage({
   // a carga olha as abertas de todos.
   const statusDaVisao = visao === "lista" ? status : visao === "carga" ? "pendentes" : "todas"
   const [{ disponivel, tarefas: todas }, pessoas, atrasadasGerais, tarefaDoAviso, marcos, demandas, etiquetas] = await Promise.all([
-    listarTarefas({ busca, status: statusDaVisao, demandadoId: visao === "carga" ? undefined : responsavel, etiquetaId }),
+    listarTarefas({
+      busca,
+      status: statusDaVisao,
+      demandadoId: visao === "carga" ? undefined : responsavel,
+      demandadoIds: depto?.integrantes,
+      etiquetaId,
+    }),
     listarPessoasAtribuiveis(),
     // O quadro de atrasadas por pessoa: quem acompanha a equipe (lista geral).
     minhas || visao !== "lista" ? Promise.resolve(null) : listarTarefas({ status: "atrasadas" }),
     brutos.conversa ? tarefaDaConversa(brutos.conversa, { id: eu, permissoes: sessao.permissoes }) : Promise.resolve(null),
     visao === "calendario" && veProjetos && !responsavel ? marcosNoPeriodo(periodo.de, periodo.ate) : Promise.resolve([]),
-    visao === "calendario" && !responsavel && !etiquetaId ? listarDemandas({ situacao: "abertas" }) : Promise.resolve([]),
+    visao === "calendario" && !responsavel && !etiquetaId ? listarDemandas({ situacao: "abertas", responsavelIds: depto?.integrantes }) : Promise.resolve([]),
     listarEtiquetas(),
   ])
   // Tarefa de anomalia qualquer um executa; o CONTEÚDO da anomalia (nome e
@@ -160,6 +174,7 @@ export default async function TarefasPage({
     if (minhas) p.set("minhas", "1")
     else if (responsavel) p.set("responsavel", responsavel)
     if (etiquetaId) p.set("etiqueta", etiquetaId)
+    if (depto) p.set("departamento", depto.id)
     for (const [k, v] of Object.entries(extra)) if (v) p.set(k, v)
     const q = p.toString()
     return `/painel/ferramentas/tarefas${q ? `?${q}` : ""}`
@@ -259,6 +274,16 @@ export default async function TarefasPage({
         </Card>
       )}
 
+      <FiltrosSalvos
+        pagina="tarefas"
+        consultaAtual={consultaCanonica("tarefas", brutos)}
+        atalhos={[
+          { id: "fixo-semana", nome: "Minhas da semana", consulta: consultaCanonica("tarefas", { responsavel: eu, status: "semana" }), fixo: true },
+          { id: "fixo-atrasadas", nome: "Atrasadas", consulta: consultaCanonica("tarefas", { status: "atrasadas" }), fixo: true },
+          ...filtrosSalvos,
+        ]}
+      />
+
       {visao !== "carga" && (
       <form
         className="flex flex-wrap items-center gap-2"
@@ -277,6 +302,7 @@ export default async function TarefasPage({
           <select name="status" defaultValue={status} className={SELECT_FILTRO} aria-label="Situação">
             <option value="pendentes">Pendentes</option>
             <option value="atrasadas">Atrasadas</option>
+            <option value="semana">Vencem até domingo</option>
             <option value="concluidas">Concluídas</option>
             <option value="todas">Todas</option>
           </select>
@@ -297,6 +323,16 @@ export default async function TarefasPage({
               </option>
             ))}
         </select>
+        {deptos.length > 0 && (
+          <select name="departamento" defaultValue={depto?.id ?? ""} className={SELECT_FILTRO} aria-label="Departamento">
+            <option value="">Todos os departamentos</option>
+            {deptos.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.nome}
+              </option>
+            ))}
+          </select>
+        )}
         {etiquetas.length > 0 && (
           <select name="etiqueta" defaultValue={etiquetaId ?? ""} className={SELECT_FILTRO} aria-label="Etiqueta">
             <option value="">Qualquer etiqueta</option>

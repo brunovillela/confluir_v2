@@ -50,6 +50,11 @@ erDiagram
     uuid id PK
     uuid emp_proprietaria_id FK
   }
+  demandas_filtros_salvos {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid usuario_id FK
+  }
   demandas_formularios {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -79,6 +84,13 @@ erDiagram
     uuid emp_proprietaria_id FK
     uuid regra_id FK
     uuid tarefa_id FK
+  }
+  demandas_seguidores {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid usuario_id FK
+    uuid tarefa_id FK
+    uuid demanda_id FK
   }
   demandas_tarefa_comentarios {
     uuid id PK
@@ -143,6 +155,7 @@ erDiagram
   demandas_comentarios }o--o| demandas : "demanda_id"
   demandas_departamentos }o--|| demandas_check_tarefas : "tarefa_id"
   demandas_departamentos }o--|| empresa_departamentos : "departamento_id"
+  demandas_filtros_salvos }o--|| usuarios : "usuario_id"
   demandas_formularios }o--o| demandas_modelos : "modelo_id"
   demandas_formularios }o--o| usuarios : "responsavel_id"
   demandas_modelo_itens }o--o| fa_documentos : "procedimento_id"
@@ -153,6 +166,9 @@ erDiagram
   demandas_regras }o--o| usuarios : "pessoa_id"
   demandas_regras_execucoes }o--o| demandas_check_tarefas : "tarefa_id"
   demandas_regras_execucoes }o--|| demandas_regras : "regra_id"
+  demandas_seguidores }o--o| demandas : "demanda_id"
+  demandas_seguidores }o--o| demandas_check_tarefas : "tarefa_id"
+  demandas_seguidores }o--|| usuarios : "usuario_id"
   demandas_tarefa_comentarios }o--o| usuarios : "autor_id"
   demandas_tarefa_comentarios }o--|| demandas_check_tarefas : "tarefa_id"
   demandas_tarefa_dependencias }o--|| demandas_check_tarefas : "depende_de_id"

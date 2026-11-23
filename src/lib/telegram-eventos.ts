@@ -86,6 +86,9 @@ export const EVENTOS_TELEGRAM = [
   { chave: "regra_aviso", rotulo: "Aviso de uma automação de tarefas", grupo: "notificacao" },
   { chave: "pedido_recebido", rotulo: "Pedido recebido por um formulário que você atende", grupo: "pendencia" },
   { chave: "pedido_concluido", rotulo: "Pedido seu concluído pelo setor", grupo: "notificacao" },
+  // Onda 4: menção (@Fulano) na conversa da tarefa; novidade numa tarefa ou demanda que a pessoa segue.
+  { chave: "tarefa_mencao", rotulo: "Alguém mencionou você na conversa de uma tarefa", grupo: "notificacao" },
+  { chave: "item_seguido", rotulo: "Novidade numa tarefa ou demanda que você segue", grupo: "notificacao" },
   // Avisos a quem precisa AGIR (onda 2, U2): entram só para quem tem a
   // permissão correspondente (ou coordena quem pediu).
   { chave: "pendencia_aprovacao", rotulo: "Ordem de pagamento entrou na sua alçada", grupo: "pendencia", acesso: { permissoes: ["aquisicoes_avaliacoes", "financeiro_pagamento"], alcada: true } },

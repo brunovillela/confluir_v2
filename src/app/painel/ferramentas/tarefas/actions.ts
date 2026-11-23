@@ -16,6 +16,7 @@ import { avisar, depoisDaResposta, usuariosComPermissao } from "@/lib/db/avisos"
 import { removerAnexosDaTarefa } from "@/lib/db/tarefa-conversa"
 import { definirEtiquetasDaTarefa } from "@/lib/db/tarefa-extras"
 import { aplicarRegras } from "@/lib/db/regras"
+import { avisarConclusaoAosSeguidores } from "@/lib/db/seguidores"
 import { opcoesDeProcedimento } from "@/lib/db/documentos"
 import {
   atualizarTarefa,
@@ -235,6 +236,7 @@ export async function alternarConclusaoTarefaAction(
   const proxima = concluir ? await gerarProximaRecorrencia(id) : {}
   if (concluir) {
     avisarLiberadas(id, String(sessao.usuario.id))
+    depoisDaResposta(() => avisarConclusaoAosSeguidores(id, String(sessao.usuario.id)))
     await aplicarRegras("tarefa_concluida", id).catch((e) => console.error("regras:", e))
   }
   revalidarTarefa(formData)
@@ -395,6 +397,7 @@ export async function moverTarefaAction(tarefaId: string, coluna: string): Promi
     if (erro) return { erro }
     const proxima = await gerarProximaRecorrencia(tarefaId)
     avisarLiberadas(tarefaId, String(sessao.usuario.id))
+    depoisDaResposta(() => avisarConclusaoAosSeguidores(tarefaId, String(sessao.usuario.id)))
     await aplicarRegras("tarefa_concluida", tarefaId).catch((e) => console.error("regras:", e))
     revalidarPais(pais)
     revalidatePath("/painel/perfil/tarefas")

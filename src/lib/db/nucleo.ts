@@ -1,5 +1,5 @@
 import "server-only"
-import { esquemaAusente, lerEmLotes, nomesDosUsuarios as nomesDosUsuariosBase, texto } from "@/lib/db/comum"
+import { esquemaAusente, hojeSP, lerEmLotes, nomesDosUsuarios as nomesDosUsuariosBase, texto } from "@/lib/db/comum"
 import { fotosDosUsuarios } from "@/lib/db/fotos-usuarios"
 import { contarMensagens } from "@/lib/db/tarefa-conversa"
 import {
@@ -10,6 +10,7 @@ import {
   type Etiqueta,
   type ProgressoChecklist,
 } from "@/lib/db/tarefa-extras"
+import { somarDias } from "@/lib/deliberacoes-constantes"
 import { criaCiclo } from "@/lib/gantt"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -18,6 +19,7 @@ import {
   ehPrioridadeTarefa,
   ehRecorrenciaTarefa,
   proximoPrazoRecorrente,
+  segundaDaSemana,
   type PrioridadeTarefa,
   type RecorrenciaTarefa,
   type SituacaoDemanda,
@@ -42,8 +44,12 @@ function numero(v: unknown): number | null {
   return typeof v === "number" && Number.isFinite(v) ? v : null
 }
 
+/**
+ * O dia de hoje em São Paulo (era o dia em UTC até 23/11/2026: depois das 21h
+ * a conclusão gravava o dia seguinte e as tarefas do dia viravam atrasadas).
+ */
 function hojeISO(): string {
-  return new Date().toISOString().slice(0, 10)
+  return hojeSP()
 }
 
 // ── Pessoas ─────────────────────────────────────────────────────────────────
@@ -139,11 +145,14 @@ export type DemandaLinha = {
 
 export async function listarDemandas(filtro: {
   busca?: string
-  /** Uma situação, ou "abertas" (tudo que não está Feito). */
+  /** Uma situação, "abertas" (tudo que não está Feito) ou "atrasadas" (abertas com prazo vencido). */
   situacao?: string
   /** Tipo da demanda (ex.: "Feedback do sistema"). */
   tipo?: string
+  /** Só as destes responsáveis (uma pessoa, ou as de um departamento). */
+  responsavelIds?: string[]
 } = {}): Promise<DemandaLinha[]> {
+  if (filtro.responsavelIds && !filtro.responsavelIds.length) return []
   const admin = await createAdminClient()
   const emp = await tenantAtual()
   const busca = (filtro.busca ?? "").trim()
@@ -158,8 +167,10 @@ export async function listarDemandas(filtro: {
         .eq("emp_proprietaria_id", emp)
       if (busca) query = query.ilike("nome", `%${busca}%`)
       if (filtro.situacao === "abertas") query = query.neq("situacao", "Feito")
+      else if (filtro.situacao === "atrasadas") query = query.neq("situacao", "Feito").lt("prazo", hojeISO())
       else if (filtro.situacao) query = query.eq("situacao", filtro.situacao)
       if (filtro.tipo) query = query.eq("tipo", filtro.tipo)
+      if (filtro.responsavelIds) query = query.in("membro_responsavel_id", filtro.responsavelIds.slice(0, 300))
       return query
         .order("prazo", { ascending: true, nullsFirst: false })
         .order("nome", { ascending: true })
@@ -607,8 +618,11 @@ export type TarefaLinha = {
 
 export type FiltroTarefas = {
   busca?: string
-  status?: "pendentes" | "concluidas" | "atrasadas" | "todas"
+  /** "semana": abertas com prazo até o domingo desta semana (atrasadas inclusive). */
+  status?: "pendentes" | "concluidas" | "atrasadas" | "semana" | "todas"
   demandadoId?: string
+  /** Só as tarefas destes responsáveis (as pessoas de um departamento). */
+  demandadoIds?: string[]
   /** Só as tarefas com esta etiqueta. */
   etiquetaId?: string
   /** Restringe a um pai específico (usado nos detalhes de Demanda/Anomalia). */
@@ -628,6 +642,10 @@ export async function listarTarefas(
   const busca = (filtro.busca ?? "").trim()
   if (busca) query = query.ilike("titulo", `%${busca}%`)
   if (filtro.demandadoId) query = query.eq("demandado_id", filtro.demandadoId)
+  if (filtro.demandadoIds) {
+    if (!filtro.demandadoIds.length) return { disponivel: true, tarefas: [] }
+    query = query.in("demandado_id", filtro.demandadoIds.slice(0, 300))
+  }
   if (filtro.etiquetaId) {
     const comEtiqueta = await tarefasComEtiqueta(filtro.etiquetaId)
     if (!comEtiqueta.length) return { disponivel: true, tarefas: [] }
@@ -648,6 +666,8 @@ export async function listarTarefas(
   else if (filtro.status === "pendentes") query = query.not("concluido", "is", true)
   else if (filtro.status === "atrasadas")
     query = query.not("concluido", "is", true).lt("data_prazo_entrega", hoje)
+  else if (filtro.status === "semana")
+    query = query.not("concluido", "is", true).lte("data_prazo_entrega", somarDias(segundaDaSemana(hoje), 6))
 
   const { data, error } = await query
     .order("data_prazo_entrega", { ascending: true, nullsFirst: false })

@@ -25,8 +25,12 @@ import { podeAcessar } from "@/lib/permissoes"
 import { SITUACOES_DEMANDA } from "@/lib/nucleo-constantes"
 
 import { listarModelos } from "@/lib/db/modelos"
+import { listarFiltrosSalvos } from "@/lib/db/filtros-salvos"
+import { departamentosComIntegrantes } from "@/lib/db/paineis"
+import { consultaCanonica } from "@/lib/ferramentas-acompanhamento"
 import { listarPessoasAtribuiveis } from "@/lib/db/nucleo"
 
+import { FiltrosSalvos } from "../filtros-salvos"
 import { UsarModelo } from "../modelos/usar-modelo"
 import { QuadroDemandas } from "./quadro-demandas"
 
@@ -44,7 +48,15 @@ const CLASSE_SITUACAO: Record<string, string> = {
   Feito: "text-muted-foreground",
 }
 
-type Params = { busca?: string; situacao?: string; excluida?: string; tipo?: string; visao?: string }
+type Params = {
+  busca?: string
+  situacao?: string
+  excluida?: string
+  tipo?: string
+  visao?: string
+  responsavel?: string
+  departamento?: string
+}
 
 export default async function DemandasPage({
   searchParams,
@@ -59,19 +71,32 @@ export default async function DemandasPage({
   const busca = (brutos.busca ?? "").trim()
   const excluida = brutos.excluida === "1"
   const situacao =
-    brutos.situacao === "abertas" || (SITUACOES_DEMANDA as readonly string[]).includes(brutos.situacao ?? "")
+    brutos.situacao === "abertas" || brutos.situacao === "atrasadas" || (SITUACOES_DEMANDA as readonly string[]).includes(brutos.situacao ?? "")
       ? brutos.situacao
       : ""
   // Vindo da caixa de entrada ("Relatos do sistema a tratar").
   const tipo = (brutos.tipo ?? "").trim().slice(0, 60)
   const quadro = brutos.visao === "quadro"
+  const eu = String(sessao.usuario.id)
+  const [deptos, filtrosSalvos, pessoas] = await Promise.all([
+    departamentosComIntegrantes(),
+    listarFiltrosSalvos("demandas", eu),
+    listarPessoasAtribuiveis(),
+  ])
+  const depto = deptos.find((d) => d.id === (brutos.departamento ?? "").trim()) ?? null
+  const responsavel = pessoas.some((p) => p.id === brutos.responsavel) ? (brutos.responsavel as string) : ""
+  // Responsável e departamento juntos: a pessoa, se for do departamento.
+  const responsavelIds = responsavel
+    ? depto && !depto.integrantes.includes(responsavel)
+      ? []
+      : [responsavel]
+    : depto?.integrantes
 
-  const [resumo, demandas, modelos, pessoas] = await Promise.all([
+  const [resumo, demandas, modelos] = await Promise.all([
     resumoDemandas(),
     // O quadro mostra as três colunas: ignora o filtro de situação.
-    listarDemandas({ busca, situacao: quadro ? "" : situacao, tipo: tipo || undefined }),
+    listarDemandas({ busca, situacao: quadro ? "" : situacao, tipo: tipo || undefined, responsavelIds }),
     editor ? listarModelos("demanda") : Promise.resolve([]),
-    editor ? listarPessoasAtribuiveis() : Promise.resolve([]),
   ])
   const feitas = demandas.filter((d) => d.situacao === "Feito")
   const doQuadro = quadro
@@ -81,6 +106,8 @@ export default async function DemandasPage({
     const p = new URLSearchParams()
     if (busca) p.set("busca", busca)
     if (tipo) p.set("tipo", tipo)
+    if (responsavel) p.set("responsavel", responsavel)
+    if (depto) p.set("departamento", depto.id)
     if (v === "quadro") p.set("visao", "quadro")
     else if (situacao) p.set("situacao", situacao)
     const q = p.toString()
@@ -157,6 +184,16 @@ export default async function DemandasPage({
         ]}
       />
 
+      <FiltrosSalvos
+        pagina="demandas"
+        consultaAtual={consultaCanonica("demandas", brutos)}
+        atalhos={[
+          { id: "fixo-minhas", nome: "Minhas em aberto", consulta: consultaCanonica("demandas", { responsavel: eu, situacao: "abertas" }), fixo: true },
+          { id: "fixo-atrasadas", nome: "Atrasadas", consulta: consultaCanonica("demandas", { situacao: "atrasadas" }), fixo: true },
+          ...filtrosSalvos,
+        ]}
+      />
+
       <form
         className="flex flex-wrap items-center gap-2"
         action="/painel/ferramentas/demandas"
@@ -173,9 +210,32 @@ export default async function DemandasPage({
         {!quadro && (
           <select name="situacao" defaultValue={situacao} className={SELECT_FILTRO} aria-label="Situação">
             <option value="">Todas as situações</option>
+            <option value="abertas">Em aberto</option>
+            <option value="atrasadas">Atrasadas (prazo vencido)</option>
             {SITUACOES_DEMANDA.map((s) => (
               <option key={s} value={s}>
                 {s}
+              </option>
+            ))}
+          </select>
+        )}
+        <select name="responsavel" defaultValue={responsavel} className={SELECT_FILTRO} aria-label="Responsável">
+          <option value="">De todos</option>
+          <option value={eu}>Minhas</option>
+          {pessoas
+            .filter((p) => p.id !== eu)
+            .map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nome}
+              </option>
+            ))}
+        </select>
+        {deptos.length > 0 && (
+          <select name="departamento" defaultValue={depto?.id ?? ""} className={SELECT_FILTRO} aria-label="Departamento">
+            <option value="">Todos os departamentos</option>
+            {deptos.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.nome}
               </option>
             ))}
           </select>
