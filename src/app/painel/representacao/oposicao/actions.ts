@@ -28,6 +28,7 @@ import {
   excluirPergunta,
   obterCampanhaPublica,
   reverificarAssinaturaOposicao,
+  completarMatriculaOposicao,
   type DadosCampanha,
 } from "@/lib/db/oposicao"
 import {
@@ -361,6 +362,21 @@ export async function registrarEnvioEmpregadorAction(_prev: EstadoForm, fd: Form
 }
 
 /** Passa a carta assinada de novo pelo validador (onda 3: legado e validador novo). */
+/** "Completar matrícula" na oposição (23/11/2026): quem avalia informa a matrícula que faltou. */
+export async function completarMatriculaAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  const permissao = await exigirNaOposicao("avaliar", texto(fd, "campanha_id") || null)
+  if ("erro" in permissao) return { erro: permissao.erro }
+  const { sessao } = permissao
+  const id = texto(fd, "opositor_id")
+  const campanhaId = texto(fd, "campanha_id")
+  if (!id) return { erro: "Oposição inválida." }
+  const { erro } = await completarMatriculaOposicao(id, texto(fd, "matricula"), texto(fd, "origem"), sessao.usuario.id)
+  if (erro) return { erro }
+  revalidatePath(`/painel/representacao/oposicao/${campanhaId}/opositor/${id}`)
+  revalidatePath(`/painel/representacao/oposicao/${campanhaId}`)
+  return { ok: "Matrícula registrada." }
+}
+
 export async function reverificarAssinaturaAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
   const permissao = await exigirNaOposicao("avaliar", texto(fd, "campanha_id") || null)
   if ("erro" in permissao) return { erro: permissao.erro }

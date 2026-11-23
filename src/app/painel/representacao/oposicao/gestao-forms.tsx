@@ -25,6 +25,7 @@ import {
   DECISOES_JURIDICAS,
   padraoDaDecisao,
   MEIOS_ENVIO,
+  ORIGENS_MATRICULA,
   type RegrasOposicao,
   ROTULO_SITUACAO_OPOSITOR,
   type SituacaoOpositor,
@@ -32,6 +33,7 @@ import {
 
 import {
   avaliarEmLoteAction,
+  completarMatriculaAction,
   encerrarSemCartaAction,
   registrarEnvioEmpregadorAction,
   reverificarAssinaturaAction,
@@ -408,6 +410,57 @@ export function RegistrarEnvio({
 }
 
 /** "Reverificar assinatura" da carta (onda 3): baixa o PDF e passa pelo validador de novo. */
+/** "Completar matrícula" (23/11/2026): só aparece na oposição sem matrícula. */
+export function CompletarMatricula({ opositorId, campanhaId }: { opositorId: string; campanhaId: string }) {
+  const [estado, acao, pendente] = useActionState(completarMatriculaAction, {})
+  const envio = useEnvioFormulario(acao, estado)
+  return (
+    <form action={acao} {...envio} className="grid gap-3 rounded-md border border-dashed p-3">
+      <input type="hidden" name="opositor_id" value={opositorId} />
+      <input type="hidden" name="campanha_id" value={campanhaId} />
+      <p className="text-sm font-medium">Completar matrícula</p>
+      <p className="text-muted-foreground text-xs">
+        A pessoa registrou sem a matrícula. Informe o número obtido com ela ou com a empresa: fica na trilha da
+        oposição, com a origem e o seu nome. A oposição não muda.
+      </p>
+      {estado.erro && (
+        <Alert variant="destructive">
+          <AlertDescription>{estado.erro}</AlertDescription>
+        </Alert>
+      )}
+      <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <div className="grid gap-1.5">
+          <Label htmlFor="completar_matricula">Matrícula na fonte pagadora</Label>
+          <Input id="completar_matricula" name="matricula" required maxLength={40} autoComplete="off" />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="completar_origem">De onde veio</Label>
+          <select
+            id="completar_origem"
+            name="origem"
+            required
+            defaultValue=""
+            className="border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
+          >
+            <option value="" disabled>
+              Escolha…
+            </option>
+            {ORIGENS_MATRICULA.map((o) => (
+              <option key={o.chave} value={o.chave}>
+                {o.rotulo}
+              </option>
+            ))}
+          </select>
+        </div>
+        <Button type="submit" disabled={pendente}>
+          {pendente && <Loader2 className="animate-spin" />}
+          Registrar matrícula
+        </Button>
+      </div>
+    </form>
+  )
+}
+
 export function ReverificarAssinatura({ opositorId, campanhaId }: { opositorId: string; campanhaId: string }) {
   const [estado, acao, pendente] = useActionState(reverificarAssinaturaAction, {})
   const envio4 = useEnvioFormulario(acao, estado)

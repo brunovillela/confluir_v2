@@ -31,6 +31,7 @@ import {
   regrasEfetivas,
   avisoMudancaDoAto,
   DECISOES_DO_ATO,
+  ORIGENS_MATRICULA,
   rotuloOpcao,
   type ChaveDecisao,
   regrasComAto,
@@ -2005,6 +2006,55 @@ export function problemaDaAssinatura(
 
 /** Hosts de onde a carta do legado pode ser baixada (o resto do caminho vem do banco). */
 const HOST_CARTA_LEGADO = /^[0-9a-f]+\.cdn\.bubble\.io$/
+
+/**
+ * "Completar matrícula" (23/11/2026): a equipe informa a matrícula de quem
+ * registrou sem ela (o não filiado, quando a campanha não a exigia). Só
+ * completa — não troca matrícula informada pela pessoa —, vale em qualquer
+ * situação e vai para a trilha com o número, a origem e quem informou.
+ */
+export async function completarMatriculaOposicao(
+  id: string,
+  matricula: string,
+  origem: string,
+  usuarioId: string
+): Promise<{ erro?: string }> {
+  const m = matricula.trim().replace(/\s+/g, " ")
+  if (!m) return { erro: "Informe a matrícula." }
+  if (m.length > 40) return { erro: "Matrícula longa demais (até 40 caracteres)." }
+  const rotuloOrigem = ORIGENS_MATRICULA.find((o) => o.chave === origem)?.rotulo
+  if (!rotuloOrigem) return { erro: "Diga de onde veio a matrícula." }
+  const empId = await tenantAtual()
+  const admin = await createAdminClient()
+  const { data: o } = await admin
+    .from("oposicao_opositor")
+    .select("id, matricula, situacao")
+    .eq("id", id)
+    .eq("emp_proprietaria_id", empId)
+    .maybeSingle()
+  if (!o) return { erro: "Oposição não encontrada." }
+  if (texto(o.matricula)) return { erro: "Esta oposição já tem matrícula." }
+  if (o.situacao === "desistente") return { erro: "A pessoa desistiu desta oposição." }
+  // A condição no próprio update segura duas pessoas completando ao mesmo tempo.
+  const { data: gravada, error } = await admin
+    .from("oposicao_opositor")
+    .update({ matricula: m })
+    .eq("id", id)
+    .eq("emp_proprietaria_id", empId)
+    .or("matricula.is.null,matricula.eq.")
+    .select("id")
+  if (error) return { erro: `Falha ao gravar a matrícula: ${error.message}` }
+  if (!gravada?.length) return { erro: "Esta oposição já tem matrícula." }
+  await registrarEvento(
+    id,
+    "matricula_completada",
+    `Matrícula ${m} completada pela equipe. Origem: ${rotuloOrigem}.`,
+    null,
+    null,
+    { usuarioId }
+  )
+  return {}
+}
 
 /**
  * Baixa a carta assinada (Storage ou, no legado, a CDN do Bubble), passa de

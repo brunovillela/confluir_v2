@@ -335,6 +335,14 @@ export function avisoMudancaDoAto(
   ].join("\n")
 }
 
+/** De onde a equipe obteve a matrícula que completou na oposição (23/11/2026). */
+export const ORIGENS_MATRICULA = [
+  { chave: "trabalhador", rotulo: "Informada pelo trabalhador" },
+  { chave: "empresa", rotulo: "Informada pelo RH da empresa" },
+  { chave: "cadastro", rotulo: "Cadastro da entidade" },
+  { chave: "outra", rotulo: "Outra fonte" },
+] as const
+
 /** As decisões ainda em branco (rótulos), para a mensagem que impede abrir. Decisão com padrão nunca falta. */
 export function decisoesFaltando(regras: RegrasOposicao): string[] {
   return DECISOES_JURIDICAS.filter((d) => !regras[d.chave] && !("padrao" in d)).map((d) => d.rotulo)

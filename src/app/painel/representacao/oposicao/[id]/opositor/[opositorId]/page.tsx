@@ -23,7 +23,7 @@ import { formatarCnpjCpf, formatarData, formatarDataHora } from "@/lib/formato"
 import { mascaraCpf } from "@/lib/mascaras"
 import { ROTULO_SITUACAO_OPOSITOR } from "@/lib/oposicao-constantes"
 
-import { ReverificarAssinatura } from "../../../gestao-forms"
+import { CompletarMatricula, ReverificarAssinatura } from "../../../gestao-forms"
 import { AvaliarForm } from "../../../oposicao-forms"
 
 export const metadata: Metadata = { title: "Avaliar oposição — Confluir" }
@@ -119,6 +119,11 @@ export default async function OpositorPage({
             <Campo rotulo="Telefone" valor={o.telefone} />
             <Campo rotulo="Lotação" valor={o.lotacao} />
           </dl>
+          {!o.matricula && podeAvaliar && o.situacao !== "desistente" && (
+            <div className="mt-4">
+              <CompletarMatricula opositorId={o.id} campanhaId={id} />
+            </div>
+          )}
         </CardContent>
       </Card>
 
