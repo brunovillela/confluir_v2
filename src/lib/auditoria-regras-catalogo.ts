@@ -155,7 +155,7 @@ export const REGRAS_AUDITORIA: RegraCatalogo[] = [
     codigo: "duplicidade",
     titulo: "Cobrança em duplicidade",
     pergunta: "Aceita ordem com o mesmo favorecido e o mesmo valor de outra já existente, em datas próximas?",
-    explicacao: "Procura outra ordem não cancelada do mesmo favorecido, mesmo valor, com vencimento próximo.",
+    explicacao: "Procura outra ordem não cancelada do mesmo favorecido, mesmo valor, com vencimento próximo — ou, na compra, de outra compra com data próxima (a lançada dias depois tem vencimento novo).",
     origens: TODAS,
     padrao: { "*": "alertar" },
     parametros: [{ chave: "dias", rotulo: "Janela (dias antes e depois do vencimento)", tipo: "dias", padrao: 7 }],

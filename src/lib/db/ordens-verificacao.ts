@@ -451,6 +451,39 @@ async function verificarLinha(
         q = fornId ? q.eq("beneficiario_fornecedor_id", fornId) : q.eq("beneficiario_usuario_id", usuarioId!)
         const { data } = await q.limit(5)
         const parecidas = (data ?? []) as Linha[]
+        // Compra (23/11/2026): também pela DATA DA COMPRA. A compra lançada dias
+        // depois tem vencimento novo e escapava (táxi de 06/11 lançado em 23/11
+        // não encontrava o outro táxi de 06/11, de mesmo valor).
+        const proc = await buscar("compras_solicitacoes", linha.processo_compra_id)
+        const dataCompra = t(proc?.compra_data)
+        if (proc && dataCompra) {
+          const { data: compras } = await admin
+            .from("compras_solicitacoes")
+            .select("id")
+            .eq("emp_proprietaria_id", emp)
+            .eq("cancelado", false)
+            .neq("id", String(proc.id))
+            .gte("compra_data", somarDias(dataCompra, -dias))
+            .lte("compra_data", somarDias(dataCompra, dias))
+            .limit(1000)
+          const ids = (compras ?? []).map((c) => String(c.id))
+          for (let i = 0; i < ids.length && parecidas.length < 5; i += 200) {
+            let qc = admin
+              .from("ordens_pagamento")
+              .select("id, codigo, descricao, vencimento, situacao, valor_inicial_cobranca")
+              .eq("emp_proprietaria_id", emp)
+              .eq("valor_inicial_cobranca", valor)
+              .not("situacao", "in", '("Cancelada","Estornado")')
+              .not("excluido", "is", true)
+              .in("processo_compra_id", ids.slice(i, i + 200))
+            if (t(linha.id)) qc = qc.neq("id", t(linha.id)!)
+            qc = fornId ? qc.eq("beneficiario_fornecedor_id", fornId) : qc.eq("beneficiario_usuario_id", usuarioId!)
+            const { data: pelaCompra } = await qc.limit(5)
+            for (const o of (pelaCompra ?? []) as Linha[]) {
+              if (parecidas.length < 5 && !parecidas.some((x) => String(x.id) === String(o.id))) parecidas.push(o)
+            }
+          }
+        }
         const cods = parecidas.map((o) => t(o.codigo)).filter(Boolean)
         // As parecidas vão junto, para a tela de confirmação mostrar lado a lado (17/11/2026).
         const relacionadas: OrdemRelacionada[] = parecidas.map((o) => ({
@@ -463,7 +496,9 @@ async function verificarLinha(
         }))
         r(
           parecidas.length ? "falha" : "ok",
-          parecidas.length ? `Mesmo favorecido e valor em ±${dias} dias: ${cods.join(", ") || "(sem código)"}.` : "Nenhuma ordem parecida.",
+          parecidas.length
+            ? `Mesmo favorecido e valor em ±${dias} dias${dataCompra ? " (do vencimento ou da data da compra)" : ""}: ${cods.join(", ") || "(sem código)"}.`
+            : "Nenhuma ordem parecida.",
           relacionadas
         )
         break
