@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useState } from "react"
+import { useActionState, useEffect, useRef, useState } from "react"
 import { Loader2, Plus, Trash2 } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -33,6 +33,7 @@ import {
   avaliarOpositorAction,
   criarCampanhaAction,
   excluirPerguntaAction,
+  type EstadoCampanhaForm,
 } from "./actions"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
@@ -55,11 +56,13 @@ export function CampanhaForm({
   /** Padrão da entidade, para a opção "Padrão da entidade (…)". */
   regrasEntidade: RegrasOposicao
 }) {
-  const [estado, formAction, pendente] = useActionState(
+  const [estado, formAction, pendente] = useActionState<EstadoCampanhaForm, FormData>(
     campanha ? atualizarCampanhaAction : criarCampanhaAction,
     {}
   )
-  const envio1 = useEnvioFormulario(formAction, estado)
+  // `manter`: o sucesso redireciona; o pedido de confirmação não pode apagar
+  // o que foi mudado no formulário.
+  const envio1 = useEnvioFormulario(formAction, estado, { manter: true })
   const selec = new Set(fonteIds)
 
   return (
@@ -72,6 +75,7 @@ export function CampanhaForm({
           <AlertDescription>{estado.erro}</AlertDescription>
         </Alert>
       )}
+      {estado.confirmar && !pendente && <ConfirmarMudancaDoAto mensagem={estado.confirmar} />}
 
       <div className="grid gap-1.5">
         <Label htmlFor="nome">Nome da campanha</Label>
@@ -145,7 +149,8 @@ export function CampanhaForm({
         <legend className="text-sm font-medium">Decisões jurídicas</legend>
         <p className="text-muted-foreground text-xs">
           Sem todas decididas (aqui ou no padrão da entidade), a campanha não abre. Ao abrir, as que valem ficam
-          gravadas nela; vídeo, assinaturas e prova do não filiado não mudam depois da primeira oposição.
+          gravadas nela. Vídeo, assinaturas e prova do não filiado podem mudar com oposições já registradas (o sistema pede
+          confirmação): a nova exigência vale para quem registrar dali em diante.
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
           {DECISOES_JURIDICAS.map((d) => {
@@ -512,5 +517,35 @@ function PerguntasFrequentesEditor({ iniciais }: { iniciais: PerguntaFrequente[]
         </Button>
       </div>
     </fieldset>
+  )
+}
+
+/**
+ * Mudar vídeo, assinaturas ou prova do não filiado com oposições registradas
+ * (23/11/2026): o que passa a valer e o botão que reenvia com a confirmação.
+ */
+function ConfirmarMudancaDoAto({ mensagem }: { mensagem: string }) {
+  const [aberto, setAberto] = useState(true)
+  const ref = useRef<HTMLDivElement>(null)
+  // O botão Salvar fica no fim do formulário; o aviso, no começo.
+  // Em chaves: o scrollIntoView do Chromium novo devolve uma Promise, e o
+  // efeito que devolve algo além de função derruba a página.
+  useEffect(() => {
+    ref.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+  }, [])
+  if (!aberto) return null
+  return (
+    <div ref={ref} role="alertdialog" aria-labelledby="titulo-mudanca-ato" className="grid gap-3 rounded-md border border-amber-500/60 bg-amber-50 p-4 text-sm dark:bg-amber-950/30">
+      <p id="titulo-mudanca-ato" className="font-medium">Confirmar a mudança das regras</p>
+      <p className="whitespace-pre-line">{mensagem}</p>
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" name="confirmar_mudanca_ato" value="1">
+          Sim, prosseguir
+        </Button>
+        <Button type="button" variant="outline" onClick={() => setAberto(false)}>
+          Não, revisar
+        </Button>
+      </div>
+    </div>
   )
 }

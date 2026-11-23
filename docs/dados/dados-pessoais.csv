@@ -959,6 +959,7 @@ modulo,tabela,coluna,categoria,titulares,descricao
 "filiacao","oposicao_opositor","ciencia_hash","nenhum","trabalhadores opositores (filiados ou não)","sha256 do ciencia_texto."
 "filiacao","oposicao_opositor","ciencia_em","identificacao","trabalhadores opositores (filiados ou não)","Quando a pessoa clicou em ""Li e quero prosseguir""."
 "filiacao","oposicao_opositor","carta_modelo","nenhum","trabalhadores opositores (filiados ou não)","Modelo da carta em vigor quando a oposição foi registrada (a carta e o hash da assinatura usam este); nulo = texto padrão do sistema."
+"filiacao","oposicao_opositor","regras_ato","nenhum","trabalhadores opositores (filiados ou não)","Decisões jurídicas que valiam no registro: {video_minimo, assinaturas_aceitas, prova_nao_filiado}. Nulo = as da campanha."
 "filiacao","oposicao_regras","","identificacao","usuários do sistema","Decisões jurídicas padrão da entidade para as campanhas de oposição (carta fora do prazo, vídeo mínimo, assinaturas aceitas, prova do não filiado, segregação de permissões). Nulo = não decidido."
 "filiacao","oposicao_regras","definido_por","identificacao","usuários do sistema","Quem salvou as decisões por último."
 "filiacao","oposicao_regras","definido_por_nome","identificacao","usuários do sistema","Nome de quem salvou, no momento."

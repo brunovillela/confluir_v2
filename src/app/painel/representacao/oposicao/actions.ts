@@ -189,21 +189,23 @@ export async function criarCampanhaAction(
   redirect(`/painel/representacao/oposicao/${id}?salvo=1`)
 }
 
+/** Estado do formulário da campanha: `confirmar` = mudar decisão do ato pede confirmação. */
+export type EstadoCampanhaForm = EstadoForm & { confirmar?: string }
+
 export async function atualizarCampanhaAction(
-  _prev: EstadoForm,
+  _prev: EstadoCampanhaForm,
   fd: FormData
-): Promise<EstadoForm> {
+): Promise<EstadoCampanhaForm> {
   const permissao = await exigirNaOposicao("configurar", texto(fd, "campanha_id") || null)
   if ("erro" in permissao) return { erro: permissao.erro }
   const { sessao } = permissao
   const id = texto(fd, "campanha_id")
   if (!id) return { erro: "Campanha inválida." }
-  const { erro } = await atualizarCampanha(
-    id,
-    lerDados(fd),
-    sessao.usuario.id
-  )
+  const { erro, confirmar } = await atualizarCampanha(id, lerDados(fd), sessao.usuario.id, {
+    confirmarMudancaDoAto: texto(fd, "confirmar_mudanca_ato") === "1",
+  })
   if (erro) return { erro }
+  if (confirmar) return { confirmar }
   revalidar(id)
   redirect(`/painel/representacao/oposicao/${id}?salvo=1`)
 }

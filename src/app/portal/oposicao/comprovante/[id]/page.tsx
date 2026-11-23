@@ -35,7 +35,7 @@ import { configDoPortal } from "@/lib/db/portal-partes"
 import { formatarCnpjCpf, formatarData, formatarDataHora } from "@/lib/formato"
 import { mascaraCpf } from "@/lib/mascaras"
 import { CartaTexto } from "@/components/oposicao/carta-texto"
-import { aceitaCartaEnviada, assinaPeloConfluir, estadoPrazo } from "@/lib/oposicao-constantes"
+import { aceitaCartaEnviada, assinaPeloConfluir, estadoPrazo, regrasComAto } from "@/lib/oposicao-constantes"
 import { origemAtual } from "@/lib/tenant-url"
 import { regrasDaCampanha } from "@/lib/db/oposicao-regras"
 import { getVisualizacaoPortal } from "@/lib/visualizacao-filiado"
@@ -86,7 +86,9 @@ export default async function ComprovantePage({
 
   const aguardando = c.situacao === "aguardando_documento"
   // Decisões jurídicas da campanha: carta depois do prazo e assinaturas aceitas.
-  const { efetivas: regras } = await regrasDaCampanha(c.campanhaId)
+  // As do ato por cima das da campanha: a decisão mudada depois vale só para
+  // quem registrar dali em diante (23/11/2026).
+  const regras = regrasComAto((await regrasDaCampanha(c.campanhaId)).efetivas, c.regrasAto)
   const cartaForaRecusada = regras.carta_fora_prazo === "recusar"
   // Assinatura pelo próprio Confluir (08/11/2026): disponível conforme a
   // decisão "assinaturas aceitas"; a carta enviada em PDF fica como

@@ -283,6 +283,58 @@ export function regrasEfetivas(campanha: RegrasOposicao, entidade: RegrasOposica
   ) as RegrasOposicao
 }
 
+/**
+ * Decisões que mudam o que o trabalhador tem de fazer ao se opor. Podem mudar
+ * com a campanha aberta (com confirmação, 23/11/2026), mas valem dali em
+ * diante: cada oposição guarda as que valiam no registro (`regras_ato`).
+ */
+export const DECISOES_DO_ATO = ["video_minimo", "assinaturas_aceitas", "prova_nao_filiado"] as const satisfies readonly ChaveDecisao[]
+
+/** As decisões de uma oposição: as do ato (gravadas no registro) sobre as da campanha. */
+export function regrasComAto(campanha: RegrasOposicao, ato: unknown): RegrasOposicao {
+  if (!ato || typeof ato !== "object") return campanha
+  const gravadas = ato as Record<string, unknown>
+  const r = { ...campanha }
+  for (const c of DECISOES_DO_ATO) {
+    const v = gravadas[c]
+    if (typeof v === "string" && v) r[c] = v
+  }
+  return r
+}
+
+/** O que gravar na oposição: as decisões do ato que valem agora. */
+export function regrasDoAtoParaGravar(efetivas: RegrasOposicao): Record<string, string | null> {
+  return Object.fromEntries(DECISOES_DO_ATO.map((c) => [c, efetivas[c] ?? null]))
+}
+
+/** O efeito descrito na opção (para a confirmação de mudança). */
+export function efeitoOpcao(chave: ChaveDecisao, valor: string | null): string | null {
+  if (!valor) return null
+  const d = DECISOES_JURIDICAS.find((x) => x.chave === chave)
+  return (d?.opcoes as readonly { chave: string; efeito?: string }[] | undefined)?.find((o) => o.chave === valor)?.efeito ?? null
+}
+
+/**
+ * O aviso antes de mudar decisões do ato numa campanha com oposições
+ * registradas: o que passa a valer e para quem.
+ */
+export function avisoMudancaDoAto(
+  mudancas: { chave: ChaveDecisao; antes: string | null; depois: string | null }[],
+  registradas: number
+): string {
+  const linhas = mudancas.map((m) => {
+    const d = DECISOES_JURIDICAS.find((x) => x.chave === m.chave)
+    const efeito = efeitoOpcao(m.chave, m.depois)
+    return `${d?.rotulo ?? m.chave}: de “${rotuloOpcao(m.chave, m.antes) ?? "—"}” para “${rotuloOpcao(m.chave, m.depois) ?? "—"}”.${efeito ? ` ${efeito}` : ""}`
+  })
+  const n = registradas.toLocaleString("pt-BR")
+  return [
+    `A partir desta mudança, quem registrar a oposição seguirá a nova exigência:`,
+    ...linhas.map((l) => `• ${l}`),
+    `${registradas === 1 ? "A oposição já registrada continua com as regras de quando foi feita." : `As ${n} oposições já registradas continuam com as regras de quando foram feitas.`} A mudança fica na trilha da campanha, com o seu nome. Deseja prosseguir?`,
+  ].join("\n")
+}
+
 /** As decisões ainda em branco (rótulos), para a mensagem que impede abrir. Decisão com padrão nunca falta. */
 export function decisoesFaltando(regras: RegrasOposicao): string[] {
   return DECISOES_JURIDICAS.filter((d) => !regras[d.chave] && !("padrao" in d)).map((d) => d.rotulo)

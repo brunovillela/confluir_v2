@@ -25,7 +25,7 @@ import { obterOrganizacao } from "@/lib/db/organizacao"
 import { enviarEmail } from "@/lib/email"
 import { botaoEmail, caixaAviso, caixaCodigo, escaparHtml, paragrafo, textoSuave, tituloEmail } from "@/lib/email-layout"
 import { formatarCnpjCpf, formatarData } from "@/lib/formato"
-import { assinaPeloConfluir } from "@/lib/oposicao-constantes"
+import { assinaPeloConfluir, regrasComAto } from "@/lib/oposicao-constantes"
 import { CartaOposicaoPDF, type DadosCartaOposicao } from "@/lib/pdf/carta-oposicao"
 import { logoDataUri } from "@/lib/pdf/logo-pdf"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -234,7 +234,9 @@ async function conferirOposicao(
   if (c.situacao !== "aguardando_documento") {
     return { erro: "Esta oposição não está aguardando a carta assinada. Recarregue a página." }
   }
-  const { efetivas } = await regrasDaCampanha(c.campanhaId)
+  // As da campanha, com as do ato por cima: mudar a decisão depois não muda
+  // o que vale para quem já registrou (23/11/2026).
+  const efetivas = regrasComAto((await regrasDaCampanha(c.campanhaId)).efetivas, c.regrasAto)
   if (!assinaPeloConfluir(efetivas.assinaturas_aceitas)) {
     return { erro: "Esta campanha não aceita a assinatura pelo Confluir." }
   }

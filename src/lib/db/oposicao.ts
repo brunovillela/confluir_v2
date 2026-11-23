@@ -29,7 +29,12 @@ import {
   decisoesFaltando,
   REGRAS_VAZIAS,
   regrasEfetivas,
+  avisoMudancaDoAto,
+  DECISOES_DO_ATO,
+  rotuloOpcao,
   type ChaveDecisao,
+  regrasComAto,
+  regrasDoAtoParaGravar,
   type RegrasOposicao,
   estadoPrazo,
   TAMANHO_MAX_CARTA,
@@ -417,8 +422,6 @@ function normalizar(dados: DadosCampanha): Record<string, unknown> {
   return p
 }
 
-/** Decisões que mudam o que o trabalhador teve de fazer: travadas com oposições registradas. */
-const DECISOES_DO_ATO: ChaveDecisao[] = ["video_minimo", "assinaturas_aceitas", "prova_nao_filiado"]
 
 /**
  * Campanha que vai ficar ABERTA: todas as decisões jurídicas precisam valer
@@ -571,8 +574,9 @@ export async function criarCampanha(
 export async function atualizarCampanha(
   id: string,
   dados: DadosCampanha,
-  usuarioId?: string | null
-): Promise<{ erro?: string }> {
+  usuarioId?: string | null,
+  opcoes: { confirmarMudancaDoAto?: boolean } = {}
+): Promise<{ erro?: string; confirmar?: string }> {
   if (!dados.nome.trim()) return { erro: "Informe o nome da campanha." }
   const erroDatas = erroDeDatas(dados)
   if (erroDatas) return { erro: erroDatas }
@@ -592,22 +596,31 @@ export async function atualizarCampanha(
   const abrir = await decisoesParaAbrir(String(novo.situacao), propriaNova)
   if (abrir.erro) return { erro: abrir.erro }
   if (abrir.colunas) Object.assign(novo, abrir.colunas)
-  const mudou = Object.keys(novo).filter((k) => (antes[k] ?? null) !== (novo[k] ?? null))
+  // Colunas jsonb (perguntas frequentes) comparadas pelo conteúdo: objeto
+  // lido e objeto novo nunca são o mesmo, e cada salvamento contava mudança.
+  const igual = (a: unknown, b: unknown) =>
+    a !== null && typeof a === "object" ? JSON.stringify(a) === JSON.stringify(b) : a === b
+  const mudou = Object.keys(novo).filter((k) => !igual(antes[k] ?? null, novo[k] ?? null))
 
-  // O que o trabalhador teve de fazer (vídeo, assinatura, prova) não muda
-  // depois de haver oposição registrada — comparado pelo que VALE, para que
-  // gravar na campanha o padrão que ela já seguia não conte como mudança.
+  // O que o trabalhador tem de fazer (vídeo, assinatura, prova) pode mudar com
+  // oposições já registradas (23/11/2026), mas só com a confirmação de quem
+  // muda: vale dali em diante — cada oposição guarda as regras do seu ato
+  // (regras_ato). Comparado pelo que VALE, para que gravar na campanha o
+  // padrão que ela já seguia não conte como mudança.
   const entidadeAgora = (await regrasDaEntidade()).regras
   const valiaAntes = regrasEfetivas(regrasDaLinhaCampanha(antes), entidadeAgora)
   const valeDepois = regrasEfetivas(abrir.colunas ? regrasDaLinhaCampanha(novo) : propriaNova, entidadeAgora)
   const atoMudou = DECISOES_DO_ATO.filter((c) => valiaAntes[c] !== valeDepois[c])
+  let registradasAntesDaMudanca = 0
   if (atoMudou.length) {
     const registradas = await oposicoesNovasDaCampanha(admin, empId, id)
-    if (registradas > 0) {
+    registradasAntesDaMudanca = registradas
+    if (registradas > 0 && !opcoes.confirmarMudancaDoAto) {
       return {
-        erro: `Esta campanha já tem ${registradas.toLocaleString("pt-BR")} oposição(ões) registrada(s): ${atoMudou
-          .map((c) => DECISOES_JURIDICAS.find((d) => d.chave === c)?.rotulo.toLowerCase())
-          .join(", ")} não pode(m) mais mudar — quem se opôs seguiu as regras de agora.`,
+        confirmar: avisoMudancaDoAto(
+          atoMudou.map((c) => ({ chave: c, antes: valiaAntes[c], depois: valeDepois[c] })),
+          registradas
+        ),
       }
     }
   }
@@ -627,12 +640,23 @@ export async function atualizarCampanha(
   }
   const fontes = await gravarFontes(admin, empId, id, dados.fonteIds)
   // Textos longos (a declaração) vão como "(texto)": o antes/depois completo fica na auditoria.
-  const curto = (v: unknown) => (typeof v === "string" && v.length > 80 ? "(texto)" : String(v))
+  const curto = (v: unknown) =>
+    typeof v === "string" && v.length > 80 ? "(texto)" : v !== null && typeof v === "object" ? "(lista)" : String(v)
+  // Decisão jurídica com o nome da opção (não a chave interna).
+  const valor = (k: string, v: unknown) => {
+    const chave = k.startsWith("regra_") ? (k.slice(6) as ChaveDecisao) : null
+    return chave && typeof v === "string" ? (rotuloOpcao(chave, v) ?? v) : curto(v ?? "—")
+  }
   const partes = mudou.map(
-    (k) => `${ROTULOS_CAMPO_CAMPANHA[k] ?? k}: ${curto(antes[k] ?? "—")} → ${curto(novo[k] ?? "—")}`
+    (k) => `${ROTULOS_CAMPO_CAMPANHA[k] ?? k}: ${valor(k, antes[k] ?? null)} → ${valor(k, novo[k] ?? null)}`
   )
   if (fontes.entraram.length) partes.push(`fontes incluídas: ${fontes.entraram.length}`)
   if (fontes.sairam.length) partes.push(`fontes retiradas: ${fontes.sairam.length}`)
+  if (atoMudou.length && registradasAntesDaMudanca > 0) {
+    partes.push(
+      `mudança confirmada com ${registradasAntesDaMudanca === 1 ? "1 oposição já registrada, que segue" : `${registradasAntesDaMudanca.toLocaleString("pt-BR")} oposições já registradas, que seguem`} as regras de quando foram feitas; a nova exigência vale para quem registrar daqui em diante`
+    )
+  }
   if (partes.length) {
     await registrarEvento(null, "campanha_editada", partes.join("; "), null, null, { usuarioId, campanhaId: id })
   }
@@ -1258,6 +1282,9 @@ export async function registrarOposicao(
   // O texto da carta também fica como estava agora (14/11/2026): mudar o
   // modelo depois não muda a carta desta pessoa nem a já assinada.
   const cartaModelo = await modeloDaCartaEmVigor(dados.campanhaId)
+  // As decisões jurídicas do ato (23/11/2026): podem mudar depois, valendo
+  // só para quem registrar dali em diante.
+  const regrasAto = regrasDoAtoParaGravar((await regrasDaCampanha(dados.campanhaId)).efetivas)
 
   let protocolo: number
   try {
@@ -1282,6 +1309,7 @@ export async function registrarOposicao(
     carta_modelo: cartaModelo,
     modo_formalizacao_ato: texto(campanha.modo_formalizacao),
     prazo_fim_ato: texto(campanha.prazo_fim),
+    regras_ato: regrasAto,
     ciencia_texto: dados.ciencia?.texto ?? null,
     ciencia_hash: dados.ciencia ? hashTexto(dados.ciencia.texto) : null,
     ciencia_em: dados.ciencia?.em ?? null,
@@ -1571,6 +1599,8 @@ export async function subirDocumentoAssinado(
 export type Comprovante = {
   id: string
   campanhaId: string | null
+  /** Decisões jurídicas gravadas no registro (ver regrasComAto); null nas antigas. */
+  regrasAto: unknown
   protocolo: number | null
   campanhaNome: string | null
   detalhe_desconto: string | null
@@ -1608,7 +1638,7 @@ export type Comprovante = {
 }
 
 const COLUNAS_COMPROVANTE =
-  "id, protocolo, campanha_id, nome_completo, cpf, matricula, empregador_id, situacao, confirmado_em, avaliacao_data, reprovacao_motivo, documento_assinado_url, declaracao_aceita, carta_modelo"
+  "id, protocolo, campanha_id, nome_completo, cpf, matricula, empregador_id, situacao, confirmado_em, avaliacao_data, reprovacao_motivo, documento_assinado_url, declaracao_aceita, carta_modelo, regras_ato"
 
 /** Comprovante da oposição — só para o próprio CPF (segurança). */
 export async function obterComprovante(
@@ -1672,6 +1702,7 @@ export async function obterComprovante(
   return {
     id: String(o.id),
     campanhaId: texto(o.campanha_id),
+    regrasAto: o.regras_ato ?? null,
     protocolo: o.protocolo == null ? null : Number(o.protocolo),
     campanhaNome: c ? texto(c.nome) : null,
     detalhe_desconto: c ? texto(c.detalhe_desconto) : null,
@@ -1921,7 +1952,7 @@ export async function obterOpositorDetalhe(
     documentoEnviadoEm: texto(o.documento_enviado_em),
     validacao,
     problemaAssinatura: caminhoDocumento
-      ? problemaDaAssinatura(validacao, (await regrasDaCampanha(texto(o.campanha_id))).efetivas.assinaturas_aceitas)
+      ? problemaDaAssinatura(validacao, regrasComAto((await regrasDaCampanha(texto(o.campanha_id))).efetivas, o.regras_ato).assinaturas_aceitas)
       : null,
     userAgent: texto(o.user_agent),
     declaracaoAceita: texto(o.declaracao_aceita),
@@ -2045,7 +2076,7 @@ export async function avaliarOpositor(
   // re-decidir, e o mesmo "Reprovar" salvo duas vezes não é um fato novo.
   const { data: antes } = await admin
     .from("oposicao_opositor")
-    .select("situacao, reprovacao_motivo, cpf, email, nome_completo, filiacao_id, protocolo, campanha_id, documento_assinado_url, carta, assinatura_validacao")
+    .select("situacao, reprovacao_motivo, cpf, email, nome_completo, filiacao_id, protocolo, campanha_id, documento_assinado_url, carta, assinatura_validacao, regras_ato")
     .eq("id", id)
     .eq("emp_proprietaria_id", empId)
     .maybeSingle()
@@ -2058,7 +2089,7 @@ export async function avaliarOpositor(
     aprovar && (texto(antes.documento_assinado_url) ?? texto(antes.carta))
       ? problemaDaAssinatura(
           antes.assinatura_validacao as ValidacaoAssinatura | null,
-          (await regrasDaCampanha(texto(antes.campanha_id))).efetivas.assinaturas_aceitas
+          regrasComAto((await regrasDaCampanha(texto(antes.campanha_id))).efetivas, antes.regras_ato).assinaturas_aceitas
         )
       : null
   if (problemaAssinatura && !opcoes.confirmarAssinatura) {

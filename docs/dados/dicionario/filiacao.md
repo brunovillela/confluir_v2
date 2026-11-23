@@ -1512,6 +1512,7 @@ Cada trabalhador que se opôs à contribuição assistencial numa campanha: dado
 | `ciencia_hash` | text | sim |  |  | nenhum | sha256 do ciencia_texto. |
 | `ciencia_em` | timestamp with time zone | sim |  |  | identificação | Quando a pessoa clicou em "Li e quero prosseguir". |
 | `carta_modelo` | text | sim |  |  | nenhum | Modelo da carta em vigor quando a oposição foi registrada (a carta e o hash da assinatura usam este); nulo = texto padrão do sistema. |
+| `regras_ato` | jsonb | sim |  |  | nenhum | Decisões jurídicas que valiam no registro: {video_minimo, assinaturas_aceitas, prova_nao_filiado}. Nulo = as da campanha. |
 
 Únicas: `UNIQUE (bubble_id)`
 
