@@ -148,6 +148,7 @@ export async function solicitarVerificacaoEmail(
   }
 
   const enviado = await enviarEmail({
+    processo: "votacao.codigo_verificacao",
     email: alvo,
     assunto: "Código para verificar seu e-mail de votação — {ENTIDADE}",
     html: `<p>Seu código para verificar este e-mail de votação é:</p>

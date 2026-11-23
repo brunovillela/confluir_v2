@@ -95,7 +95,7 @@ async function enviarLink(email: string, nome: string | null, token: string): Pr
     paragrafo(
       `O link vale por ${VALIDADE_LINK_DIAS} dias e leva de volta ao ponto onde você parou. Se não foi você quem pediu, ignore este e-mail.`
     )
-  const enviado = await enviarEmail({ email, nome, assunto: "Continue a sua filiação", html })
+  const enviado = await enviarEmail({ processo: "filiados.ficha_online_link", email, nome, assunto: "Continue a sua filiação", html })
   if (!enviado) console.info(`[filiar] link da ficha (e-mail não enviado): ${link}`)
 }
 

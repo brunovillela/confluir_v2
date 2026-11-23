@@ -214,6 +214,7 @@ async function convidar(a: AssinaturaRpa, rpa: RpaDetalhe): Promise<void> {
   const link = `${await origemAtual()}/assinar/${a.token}`
   const entidade = await nomeEntidade()
   await enviarEmail({
+    processo: "compras.rpa_assinatura",
     email: a.email,
     nome: a.nome,
     assunto: `Recibo (RPA nº ${rpa.numero ?? "—"}) para assinar — ${entidade}`,
@@ -564,6 +565,7 @@ export async function solicitarCodigoRpa(
     .eq("id", a.id)
   await evento(a.id, "codigo_enviado", null, ctx, envelope.emp)
   await enviarEmail({
+    processo: "compras.rpa_assinatura_codigo",
     email: a.email,
     nome: a.nome,
     assunto: `Código para assinar — RPA nº ${envelope.rpa.numero ?? "—"}`,
@@ -659,6 +661,7 @@ export async function assinarRpa(
 
   if (a.email) {
     await enviarEmail({
+      processo: "compras.rpa_assinatura",
       email: a.email,
       nome: a.nome,
       assunto: `Recibo assinado — RPA nº ${envelope.rpa.numero ?? "—"}`,

@@ -377,6 +377,45 @@ const EXECUTORES: Record<string, Executor> = {
     },
   },
 
+  /** RT38: e-mails com mais de 1 ano perdem o destinatário e quem disparou (anonimiza). */
+  RT38: {
+    async coletar(ctx, corte) {
+      const { linhas, limiteAtingido } = await lerPaginado((de, ate) =>
+        ctx.client
+          .from("email_envios")
+          .select("id, destinatario")
+          .eq("emp_proprietaria_id", ctx.tenantId)
+          .lt("criado_em", corte)
+          .or("destinatario.not.is.null,usuario_id.not.is.null")
+          .order("id")
+          .range(de, ate)
+      )
+      // O destinatário é o titular: o bloqueio por litígio confere pelo e-mail.
+      return {
+        limiteAtingido,
+        grupos: [
+          {
+            tabela: "email_envios",
+            candidatos: linhas.map((l) => ({ id: String(l.id), email: l.destinatario ? String(l.destinatario) : null })),
+          },
+        ],
+      }
+    },
+    async aplicar(ctx, grupos) {
+      let linhas = 0
+      for (const lote of lotes((grupos[0]?.candidatos ?? []).map((c) => c.id))) {
+        const { error, count } = await ctx.client
+          .from("email_envios")
+          .update({ destinatario: null, usuario_id: null }, { count: "exact" })
+          .eq("emp_proprietaria_id", ctx.tenantId)
+          .in("id", lote)
+        if (error) throw new Error(`email_envios: ${error.message}`)
+        linhas += count ?? 0
+      }
+      return { linhas, arquivos: 0, falhas: [] }
+    },
+  },
+
   /** RT37: uso do painel fora do expediente e os motivos, após 5 anos. */
   RT37: {
     async coletar(ctx, corte) {

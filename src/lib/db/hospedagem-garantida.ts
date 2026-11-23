@@ -864,6 +864,7 @@ export async function enviarEmailReservaConfirmada(p: {
   const origem = await origemAtual()
   const link = p.token ? await linkDaReserva(p.token) : `${origem}/portal/hospedagem`
   await enviarEmail({
+    processo: "viagens.hospedagem_reserva",
     email: filiado.email,
     nome: filiado.nome_completo,
     assunto: "Reserva de hospedagem confirmada — {ENTIDADE}",
@@ -1535,6 +1536,7 @@ export async function processarFilaDeEspera(
         const origem = amb?.contexto?.origem ?? (await origemAtual())
         const link = `${origem}${linkDaOferta(token)}`
         await enviarEmail({
+          processo: "viagens.hospedagem_fila",
           email: contato.email,
           nome: contato.nome,
           assunto: "Surgiu vaga na hospedagem — confirme a sua reserva",

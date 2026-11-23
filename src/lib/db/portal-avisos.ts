@@ -357,6 +357,7 @@ export async function avisarFiliado(aviso: AvisoPortal, amb: Ambiente = {}): Pro
     const origem = contexto?.origem ?? (await origemAtual().catch(() => ""))
     const url = origem ? `${origem}${aviso.link}` : null
     const saiu = await enviarEmail({
+      processo: "filiados.portal_aviso",
       email,
       nome,
       assunto: aviso.assunto ?? aviso.texto.slice(0, 120),

@@ -277,6 +277,8 @@ export async function avisar(
     if (d.email && (prefsEmail.get(d.id) ?? normalizarPreferencias(null))[aviso.evento]) {
       try {
         await enviarEmail({
+          processo: "painel.aviso",
+          detalhe: aviso.evento,
           email: d.email,
           nome: d.nome,
           assunto: aviso.sensivel ? "Pedido novo no Confluir" : (aviso.assunto ?? aviso.texto.slice(0, 120)),

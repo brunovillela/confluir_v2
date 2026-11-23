@@ -171,6 +171,7 @@ export async function notificarInformeLiberado(
 
   const nome = usuario.nome_completo ?? usuario.nome_guerra ?? null
   await enviarEmail({
+    processo: "pessoal.informe_rendimentos",
     email: usuario.email,
     nome,
     assunto: "Informe de rendimentos disponível — {ENTIDADE}",

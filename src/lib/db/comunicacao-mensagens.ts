@@ -520,6 +520,7 @@ export async function contextoDoTenant(tenantId: string, db: Db): Promise<Contex
   ])
   const slug = texto(t?.slug)
   return {
+    tenantId,
     entidade: texto(emp?.nome_fantasia) ?? texto(emp?.nome_razao) ?? "Confluir",
     emailContato: texto(emp?.email_contato),
     origem: slug ? origemDoTenant(slug) : await origemAtual(),
@@ -927,6 +928,7 @@ export async function enviarLote(
       bloco.map((d) => {
         const links = malaDireta && d.filiacaoId ? linksDescadastro(emp, d.filiacaoId, contexto.origem) : null
         return enviarEmail({
+          processo: "comunicacao.mensagens_filiados",
           email: d.email,
           nome: d.nome,
           // No aniversário, cada pessoa pode ter a sua mensagem específica.
@@ -1448,7 +1450,7 @@ async function enviarAvisoEquipe(
   ].join("\n")
   const oks = await Promise.all(
     emails.map((email) =>
-      enviarEmail({ email, nome: email, assunto: `Aniversariantes de ${quando} (${lista.length})`, html, contexto }).catch(() => false)
+      enviarEmail({ processo: "comunicacao.aniversariantes_equipe", email, nome: email, assunto: `Aniversariantes de ${quando} (${lista.length})`, html, contexto }).catch(() => false)
     )
   )
   return oks.some(Boolean)

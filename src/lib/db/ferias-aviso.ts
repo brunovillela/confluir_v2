@@ -319,6 +319,7 @@ async function convidar(a: AssinaturaAviso, d: DadosAvisoFerias, autorizacao?: C
   const entidade = await nomeEntidade()
   const primeiro = d.funcionario.nome.split(" ")[0]
   await enviarEmail({
+    processo: "pessoal.ferias_assinatura",
     email: a.email,
     nome: a.nome,
     assunto: autorizacao
@@ -615,6 +616,7 @@ export async function solicitarCodigoAviso(
     .eq("id", a.id)
   await evento(a.id, "codigo_enviado", null, ctx, envelope.emp)
   await enviarEmail({
+    processo: "pessoal.ferias_assinatura_codigo",
     email: a.email,
     nome: a.nome,
     assunto: "Código para assinar o aviso de férias",
@@ -716,6 +718,7 @@ export async function assinarAviso(
 
   if (a.email) {
     await enviarEmail({
+      processo: "pessoal.ferias_assinatura",
       email: a.email,
       nome: a.nome,
       assunto: "Aviso de férias assinado",

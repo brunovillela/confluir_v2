@@ -220,6 +220,7 @@ async function convidar(
   if (!a.email) return
   const link = `${await origemAtual()}/assinar/${a.token}`
   await enviarEmail({
+    processo: "espacos.termo_assinatura",
     email: a.email,
     nome: a.nome,
     assunto: `Assine o termo de cessão — ${espaco}`,
@@ -346,6 +347,7 @@ export async function solicitarCodigoCessao(
     .eq("id", a.id)
 
   await enviarEmail({
+    processo: "espacos.termo_assinatura_codigo",
     email: a.email,
     nome: a.nome,
     assunto: `Código para assinar — ${envelope.espaco}`,
@@ -518,6 +520,7 @@ export async function avisoTermoCompleto(solicitacaoId: string): Promise<void> {
   const pedido = await obterSolicitacao(solicitacaoId)
   if (!pedido?.email) return
   await enviarEmail({
+    processo: "espacos.termo_assinatura",
     email: pedido.email,
     nome: pedido.solicitante,
     assunto: `Termo de cessão assinado — ${pedido.espacoNome}`,

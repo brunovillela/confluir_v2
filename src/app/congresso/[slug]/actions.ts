@@ -49,6 +49,7 @@ export async function inscreverCongressoAction(_p: EstadoForm, fd: FormData): Pr
   // Sem e-mail configurado a inscrição não trava: a página seguinte mostra o
   // link e pede para guardá-lo.
   await enviarEmail({
+    processo: "representacao.congresso_inscricao",
     email,
     nome,
     assunto: `Inscrição recebida — ${r.congressoNome ?? "congresso"}`,

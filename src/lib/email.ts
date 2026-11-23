@@ -1,8 +1,10 @@
 import "server-only"
 
 import { textoValidade } from "@/lib/auth-email-constantes"
+import { abrirRegistroEnvio, concluirRegistroEnvio, type ProvedorEmail } from "@/lib/db/email-envios"
 import { emailContatoEntidade, nomeEntidade } from "@/lib/db/organizacao"
 import { caixaAviso, COR, escaparHtml, layoutEmail } from "@/lib/email-layout"
+import { marcaComEnvio } from "@/lib/email-processos"
 import { origemAtual } from "@/lib/tenant-url"
 
 /**
@@ -35,6 +37,8 @@ import { origemAtual } from "@/lib/tenant-url"
  * identidade do tenant que estão processando.
  */
 export type ContextoEmail = {
+  /** Entidade que envia (agendador): é a ela que o registro do envio pertence. */
+  tenantId?: string
   entidade: string
   emailContato: string | null
   /** Origem do tenant (https://<slug>.confluir.online), para o logo. */
@@ -58,6 +62,13 @@ export function registrarCodigoNaoEnviado(fluxo: string, email: string, codigo: 
 }
 
 export async function enviarEmail(destino: {
+  /**
+   * Processo que envia (catálogo em lib/email-processos.ts): é por ele que a
+   * Gestão › E-mail agrupa os envios.
+   */
+  processo: string
+  /** Complemento técnico, sem dado pessoal (ex.: o evento do aviso). */
+  detalhe?: string
   email: string
   nome?: string | null
   assunto: string
@@ -72,12 +83,27 @@ export async function enviarEmail(destino: {
   const usaResend = process.env.EMAIL_PROVEDOR === "resend"
   const chave = usaResend ? process.env.RESEND_API_KEY : process.env.BREVO_API_KEY
   const remetente = process.env.EMAIL_REMETENTE
+  const provedor: ProvedorEmail = !chave || !remetente ? "nenhum" : usaResend ? "resend" : "brevo"
+  const sandbox = process.env.EMAIL_SANDBOX === "1"
+
+  // Registro do envio (Gestão › E-mail): a linha nasce antes do provedor, e o
+  // id vai no X-Mailin-custom para o webhook do Brevo achar a linha.
+  const registro = await abrirRegistroEnvio({
+    tenantId: destino.contexto?.tenantId,
+    processo: destino.processo,
+    detalhe: destino.detalhe,
+    destinatario: destino.email,
+    provedor,
+    situacao: provedor === "nenhum" ? "sem_configuracao" : "enviando",
+    anexos: destino.anexos?.length ?? 0,
+  })
   if (!chave || !remetente) return false
 
   const [entidade, emailContato, origem] = destino.contexto
     ? [destino.contexto.entidade, destino.contexto.emailContato, destino.contexto.origem]
     : await Promise.all([nomeEntidade(), emailContatoEntidade(), origemAtual()])
-  const cabecalhos = destino.cabecalhos ?? {}
+  const cabecalhos = { ...(destino.cabecalhos ?? {}) }
+  if (registro) cabecalhos["X-Mailin-custom"] = marcaComEnvio(cabecalhos["X-Mailin-custom"], registro.id)
 
   const assunto = destino.assunto.replaceAll("{ENTIDADE}", entidade)
   const rodape =
@@ -95,7 +121,10 @@ export async function enviarEmail(destino: {
   // para migrar o canal do app sem mexer em código — só na variável.
   if (process.env.EMAIL_PROVEDOR === "resend") {
     // Testes: o Resend não tem modo sandbox — não enviamos nada.
-    if (process.env.EMAIL_SANDBOX === "1") return true
+    if (sandbox) {
+      await concluirRegistroEnvio(registro, "teste")
+      return true
+    }
     try {
       const resposta = await fetch("https://api.resend.com/emails", {
         method: "POST",
@@ -115,8 +144,10 @@ export async function enviarEmail(destino: {
             : {}),
         }),
       })
+      await concluirRegistroEnvio(registro, resposta.ok ? "enviado" : "falhou", resposta.ok ? null : `Resend recusou (HTTP ${resposta.status})`)
       return resposta.ok
     } catch {
+      await concluirRegistroEnvio(registro, "falhou", "Falha de rede ao falar com o Resend")
       return false
     }
   }
@@ -143,19 +174,25 @@ export async function enviarEmail(destino: {
           ? { attachment: destino.anexos.map((a) => ({ name: a.nome, content: a.base64 })) }
           : {}),
         // Testes: o Brevo aceita e descarta, sem entregar (EMAIL_SANDBOX=1).
-        ...(process.env.EMAIL_SANDBOX === "1" || Object.keys(cabecalhos).length
+        ...(sandbox || Object.keys(cabecalhos).length
           ? {
               headers: {
                 ...cabecalhos,
-                ...(process.env.EMAIL_SANDBOX === "1" ? { "X-Sib-Sandbox": "drop" } : {}),
+                ...(sandbox ? { "X-Sib-Sandbox": "drop" } : {}),
               },
             }
           : {}),
       }),
     })
+    await concluirRegistroEnvio(
+      registro,
+      resposta.ok ? (sandbox ? "teste" : "enviado") : "falhou",
+      resposta.ok ? null : `Brevo recusou (HTTP ${resposta.status})`
+    )
     return resposta.ok
   } catch {
     // Falha de rede no provedor não pode derrubar a ação que originou o email.
+    await concluirRegistroEnvio(registro, "falhou", "Falha de rede ao falar com o Brevo")
     return false
   }
 }

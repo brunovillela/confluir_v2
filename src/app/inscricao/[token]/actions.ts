@@ -83,6 +83,7 @@ export async function reenviarCodigoAction(
   if (erro || !codigo || !email) return { erro: erro ?? "Falha ao gerar código." }
 
   const enviado = await enviarEmail({
+    processo: "eventos.inscricao_codigo",
     email,
     nome,
     assunto: "Seu novo código de confirmação",

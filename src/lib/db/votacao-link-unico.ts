@@ -464,6 +464,7 @@ export async function vincularPorLinkUnico(dados: {
   // perde; se chegar, o dono verdadeiro percebe um cadastro que não fez.
   for (const destino of alertar.values()) {
     await enviarEmail({
+      processo: "votacao.link_unico",
       email: destino.email,
       nome: destino.nome,
       assunto: "Seu cadastro para votação foi feito pelo link único — {ENTIDADE}",

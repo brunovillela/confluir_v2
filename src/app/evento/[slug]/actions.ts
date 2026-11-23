@@ -108,6 +108,7 @@ export async function inscreverAction(
   if (codigo) {
     const link = `${await origemAtual()}/inscricao/${token}`
     const enviado = await enviarEmail({
+      processo: "eventos.inscricao",
       email,
       nome,
       assunto: `Confirme sua inscrição — ${publico.evento.titulo ?? "evento"}`,

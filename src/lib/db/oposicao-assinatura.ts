@@ -296,6 +296,7 @@ export async function solicitarCodigoCarta(
     .eq("id", envelope.id)
   await evento(String(envelope.id), "codigo_enviado", null, ctx, emp)
   await enviarEmail({
+    processo: "oposicao.carta_codigo",
     email: sessao.email,
     nome: r.c.nome,
     assunto: "Código para assinar a carta de oposição",
@@ -474,6 +475,7 @@ export async function assinarCartaPeloConfluir(
   if (sessao.email) {
     const origem = await origemAtual().catch(() => "")
     await enviarEmail({
+      processo: "oposicao.carta_assinada",
       email: sessao.email,
       nome: c.nome,
       assunto: "Carta de oposição assinada",

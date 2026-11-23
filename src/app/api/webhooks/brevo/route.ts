@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto"
 
+import { registrarEventoEnvio } from "@/lib/db/email-envios"
 import { registrarEventoBrevo, type EventoBrevo } from "@/lib/db/votacao-eventos-email"
 import { createServiceClient } from "@/lib/supabase/admin"
 
@@ -8,7 +9,9 @@ export const runtime = "nodejs"
 /**
  * Webhook de e-mails transacionais da Brevo (fase 4 do plano de 21/10/2026):
  * entrega, clique e rejeição dos e-mails de votação — ver
- * lib/db/votacao-eventos-email.ts. Configurado no painel da Brevo
+ * lib/db/votacao-eventos-email.ts. Desde 23/11/2026 também a entrega, o
+ * adiamento e a rejeição de TODO e-mail no registro geral (email_envios,
+ * Gestão › E-mail), pela marca `e:<id>` no fim do X-Mailin-custom. Configurado no painel da Brevo
  * (Transactional › Settings › Webhook) apontando para
  * https://confluir.online/api/webhooks/brevo, com os eventos Delivered,
  * Clicked, Hard bounce, Invalid email, Blocked e Spam, e autenticação "Token"
@@ -39,8 +42,14 @@ export async function POST(req: Request): Promise<Response> {
     (e): e is EventoBrevo => typeof e === "object" && e !== null
   )
   const client = createServiceClient()
-  const feitos = await Promise.all(eventos.map((e) => registrarEventoBrevo(client, e)))
-  const erros = feitos.filter((f) => f.startsWith("erro"))
+  // Cada evento vai ao registro geral do envio (Gestão › E-mail) e, se for de votação, ao apto.
+  const feitos = await Promise.all(
+    eventos.map(async (e) => {
+      const [envio, voto] = await Promise.all([registrarEventoEnvio(client, e), registrarEventoBrevo(client, e)])
+      return `${envio} · ${voto}`
+    })
+  )
+  const erros = feitos.filter((f) => f.includes("erro"))
   if (erros.length) console.error("[webhooks/brevo]", erros.join(" · "))
   return Response.json({ recebidos: eventos.length, feitos })
 }

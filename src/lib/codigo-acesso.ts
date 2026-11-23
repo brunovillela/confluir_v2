@@ -133,6 +133,7 @@ export async function enviarCodigoAcesso(destino: {
   ].join("\n")
 
   const enviado = await enviarEmail({
+    processo: "acesso.codigo",
     email,
     assunto: "Confluir | Seu código de acesso",
     html: corpo,
@@ -232,6 +233,7 @@ export async function enviarLinkRedefinicao(
   ].join("\n")
 
   const enviado = await enviarEmail({
+    processo: "acesso.redefinicao_senha",
     email,
     assunto: "Confluir | Redefinição de senha",
     html: corpo,
@@ -279,7 +281,7 @@ export async function enviarConvitePrimeiroAcesso(dados: {
     textoSuave("Não esperava este convite? Fale com a secretaria antes de criar a senha."),
   ].join("\n")
 
-  const enviado = await enviarEmail({ email, nome: dados.nome, assunto: "Confluir | Seu acesso", html: corpo })
+  const enviado = await enviarEmail({ processo: "acesso.convite_primeiro_acesso", email, nome: dados.nome, assunto: "Confluir | Seu acesso", html: corpo })
   return enviado
     ? { usuarioId: data.user.id }
     : { usuarioId: data.user.id, erro: "A conta foi criada, mas o e-mail do convite não saiu." }
@@ -340,6 +342,7 @@ export async function reenviarEmailDeAcesso(dados: {
     textoSuave("Não esperava este e-mail? Fale com a secretaria antes de criar a senha."),
   ].join("\n")
   const enviado = await enviarEmail({
+    processo: "acesso.reenvio",
     email: dados.email,
     nome: dados.nome,
     assunto: "Confluir | Seu acesso",

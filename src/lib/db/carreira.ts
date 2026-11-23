@@ -477,6 +477,7 @@ export async function notificarMudancaCarreira(
 
   const nome = usuario.nome_completo ?? usuario.nome_guerra ?? null
   await enviarEmail({
+    processo: "pessoal.carreira",
     email: usuario.email,
     nome,
     assunto: `${assunto} — {ENTIDADE}`,

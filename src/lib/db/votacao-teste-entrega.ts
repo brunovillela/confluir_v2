@@ -368,6 +368,7 @@ export async function enviarLoteAvisoPrevio(
     const oks = await Promise.all(
       fatia.map((e) =>
         enviarEmail({
+          processo: "votacao.aviso_previo",
           email: e.email,
           nome: e.nome,
           assunto,

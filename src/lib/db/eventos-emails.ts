@@ -194,6 +194,7 @@ async function disparar(
       lote.map((p) => {
         const { assunto, html } = monta(p)
         return enviarEmail({
+          processo: "eventos.comunicados",
           email: p.email as string,
           nome: p.nome,
           assunto,

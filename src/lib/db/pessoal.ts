@@ -782,6 +782,7 @@ export async function notificarLiberacaoPessoal(
   const nome = usuario.nome_completo ?? usuario.nome_guerra ?? null
   const pagina = `${amb?.contexto.origem || SITE_URL}/painel/perfil/${tipo === "contracheque" ? "contracheques" : "ponto"}`
   await enviarEmail({
+    processo: "pessoal.documento_liberado",
     email: usuario.email,
     nome,
     assunto: `${titulo} — {ENTIDADE}`,

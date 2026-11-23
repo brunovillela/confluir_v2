@@ -226,7 +226,7 @@ export async function rodarRepasseAutomatico(opcoes: { simular?: boolean } = {})
       }
       const enviados: string[] = []
       for (const c of destinos) {
-        if (await enviarEmail({ email: c.email!, nome: c.nome, assunto: envio.assunto, html: envio.html }).catch(() => false)) enviados.push(c.email!)
+        if (await enviarEmail({ processo: "filiados.repasse_automatico", email: c.email!, nome: c.nome, assunto: envio.assunto, html: envio.html }).catch(() => false)) enviados.push(c.email!)
       }
       if (enviados.length === 0) {
         r.erros.push(`${e.nome}: o e-mail não saiu`)

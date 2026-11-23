@@ -83,6 +83,7 @@ export async function lembrarAssinaturasRpa(
         if (!email) continue
         const link = `${contexto.origem}/assinar/${String(a.token)}`
         const ok = await enviarEmail({
+          processo: "compras.rpa_lembrete",
           email,
           nome: t(a.nome),
           assunto: `Lembrete: recibo (RPA nº ${numero}) aguardando sua assinatura — ${contexto.entidade}`,
@@ -130,6 +131,7 @@ export async function lembrarAssinaturasRpa(
           const email = t(u?.email)
           if (email) {
             await enviarEmail({
+              processo: "compras.rpa_lembrete",
               email,
               nome: t(u?.nome_completo) ?? t(u?.nome_guerra),
               assunto: `RPA nº ${numero} sem assinatura do prestador`,

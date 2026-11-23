@@ -462,6 +462,7 @@ export async function concederLogin(acessoId: string): Promise<ResultadoLogin> {
   const nome = texto(u.nome_completo) ?? texto(u.nome_guerra)
   const emailEnviado = link
     ? await enviarEmail({
+        processo: "acesso.convite_painel",
         email,
         nome,
         assunto: "Acesso ao Confluir — {ENTIDADE}",
@@ -502,6 +503,7 @@ export async function gerarLinkRecuperacao(
   }
   const nome = texto(u.nome_completo) ?? texto(u.nome_guerra)
   const emailEnviado = await enviarEmail({
+    processo: "acesso.redefinicao_senha",
     email,
     nome,
     assunto: "Redefinição de senha — Confluir",

@@ -253,6 +253,7 @@ export async function enviarAvisoTeste(
       )}`
     : null
   const ok = await enviarEmail({
+    processo: "votacao.aviso_teste",
     email: destino.email,
     nome: destino.nome,
     assunto: `[Teste] ${assuntoAvisoAptos(dados)}`,
@@ -450,6 +451,7 @@ export async function enviarLoteAviso(
     const oks = await Promise.all(
       fatia.map((e) =>
         enviarEmail({
+          processo: "votacao.aviso_link",
           email: e.destino.email,
           nome: e.destino.nome,
           assunto,
@@ -598,6 +600,7 @@ export async function enviarLinkDeVoto(
   const base = `${origem}/votar/${assembleiaId}`
 
   const ok = await enviarEmail({
+    processo: "votacao.link_voto",
     email: apto.email,
     nome: apto.nome,
     assunto: assuntoAvisoAptos(dados),
@@ -1434,7 +1437,7 @@ export async function agendarAvisoDoResultado(assembleiaId: string): Promise<voi
       emailContatoEntidade(),
       origemAtual(),
     ])
-    const amb: AmbienteVotacao = { tenantId, contexto: { entidade, emailContato, origem } }
+    const amb: AmbienteVotacao = { tenantId, contexto: { tenantId, entidade, emailContato, origem } }
     after(async () => {
       const r = await avisarResultadoPublicado(assembleiaId, amb)
       if (r.erro) console.error("[votacao] aviso do resultado:", r.erro)

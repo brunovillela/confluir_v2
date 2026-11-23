@@ -307,6 +307,7 @@ async function convidar(a: AssinaturaMinuta, titulo: string): Promise<void> {
   const link = `${await origemAtual()}/assinar/${a.token}`
   const entidade = await nomeEntidade()
   await enviarEmail({
+    processo: "compras.minuta_assinatura",
     email: a.email,
     nome: a.nome,
     assunto: `Contrato para assinar — ${titulo}`,
@@ -473,6 +474,7 @@ export async function solicitarCodigoMinuta(
     .eq("id", a.id)
   await evento(a.id, "codigo_enviado", null, ctx, envelope.emp)
   await enviarEmail({
+    processo: "compras.minuta_assinatura_codigo",
     email: a.email,
     nome: a.nome,
     assunto: `Código para assinar — ${envelope.titulo}`,
@@ -579,6 +581,7 @@ export async function assinarMinuta(
   for (const x of lista) {
     if (!x.email) continue
     await enviarEmail({
+      processo: "compras.minuta_assinatura",
       email: x.email,
       nome: x.nome,
       assunto: `Contrato assinado por todas as partes — ${envelope.titulo}`,

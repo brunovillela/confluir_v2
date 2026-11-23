@@ -468,6 +468,7 @@ async function enviarConvite(a: Assinatura, oficio: DetalheOficio, reenvio: bool
   const remetente = await nomeRemetente()
   const outros = tambemAssinam(a, oficio)
   return enviarEmail({
+    processo: "ferramentas.oficio_assinatura",
     email: a.email,
     nome: a.nome,
     assunto: `${reenvio ? "Lembrete: o" : "O"}fício ${numeroDoOficio(oficio)} aguarda sua assinatura`,
@@ -739,6 +740,7 @@ async function avisarCancelamento(
     }).catch(() => false)
   } else if (a.email) {
     await enviarEmail({
+      processo: "ferramentas.oficio_assinatura",
       email: a.email,
       nome: a.nome,
       assunto: `Ofício ${numero} cancelado`,
@@ -766,6 +768,7 @@ async function avisarCancelamento(
   if (!texto(u?.email)) return
   const link = `${await origemAtual()}/painel/ferramentas/oficios/${oficio.id}`
   await enviarEmail({
+    processo: "ferramentas.oficio_assinatura",
     email: String(u?.email),
     nome: texto(u?.nome_completo),
     assunto: `Ofício ${numero} cancelado`,
@@ -869,6 +872,7 @@ export async function solicitarCodigo(
           ].join("\n"),
         })
       : await enviarEmail({
+          processo: "ferramentas.oficio_assinatura_codigo",
           email: a.email!,
           nome: a.nome,
           assunto: `Código para assinar o Ofício ${numeroDoOficio(envelope.oficio)}`,
@@ -997,6 +1001,7 @@ async function avisarAssinaturaParcial(envelope: Envelope, faltam: Assinatura[])
     }).catch(() => false)
   } else if (a.email) {
     await enviarEmail({
+      processo: "ferramentas.oficio_assinatura",
       email: a.email,
       nome: a.nome,
       assunto: `Você assinou o Ofício ${numero}`,
@@ -1087,6 +1092,7 @@ async function avisarConclusao(
     })
   } else if (resultado === "assinado" && a.email) {
     await enviarEmail({
+      processo: "ferramentas.oficio_assinatura",
       email: a.email,
       nome: a.nome,
       assunto: `Você assinou o Ofício ${numero}`,
@@ -1110,6 +1116,7 @@ async function avisarConclusao(
   if (!texto(u?.email)) return
   const link = `${origem}/painel/ferramentas/oficios/${oficio.id}`
   await enviarEmail({
+    processo: "ferramentas.oficio_assinatura",
     email: String(u?.email),
     nome: texto(u?.nome_completo),
     assunto: resultado === "assinado" ? `Ofício ${numero} assinado e emitido` : `Ofício ${numero}: assinatura recusada`,

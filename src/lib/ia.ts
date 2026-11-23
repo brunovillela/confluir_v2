@@ -1,10 +1,10 @@
 import "server-only"
 import OpenAI from "openai"
-import { cache } from "react"
 
 import { avisarChaveRecusada, conferirCotaIA, conferirTetoIA } from "@/lib/db/ia-avisos"
 import { configIAParaChamada, custoDoMes, custoPorDepartamentoNoMes, precosDoModelo, type ConfigIAPublica } from "@/lib/db/ia-config"
 import { PROCESSO_NAO_IDENTIFICADO, processoIA } from "@/lib/ia-processos"
+import { departamentoDaPessoa } from "@/lib/db/departamento-principal"
 import { usuarioIdAtual } from "@/lib/sessao-atual"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -140,39 +140,10 @@ type Preparo =
   | { erro: string; registro: RegistroBase | null }
   | { client: OpenAI; modelo: string; origem: OrigemChave; registro: RegistroBase | null }
 
-/**
- * Departamento da pessoa: o principal marcado na Gestão; sem ele, o que
- * coordena; sem isso, o primeiro que integra.
- */
-const departamentoDe = cache(async (usuarioId: string): Promise<string | null> => {
-  try {
-    const admin = await createAdminClient()
-    const emp = await tenantAtual()
-    const { data: principal } = await admin
-      .from("empresa_departamentos_integrantes")
-      .select("departamento_id, empresa_departamentos!inner(emp_proprietaria_id)")
-      .eq("usuario_id", usuarioId)
-      .eq("principal", true)
-      .eq("empresa_departamentos.emp_proprietaria_id", emp)
-      .limit(1)
-    if (principal?.[0]?.departamento_id) return String(principal[0].departamento_id)
-    const { data: coord } = await admin
-      .from("empresa_departamentos")
-      .select("id")
-      .eq("emp_proprietaria_id", emp)
-      .eq("coordenador_id", usuarioId)
-      .limit(1)
-    if (coord?.[0]?.id) return String(coord[0].id)
-    const { data: integ } = await admin
-      .from("empresa_departamentos_integrantes")
-      .select("departamento_id")
-      .eq("usuario_id", usuarioId)
-      .limit(1)
-    return integ?.[0]?.departamento_id ? String(integ[0].departamento_id) : null
-  } catch {
-    return null
-  }
-})
+/** Departamento da pessoa na entidade atual (lib/db/departamento-principal.ts). */
+async function departamentoDe(usuarioId: string): Promise<string | null> {
+  return departamentoDaPessoa(usuarioId, await tenantAtual())
+}
 
 /**
  * Escolhe a chave e o modelo e confere as travas da Gestão. Sem entidade

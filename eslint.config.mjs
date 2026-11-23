@@ -13,6 +13,9 @@ const PODEM_USAR_SERVICE_ROLE = [
   "src/lib/auth-diagnostico.ts",
   "src/lib/db/comunicacao.ts",
   "src/lib/db/comunicacao-mensagens.ts",
+  // Registro dos e-mails (Gestão › E-mail): grava com a entidade explícita,
+  // também no agendador, onde o cliente do tenant não serve.
+  "src/lib/db/email-envios.ts",
   "src/lib/db/filiacao-coletiva.ts",
   "src/lib/db/veiculos-avisos.ts",
   "src/lib/db/pendencias-lembrete.ts",

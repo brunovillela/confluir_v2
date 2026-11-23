@@ -89,6 +89,18 @@ export const REGRAS_RETENCAO: readonly DefinicaoRegra[] = [
     acao: "eliminar",
     fundamento: "Prova em pedido de hora extra: prescrição de 5 anos (CF, art. 7º, XXIX), como o ponto",
   },
+  {
+    codigo: "RT38",
+    titulo: "Registro dos e-mails enviados",
+    descricao:
+      "Tira o destinatário e quem disparou dos e-mails antigos (email_envios). Ficam processo, módulo, departamento, domínio do destinatário e o resultado da entrega — as estatísticas continuam.",
+    tabela: "email_envios",
+    colunaAncora: "criado_em",
+    prazoPadraoDias: 365,
+    prazoMinimoDias: 180,
+    acao: "anonimizar",
+    fundamento: "Suporte à entrega (\"o e-mail chegou?\"); depois de um ano a pessoa não importa mais",
+  },
 ]
 
 export function definicaoRegra(codigo: string): DefinicaoRegra | null {

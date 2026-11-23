@@ -60,6 +60,12 @@ erDiagram
     uuid id PK
     uuid emp_proprietaria_id FK
   }
+  email_envios {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid usuario_id FK
+    uuid departamento_id FK
+  }
   empresa {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -213,6 +219,8 @@ erDiagram
   acessos_revisao_itens }o--|| usuarios : "usuario_id"
   api_requisicoes }o--o| api_chaves : "chave_id"
   auditoria_regras }o--o| usuarios : "atualizado_por"
+  email_envios }o--o| empresa_departamentos : "departamento_id"
+  email_envios }o--o| usuarios : "usuario_id"
   empresa }o--o| empresa : "mesclado_em_id"
   empresa }o--o| fonte_categorias : "fonte_categoria_id"
   empresa }o--o| usuarios : "mesclado_por"

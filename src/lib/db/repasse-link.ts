@@ -121,7 +121,7 @@ export async function enviarLinkPorEmail(
     paragrafo(`<span style="color:#666;font-size:12px">${escaparHtml(link.url)}</span>`)
   const enviados: string[] = []
   for (const c of contatos) {
-    const ok = await enviarEmail({ email: c.email, nome: c.nome, assunto: "Relação de descontos: endereço da empresa — {ENTIDADE}", html: corpo })
+    const ok = await enviarEmail({ processo: "filiados.repasse_link", email: c.email, nome: c.nome, assunto: "Relação de descontos: endereço da empresa — {ENTIDADE}", html: corpo })
     if (ok) enviados.push(c.email)
   }
   return { enviados, erro: enviados.length ? undefined : "O e-mail não saiu. Confira a configuração de e-mail da entidade." }
@@ -333,6 +333,7 @@ export async function registrarEnvio(
     const unidade = await unidadeRepasse(link.empresaId)
     const rot = rotuloCompetencia(dados.competencia)
     await enviarEmail({
+      processo: "filiados.repasse_recibo",
       email: dados.email,
       nome: dados.nome,
       assunto: `Recebemos: ${dados.semDesconto ? "sem desconto" : "relação de descontos"} de ${rot} — {ENTIDADE}`,

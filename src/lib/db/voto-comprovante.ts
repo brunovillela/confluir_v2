@@ -178,6 +178,7 @@ export async function enviarEmailComprovante(dados: {
   if (!assembleia) return false
   const origem = await origemAtual()
   const ok = await enviarEmail({
+    processo: "votacao.comprovante",
     email: dados.email,
     nome: dados.nome,
     assunto: assuntoComprovante(assembleia),

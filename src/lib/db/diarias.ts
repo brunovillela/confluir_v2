@@ -593,6 +593,7 @@ async function notificarAvaliacaoDiaria(
   if (!usuario?.email) return
   const nome = usuario.nome_completo ?? usuario.nome_guerra ?? null
   await enviarEmail({
+    processo: "viagens.diaria_avaliacao",
     email: usuario.email,
     nome,
     assunto: `Diária ${aprovada ? "aprovada" : "reprovada"} — {ENTIDADE}`,

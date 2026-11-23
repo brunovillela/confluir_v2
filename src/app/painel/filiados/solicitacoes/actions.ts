@@ -29,6 +29,7 @@ export async function avaliarSolicitacaoAction(
       ? `<p>Olá${res.nome ? `, ${res.nome.split(" ")[0]}` : ""}!</p><p>Sua filiação foi <strong>aprovada</strong>. Seja bem-vindo(a)!</p><p>Confluir</p>`
       : `<p>Olá${res.nome ? `, ${res.nome.split(" ")[0]}` : ""}!</p><p>Sua solicitação de filiação não foi aprovada${motivo ? `: ${motivo}` : "."}</p><p>Em caso de dúvidas, procure o sindicato.</p><p>Confluir</p>`
     await enviarEmail({
+      processo: "filiados.solicitacao_resposta",
       email: res.email,
       nome: res.nome,
       assunto: res.aprovado ? "Filiação aprovada" : "Sobre a sua filiação",

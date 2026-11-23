@@ -511,6 +511,7 @@ export async function convidarParaAvaliar(empId: string): Promise<{
       // do portal e a trava seguem pedindo a avaliação.
       const ok = c?.email
         ? await enviarEmail({
+            processo: "viagens.hospedagem_avaliacao",
             email: c.email,
             nome: c.nome,
             assunto: lembrete

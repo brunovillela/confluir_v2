@@ -239,7 +239,7 @@ export async function cobrarPorEmailAction(_: EstadoForm, f: FormData): Promise<
     paragrafo("Obrigado(a).")
   const enviados: string[] = []
   for (const c of contatos) {
-    const ok = await enviarEmail({ email: c.email!, nome: c.nome, assunto, html: corpo })
+    const ok = await enviarEmail({ processo: "filiados.relacao_cobranca", email: c.email!, nome: c.nome, assunto, html: corpo })
     if (ok) enviados.push(c.email!)
   }
   if (enviados.length === 0) return { erro: "O e-mail não saiu. Confira a configuração de e-mail da entidade e tente de novo." }
@@ -356,6 +356,7 @@ export async function comunicarDescontoAction(_: EstadoForm, f: FormData): Promi
     const enviados: string[] = []
     for (const c of contatos) {
       const ok = await enviarEmail({
+        processo: "filiados.relacao_desconto",
         email: c.email!,
         nome: c.nome,
         assunto: `Inclusões e exclusões de desconto em folha — {ENTIDADE}`,
@@ -401,7 +402,7 @@ export async function comunicarDescontoAction(_: EstadoForm, f: FormData): Promi
       `<p style="margin:20px 0"><a href="${linkRh.url}" style="display:inline-block;background:#ea580c;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">Ver e confirmar o recebimento</a></p>`
     const enviados: string[] = []
     for (const c of contatos) {
-      const ok = await enviarEmail({ email: c.email!, nome: c.nome, assunto: "Inclusões e exclusões de desconto — {ENTIDADE}", html: corpo })
+      const ok = await enviarEmail({ processo: "filiados.relacao_desconto", email: c.email!, nome: c.nome, assunto: "Inclusões e exclusões de desconto — {ENTIDADE}", html: corpo })
       if (ok) enviados.push(c.email!)
     }
     revalidar(empresaId)

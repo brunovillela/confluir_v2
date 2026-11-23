@@ -405,6 +405,7 @@ export async function gerarLinkAction(_p: EstadoLink, fd: FormData): Promise<Est
   if (email && fd.get("enviar") === "on") {
     const c = await obterCongresso(congressoId)
     enviado = await enviarEmail({
+      processo: "representacao.congresso_link",
       email,
       nome: opc(fd, "nome"),
       assunto: `Seu link pessoal — ${c?.nome ?? "congresso"}`,

@@ -119,6 +119,7 @@ export async function enviarTesteAction(_prev: EstadoForm, fd: FormData): Promis
   const { assunto, mensagem } = lerTexto(fd)
   if (!assunto.trim() || !mensagem.trim()) return { erro: "Escreva o assunto e a mensagem antes do teste." }
   const ok = await enviarEmail({
+    processo: "comunicacao.aniversario_teste",
     email,
     nome,
     assunto: `[Teste] ${aplicarVariaveis(assunto.trim(), { nome, entidade })}`,

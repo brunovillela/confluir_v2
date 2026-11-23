@@ -39,6 +39,7 @@ export async function pedirCodigoAction(
 
   if (codigo) {
     const enviado = await enviarEmail({
+      processo: "filiados.meus_dados_codigo",
       email,
       nome,
       assunto: "Seu código para acessar seus dados",

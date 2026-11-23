@@ -675,6 +675,7 @@ async function avisarSolicitante(
 
   const { assunto, corpo } = textos[tipo]
   await enviarEmail({
+    processo: "espacos.solicitacao_andamento",
     email: String(data.solicitante_email),
     nome: texto(data.solicitante_nome),
     assunto,

@@ -565,6 +565,7 @@ async function enviarCodigo(
   espaco: string
 ): Promise<void> {
   await enviarEmail({
+    processo: "espacos.solicitacao_codigo",
     email,
     nome,
     assunto: `Confirme seu pedido de uso — ${espaco}`,
@@ -591,6 +592,7 @@ async function enviarRecibo(
   espaco: string
 ): Promise<void> {
   await enviarEmail({
+    processo: "espacos.solicitacao_recibo",
     email,
     nome,
     assunto: `Pedido de uso registrado — ${espaco}`,

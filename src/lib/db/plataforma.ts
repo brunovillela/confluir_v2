@@ -297,6 +297,7 @@ export async function criarTenant(
   const primeiroNome = dados.admin_nome.split(" ")[0]
   const emailEnviado = link
     ? await enviarEmail({
+        processo: "plataforma.nova_entidade",
         email,
         nome: dados.admin_nome,
         assunto: "Acesso ao Confluir",

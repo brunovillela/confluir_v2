@@ -154,6 +154,7 @@ export async function criarPedido(
   if (canal === "email" && enviadoPara) {
     const entidade = await nomeEntidade()
     const enviado = await enviarEmail({
+      processo: "financeiro.pedido_dados_bancarios",
       email: enviadoPara,
       nome: pessoa.nome,
       assunto: "{ENTIDADE}: informe seus dados bancários",

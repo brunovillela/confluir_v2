@@ -250,6 +250,7 @@ export async function enviarOrdemCompra(
   if (!dados) return { erro: "Fornecimento não encontrado neste processo." }
   const pdf = await renderizarPdfOrdemCompra(dados)
   const ok = await enviarEmail({
+    processo: "compras.ordem_compra",
     email,
     nome: dados.fornecedor.nome,
     assunto: `Ordem de compra nº ${dados.numero} — ${dados.entidade.nome}`,

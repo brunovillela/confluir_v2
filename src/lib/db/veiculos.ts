@@ -95,6 +95,7 @@ async function notificarUsuario(
   const nome = usuario.nome_completo ?? usuario.nome_guerra ?? null
   const link = `${await origemAtual()}${rota}`
   await enviarEmail({
+    processo: "veiculos.aviso",
     email: usuario.email,
     nome,
     assunto: `${assunto} — {ENTIDADE}`,
@@ -2650,6 +2651,7 @@ async function enviarAvisoInfracao(
   if (resultado.infrator) {
     const e = emailsDoAvisoDeInfracao({ infracao, condutorNome: nome, link, infratorAvisado: true })
     resultado.infratorEnviado = await enviarEmail({
+      processo: "veiculos.infracao",
       email: resultado.infrator,
       nome,
       ...e.infrator,
@@ -2664,7 +2666,7 @@ async function enviarAvisoInfracao(
   })
   for (const email of copias) {
     if (email === resultado.infrator) continue
-    const ok = await enviarEmail({ email, ...copia })
+    const ok = await enviarEmail({ processo: "veiculos.infracao", email, ...copia })
     if (ok) resultado.copiasEnviadas.push(email)
     else resultado.copiasFalhas.push(email)
   }

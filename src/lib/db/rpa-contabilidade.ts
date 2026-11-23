@@ -128,6 +128,7 @@ export async function enviarRelatoriosRpaDoFechamento(
           ]
         : undefined
       const ok = await enviarEmail({
+        processo: "compras.rpa_contabilidade",
         email: destino,
         nome: null,
         assunto: `RPAs de ${rotulo} — ${contexto.entidade}`,

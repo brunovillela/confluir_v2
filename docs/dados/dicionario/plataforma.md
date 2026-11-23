@@ -2,7 +2,7 @@
 
 # Plataforma, acesso e auditoria
 
-39 tabelas. Diagrama: [er/plataforma.md](../er/plataforma.md).
+40 tabelas. Diagrama: [er/plataforma.md](../er/plataforma.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -18,6 +18,7 @@
 | [auth_codigos_envios](#auth_codigos_envios) | identificação | Registro de cada envio de código de acesso por e-mail (lib/codigo-acesso.ts), usado para limitar a frequência de envios por endereço. |
 | [auth_identidades](#auth_identidades) | identificação | Quem é a conta Supabase Auth no tenant (CPF do filiado ou do trabalhador não filiado). Só o servidor grava, após prova de posse do e-mail. |
 | [auth_vinculos_pendentes](#auth_vinculos_pendentes) | identificação | Par e-mail↔CPF derivado pelo servidor antes de enviar o código de acesso; consumido após o código ser conferido. Expira junto com o código. |
+| [email_envios](#email_envios) | identificação | Uma linha por e-mail enviado pelo sistema (src/lib/email.ts): processo, módulo, quem disparou, departamento, destinatário, provedor, situaçã… |
 | [empresa](#empresa) | identificação | Cadastro único de organizações: tenants (sindicatos), empregadores e fontes pagadoras, fundos de pensão, fornecedores, conveniados e entidad… |
 | [empresa_contatos](#empresa_contatos) | identificação, trabalhista | Pessoas de contato de fornecedores e empregadores (nome, cargo, telefone, e-mail), mantidas na ficha do fornecedor. A marca recebe_ordem_com… |
 | [empresa_departamentos](#empresa_departamentos) | — | Departamentos da entidade (secretarias, setores), com coordenador. Usados em compras, ofícios, agenda, contas e avisos. Departamento legado … |
@@ -335,6 +336,39 @@ Par e-mail↔CPF derivado pelo servidor antes de enviar o código de acesso; con
 Checks: `auth_vinculos_pendentes_cpf_check` `CHECK ((cpf ~ '^[0-9]{11}$'::text))`; `auth_vinculos_pendentes_tipo_check` `CHECK ((tipo = ANY (ARRAY['filiado'::text, 'nao_filiado'::text])))`
 
 Índices: `auth_vinculos_pendentes_email_idx`, `auth_vinculos_pendentes_pkey`
+
+## email_envios
+
+Uma linha por e-mail enviado pelo sistema (src/lib/email.ts): processo, módulo, quem disparou, departamento, destinatário, provedor, situação e os eventos do provedor (entrega, adiamento, rejeição). Não guarda assunto nem corpo (Gestão, 23/11/2026).
+
+- **LGPD:** identificação · titulares: filiados,funcionarios,fornecedores
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `criado_em` | timestamp with time zone | não | `now()` |  |  |  |
+| `processo` | text | não |  |  |  | Identificador do processo que enviou (catálogo em src/lib/email-processos.ts), ex.: acesso.codigo. |
+| `modulo` | text | não |  |  |  | Módulo do processo (slug do catálogo), ex.: acesso, votacao, compras. |
+| `detalhe` | text | sim |  |  | nenhum | Complemento técnico do processo, sem dado pessoal (ex.: o evento do aviso do sistema). |
+| `usuario_id` | uuid | sim |  | → usuarios (set null) | identificação | Quem estava logado quando o e-mail saiu; nulo em tarefa agendada ou fluxo público. |
+| `departamento_id` | uuid | sim |  | → empresa_departamentos (set null) |  | Departamento de quem disparou, no momento do envio (o principal marcado na Gestão; senão o que coordena; senão o primeiro). |
+| `destinatario` | text | sim |  |  | identificação | Endereço de e-mail do destinatário; apagado depois de 1 ano pelo motor de retenção (RT38). |
+| `dominio` | text | sim |  |  | nenhum | Domínio do destinatário (ex.: petrobras.com.br), que fica depois da retenção para as estatísticas de entrega. |
+| `provedor` | text | não |  |  |  | Provedor usado: brevo, resend ou nenhum (envio não configurado neste ambiente). |
+| `situacao` | text | não | `'enviando'::text` |  |  | enviando (antes da resposta do provedor), enviado (aceito pelo provedor), falhou, sem_configuracao (ambiente sem chave) ou teste (sandbox, não entregue). |
+| `erro` | text | sim |  |  | nenhum | Motivo curto da falha do envio (código HTTP ou erro de rede), nunca o conteúdo. |
+| `anexos` | integer | não | `0` |  |  | Quantos arquivos foram anexados. |
+| `entregue_em` | timestamp with time zone | sim |  |  |  | Brevo: quando o servidor do destinatário aceitou o e-mail. |
+| `adiado_em` | timestamp with time zone | sim |  |  |  | Brevo: último adiamento (soft bounce ou caixa cheia); o provedor ainda tenta de novo. |
+| `rejeitado_em` | timestamp with time zone | sim |  |  |  | Brevo: rejeição definitiva (hard bounce, endereço inválido, bloqueado ou marcado como spam). |
+| `rejeicao` | text | sim |  |  | nenhum | Brevo: tipo e motivo curto da rejeição definitiva. |
+
+Checks: `email_envios_provedor_valido` `CHECK ((provedor = ANY (ARRAY['brevo'::text, 'resend'::text, 'nenhum'::text])))`; `email_envios_situacao_valida` `CHECK ((situacao = ANY (ARRAY['enviando'::text, 'enviado'::text, 'falhou'::text, 'sem_configuracao'::text, 'teste'::text])))`
+
+Índices: `email_envios_emp_data_idx`, `email_envios_emp_destinatario_idx`, `email_envios_pkey`
 
 ## empresa
 

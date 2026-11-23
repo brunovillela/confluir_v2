@@ -377,6 +377,7 @@ async function avisarPessoas(ids: string[], mensagem: string, assunto: string, l
     if (!email) continue
     const nome = texto(u.nome_completo) ?? texto(u.nome_guerra)
     await enviarEmail({
+      processo: "viagens.diarias_remessa",
       email,
       nome,
       assunto: `${assunto} — {ENTIDADE}`,

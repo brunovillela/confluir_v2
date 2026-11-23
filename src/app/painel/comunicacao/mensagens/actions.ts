@@ -97,6 +97,7 @@ export async function malaDiretaAction(_prev: EstadoMalaDireta, fd: FormData): P
     const nome = String(sessao.usuario.nome_completo ?? sessao.usuario.nome_guerra ?? "Filiado")
     const entidade = await nomeEntidade()
     const ok = await enviarEmail({
+      processo: "comunicacao.mensagem_teste",
       email,
       nome,
       assunto: `[Teste] ${aplicarVariaveis(dados.assunto, { nome, entidade })}`,

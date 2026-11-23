@@ -1,6 +1,7 @@
 import "server-only"
 
 import type { SupabaseClient } from "@supabase/supabase-js"
+import { marcaSemEnvio } from "@/lib/email-processos"
 
 /**
  * EVENTOS DE ENTREGA DA BREVO NOS E-MAILS DE VOTAÇÃO (fase 4 do plano de
@@ -51,7 +52,8 @@ function quando(e: EventoBrevo): string {
 /** Processa um evento; devolve o que fez (para o log da rota). Nunca lança. */
 export async function registrarEventoBrevo(client: SupabaseClient, e: EventoBrevo): Promise<string> {
   try {
-    const marca = MARCA.exec(String(e["X-Mailin-custom"] ?? e["x-mailin-custom"] ?? "").trim())
+    // A marca pode trazer, no fim, o id do registro geral do envio (Gestão › E-mail).
+    const marca = MARCA.exec(marcaSemEnvio(String(e["X-Mailin-custom"] ?? e["x-mailin-custom"] ?? "")))
     if (!marca) return "ignorado (não é de votação)"
     const [, emp, tipo, aptoId] = marca
     const evento = String(e.event ?? "").toLowerCase()

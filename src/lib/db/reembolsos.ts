@@ -347,6 +347,7 @@ async function notificarReembolso(
   if (!(await querEmail(funcionarioId, "reembolso"))) return
   const nome = usuario.nome_completo ?? usuario.nome_guerra ?? null
   await enviarEmail({
+    processo: "financeiro.reembolso",
     email: usuario.email,
     nome,
     assunto: `${assunto} — {ENTIDADE}`,

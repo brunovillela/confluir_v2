@@ -244,6 +244,7 @@ export async function avisarEquipeNovaViagem(id: string): Promise<void> {
   ]
   for (const email of config.emailsAviso) {
     await enviarEmail({
+      processo: "viagens.pedido",
       email,
       assunto: `Pedido de viagem nº ${v.numero ?? ""} — ${v.beneficiarioNome}`,
       html: corpo.join("\n"),
@@ -298,6 +299,7 @@ export async function avisarViajantePedidoPorOutro(id: string): Promise<void> {
     ),
   ]
   await enviarEmail({
+    processo: "viagens.pedido",
     email: d.email,
     nome: d.nome,
     assunto: `Viagem nº ${v.numero ?? ""} pedida para você — {ENTIDADE}`,
@@ -480,6 +482,7 @@ async function avisar(
           ]
 
     const ok = await enviarEmail({
+      processo: "viagens.atendimento",
       email: d.email,
       nome: d.nome,
       assunto:

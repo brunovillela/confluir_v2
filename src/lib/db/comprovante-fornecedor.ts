@@ -185,6 +185,7 @@ async function enviar(
   const org = await obterOrganizacao()
   const entidade = org?.nomeRazao ?? org?.nomeFantasia ?? "Entidade"
   const ok = await enviarEmail({
+    processo: "financeiro.comprovante_fornecedor",
     email: contato.email,
     nome: contato.nome || contato.email,
     assunto: `Comprovante de pagamento${ordem.codigo ? ` — ordem ${ordem.codigo}` : ""} — ${entidade}`,

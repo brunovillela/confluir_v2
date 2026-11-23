@@ -30,7 +30,7 @@
 | P13 | [Hospedagem conveniada e cessão de espaços](#p13) | 12 | identificação, **sensível: filiação/posição sindical**, financeiro, credencial (segredo de acesso, nunca exportar) | sim |
 | P14 | [Frota: veículos e condutores](#p14) | 16 | identificação, financeiro | sim |
 | P15 | [Comunicação, eventos e avisos](#p15) | 9 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
-| P16 | [Contas de acesso, segurança, auditoria e gestão interna](#p16) | 32 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
+| P16 | [Contas de acesso, segurança, auditoria e gestão interna](#p16) | 33 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P17 | [Congressos e conferências](#p17) | 23 | identificação, **sensível: filiação/posição sindical** | sim |
 
 <a id="p01"></a>
@@ -765,7 +765,7 @@
 <a id="p16"></a>
 ## P16. Contas de acesso, segurança, auditoria e gestão interna
 
-**Finalidade.** Autenticar usuários, controlar perfis e permissões, registrar a trilha de auditoria e as tentativas de acesso, registrar as saídas de dados (livro de exportações `lgpd_exportacoes` e log da API `api_requisicoes`), atender pedidos de titulares, aplicar os prazos de retenção (motor de retenção: regras `lgpd_regras_retencao`, livro `lgpd_retencao_execucoes` e bloqueios por litígio `lgpd_bloqueios_litigio`), integrar sistemas (API/webhooks), administrar a IA da entidade (chave de API própria cifrada `ia_config`, registro de uso por pessoa, processo e departamento `ia_uso` — sem o conteúdo — e o livro de alterações da Gestão `gestao_eventos`), conduzir a revisão periódica de acessos pelos coordenadores (`acessos_revisao_ciclos`/`acessos_revisao_itens`: quem tem acesso, a decisão de manter, retirar ou ajustar e o que a Gestão fez) e organizar demandas internas.
+**Finalidade.** Autenticar usuários, controlar perfis e permissões, registrar a trilha de auditoria e as tentativas de acesso, registrar as saídas de dados (livro de exportações `lgpd_exportacoes` e log da API `api_requisicoes`), atender pedidos de titulares, aplicar os prazos de retenção (motor de retenção: regras `lgpd_regras_retencao`, livro `lgpd_retencao_execucoes` e bloqueios por litígio `lgpd_bloqueios_litigio`), integrar sistemas (API/webhooks), administrar a IA da entidade (chave de API própria cifrada `ia_config`, registro de uso por pessoa, processo e departamento `ia_uso` — sem o conteúdo — e o livro de alterações da Gestão `gestao_eventos`), registrar cada e-mail enviado pelo sistema (`email_envios`: processo, quem disparou, destinatário e o resultado da entrega informado pelo provedor — sem assunto nem corpo), conduzir a revisão periódica de acessos pelos coordenadores (`acessos_revisao_ciclos`/`acessos_revisao_itens`: quem tem acesso, a decisão de manter, retirar ou ajustar e o que a Gestão fez) e organizar demandas internas.
 
 **Titulares.** Usuários do sistema (funcionários, diretores, filiados no portal), administradores da plataforma.
 
@@ -782,13 +782,13 @@
 
 **Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Telegram: Exterior; Cloudflare Turnstile: EUA (rede global). Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
-**Retenção.** Registros de acesso e log da API: 6 meses (Marco Civil). Auditoria e livro de exportações: 5 anos. Contas: enquanto ativas. Uso da IA (`ia_uso`): quem pediu sai depois de 2 anos (RT36, no motor de retenção; o custo fica). Alterações da Gestão e revisões de acessos: proposta de 5 anos, como a auditoria (a definir). Livro do motor de retenção: só contagens, sem prazo. Bloqueios por litígio: enquanto o processo durar, depois histórico. Códigos RT31–RT35 em retencao.md (proposta a validar); a RT31 já está no motor de retenção.
+**Retenção.** Registros de acesso e log da API: 6 meses (Marco Civil). Auditoria e livro de exportações: 5 anos. Contas: enquanto ativas. Uso da IA (`ia_uso`): quem pediu sai depois de 2 anos (RT36, no motor de retenção; o custo fica). E-mails enviados (`email_envios`): destinatário e quem disparou saem depois de 1 ano (RT38, no motor de retenção; as estatísticas ficam). Alterações da Gestão e revisões de acessos: proposta de 5 anos, como a auditoria (a definir). Livro do motor de retenção: só contagens, sem prazo. Bloqueios por litígio: enquanto o processo durar, depois histórico. Códigos RT31–RT35 em retencao.md (proposta a validar); a RT31 já está no motor de retenção.
 
-**Medidas de segurança.** Turnstile e cadência de códigos; MFA; identidade separada do metadata (`auth_identidades`); auditoria sem colunas cifradas; API com escopo por endpoint (CPF só com `filiados_cpf`) e chave só no cabeçalho; livro de exportações e log da API gravados só pelo service_role (a entidade só lê); chave de IA da entidade cifrada na aplicação (AES-256-GCM, chave de cifra fora do banco) e nunca devolvida à tela; `ia_uso` não guarda o texto enviado à IA.
+**Medidas de segurança.** Turnstile e cadência de códigos; MFA; identidade separada do metadata (`auth_identidades`); auditoria sem colunas cifradas; API com escopo por endpoint (CPF só com `filiados_cpf`) e chave só no cabeçalho; livro de exportações e log da API gravados só pelo service_role (a entidade só lê); chave de IA da entidade cifrada na aplicação (AES-256-GCM, chave de cifra fora do banco) e nunca devolvida à tela; `ia_uso` não guarda o texto enviado à IA; `email_envios` não guarda assunto nem corpo do e-mail.
 
 **Observações.** Pendência: a `auditoria` copia em claro códigos e tokens com nomes fora da lista de ocultos.
 
-<details><summary>Tabelas (32) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (33) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -808,6 +808,7 @@
 | [demandas_formularios](../dados/dicionario/ferramentas.md#demandas_formularios) | identificacao | `responsavel_id` (identificacao) |
 | [demandas_regras](../dados/dicionario/ferramentas.md#demandas_regras) | identificacao | `pessoa_id` (identificacao), `criada_por` (identificacao) |
 | [demandas_tarefa_comentarios](../dados/dicionario/ferramentas.md#demandas_tarefa_comentarios) | identificacao | `autor_id` (identificacao), `texto` (identificacao), `anexo_caminho` (identificacao), `anexo_nome` (nenhum) |
+| [email_envios](../dados/dicionario/plataforma.md#email_envios) | identificacao | `detalhe` (nenhum), `usuario_id` (identificacao), `destinatario` (identificacao), `dominio` (nenhum), `erro` (nenhum), `rejeicao` (nenhum) |
 | [emails_institucionais](../dados/dicionario/filiacao.md#emails_institucionais) | identificacao | `endereco` (identificacao) |
 | [gestao_eventos](../dados/dicionario/plataforma.md#gestao_eventos) | identificacao | `usuario_id` (identificacao), `detalhe` (nenhum) |
 | [ia_config](../dados/dicionario/plataforma.md#ia_config) | credencial | `chave_cifrada` (credencial), `chave_final` (credencial), `chave_definida_por` (identificacao), `chave_teste_erro` (nenhum), `atualizado_por` (identificacao), `modelos_processo` (nenhum), `precos_modelos` (nenhum), `cotas_departamento` (nenhum), `cotacao_usd_brl` (nenhum) |
@@ -827,7 +828,7 @@
 
 </details>
 
-<sub>Titulares registrados no banco para estas tabelas: beneficiários de ordens; condutores; demais pessoas envolvidas em processo; diretores; eleitores; filiados; fornecedores pf; funcionarios; funcionários; inscritos; interessados; pessoas que usam a chave de api da entidade; público externo; sistemas; trabalhadores não filiados; usuários do sistema; usuários do sistema (operadores da plataforma).</sub>
+<sub>Titulares registrados no banco para estas tabelas: beneficiários de ordens; condutores; demais pessoas envolvidas em processo; diretores; eleitores; filiados; fornecedores; fornecedores pf; funcionarios; funcionários; inscritos; interessados; pessoas que usam a chave de api da entidade; público externo; sistemas; trabalhadores não filiados; usuários do sistema; usuários do sistema (operadores da plataforma).</sub>
 
 <a id="p17"></a>
 ## P17. Congressos e conferências
@@ -912,4 +913,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 272 de 272 tabelas com dado pessoal atribuídas a 17 processos.
+Cobertura: 273 de 273 tabelas com dado pessoal atribuídas a 17 processos.

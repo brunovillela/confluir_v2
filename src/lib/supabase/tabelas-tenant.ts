@@ -21,6 +21,7 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   // Gestão › Inteligência Artificial (20261119160334_gestao_ia.sql).
   "ia_config",
   "ia_uso",
+  "email_envios",
   "gestao_eventos",
   "acessos_revisao_ciclos",
   "acessos_revisao_itens",

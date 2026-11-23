@@ -179,7 +179,7 @@ export async function cobrarEmLote(
     const { assunto, html } = emailDeCobranca({ empresa: e.nome, itens: e.itens, link: links.get(e.empresaId) ?? null, extra })
     const enviados: string[] = []
     for (const c of destinos) {
-      if (await enviarEmail({ email: c.email!, nome: c.nome, assunto, html }).catch(() => false)) enviados.push(c.email!)
+      if (await enviarEmail({ processo: "filiados.repasse_cobranca", email: c.email!, nome: c.nome, assunto, html }).catch(() => false)) enviados.push(c.email!)
     }
     if (enviados.length === 0) {
       resultados.push({ empresa: e.nome, enviados, erro: "o e-mail não saiu" })

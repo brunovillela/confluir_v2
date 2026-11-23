@@ -133,6 +133,7 @@ export async function enviarLoteAvisoContato(
         const canais: string[] = []
         if (a.email_contato) {
           const ok = await enviarEmail({
+            processo: "votacao.aviso_contato",
             email: a.email_contato,
             nome: a.nome_completo,
             assunto,

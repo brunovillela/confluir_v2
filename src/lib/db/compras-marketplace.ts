@@ -384,6 +384,7 @@ export async function avisarNotasAReceber(
       if (email) {
         const url = `${contexto.origem}${link}`
         await enviarEmail({
+          processo: "compras.marketplace_notas",
           email,
           nome: t(u?.nome_completo) ?? t(u?.nome_guerra),
           assunto: `Nota fiscal pendente — compra ${t(p.codigo) ?? ""} em ${marketplace}`,

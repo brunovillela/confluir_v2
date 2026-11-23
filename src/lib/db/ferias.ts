@@ -876,6 +876,7 @@ export async function definirAutorizacaoGozo(
     if (!avisoEnviado && usuario?.email && (await querEmail(g.funcionario_id, "ferias"))) {
       const nome = usuario.nome_completo ?? usuario.nome_guerra ?? null
       await enviarEmail({
+        processo: "pessoal.ferias_autorizacao",
         email: usuario.email,
         nome,
         assunto: "Férias autorizadas — {ENTIDADE}",

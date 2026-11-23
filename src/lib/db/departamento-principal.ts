@@ -1,5 +1,7 @@
 import "server-only"
 
+import { cache } from "react"
+
 import { listarDepartamentosCompletos } from "@/lib/db/departamentos"
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -83,3 +85,38 @@ export async function definirPrincipais(escolhas: Map<string, string | null>): P
   }
   return { alterados }
 }
+
+/**
+ * Departamento por que a pessoa conta (IA e e-mail): o principal marcado na
+ * Gestão; sem ele, o que coordena; sem isso, o primeiro que integra. Recebe a
+ * entidade explícita (serve também ao agendador). null se não achar ou falhar.
+ */
+export const departamentoDaPessoa = cache(async (usuarioId: string, emp: string): Promise<string | null> => {
+  try {
+    const admin = await createAdminClient()
+    const { data: principal } = await admin
+      .from("empresa_departamentos_integrantes")
+      .select("departamento_id, empresa_departamentos!inner(emp_proprietaria_id)")
+      .eq("usuario_id", usuarioId)
+      .eq("principal", true)
+      .eq("empresa_departamentos.emp_proprietaria_id", emp)
+      .limit(1)
+    if (principal?.[0]?.departamento_id) return String(principal[0].departamento_id)
+    const { data: coord } = await admin
+      .from("empresa_departamentos")
+      .select("id")
+      .eq("emp_proprietaria_id", emp)
+      .eq("coordenador_id", usuarioId)
+      .limit(1)
+    if (coord?.[0]?.id) return String(coord[0].id)
+    const { data: integ } = await admin
+      .from("empresa_departamentos_integrantes")
+      .select("departamento_id, empresa_departamentos!inner(emp_proprietaria_id)")
+      .eq("usuario_id", usuarioId)
+      .eq("empresa_departamentos.emp_proprietaria_id", emp)
+      .limit(1)
+    return integ?.[0]?.departamento_id ? String(integ[0].departamento_id) : null
+  } catch {
+    return null
+  }
+})

@@ -2314,6 +2314,7 @@ async function entregarAvisoOposicao(
   }
   if (!a.pessoa.email) return false
   const saiu = await enviarEmail({
+    processo: "oposicao.aviso_decisao",
     email: a.pessoa.email,
     nome: a.pessoa.nome,
     assunto: a.assunto,
