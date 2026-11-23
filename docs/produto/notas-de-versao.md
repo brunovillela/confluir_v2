@@ -6,6 +6,7 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 
 ## 22/11/2026 — Oposição: texto do desconto com parágrafos
 
+- Pessoal → Uso fora do expediente: o mês sai em planilha (Excel), por funcionário ou dia a dia, com as horas em HH:MM e em decimal, os horários fora da jornada e o motivo informado.
 - Controle de ponto: o relatório em PDF do funcionário termina com o uso do sistema fora do expediente dos últimos 12 meses, mês a mês e dia a dia, com o motivo informado. E a resenha da IA passa a considerar esse uso nos riscos, em quem acompanhar e nas recomendações, comparando-o com as horas extras lançadas.
 - Pessoal: a caixa de entrada avisa quem, no mês, passou de 4 h de uso do sistema fora do expediente ou usou o sistema por mais de 10 minutos num dia de férias ou afastamento. No relatório Uso fora do expediente, o nome dessas pessoas ganha uma marca. O registro do uso e os motivos ficam guardados 5 anos (regra RT37 do motor de retenção, em Institucional → LGPD).
 - Pessoal: o painel (em Precisa de atenção) e a caixa de entrada avisam quantos funcionários ativos estão sem jornada vinculada, com o atalho para vincular. Sem jornada, o uso fora do expediente não é registrado.

@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react"
+import { ArrowLeft, ChevronLeft, ChevronRight, Download } from "lucide-react"
 
 import { TileIndicador } from "@/components/graficos/tile"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
@@ -215,6 +215,22 @@ export default async function UsoForaDoExpedientePage({
                 {LIMITE_AVISO_MES_MIN / 60} h a considerar no mês ou usa o sistema por mais de {TOLERANCIA_DIARIA_MIN} minutos
                 num dia de férias ou afastamento.
               </CardDescription>
+              {dados.linhas.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-2">
+                  <Button variant="outline" size="sm" asChild>
+                    <a href={`/painel/pessoal/ponto/fora-do-expediente/csv?mes=${mes}`}>
+                      <Download />
+                      Planilha por funcionário
+                    </a>
+                  </Button>
+                  <Button variant="outline" size="sm" asChild>
+                    <a href={`/painel/pessoal/ponto/fora-do-expediente/csv?mes=${mes}&detalhe=dias`}>
+                      <Download />
+                      Planilha dia a dia
+                    </a>
+                  </Button>
+                </div>
+              )}
             </CardHeader>
             <CardContent>
               {dados.linhas.length === 0 ? (
