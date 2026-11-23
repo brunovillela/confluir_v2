@@ -37,6 +37,7 @@ import { rpasComLinkPendente } from "@/lib/db/rpa-assinatura"
 import { situacaoOrdensCompra } from "@/lib/db/ordem-compra"
 import { comprovantesDasOrdens, type ComprovanteDaOrdem } from "@/lib/db/comprovante-fornecedor"
 import { urlArquivoOrdem } from "@/lib/db/ordens-extrato"
+import { valorDaCompraFrenteAsOrdens } from "@/lib/db/compras-ajustes"
 import { edicaoDaCompra } from "@/lib/db/compras-edicao"
 import { listarCartoes, nomeCartao } from "@/lib/db/compras-pagamento"
 import { contasAbertasParaCompras } from "@/lib/db/caixa"
@@ -53,6 +54,7 @@ import {
 import { NotaFiscalIcone, NovoCodigoPix } from "./ajustes-pagamento"
 import { CotacaoRapidaForm } from "./cotacao-rapida"
 import { OrdemDevolvida } from "./ordem-devolvida"
+import { ValorSuspeito } from "./valor-suspeito"
 import { OrdemCompraAcoes } from "./ordem-compra"
 import { CustoDoRpa } from "./custo-rpa"
 import { ComprovanteAcoes } from "./comprovante-envio"
@@ -203,7 +205,7 @@ export default async function ProcessoCompraPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ criado?: string; salvo?: string; editada?: string; reenviada?: string }>
+  searchParams: Promise<{ criado?: string; salvo?: string; editada?: string; reenviada?: string; valor_corrigido?: string }>
 }) {
   const sessao = await requirePermissao("aquisicoes_compras", [
     "aquisicoes_compras_edicao",
@@ -211,7 +213,7 @@ export default async function ProcessoCompraPage({
     "aquisicoes_recebimentos",
   ])
   const { id } = await params
-  const { criado, salvo, editada, reenviada } = await searchParams
+  const { criado, salvo, editada, reenviada, valor_corrigido } = await searchParams
 
   const processo = await buscarProcesso(id)
   if (!processo) notFound()
@@ -248,6 +250,9 @@ export default async function ProcessoCompraPage({
       "aquisicoes_comprador",
       "aquisicoes_compra_direta",
     ])
+
+  // Valor fora da escala das ordens (vírgula no lugar errado, 23/11/2026).
+  const valorConta = processo.comprado && !processo.cancelado ? await valorDaCompraFrenteAsOrdens(processo.id) : null
 
   // Antes da autorização a compra é de quem a registrou: edita tudo (15/10).
   const podeEditar =
@@ -526,6 +531,22 @@ export default async function ProcessoCompraPage({
         </p>
       </div>
 
+      {valorConta?.motivo && (
+        <ValorSuspeito
+          processoId={processo.id}
+          valorCompra={valorConta.valorCompra}
+          valorOrdens={valorConta.valorOrdens}
+          motivo={valorConta.motivo}
+          podeCorrigir={podeAjustar}
+        />
+      )}
+      {valor_corrigido === "1" && !valorConta?.motivo && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>
+            Valor da compra corrigido para o das ordens. Os indicadores de Aquisição já contam o valor novo.
+          </AlertDescription>
+        </Alert>
+      )}
       {reenviada === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Ordem reenviada para autorização, com a sua resposta.</AlertDescription>

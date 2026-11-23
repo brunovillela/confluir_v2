@@ -1,6 +1,7 @@
 import "server-only"
 
 import { pixCodigoValido } from "@/lib/compras-constantes"
+import { SITUACOES_SEM_VALOR, valorDaCompraSuspeito } from "@/lib/compras-valor-regras"
 import { registrarEvento, SITUACOES_ENCERRADAS } from "@/lib/db/ordens-ciclo"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -142,4 +143,94 @@ export async function trocarNotaDaCompra(
     }
   }
   return {}
+}
+
+// ── Valor da compra fora da escala (23/11/2026) ──────────────────────────────
+
+/**
+ * Valor das ordens válidas (sem canceladas, estornadas e excluídas) de um
+ * processo de compra, e o motivo para desconfiar do valor da compra (null:
+ * está na escala).
+ */
+export async function valorDaCompraFrenteAsOrdens(
+  processoId: string
+): Promise<{ valorCompra: number; valorOrdens: number; ordemIds: string[]; motivo: string | null } | null> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const [{ data: proc }, { data: ordens }] = await Promise.all([
+    admin.from("compras_solicitacoes").select("id, compra_valor").eq("id", processoId).eq("emp_proprietaria_id", emp).maybeSingle(),
+    admin
+      .from("ordens_pagamento")
+      .select("id, valor_inicial_cobranca, situacao")
+      .eq("processo_compra_id", processoId)
+      .eq("emp_proprietaria_id", emp)
+      .not("excluido", "is", true),
+  ])
+  if (!proc) return null
+  const validas = (ordens ?? []).filter((o) => !SITUACOES_SEM_VALOR.includes(String(o.situacao ?? "")))
+  const valorCompra = Number(proc.compra_valor ?? 0)
+  const valorOrdens = Math.round(validas.reduce((s, o) => s + Number(o.valor_inicial_cobranca ?? 0), 0) * 100) / 100
+  return {
+    valorCompra,
+    valorOrdens,
+    ordemIds: validas.map((o) => String(o.id)),
+    motivo: valorDaCompraSuspeito(valorCompra, valorOrdens),
+  }
+}
+
+/**
+ * Corrige o valor da compra (e da proposta escolhida e do fornecimento único,
+ * quando repetem o valor errado) para o valor das ordens — o que de fato foi
+ * pago ou está a pagar. Só quando a conta acusa o valor fora da escala; fica
+ * na trilha das ordens.
+ */
+export async function usarValorDasOrdens(processoId: string, usuarioId: string): Promise<{ erro?: string; valor?: number }> {
+  const conta = await valorDaCompraFrenteAsOrdens(processoId)
+  if (!conta) return { erro: "Compra não encontrada." }
+  if (!conta.motivo) return { erro: "O valor da compra já está na escala das ordens — nada a corrigir." }
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { valorCompra: antes, valorOrdens: depois } = conta
+
+  const { data: proc } = await admin
+    .from("compras_solicitacoes")
+    .select("cotacao_proposta_id")
+    .eq("id", processoId)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  if (proc?.cotacao_proposta_id) {
+    await admin
+      .from("compras_propostas")
+      .update({ valor_proposta: depois })
+      .eq("id", proc.cotacao_proposta_id)
+      .eq("valor_proposta", antes)
+  }
+  const { data: fornecimentos } = await admin
+    .from("compras_fornecimentos")
+    .select("id, valor")
+    .eq("processo_id", processoId)
+    .eq("emp_proprietaria_id", emp)
+  if ((fornecimentos ?? []).length === 1 && Number(fornecimentos![0].valor ?? 0) === antes) {
+    await admin.from("compras_fornecimentos").update({ valor: depois }).eq("id", fornecimentos![0].id)
+  }
+  const { data: gravada, error } = await admin
+    .from("compras_solicitacoes")
+    .update({ compra_valor: depois, updated_at: new Date().toISOString() })
+    .eq("id", processoId)
+    .eq("emp_proprietaria_id", emp)
+    .eq("compra_valor", antes)
+    .select("id")
+  if (error) return { erro: `Não foi possível corrigir: ${error.message}` }
+  if (!gravada?.length) return { erro: "O valor da compra mudou enquanto você olhava — recarregue a página." }
+
+  const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+  await registrarEvento(
+    conta.ordemIds,
+    "corrigida",
+    usuarioId,
+    `Valor da compra corrigido de ${brl(antes)} para ${brl(depois)}, o das ordens (estava fora da escala).`,
+    // A ordem não mudou: nada a reavaliar na auditoria.
+    { compra_valor: { antes, depois }, reavaliada: true }
+  )
+  return { valor: depois }
 }

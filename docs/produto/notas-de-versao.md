@@ -4,6 +4,10 @@
 
 O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga. É o mesmo conteúdo do aviso "O que há de novo" dentro do sistema. O detalhe técnico de cada entrega está no histórico do git; as decisões de arquitetura, em [`docs/arquitetura/adr/`](../arquitetura/adr/LEIA-ME.md).
 
+## 23/11/2026 — Aquisição: valor de compra fora da escala
+
+- Aquisição: compras com o valor digitado com a vírgula no lugar errado (R$ 72.500.000,00 em vez de R$ 72.500,00) não distorcem mais os indicadores sem aviso. O painel de Aquisição lista as compras do período cujo valor está fora da escala das ordens de pagamento, e a compra mostra o botão Usar o valor das ordens, que corrige o valor (fica no histórico da ordem). Sete compras migradas do Bubble com esse erro já foram corrigidas: o total dos últimos 12 meses caiu de R$ 84,5 milhões para R$ 8,3 milhões, o valor real.
+
 ## 22/11/2026 — Oposição: texto do desconto com parágrafos
 
 - Ferramentas: painéis, seguidores e atalhos. Em Painéis, o trabalho de cada departamento: tarefas abertas e atrasadas, concluídas na semana, tempo médio até concluir, criadas e concluídas por semana, abertas por pessoa, demandas e projetos — ou a entidade inteira, com os departamentos lado a lado. Siga uma tarefa (na conversa) ou uma demanda (no alto da página) para receber os avisos dela; escreva @ na conversa da tarefa para mencionar alguém, que é avisado e passa a ver a conversa. Em Tarefas e Demandas, os Atalhos: Minhas da semana, Atrasadas e os filtros que você salvar, só para você ou para a equipe, com os filtros novos por departamento.

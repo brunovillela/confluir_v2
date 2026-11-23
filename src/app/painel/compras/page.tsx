@@ -363,6 +363,33 @@ export default async function ComprasPage({
           </Alert>
         ) : (
           <>
+            {ind.suspeitas.length > 0 && (
+              <Alert variant="warning" id="valores-suspeitos">
+                <AlertDescription className="grid gap-2">
+                  <p>
+                    {ind.suspeitas.length === 1
+                      ? "1 compra do período tem valor"
+                      : `${ind.suspeitas.length} compras do período têm valor`}{" "}
+                    fora da escala das ordens de pagamento (vírgula no lugar
+                    errado?) e {ind.suspeitas.length === 1 ? "distorce" : "distorcem"} os
+                    gráficos. Abra a compra e use
+                    &ldquo;Usar o valor das ordens&rdquo;.
+                  </p>
+                  <ul className="grid gap-1 text-xs">
+                    {ind.suspeitas.slice(0, 10).map((s) => (
+                      <li key={s.id}>
+                        <Link href={`/painel/compras/${s.id}`} className="font-medium underline underline-offset-2">
+                          {s.codigo ?? "Compra"}
+                        </Link>{" "}
+                        · {s.data.split("-").reverse().join("/")} · {s.descricao || "(sem descrição)"} · compra{" "}
+                        {moeda(s.valor)}, ordens {moeda(s.valorOrdens)} — {s.motivo}
+                      </li>
+                    ))}
+                    {ind.suspeitas.length > 10 && <li>… e mais {ind.suspeitas.length - 10}.</li>}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            )}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <TileIndicador
                 rotulo="Total comprado"

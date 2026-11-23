@@ -3,6 +3,7 @@ import "server-only"
 import { esquemaAusente, nomesDosUsuarios } from "@/lib/db/comum"
 import { empresasPorId } from "@/lib/db/compras"
 import { filtroDoEscopo, type EscopoCompras } from "@/lib/db/compras-acesso"
+import { SITUACOES_SEM_VALOR, valorDaCompraSuspeito } from "@/lib/compras-valor-regras"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -25,6 +26,17 @@ export const PERIODOS_INDICADORES = {
 } as const
 export type PeriodoIndicadores = keyof typeof PERIODOS_INDICADORES
 
+/** Compra cujo valor não bate com o das ordens (vírgula no lugar errado). */
+export type CompraValorSuspeito = {
+  id: string
+  codigo: string | null
+  descricao: string
+  data: string
+  valor: number
+  valorOrdens: number
+  motivo: string
+}
+
 export type Fatia = { chave: string; nome: string; valor: number; quantidade: number }
 
 export type IndicadoresCompras = {
@@ -43,6 +55,8 @@ export type IndicadoresCompras = {
   departamentos: Fatia[]
   /** Quantos fornecedores distintos (o ranking mostra só os maiores). */
   totalFornecedores: number
+  /** Compras do período com valor fora da escala das ordens (distorcem os gráficos). */
+  suspeitas: CompraValorSuspeito[]
 }
 
 const LOTE = 1000
@@ -184,7 +198,7 @@ async function calcularIndicadores(
     let q = admin
       .from("compras_solicitacoes")
       .select(
-        "id, compra_valor, compra_data, compra_fornecedor_id, comprado_por_id, solicitacao_e_produto, aquisicao_direta, solicitacao_departamento_id"
+        "id, codigo, solicitacao_produto, compra_valor, compra_data, compra_fornecedor_id, comprado_por_id, solicitacao_e_produto, aquisicao_direta, solicitacao_departamento_id"
       )
       .eq("emp_proprietaria_id", emp)
       .eq("comprado", true)
@@ -223,6 +237,27 @@ async function calcularIndicadores(
     if ((data ?? []).length < LOTE) break
   }
 
+  // Valor das ordens de cada compra, para achar o valor digitado fora da escala.
+  const ordensPorProcesso = new Map<string, number>()
+  for (let i = 0; i < 50 && ids.size > 0; i++) {
+    const { data, error } = await admin
+      .from("ordens_pagamento")
+      .select("id, processo_compra_id, valor_inicial_cobranca, situacao")
+      .eq("emp_proprietaria_id", emp)
+      .not("processo_compra_id", "is", null)
+      .not("excluido", "is", true)
+      .order("id")
+      .range(i * LOTE, i * LOTE + LOTE - 1)
+    if (error) break
+    for (const o of data ?? []) {
+      const pid = String(o.processo_compra_id)
+      if (!ids.has(pid) || SITUACOES_SEM_VALOR.includes(String(o.situacao ?? ""))) continue
+      ordensPorProcesso.set(pid, (ordensPorProcesso.get(pid) ?? 0) + Number(o.valor_inicial_cobranca ?? 0))
+    }
+    if ((data ?? []).length < LOTE) break
+  }
+  const suspeitas: CompraValorSuspeito[] = []
+
   const meses = mesesEntre(de, ate)
   const porMes = new Map(meses.map((m) => [m, { mes: m, valor: 0, quantidade: 0 }]))
   const fornecedores = new Map<string, Fatia>()
@@ -235,6 +270,19 @@ async function calcularIndicadores(
   for (const p of processos) {
     const valor = Number(p.compra_valor ?? 0)
     total += valor
+    const valorOrdens = ordensPorProcesso.get(String(p.id)) ?? 0
+    const motivo = valorDaCompraSuspeito(valor, valorOrdens)
+    if (motivo) {
+      suspeitas.push({
+        id: String(p.id),
+        codigo: (p.codigo as string | null) ?? null,
+        descricao: String(p.solicitacao_produto ?? "").split(/\r?\n/)[0].slice(0, 90),
+        data: String(p.compra_data ?? "").slice(0, 10),
+        valor,
+        valorOrdens,
+        motivo,
+      })
+    }
     const mes = `${String(p.compra_data).slice(0, 7)}-01`
     const pm = porMes.get(mes)
     if (pm) {
@@ -297,5 +345,6 @@ async function calcularIndicadores(
     compradores: ranking(compradores),
     departamentos: ranking(departamentos),
     totalFornecedores: [...fornecedores.keys()].filter((k) => k !== "sem").length,
+    suspeitas: suspeitas.sort((a, b) => b.valor - a.valor),
   }
 }
