@@ -1,4 +1,5 @@
 import "server-only"
+import { validarAssinaturasPdf } from "@/lib/assinatura-pdf"
 import { cpfConfiavel } from "@/lib/cpf"
 
 import { createHash, randomBytes, randomInt, randomUUID, timingSafeEqual } from "node:crypto"
@@ -661,6 +662,65 @@ export async function cancelarEnvio(oficioId: string, motivo: string | null): Pr
     .eq("id", oficioId)
     .eq("situacao", "Aguardando assinatura")
   return {}
+}
+
+/**
+ * Finaliza o ofício que estava em assinatura eletrônica com o documento
+ * assinado por outro meio — à mão ou pelo gov.br (23/11/2026: ofícios
+ * ficavam presos em "Aguardando assinatura" quando quem assina não usava o
+ * link). O PDF assinado é guardado no ofício, os convites que faltam deixam
+ * de valer (com o evento na trilha) e o ofício passa a Emitido, com o número
+ * que já tinha. Assinatura já feita pelo link, se houver, fica como está.
+ * A conferência das assinaturas digitais do PDF (gov.br, ICP-Brasil) é
+ * informativa: vai na trilha e na resposta, não barra.
+ */
+export async function finalizarComDocumentoAssinado(
+  oficioId: string,
+  arquivo: File,
+  quem: { id: string; nome: string | null }
+): Promise<{ erro?: string; resumo?: string }> {
+  if (arquivo.type !== "application/pdf") return { erro: "O arquivo deve ser um PDF." }
+  if (arquivo.size === 0) return { erro: "O arquivo está vazio." }
+  if (arquivo.size > 4 * 1024 * 1024) return { erro: "O arquivo deve ter no máximo 4 MB." }
+
+  const admin = await createAdminClient()
+  const { data: o } = await admin
+    .from("oficios")
+    .select("situacao")
+    .eq("id", oficioId)
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .maybeSingle()
+  if (!o) return { erro: "Ofício não encontrado." }
+  if (o.situacao !== "Aguardando assinatura") return { erro: "Só o ofício aguardando assinatura é finalizado por aqui." }
+
+  const bytes = new Uint8Array(await arquivo.arrayBuffer())
+  const validacao = validarAssinaturasPdf(bytes)
+  const caminho = `oficios/${oficioId}/assinado-externo-${randomUUID().slice(0, 8)}.pdf`
+  const { error } = await admin.storage.from("documentos").upload(caminho, bytes, { contentType: "application/pdf" })
+  if (error) return { erro: `Falha ao subir o arquivo: ${error.message}` }
+
+  const agora = new Date().toISOString()
+  // Só passa se ainda estava aguardando (ninguém assinou pelo link nem cancelou no meio).
+  const { data: gravado, error: erroBanco } = await admin
+    .from("oficios")
+    .update({ situacao: "Emitido", emitido_em: agora, arquivo_assinado: caminho, updated_at: agora })
+    .eq("id", oficioId)
+    .eq("situacao", "Aguardando assinatura")
+    .select("id")
+  if (erroBanco || !gravado?.length) {
+    await admin.storage.from("documentos").remove([caminho])
+    return { erro: erroBanco ? `Falha ao finalizar: ${erroBanco.message}` : "O ofício mudou de situação enquanto você enviava. Recarregue a página." }
+  }
+
+  const digitais =
+    validacao.situacao === "sem_assinatura" || validacao.situacao === "erro"
+      ? "sem assinatura digital no PDF (assinado à mão ou digitalizado)"
+      : `assinaturas digitais no PDF: ${validacao.resumo}`
+  await cancelarPendentes(
+    await pendentesDoOficio(oficioId),
+    `Documento assinado por outro meio anexado${quem.nome ? ` por ${quem.nome}` : ""}; ${digitais}.`
+  )
+  return { resumo: digitais }
 }
 
 // ── cancelamento do ofício (painel) ─────────────────────────────────────────

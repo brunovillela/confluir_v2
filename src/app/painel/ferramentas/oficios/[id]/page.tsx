@@ -65,6 +65,7 @@ import { atualizarOficioAction } from "../actions"
 import {
   AcoesEnvioPendente,
   AnexarAssinadoAMao,
+  FinalizarComDocumentoAssinado,
   EnviarParaAssinatura,
   ReenviarConvite,
   type AssinanteParaEnvio,
@@ -455,13 +456,33 @@ export default async function OficioPage({
 
       {rodada.length > 0 && <CartaoAssinaturas rodada={rodada} oficioId={id} />}
 
+      {/* Em assinatura, mas assinado por outro meio: finaliza com o PDF, sem esperar o link */}
+      {aguardando && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileCheck2 className="size-4" />
+              Assinado à mão ou pelo gov.br
+            </CardTitle>
+            <CardDescription>
+              Se o ofício foi assinado fora do link (à mão ou no Assinador do gov.br), anexe o PDF assinado e
+              finalize: o ofício passa a Emitido, com o número {oficio.numero}/{oficio.ano}, e o link de assinatura
+              deixa de valer. As assinaturas digitais do PDF são conferidas e ficam registradas na trilha.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FinalizarComDocumentoAssinado oficioId={id} />
+          </CardContent>
+        </Card>
+      )}
+
       {/* Emitido à mão: o PDF digitalizado fica junto do ofício */}
       {!rascunho && !aguardando && !assinadoEletronicamente && (!cancelado || oficio.arquivoAssinadoUrl) && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <FileCheck2 className="size-4" />
-              Documento assinado à mão
+              Documento assinado à mão ou pelo gov.br
             </CardTitle>
             <CardDescription>
               {cancelado

@@ -1,7 +1,7 @@
 "use client"
 
 import { useActionState, useState } from "react"
-import { Ban, FileUp, Loader2, Mail, Send } from "lucide-react"
+import { Ban, FileCheck2, FileUp, Loader2, Mail, Send } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,6 +10,7 @@ import { type EstadoForm } from "@/lib/contas"
 
 import {
   anexarAssinadoAMaoAction,
+  finalizarComDocumentoAssinadoAction,
   cancelarEnvioAction,
   enviarParaAssinaturaAction,
   reenviarConviteAction,
@@ -189,6 +190,37 @@ export function AnexarAssinadoAMao({
         <Button type="submit" variant="outline" disabled={pendente}>
           {pendente ? <Loader2 className="animate-spin" /> : <FileUp />}
           Anexar
+        </Button>
+      </div>
+      <Retorno estado={estado} />
+    </form>
+  )
+}
+
+/**
+ * Ofício em assinatura eletrônica que foi assinado por outro meio (à mão ou
+ * pelo gov.br): anexa o PDF e finaliza, sem esperar o link. Pede confirmação:
+ * o link deixa de valer.
+ */
+export function FinalizarComDocumentoAssinado({ oficioId }: { oficioId: string }) {
+  const [estado, formAction, pendente] = useActionState<EstadoForm, FormData>(finalizarComDocumentoAssinadoAction, {})
+  return (
+    <form
+      action={formAction}
+      className="grid gap-3"
+      onSubmit={(e) => {
+        if (!window.confirm("Finalizar o ofício com este PDF? O link de assinatura deixa de valer e o ofício passa a Emitido.")) e.preventDefault()
+      }}
+    >
+      <input type="hidden" name="oficio_id" value={oficioId} />
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="grid gap-1.5">
+          <Label htmlFor="arquivo-assinado-externo">PDF assinado (à mão e digitalizado, ou pelo gov.br)</Label>
+          <Input id="arquivo-assinado-externo" name="arquivo" type="file" accept="application/pdf" required className="w-full sm:w-96" />
+        </div>
+        <Button type="submit" disabled={pendente}>
+          {pendente ? <Loader2 className="animate-spin" /> : <FileCheck2 />}
+          Finalizar ofício
         </Button>
       </div>
       <Retorno estado={estado} />

@@ -27,6 +27,7 @@ import {
   anexarAssinadoAMao,
   cancelarEnvio,
   enviarParaAssinatura,
+  finalizarComDocumentoAssinado,
   registrarCancelamentoNaAssinatura,
   reenviarConvite,
   type CanalAssinatura,
@@ -299,4 +300,30 @@ export async function anexarAssinadoAMaoAction(
   if (erro) return { erro }
   revalidatePath(`/painel/ferramentas/oficios/${id}`)
   return { ok: "Documento assinado anexado ao ofício." }
+}
+
+/**
+ * Ofício em assinatura eletrônica que foi assinado por outro meio (à mão ou
+ * pelo gov.br): anexa o PDF assinado e finaliza (Emitido), sem esperar o link.
+ */
+export async function finalizarComDocumentoAssinadoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao("ferramentas_oficios")
+  const id = texto(formData, "oficio_id")
+  if (!id) return { erro: "Ofício inválido." }
+  const fora = await foraDoEscopo(id)
+  if (fora) return { erro: fora }
+  const arquivo = formData.get("arquivo")
+  if (!(arquivo instanceof File) || arquivo.size === 0) return { erro: "Selecione o PDF assinado." }
+
+  const r = await finalizarComDocumentoAssinado(id, arquivo, {
+    id: String(sessao.usuario.id),
+    nome: sessao.usuario.nome_completo ?? null,
+  })
+  if (r.erro) return { erro: r.erro }
+  revalidatePath("/painel/ferramentas/oficios")
+  revalidatePath(`/painel/ferramentas/oficios/${id}`)
+  return { ok: `Ofício finalizado com o documento assinado (${r.resumo}). O link de assinatura deixou de valer.` }
 }
