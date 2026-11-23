@@ -295,6 +295,14 @@ export function ModelosProcessoForm({ inicial }: { inicial: ModelosProcessoInici
   const [estado, action, pendente] = useActionState<EstadoForm, FormData>(salvarModelosProcessoAction, {})
   const envio = useEnvioFormulario(action, estado, { manter: true })
   const [modelos, setModelos] = useState<Record<string, string>>(inicial.modelos)
+  // O salvo pode mudar por fora (botão "Usar" da sugestão de troca): o estado local
+  // acompanha, para que salvar este formulário não desfaça a troca.
+  const salvo = JSON.stringify(inicial.modelos)
+  const [salvoAnterior, setSalvoAnterior] = useState(salvo)
+  if (salvo !== salvoAnterior) {
+    setSalvoAnterior(salvo)
+    setModelos(inicial.modelos)
+  }
   const usados = [...new Set(Object.values(modelos).map((m) => m.trim()).filter((m) => m && m !== inicial.modeloGeral))].sort()
   const modulos = MODULOS_IA.map((mod) => ({
     ...mod,

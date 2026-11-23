@@ -139,7 +139,10 @@ export async function salvarModelosProcessoAction(_prev: EstadoForm, fd: FormDat
   }
 
   const usados = new Set(Object.values(modelos))
-  const precos: Record<string, PrecosModelo> = {}
+  // Preços de modelos fora de uso (cadastrados para comparar na sugestão de troca) ficam.
+  const precos: Record<string, PrecosModelo> = Object.fromEntries(
+    Object.entries(config.precosModelos).filter(([m]) => !usados.has(m) && m !== geral)
+  )
   for (const m of usados) {
     const lido: PrecosModelo = { entrada: null, cache: null, saida: null }
     for (const campo of ["entrada", "cache", "saida"] as const) {
@@ -178,6 +181,66 @@ export async function salvarModelosProcessoAction(_prev: EstadoForm, fd: FormDat
         ? ` Sem preço para ${semPreco.join(", ")}: o custo dessas chamadas não entra na estimativa nem no teto.`
         : ""),
   }
+}
+
+/**
+ * Sugestão de troca de modelo: põe o modelo sugerido num processo, sem mexer
+ * nos outros. Com a chave da entidade, o modelo novo é testado antes.
+ */
+export async function aplicarSugestaoModeloAction(processo: string, modelo: string): Promise<EstadoForm> {
+  const sessao = await requirePermissao("gestao_sistema")
+  if (!PROCESSOS_IA.some((p) => p.chave === processo)) return { erro: "Processo desconhecido." }
+  if (!modeloValido(modelo)) return { erro: `Nome de modelo inválido: "${modelo}".` }
+  const config = await obterConfigIA()
+  const geral = config.modelo || MODELO_IA
+  if (!Object.values(config.modelosProcesso).includes(modelo) && modelo !== geral) {
+    const { chave } = await configIAParaChamada(await tenantAtual())
+    if (chave) {
+      const erro = await testarChaveIA(chave, modelo)
+      if (erro) return { erro: `O modelo "${modelo}" não respondeu com a chave da entidade, e nada mudou. ${erro}` }
+    }
+  }
+  const modelos = { ...config.modelosProcesso }
+  if (modelo === geral) delete modelos[processo]
+  else modelos[processo] = modelo
+  const r = await salvarModelosProcessoIA(modelos, config.precosModelos, String(sessao.usuario.id))
+  if (r.erro) return { erro: r.erro }
+  revalidatePath(ROTA)
+  return { ok: `Pronto: o processo passa a usar ${modelo}.` }
+}
+
+/**
+ * Preço de um modelo para comparar (sugestão de troca), mesmo sem uso em
+ * processo nenhum. Entrada e saída em branco apagam o preço.
+ */
+export async function salvarPrecoComparacaoAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  const sessao = await requirePermissao("gestao_sistema")
+  const modelo = String(fd.get("modelo") ?? "").trim()
+  if (!modeloValido(modelo)) return { erro: "Informe o nome do modelo (ex.: gpt-5.4-mini).", campo: "modelo" }
+  const config = await obterConfigIA()
+  if (modelo === (config.modelo || MODELO_IA)) {
+    return { erro: "Esse é o modelo geral: os preços dele ficam na Configuração.", campo: "modelo" }
+  }
+  const lido: PrecosModelo = { entrada: null, cache: null, saida: null }
+  for (const campo of ["entrada", "cache", "saida"] as const) {
+    const v = numeroOuNulo(fd, campo)
+    if (v === "invalido") return { erro: "Use um número (ex.: 0,25).", campo }
+    lido[campo] = v
+  }
+  if ((lido.entrada === null) !== (lido.saida === null)) {
+    return { erro: "Informe os preços de entrada e de saída (ou deixe os dois em branco para apagar).", campo: lido.entrada === null ? "entrada" : "saida" }
+  }
+  const precos = { ...config.precosModelos }
+  if (lido.entrada === null) {
+    if (Object.values(config.modelosProcesso).includes(modelo)) {
+      return { erro: `O ${modelo} está em uso num processo; apague o preço em "Modelo por processo".`, campo: "entrada" }
+    }
+    delete precos[modelo]
+  } else precos[modelo] = lido
+  const r = await salvarModelosProcessoIA(config.modelosProcesso, precos, String(sessao.usuario.id))
+  if (r.erro) return { erro: r.erro }
+  revalidatePath(ROTA)
+  return { ok: lido.entrada === null ? `Preço do ${modelo} apagado.` : `Preço do ${modelo} guardado. As sugestões abaixo já o consideram.` }
 }
 
 /** Cotas mensais por departamento. Campo `cota:<departamento_id>`; em branco = sem cota. */

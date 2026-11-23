@@ -17,11 +17,13 @@ import { listarDepartamentosCompletos } from "@/lib/db/departamentos"
 import { tenantAtual } from "@/lib/tenant"
 import { listarChamadasIA, listarEventosGestao, resumoUsoIA, rotuloAcaoGestao, rotuloOrigem, type Dimensao } from "@/lib/db/ia-uso"
 import { formatarDataHora } from "@/lib/formato"
-import { MODELO_IA } from "@/lib/ia"
+import { MODELO_IA, modeloDaChamada } from "@/lib/ia"
 import { MODULOS_IA, PROCESSOS_IA, processoIA, tituloModuloIA } from "@/lib/ia-processos"
+import { simplesComGasto, sugerirTrocasDeModelo, type Candidato, type UsoParaSugestao } from "@/lib/ia-sugestao-modelo"
 
 import { ChaveForm, CotasForm, ModelosProcessoForm, PrincipaisForm, RecifrarChaveBotao, PreferenciasForm, RemoverChaveBotao, TestarChaveBotao, type UsoProcesso } from "./forms"
 import { intervalo, PERIODOS, PERIODOS_PLANILHA } from "./periodos"
+import { PrecoComparacaoForm, SugestoesModelo } from "./sugestoes"
 import { comReais, dolares, GraficoDiario, Indicador, TabelaUso, tokens } from "./uso"
 
 export const metadata: Metadata = { title: "Inteligência Artificial — Confluir" }
@@ -81,8 +83,9 @@ export default async function IAPage({ searchParams }: { searchParams: Promise<B
     periodo === "mes" ? null : resumoUsoIA(mesAtual().de, mesAtual().ate),
     periodo === "30d" ? null : resumoUsoIA(intervalo("30d").de, intervalo("30d").ate),
   ])
+  const processos30 = (periodo === "30d" ? resumo : resumo30!).por.processo
   const usoPorProcesso: Record<string, UsoProcesso> = Object.fromEntries(
-    (periodo === "30d" ? resumo : resumo30!).por.processo.map((l) => [
+    processos30.map((l) => [
       l.chave,
       { chamadas: l.chamadas, tokens: l.tokensEntrada + l.tokensSaida, custo: l.custo },
     ])
@@ -92,6 +95,30 @@ export default async function IAPage({ searchParams }: { searchParams: Promise<B
     ...new Set([modeloGeral, MODELO_IA, "gpt-5.5", "gpt-5.4-mini", "gpt-5.4-nano", ...Object.values(config.modelosProcesso), ...resumo.por.modelo.map((m) => m.chave)]),
   ].filter(Boolean)
   const trocados = Object.keys(config.modelosProcesso).length
+
+  // Sugestão de troca de modelo: os processos simples refeitos com os preços de cada modelo cadastrado.
+  const candidatos: Candidato[] = [
+    ...(config.precoEntrada !== null && config.precoSaida !== null
+      ? [{ modelo: modeloGeral, precos: { entrada: config.precoEntrada, cache: config.precoEntradaCache, saida: config.precoSaida } }]
+      : []),
+    ...Object.entries(config.precosModelos)
+      .filter(([m, p]) => m !== modeloGeral && p.entrada !== null && p.saida !== null)
+      .map(([modelo, p]) => ({ modelo, precos: { entrada: p.entrada!, cache: p.cache, saida: p.saida! } })),
+  ]
+  const usosSugestao: UsoParaSugestao[] = processos30.map((l) => ({
+    processo: l.chave,
+    chamadas: l.chamadas,
+    entrada: l.tokensEntrada,
+    cache: l.tokensEntradaCache,
+    saida: l.tokensSaida,
+    custo: l.custo,
+  }))
+  const sugestoesTroca = sugerirTrocasDeModelo(usosSugestao, (proc) => modeloDaChamada(config, proc), candidatos)
+  const simplesGastando = simplesComGasto(usosSugestao)
+  const precosComparacao = Object.entries(config.precosModelos)
+    .filter(([, p]) => p.entrada !== null && p.saida !== null)
+    .map(([modelo, p]) => ({ modelo, ...p, emUso: Object.values(config.modelosProcesso).includes(modelo) }))
+    .sort((a, b) => a.modelo.localeCompare(b.modelo))
   const linhasCota = deptosTodos
     .filter((d) => !d.legado || config.cotasDepartamento[d.id])
     .map((d) => ({ id: d.id, nome: d.nome, cota: config.cotasDepartamento[d.id] ?? null, gasto: gastoDeptos.get(d.id) ?? 0 }))
@@ -550,6 +577,45 @@ export default async function IAPage({ searchParams }: { searchParams: Promise<B
               <PrincipaisForm pessoas={emVarios} />
             </details>
           )}
+        </CardContent>
+      </Card>
+
+      {/* ── Sugestão de troca de modelo ───────────────────────────────── */}
+      <Card id="sugestoes-modelo">
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base">Onde um modelo menor economizaria</CardTitle>
+            {sugestoesTroca.length > 0 && (
+              <Badge variant="secondary">
+                cerca de {dolares(sugestoesTroca.reduce((t, s) => t + s.economia, 0))} por mês
+              </Badge>
+            )}
+          </div>
+          <CardDescription className="text-xs">
+            Os processos simples (textos curtos, conversa, cupom) dos últimos 30 dias, refeitos com os preços de cada modelo cadastrado aqui. É só uma estimativa
+            pelos mesmos tokens: confira a qualidade das respostas depois de trocar.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-5">
+          {sugestoesTroca.length > 0 ? (
+            <SugestoesModelo sugestoes={sugestoesTroca} cotacao={config.cotacaoUsdBrl} />
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              {!temPrecos
+                ? "Sem preços, não há como comparar: informe os preços do modelo geral na Configuração e, abaixo, os de um modelo menor."
+                : simplesGastando === 0
+                  ? "Nenhum processo simples gastou o bastante nos últimos 30 dias para valer a troca."
+                  : candidatos.length < 2
+                    ? `${simplesGastando} ${simplesGastando === 1 ? "processo simples gastou" : "processos simples gastaram"} nos últimos 30 dias. Informe abaixo o preço de um modelo menor para ver quanto economizaria.`
+                    : "Nenhuma troca economizaria ao menos US$ 0,10 e 20% do custo nos processos simples, com os preços cadastrados."}
+            </p>
+          )}
+          <details className="rounded-lg border px-3 py-2" open={(temPrecos && candidatos.length < 2 && simplesGastando > 0) || precosComparacao.some((p) => !p.emUso) || undefined}>
+            <summary className="cursor-pointer text-sm font-medium">Preços dos modelos para comparar</summary>
+            <div className="mt-3">
+              <PrecoComparacaoForm precos={precosComparacao} />
+            </div>
+          </details>
         </CardContent>
       </Card>
 
