@@ -21,7 +21,7 @@ type Painel = "cancelar" | "corrigir" | "reenviar" | null
 
 /**
  * Ações do Financeiro sobre uma ordem ainda não paga: corrigir (com motivo —
- * mudar o valor devolve para autorização; o centro de custo é pela
+ * valor acima do aprovado devolve para autorização; o centro de custo é pela
  * reclassificação, no cartão "Centro de custo"), cancelar (com motivo) e reenviar
  * para autorização uma ordem devolvida. Tudo entra na trilha da ordem.
  */
@@ -145,7 +145,7 @@ export function AcoesOrdem({
           </div>
           <p className="text-muted-foreground text-xs">
             {situacao === "A pagar" || situacao === "Processando"
-              ? "Mudar o valor de uma ordem já autorizada a devolve para autorização."
+              ? "Valor menor ou igual ao aprovado mantém a autorização; valor maior devolve a ordem para autorização."
               : "A correção fica registrada no histórico da ordem, com o antes e o depois."}
           </p>
           <Button type="submit" size="sm" disabled={pendCorrigir} className="justify-self-start">

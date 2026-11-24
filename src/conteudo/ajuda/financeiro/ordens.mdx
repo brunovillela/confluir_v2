@@ -530,10 +530,16 @@ No cartão **Procedência** de uma ordem ainda não paga:
 
 - **Corrigir ordem** — descrição, valor, vencimento e forma de pagamento,
   com o **motivo**. O histórico guarda o antes e o
-  depois. **Mudar o valor de uma ordem já autorizada a devolve para
-  autorização** — o que foi aprovado era outro valor. O valor não muda em compra
-  em dinheiro (cancele e lance de novo) nem em compra de fatura de cartão já
-  fechada. O centro de custo se troca em **Reclassificar**.
+  depois. Numa ordem já autorizada, o valor corrigido é comparado com o
+  **aprovado**: **menor ou igual, a autorização continua valendo** (quem aprovou
+  R$ 100 aprovaria R$ 80 — vale para o erro de digitação); **maior, a ordem
+  volta para autorização**. O histórico diz qual dos dois aconteceu. Em ordem de
+  compra, o valor da compra acompanha a correção (e os indicadores de Aquisição
+  também). O valor não muda em compra em dinheiro (cancele e lance de novo), em
+  compra de fatura de cartão já fechada nem em ordem de **RPA**, cujo valor é o
+  líquido do recibo, para o recibo e as retenções baterem com o pagamento: com o
+  recibo errado e ainda não assinado, exclua o RPA e emita de novo (com a ordem já
+  autorizada, cancele-a antes). O centro de custo se troca em **Reclassificar**.
 - **Cancelar ordem** — com o **motivo**; a ordem sai da fila. Numa compra em
   dinheiro, o débito do caixa é cancelado junto. Estorno pendente é encerrado
   junto. Ordem de custeio reflete o cancelamento no custeio. Ordem paga precisa
@@ -619,8 +625,11 @@ aplicável*.
   fechado não entra nem muda. Reabra o mês em **Exportação contábil**.
 - **"Não consigo cancelar a ordem paga."** Remova o pagamento antes (ou registre
   o estorno, se o banco devolveu).
-- **"Corrigi o valor e a ordem voltou para autorização."** É o esperado: a
-  autorização foi dada para o valor anterior.
+- **"Corrigi o valor e a ordem voltou para autorização."** É o esperado quando o
+  valor novo passa do que foi aprovado. Para menos, a autorização se mantém.
+- **"O valor desta ordem é o líquido do RPA."** Ordem de RPA não tem o valor
+  corrigido na ordem: com o recibo ainda não assinado, exclua o RPA e emita de
+  novo (com a ordem já autorizada, cancele-a antes).
 - **"A auditoria acusa CNPJ inválido."** O CNPJ/CPF do cadastro do fornecedor
   não fecha nos dígitos verificadores — corrija o cadastro em Fornecedores.
 - **"Vencimento … fora do esperado — confira o ano."** Na correção da ordem, o

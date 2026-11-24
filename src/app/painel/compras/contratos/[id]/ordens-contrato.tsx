@@ -255,7 +255,7 @@ export function AcoesLinhaOrdem({
             <DialogTitle>Editar ordem {ordem.codigo ?? ""}</DialogTitle>
             <DialogDescription>
               {autorizada
-                ? "Esta ordem já foi autorizada: mudar o valor a devolve para autorização."
+                ? "Esta ordem já foi autorizada: valor menor ou igual ao aprovado mantém a autorização; valor maior a devolve para autorização."
                 : "A alteração fica no histórico da ordem, com o antes e o depois."}
             </DialogDescription>
           </DialogHeader>

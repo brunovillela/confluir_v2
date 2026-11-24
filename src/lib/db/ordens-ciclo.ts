@@ -5,6 +5,7 @@ import { esquemaAusente, hojeSP } from "@/lib/db/comum"
 import { emitirEvento } from "@/lib/db/webhooks"
 import { DESTINOS_SITUACAO, SITUACAO_NA_FATURA, SITUACAO_PROCESSANDO, motivoOpcional } from "@/lib/ordens-situacoes"
 import { vencimentoComAnoSuspeito } from "@/lib/ordens-vencimento"
+import { TIPO_ORDEM_RPA } from "@/lib/rpa-calculo"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -595,22 +596,57 @@ export type CorrecaoOrdem = {
 }
 
 /**
- * Corrige dados de uma ordem ainda não paga, com motivo. Mudar o VALOR de uma
- * ordem autorizada (ou dispensada) a devolve para autorização — o que foi
- * aprovado era outro valor.
+ * Valor que quem autorizou aprovou (24/11/2026): o do evento "autorizada" mais
+ * recente (a avaliação grava o valor) ou, sem ele, o valor de antes da primeira
+ * correção de valor feita depois desse marco. Sem nada disso, o valor atual.
+ * Aprovado 100, corrigido para 80 e depois para 95: a referência segue 100.
+ */
+async function valorAprovadoDaOrdem(ordemId: string, valorAtual: number): Promise<number> {
+  const admin = await createAdminClient()
+  const { data } = await admin
+    .from("ordens_pagamento_eventos")
+    .select("tipo, dados, created_at")
+    .eq("ordem_id", ordemId)
+    .in("tipo", ["autorizada", "autorizacao_dispensada", "corrigida"])
+    .order("created_at", { ascending: true })
+    .range(0, 999)
+  const eventos = (data ?? []) as { tipo: string; dados: Record<string, unknown> | null }[]
+  let marco = -1
+  eventos.forEach((e, i) => {
+    if (e.tipo !== "corrigida") marco = i
+  })
+  const doMarco = marco >= 0 ? Number(eventos[marco].dados?.valor) : NaN
+  if (Number.isFinite(doMarco) && doMarco > 0) return doMarco
+  for (const e of eventos.slice(marco + 1)) {
+    const antes = e.tipo === "corrigida" ? e.dados?.antes : null
+    if (antes && typeof antes === "object" && "valor_inicial_cobranca" in antes) {
+      const v = Number((antes as Record<string, unknown>).valor_inicial_cobranca)
+      if (Number.isFinite(v) && v > 0) return v
+    }
+  }
+  return valorAtual
+}
+
+/**
+ * Corrige dados de uma ordem ainda não paga, com motivo. VALOR de ordem
+ * autorizada (ou dispensada): para MENOS (ou até o que foi aprovado) a
+ * autorização se mantém — quem aprovou R$ 100 aprovaria R$ 80; para MAIS do
+ * que foi aprovado, a ordem volta para autorização (24/11/2026). A correção
+ * de valor chega à compra de origem. Ordem de RPA não muda o valor por aqui:
+ * é o líquido do recibo.
  */
 export async function corrigirOrdem(
   ordemId: string,
   usuarioId: string,
   nova: CorrecaoOrdem,
   motivo: string
-): Promise<{ erro?: string; voltouParaAutorizacao?: boolean }> {
+): Promise<{ erro?: string; voltouParaAutorizacao?: boolean; autorizacaoMantida?: boolean }> {
   if (!motivo.trim()) return { erro: "Informe o motivo da correção." }
   const admin = await createAdminClient()
   const { data: o } = await admin
     .from("ordens_pagamento")
     .select(
-      "id, situacao, descricao, valor_inicial_cobranca, vencimento, centro_custo_despesa_id, forma_pagamento, autorizacao_esta_autorizado, caixa_conta_id, dados_bancarios_id, pix_codigo, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso"
+      "id, situacao, tipo, descricao, valor_inicial_cobranca, vencimento, centro_custo_despesa_id, forma_pagamento, autorizacao_esta_autorizado, caixa_conta_id, dados_bancarios_id, pix_codigo, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso, processo_compra_id, fornecimento_id"
     )
     .eq("id", ordemId)
     .eq("emp_proprietaria_id", await tenantAtual())
@@ -670,8 +706,21 @@ export async function corrigirOrdem(
       erro: "Compra paga em dinheiro: o valor saiu do caixa — corrija pelo cancelamento e novo lançamento.",
     }
   }
-  const voltou =
-    mudouValor && (o.autorizacao_esta_autorizado === true || o.situacao === SITUACAO_A_PAGAR)
+  if (mudouValor) {
+    const { data: recibo } = await admin.from("compras_rpa").select("numero").eq("ordem_pagamento_id", ordemId).limit(1).maybeSingle()
+    if (o.tipo === TIPO_ORDEM_RPA || recibo) {
+      return {
+        erro: `O valor desta ordem é o líquido do RPA${recibo?.numero ? ` nº ${recibo.numero}` : ""} — o valor não muda aqui, para o recibo e as retenções baterem com o pagamento. Se o recibo está errado e ainda não foi assinado: exclua o RPA e emita de novo (com a ordem já autorizada, cancele-a antes).`,
+      }
+    }
+  }
+  const autorizada = o.autorizacao_esta_autorizado === true || o.situacao === SITUACAO_A_PAGAR
+  const valorAnterior = o.valor_inicial_cobranca === null ? null : Number(o.valor_inicial_cobranca)
+  const aprovado =
+    mudouValor && autorizada && valorAnterior !== null ? await valorAprovadoDaOrdem(ordemId, valorAnterior) : null
+  // Sem valor aprovado conhecido (ordem sem valor), qualquer mudança reautoriza.
+  const voltou = mudouValor && autorizada && (aprovado === null || (nova.valor as number) > aprovado)
+  const mantida = mudouValor && autorizada && !voltou
   const { error } = await admin
     .from("ordens_pagamento")
     .update({
@@ -691,12 +740,32 @@ export async function corrigirOrdem(
     })
     .eq("id", ordemId)
   if (error) return { erro: `Não foi possível corrigir: ${error.message}` }
-  await registrarEvento(ordemId, "corrigida", usuarioId, motivo, {
+  const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+  const sobreAutorizacao = mantida
+    ? ` Autorização mantida: ${brl(nova.valor as number)} não passa dos ${brl(aprovado as number)} aprovados.`
+    : voltou && aprovado !== null
+      ? ` Voltou para autorização: ${brl(nova.valor as number)} passa dos ${brl(aprovado)} aprovados.`
+      : ""
+  const motivoLimpo = motivo.trim()
+  const comPonto = sobreAutorizacao && !/[.!?]$/.test(motivoLimpo) ? `${motivoLimpo}.` : motivoLimpo
+  await registrarEvento(ordemId, "corrigida", usuarioId, `${comPonto}${sobreAutorizacao}`, {
     antes,
     depois,
-    ...(voltou ? { voltou_para_autorizacao: true } : {}),
+    ...(voltou ? { voltou_para_autorizacao: true, valor_aprovado: aprovado } : {}),
+    ...(mantida ? { autorizacao_mantida: true, valor_aprovado: aprovado } : {}),
   })
-  return { voltouParaAutorizacao: voltou }
+  // O valor certo chega à compra (indicadores de Aquisição). Import dinâmico:
+  // compras-ajustes importa este módulo.
+  if (mudouValor && o.processo_compra_id && valorAnterior !== null) {
+    const { refletirValorDaOrdemNaCompra } = await import("@/lib/db/compras-ajustes")
+    await refletirValorDaOrdemNaCompra({
+      processoId: String(o.processo_compra_id),
+      fornecimentoId: (o.fornecimento_id as string | null) ?? null,
+      antes: valorAnterior,
+      depois: nova.valor as number,
+    }).catch((e) => console.error("refletirValorDaOrdemNaCompra:", e))
+  }
+  return { voltouParaAutorizacao: voltou, autorizacaoMantida: mantida }
 }
 
 /**

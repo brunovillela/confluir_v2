@@ -332,8 +332,10 @@ export default async function OrdemPage({
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>
             {corrigida === "reautorizar"
-              ? "Ordem corrigida. Como o valor mudou, ela voltou para autorização."
-              : "Ordem corrigida — o antes e o depois ficaram no histórico."}
+              ? "Ordem corrigida. O valor passou do que foi aprovado, então ela voltou para autorização."
+              : corrigida === "mantida"
+                ? "Ordem corrigida. O valor não passa do que foi aprovado, então a autorização continua valendo — o antes e o depois ficaram no histórico."
+                : "Ordem corrigida — o antes e o depois ficaram no histórico."}
           </AlertDescription>
         </Alert>
       )}

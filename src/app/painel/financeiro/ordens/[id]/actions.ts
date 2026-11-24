@@ -165,7 +165,7 @@ export async function corrigirOrdemAction(
   if (vencimento && !/^\d{4}-\d{2}-\d{2}$/.test(vencimento)) {
     return { erro: "Vencimento inválido." }
   }
-  const { erro, voltouParaAutorizacao } = await corrigirOrdem(
+  const { erro, voltouParaAutorizacao, autorizacaoMantida } = await corrigirOrdem(
     id,
     sessao.usuario.id,
     {
@@ -179,7 +179,7 @@ export async function corrigirOrdemAction(
   if (erro) return { erro }
   revalidarOrdem(id)
   redirect(
-    `/painel/financeiro/ordens/${id}?corrigida=${voltouParaAutorizacao ? "reautorizar" : "1"}`
+    `/painel/financeiro/ordens/${id}?corrigida=${voltouParaAutorizacao ? "reautorizar" : autorizacaoMantida ? "mantida" : "1"}`
   )
 }
 

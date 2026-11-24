@@ -179,6 +179,58 @@ export async function valorDaCompraFrenteAsOrdens(
 }
 
 /**
+ * O Financeiro corrigiu o valor de uma ordem da compra (Corrigir ordem,
+ * 24/11/2026): a compra, a proposta escolhida e o fornecimento da ordem andam
+ * a mesma diferença — senão os indicadores de Aquisição seguem com o valor
+ * digitado errado. Só mexe no que batia com o valor antigo (proposta) ou que
+ * tem valor (compra, fornecimento); a trilha fica na ordem (evento da correção).
+ */
+export async function refletirValorDaOrdemNaCompra(dados: {
+  processoId: string
+  fornecimentoId: string | null
+  antes: number
+  depois: number
+}): Promise<void> {
+  const diferenca = Math.round((dados.depois - dados.antes) * 100) / 100
+  if (!diferenca) return
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const somar = (v: unknown) => Math.round((Number(v) + diferenca) * 100) / 100
+  const { data: proc } = await admin
+    .from("compras_solicitacoes")
+    .select("compra_valor, cotacao_proposta_id")
+    .eq("id", dados.processoId)
+    .eq("emp_proprietaria_id", emp)
+    .maybeSingle()
+  if (!proc) return
+  const compraAntes = proc.compra_valor === null ? null : Number(proc.compra_valor)
+  if (compraAntes !== null && somar(compraAntes) > 0) {
+    await admin
+      .from("compras_solicitacoes")
+      .update({ compra_valor: somar(compraAntes), updated_at: new Date().toISOString() })
+      .eq("id", dados.processoId)
+      .eq("compra_valor", compraAntes)
+    if (proc.cotacao_proposta_id) {
+      await admin
+        .from("compras_propostas")
+        .update({ valor_proposta: somar(compraAntes) })
+        .eq("id", proc.cotacao_proposta_id)
+        .eq("valor_proposta", compraAntes)
+    }
+  }
+  if (dados.fornecimentoId) {
+    const { data: f } = await admin.from("compras_fornecimentos").select("valor").eq("id", dados.fornecimentoId).maybeSingle()
+    if (f?.valor !== null && f?.valor !== undefined && somar(f.valor) > 0) {
+      await admin
+        .from("compras_fornecimentos")
+        .update({ valor: somar(f.valor) })
+        .eq("id", dados.fornecimentoId)
+        .eq("valor", f.valor)
+    }
+  }
+}
+
+/**
  * Corrige o valor da compra (e da proposta escolhida e do fornecimento único,
  * quando repetem o valor errado) para o valor das ordens — o que de fato foi
  * pago ou está a pagar. Só quando a conta acusa o valor fora da escala; fica
