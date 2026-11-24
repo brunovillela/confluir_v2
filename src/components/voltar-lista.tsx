@@ -39,6 +39,7 @@ export function VoltarLista({
   // self-start: na coluna flex da página o botão não estica (nem centraliza o texto).
   className = "-ml-2 mb-3 self-start",
   ancora,
+  alternativas = [],
 }: {
   chave: string
   base: string
@@ -48,13 +49,19 @@ export function VoltarLista({
   className?: string
   /** Âncora da linha na lista (ex.: `registro-<id>`): volta nela, não no topo. */
   ancora?: string
+  /**
+   * Outras listas que gravam na mesma `chave` (o registro abre de mais de uma
+   * lista): vale a última usada na aba, com o rótulo dela.
+   */
+  alternativas?: { base: string; rotulo: string }[]
 }) {
+  const listas = [{ base, rotulo }, ...alternativas]
   const salvo = useSyncExternalStore(
     semAssinatura,
     () => {
       try {
         const url = sessionStorage.getItem(prefixo(chave))
-        if (url && url.startsWith(base)) return url
+        if (url && listas.some((l) => url.startsWith(l.base))) return url
       } catch {
         // idem
       }
@@ -62,7 +69,8 @@ export function VoltarLista({
     },
     () => null
   )
-  const escolhido = salvo ? { href: salvo, rotulo } : padrao
+  const daLista = salvo ? listas.find((l) => salvo.startsWith(l.base)) : undefined
+  const escolhido = salvo && daLista ? { href: salvo, rotulo: daLista.rotulo } : padrao
   const destino = ancora ? { ...escolhido, href: `${escolhido.href.split("#")[0]}#${ancora}` } : escolhido
   return (
     <Button variant="ghost" size="sm" asChild className={className}>

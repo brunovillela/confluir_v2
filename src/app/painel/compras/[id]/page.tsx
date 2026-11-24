@@ -490,9 +490,10 @@ export default async function ProcessoCompraPage({
     <>
       <div>
         <VoltarLista
-          chave="processos-compra"
+          chave="compras-lista"
           base="/painel/compras/processos"
           rotulo="Processos de compra"
+          alternativas={[{ base: "/painel/compras/minhas", rotulo: "Minhas solicitações" }]}
           padrao={{ href: "/painel/compras", rotulo: "Aquisição" }}
         />
         <div className="flex flex-wrap items-center justify-between gap-3">

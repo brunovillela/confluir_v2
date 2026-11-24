@@ -128,7 +128,7 @@ export default async function ProcessosDeCompraPage({
 
   return (
     <>
-      <LembrarLista chave="processos-compra" url={urlAtual} />
+      <LembrarLista chave="compras-lista" url={urlAtual} />
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/painel/compras">

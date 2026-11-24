@@ -3,11 +3,14 @@ import Link from "next/link"
 import { ArrowLeft, CopyPlus, Plus } from "lucide-react"
 
 import { SituacaoProcessoBadge } from "@/components/compras"
+import { LembrarLista } from "@/components/voltar-lista"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { podeAcessar } from "@/lib/permissoes"
 import { cotacaoForaDoPrazo, diasUteisDesde } from "@/lib/compras-prazo"
+import { ROTULOS_SITUACAO_PROCESSO, SITUACOES_PROCESSO } from "@/lib/compras-constantes"
+import { semAcento } from "@/lib/texto"
 import { listarMinhasSolicitacoes, type MinhaSolicitacao } from "@/lib/db/compras"
 import { hojeSP } from "@/lib/db/comum"
 import { lerComprasConfig } from "@/lib/db/compras-config"
@@ -15,6 +18,9 @@ import { ordensDevolvidasDe } from "@/lib/db/compras-ordens-devolvidas"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
 export const metadata: Metadata = { title: "Minhas solicitações — Confluir" }
+
+const FILTRO =
+  "border-input bg-background text-foreground h-9 max-w-56 truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
 
 /** O que está acontecendo com a solicitação, em uma frase. */
 function andamento(s: MinhaSolicitacao, hoje: string, prazo: number | null): { texto: string; alerta?: boolean } {
@@ -48,7 +54,14 @@ function andamento(s: MinhaSolicitacao, hoje: string, prazo: number | null): { t
  * Minhas solicitações (16/11/2026): quem pede uma compra Via Aquisição
  * acompanha a etapa de cada pedido sem abrir processo por processo.
  */
-export default async function MinhasSolicitacoesPage() {
+export default async function MinhasSolicitacoesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ busca?: string; situacao?: string }>
+}) {
+  const sp = await searchParams
+  const busca = (sp.busca ?? "").trim()
+  const situacao = (SITUACOES_PROCESSO as readonly string[]).includes(sp.situacao ?? "") ? sp.situacao! : ""
   const sessao = await requirePermissao("aquisicoes_compras", [
     "aquisicoes_compras_edicao",
     "aquisicoes_compra_direta",
@@ -61,8 +74,21 @@ export default async function MinhasSolicitacoesPage() {
   ])
   const hoje = hojeSP()
   const podeRepetir = podeAcessar(sessao.permissoes, "aquisicoes_compras_edicao", ["aquisicoes_compra_direta"])
-  const abertas = lista.filter((s) => !["recebida", "cancelada"].includes(s.situacao))
-  const encerradas = lista.filter((s) => ["recebida", "cancelada"].includes(s.situacao))
+  // Filtros (24/11/2026): busca por código ou produto, sem acento, e a etapa.
+  const termo = semAcento(busca.toLowerCase())
+  const filtrada = lista.filter(
+    (s) =>
+      (!situacao || s.situacao === situacao) &&
+      (!termo || semAcento(`${s.codigo ?? ""} ${s.produto ?? ""}`.toLowerCase()).includes(termo))
+  )
+  const temFiltro = Boolean(busca || situacao)
+  const abertas = filtrada.filter((s) => !["recebida", "cancelada"].includes(s.situacao))
+  const encerradas = filtrada.filter((s) => ["recebida", "cancelada"].includes(s.situacao))
+  // Recorte atual, para a compra voltar a ele (mesma chave dos Processos de compra).
+  const q = new URLSearchParams()
+  if (busca) q.set("busca", busca)
+  if (situacao) q.set("situacao", situacao)
+  const urlAtual = `/painel/compras/minhas${q.size ? `?${q}` : ""}`
 
   const Linha = ({ s }: { s: MinhaSolicitacao }) => {
     const a = andamento(s, hoje, config.prazoCotacao)
@@ -98,6 +124,7 @@ export default async function MinhasSolicitacoesPage() {
 
   return (
     <>
+      <LembrarLista chave="compras-lista" url={urlAtual} />
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
           <Link href="/painel/compras">
@@ -158,6 +185,38 @@ export default async function MinhasSolicitacoesPage() {
         </Card>
       )}
 
+      <form action="/painel/compras/minhas" className="flex flex-wrap items-center gap-2">
+        <input
+          type="search"
+          name="busca"
+          defaultValue={busca}
+          placeholder="Código ou produto/serviço"
+          aria-label="Buscar por código ou produto/serviço"
+          className={`${FILTRO} w-64 max-w-full`}
+        />
+        <select name="situacao" defaultValue={situacao} aria-label="Etapa" className={FILTRO}>
+          <option value="">Todas as etapas</option>
+          {SITUACOES_PROCESSO.map((s) => (
+            <option key={s} value={s}>
+              {ROTULOS_SITUACAO_PROCESSO[s]}
+            </option>
+          ))}
+        </select>
+        <Button type="submit" variant="outline" size="sm" className="h-9">
+          Filtrar
+        </Button>
+        {temFiltro && (
+          <Button variant="ghost" size="sm" className="h-9" asChild>
+            <Link href="/painel/compras/minhas">Limpar</Link>
+          </Button>
+        )}
+        {temFiltro && (
+          <span className="text-muted-foreground text-xs">
+            {filtrada.length} de {lista.length} solicitaç{lista.length === 1 ? "ão" : "ões"}
+          </span>
+        )}
+      </form>
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Em andamento ({abertas.length})</CardTitle>
@@ -165,7 +224,9 @@ export default async function MinhasSolicitacoesPage() {
         </CardHeader>
         <CardContent className="grid gap-2">
           {abertas.length === 0 ? (
-            <p className="text-muted-foreground py-4 text-center text-sm">Nenhuma solicitação em andamento.</p>
+            <p className="text-muted-foreground py-4 text-center text-sm">
+              {temFiltro ? "Nenhuma solicitação em andamento com estes filtros." : "Nenhuma solicitação em andamento."}
+            </p>
           ) : (
             abertas.map((s) => <Linha key={s.id} s={s} />)
           )}
