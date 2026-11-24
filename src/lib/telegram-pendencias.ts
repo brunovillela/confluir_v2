@@ -210,8 +210,14 @@ async function decidir(
       if (soConferir) return {}
       const r = await avaliarDespesaCaixa(id, uid, aprovar, motivo)
       return r.erro
-        ? r
-        : { ok: aprovar ? "✅ <b>Despesa reconhecida</b>." : "✖️ <b>Despesa não reconhecida</b> — o valor voltou ao seu saldo e quem lançou foi avisado para transferir." }
+        ? { erro: r.erro }
+        : {
+            ok: !aprovar
+              ? "✖️ <b>Despesa não reconhecida</b> — o valor voltou ao seu saldo e quem lançou foi avisado para transferir."
+              : r.ordemAprovada
+                ? "✅ <b>Despesa reconhecida</b> e ordem de pagamento aprovada."
+                : "✅ <b>Despesa reconhecida</b>.",
+          }
     }
   }
 }

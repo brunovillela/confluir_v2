@@ -21,10 +21,17 @@ export async function avaliarDespesaCaixaAction(_prev: EstadoForm, fd: FormData)
   const reconhece = String(fd.get("decisao") ?? "") === "reconhecer"
   const motivo = String(fd.get("motivo") ?? "").trim() || null
   if (!id) return { erro: "Despesa inválida." }
-  const { erro } = await avaliarDespesaCaixa(id, String(sessao.usuario.id), reconhece, motivo)
+  const { erro, ordemAprovada } = await avaliarDespesaCaixa(id, String(sessao.usuario.id), reconhece, motivo)
   if (erro) return { erro }
   revalidar()
-  return { ok: reconhece ? "Despesa reconhecida." : "Despesa não reconhecida — o valor voltou ao seu saldo e quem lançou foi avisado para transferir." }
+  if (ordemAprovada) revalidatePath("/painel/compras/avaliacoes")
+  return {
+    ok: !reconhece
+      ? "Despesa não reconhecida — o valor voltou ao seu saldo e quem lançou foi avisado para transferir."
+      : ordemAprovada
+        ? "Despesa reconhecida e ordem de pagamento aprovada."
+        : "Despesa reconhecida.",
+  }
 }
 
 /** Quem lançou (ou a administração do caixa) transfere a despesa para a conta certa. */

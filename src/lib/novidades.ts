@@ -16,6 +16,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-11-24",
     titulo: "Contratos: parcela no lugar de uma cancelada",
     itens: [
+      "Caixa: aprovar e reconhecer andam juntos. Quem é o responsável pelo caixa e aprova a ordem de uma compra debitada nele já reconhece a despesa, sem passar pelo Para reconhecer. E, ao reconhecer no Meu caixa (ou pelo Telegram) a compra que outra pessoa lançou, a ordem em autorização é aprovada junto, se o valor está dentro da sua alçada.",
       "Contratos e ajudas: ao gerar ordens, a parcela de uma ordem cancelada pode ser gerada de novo; antes, o vencimento ficava ocupado e a parcela era pulada. O Primeiro vencimento agora sugere a parcela seguinte à última lançada (nunca uma data passada), mostra qual foi a última e avisa quando a data escolhida está no passado ou antes dela.",
     ],
   },

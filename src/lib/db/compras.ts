@@ -2387,15 +2387,19 @@ export async function permissaoEspecificaDaOrdem(
   return null
 }
 
-async function temPermissaoEfetiva(usuarioId: string, chave: string): Promise<boolean> {
+/** Permissões efetivas (diretas + perfis, com a alçada) de alguém, lidas no banco. */
+export async function permissoesEfetivasDoUsuario(usuarioId: string): Promise<Record<string, unknown>> {
   const admin = await createAdminClient()
   const { data } = await admin
     .from("permissoes")
     .select("*")
     .eq(PERMISSOES_USUARIO_FK, usuarioId)
     .maybeSingle()
-  const efetivas = await resolverPermissoes(admin, usuarioId, (data ?? {}) as Record<string, unknown>)
-  return efetivas[chave] === true
+  return resolverPermissoes(admin, usuarioId, (data ?? {}) as Record<string, unknown>)
+}
+
+async function temPermissaoEfetiva(usuarioId: string, chave: string): Promise<boolean> {
+  return (await permissoesEfetivasDoUsuario(usuarioId))[chave] === true
 }
 
 // ── Fornecedores ───────────────────────────────────────────────────────────

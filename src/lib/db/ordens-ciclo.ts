@@ -353,6 +353,12 @@ export async function avaliarOrdem(
     observacao,
     { valor, alcada }
   )
+  // Aprovada por quem é o responsável do caixa debitado: reconhece a despesa
+  // junto (24/11/2026). Import dinâmico: caixa-reconhecimento importa este módulo.
+  if (aprovar) {
+    const { reconhecerPelaAprovacao } = await import("@/lib/db/caixa-reconhecimento")
+    await reconhecerPelaAprovacao(ordemId, avaliadorId).catch((e) => console.error("reconhecerPelaAprovacao:", e))
+  }
   // Devolvida: quem lançou a compra é avisado, com o motivo (16/11/2026).
   if (!aprovar) {
     const { avisarOrdemDevolvida } = await import("@/lib/db/compras-ordens-devolvidas")

@@ -4,8 +4,9 @@ import { avisar, depoisDaResposta, type Destinatario } from "@/lib/db/avisos"
 import { botoesPendencia } from "@/lib/telegram-pendencias-fluxo"
 import { saldoDaConta } from "@/lib/db/caixa"
 import { esquemaAusente, nomesDosUsuarios, texto } from "@/lib/db/comum"
-import { registrarEvento } from "@/lib/db/ordens-ciclo"
+import { registrarEvento, SITUACAO_EM_AUTORIZACAO } from "@/lib/db/ordens-ciclo"
 import { formatarMoeda } from "@/lib/formato"
+import { podeAcessar } from "@/lib/permissoes"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -307,8 +308,71 @@ async function carregarMov(movId: string) {
   return data as Record<string, unknown> | null
 }
 
+/**
+ * Reconhecer = aprovar (24/11/2026): o responsável que reconhece a despesa e
+ * pode aprovar a ordem dela (avaliador com alçada para o valor) aprova a
+ * ordem junto, se ela está em autorização. Fora da alçada, nada muda.
+ */
+async function aprovarOrdemDoReconhecimento(ordemId: string, usuarioId: string): Promise<boolean> {
+  const admin = await createAdminClient()
+  const { data: ordem } = await admin.from("ordens_pagamento").select("situacao").eq("id", ordemId).maybeSingle()
+  if (ordem?.situacao !== SITUACAO_EM_AUTORIZACAO) return false
+  // Import dinâmico: compras → ordens-ciclo → este módulo.
+  const { alcadaDoUsuario, avaliarOrdemCompra, permissoesEfetivasDoUsuario } = await import("@/lib/db/compras")
+  const perms = await permissoesEfetivasDoUsuario(usuarioId)
+  // A mesma porta das telas de aprovação (Avaliações e /painel/aprovar).
+  if (!podeAcessar(perms, "aquisicoes_avaliacoes", ["financeiro_pagamento"])) return false
+  const { erro } = await avaliarOrdemCompra(ordemId, usuarioId, alcadaDoUsuario(perms), true, null)
+  return !erro
+}
+
+/**
+ * O outro sentido: quem aprova a ordem e é o responsável do caixa onde a
+ * compra foi debitada reconhece a despesa na mesma hora (chamado pela
+ * autorização em ordens-ciclo.ts, depois de aprovar).
+ */
+export async function reconhecerPelaAprovacao(ordemId: string, usuarioId: string): Promise<void> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("caixa_movimentacoes")
+    .select("id, conta_id")
+    .eq("ordem_pagamento_id", ordemId)
+    .eq("situacao", "confirmada")
+    .eq("reconhecimento", "pendente")
+  if (error || !data?.length) return
+  for (const m of data) {
+    const conta = await contaComResponsavel(String(m.conta_id))
+    if (!conta || conta.responsavelId !== usuarioId) continue
+    const { data: feito } = await admin
+      .from("caixa_movimentacoes")
+      .update({
+        reconhecimento: "reconhecida",
+        reconhecimento_por_usuario_id: usuarioId,
+        reconhecimento_em: new Date().toISOString(),
+        reconhecimento_motivo: null,
+      })
+      .eq("id", m.id)
+      .eq("reconhecimento", "pendente")
+      .select("id")
+    if (!feito?.length) continue
+    const nomes = await nomesDosUsuarios([usuarioId])
+    const quem = nomes.get(usuarioId) ?? "O responsável"
+    await auditarNaOrdem(ordemId, "ok", `${quem} reconheceu a despesa no caixa "${conta.nome}" ao aprovar a ordem.`)
+    await registrarEvento(ordemId, "caixa_reconhecimento", usuarioId, `Despesa reconhecida no caixa "${conta.nome}" junto com a aprovação da ordem.`, {
+      mov_id: String(m.id),
+      reconhecida: true,
+      pela_aprovacao: true,
+    })
+  }
+}
+
 /** O responsável da conta reconhece (ou não, com motivo) a despesa lançada por outra pessoa. */
-export async function avaliarDespesaCaixa(movId: string, usuarioId: string, reconhece: boolean, motivo: string | null): Promise<{ erro?: string }> {
+export async function avaliarDespesaCaixa(
+  movId: string,
+  usuarioId: string,
+  reconhece: boolean,
+  motivo: string | null
+): Promise<{ erro?: string; ordemAprovada?: boolean }> {
   const mov = await carregarMov(movId)
   if (!mov) return { erro: "Despesa não encontrada." }
   if (mov.reconhecimento !== "pendente" || mov.situacao !== "confirmada") return { erro: "Esta despesa já foi avaliada." }
@@ -359,7 +423,8 @@ export async function avaliarDespesaCaixa(movId: string, usuarioId: string, reco
       { mov_id: movId, reconhecida: reconhece }
     )
   }
-  return {}
+  const ordemAprovada = reconhece && ordemId ? await aprovarOrdemDoReconhecimento(ordemId, usuarioId) : false
+  return { ordemAprovada }
 }
 
 /**
