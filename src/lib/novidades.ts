@@ -19,6 +19,7 @@ export const NOVIDADES: Novidade[] = [
       "Financeiro → Corrigir ordem: o valor de uma ordem já autorizada é comparado com o que foi aprovado. Para menos (ou até o aprovado), a autorização continua valendo e a ordem segue para pagamento — o caso do valor digitado errado; para mais, ela volta para autorização. O histórico diz qual dos dois aconteceu. Na ordem de uma compra, o valor da compra acompanha a correção, e os indicadores de Aquisição também. Ordem de RPA não tem o valor corrigido por ali, porque é o líquido do recibo: com o recibo errado, exclua o RPA e emita de novo.",
       "Caixa: aprovar e reconhecer andam juntos. Quem é o responsável pelo caixa e aprova a ordem de uma compra debitada nele já reconhece a despesa, sem passar pelo Para reconhecer. E, ao reconhecer no Meu caixa (ou pelo Telegram) a compra que outra pessoa lançou, a ordem em autorização é aprovada junto, se o valor está dentro da sua alçada.",
       "Contratos e ajudas: ao gerar ordens, a parcela de uma ordem cancelada pode ser gerada de novo; antes, o vencimento ficava ocupado e a parcela era pulada. O Primeiro vencimento agora sugere a parcela seguinte à última lançada (nunca uma data passada), mostra qual foi a última e avisa quando a data escolhida está no passado ou antes dela.",
+      "Na página do contrato, as parcelas se geram só pelo botão Nova ordem de pagamento, no cartão Ordens de pagamento; saiu o cartão repetido Gerar ordens de pagamento do meio da página.",
     ],
   },
   {

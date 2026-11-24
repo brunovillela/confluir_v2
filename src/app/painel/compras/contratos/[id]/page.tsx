@@ -29,7 +29,6 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Paginacao } from "@/components/paginacao"
-import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { requirePermissao } from "@/lib/auth"
 import {
   buscarContrato,
@@ -549,25 +548,7 @@ export default async function ContratoPage({
         </CardContent>
       </Card>
 
-      {podeEditar && !novaOrdem && (
-        <GrupoColapsavel
-          titulo="Gerar ordens de pagamento"
-          descricao="Cria ordens a partir do contrato (mensal, anual ou única)"
-        >
-          <GerarOrdensForm
-            contratoId={c.id}
-            valorPadrao={c.valor}
-            vigenciaInicio={c.vigencia_inicio}
-            vigenciaTermino={c.vigencia_termino}
-            hoje={hojeLocalISO()}
-            ultimoVencimento={ultimoVencimento}
-            temFornecedor={Boolean(c.fornecedor_id)}
-            fornecedorId={c.fornecedor_id}
-            caixas={caixas}
-          />
-        </GrupoColapsavel>
-      )}
-
+      {/* Gerar ordens: um caminho só, "Nova ordem de pagamento" no cartão das ordens. */}
       {aguardandoDocumento.length > 0 && (
         <Card className="border-warning/40">
           <CardHeader>
