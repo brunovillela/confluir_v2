@@ -4,6 +4,10 @@
 
 O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga. É o mesmo conteúdo do aviso "O que há de novo" dentro do sistema. O detalhe técnico de cada entrega está no histórico do git; as decisões de arquitetura, em [`docs/arquitetura/adr/`](../arquitetura/adr/LEIA-ME.md).
 
+## 24/11/2026 — Contratos: parcela no lugar de uma cancelada
+
+- Contratos e ajudas: ao gerar ordens, a parcela de uma ordem cancelada pode ser gerada de novo; antes, o vencimento ficava ocupado e a parcela era pulada. O Primeiro vencimento agora sugere a parcela seguinte à última lançada (nunca uma data passada), mostra qual foi a última e avisa quando a data escolhida está no passado ou antes dela.
+
 ## 23/11/2026 — Aquisição: valor de compra fora da escala
 
 - Oposição: com a campanha já recebendo oposições, as decisões Vídeo da campanha, Assinaturas aceitas na carta e Prova exigida do não filiado podem mudar, para exigir mais ou menos. Ao salvar, a tela mostra o que passa a valer e pergunta se deseja prosseguir. A nova regra vale para quem registrar dali em diante: quem já se opôs continua com as regras de quando se opôs (inclusive na avaliação e na carta), e a mudança fica na trilha da campanha.

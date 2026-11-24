@@ -35,6 +35,7 @@ import {
   type ContratoLista,
 } from "@/lib/db/contratos"
 import { hojeLocalISO } from "@/lib/compras-constantes"
+import { ultimoVencimentoEmVigor } from "@/lib/contratos-constantes"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { podeAcessar } from "@/lib/permissoes"
@@ -118,6 +119,8 @@ export default async function AjudaPage({
 
   const paginacao = lerPaginacao(brutos, 10)
   const pagOrdens = paginar(detalhe.ordens, paginacao)
+  // Base da data sugerida ao gerar ordens (a cancelada não conta).
+  const ultimoVencimento = ultimoVencimentoEmVigor(detalhe.ordens)
 
   // Contas de caixa abertas: opção da forma "Dinheiro" ao gerar ordens.
   const caixas = podeEditar ? await contasAbertasParaCompras() : []
@@ -312,6 +315,7 @@ export default async function AjudaPage({
             vigenciaInicio={c.vigencia_inicio}
             vigenciaTermino={c.vigencia_termino}
             hoje={hojeLocalISO()}
+            ultimoVencimento={ultimoVencimento}
             temFornecedor={Boolean(c.fornecedor_id)}
             fornecedorId={c.fornecedor_id}
             caixas={caixas}

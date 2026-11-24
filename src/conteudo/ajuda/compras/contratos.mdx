@@ -62,7 +62,10 @@ contrato principal.
 
 <PassoAPasso>
   <Passo titulo="Escolha a periodicidade">
-    Mensal, anual ou única, com o valor da parcela e o primeiro vencimento.
+    Mensal, anual ou única, com o valor da parcela e o primeiro vencimento. O
+    primeiro vencimento já vem sugerido: a parcela seguinte à última lançada, ou
+    hoje, se essa data já passou. Abaixo do campo aparece a última parcela em
+    vigor, e um aviso quando a data escolhida está no passado ou antes dela.
   </Passo>
   <Passo titulo="Informe a forma de pagamento (obrigatória)">
     Sem ela a ordem não pode ser paga, por isso o campo muda conforme a forma:
@@ -87,7 +90,8 @@ contrato principal.
   <Passo titulo="Rode de novo sem medo">
     A geração é idempotente: vencimentos que já têm ordem são pulados, então
     rodar de novo só completa o que falta — nunca duplica. As ordens de RPA não
-    contam: uma parcela pode vencer no mesmo dia de um RPA.
+    contam: uma parcela pode vencer no mesmo dia de um RPA. A ordem **cancelada**
+    também não conta: a parcela dela pode ser gerada de novo.
   </Passo>
 </PassoAPasso>
 

@@ -38,6 +38,7 @@ import {
   type ContratoLista,
 } from "@/lib/db/contratos"
 import { hojeLocalISO } from "@/lib/compras-constantes"
+import { ultimoVencimentoEmVigor } from "@/lib/contratos-constantes"
 import { contratoDoRpa, listarRpas } from "@/lib/db/compras-rpa"
 import { rpasComLinkPendente } from "@/lib/db/rpa-assinatura"
 import { AnexarRpaAssinadoBotao } from "../../rpa/rpa-forms"
@@ -149,6 +150,8 @@ export default async function ContratoPage({
 
   const paginacao = lerPaginacao(brutos, 10)
   const pagOrdens = paginar(detalhe.ordens, paginacao)
+  // Base da data sugerida ao gerar ordens (a cancelada não conta).
+  const ultimoVencimento = ultimoVencimentoEmVigor(detalhe.ordens)
   // Parcelas recorrentes que esperam a nota da competência (ficam no contrato).
   const aguardandoDocumento = detalhe.ordens
     .filter((o) => o.situacao === SITUACAO_AGUARDANDO_DOCUMENTO)
@@ -557,6 +560,7 @@ export default async function ContratoPage({
             vigenciaInicio={c.vigencia_inicio}
             vigenciaTermino={c.vigencia_termino}
             hoje={hojeLocalISO()}
+            ultimoVencimento={ultimoVencimento}
             temFornecedor={Boolean(c.fornecedor_id)}
             fornecedorId={c.fornecedor_id}
             caixas={caixas}
@@ -664,6 +668,7 @@ export default async function ContratoPage({
                 vigenciaInicio={c.vigencia_inicio}
                 vigenciaTermino={c.vigencia_termino}
                 hoje={hojeLocalISO()}
+                ultimoVencimento={ultimoVencimento}
                 temFornecedor={Boolean(c.fornecedor_id)}
                 fornecedorId={c.fornecedor_id}
                 caixas={caixas}

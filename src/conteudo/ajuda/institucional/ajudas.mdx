@@ -50,7 +50,8 @@ As contas bancárias da entidade apoiada funcionam como as do fornecedor (ver
     parcela**, o **Primeiro vencimento**, as **Parcelas** e a **Forma de pagamento**
     (obrigatória). As ordens nascem **Em autorização** e passam pela alçada do
     Financeiro. Vencimentos que já têm ordem são pulados: dá para gerar de novo sem
-    duplicar.
+    duplicar (a ordem cancelada não conta). O primeiro vencimento vem sugerido a
+    partir da última parcela lançada, nunca no passado.
   </Passo>
 </PassoAPasso>
 

@@ -13,6 +13,13 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-24",
+    titulo: "Contratos: parcela no lugar de uma cancelada",
+    itens: [
+      "Contratos e ajudas: ao gerar ordens, a parcela de uma ordem cancelada pode ser gerada de novo; antes, o vencimento ficava ocupado e a parcela era pulada. O Primeiro vencimento agora sugere a parcela seguinte à última lançada (nunca uma data passada), mostra qual foi a última e avisa quando a data escolhida está no passado ou antes dela.",
+    ],
+  },
+  {
     id: "2026-11-23",
     titulo: "Aquisição: valor de compra fora da escala",
     itens: [

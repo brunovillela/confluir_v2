@@ -17,8 +17,10 @@ import type { ContaFornecedor, PixFornecedor } from "@/lib/db/compras-pagamento"
 import {
   PERIODICIDADES,
   parcelasSugeridas,
+  primeiroVencimentoSugerido,
   type Periodicidade,
 } from "@/lib/contratos-constantes"
+import { formatarData } from "@/lib/formato"
 
 import { DetalhePagamento, type CaixaOpcao } from "../nova/detalhe-pagamento"
 import { gerarOrdensContratoAction, meiosDoFornecedorContrato } from "./actions"
@@ -46,6 +48,7 @@ export function GerarOrdensForm({
   vigenciaInicio,
   vigenciaTermino,
   hoje,
+  ultimoVencimento = null,
   temFornecedor,
   fornecedorId,
   caixas,
@@ -58,6 +61,8 @@ export function GerarOrdensForm({
   vigenciaInicio: string | null
   vigenciaTermino: string | null
   hoje: string
+  /** Vencimento da última parcela em vigor (não cancelada) — base da sugestão. */
+  ultimoVencimento?: string | null
   temFornecedor: boolean
   /** Favorecido das ordens — dono das chaves Pix e contas para TED. */
   fornecedorId: string | null
@@ -75,14 +80,31 @@ export function GerarOrdensForm({
   const formRef = useRef<HTMLFormElement>(null)
   const [periodicidade, setPeriodicidade] = useState<Periodicidade>("mensal")
   const [forma, setForma] = useState("")
-  const primeiro = (vigenciaInicio ?? hoje).slice(0, 10)
-  const [quantidade, setQuantidade] = useState(
-    String(parcelasSugeridas(primeiro, vigenciaTermino, "mensal"))
+  const sugerir = (p: Periodicidade) =>
+    primeiroVencimentoSugerido({ vigenciaInicio, hoje, ultimoVencimento, periodicidade: p })
+  const [primeiro, setPrimeiro] = useState(() => sugerir("mensal"))
+  // Enquanto a pessoa não digita a data, ela acompanha a periodicidade.
+  const [dataEditada, setDataEditada] = useState(false)
+  const [quantidade, setQuantidade] = useState(() =>
+    String(parcelasSugeridas(sugerir("mensal"), vigenciaTermino, "mensal"))
   )
+  const hojeIso = hoje.slice(0, 10)
+  const noPassado = Boolean(primeiro) && primeiro < hojeIso
+  const antesDaUltima = Boolean(primeiro && ultimoVencimento) && primeiro <= (ultimoVencimento ?? "")
 
   function trocarPeriodicidade(p: Periodicidade) {
     setPeriodicidade(p)
-    setQuantidade(String(parcelasSugeridas(primeiro, vigenciaTermino, p)))
+    const data = dataEditada ? primeiro : sugerir(p)
+    if (!dataEditada) setPrimeiro(data)
+    setQuantidade(String(parcelasSugeridas(data, vigenciaTermino, p)))
+  }
+
+  function trocarPrimeiro(data: string) {
+    setPrimeiro(data)
+    setDataEditada(true)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(data)) {
+      setQuantidade(String(parcelasSugeridas(data, vigenciaTermino, periodicidade)))
+    }
   }
 
   if (!temFornecedor) {
@@ -155,8 +177,28 @@ export function GerarOrdensForm({
             name="primeiro_vencimento"
             type="date"
             className={DATA}
-            defaultValue={primeiro}
+            value={primeiro}
+            onChange={(e) => trocarPrimeiro(e.target.value)}
+            aria-describedby="primeiro_vencimento_dica"
           />
+          {/* A data sugerida vem da última parcela; avisar quando a escolhida
+              fica no passado ou cai antes dela (induzia a lançar no mês errado). */}
+          <p id="primeiro_vencimento_dica" className="text-muted-foreground text-xs">
+            {ultimoVencimento
+              ? `Última parcela em vigor: ${formatarData(ultimoVencimento)}.`
+              : "Nenhuma parcela lançada ainda."}
+          </p>
+          {antesDaUltima ? (
+            <p className="text-warning-fg text-xs font-medium">
+              Atenção: data igual ou anterior à última parcela ({formatarData(ultimoVencimento)}).
+            </p>
+          ) : (
+            noPassado && (
+              <p className="text-warning-fg text-xs font-medium">
+                Atenção: vencimento no passado ({formatarData(primeiro)}).
+              </p>
+            )
+          )}
         </div>
 
         <div className="grid gap-1.5">

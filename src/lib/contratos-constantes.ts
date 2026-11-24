@@ -129,3 +129,42 @@ export function parcelasSugeridas(
       : (by - ay) * 12 + (bm - am) + 1
   return Math.min(Math.max(n, 1), MAX_PARCELAS)
 }
+
+/** Situações que não ocupam o vencimento: dá para gerar outra ordem no lugar. */
+export const SITUACOES_QUE_LIBERAM_VENCIMENTO = ["Cancelada"] as const
+
+/**
+ * Vencimento da última parcela em vigor do contrato (ordem não cancelada e
+ * que não seja de RPA). Base da sugestão do próximo vencimento.
+ */
+export function ultimoVencimentoEmVigor(
+  ordens: { vencimento: string | null; situacao: string | null; tipo: string | null }[]
+): string | null {
+  let ultimo: string | null = null
+  for (const o of ordens) {
+    const v = o.vencimento?.slice(0, 10)
+    if (!v || o.tipo === "RPA") continue
+    if ((SITUACOES_QUE_LIBERAM_VENCIMENTO as readonly string[]).includes(o.situacao ?? "")) continue
+    if (!ultimo || v > ultimo) ultimo = v
+  }
+  return ultimo
+}
+
+/**
+ * Primeiro vencimento sugerido ao gerar ordens: a parcela seguinte à última em
+ * vigor; sem parcelas, o início da vigência. Nunca antes de hoje — sugerir uma
+ * data passada (o início da vigência de meses atrás) induzia a lançar a parcela
+ * no mês errado. Quem precisa lançar no passado digita a data (o form avisa).
+ */
+export function primeiroVencimentoSugerido(p: {
+  vigenciaInicio: string | null
+  hoje: string
+  ultimoVencimento: string | null
+  periodicidade: Periodicidade
+}): string {
+  const hoje = p.hoje.slice(0, 10)
+  const base = p.ultimoVencimento
+    ? vencimentoParcela(p.ultimoVencimento, p.periodicidade === "anual" ? "anual" : "mensal", 1)
+    : (p.vigenciaInicio ?? hoje).slice(0, 10)
+  return base < hoje ? hoje : base
+}

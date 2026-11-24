@@ -1172,10 +1172,11 @@ async function gerarOrdensCusteio(
     vencimentoParcela(primeiro, recorrente ? periodicidade : "unica", i)
   )
 
-  // Idempotência: pula vencimentos que já têm ordem deste custeio.
+  // Idempotência: pula vencimentos que já têm ordem deste custeio (a
+  // cancelada não ocupa o vencimento, como nas novas ordens).
   const { data: existentes, error: erroExist } = await admin
     .from("ordens_pagamento")
-    .select("vencimento")
+    .select("vencimento, situacao")
     .eq("custeio_id", custeioId)
     .eq("emp_proprietaria_id", empId)
     .not("excluido", "is", true)
@@ -1185,6 +1186,7 @@ async function gerarOrdensCusteio(
   }
   const jaTem = new Set(
     (existentes ?? [])
+      .filter((o) => o.situacao !== "Cancelada")
       .map((o) => texto(o.vencimento)?.slice(0, 10))
       .filter((v): v is string => Boolean(v))
   )

@@ -36,6 +36,7 @@ import {
   vigenciaDe,
   vencimentoParcela,
   MAX_PARCELAS,
+  SITUACOES_QUE_LIBERAM_VENCIMENTO,
   type Periodicidade,
   type SituacaoContrato,
   type Vigencia,
@@ -899,9 +900,10 @@ export async function gerarOrdensContrato(
 
   // Idempotência: pula vencimentos que já têm ordem deste contrato. As ordens
   // de RPA também são do contrato, mas não são parcelas — ficam de fora.
+  // Ordem CANCELADA não ocupa o vencimento: a parcela pode ser gerada de novo.
   const { data: existentes, error: erroExist } = await admin
     .from("ordens_pagamento")
-    .select("vencimento")
+    .select("vencimento, situacao")
     .eq("contrato_id", contratoId)
     .eq("emp_proprietaria_id", empId)
     .not("excluido", "is", true)
@@ -914,6 +916,7 @@ export async function gerarOrdensContrato(
   }
   const jaTem = new Set(
     (existentes ?? [])
+      .filter((o) => !(SITUACOES_QUE_LIBERAM_VENCIMENTO as readonly string[]).includes(texto(o.situacao) ?? ""))
       .map((o) => texto(o.vencimento)?.slice(0, 10))
       .filter((v): v is string => Boolean(v))
   )
