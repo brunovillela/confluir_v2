@@ -21,6 +21,7 @@ export const NOVIDADES: Novidade[] = [
       "Caixa: aprovar e reconhecer andam juntos. Quem é o responsável pelo caixa e aprova a ordem de uma compra debitada nele já reconhece a despesa, sem passar pelo Para reconhecer. E, ao reconhecer no Meu caixa (ou pelo Telegram) a compra que outra pessoa lançou, a ordem em autorização é aprovada junto, se o valor está dentro da sua alçada.",
       "Contratos e ajudas: ao gerar ordens, a parcela de uma ordem cancelada pode ser gerada de novo; antes, o vencimento ficava ocupado e a parcela era pulada. O Primeiro vencimento agora sugere a parcela seguinte à última lançada (nunca uma data passada), mostra qual foi a última e avisa quando a data escolhida está no passado ou antes dela.",
       "Na página do contrato, as parcelas se geram só pelo botão Nova ordem de pagamento, no cartão Ordens de pagamento; saiu o cartão repetido Gerar ordens de pagamento do meio da página.",
+      "Na página do contrato, Redigir minuta e Adicionar aditivo ficam no topo, ao lado de Excluir; os cartões Minuta e Aditivos só aparecem quando já há minuta ou aditivo. E a lista de ordens ganhou a coluna Nota: Anexar nota recebe a nota fiscal que falta, inclusive da ordem já paga, sem mudar a situação dela.",
     ],
   },
   {

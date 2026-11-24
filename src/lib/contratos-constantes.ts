@@ -168,3 +168,23 @@ export function primeiroVencimentoSugerido(p: {
     : (p.vigenciaInicio ?? hoje).slice(0, 10)
   return base < hoje ? hoje : base
 }
+
+/**
+ * A ordem do contrato pode receber a nota pela tela do contrato? Sem nota
+ * ainda, não cancelada, do próprio contrato (RPA tem recibo; compra recebe a
+ * nota na compra) e fora da espera do documento (que tem quadro próprio).
+ */
+export function podeAnexarNotaPeloContrato(o: {
+  situacao: string | null
+  tipo: string | null
+  processo_compra_id: string | null
+  temNota: boolean
+}): boolean {
+  return (
+    !o.temNota &&
+    o.situacao !== "Cancelada" &&
+    o.situacao !== "Aguardando documento fiscal" &&
+    o.tipo !== "RPA" &&
+    !o.processo_compra_id
+  )
+}

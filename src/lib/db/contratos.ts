@@ -36,6 +36,7 @@ import {
   vigenciaDe,
   vencimentoParcela,
   MAX_PARCELAS,
+  podeAnexarNotaPeloContrato,
   SITUACOES_QUE_LIBERAM_VENCIMENTO,
   type Periodicidade,
   type SituacaoContrato,
@@ -135,6 +136,8 @@ export type OrdemContrato = {
   data_pagamento: string | null
   processo_compra_id: string | null
   processoCodigo: string | null
+  /** A ordem já tem a nota fiscal anexada. */
+  temNota: boolean
 }
 
 export type ContratoDetalhe = {
@@ -472,7 +475,7 @@ async function ordensDoContrato(
   empId: string
 ): Promise<Record<string, unknown>[]> {
   const SEL =
-    "id, codigo, descricao, tipo, situacao, valor_inicial_cobranca, valor_pago, vencimento, data_pagamento, processo_compra_id, excluido, fornecedor_id, beneficiario_fornecedor_id"
+    "id, codigo, descricao, tipo, situacao, valor_inicial_cobranca, valor_pago, vencimento, data_pagamento, processo_compra_id, excluido, fornecedor_id, beneficiario_fornecedor_id, arquivo_nota_fiscal"
   const direto = await admin
     .from("ordens_pagamento")
     .select(SEL)
@@ -708,6 +711,7 @@ export async function buscarContrato(
         processoCodigo: processoId
           ? (processoPorId.get(processoId) ?? null)
           : null,
+        temNota: Boolean(texto(o.arquivo_nota_fiscal)),
       }
     }),
   }
@@ -1533,4 +1537,56 @@ export async function excluirOrdemContrato(
       : `Excluída pelo contrato quando estava "${o.situacao}".`
   )
   return { codigo: texto(o.codigo) ?? null }
+}
+
+/**
+ * Nota fiscal anexada pela tela do contrato a uma ordem que ainda não tem nota
+ * (a nota costuma chegar depois, mesmo da ordem já paga). Só a ordem do
+ * próprio contrato: RPA tem o recibo, compra recebe a nota na compra, e a
+ * parcela "Aguardando documento fiscal" usa o quadro dela (a nota a faz andar).
+ * Trocar uma nota já anexada continua com o Financeiro (tela da ordem).
+ */
+export async function anexarNotaOrdemContrato(
+  contratoId: string,
+  ordemId: string,
+  arquivo: File
+): Promise<{ erro?: string }> {
+  const empId = await tenantAtual()
+  const admin = await createAdminClient()
+  const { data: o } = await admin
+    .from("ordens_pagamento")
+    .select("id, contrato_id, situacao, tipo, processo_compra_id, arquivo_nota_fiscal")
+    .eq("id", ordemId)
+    .eq("emp_proprietaria_id", empId)
+    .not("excluido", "is", true)
+    .maybeSingle()
+  if (!o || texto(o.contrato_id) !== contratoId) return { erro: "Ordem não encontrada neste contrato." }
+  if (!podeAnexarNotaPeloContrato({
+    situacao: texto(o.situacao),
+    tipo: texto(o.tipo),
+    processo_compra_id: texto(o.processo_compra_id),
+    temNota: Boolean(texto(o.arquivo_nota_fiscal)),
+  })) {
+    if (texto(o.arquivo_nota_fiscal)) return { erro: "Esta ordem já tem nota fiscal; para trocar, use a tela da ordem no Financeiro." }
+    if (o.situacao === SITUACAO_AGUARDANDO_DOCUMENTO) return { erro: "Esta parcela recebe a nota no quadro Aguardando documento fiscal." }
+    return { erro: "Esta ordem não recebe nota pelo contrato." }
+  }
+  const r = await subirComprovanteCompras(`notas/ordens/${ordemId}`, arquivo)
+  if (r.erro || !r.caminho) return { erro: r.erro ?? "Falha ao subir a nota fiscal." }
+  // Só grava se ninguém anexou outra nota no meio tempo.
+  const { data: feita, error } = await admin
+    .from("ordens_pagamento")
+    .update({ arquivo_nota_fiscal: r.caminho })
+    .eq("id", ordemId)
+    .is("arquivo_nota_fiscal", null)
+    .select("id")
+  if (error) return { erro: `Não foi possível salvar a nota: ${error.message}` }
+  if (!feita?.length) {
+    await admin.storage.from("compras").remove([r.caminho])
+    return { erro: "Outra pessoa anexou a nota desta ordem agora há pouco. Atualize a página." }
+  }
+  await registrarEvento(ordemId, "documento_fiscal", await usuarioDaTrilha(), "Pelo contrato: nota fiscal anexada.", {
+    arquivo_nota_fiscal: r.caminho,
+  })
+  return {}
 }

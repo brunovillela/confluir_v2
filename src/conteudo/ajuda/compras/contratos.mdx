@@ -13,17 +13,19 @@ Tudo parte do contrato. Abra-o para ver, em ordem:
    centro de custo, categoria e o arquivo. O **centro de custo** só se habilita
    depois do **departamento** e mostra apenas os centros desse departamento;
 2. **Minuta — o instrumento do contrato** — o texto redigido com a IA,
-   revisado e assinado pelas partes. **Redigir minuta** já traz o objeto, o
-   valor, a vigência e o fornecedor. Ver [Minutas de contrato](/painel/ajuda/compras/minutas);
+   revisado e assinado pelas partes. O cartão aparece quando o contrato já tem
+   minuta; ela sai de **Redigir minuta**, no topo da página (ao lado de
+   **Excluir**), que já traz o objeto, o valor, a vigência e o fornecedor. Ver [Minutas de contrato](/painel/ajuda/compras/minutas);
 3. **RPA — pagamento a autônomo** — quando o fornecedor é pessoa física, os
    recibos dele e o botão **Emitir RPA** (mais abaixo; serviço pontual sem
    contrato entra como **compra de serviço**, e o RPA nasce dela);
-4. **Aditivos** e as **Ordens de pagamento** do contrato — as parcelas e as
-   ordens dos RPAs, com o botão **Nova ordem de pagamento**, que gera as parcelas.
+4. **Aditivos** (quando houver) e as **Ordens de pagamento** do contrato — as
+   parcelas e as ordens dos RPAs, com o botão **Nova ordem de pagamento**, que
+   gera as parcelas, e a coluna **Nota**, para anexar a nota fiscal que falta.
 
 <Print src="compras/contrato-novo.png" alt="Formulário Novo contrato: objeto, fornecedor, valor, vigência, o departamento Administrativo escolhido e o centro de custo 1.1 - Despesas Administrativas, filtrado por ele; responsável, categoria e arquivo." legenda="No cadastro, o centro de custo só se habilita depois do departamento e lista apenas os dele." />
 
-<Print src="compras/contrato-hierarquia.png" alt="Contrato de manutenção elétrica com prestador pessoa física: Dados do contrato; Minuta — o instrumento do contrato, com o botão Redigir minuta; RPA — pagamento a autônomo, com o botão Emitir RPA e o RPA nº 1 com o valor bruto, o líquido, a ordem Em autorização e o botão Anexar RPA assinado na coluna Recibo." legenda="O contrato e o que nasce dele: a minuta e o RPA." />
+<Print src="compras/contrato-hierarquia.png" alt="Contrato de manutenção elétrica com prestador pessoa física: os botões Redigir minuta, Adicionar aditivo e Excluir no topo; Dados do contrato; RPA — pagamento a autônomo, com o botão Emitir RPA e o RPA nº 1 com o valor bruto, o líquido, a ordem Em autorização e o botão Anexar RPA assinado na coluna Recibo." legenda="O contrato e o que nasce dele: a minuta e o aditivo saem dos botões do topo; o RPA tem cartão próprio." />
 
 Na lista de contratos ficam os totais de vigentes, vencendo em até 30 dias,
 vencidos e sem termo definido, os filtros e, no alto, os atalhos **Todas as
@@ -56,7 +58,8 @@ os que vencem nos próximos 30 dias.
 
 Um contrato pode ter aditivos — contratos vinculados a um principal, que
 prorrogam ou alteram o original. O aditivo é criado a partir da página do
-contrato principal.
+contrato principal, pelo botão **Adicionar aditivo**, no topo da página (ao lado de
+**Excluir**); o cartão **Aditivos** só aparece quando já há aditivo. Um aditivo não recebe outro aditivo.
 
 ## Gerar ordens de pagamento
 
@@ -123,6 +126,16 @@ ordem já autorizada, valor menor ou igual ao aprovado mantém a autorização; 
 maior a devolve para autorização. Excluir uma ordem
 autorizada desfaz a autorização; a exclusão pede confirmação e fica no histórico.
 Ordem de RPA ou de compra se ajusta por lá; ordem paga, pelo Financeiro.
+
+### Nota fiscal de uma ordem
+
+A coluna **Nota** mostra **Anexada** quando a ordem já tem a nota (o link abre a
+ordem). Quando falta, **Anexar nota** recebe o arquivo (PDF ou imagem) — vale
+também para a ordem já paga, porque a nota costuma chegar depois. A nota vai para
+a ordem no Financeiro, o envio entra no histórico dela e a situação não muda.
+Parcela *Aguardando documento fiscal* recebe a nota no quadro próprio (ali a nota
+faz a ordem andar); ordem de RPA tem o recibo, e a de compra recebe a nota na
+compra. Para **trocar** uma nota já anexada, use a tela da ordem no Financeiro.
 
 ### Excluir ordens em massa
 
@@ -206,7 +219,7 @@ Contratos podem ser organizados por **categoria**. Uma categoria marcada como
   Previsto, Pago e Em aberto.
 </Aviso>
 
-<Print src="compras/contrato.png" alt="Detalhe de um contrato: o aviso Contrato autorizado, os dados do contrato, a minuta, os aditivos e o cartão Ordens de pagamento, com o botão Nova ordem de pagamento." legenda="Detalhe do contrato: autorização, dados, minuta, aditivos e ordens." />
+<Print src="compras/contrato.png" alt="Detalhe de um contrato: o aviso Contrato autorizado, os botões Redigir minuta, Adicionar aditivo e Excluir no topo, os dados do contrato, o cartão Aditivos e o cartão Ordens de pagamento, com o botão Nova ordem de pagamento." legenda="Detalhe do contrato: autorização, dados, aditivos e ordens." />
 
 ## RPA — Recibo de Pagamento a Autônomo
 

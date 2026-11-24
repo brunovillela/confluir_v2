@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label"
 
 import { ACEITA_NOTA, prepararArquivo } from "@/lib/arquivo-envio"
 import {
+  anexarNotaOrdemContratoAction,
   editarOrdemContratoAction,
   excluirOrdemContratoAction,
   excluirOrdensContratoAction,
@@ -326,5 +327,80 @@ export function AcoesLinhaOrdem({
         </span>
       )}
     </div>
+  )
+}
+
+/**
+ * "Anexar nota" na linha de uma ordem do contrato que ainda não tem nota
+ * (a nota costuma chegar depois — inclusive da ordem já paga).
+ */
+export function AnexarNotaOrdem({
+  contratoId,
+  ordem,
+}: {
+  contratoId: string
+  ordem: { id: string; codigo: string | null }
+}) {
+  const [aberto, setAberto] = useState(false)
+  const [erroArquivo, setErroArquivo] = useState<string | null>(null)
+  const [estado, acao, pendente] = useActionState(
+    async (prev: { erro?: string; ok?: string }, dados: FormData) => {
+      const r = await anexarNotaOrdemContratoAction(prev, dados)
+      if (r.ok) setAberto(false)
+      return r
+    },
+    {}
+  )
+  const envio = useEnvioFormulario(acao, estado)
+
+  return (
+    <Dialog open={aberto} onOpenChange={setAberto}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="h-7 px-2 text-xs" aria-label={`Anexar a nota da ordem ${ordem.codigo ?? ""}`}>
+          <FileUp />
+          Anexar nota
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Nota fiscal da ordem {ordem.codigo ?? ""}</DialogTitle>
+          <DialogDescription>
+            A nota fica na ordem, no Financeiro, e o envio entra no histórico dela. A situação da ordem não muda.
+          </DialogDescription>
+        </DialogHeader>
+        <form action={acao} {...envio} className="grid gap-3">
+          <input type="hidden" name="contrato_id" value={contratoId} />
+          <input type="hidden" name="ordem_id" value={ordem.id} />
+          {(erroArquivo ?? estado.erro) && (
+            <Alert variant="destructive">
+              <AlertDescription>{erroArquivo ?? estado.erro}</AlertDescription>
+            </Alert>
+          )}
+          <div className="grid gap-1.5">
+            <Label htmlFor={`nota_${ordem.id}`}>Arquivo da nota (PDF ou imagem)</Label>
+            <Input
+              id={`nota_${ordem.id}`}
+              name="nota"
+              type="file"
+              required
+              accept={ACEITA_NOTA}
+              onChange={async (e) => {
+                const { erro } = await prepararArquivo(e.currentTarget)
+                setErroArquivo(erro ?? null)
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => setAberto(false)}>
+              Voltar
+            </Button>
+            <Button type="submit" disabled={pendente || Boolean(erroArquivo)}>
+              {pendente ? <Loader2 className="animate-spin" /> : <FileUp />}
+              Anexar
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }

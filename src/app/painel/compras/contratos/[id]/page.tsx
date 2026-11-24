@@ -37,7 +37,7 @@ import {
   type ContratoLista,
 } from "@/lib/db/contratos"
 import { hojeLocalISO } from "@/lib/compras-constantes"
-import { ultimoVencimentoEmVigor } from "@/lib/contratos-constantes"
+import { podeAnexarNotaPeloContrato, ultimoVencimentoEmVigor } from "@/lib/contratos-constantes"
 import { contratoDoRpa, listarRpas } from "@/lib/db/compras-rpa"
 import { rpasComLinkPendente } from "@/lib/db/rpa-assinatura"
 import { AnexarRpaAssinadoBotao } from "../../rpa/rpa-forms"
@@ -59,6 +59,7 @@ import { AutorizarContrato } from "./autorizar-contrato"
 import { GerarOrdensForm } from "../gerar-ordens-form"
 import {
   AcoesLinhaOrdem,
+  AnexarNotaOrdem,
   ExclusaoOrdensBarra,
   MarcarTodasOrdens,
   ReceberDocumentoForm,
@@ -170,6 +171,10 @@ export default async function ContratoPage({
   // "Nova ordem de pagamento" abre o gerador dentro do cartão das ordens.
   const novaOrdem = podeEditar && brutos.novaOrdem === "1"
   const FORM_EXCLUSAO = "excluir-ordens-contrato"
+  // Aditivo é de um contrato principal — um aditivo não recebe outro aditivo.
+  const podeTerAditivo = !detalhe.principal
+  // Nota fiscal pela linha da ordem: quem edita contratos anexa a que falta.
+  const anexavel = (o: (typeof detalhe.ordens)[number]) => podeEditar && podeAnexarNotaPeloContrato(o)
   const totalOrdens = detalhe.ordens.reduce((s, o) => s + (o.valor ?? 0), 0)
 
   const autorizadorNome = c.autorizadorId
@@ -197,6 +202,22 @@ export default async function ContratoPage({
           </div>
           {podeEditar && (
             <div className="flex flex-wrap gap-2">
+              {/* Minuta e aditivo nascem daqui (um caminho só); os cartões deles
+                  só aparecem quando há o que mostrar. */}
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/painel/compras/contratos/minutas/nova?contrato=${c.id}`}>
+                  <FilePen />
+                  Redigir minuta
+                </Link>
+              </Button>
+              {podeTerAditivo && (
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/painel/compras/contratos/novo?principal=${c.id}`}>
+                    <Plus />
+                    Adicionar aditivo
+                  </Link>
+                </Button>
+              )}
               <BotaoExcluirContrato contratoId={c.id} />
             </div>
           )}
@@ -313,12 +334,14 @@ export default async function ContratoPage({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="text-base">Dados do contrato</CardTitle>
             {!editando && podeEditar && (
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`${aqui}?editar=1`}>
-                  <Pencil />
-                  Editar
-                </Link>
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`${aqui}?editar=1`}>
+                    <Pencil />
+                    Editar
+                  </Link>
+                </Button>
+              </div>
             )}
           </div>
         </CardHeader>
@@ -388,7 +411,7 @@ export default async function ContratoPage({
         </CardContent>
       </Card>
 
-      {podeEditar && (
+      {podeEditar && minutas.length > 0 && (
         <Card>
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -398,21 +421,9 @@ export default async function ContratoPage({
                   O texto do contrato, redigido com a IA, revisado e assinado pelas partes
                 </CardDescription>
               </div>
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/painel/compras/contratos/minutas/nova?contrato=${c.id}`}>
-                  <FilePen />
-                  Redigir minuta
-                </Link>
-              </Button>
             </div>
           </CardHeader>
           <CardContent>
-            {minutas.length === 0 ? (
-              <p className="text-muted-foreground text-sm">
-                Nenhuma minuta ainda. <strong>Redigir minuta</strong> já traz o objeto, o valor, a
-                vigência e o fornecedor deste contrato.
-              </p>
-            ) : (
               <ul className="grid gap-1.5 text-sm">
                 {minutas.map((m) => (
                   <li key={m.id} className="flex flex-wrap items-center gap-2">
@@ -426,7 +437,6 @@ export default async function ContratoPage({
                   </li>
                 ))}
               </ul>
-            )}
           </CardContent>
         </Card>
       )}
@@ -518,6 +528,7 @@ export default async function ContratoPage({
         </Card>
       )}
 
+      {detalhe.aditivos.length > 0 && (
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -527,26 +538,13 @@ export default async function ContratoPage({
                 {detalhe.aditivos.length} aditivo(s) vinculado(s)
               </CardDescription>
             </div>
-            {podeEditar && (
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/painel/compras/contratos/novo?principal=${c.id}`}>
-                  <Plus />
-                  Adicionar aditivo
-                </Link>
-              </Button>
-            )}
           </div>
         </CardHeader>
         <CardContent>
-          {detalhe.aditivos.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              Nenhum aditivo vinculado a este contrato.
-            </p>
-          ) : (
-            <ListaAditivos aditivos={detalhe.aditivos} />
-          )}
+          <ListaAditivos aditivos={detalhe.aditivos} />
         </CardContent>
       </Card>
+      )}
 
       {/* Gerar ordens: um caminho só, "Nova ordem de pagamento" no cartão das ordens. */}
       {aguardandoDocumento.length > 0 && (
@@ -694,6 +692,7 @@ export default async function ContratoPage({
                   <TableHead className="text-right">Valor</TableHead>
                   <TableHead>Vencimento</TableHead>
                   <TableHead>Situação</TableHead>
+                  <TableHead>Nota</TableHead>
                   {temMexivel && <TableHead className="w-24 text-right">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
@@ -746,6 +745,24 @@ export default async function ContratoPage({
                     </TableCell>
                     <TableCell>
                       <SituacaoBadge situacao={o.situacao} />
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {o.temNota ? (
+                        <Link
+                          href={`/painel/financeiro/ordens/${o.id}`}
+                          className="text-success-fg inline-flex items-center gap-1 text-xs hover:underline"
+                          title="A nota está na ordem — abrir"
+                        >
+                          <FileText className="size-3.5" />
+                          Anexada
+                        </Link>
+                      ) : anexavel(o) ? (
+                        <AnexarNotaOrdem contratoId={c.id} ordem={{ id: o.id, codigo: o.codigo }} />
+                      ) : (
+                        <span className="text-muted-foreground text-xs">
+                          {o.situacao === "Aguardando documento fiscal" ? "no quadro acima" : "—"}
+                        </span>
+                      )}
                     </TableCell>
                     {temMexivel && (
                       <TableCell>

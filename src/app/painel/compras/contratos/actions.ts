@@ -8,6 +8,7 @@ import { lerConfirmacao } from "@/lib/db/ordens-verificacao"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import {
+  anexarNotaOrdemContrato,
   atualizarCategoriaContrato,
   atualizarContrato,
   criarCategoriaContrato,
@@ -184,6 +185,26 @@ export async function receberDocumentoOrdemAction(
         ? "Nota recebida — a parcela já estava autorizada e seguiu direto para pagamento."
         : "Nota recebida — a ordem seguiu para autorização (valor diferente do autorizado ou parcela sem autorização).",
   }
+}
+
+/** Nota fiscal anexada pelo contrato a uma ordem que ainda não tem nota. */
+export async function anexarNotaOrdemContratoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requireEdicaoContratos()
+  const contratoId = texto(formData, "contrato_id")
+  const ordemId = texto(formData, "ordem_id")
+  if (!contratoId || !ordemId) return { erro: "Ordem inválida." }
+  const arquivo = formData.get("nota")
+  if (!(arquivo instanceof File) || arquivo.size === 0) {
+    return { erro: "Escolha o arquivo da nota (PDF ou imagem)." }
+  }
+  const { erro } = await anexarNotaOrdemContrato(contratoId, ordemId, arquivo)
+  if (erro) return { erro }
+  revalidar(contratoId)
+  revalidatePath(`/painel/financeiro/ordens/${ordemId}`)
+  return { ok: "Nota anexada." }
 }
 
 /** Exclusão em massa das ordens ainda não autorizadas do contrato. */
