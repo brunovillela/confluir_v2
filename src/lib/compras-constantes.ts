@@ -15,6 +15,9 @@ export const SITUACOES_PROCESSO = [
 
 export type SituacaoProcesso = (typeof SITUACOES_PROCESSO)[number]
 
+/** Filtros da lista de Recebimentos — os únicos que a volta do registro da chegada repõe. */
+export const FILTROS_RECEBIMENTOS = ["busca", "departamento", "atrasados"] as const
+
 export const ROTULOS_SITUACAO_PROCESSO: Record<SituacaoProcesso, string> = {
   solicitada: "Solicitada",
   em_cotacao: "Em cotação",

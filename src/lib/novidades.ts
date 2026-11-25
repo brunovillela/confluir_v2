@@ -16,6 +16,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-11-24",
     titulo: "Contratos: parcela no lugar de uma cancelada",
     itens: [
+      "Aquisição → Recebimentos: busca por código, produto ou fornecedor e filtros de departamento e Só atrasados. Ao abrir uma compra e voltar, ou ao registrar uma chegada, a lista reabre com o filtro que estava.",
       "Aquisição → Área do comprador: a fila ganhou busca por código ou produto e filtros de etapa, departamento e Prazo vencido. Ao abrir um processo e voltar, a fila reabre com o filtro que estava.",
       "Aquisição → Minhas solicitações: busca por código ou produto e filtro pela etapa (solicitada, em cotação, comprada…). Ao abrir uma compra e voltar, a lista reabre com o filtro que estava — o botão de voltar da compra leva à lista de onde você veio, Minhas solicitações ou Processos de compra.",
       "Financeiro → Corrigir ordem: o valor de uma ordem já autorizada é comparado com o que foi aprovado. Para menos (ou até o aprovado), a autorização continua valendo e a ordem segue para pagamento — o caso do valor digitado errado; para mais, ela volta para autorização. O histórico diz qual dos dois aconteceu. Na ordem de uma compra, o valor da compra acompanha a correção, e os indicadores de Aquisição também. Ordem de RPA não tem o valor corrigido por ali, porque é o líquido do recibo: com o recibo errado, exclua o RPA e emita de novo.",

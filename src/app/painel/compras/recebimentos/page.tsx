@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowLeft, PackageCheck, PackageOpen } from "lucide-react"
 
+import { LembrarLista } from "@/components/voltar-lista"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -16,25 +17,56 @@ import { requirePermissao } from "@/lib/auth"
 import { listarRecebimentosPendentes } from "@/lib/db/compras"
 import { hojeSP } from "@/lib/db/comum"
 import { formatarData, formatarMoeda } from "@/lib/formato"
+import { semAcento } from "@/lib/texto"
 
 import { RecebimentoForm } from "../[id]/processo-forms"
 
 export const metadata: Metadata = { title: "Recebimentos — Confluir" }
 
+const FILTRO =
+  "border-input bg-background text-foreground h-9 max-w-56 truncate rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
+
 export default async function RecebimentosComprasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ salvo?: string }>
+  searchParams: Promise<{ salvo?: string; busca?: string; departamento?: string; atrasados?: string }>
 }) {
   await requirePermissao("aquisicoes_recebimentos", [
     "aquisicoes_compras_edicao",
   ])
-  const { salvo } = await searchParams
-  const { disponivel, pendentes } = await listarRecebimentosPendentes()
+  const sp = await searchParams
+  const { salvo } = sp
+  const { disponivel, pendentes: todos } = await listarRecebimentosPendentes()
   const hoje = hojeSP()
+
+  // Filtros (24/11/2026): busca por código, produto ou fornecedor (sem
+  // acento), departamento e só os atrasados. A lista lembra o recorte na aba,
+  // e registrar a chegada volta a ele (FILTROS_RECEBIMENTOS).
+  const busca = (sp.busca ?? "").trim()
+  const departamentos = [...new Set(todos.map((f) => f.departamentoNome).filter((v): v is string => Boolean(v)))].sort(
+    (a, b) => a.localeCompare(b, "pt-BR")
+  )
+  const departamento = departamentos.includes(sp.departamento ?? "") ? sp.departamento! : ""
+  const atrasados = sp.atrasados === "1"
+  const termo = semAcento(busca.toLowerCase())
+  const pendentes = todos.filter(
+    (f) =>
+      (!departamento || f.departamentoNome === departamento) &&
+      (!atrasados || Boolean(f.entrega_esperada && f.entrega_esperada.data < hoje)) &&
+      (!termo ||
+        semAcento(`${f.processoCodigo ?? ""} ${f.produto ?? ""} ${f.fornecedorNome ?? ""}`.toLowerCase()).includes(termo))
+  )
+  const temFiltro = Boolean(busca || departamento || atrasados)
+  const q = new URLSearchParams()
+  if (busca) q.set("busca", busca)
+  if (departamento) q.set("departamento", departamento)
+  if (atrasados) q.set("atrasados", "1")
+  const recorte = q.toString()
+  const urlAtual = `/painel/compras/recebimentos${recorte ? `?${recorte}` : ""}`
 
   return (
     <>
+      <LembrarLista chave="compras-lista" url={urlAtual} />
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/painel/compras">
@@ -65,6 +97,46 @@ export default async function RecebimentosComprasPage({
         </Alert>
       )}
 
+      {todos.length > 0 && (
+        <form action="/painel/compras/recebimentos" className="flex flex-wrap items-center gap-2">
+          <input
+            type="search"
+            name="busca"
+            defaultValue={busca}
+            placeholder="Código, produto ou fornecedor"
+            aria-label="Buscar por código, produto ou fornecedor"
+            className={`${FILTRO} w-64 max-w-full`}
+          />
+          {departamentos.length > 1 && (
+            <select name="departamento" defaultValue={departamento} aria-label="Departamento" className={FILTRO}>
+              <option value="">Todos os departamentos</option>
+              {departamentos.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          )}
+          <label className="border-input flex h-9 items-center gap-2 rounded-md border px-3 text-sm">
+            <input type="checkbox" name="atrasados" value="1" defaultChecked={atrasados} className="accent-primary size-4" />
+            Só atrasados
+          </label>
+          <Button type="submit" variant="outline" size="sm" className="h-9">
+            Filtrar
+          </Button>
+          {temFiltro && (
+            <>
+              <Button variant="ghost" size="sm" className="h-9" asChild>
+                <Link href="/painel/compras/recebimentos">Limpar</Link>
+              </Button>
+              <span className="text-muted-foreground text-xs">
+                {pendentes.length} de {todos.length}
+              </span>
+            </>
+          )}
+        </form>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
@@ -78,7 +150,7 @@ export default async function RecebimentosComprasPage({
           {pendentes.length === 0 ? (
             <p className="text-muted-foreground py-4 text-center text-sm">
               <PackageOpen className="mx-auto mb-2 size-5" />
-              Nada aguardando chegada.
+              {temFiltro ? "Nada aguardando chegada com estes filtros." : "Nada aguardando chegada."}
             </p>
           ) : (
             pendentes.map((f) => {
@@ -150,7 +222,7 @@ export default async function RecebimentosComprasPage({
                     </div>
                   </summary>
                   <div className="border-border mx-3 mb-3 border-t pt-3">
-                    <RecebimentoForm processoId="" fornecimentoId={f.id} />
+                    <RecebimentoForm processoId="" fornecimentoId={f.id} recorte={recorte} />
                   </div>
                 </details>
               )

@@ -8,7 +8,7 @@ import { lerConfirmacao } from "@/lib/db/ordens-verificacao"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
-import { FORMAS_PAGAMENTO_COMPRAS, type FormaPagamentoCompras } from "@/lib/compras-constantes"
+import { FILTROS_RECEBIMENTOS, FORMAS_PAGAMENTO_COMPRAS, type FormaPagamentoCompras } from "@/lib/compras-constantes"
 import { lerPagamentoOrdemFutura } from "@/lib/db/compras-pagamento-form"
 import {
   meiosPagamentoFornecedor,
@@ -518,7 +518,15 @@ export async function registrarRecebimentoAction(
     redirect(`/painel/compras/${processoId}?salvo=1`)
   }
   revalidatePath("/painel/compras/recebimentos")
-  redirect("/painel/compras/recebimentos?salvo=1")
+  // Volta ao recorte da lista — só os filtros conhecidos (nada de URL livre).
+  const recorte = new URLSearchParams(texto(formData, "recorte"))
+  const volta = new URLSearchParams()
+  for (const chave of FILTROS_RECEBIMENTOS) {
+    const v = recorte.get(chave)
+    if (v) volta.set(chave, v.slice(0, 200))
+  }
+  volta.set("salvo", "1")
+  redirect(`/painel/compras/recebimentos?${volta}`)
 }
 
 // ── Ajustes do pagamento (código Pix e notas fiscais) ───────────────────────

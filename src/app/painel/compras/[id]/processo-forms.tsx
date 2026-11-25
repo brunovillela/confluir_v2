@@ -526,10 +526,13 @@ export function GerarOrdemForm({
 export function RecebimentoForm({
   processoId,
   fornecimentoId,
+  recorte = "",
 }: {
   /** Vazio quando o registro parte da área de recebimentos. */
   processoId: string
   fornecimentoId: string
+  /** Filtros da lista de Recebimentos (query string): a volta mantém o recorte. */
+  recorte?: string
 }) {
   const [estado, formAction, pendente] = useActionState(
     registrarRecebimentoAction,
@@ -545,6 +548,7 @@ export function RecebimentoForm({
       )}
       <input type="hidden" name="processo_id" value={processoId} />
       <input type="hidden" name="fornecimento_id" value={fornecimentoId} />
+      {recorte && <input type="hidden" name="recorte" value={recorte} />}
       <div className="flex flex-wrap items-end gap-3">
         <div className="grid gap-1.5">
           <Label htmlFor={`receb-data-${fornecimentoId}`}>Recebido em *</Label>
