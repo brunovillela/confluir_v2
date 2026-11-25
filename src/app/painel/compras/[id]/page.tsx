@@ -497,6 +497,7 @@ export default async function ProcessoCompraPage({
             { base: "/painel/compras/minhas", rotulo: "Minhas solicitações" },
             { base: "/painel/compras/comprador", rotulo: "Área do comprador" },
             { base: "/painel/compras/recebimentos", rotulo: "Recebimentos" },
+            { base: "/painel/compras/notas-a-receber", rotulo: "Notas a receber" },
           ]}
           padrao={{ href: "/painel/compras", rotulo: "Aquisição" }}
         />
