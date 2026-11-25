@@ -493,7 +493,10 @@ export default async function ProcessoCompraPage({
           chave="compras-lista"
           base="/painel/compras/processos"
           rotulo="Processos de compra"
-          alternativas={[{ base: "/painel/compras/minhas", rotulo: "Minhas solicitações" }]}
+          alternativas={[
+            { base: "/painel/compras/minhas", rotulo: "Minhas solicitações" },
+            { base: "/painel/compras/comprador", rotulo: "Área do comprador" },
+          ]}
           padrao={{ href: "/painel/compras", rotulo: "Aquisição" }}
         />
         <div className="flex flex-wrap items-center justify-between gap-3">
