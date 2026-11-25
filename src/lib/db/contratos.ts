@@ -1549,7 +1549,9 @@ export async function excluirOrdemContrato(
 export async function anexarNotaOrdemContrato(
   contratoId: string,
   ordemId: string,
-  arquivo: File
+  arquivo: File,
+  /** Onde a nota foi recebida (vai para a trilha). */
+  onde = "Pelo contrato"
 ): Promise<{ erro?: string }> {
   const empId = await tenantAtual()
   const admin = await createAdminClient()
@@ -1585,7 +1587,7 @@ export async function anexarNotaOrdemContrato(
     await admin.storage.from("compras").remove([r.caminho])
     return { erro: "Outra pessoa anexou a nota desta ordem agora há pouco. Atualize a página." }
   }
-  await registrarEvento(ordemId, "documento_fiscal", await usuarioDaTrilha(), "Pelo contrato: nota fiscal anexada.", {
+  await registrarEvento(ordemId, "documento_fiscal", await usuarioDaTrilha(), `${onde}: nota fiscal anexada.`, {
     arquivo_nota_fiscal: r.caminho,
   })
   return {}

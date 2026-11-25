@@ -6,6 +6,7 @@ import { redirect } from "next/navigation"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import {
+  anexarNotaOrdemContrato,
   atualizarContrato,
   criarContrato,
   excluirContrato,
@@ -138,6 +139,26 @@ export async function gerarOrdensAjudaAction(
 }
 
 /** Chaves Pix e contas da entidade apoiada, para a forma das ordens. */
+/** Nota fiscal anexada pela ajuda a uma ordem que ainda não tem nota. */
+export async function anexarNotaOrdemAjudaAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requireEdicaoAjudas()
+  const ajudaId = String(formData.get("contrato_id") ?? "").trim()
+  const ordemId = String(formData.get("ordem_id") ?? "").trim()
+  if (!ajudaId || !ordemId) return { erro: "Ordem inválida." }
+  const arquivo = formData.get("nota")
+  if (!(arquivo instanceof File) || arquivo.size === 0) {
+    return { erro: "Escolha o arquivo da nota (PDF ou imagem)." }
+  }
+  const { erro } = await anexarNotaOrdemContrato(ajudaId, ordemId, arquivo, "Pela ajuda")
+  if (erro) return { erro }
+  revalidar(ajudaId)
+  revalidatePath(`/painel/financeiro/ordens/${ordemId}`)
+  return { ok: "Nota anexada." }
+}
+
 export async function meiosDaEntidadeAjuda(
   fornecedorId: string
 ): Promise<{ pix: PixFornecedor[]; contas: ContaFornecedor[] }> {

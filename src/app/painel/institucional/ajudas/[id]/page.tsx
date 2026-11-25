@@ -35,7 +35,7 @@ import {
   type ContratoLista,
 } from "@/lib/db/contratos"
 import { hojeLocalISO } from "@/lib/compras-constantes"
-import { ultimoVencimentoEmVigor } from "@/lib/contratos-constantes"
+import { podeAnexarNotaPeloContrato, ultimoVencimentoEmVigor } from "@/lib/contratos-constantes"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { podeAcessar } from "@/lib/permissoes"
@@ -45,7 +45,9 @@ import {
   ContratoForm,
 } from "../../../compras/contratos/contrato-forms"
 import { GerarOrdensForm } from "../../../compras/contratos/gerar-ordens-form"
+import { AnexarNotaOrdem } from "../../../compras/contratos/[id]/ordens-contrato"
 import {
+  anexarNotaOrdemAjudaAction,
   atualizarAjudaAction,
   criarAjudaAction,
   excluirAjudaAction,
@@ -366,6 +368,7 @@ export default async function AjudaPage({
                     <TableHead className="text-right">Valor</TableHead>
                     <TableHead>Vencimento</TableHead>
                     <TableHead>Situação</TableHead>
+                    <TableHead>Nota</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -392,6 +395,26 @@ export default async function AjudaPage({
                       </TableCell>
                       <TableCell>
                         <SituacaoBadge situacao={o.situacao} />
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {o.temNota ? (
+                          <Link
+                            href={`/painel/financeiro/ordens/${o.id}`}
+                            className="text-success-fg inline-flex items-center gap-1 text-xs hover:underline"
+                            title="A nota está na ordem — abrir"
+                          >
+                            <FileText className="size-3.5" />
+                            Anexada
+                          </Link>
+                        ) : podeEditar && podeAnexarNotaPeloContrato(o) ? (
+                          <AnexarNotaOrdem
+                            contratoId={c.id}
+                            ordem={{ id: o.id, codigo: o.codigo }}
+                            acaoAnexar={anexarNotaOrdemAjudaAction}
+                          />
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

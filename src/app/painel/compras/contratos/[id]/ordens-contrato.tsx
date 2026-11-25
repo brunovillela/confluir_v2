@@ -337,15 +337,18 @@ export function AcoesLinhaOrdem({
 export function AnexarNotaOrdem({
   contratoId,
   ordem,
+  acaoAnexar = anexarNotaOrdemContratoAction,
 }: {
   contratoId: string
   ordem: { id: string; codigo: string | null }
+  /** Ação do envio — Contratos por padrão; Ajudas passa a sua (outra permissão). */
+  acaoAnexar?: (prev: { erro?: string; ok?: string }, fd: FormData) => Promise<{ erro?: string; ok?: string }>
 }) {
   const [aberto, setAberto] = useState(false)
   const [erroArquivo, setErroArquivo] = useState<string | null>(null)
   const [estado, acao, pendente] = useActionState(
     async (prev: { erro?: string; ok?: string }, dados: FormData) => {
-      const r = await anexarNotaOrdemContratoAction(prev, dados)
+      const r = await acaoAnexar(prev, dados)
       if (r.ok) setAberto(false)
       return r
     },
