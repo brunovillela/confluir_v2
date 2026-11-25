@@ -231,6 +231,7 @@ export default async function FornecedorPage({
             chave="fornecedores"
             base="/painel/compras/fornecedores/lista"
             rotulo="Lista"
+            alternativas={[{ base: "/painel/compras/fornecedores/duplicados", rotulo: "Duplicados" }]}
             icone={<List />}
             className=""
           />

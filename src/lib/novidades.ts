@@ -16,6 +16,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-11-24",
     titulo: "Contratos: parcela no lugar de uma cancelada",
     itens: [
+      "Fornecedores → Cadastros duplicados: busca por nome, razão social ou CPF/CNPJ, nas duas abas. Ao abrir a ficha de um fornecedor e voltar, o botão Duplicados reabre a mesma aba com a busca que estava (antes, a ficha só voltava para a Lista).",
       "Aquisição → Notas a receber: busca por código, produto, fornecedor, vendedor ou comprador e filtros de departamento e Há 7 dias ou mais, nas compras em marketplace aguardando a nota e nas compras sem nota fiscal. Ao abrir uma compra e voltar, a lista reabre com o filtro que estava.",
       "Aquisição → Recebimentos: busca por código, produto ou fornecedor e filtros de departamento e Só atrasados. Ao abrir uma compra e voltar, ou ao registrar uma chegada, a lista reabre com o filtro que estava.",
       "Aquisição → Área do comprador: a fila ganhou busca por código ou produto e filtros de etapa, departamento e Prazo vencido. Ao abrir um processo e voltar, a fila reabre com o filtro que estava.",
