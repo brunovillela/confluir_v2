@@ -1378,7 +1378,8 @@ export async function anexarAssinadoAMao(
 ): Promise<{ erro?: string; caminho?: string }> {
   if (arquivo.type !== "application/pdf") return { erro: "O arquivo deve ser um PDF." }
   if (arquivo.size === 0) return { erro: "O arquivo está vazio." }
-  if (arquivo.size > 10 * 1024 * 1024) return { erro: "O arquivo deve ter no máximo 10 MB." }
+  // A hospedagem recusa envios acima de 4,5 MB antes de chegar aqui.
+  if (arquivo.size > 4 * 1024 * 1024) return { erro: "O arquivo deve ter no máximo 4 MB." }
 
   const admin = await createAdminClient()
   const { data: o } = await admin

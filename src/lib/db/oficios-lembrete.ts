@@ -24,7 +24,7 @@ function juntar(nomes: string[]): string {
  * Ofícios ficavam semanas em "Aguardando assinatura" sem ninguém lembrar
  * (16 na entidade, alguns desde setembro). Quem enviou recebe o lembrete
  * aos 3, 7 e 14 dias de espera e, depois, a cada 14 dias — uma vez por marco
- * (chave em avisos_entregas) — com os dois caminhos: reenviar o convite ou,
+ * (chave em avisos_entregas), num aviso só por pessoa no dia — com os dois caminhos: reenviar o convite ou,
  * se o ofício foi assinado à mão ou pelo gov.br, finalizar com o PDF.
  * A espera conta do envio mais recente aos que ainda não assinaram.
  */
@@ -81,9 +81,13 @@ export async function lembrarOficiosParados(
     ])
   )
 
-  const amb = { client, tenantId, contexto }
+  // Um aviso só por pessoa no dia, com todos os ofícios que chegaram a um
+  // marco novo (no primeiro dia, 16 parados viravam 16 avisos de uma vez).
+  // O marco de cada ofício segue registrado em avisos_entregas, para não
+  // voltar no dia seguinte.
+  type Item = { id: string; numero: string; quem: string; dias: number }
+  const porRemetente = new Map<string, Item[]>()
   let parados = 0
-  let avisos = 0
   for (const o of lista) {
     const p = pendentes.get(String(o.id))
     if (!p) continue
@@ -92,24 +96,60 @@ export async function lembrarOficiosParados(
     const marco = marcoDoLembreteAssinatura(dias)
     if (marco == null) continue
     parados++
-    const remetente = pessoa.get(String(o.enviado_por_id))
+    const remetenteId = String(o.enviado_por_id)
+    if (!pessoa.has(remetenteId)) continue
+    const { error: falha } = await client.from("avisos_entregas").insert({
+      emp_proprietaria_id: tenantId,
+      usuario_id: remetenteId,
+      evento: "oficio_assinatura_parada",
+      chave: `oficio:${o.id}:parado:${enviadoDia}:${marco}`,
+    })
+    if (falha?.code === "23505") continue
+    if (falha && !esquemaAusente(falha)) {
+      erros.push(`${o.id}: ${falha.message}`)
+      continue
+    }
+    const itens = porRemetente.get(remetenteId) ?? []
+    itens.push({
+      id: String(o.id),
+      numero: o.numero != null ? `${o.numero}/${o.ano}` : "sem número",
+      quem: p.nomes.length ? juntar(p.nomes) : "quem assina",
+      dias,
+    })
+    porRemetente.set(remetenteId, itens)
+  }
+
+  const amb = { client, tenantId, contexto }
+  const caminhos = "Reenvie o convite ou, se foi assinado à mão ou pelo gov.br, finalize o ofício com o PDF assinado."
+  let avisos = 0
+  for (const [remetenteId, itens] of porRemetente) {
+    const remetente = pessoa.get(remetenteId)
     if (!remetente) continue
-    const numero = o.numero != null ? `${o.numero}/${o.ano}` : "sem número"
-    const quem = p.nomes.length ? juntar(p.nomes) : "quem assina"
+    itens.sort((a, b) => b.dias - a.dias)
+    const um = itens.length === 1 ? itens[0] : null
+    const listados = itens
+      .slice(0, 10)
+      .map((i) => `Ofício ${i.numero} (${i.quem}, há ${i.dias} dias)`)
+      .join("; ")
+    const resto = itens.length > 10 ? ` e mais ${itens.length - 10}` : ""
     try {
       avisos += await avisar(
         [remetente],
         {
-          texto: `O Ofício ${numero} espera a assinatura de ${quem} há ${dias} dias. Reenvie o convite ou, se ele foi assinado à mão ou pelo gov.br, finalize o ofício com o PDF assinado.`,
-          link: `/painel/ferramentas/oficios/${o.id}`,
+          texto: um
+            ? `O Ofício ${um.numero} espera a assinatura de ${um.quem} há ${um.dias} dias. ${caminhos}`
+            : `${itens.length} ofícios seus esperam assinatura: ${listados}${resto}. ${caminhos}`,
+          link: um
+            ? `/painel/ferramentas/oficios/${um.id}`
+            : `/painel/ferramentas/oficios?situacao=${encodeURIComponent("Aguardando assinatura")}`,
           evento: "oficio_assinatura_parada",
-          assunto: `Ofício ${numero} esperando assinatura`,
-          chaveEntrega: `oficio:${o.id}:parado:${enviadoDia}:${marco}`,
+          assunto: um ? `Ofício ${um.numero} esperando assinatura` : `${itens.length} ofícios esperando assinatura`,
+          chaveEntrega: `oficios-parados:${hoje}`,
         },
         amb
       )
     } catch (e) {
-      erros.push(`${o.id}: ${e instanceof Error ? e.message : String(e)}`)
+      erros.push(`${remetenteId}: ${e instanceof Error ? e.message : String(e)}`)
     }
   }
   return { parados, avisos, erros }

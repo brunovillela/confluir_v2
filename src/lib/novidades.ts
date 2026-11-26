@@ -16,6 +16,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-11-24",
     titulo: "Contratos: parcela no lugar de uma cancelada",
     itens: [
+      "Ofícios parados em assinatura: quando vários chegam juntos ao dia do lembrete, quem enviou recebe um aviso só, com a lista dos ofícios e o atalho para os que aguardam assinatura (antes, era um aviso por ofício). E o PDF de um ofício emitido à mão aceita até 4 MB, como diz a mensagem.",
       "Fornecedores → Cadastros duplicados: busca por nome, razão social ou CPF/CNPJ, nas duas abas. Ao abrir a ficha de um fornecedor e voltar, o botão Duplicados reabre a mesma aba com a busca que estava (antes, a ficha só voltava para a Lista).",
       "Aquisição → Notas a receber: busca por código, produto, fornecedor, vendedor ou comprador e filtros de departamento e Há 7 dias ou mais, nas compras em marketplace aguardando a nota e nas compras sem nota fiscal. Ao abrir uma compra e voltar, a lista reabre com o filtro que estava.",
       "Aquisição → Recebimentos: busca por código, produto ou fornecedor e filtros de departamento e Só atrasados. Ao abrir uma compra e voltar, ou ao registrar uma chegada, a lista reabre com o filtro que estava.",
