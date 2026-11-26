@@ -248,6 +248,13 @@ export default async function ContratosPage({
           valor={resumo.semTermo}
           href={filtroHref({ situacao: "sem_termo", pagina: "" })}
         />
+        {resumo.finalizados > 0 && (
+          <CardResumo
+            rotulo="Finalizados"
+            valor={resumo.finalizados}
+            href={filtroHref({ situacao: "finalizados", pagina: "" })}
+          />
+        )}
         {recorrentes?.disponivel && (
           <Link href="/painel/compras/contratos/recorrentes" className="group">
             <Card className="group-hover:border-primary/40 h-full transition-colors">

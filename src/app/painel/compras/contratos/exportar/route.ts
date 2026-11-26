@@ -12,6 +12,7 @@ const ROTULO_VIGENCIA: Record<string, string> = {
   vencendo: "Vencendo",
   vigente: "Vigente",
   sem_termo: "Sem término",
+  finalizado: "Finalizado",
 }
 
 /** Contratos em XLSX, com os filtros da tela (I8). Ajudas institucionais ficam fora, como na tela. */

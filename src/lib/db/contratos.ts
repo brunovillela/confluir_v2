@@ -116,6 +116,10 @@ export type Contrato = {
   autorizadorId: string | null
   /** Migrado do Bubble (tem bubble_id): sem o alerta de autorização. */
   legado: boolean
+  /** Finalizado (26/11/2026): data, quem e o motivo. */
+  finalizadoEm: string | null
+  finalizadoPor: string | null
+  finalizacaoMotivo: string | null
 }
 
 /** Categoria de contrato (`contratos_categorias`). `sigiloso` restringe a leitura. */
@@ -196,7 +200,7 @@ function linhaContrato(
     aditivo: c.aditivo === true,
     sob_demanda: c.sob_demanda === true,
     apoio_institucional: c.apoio_institucional === true,
-    vigencia: vigenciaDe(texto(c.vigencia_termino), hoje),
+    vigencia: vigenciaDe(texto(c.vigencia_termino), hoje, texto(c.finalizado_em)),
     arquivo_contrato: texto(c.arquivo_contrato),
   }
 }
@@ -274,7 +278,7 @@ export async function opcoesContratos(): Promise<OpcaoContrato[]> {
   const admin = await createAdminClient()
   const { data, error } = await admin
     .from("contratos")
-    .select("id, codigo, objeto, vigencia_termino")
+    .select("id, codigo, objeto, vigencia_termino, finalizado_em")
     .eq("emp_proprietaria_id", await tenantAtual())
     .order("vigencia_termino", { ascending: false, nullsFirst: false })
   if (error) return []
@@ -287,7 +291,7 @@ export async function opcoesContratos(): Promise<OpcaoContrato[]> {
         codigo: texto(c.codigo),
         objeto: texto(c.objeto),
         vigenciaTermino: termino,
-        vigente: vigenciaDe(termino, hoje) !== "vencido",
+        vigente: !["vencido", "finalizado"].includes(vigenciaDe(termino, hoje, texto(c.finalizado_em))),
       }
     })
     .sort((a, b) =>
@@ -381,7 +385,9 @@ export async function listarContratos(opcoes: {
           ? c.vigencia === "vencendo"
           : s === "vencidos"
             ? c.vigencia === "vencido"
-            : c.vigencia === "sem_termo"
+            : s === "finalizados"
+              ? c.vigencia === "finalizado"
+              : c.vigencia === "sem_termo"
     )
   }
 
@@ -400,6 +406,8 @@ export type ResumoContratos = {
   vencendo: number
   vencidos: number
   semTermo: number
+  /** Finalizados de propósito (cumpridos, rescindidos, substituídos). */
+  finalizados: number
   /** false enquanto contratos.sql (coluna `valor`) não rodou. */
   esquemaCompleto: boolean
 }
@@ -413,7 +421,7 @@ export async function resumoContratos(
   const [linhasRes, valorRes, categorias] = await Promise.all([
     admin
       .from("contratos")
-      .select("vigencia_termino, deletado, categoria_id, apoio_institucional")
+      .select("vigencia_termino, deletado, categoria_id, apoio_institucional, finalizado_em")
       .eq("emp_proprietaria_id", empId)
       .not("deletado", "is", true)
       .limit(5000),
@@ -429,6 +437,7 @@ export async function resumoContratos(
       vencendo: 0,
       vencidos: 0,
       semTermo: 0,
+      finalizados: 0,
       esquemaCompleto,
     }
   }
@@ -452,11 +461,13 @@ export async function resumoContratos(
     vencendo: 0,
     vencidos: 0,
     semTermo: 0,
+    finalizados: 0,
     esquemaCompleto,
   }
   for (const c of linhas) {
-    const v = vigenciaDe(texto(c.vigencia_termino), hoje)
-    if (v === "vigente") resumo.vigentes++
+    const v = vigenciaDe(texto(c.vigencia_termino), hoje, texto(c.finalizado_em))
+    if (v === "finalizado") resumo.finalizados++
+    else if (v === "vigente") resumo.vigentes++
     else if (v === "vencendo") {
       resumo.vencendo++
       resumo.vigentes++
@@ -649,7 +660,10 @@ export async function buscarContrato(
     arquivo_contrato: texto(linha.arquivo_contrato),
     created_at: texto(linha.created_at),
     updated_at: texto(linha.updated_at),
-    vigencia: vigenciaDe(texto(linha.vigencia_termino), hoje),
+    vigencia: vigenciaDe(texto(linha.vigencia_termino), hoje, texto(linha.finalizado_em)),
+    finalizadoEm: texto(linha.finalizado_em),
+    finalizadoPor: texto(linha.finalizado_por),
+    finalizacaoMotivo: texto(linha.finalizacao_motivo),
     autorizado: linha.autorizacao_esta_autorizado === true,
     autorizadoEm: texto(linha.autorizacao_data),
     autorizadorId: texto(linha.autorizacao_autorizador_id),
@@ -868,7 +882,7 @@ export async function gerarOrdensContrato(
 
   const { data: c, error } = await admin
     .from("contratos")
-    .select("id, codigo, objeto, valor, sob_demanda, fornecedor_id, departamento_id, centro_custo_id, autorizacao_esta_autorizado, autorizacao_autorizador_id, autorizacao_data")
+    .select("id, codigo, objeto, valor, sob_demanda, fornecedor_id, departamento_id, centro_custo_id, autorizacao_esta_autorizado, autorizacao_autorizador_id, autorizacao_data, finalizado_em")
     .eq("id", contratoId)
     .eq("emp_proprietaria_id", empId)
     .maybeSingle()
@@ -897,6 +911,11 @@ export async function gerarOrdensContrato(
   // ela, não há o que herdar. Pagamento extraordinário (única) passa pela
   // autorização pontual.
   const recorrente = params.periodicidade !== "unica"
+  // Contrato finalizado não ganha parcela nova; um pagamento avulso (o acerto
+  // final, uma multa) ainda pode ser registrado.
+  if (recorrente && texto(linha.finalizado_em)) {
+    return { erro: "Contrato finalizado: não se geram parcelas novas. Para um acerto final, use Pagamento avulso — ou reabra o contrato." }
+  }
   const contratoAutorizado = linha.autorizacao_esta_autorizado === true
   if (recorrente && params.aguardarDocumento === true && !contratoAutorizado) {
     return {
@@ -1674,5 +1693,79 @@ export async function classificarOrdemContrato(
       : "Reclassificada como pagamento avulso do contrato (fora das parcelas).",
     { antes: { contrato_pagamento: texto(o.contrato_pagamento) }, depois: { contrato_pagamento: natureza }, reavaliada: true }
   )
+  return {}
+}
+
+// ── Finalizar / reabrir (26/11/2026) ─────────────────────────────────────────
+
+/**
+ * Finaliza o contrato: cumprido, rescindido ou substituído — encerrado de
+ * propósito, e não "vencido" (que sugere pendência). Opcionalmente exclui as
+ * parcelas ainda NÃO autorizadas que vencem depois da data (o que já foi
+ * autorizado segue para pagamento e é informado). Fica com data, quem e motivo.
+ */
+export async function finalizarContrato(
+  contratoId: string,
+  p: { data: string; motivo: string; excluirFuturas: boolean }
+): Promise<{ erro?: string; excluidas?: number; emAberto?: number }> {
+  const empId = await tenantAtual()
+  const admin = await createAdminClient()
+  const usuario = await usuarioDaTrilha()
+  if (!usuario) return { erro: "Sessão expirada — entre de novo." }
+  const { data: c, error } = await admin
+    .from("contratos")
+    .select("id, finalizado_em")
+    .eq("id", contratoId)
+    .eq("emp_proprietaria_id", empId)
+    .maybeSingle()
+  if (error) return { erro: `Falha ao carregar o contrato: ${error.message}` }
+  if (!c) return { erro: "Contrato não encontrado." }
+  if (texto(c.finalizado_em)) return { erro: "O contrato já está finalizado." }
+
+  const { data: ordens } = await admin
+    .from("ordens_pagamento")
+    .select("id, situacao, tipo, processo_compra_id, data_pagamento, vencimento")
+    .eq("contrato_id", contratoId)
+    .eq("emp_proprietaria_id", empId)
+    .not("excluido", "is", true)
+  const abertas = (ordens ?? []).filter(
+    (o) => !o.data_pagamento && !["Paga", "Cancelada"].includes(String(o.situacao))
+  )
+  let excluidas = 0
+  if (p.excluirFuturas) {
+    const futuras = abertas
+      .filter(
+        (o) =>
+          (texto(o.vencimento)?.slice(0, 10) ?? "") > p.data &&
+          SITUACOES_NAO_AUTORIZADAS.includes(String(o.situacao)) &&
+          o.tipo !== TIPO_ORDEM_RPA &&
+          !o.processo_compra_id
+      )
+      .map((o) => String(o.id))
+    if (futuras.length) {
+      const r = await excluirOrdensContrato(contratoId, futuras)
+      if (r.erro) return { erro: r.erro }
+      excluidas = r.excluidas ?? 0
+    }
+  }
+  const { error: erroUpd } = await admin
+    .from("contratos")
+    .update({ finalizado_em: p.data, finalizado_por: usuario, finalizacao_motivo: p.motivo, ativo: false })
+    .eq("id", contratoId)
+    .eq("emp_proprietaria_id", empId)
+  if (erroUpd) return { erro: `Não foi possível finalizar: ${erroUpd.message}` }
+  return { excluidas, emAberto: abertas.length - excluidas }
+}
+
+/** Desfaz a finalização (finalizado por engano): o contrato volta a seguir a vigência. */
+export async function reabrirContrato(contratoId: string): Promise<{ erro?: string }> {
+  const empId = await tenantAtual()
+  const admin = await createAdminClient()
+  const { error } = await admin
+    .from("contratos")
+    .update({ finalizado_em: null, finalizado_por: null, finalizacao_motivo: null, ativo: true })
+    .eq("id", contratoId)
+    .eq("emp_proprietaria_id", empId)
+  if (error) return { erro: `Não foi possível reabrir: ${error.message}` }
   return {}
 }

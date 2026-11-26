@@ -10,6 +10,7 @@ export const SITUACOES_CONTRATO = [
   "vencendo",
   "vencidos",
   "sem_termo",
+  "finalizados",
   "todos",
 ] as const
 
@@ -20,11 +21,12 @@ export const ROTULOS_SITUACAO_CONTRATO: Record<SituacaoContrato, string> = {
   vencendo: "Vencendo (≤30 dias)",
   vencidos: "Vencidos",
   sem_termo: "Sem termo definido",
+  finalizados: "Finalizados",
   todos: "Todos",
 }
 
 /** Estado de vigência de uma linha, para badge e filtro. */
-export type Vigencia = "vigente" | "vencendo" | "vencido" | "sem_termo"
+export type Vigencia = "vigente" | "vencendo" | "vencido" | "sem_termo" | "finalizado"
 
 /** Dias de antecedência que classificam um contrato como "vencendo". */
 export const DIAS_VENCENDO = 30
@@ -35,8 +37,11 @@ export const DIAS_VENCENDO = 30
  */
 export function vigenciaDe(
   vigenciaTermino: string | null,
-  hoje: string
+  hoje: string,
+  /** Finalizado (26/11/2026): encerrado de propósito — não é vencido nem vigente. */
+  finalizadoEm?: string | null
 ): Vigencia {
+  if (finalizadoEm) return "finalizado"
   if (!vigenciaTermino) return "sem_termo"
   const termino = vigenciaTermino.slice(0, 10)
   if (termino < hoje) return "vencido"
@@ -259,3 +264,13 @@ export function avulsosParecemParcelas(
 export function rotuloParcela(numero: number | undefined, total: number): string {
   return numero ? `Parcela ${numero} de ${total}` : "Parcela cancelada"
 }
+
+// ── Finalizar contrato (26/11/2026) ──────────────────────────────────────────
+
+/** Por que o contrato foi finalizado. */
+export const MOTIVOS_FINALIZACAO_CONTRATO = [
+  "Cumprido — objeto entregue / prazo encerrado",
+  "Rescindido antes do prazo",
+  "Substituído por outro contrato",
+  "Outro motivo",
+] as const

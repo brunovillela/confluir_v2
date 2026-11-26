@@ -63,6 +63,7 @@ import { comPessoasAtuais } from "@/lib/db/opcoes-pessoas"
 
 import { BotaoExcluirContrato, ContratoForm } from "../contrato-forms"
 import { AutorizarContrato } from "./autorizar-contrato"
+import { FinalizarContrato, ReabrirContrato } from "./finalizar-contrato"
 import { GerarOrdensForm } from "../gerar-ordens-form"
 import {
   AcoesLinhaOrdem,
@@ -116,6 +117,10 @@ export default async function ContratoPage({
     geradas?: string
     puladas?: string
     tipoGerado?: string
+    finalizado?: string
+    excluidas?: string
+    emAberto?: string
+    reaberto?: string
     rpaExcluido?: string
     novaOrdem?: string
     ordemExcluida?: string
@@ -199,7 +204,7 @@ export default async function ContratoPage({
     ? null
     : brutos.novaOrdem === "avulso"
       ? "avulso"
-      : brutos.novaOrdem === "parcelas" || brutos.novaOrdem === "1"
+      : (brutos.novaOrdem === "parcelas" || brutos.novaOrdem === "1") && !c.finalizadoEm
         ? "parcelas"
         : null
   const FORM_EXCLUSAO = "excluir-ordens-contrato"
@@ -208,9 +213,20 @@ export default async function ContratoPage({
   // Nota fiscal pela linha da ordem: quem edita contratos anexa a que falta.
   const anexavel = (o: (typeof detalhe.ordens)[number]) => podeEditar && podeAnexarNotaPeloContrato(o)
 
-  const autorizadorNome = c.autorizadorId
-    ? ((await nomesDosUsuarios([c.autorizadorId])).get(c.autorizadorId) ?? null)
-    : null
+  const nomesPessoas = await nomesDosUsuarios([c.autorizadorId, c.finalizadoPor].filter((v): v is string => !!v))
+  const autorizadorNome = c.autorizadorId ? (nomesPessoas.get(c.autorizadorId) ?? null) : null
+  const finalizadorNome = c.finalizadoPor ? (nomesPessoas.get(c.finalizadoPor) ?? null) : null
+  // Finalizar: as ordens ainda não autorizadas (as que podem ser excluídas junto).
+  const vencimentosNaoAutorizados = detalhe.ordens
+    .filter(
+      (o) =>
+        SITUACOES_NAO_AUTORIZADAS.includes(o.situacao ?? "") &&
+        o.tipo !== TIPO_ORDEM_RPA &&
+        !o.processo_compra_id &&
+        !o.data_pagamento &&
+        o.vencimento
+    )
+    .map((o) => (o.vencimento as string).slice(0, 10))
 
   // Contas de caixa abertas: opção da forma "Dinheiro" ao gerar ordens.
   const caixas = podeEditar ? await contasAbertasParaCompras() : []
@@ -249,6 +265,13 @@ export default async function ContratoPage({
                   </Link>
                 </Button>
               )}
+              {!c.finalizadoEm && (
+                <FinalizarContrato
+                  contratoId={c.id}
+                  hoje={hojeLocalISO()}
+                  parcelasFuturas={vencimentosNaoAutorizados}
+                />
+              )}
               <BotaoExcluirContrato contratoId={c.id} />
             </div>
           )}
@@ -262,6 +285,37 @@ export default async function ContratoPage({
       {brutos.salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>Alteração salva.</AlertDescription>
+        </Alert>
+      )}
+
+      {brutos.finalizado === "1" && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>
+            Contrato finalizado.
+            {Number(brutos.excluidas) > 0 && ` ${brutos.excluidas} parcela(s) ainda não autorizada(s) foram excluídas.`}
+            {Number(brutos.emAberto) > 0 &&
+              ` ${brutos.emAberto} ordem(ns) já autorizada(s) ou em autorização continuam e serão pagas normalmente.`}
+          </AlertDescription>
+        </Alert>
+      )}
+      {brutos.reaberto === "1" && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>Contrato reaberto — volta a seguir a vigência.</AlertDescription>
+        </Alert>
+      )}
+      {c.finalizadoEm && (
+        <Alert className="border-info/40">
+          <AlertDescription>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span>
+                <span className="font-medium">Contrato finalizado em {formatarData(c.finalizadoEm)}</span>
+                {finalizadorNome ? ` por ${finalizadorNome}` : ""}
+                {c.finalizacaoMotivo ? ` — ${c.finalizacaoMotivo}` : ""}. Não gera parcelas novas; um acerto final
+                entra como pagamento avulso.
+              </span>
+              {podeEditar && <ReabrirContrato contratoId={c.id} />}
+            </div>
+          </AlertDescription>
         </Alert>
       )}
 
@@ -653,12 +707,14 @@ export default async function ContratoPage({
             </div>
             {podeEditar && !novaOrdem && (
               <div className="flex flex-wrap gap-2">
+                {!c.finalizadoEm && (
                 <Button size="sm" variant={c.sob_demanda ? "outline" : "default"} asChild>
                   <Link href={`${aqui}?novaOrdem=parcelas#ordens`}>
                     <CalendarRange />
                     Gerar parcelas
                   </Link>
                 </Button>
+                )}
                 <Button size="sm" variant={c.sob_demanda ? "default" : "outline"} asChild>
                   <Link href={`${aqui}?novaOrdem=avulso#ordens`}>
                     <Plus />

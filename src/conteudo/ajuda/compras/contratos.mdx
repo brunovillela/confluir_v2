@@ -53,7 +53,29 @@ pontual, em que quem aprova precisa desta permissão além da alçada.
 
 A situação do contrato (vigente, vencendo, vencido) é derivada **sempre das
 datas**, não de um campo manual. A lista traz um resumo por situação, e destaca
-os que vencem nos próximos 30 dias.
+os que vencem nos próximos 30 dias. O contrato encerrado de propósito fica como
+**Finalizado** (veja abaixo), não como vencido.
+
+## Finalizar contrato
+
+<RequerPermissao>Contratos — editar</RequerPermissao>
+
+Vencido quer dizer que o prazo passou — pode faltar renovar ou regularizar. Para
+o contrato que **acabou** (cumprido, rescindido antes do prazo, substituído por
+outro), use **Finalizar contrato**, no topo da página:
+
+1. Informe a **data** da finalização e o **motivo** (com uma observação, se quiser
+   — obrigatória em *Outro motivo*).
+2. Se houver parcelas **ainda não autorizadas** que vencem depois dessa data, a
+   tela oferece **excluí-las** junto (marcado por padrão). O que já foi autorizado
+   ou pago fica como está e é pago normalmente; a tela avisa quantas continuam.
+3. O contrato passa a **Finalizado**: sai de vigentes, vencendo e vencidos (e dos
+   alertas de vencimento e da Saúde dos contratos) e entra no filtro
+   **Finalizados** da lista. A página mostra a data, quem finalizou e o motivo.
+
+Contrato finalizado não gera parcelas novas; um acerto final entra como
+**Pagamento avulso**. Finalizou por engano? Clique em **Reabrir** no aviso do
+topo — ele volta a seguir a vigência (as parcelas excluídas não voltam).
 
 ## Aditivos
 
@@ -253,7 +275,7 @@ Contratos podem ser organizados por **categoria**. Uma categoria marcada como
   Previsto, Pago e Em aberto.
 </Aviso>
 
-<Print src="compras/contrato.png" alt="Detalhe de um contrato: o aviso Contrato autorizado, os botões Redigir minuta, Adicionar aditivo e Excluir no topo, os dados do contrato, o cartão Aditivos e o cartão Ordens de pagamento, com o botão Nova ordem de pagamento." legenda="Detalhe do contrato: autorização, dados, aditivos e ordens." />
+<Print src="compras/contrato.png" alt="Detalhe de um contrato: os botões Redigir minuta, Adicionar aditivo, Finalizar contrato e Excluir no topo; o aviso Contrato autorizado; os dados do contrato; o cartão Aditivos; e o cartão Pagamentos do contrato, com os botões Gerar parcelas e Pagamento avulso, o resumo previsto, pago e em aberto, o quadro Parcelas (Parcela 1 de 3, Parcela 2 de 3, Parcela 3 de 3, cada uma com É avulso) e o quadro Pagamentos avulsos (com É parcela)." legenda="Detalhe do contrato: parcelas numeradas e pagamentos avulsos em quadros separados." />
 
 ## RPA — Recibo de Pagamento a Autônomo
 

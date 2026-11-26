@@ -48,6 +48,7 @@ const ESTILO_VIGENCIA: Record<Vigencia, string> = {
   vencendo: "border-warning/40 text-warning-fg",
   vencido: "border-destructive/40 text-destructive",
   sem_termo: "text-muted-foreground",
+  finalizado: "border-info/40 text-info-fg",
 }
 
 const ROTULO_VIGENCIA: Record<Vigencia, string> = {
@@ -55,6 +56,7 @@ const ROTULO_VIGENCIA: Record<Vigencia, string> = {
   vencendo: "Vencendo",
   vencido: "Vencido",
   sem_termo: "Sem termo",
+  finalizado: "Finalizado",
 }
 
 /** Situação de vigência do contrato, derivada das datas. */

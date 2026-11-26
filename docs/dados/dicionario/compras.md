@@ -517,6 +517,9 @@ Contratos da entidade com fornecedores (PJ ou PF): objeto, vigência, valor, adi
 | `slug` | text | sim |  |  |  |  |
 | `valor` | numeric(15,2) | sim |  |  | financeiro | Valor do contrato; pessoal quando o contratado é PF. |
 | `categoria_id` | uuid | sim |  | → contratos_categorias |  |  |
+| `finalizado_em` | date | sim |  |  | nenhum | Data em que o contrato foi finalizado (cumprido, rescindido, substituído). Preenchida: a vigência é "finalizado", não vencido. |
+| `finalizado_por` | uuid | sim |  |  | nenhum | Usuário (usuarios.id) que finalizou o contrato. |
+| `finalizacao_motivo` | text | sim |  |  | nenhum | Motivo da finalização e a observação de quem finalizou. |
 
 Únicas: `UNIQUE (bubble_id)`
 

@@ -19,7 +19,9 @@ import { AquisicaoBadge, SituacaoProcessoBadge } from "@/components/compras"
 import { SituacaoBadge } from "@/app/painel/financeiro/situacao-badge"
 import { VoltarLista } from "@/components/voltar-lista"
 import { requirePermissao } from "@/lib/auth"
+import { AvaliacaoOrdemForm } from "../avaliacoes/avaliacao-ordem-form"
 import {
+  alcadaDoUsuario,
   buscarProcesso,
   empresasPorId,
   FORNECIMENTO_LEGADO,
@@ -102,10 +104,17 @@ function LinhaOrdem({
   processoId,
   podeAjustar,
   comprovante,
+  alcada = 0,
 }: {
   ordem: OrdemDoProcesso & { notaUrl?: string | null; boletoUrl?: string | null }
   processoId: string
   podeAjustar: boolean
+  /**
+   * Alçada de quem vê (26/11/2026): com "Avaliações de ordens" e alçada, a
+   * ordem Em autorização ganha Aprovar/Devolver aqui mesmo — antes só na tela
+   * de Avaliações. Acima da alçada, diz até quanto a pessoa aprova.
+   */
+  alcada?: number
   /** Comprovante anexado à ordem paga: link e envio ao fornecedor. */
   comprovante?: ComprovanteDaOrdem
 }) {
@@ -187,6 +196,26 @@ function LinhaOrdem({
           </span>
         )}
       </div>
+      {alcada > 0 && ordem.situacao === "Em autorização" && (
+        <div className="border-warning/40 bg-warning/5 mt-1 grid gap-1.5 rounded-md border p-2">
+          {(ordem.valor_inicial_cobranca ?? 0) > 0 && (ordem.valor_inicial_cobranca ?? 0) <= alcada ? (
+            <>
+              <p className="text-xs font-medium">Aprovação do pagamento — dentro da sua alçada</p>
+              <AvaliacaoOrdemForm
+                ordemId={ordem.id}
+                valorTexto={formatarMoeda(ordem.valor_inicial_cobranca)}
+                voltarPara={`/painel/compras/${processoId}`}
+              />
+            </>
+          ) : (
+            <p className="text-muted-foreground text-xs">
+              {(ordem.valor_inicial_cobranca ?? 0) > 0
+                ? `Acima da sua alçada de aprovação (até ${formatarMoeda(alcada)}): quem tem alçada maior aprova em Avaliações de ordens.`
+                : "Ordem sem valor definido — corrija o valor no Financeiro antes de aprovar."}
+            </p>
+          )}
+        </div>
+      )}
       {comprovante && (
         <ComprovanteAcoes
           processoId={processoId}
@@ -219,8 +248,15 @@ export default async function ProcessoCompraPage({
 
   const processo = await buscarProcesso(id)
   if (!processo) notFound()
+  // Quem aprova pagamentos (alçada) vê a compra que tem ordem esperando a
+  // aprovação — vinha de Avaliações de ordens e caía fora do escopo.
+  const alcada = podeAcessar(sessao.permissoes, "aquisicoes_avaliacoes") ? alcadaDoUsuario(sessao.permissoes) : 0
+  const temOrdemEmAutorizacao = [
+    ...(processo.fornecimentos ?? []).flatMap((f) => f.pagamentos ?? []),
+    ...(processo.ordensAvulsas ?? []),
+  ].some((o) => o.situacao === "Em autorização")
   // O comprador (setor central) vê tudo; os demais, só os seus departamentos.
-  if (!podeAcessar(sessao.permissoes, "aquisicoes_comprador")) {
+  if (!podeAcessar(sessao.permissoes, "aquisicoes_comprador") && !(alcada > 0 && temOrdemEmAutorizacao)) {
     const escopo = await escopoComprasDoUsuario(sessao.usuario.id)
     if (
       !compraNoEscopo(escopo, {
@@ -1221,6 +1257,7 @@ export default async function ProcessoCompraPage({
                               processoId={processo.id}
                               podeAjustar={podeAjustar}
                               comprovante={comprovantes.get(o.id)}
+                              alcada={alcada}
                             />
                           </div>
                         ))}
@@ -1274,6 +1311,7 @@ export default async function ProcessoCompraPage({
                   processoId={processo.id}
                   podeAjustar={podeAjustar}
                   comprovante={comprovantes.get(o.id)}
+                  alcada={alcada}
                 />
               ))}
             </div>

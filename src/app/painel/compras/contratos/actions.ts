@@ -20,6 +20,8 @@ import {
   excluirContrato,
   excluirOrdemContrato,
   excluirOrdensContrato,
+  finalizarContrato,
+  reabrirContrato,
   gerarOrdensContrato,
   receberDocumentoOrdemContrato,
   validarCentroDoDepartamento,
@@ -32,7 +34,7 @@ import {
 } from "@/lib/db/compras-pagamento"
 import { lerPagamentoOrdemFutura } from "@/lib/db/compras-pagamento-form"
 import { FORMAS_ORDEM_CONTRATO } from "@/lib/compras-constantes"
-import { PERIODICIDADES, type Periodicidade } from "@/lib/contratos-constantes"
+import { MOTIVOS_FINALIZACAO_CONTRATO, PERIODICIDADES, type Periodicidade } from "@/lib/contratos-constantes"
 import { parseValorBR } from "@/lib/valores"
 
 import { lerDadosContrato } from "./dados-form"
@@ -399,4 +401,39 @@ export async function classificarOrdemContratoAction(
   if (erro) return { erro }
   revalidar(contratoId)
   return { ok: natureza === "parcela" ? "Agora é parcela do contrato." : "Agora é pagamento avulso." }
+}
+
+/** Finaliza o contrato (cumprido, rescindido, substituído) — não é "vencido". */
+export async function finalizarContratoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requireEdicaoContratos()
+  const id = texto(formData, "contrato_id")
+  if (!id) return { erro: "Contrato inválido." }
+  const data = texto(formData, "data")
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return { erro: "Informe a data da finalização." }
+  const motivo = texto(formData, "motivo")
+  if (!(MOTIVOS_FINALIZACAO_CONTRATO as readonly string[]).includes(motivo)) return { erro: "Escolha o motivo." }
+  const observacao = texto(formData, "observacao").replace(/\s+/g, " ").slice(0, 500)
+  if (motivo === "Outro motivo" && observacao.length < 5) return { erro: "Explique o motivo da finalização." }
+  const { erro, excluidas, emAberto } = await finalizarContrato(id, {
+    data,
+    motivo: observacao ? `${motivo} — ${observacao}` : motivo,
+    excluirFuturas: texto(formData, "excluir_futuras") === "on",
+  })
+  if (erro) return { erro }
+  revalidar(id)
+  redirect(`/painel/compras/contratos/${id}?finalizado=1&excluidas=${excluidas ?? 0}&emAberto=${emAberto ?? 0}`)
+}
+
+/** Desfaz a finalização (finalizado por engano). */
+export async function reabrirContratoAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  await requireEdicaoContratos()
+  const id = texto(formData, "contrato_id")
+  if (!id) return { erro: "Contrato inválido." }
+  const { erro } = await reabrirContrato(id)
+  if (erro) return { erro }
+  revalidar(id)
+  redirect(`/painel/compras/contratos/${id}?reaberto=1`)
 }

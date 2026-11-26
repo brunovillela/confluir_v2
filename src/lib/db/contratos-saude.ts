@@ -104,7 +104,7 @@ export async function saudeContratos(opcoes: { verSigilosos: boolean }): Promise
         .select(
           "id, codigo, objeto, valor, vigencia_inicio, vigencia_termino, ativo, aditivo, sob_demanda, apoio_institucional, " +
             "contrato_principal_id, fornecedor_id, departamento_id, centro_custo_id, responsavel_id, categoria_id, " +
-            "arquivo_contrato, autorizacao_esta_autorizado, bubble_id"
+            "arquivo_contrato, autorizacao_esta_autorizado, bubble_id, finalizado_em"
         )
         .eq("emp_proprietaria_id", emp)
         .not("deletado", "is", true)
@@ -122,7 +122,7 @@ export async function saudeContratos(opcoes: { verSigilosos: boolean }): Promise
     (c) =>
       c.apoio_institucional !== true &&
       c.ativo !== false &&
-      vigenciaDe(texto(c.vigencia_termino), hoje) !== "vencido"
+      !["vencido", "finalizado"].includes(vigenciaDe(texto(c.vigencia_termino), hoje, texto(c.finalizado_em)))
   )
 
   const categoriaIds = [...new Set(emUso.map((c) => texto(c.categoria_id)).filter((v): v is string => !!v))]
@@ -166,7 +166,7 @@ export async function saudeContratos(opcoes: { verSigilosos: boolean }): Promise
     const apontamentos: ApontamentoContrato[] = []
     if (!(Number(c.valor) > 0) && c.sob_demanda !== true) apontamentos.push("valor")
     if (!texto(c.responsavel_id)) apontamentos.push("responsavel")
-    const vigencia = vigenciaDe(texto(c.vigencia_termino), hoje)
+    const vigencia = vigenciaDe(texto(c.vigencia_termino), hoje, texto(c.finalizado_em))
     if (vigencia === "sem_termo") apontamentos.push("termino")
     if (vigencia === "vencendo") apontamentos.push("vencendo")
 
