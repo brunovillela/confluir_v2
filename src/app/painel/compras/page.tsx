@@ -413,7 +413,7 @@ export default async function ComprasPage({
               />
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-3">
+            <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
               <Card className="lg:col-span-2">
                 <CardHeader>
                   <CardTitle className="text-base">Valor comprado por mês</CardTitle>
@@ -471,7 +471,7 @@ export default async function ComprasPage({
 
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-3">
+            <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">Maiores fornecedores</CardTitle>

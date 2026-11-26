@@ -35,20 +35,20 @@ export function GraficoRanking({
   const max = Math.max(...itens.map((i) => i.valor), 0) || 1
   const total = itens.reduce((s, i) => s + i.valor, 0) || 1
   return (
-    <ol className="grid gap-2.5" aria-label={titulo}>
+    <ol className="grid min-w-0 grid-cols-1 gap-2.5" aria-label={titulo}>
       {itens.map((i) => {
         const pct = (i.valor / total) * 100
         const detalhe = `${i.nome}: ${moeda(i.valor)} · ${i.quantidade.toLocaleString("pt-BR")} ${unidade}${i.quantidade === 1 ? "" : "s"} · ${pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% do total`
         const nome =
           i.href && !i.outros ? (
-            <Link href={i.href} className="hover:text-primary truncate hover:underline">
+            <Link href={i.href} className="hover:text-primary min-w-0 truncate hover:underline">
               {i.nome}
             </Link>
           ) : (
-            <span className="truncate">{i.nome}</span>
+            <span className="min-w-0 truncate">{i.nome}</span>
           )
         return (
-          <li key={i.chave} className="grid gap-1" title={detalhe}>
+          <li key={i.chave} className="grid min-w-0 grid-cols-1 gap-1" title={detalhe}>
             <div className="flex items-baseline justify-between gap-3 text-sm">
               {nome}
               <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
@@ -94,7 +94,7 @@ export function BarraProporcao({
   const cor = (p: (typeof partes)[number]) =>
     p.outros ? COR_OUTROS : CORES_SERIES[partes.filter((x) => !x.outros).indexOf(p) % CORES_SERIES.length]
   return (
-    <figure className="grid gap-3" aria-label={titulo}>
+    <figure className="grid min-w-0 grid-cols-1 gap-3" aria-label={titulo}>
       <div className="flex h-3 gap-0.5 overflow-hidden rounded-full">
         {visiveis.map((p) => (
           <div
@@ -105,7 +105,7 @@ export function BarraProporcao({
           />
         ))}
       </div>
-      <ul className="grid gap-1.5 text-sm">
+      <ul className="grid grid-cols-1 gap-1.5 text-sm">
         {visiveis.map((p) => (
           <li key={p.nome} className="flex items-baseline justify-between gap-3">
             <span className="flex min-w-0 items-center gap-2">
