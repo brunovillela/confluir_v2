@@ -24,7 +24,7 @@ import { tenantAtual } from "@/lib/tenant"
 type Linha = Record<string, unknown>
 const t = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null)
 /** O motivo vai no meio da frase: sem o ponto final dele. */
-const semPonto = (v: string | null) => (v ? v.replace(/[.s]+$/, "") : null)
+const semPonto = (v: string | null) => (v ? v.replace(/[.\s]+$/, "") : null)
 
 export const SITUACAO_DEVOLVIDA = "Aguardando informações"
 /** Tipos de ordem das compras (a direta antiga do Bubble tinha tipo próprio). */

@@ -298,7 +298,7 @@ export async function emitirRpa(
 
   // NIT/PIS informado no formulário (prestador sem ele no cadastro): vai para o
   // cadastro do fornecedor, de onde o PDF do RPA o lê.
-  const nit = (txt(fd, "nit_pis") ?? "").replace(/D/g, "")
+  const nit = (txt(fd, "nit_pis") ?? "").replace(/\D/g, "")
   if (nit) {
     if (!validarNitPis(nit)) return { erro: "NIT/PIS inválido — confira os 11 dígitos." }
     const adminNit = await createAdminClient()

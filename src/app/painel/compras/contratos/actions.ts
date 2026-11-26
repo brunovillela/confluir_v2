@@ -21,6 +21,7 @@ import {
   excluirOrdemContrato,
   excluirOrdensContrato,
   finalizarContrato,
+  finalizarContratosEmLote,
   reabrirContrato,
   gerarOrdensContrato,
   receberDocumentoOrdemContrato,
@@ -436,4 +437,17 @@ export async function reabrirContratoAction(_prev: EstadoForm, formData: FormDat
   if (erro) return { erro }
   revalidar(id)
   redirect(`/painel/compras/contratos/${id}?reaberto=1`)
+}
+
+/** Finaliza em lote os vencidos há mais de N dias sem pagamento em aberto. */
+export async function finalizarContratosEmLoteAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requireEdicaoContratos()
+  const dias = Number(texto(formData, "dias"))
+  const { erro, finalizados } = await finalizarContratosEmLote(dias, true)
+  if (erro) return { erro }
+  revalidatePath("/painel/compras/contratos")
+  redirect(`/painel/compras/contratos?situacao=finalizados&finalizadosLote=${finalizados ?? 0}`)
 }

@@ -215,7 +215,7 @@ function FichaResumo({ f, d }: { f: FichaDoCpf; d: Divergencia }) {
  * deixaria de mostrar conta como diferença.
  */
 function mesmoNome(a: string | null, b: string | null): boolean {
-  const n = (x: string | null) => semAcento(x ?? "").replace(/s+/g, " ").trim()
+  const n = (x: string | null) => semAcento(x ?? "").replace(/\s+/g, " ").trim()
   return n(a) === n(b)
 }
 

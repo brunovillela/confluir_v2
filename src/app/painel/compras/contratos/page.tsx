@@ -32,7 +32,10 @@ import {
   listarCategoriasContrato,
   listarContratos,
   resumoContratos,
+  situacaoDosVencidos,
 } from "@/lib/db/contratos"
+import { DIAS_FINALIZACAO_LOTE } from "@/lib/contratos-constantes"
+import { FinalizarLote } from "./finalizar-lote"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { podeAcessar } from "@/lib/permissoes"
@@ -54,6 +57,9 @@ type Params = {
   pagina?: string
   porPagina?: string
   excluido?: string
+  /** Vencidos: só os com pagamento em aberto. */
+  emAberto?: string
+  finalizadosLote?: string
 }
 
 export default async function ContratosPage({
@@ -105,8 +111,16 @@ export default async function ContratosPage({
   const minutasDisponiveis = minutas.disponivel
   const totalMinutas = minutas.minutas.length
 
+  // Vencidos (26/11/2026): os que ainda têm pagamento em aberto (pedem
+  // atenção) × os que só acabaram (finalizáveis em lote).
+  const vencidos = situacao === "vencidos" ? await situacaoDosVencidos(podeEditar) : null
+  const soEmAberto = Boolean(vencidos) && brutos.emAberto === "1"
+  const contratosVistos = soEmAberto ? contratos.filter((c) => vencidos!.emAberto.has(c.id)) : contratos
+  const porDias = Object.fromEntries(
+    DIAS_FINALIZACAO_LOTE.map((d) => [d, vencidos?.finalizaveis.filter((c) => c.diasVencido > d).length ?? 0])
+  ) as Record<number, number>
   const paginacao = lerPaginacao(brutos, 30)
-  const { linhas, pagina, totalPaginas, total } = paginar(contratos, paginacao)
+  const { linhas, pagina, totalPaginas, total } = paginar(contratosVistos, paginacao)
 
   const filtroHref = (mud: Record<string, string>) => {
     const q = new URLSearchParams()
@@ -115,6 +129,7 @@ export default async function ContratosPage({
       situacao,
       tipo,
       categoria,
+      ...(soEmAberto ? { emAberto: "1" } : {}),
       ...mud,
     }
     for (const [k, v] of Object.entries(estado)) {
@@ -187,6 +202,16 @@ export default async function ContratosPage({
           </div>
         </div>
       </div>
+
+      {brutos.finalizadosLote !== undefined && (
+        <Alert className="border-success/40 text-success-fg">
+          <AlertDescription>
+            {Number(brutos.finalizadosLote) > 0
+              ? `${brutos.finalizadosLote} contrato(s) finalizado(s) em lote. Cada um pode ser reaberto na página dele.`
+              : "Nenhum contrato a finalizar com esse critério."}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {brutos.excluido === "1" && (
         <Alert className="border-success/40 text-success-fg">
@@ -314,6 +339,40 @@ export default async function ContratosPage({
         </Button>
       </form>
 
+      {vencidos && (
+        <Card className="border-warning/40">
+          <CardContent className="grid gap-3 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p>
+                <strong>{vencidos.emAberto.size}</strong> contrato(s) vencido(s) ainda têm pagamento em aberto (
+                {[...vencidos.emAberto.values()].reduce((a, b) => a + b, 0)} ordens). Pagar depois do fim da vigência
+                pede um aditivo; parcela que sobrou pode ser excluída — ou o contrato, finalizado.
+              </p>
+              <Button size="sm" variant="outline" asChild>
+                <Link href={filtroHref({ emAberto: soEmAberto ? "" : "1", pagina: "" })}>
+                  {soEmAberto ? "Ver todos os vencidos" : "Ver só esses"}
+                </Link>
+              </Button>
+            </div>
+            {podeEditar && (
+              <div className="border-t pt-3">
+                <p className="text-muted-foreground mb-2 text-xs">
+                  Os demais só acabaram: {vencidos.finalizaveis.length} vencido(s) sem pagamento em aberto e sem aditivo em
+                  vigor. Finalize-os para saírem dos vencidos (vigência &ldquo;Finalizado&rdquo;, na data do fim).
+                </p>
+                <FinalizarLote
+                  porDias={porDias}
+                  exemplos={vencidos.finalizaveis.slice(0, 20).map((c) => ({
+                    dias: c.diasVencido,
+                    rotulo: `${c.codigo ?? "(sem código)"}${c.objeto ? ` — ${c.objeto.slice(0, 50)}` : ""}`,
+                  }))}
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardContent>
           {linhas.length === 0 ? (
@@ -365,6 +424,11 @@ export default async function ContratosPage({
                     </TableCell>
                     <TableCell>
                       <VigenciaContratoBadge vigencia={c.vigencia} />
+                      {vencidos?.emAberto.has(c.id) && (
+                        <span className="text-warning-fg block text-xs whitespace-nowrap">
+                          {vencidos.emAberto.get(c.id)} em aberto
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="max-w-40">
                       {c.categoriaNome ? (

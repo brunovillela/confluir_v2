@@ -274,3 +274,6 @@ export const MOTIVOS_FINALIZACAO_CONTRATO = [
   "Substituído por outro contrato",
   "Outro motivo",
 ] as const
+
+/** Finalização em lote: "vencido há mais de N dias" (sem pagamento em aberto). */
+export const DIAS_FINALIZACAO_LOTE = [30, 90, 180, 365] as const

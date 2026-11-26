@@ -38,6 +38,7 @@ import {
   vencimentoParcela,
   MAX_PARCELAS,
   naturezaDaOrdem,
+  DIAS_FINALIZACAO_LOTE,
   podeAnexarNotaPeloContrato,
   SITUACOES_QUE_LIBERAM_VENCIMENTO,
   type NaturezaPagamentoContrato,
@@ -1768,4 +1769,134 @@ export async function reabrirContrato(contratoId: string): Promise<{ erro?: stri
     .eq("emp_proprietaria_id", empId)
   if (error) return { erro: `Não foi possível reabrir: ${error.message}` }
   return {}
+}
+
+// ── Vencidos: pagamento em aberto e finalização em lote (26/11/2026) ─────────
+//
+// 459 dos 605 contratos apareciam como "vencidos" (218 há mais de um ano):
+// contratos que acabaram, misturados aos poucos que pedem atenção — os 58
+// pagamentos em aberto em contratos já vencidos. Separa os dois: o filtro
+// "com pagamento em aberto" e a finalização em lote dos que só acabaram.
+
+export type VencidoParaFinalizar = {
+  id: string
+  codigo: string | null
+  objeto: string | null
+  termino: string
+  diasVencido: number
+}
+
+export type SituacaoVencidos = {
+  /** Ordens em aberto (não pagas nem canceladas) por contrato vencido. */
+  emAberto: Map<string, number>
+  /** Vencidos sem ordem em aberto e sem aditivo em vigor: podem ser finalizados. */
+  finalizaveis: VencidoParaFinalizar[]
+}
+
+const diasEntre = (de: string, ate: string) =>
+  Math.round((Date.parse(ate.slice(0, 10)) - Date.parse(de.slice(0, 10))) / 86_400_000)
+
+/** Os contratos de Aquisição vencidos, com o que cada um ainda tem em aberto. */
+export async function situacaoDosVencidos(verSigilosos: boolean): Promise<SituacaoVencidos> {
+  const admin = await createAdminClient()
+  const empId = await tenantAtual()
+  const hoje = hojeSP()
+  const [brutos, categorias] = await Promise.all([
+    lerEmLotes<Record<string, unknown>>((de, ate) =>
+      admin
+        .from("contratos")
+        .select("id, codigo, objeto, vigencia_termino, finalizado_em, apoio_institucional, contrato_principal_id, categoria_id")
+        .eq("emp_proprietaria_id", empId)
+        .not("deletado", "is", true)
+        .order("id")
+        .range(de, ate)
+    ),
+    mapaCategorias(admin, empId),
+  ])
+  const visivel = (c: Record<string, unknown>) => {
+    const cid = texto(c.categoria_id)
+    return verSigilosos || !(cid && categorias.get(cid)?.sigiloso)
+  }
+  const vencidos = brutos.filter(
+    (c) =>
+      c.apoio_institucional !== true &&
+      visivel(c) &&
+      vigenciaDe(texto(c.vigencia_termino), hoje, texto(c.finalizado_em)) === "vencido"
+  )
+  // Aditivo ainda em vigor: o principal continua valendo por ele.
+  const comAditivoEmVigor = new Set(
+    brutos
+      .filter((c) => {
+        const v = vigenciaDe(texto(c.vigencia_termino), hoje, texto(c.finalizado_em))
+        return texto(c.contrato_principal_id) && v !== "vencido" && v !== "finalizado"
+      })
+      .map((c) => texto(c.contrato_principal_id) as string)
+  )
+  const ids = new Set(vencidos.map((c) => String(c.id)))
+  const emAberto = new Map<string, number>()
+  const abertas = await lerEmLotes<Record<string, unknown>>((de, ate) =>
+    admin
+      .from("ordens_pagamento")
+      .select("contrato_id")
+      .eq("emp_proprietaria_id", empId)
+      .not("contrato_id", "is", null)
+      .not("excluido", "is", true)
+      .is("data_pagamento", null)
+      .not("situacao", "in", "(Paga,Cancelada)")
+      .order("id")
+      .range(de, ate)
+  )
+  for (const o of abertas) {
+    const cid = texto(o.contrato_id)
+    if (cid && ids.has(cid)) emAberto.set(cid, (emAberto.get(cid) ?? 0) + 1)
+  }
+  const finalizaveis = vencidos
+    .filter((c) => !emAberto.has(String(c.id)) && !comAditivoEmVigor.has(String(c.id)))
+    .map((c) => ({
+      id: String(c.id),
+      codigo: texto(c.codigo),
+      objeto: texto(c.objeto),
+      termino: (texto(c.vigencia_termino) as string).slice(0, 10),
+      diasVencido: diasEntre(texto(c.vigencia_termino) as string, hoje),
+    }))
+    .sort((a, b) => a.termino.localeCompare(b.termino))
+  return { emAberto, finalizaveis }
+}
+
+/**
+ * Finaliza em lote os vencidos há mais de N dias SEM ordem em aberto e sem
+ * aditivo em vigor (a lista é recalculada aqui). A data da finalização é o
+ * fim da vigência; o motivo diz que foi em lote. Cada um pode ser reaberto.
+ */
+export async function finalizarContratosEmLote(
+  diasMinimos: number,
+  verSigilosos: boolean
+): Promise<{ erro?: string; finalizados?: number }> {
+  if (!(DIAS_FINALIZACAO_LOTE as readonly number[]).includes(diasMinimos)) return { erro: "Escolha há quanto tempo venceram." }
+  const usuario = await usuarioDaTrilha()
+  if (!usuario) return { erro: "Sessão expirada — entre de novo." }
+  const { finalizaveis } = await situacaoDosVencidos(verSigilosos)
+  const alvo = finalizaveis.filter((c) => c.diasVencido > diasMinimos)
+  if (alvo.length === 0) return { finalizados: 0 }
+  const admin = await createAdminClient()
+  const empId = await tenantAtual()
+  const motivo = `Cumprido — objeto entregue / prazo encerrado — finalizado em lote (vencido há mais de ${diasMinimos} dias, sem pagamento em aberto)`
+  let feitos = 0
+  for (let i = 0; i < alvo.length; i += 25) {
+    const lote = alvo.slice(i, i + 25)
+    const r = await Promise.all(
+      lote.map((c) =>
+        admin
+          .from("contratos")
+          .update({ finalizado_em: c.termino, finalizado_por: usuario, finalizacao_motivo: motivo, ativo: false })
+          .eq("id", c.id)
+          .eq("emp_proprietaria_id", empId)
+          .is("finalizado_em", null)
+      )
+    )
+    const falha = r.find((x) => x.error)
+    if (falha?.error) return { erro: `Parou depois de ${feitos}: ${falha.error.message}`, finalizados: feitos }
+    feitos += lote.length
+  }
+  return { finalizados: feitos }
 }

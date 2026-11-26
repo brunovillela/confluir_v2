@@ -294,7 +294,7 @@ export async function importarContribuicoes(
       linha: numeroLinha,
       cpf: cpf || null,
       matriculaFonte: matricula,
-      nome: valores.nome?.replace(/s+/g, " ").slice(0, 160) || null,
+      nome: valores.nome?.replace(/\s+/g, " ").slice(0, 160) || null,
       valor,
     })
   }
