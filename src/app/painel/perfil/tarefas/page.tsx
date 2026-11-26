@@ -56,14 +56,14 @@ export default async function MinhasTarefasPage({
   ])
   // O que a pessoa segue (Onda 4): demanda só para quem vê Demandas.
   const seguidosVisiveis = seguidos.filter((i) => i.tipo === "tarefa" || veDemandas)
-  // De onde vem a tarefa (demanda, projeto, anomalia): só o nome e o link
-  // para quem tem a permissão daquela área.
+  // De onde vem a tarefa (demanda, projeto, anomalia), embaixo do título: o
+  // link só para quem tem a permissão daquela área. O nome do projeto ou da
+  // demanda vai para quem executa (26/11/2026: ajuda a saber de onde é a
+  // tarefa); o da anomalia, só para quem vê Anomalias.
   const tarefas = lista.map((t) => {
-    const oculta =
-      (t.paiTipo === "demanda" && !veDemandas) ||
-      (t.paiTipo === "projeto" && !veProjetos) ||
-      (t.paiTipo === "anomalia" && !veAnomalias)
-    return oculta ? { ...t, paiId: null, paiNome: null } : t
+    if (t.paiTipo === "anomalia" && !veAnomalias) return { ...t, paiId: null, paiNome: null }
+    const semLink = (t.paiTipo === "demanda" && !veDemandas) || (t.paiTipo === "projeto" && !veProjetos)
+    return semLink ? { ...t, paiId: null } : t
   })
   const atrasadas = abertas.filter((t) => t.situacao === "atrasada").length
   const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date())

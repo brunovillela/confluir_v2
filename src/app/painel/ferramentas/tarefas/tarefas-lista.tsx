@@ -182,7 +182,6 @@ export function TarefasLista({
             <TableRow>
               <TableHead className="w-10" />
               <TableHead>Tarefa</TableHead>
-              {!pai && <TableHead>Vínculo</TableHead>}
               <TableHead>Responsável</TableHead>
               <TableHead>Prazo</TableHead>
               <TableHead>Prioridade</TableHead>
@@ -226,30 +225,9 @@ export function TarefasLista({
                       </span>
                     )}
                   </span>
+                  {!pai && <OrigemDaTarefa tarefa={t} />}
                   <EtiquetasChips etiquetas={t.etiquetas} className="mt-1" />
                 </TableCell>
-                {!pai && (
-                  <TableCell className="whitespace-nowrap text-sm">
-                    {t.paiTipo && t.paiId ? (
-                      <Link
-                        href={`${ROTA_PAI[t.paiTipo]}/${t.paiId}`}
-                        className="hover:underline"
-                      >
-                        <span className="text-muted-foreground">
-                          {ROTULOS_PAI_TAREFA[t.paiTipo]}:
-                        </span>{" "}
-                        <span className="line-clamp-1 inline">{t.paiNome ?? "—"}</span>
-                      </Link>
-                    ) : t.paiTipo ? (
-                      // Pai sem id: vínculo restrito (anomalia para quem não tem a permissão).
-                      <span className="text-muted-foreground" title="Sem acesso ao conteúdo">
-                        {ROTULOS_PAI_TAREFA[t.paiTipo]}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                )}
                 <TableCell className="whitespace-nowrap text-sm">
                   {t.demandadoNome ? <PessoaNome nome={t.demandadoNome} fotoUrl={t.demandadoFotoUrl} /> : "—"}
                 </TableCell>
@@ -292,5 +270,31 @@ export function TarefasLista({
         </Table>
       )}
     </div>
+  )
+}
+
+/**
+ * De onde vem a tarefa (26/11/2026): o projeto, a demanda ou a anomalia, em
+ * letra menor e mais clara logo abaixo do título. Com o id, o nome leva à
+ * página; só com o nome (quem não tem a permissão da área), sem link; sem
+ * nome (anomalia para quem não a vê), só o tipo.
+ */
+function OrigemDaTarefa({ tarefa: t }: { tarefa: TarefaLinha }) {
+  if (!t.paiTipo) return null
+  const rotulo = <span className="text-muted-foreground/80">{ROTULOS_PAI_TAREFA[t.paiTipo]}:</span>
+  return (
+    <span className="text-muted-foreground mt-0.5 block truncate text-xs" title={t.paiNome ?? undefined}>
+      {t.paiId && t.paiNome ? (
+        <Link href={`${ROTA_PAI[t.paiTipo]}/${t.paiId}`} className="hover:text-primary hover:underline">
+          {rotulo} {t.paiNome}
+        </Link>
+      ) : t.paiNome ? (
+        <>
+          {rotulo} {t.paiNome}
+        </>
+      ) : (
+        ROTULOS_PAI_TAREFA[t.paiTipo]
+      )}
+    </span>
   )
 }

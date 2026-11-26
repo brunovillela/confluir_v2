@@ -135,7 +135,7 @@ export default async function TarefasPage({
               data: t.prazo as string,
               tipo: "tarefa" as const,
               titulo: t.titulo ?? "(sem título)",
-              detalhe: t.demandadoNome,
+              detalhe: [t.paiNome, t.demandadoNome].filter(Boolean).join(" · ") || null,
               href: t.paiTipo === "demanda" && t.paiId ? `/painel/ferramentas/demandas/${t.paiId}` : t.paiTipo === "projeto" && t.paiId ? `/painel/ferramentas/projetos/${t.paiId}` : null,
               concluido: t.concluido,
               atrasado: t.situacao === "atrasada",
