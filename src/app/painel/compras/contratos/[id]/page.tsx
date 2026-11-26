@@ -2,7 +2,7 @@ import { contasAbertasParaCompras } from "@/lib/db/caixa"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { FilePen, FileText, LinkIcon, Pencil, Plus, ReceiptText } from "lucide-react"
+import { CalendarRange, FilePen, FileText, LinkIcon, Pencil, Plus, ReceiptText } from "lucide-react"
 
 import {
   TiposContratoBadges,
@@ -34,10 +34,17 @@ import {
   buscarContrato,
   carregarOpcoesContrato,
   ordemMexivelPeloContrato,
+  type ContratoDetalhe,
   type ContratoLista,
 } from "@/lib/db/contratos"
 import { hojeLocalISO } from "@/lib/compras-constantes"
-import { podeAnexarNotaPeloContrato, ultimoVencimentoEmVigor } from "@/lib/contratos-constantes"
+import {
+  avulsosParecemParcelas,
+  numerarParcelas,
+  podeAnexarNotaPeloContrato,
+  rotuloParcela,
+  ultimoVencimentoEmVigor,
+} from "@/lib/contratos-constantes"
 import { contratoDoRpa, listarRpas } from "@/lib/db/compras-rpa"
 import { rpasComLinkPendente } from "@/lib/db/rpa-assinatura"
 import { AnexarRpaAssinadoBotao } from "../../rpa/rpa-forms"
@@ -62,6 +69,7 @@ import {
   AnexarNotaOrdem,
   ExclusaoOrdensBarra,
   MarcarTodasOrdens,
+  ClassificarOrdem,
   ReceberDocumentoForm,
 } from "./ordens-contrato"
 
@@ -107,6 +115,7 @@ export default async function ContratoPage({
     editar?: string
     geradas?: string
     puladas?: string
+    tipoGerado?: string
     rpaExcluido?: string
     novaOrdem?: string
     ordemExcluida?: string
@@ -148,10 +157,24 @@ export default async function ContratoPage({
   const rpaComLink = await rpasComLinkPendente(rpas.filter((r) => !r.arquivoAssinado).map((r) => r.id))
   const mostrarRpa = aceitaRpa || rpas.length > 0
 
+  // Parcelas × pagamentos avulsos (26/11/2026): cada um no seu quadro, a
+  // parcela com o número no contrato ("parcela 3 de 12").
+  const { numeros: numeroParcela, total: totalParcelas } = numerarParcelas(detalhe.ordens)
+  const porVencimento = (a: { vencimento: string | null }, b: { vencimento: string | null }) =>
+    (a.vencimento ?? "9999").localeCompare(b.vencimento ?? "9999")
+  const parcelas = detalhe.ordens.filter((o) => o.natureza === "parcela").sort(porVencimento)
+  const avulsos = detalhe.ordens.filter((o) => o.natureza === "avulso").sort(porVencimento)
+  const anteriores = detalhe.ordens.filter((o) => o.natureza === "anterior").sort(porVencimento)
+  const parcelasPagas = parcelas.filter(
+    (o) => o.situacao !== "Cancelada" && (Boolean(o.data_pagamento) || o.situacao === "Paga")
+  ).length
+  // Mensalidade gerada como pagamento extraordinário: o sinal que motivou a separação.
+  const avulsosRepetidos = c.sob_demanda ? 0 : avulsosParecemParcelas(avulsos)
   const paginacao = lerPaginacao(brutos, 10)
-  const pagOrdens = paginar(detalhe.ordens, paginacao)
-  // Base da data sugerida ao gerar ordens (a cancelada não conta).
-  const ultimoVencimento = ultimoVencimentoEmVigor(detalhe.ordens)
+  const pagOrdens = paginar(parcelas, paginacao)
+  // Base da data sugerida ao gerar parcelas: a última parcela (ou ordem do
+  // sistema anterior) em vigor — o pagamento avulso não entra na sequência.
+  const ultimoVencimento = ultimoVencimentoEmVigor(detalhe.ordens.filter((o) => o.natureza !== "avulso"))
   // Parcelas recorrentes que esperam a nota da competência (ficam no contrato).
   const aguardandoDocumento = detalhe.ordens
     .filter((o) => o.situacao === SITUACAO_AGUARDANDO_DOCUMENTO)
@@ -164,18 +187,26 @@ export default async function ContratoPage({
     o.tipo !== TIPO_ORDEM_RPA &&
     !o.processo_compra_id &&
     !o.data_pagamento
-  const temExcluivel = pagOrdens.linhas.some(excluivel)
+  const visiveis = [...pagOrdens.linhas, ...avulsos, ...anteriores]
+  const temExcluivel = visiveis.some(excluivel)
+  // Parcela ↔ avulso: quem edita contratos corrige (RPA e compra têm dono próprio).
+  const reclassificavel = (o: (typeof detalhe.ordens)[number]) =>
+    podeEditar && o.tipo !== TIPO_ORDEM_RPA && !o.processo_compra_id
   // Editar/excluir UMA ordem: qualquer uma ainda não paga nem em processamento.
   const mexivel = (o: (typeof detalhe.ordens)[number]) => podeEditar && ordemMexivelPeloContrato(o)
-  const temMexivel = pagOrdens.linhas.some(mexivel)
-  // "Nova ordem de pagamento" abre o gerador dentro do cartão das ordens.
-  const novaOrdem = podeEditar && brutos.novaOrdem === "1"
+  // "Gerar parcelas" e "Pagamento avulso" abrem o gerador no cartão das ordens.
+  const novaOrdem: "parcelas" | "avulso" | null = !podeEditar
+    ? null
+    : brutos.novaOrdem === "avulso"
+      ? "avulso"
+      : brutos.novaOrdem === "parcelas" || brutos.novaOrdem === "1"
+        ? "parcelas"
+        : null
   const FORM_EXCLUSAO = "excluir-ordens-contrato"
   // Aditivo é de um contrato principal — um aditivo não recebe outro aditivo.
   const podeTerAditivo = !detalhe.principal
   // Nota fiscal pela linha da ordem: quem edita contratos anexa a que falta.
   const anexavel = (o: (typeof detalhe.ordens)[number]) => podeEditar && podeAnexarNotaPeloContrato(o)
-  const totalOrdens = detalhe.ordens.reduce((s, o) => s + (o.valor ?? 0), 0)
 
   const autorizadorNome = c.autorizadorId
     ? ((await nomesDosUsuarios([c.autorizadorId])).get(c.autorizadorId) ?? null)
@@ -238,10 +269,14 @@ export default async function ContratoPage({
         <Alert className="border-success/40 text-success-fg">
           <AlertDescription>
             {Number(brutos.geradas) > 0
-              ? `${brutos.geradas} ordem(ns) gerada(s) — as recorrentes já autorizadas, aguardando o documento fiscal; a única (extraordinária) segue para autorização.`
+              ? brutos.tipoGerado === "avulso"
+                ? "Pagamento avulso registrado — segue para a autorização pontual."
+                : brutos.tipoGerado === "parcelas"
+                  ? `${brutos.geradas} parcela(s) gerada(s) — já autorizadas pela autorização do contrato, aguardando a nota de cada competência.`
+                  : `${brutos.geradas} ordem(ns) gerada(s) — as recorrentes já autorizadas, aguardando o documento fiscal; a única (extraordinária) segue para autorização.`
               : "Nenhuma ordem nova gerada."}
             {Number(brutos.puladas) > 0 &&
-              ` ${brutos.puladas} vencimento(s) já tinham ordem e foram pulados.`}
+              ` ${brutos.puladas} vencimento(s) já tinham parcela e foram pulados.`}
           </AlertDescription>
         </Alert>
       )}
@@ -568,6 +603,7 @@ export default async function ContratoPage({
                 <TableRow>
                   <TableHead>Vencimento</TableHead>
                   <TableHead>Parcela</TableHead>
+                  <TableHead>Ordem</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                   {podeEditar && <TableHead>Nota fiscal</TableHead>}
                 </TableRow>
@@ -576,6 +612,9 @@ export default async function ContratoPage({
                 {aguardandoDocumento.map((o) => (
                   <TableRow key={o.id}>
                     <TableCell className="whitespace-nowrap">{formatarData(o.vencimento)}</TableCell>
+                    <TableCell className="font-medium whitespace-nowrap">
+                      {o.natureza === "parcela" ? rotuloParcela(numeroParcela.get(o.id), totalParcelas) : "Avulso"}
+                    </TableCell>
                     <TableCell className="max-w-72">
                       <Link
                         href={`/painel/financeiro/ordens/${o.id}`}
@@ -605,36 +644,43 @@ export default async function ContratoPage({
         <CardHeader>
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
-              <CardTitle className="text-base">Ordens de pagamento</CardTitle>
+              <CardTitle className="text-base">Pagamentos do contrato</CardTitle>
               <CardDescription>
-                {pagOrdens.total > 0 ? (
-                  <>
-                    {pagOrdens.total} ordem(ns) deste contrato · total{" "}
-                    {formatarMoeda(totalOrdens)}
-                  </>
-                ) : (
-                  "Ordens geradas a partir deste contrato."
-                )}
+                {c.sob_demanda
+                  ? "Contrato sob demanda: cada pagamento é avulso, conforme o serviço é pedido. Parcelas só se houver um valor fixo previsto."
+                  : "Parcelas são os pagamentos previstos no contrato (1, 2, 3…). Pagamento avulso é o que fica fora delas: extraordinário ou sob demanda."}
               </CardDescription>
             </div>
             {podeEditar && !novaOrdem && (
-              <Button size="sm" asChild>
-                <Link href={`${aqui}?novaOrdem=1#ordens`}>
-                  <Plus />
-                  Nova ordem de pagamento
-                </Link>
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant={c.sob_demanda ? "outline" : "default"} asChild>
+                  <Link href={`${aqui}?novaOrdem=parcelas#ordens`}>
+                    <CalendarRange />
+                    Gerar parcelas
+                  </Link>
+                </Button>
+                <Button size="sm" variant={c.sob_demanda ? "default" : "outline"} asChild>
+                  <Link href={`${aqui}?novaOrdem=avulso#ordens`}>
+                    <Plus />
+                    {c.sob_demanda ? "Pagamento sob demanda" : "Pagamento avulso"}
+                  </Link>
+                </Button>
+              </div>
             )}
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="grid gap-6">
           {novaOrdem && (
-            <div className="mb-6 rounded-lg border p-4">
+            <div className="rounded-lg border p-4">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <p className="text-sm font-medium">Nova ordem de pagamento</p>
+                  <p className="text-sm font-medium">
+                    {novaOrdem === "parcelas" ? "Gerar parcelas" : c.sob_demanda ? "Pagamento sob demanda" : "Pagamento avulso"}
+                  </p>
                   <p className="text-muted-foreground text-xs">
-                    Uma ordem só (periodicidade “única”) ou várias parcelas de uma vez.
+                    {novaOrdem === "parcelas"
+                      ? "Os pagamentos previstos no contrato, numerados na sequência das parcelas que já existem."
+                      : "Um pagamento fora das parcelas: diga o que ele paga."}
                   </p>
                 </div>
                 <Button variant="ghost" size="sm" asChild>
@@ -642,6 +688,9 @@ export default async function ContratoPage({
                 </Button>
               </div>
               <GerarOrdensForm
+                key={novaOrdem}
+                modo={novaOrdem}
+                parcelasExistentes={totalParcelas}
                 contratoId={c.id}
                 valorPadrao={c.valor}
                 vigenciaInicio={c.vigencia_inicio}
@@ -654,148 +703,137 @@ export default async function ContratoPage({
               />
             </div>
           )}
-          {pagOrdens.total === 0 ? (
-            <p className="text-muted-foreground py-4 text-center text-sm">
-              Nenhuma ordem gerada ainda.
-              {podeEditar && !novaOrdem && " Use “Nova ordem de pagamento” para criar a primeira."}
-            </p>
-          ) : (
-            <>
-            <div className="mb-4 grid grid-cols-3 gap-3">
+
+          {detalhe.ordens.length > 0 && (
+            <div className="grid grid-cols-3 gap-3">
               <ResumoOrdens rotulo="Previsto" valor={detalhe.ordensResumo.previsto} />
-              <ResumoOrdens
-                rotulo="Pago"
-                valor={detalhe.ordensResumo.pago}
-                className="text-success-fg"
-              />
-              <ResumoOrdens
-                rotulo="Em aberto"
-                valor={detalhe.ordensResumo.aberto}
-                className="text-warning-fg"
-              />
+              <ResumoOrdens rotulo="Pago" valor={detalhe.ordensResumo.pago} className="text-success-fg" />
+              <ResumoOrdens rotulo="Em aberto" valor={detalhe.ordensResumo.aberto} className="text-warning-fg" />
             </div>
-            {temExcluivel && (
-              <div className="mb-3">
-                <ExclusaoOrdensBarra formId={FORM_EXCLUSAO} contratoId={c.id} />
-              </div>
-            )}
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  {temExcluivel && (
-                    <TableHead className="w-8">
-                      <MarcarTodasOrdens formId={FORM_EXCLUSAO} />
-                    </TableHead>
-                  )}
-                  <TableHead>Código</TableHead>
-                  <TableHead>Descrição / compra</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  <TableHead>Vencimento</TableHead>
-                  <TableHead>Situação</TableHead>
-                  <TableHead>Nota</TableHead>
-                  {temMexivel && <TableHead className="w-24 text-right">Ações</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pagOrdens.linhas.map((o) => (
-                  <TableRow key={o.id}>
-                    {temExcluivel && (
-                      <TableCell>
-                        {excluivel(o) && (
-                          <input
-                            type="checkbox"
-                            name="ordem_ids"
-                            value={o.id}
-                            form={FORM_EXCLUSAO}
-                            aria-label={`Marcar a ordem ${o.codigo ?? ""} para excluir`}
-                            className="size-4 align-middle"
-                          />
-                        )}
-                      </TableCell>
-                    )}
-                    <TableCell>
-                      <Link
-                        href={`/painel/financeiro/ordens/${o.id}`}
-                        className="text-primary whitespace-nowrap tabular-nums hover:underline"
-                      >
-                        {o.codigo ?? "(sem código)"}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="max-w-96">
-                      {o.processo_compra_id ? (
-                        <Link
-                          href={`/painel/compras/${o.processo_compra_id}`}
-                          className="text-primary hover:underline"
-                        >
-                          <span className="tabular-nums">
-                            {o.processoCodigo ?? "(processo)"}
-                          </span>
-                        </Link>
-                      ) : (
-                        <span className="line-clamp-2">{o.descricao ?? "—"}</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right whitespace-nowrap tabular-nums">
-                      {formatarMoeda(o.valor)}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {o.data_pagamento
-                        ? `paga em ${formatarData(o.data_pagamento)}`
-                        : formatarData(o.vencimento)}
-                    </TableCell>
-                    <TableCell>
-                      <SituacaoBadge situacao={o.situacao} />
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {o.temNota ? (
-                        <Link
-                          href={`/painel/financeiro/ordens/${o.id}`}
-                          className="text-success-fg inline-flex items-center gap-1 text-xs hover:underline"
-                          title="A nota está na ordem — abrir"
-                        >
-                          <FileText className="size-3.5" />
-                          Anexada
-                        </Link>
-                      ) : anexavel(o) ? (
-                        <AnexarNotaOrdem contratoId={c.id} ordem={{ id: o.id, codigo: o.codigo }} />
-                      ) : (
-                        <span className="text-muted-foreground text-xs">
-                          {o.situacao === "Aguardando documento fiscal" ? "no quadro acima" : "—"}
-                        </span>
-                      )}
-                    </TableCell>
-                    {temMexivel && (
-                      <TableCell>
-                        {mexivel(o) && (
-                          <AcoesLinhaOrdem
-                            contratoId={c.id}
-                            ordem={{
-                              id: o.id,
-                              codigo: o.codigo,
-                              descricao: o.descricao,
-                              valor: o.valor,
-                              vencimento: o.vencimento,
-                              situacao: o.situacao,
-                            }}
-                          />
-                        )}
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            </>
           )}
-          <div className="mt-4">
-            <Paginacao
-              total={pagOrdens.total}
-              pagina={pagOrdens.pagina}
-              totalPaginas={pagOrdens.totalPaginas}
-              porPagina={paginacao.porPagina}
-              padrao={10}
-            />
-          </div>
+
+          {avulsosRepetidos >= 2 && podeEditar && (
+            <Alert variant="warning">
+              <AlertDescription>
+                Há {avulsosRepetidos} pagamentos avulsos do mesmo valor em meses diferentes. Se são as mensalidades
+                do contrato, eles são <strong>parcelas</strong>: use <strong>É parcela</strong> na linha de cada um e,
+                daqui para frente, <strong>Gerar parcelas</strong> — elas nascem autorizadas pelo contrato e esperam só
+                a nota de cada mês.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {temExcluivel && <ExclusaoOrdensBarra formId={FORM_EXCLUSAO} contratoId={c.id} />}
+
+          <section className="grid gap-2" aria-labelledby="titulo-parcelas">
+            <h3 id="titulo-parcelas" className="text-sm font-semibold">
+              Parcelas
+              <span className="text-muted-foreground ml-2 font-normal">
+                {totalParcelas === 0
+                  ? "nenhuma"
+                  : `${totalParcelas} · ${parcelasPagas} paga${parcelasPagas === 1 ? "" : "s"} · ${totalParcelas - parcelasPagas} a pagar`}
+              </span>
+            </h3>
+            {parcelas.length === 0 ? (
+              <p className="text-muted-foreground rounded-md border border-dashed px-3 py-4 text-center text-sm">
+                {c.sob_demanda
+                  ? "Contrato sob demanda: sem parcelas fixas."
+                  : podeEditar
+                    ? "Nenhuma parcela gerada. Use “Gerar parcelas” para lançar os pagamentos previstos no contrato."
+                    : "Nenhuma parcela gerada."}
+              </p>
+            ) : (
+              <>
+                <TabelaOrdens
+                  linhas={pagOrdens.linhas.map((o) => ({
+                    o,
+                    rotulo:
+                      o.situacao === "Cancelada" ? "Cancelada" : rotuloParcela(numeroParcela.get(o.id), totalParcelas),
+                    excluivel: excluivel(o),
+                    mexivel: mexivel(o),
+                    anexavel: anexavel(o),
+                    trocarPara: reclassificavel(o) ? "avulso" : null,
+                  }))}
+                  colunaRotulo="Parcela"
+                  objeto={c.objeto}
+                  contratoId={c.id}
+                  formExclusao={FORM_EXCLUSAO}
+                  comMarcacao={temExcluivel}
+                  comAcoes={podeEditar}
+                />
+                <Paginacao
+                  total={pagOrdens.total}
+                  pagina={pagOrdens.pagina}
+                  totalPaginas={pagOrdens.totalPaginas}
+                  porPagina={paginacao.porPagina}
+                  padrao={10}
+                />
+              </>
+            )}
+          </section>
+
+          <section className="grid gap-2" aria-labelledby="titulo-avulsos">
+            <h3 id="titulo-avulsos" className="text-sm font-semibold">
+              Pagamentos avulsos
+              <span className="text-muted-foreground ml-2 font-normal">
+                {avulsos.length === 0
+                  ? "nenhum"
+                  : `${avulsos.length} · fora das parcelas (extraordinário, sob demanda, RPA)`}
+              </span>
+            </h3>
+            {avulsos.length === 0 ? (
+              <p className="text-muted-foreground rounded-md border border-dashed px-3 py-4 text-center text-sm">
+                Nenhum pagamento avulso.
+              </p>
+            ) : (
+              <TabelaOrdens
+                linhas={avulsos.map((o) => ({
+                  o,
+                  rotulo: o.tipo === TIPO_ORDEM_RPA ? "RPA" : o.processo_compra_id ? "Compra" : "Avulso",
+                  excluivel: excluivel(o),
+                  mexivel: mexivel(o),
+                  anexavel: anexavel(o),
+                  trocarPara: reclassificavel(o) ? "parcela" : null,
+                }))}
+                colunaRotulo="Tipo"
+                objeto={c.objeto}
+                contratoId={c.id}
+                formExclusao={FORM_EXCLUSAO}
+                comMarcacao={temExcluivel}
+                comAcoes={podeEditar}
+              />
+            )}
+          </section>
+
+          {anteriores.length > 0 && (
+            <details>
+              <summary className="cursor-pointer text-sm font-semibold">
+                Do sistema anterior
+                <span className="text-muted-foreground ml-2 font-normal">
+                  {anteriores.length} ordem(ns) sem a informação de parcela ou avulso
+                  {podeEditar ? " — classifique na linha, se precisar" : ""}
+                </span>
+              </summary>
+              <div className="mt-2">
+                <TabelaOrdens
+                  linhas={anteriores.map((o) => ({
+                    o,
+                    rotulo: "—",
+                    excluivel: excluivel(o),
+                    mexivel: mexivel(o),
+                    anexavel: anexavel(o),
+                    trocarPara: reclassificavel(o) ? "ambos" : null,
+                  }))}
+                  colunaRotulo="Tipo"
+                  objeto={c.objeto}
+                  contratoId={c.id}
+                  formExclusao={FORM_EXCLUSAO}
+                  comMarcacao={temExcluivel}
+                  comAcoes={podeEditar}
+                />
+              </div>
+            </details>
+          )}
         </CardContent>
       </Card>
     </>
@@ -826,6 +864,187 @@ function ResumoOrdens({
       <p className={`mt-0.5 text-lg font-semibold tabular-nums ${className ?? ""}`}>
         {formatarMoeda(valor)}
       </p>
+    </div>
+  )
+}
+
+type LinhaTabelaOrdem = {
+  o: ContratoDetalhe["ordens"][number]
+  /** "Parcela 3 de 12", "Avulso", "RPA"… */
+  rotulo: string
+  excluivel: boolean
+  mexivel: boolean
+  anexavel: boolean
+  /** Reclassificar: para parcela, para avulso, ou os dois (ordem do sistema anterior). */
+  trocarPara: "parcela" | "avulso" | "ambos" | null
+}
+
+/** Uma tabela de ordens do contrato — a de parcelas, a de avulsos, a do sistema anterior. */
+/**
+ * O que diferencia a ordem na tabela: sem o objeto do contrato (igual em todas),
+ * sem "parcela X/N" (a coluna Parcela é quem numera — a descrição antiga contava
+ * por geração) e sem o vencimento (tem coluna própria).
+ */
+function descricaoCurta(descricao: string | null, objeto: string | null): string | null {
+  if (!descricao) return null
+  let d = descricao
+  if (objeto && d.startsWith(objeto)) d = d.slice(objeto.length)
+  d = d
+    .replace(/\s*—?\s*parcela \d+(\/\d+)?/i, "")
+    .replace(/,?\s*venc\. \d{2}\/\d{2}\/\d{4}/i, "")
+    .replace(/^\s*[—,:-]\s*/, "")
+    .replace(/^pagamento avulso:?\s*/i, "")
+    .trim()
+  return d || null
+}
+
+function TabelaOrdens({
+  linhas,
+  colunaRotulo,
+  objeto,
+  contratoId,
+  formExclusao,
+  comMarcacao,
+  comAcoes,
+}: {
+  linhas: LinhaTabelaOrdem[]
+  colunaRotulo: string
+  /** Objeto do contrato — tirado da descrição de cada linha. */
+  objeto: string | null
+  contratoId: string
+  formExclusao: string
+  comMarcacao: boolean
+  comAcoes: boolean
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {comMarcacao && (
+              <TableHead className="w-8">
+                <MarcarTodasOrdens formId={formExclusao} />
+              </TableHead>
+            )}
+            <TableHead>{colunaRotulo}</TableHead>
+            <TableHead>Vencimento</TableHead>
+            <TableHead className="text-right">Valor</TableHead>
+            <TableHead>Situação</TableHead>
+            <TableHead>Ordem / descrição</TableHead>
+            <TableHead>Nota</TableHead>
+            {comAcoes && <TableHead className="text-right">Ações</TableHead>}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {linhas.map(({ o, rotulo, excluivel, mexivel, anexavel, trocarPara }) => (
+            <TableRow key={o.id} className={o.situacao === "Cancelada" ? "opacity-60" : undefined}>
+              {comMarcacao && (
+                <TableCell>
+                  {excluivel && (
+                    <input
+                      type="checkbox"
+                      name="ordem_ids"
+                      value={o.id}
+                      form={formExclusao}
+                      aria-label={`Marcar a ordem ${o.codigo ?? ""} para excluir`}
+                      className="size-4 align-middle"
+                    />
+                  )}
+                </TableCell>
+              )}
+              <TableCell className="whitespace-nowrap">
+                {/^Parcela \d+ de \d+$/.test(rotulo) ? (
+                  <span className="whitespace-nowrap">
+                    <span className="font-semibold">{rotulo.replace(/ de \d+$/, "")}</span>
+                    <span className="text-muted-foreground text-xs"> de {rotulo.replace(/^.* de /, "")}</span>
+                  </span>
+                ) : (
+                  <span className="font-medium">{rotulo}</span>
+                )}
+              </TableCell>
+              <TableCell className="whitespace-nowrap">
+                {o.data_pagamento ? (
+                  <>
+                    {formatarData(o.vencimento)}
+                    <span className="text-muted-foreground block text-xs">paga em {formatarData(o.data_pagamento)}</span>
+                  </>
+                ) : (
+                  formatarData(o.vencimento)
+                )}
+              </TableCell>
+              <TableCell className="text-right whitespace-nowrap tabular-nums">{formatarMoeda(o.valor)}</TableCell>
+              <TableCell>
+                <SituacaoBadge situacao={o.situacao} />
+              </TableCell>
+              <TableCell className="max-w-80">
+                <Link
+                  href={`/painel/financeiro/ordens/${o.id}`}
+                  className="text-primary text-xs whitespace-nowrap tabular-nums hover:underline"
+                >
+                  {o.codigo ?? "(sem código)"}
+                </Link>
+                {o.processo_compra_id ? (
+                  <Link
+                    href={`/painel/compras/${o.processo_compra_id}`}
+                    className="text-muted-foreground block text-xs hover:underline"
+                  >
+                    compra {o.processoCodigo ?? ""}
+                  </Link>
+                ) : (
+                  descricaoCurta(o.descricao, objeto) && (
+                    <span className="text-muted-foreground line-clamp-1 text-xs" title={o.descricao ?? undefined}>
+                      {descricaoCurta(o.descricao, objeto)}
+                    </span>
+                  )
+                )}
+              </TableCell>
+              <TableCell className="whitespace-nowrap">
+                {o.temNota ? (
+                  <Link
+                    href={`/painel/financeiro/ordens/${o.id}`}
+                    className="text-success-fg inline-flex items-center gap-1 text-xs hover:underline"
+                    title="A nota está na ordem — abrir"
+                  >
+                    <FileText className="size-3.5" />
+                    Anexada
+                  </Link>
+                ) : anexavel ? (
+                  <AnexarNotaOrdem contratoId={contratoId} ordem={{ id: o.id, codigo: o.codigo }} />
+                ) : (
+                  <span className="text-muted-foreground text-xs">
+                    {o.situacao === "Aguardando documento fiscal" ? "no quadro acima" : "—"}
+                  </span>
+                )}
+              </TableCell>
+              {comAcoes && (
+                <TableCell>
+                  <div className="flex flex-wrap items-center justify-end gap-1">
+                    {(trocarPara === "parcela" || trocarPara === "ambos") && o.situacao !== "Cancelada" && (
+                      <ClassificarOrdem contratoId={contratoId} ordem={{ id: o.id, codigo: o.codigo }} para="parcela" />
+                    )}
+                    {(trocarPara === "avulso" || trocarPara === "ambos") && o.situacao !== "Cancelada" && (
+                      <ClassificarOrdem contratoId={contratoId} ordem={{ id: o.id, codigo: o.codigo }} para="avulso" />
+                    )}
+                    {mexivel && (
+                      <AcoesLinhaOrdem
+                        contratoId={contratoId}
+                        ordem={{
+                          id: o.id,
+                          codigo: o.codigo,
+                          descricao: o.descricao,
+                          valor: o.valor,
+                          vencimento: o.vencimento,
+                          situacao: o.situacao,
+                        }}
+                      />
+                    )}
+                  </div>
+                </TableCell>
+              )}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   )
 }

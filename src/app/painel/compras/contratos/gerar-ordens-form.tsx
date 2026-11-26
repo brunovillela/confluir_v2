@@ -55,7 +55,17 @@ export function GerarOrdensForm({
   buscarMeios = meiosDoFornecedorContrato,
   acao = gerarOrdensContratoAction,
   beneficiarioRotulo = "fornecedor",
+  modo,
+  parcelasExistentes = 0,
 }: {
+  /**
+   * Contratos (26/11/2026): "parcelas" gera as parcelas previstas, numeradas
+   * no contrato; "avulso" registra um pagamento fora delas. Sem o modo (Ajudas),
+   * o formulário de sempre, com a periodicidade "única" na lista.
+   */
+  modo?: "parcelas" | "avulso"
+  /** Parcelas em vigor no contrato — a prévia mostra os números das novas. */
+  parcelasExistentes?: number
   contratoId: string
   valorPadrao: number | null
   vigenciaInicio: string | null
@@ -78,10 +88,12 @@ export function GerarOrdensForm({
 }) {
   const [estado, formAction, pendente] = useActionState(acao, {})
   const formRef = useRef<HTMLFormElement>(null)
-  const [periodicidade, setPeriodicidade] = useState<Periodicidade>("mensal")
+  const avulso = modo === "avulso"
+  const [periodicidade, setPeriodicidade] = useState<Periodicidade>(avulso ? "unica" : "mensal")
   const [forma, setForma] = useState("")
+  // O avulso não segue a sequência das parcelas: a sugestão é hoje.
   const sugerir = (p: Periodicidade) =>
-    primeiroVencimentoSugerido({ vigenciaInicio, hoje, ultimoVencimento, periodicidade: p })
+    avulso ? hoje.slice(0, 10) : primeiroVencimentoSugerido({ vigenciaInicio, hoje, ultimoVencimento, periodicidade: p })
   const [primeiro, setPrimeiro] = useState(() => sugerir("mensal"))
   // Enquanto a pessoa não digita a data, ela acompanha a periodicidade.
   const [dataEditada, setDataEditada] = useState(false)
@@ -131,6 +143,8 @@ export function GerarOrdensForm({
       className="grid gap-4"
     >
       <input type="hidden" name="contrato_id" value={contratoId} />
+      {modo && <input type="hidden" name="modo" value={modo} />}
+      {avulso && <input type="hidden" name="periodicidade" value="unica" />}
       <ConfirmacaoAuditoria estado={estado} formRef={formRef} pendente={pendente} />
 
       {estado.erro && (
@@ -139,7 +153,22 @@ export function GerarOrdensForm({
         </Alert>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {avulso && (
+        <div className="grid gap-1.5">
+          <Label htmlFor="motivo_avulso">O que este pagamento paga *</Label>
+          <Input
+            id="motivo_avulso"
+            name="motivo_avulso"
+            required
+            minLength={5}
+            maxLength={200}
+            placeholder="Ex.: hora extra de novembro; reembolso de despesa de viagem; serviço pedido em 12/11"
+          />
+        </div>
+      )}
+
+      <div className={avulso ? "grid gap-4 sm:grid-cols-2" : "grid gap-4 sm:grid-cols-2 lg:grid-cols-4"}>
+        {!avulso && (
         <div className="grid gap-1.5">
           <Label htmlFor="periodicidade">Periodicidade</Label>
           <select
@@ -151,27 +180,29 @@ export function GerarOrdensForm({
               trocarPeriodicidade(e.target.value as Periodicidade)
             }
           >
-            {PERIODICIDADES.map((p) => (
+            {PERIODICIDADES.filter((p) => !modo || p.chave !== "unica").map((p) => (
               <option key={p.chave} value={p.chave}>
                 {p.rotulo}
               </option>
             ))}
           </select>
         </div>
+        )}
 
         <div className="grid gap-1.5">
-          <Label htmlFor="valor_parcela">Valor por parcela</Label>
+          <Label htmlFor="valor_parcela">{avulso ? "Valor *" : "Valor por parcela"}</Label>
           <Input
             id="valor_parcela"
             name="valor_parcela"
             inputMode="decimal"
             placeholder="0,00"
-            defaultValue={valorParaTexto(valorPadrao)}
+            defaultValue={avulso ? "" : valorParaTexto(valorPadrao)}
+            required={avulso}
           />
         </div>
 
         <div className="grid gap-1.5">
-          <Label htmlFor="primeiro_vencimento">Primeiro vencimento</Label>
+          <Label htmlFor="primeiro_vencimento">{avulso ? "Vencimento *" : "Primeiro vencimento"}</Label>
           <input
             id="primeiro_vencimento"
             name="primeiro_vencimento"
@@ -183,12 +214,14 @@ export function GerarOrdensForm({
           />
           {/* A data sugerida vem da última parcela; avisar quando a escolhida
               fica no passado ou cai antes dela (induzia a lançar no mês errado). */}
+          {!avulso && (
           <p id="primeiro_vencimento_dica" className="text-muted-foreground text-xs">
             {ultimoVencimento
               ? `Última parcela em vigor: ${formatarData(ultimoVencimento)}.`
               : "Nenhuma parcela lançada ainda."}
           </p>
-          {antesDaUltima ? (
+          )}
+          {!avulso && antesDaUltima ? (
             <p className="text-warning-fg text-xs font-medium">
               Atenção: data igual ou anterior à última parcela ({formatarData(ultimoVencimento)}).
             </p>
@@ -201,8 +234,9 @@ export function GerarOrdensForm({
           )}
         </div>
 
+        {!avulso && (
         <div className="grid gap-1.5">
-          <Label htmlFor="quantidade">Parcelas</Label>
+          <Label htmlFor="quantidade">{modo ? "Quantas parcelas" : "Parcelas"}</Label>
           <Input
             id="quantidade"
             name="quantidade"
@@ -214,7 +248,24 @@ export function GerarOrdensForm({
             onChange={(e) => setQuantidade(e.target.value)}
           />
         </div>
+        )}
       </div>
+
+      {modo === "parcelas" && periodicidade !== "unica" && Number(quantidade) > 0 && (
+        <p className="bg-muted/50 rounded-md px-3 py-2 text-sm">
+          {(() => {
+            const n = Math.min(Number(quantidade) || 1, 120)
+            const de = parcelasExistentes + 1
+            const ate = parcelasExistentes + n
+            return n === 1
+              ? `Será criada a parcela ${de}${primeiro ? `, com vencimento em ${formatarData(primeiro)}` : ""}.`
+              : `Serão criadas as parcelas ${de} a ${ate} (${n} ${periodicidade === "anual" ? "anuais" : "mensais"}${primeiro ? `, a primeira em ${formatarData(primeiro)}` : ""}).`
+          })()}
+          {parcelasExistentes > 0 && (
+            <span className="text-muted-foreground"> O contrato já tem {parcelasExistentes} parcela(s) em vigor.</span>
+          )}
+        </p>
+      )}
 
       {/* A forma é obrigatória: sem ela (e sem o "para onde") a ordem não
           pode ser paga. Mesmas regras da aquisição direta, sem cartão. */}
@@ -256,7 +307,19 @@ export function GerarOrdensForm({
       </div>
 
       <p className="text-muted-foreground text-xs">
-        {beneficiarioRotulo === "fornecedor" ? (
+        {modo === "parcelas" ? (
+          <>
+            As parcelas são os pagamentos <strong>previstos</strong> no contrato. Nascem autorizadas pela
+            autorização do contrato e esperam só a nota de cada competência. Vencimento que já tem parcela é
+            pulado — dá para rodar de novo sem duplicar.
+          </>
+        ) : avulso ? (
+          <>
+            Pagamento <strong>fora das parcelas</strong> — extraordinário ou de um contrato sob demanda. Nasce{" "}
+            <strong>Em autorização</strong> e passa pela autorização pontual. O {beneficiarioRotulo} do contrato é o
+            favorecido.
+          </>
+        ) : beneficiarioRotulo === "fornecedor" ? (
           <>
             Parcelas <strong>recorrentes</strong> (mensal, anual) nascem autorizadas pela autorização do
             contrato e esperam só o documento fiscal. Periodicidade <strong>única</strong> é pagamento
@@ -265,14 +328,18 @@ export function GerarOrdensForm({
         ) : (
           <>As ordens nascem <strong>Em autorização</strong>.</>
         )}{" "}
-        O {beneficiarioRotulo} do contrato é o favorecido. Vencimentos que já têm ordem deste contrato
-        são pulados — dá para rodar de novo sem duplicar.
+        {!modo && (
+          <>
+            O {beneficiarioRotulo} do contrato é o favorecido. Vencimentos que já têm ordem deste contrato
+            são pulados — dá para rodar de novo sem duplicar.
+          </>
+        )}
       </p>
 
       <div>
         <Button type="submit" disabled={pendente}>
           {pendente ? <Loader2 className="animate-spin" /> : <Receipt />}
-          Gerar ordens
+          {modo === "parcelas" ? "Gerar parcelas" : avulso ? "Registrar pagamento avulso" : "Gerar ordens"}
         </Button>
       </div>
     </form>

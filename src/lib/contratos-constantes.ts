@@ -188,3 +188,74 @@ export function podeAnexarNotaPeloContrato(o: {
     !o.processo_compra_id
   )
 }
+
+// ── Parcelas × pagamentos avulsos (26/11/2026) ───────────────────────────────
+//
+// O contrato paga de dois jeitos: as PARCELAS previstas (ordinárias, numeradas
+// 1, 2, 3…) e os pagamentos AVULSOS (extraordinário ou sob demanda). Quem
+// opera não via a diferença — a "parcela X/N" só ia na descrição, contada por
+// geração. A ordem guarda a natureza (ordens_pagamento.contrato_pagamento) e o
+// número da parcela é contado aqui, pelos vencimentos das não canceladas.
+
+/** parcela | avulso; "anterior" = ordem do sistema anterior, sem a informação. */
+export type NaturezaPagamentoContrato = "parcela" | "avulso" | "anterior"
+
+export const ROTULO_NATUREZA_PAGAMENTO: Record<NaturezaPagamentoContrato, string> = {
+  parcela: "Parcela",
+  avulso: "Pagamento avulso",
+  anterior: "Do sistema anterior",
+}
+
+/** A natureza de uma ordem do contrato. Sem a coluna: RPA é avulso; legado é "anterior". */
+export function naturezaDaOrdem(o: {
+  contrato_pagamento: string | null
+  legado: boolean
+  tipo: string | null
+}): NaturezaPagamentoContrato {
+  if (o.contrato_pagamento === "parcela") return "parcela"
+  if (o.contrato_pagamento === "avulso") return "avulso"
+  if (o.tipo === "RPA") return "avulso"
+  return o.legado ? "anterior" : "avulso"
+}
+
+const cancelada = (situacao: string | null) =>
+  (SITUACOES_QUE_LIBERAM_VENCIMENTO as readonly string[]).includes(situacao ?? "")
+
+/**
+ * Número de cada parcela no contrato ("parcela 3 de 12"): as parcelas não
+ * canceladas, pela ordem do vencimento. A cancelada fica sem número.
+ */
+export function numerarParcelas(
+  ordens: { id: string; natureza: NaturezaPagamentoContrato; situacao: string | null; vencimento: string | null }[]
+): { numeros: Map<string, number>; total: number } {
+  const parcelas = ordens
+    .filter((o) => o.natureza === "parcela" && !cancelada(o.situacao))
+    .sort((a, b) => (a.vencimento ?? "9999").localeCompare(b.vencimento ?? "9999"))
+  return { numeros: new Map(parcelas.map((o, i) => [o.id, i + 1])), total: parcelas.length }
+}
+
+/**
+ * Pagamentos avulsos que parecem as mensalidades do contrato: dois ou mais,
+ * não cancelados, do mesmo valor em meses diferentes. Era o sinal de quem
+ * gerava a parcela do mês como "pagamento extraordinário".
+ */
+export function avulsosParecemParcelas(
+  ordens: { natureza: NaturezaPagamentoContrato; situacao: string | null; vencimento: string | null; valor: number | null; tipo: string | null }[]
+): number {
+  const porValor = new Map<string, Set<string>>()
+  for (const o of ordens) {
+    if (o.natureza !== "avulso" || cancelada(o.situacao) || o.tipo === "RPA" || !o.valor || !o.vencimento) continue
+    const k = o.valor.toFixed(2)
+    const meses = porValor.get(k) ?? new Set<string>()
+    meses.add(o.vencimento.slice(0, 7))
+    porValor.set(k, meses)
+  }
+  let maior = 0
+  for (const meses of porValor.values()) if (meses.size >= 2) maior = Math.max(maior, meses.size)
+  return maior
+}
+
+/** Rótulo da parcela: "Parcela 3 de 12". */
+export function rotuloParcela(numero: number | undefined, total: number): string {
+  return numero ? `Parcela ${numero} de ${total}` : "Parcela cancelada"
+}

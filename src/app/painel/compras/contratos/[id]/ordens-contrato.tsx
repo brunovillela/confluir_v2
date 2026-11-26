@@ -1,7 +1,7 @@
 "use client"
 
 import { startTransition, useActionState, useEffect, useRef, useState } from "react"
-import { FileUp, Loader2, Pencil, Trash2 } from "lucide-react"
+import { ArrowLeftRight, FileUp, Loader2, Pencil, Trash2 } from "lucide-react"
 
 import { ConfirmacaoAuditoria } from "@/components/confirmacao-auditoria"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label"
 import { ACEITA_NOTA, prepararArquivo } from "@/lib/arquivo-envio"
 import {
   anexarNotaOrdemContratoAction,
+  classificarOrdemContratoAction,
   editarOrdemContratoAction,
   excluirOrdemContratoAction,
   excluirOrdensContratoAction,
@@ -405,5 +406,51 @@ export function AnexarNotaOrdem({
         </form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/**
+ * Parcela ↔ pagamento avulso (26/11/2026): corrige a natureza de uma ordem do
+ * contrato — a mensalidade gerada como extraordinária, a ordem do sistema
+ * anterior. Só a etiqueta e a numeração mudam; fica na trilha da ordem.
+ */
+export function ClassificarOrdem({
+  contratoId,
+  ordem,
+  para,
+}: {
+  contratoId: string
+  ordem: { id: string; codigo: string | null }
+  /** A natureza que a ordem passa a ter. */
+  para: "parcela" | "avulso"
+}) {
+  const [estado, acao, pendente] = useActionState(classificarOrdemContratoAction, {})
+  const envio = useEnvioFormulario(acao, estado, {
+    antes: (e) =>
+      confirmarEnvio(
+        e,
+        para === "parcela"
+          ? `Tratar a ordem ${ordem.codigo ?? ""} como parcela do contrato (pagamento previsto)? Ela entra na numeração das parcelas.`
+          : `Tratar a ordem ${ordem.codigo ?? ""} como pagamento avulso (fora das parcelas)? As parcelas seguintes são renumeradas.`
+      ),
+  })
+  return (
+    <form action={acao} {...envio} className="inline-flex items-center gap-1">
+      <input type="hidden" name="contrato_id" value={contratoId} />
+      <input type="hidden" name="ordem_id" value={ordem.id} />
+      <input type="hidden" name="natureza" value={para} />
+      <Button
+        type="submit"
+        variant="ghost"
+        size="sm"
+        className="h-7 px-2 text-xs"
+        disabled={pendente}
+        title={para === "parcela" ? "É uma parcela prevista do contrato" : "É um pagamento fora das parcelas"}
+      >
+        {pendente ? <Loader2 className="animate-spin" /> : <ArrowLeftRight />}
+        {para === "parcela" ? "É parcela" : "É avulso"}
+      </Button>
+      {estado.erro && <span className="text-destructive max-w-40 text-xs">{estado.erro}</span>}
+    </form>
   )
 }

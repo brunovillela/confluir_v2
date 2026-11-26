@@ -37,8 +37,10 @@ import {
   vigenciaDe,
   vencimentoParcela,
   MAX_PARCELAS,
+  naturezaDaOrdem,
   podeAnexarNotaPeloContrato,
   SITUACOES_QUE_LIBERAM_VENCIMENTO,
+  type NaturezaPagamentoContrato,
   type Periodicidade,
   type SituacaoContrato,
   type Vigencia,
@@ -139,6 +141,8 @@ export type OrdemContrato = {
   processoCodigo: string | null
   /** A ordem já tem a nota fiscal anexada. */
   temNota: boolean
+  /** Parcela prevista, pagamento avulso ou do sistema anterior (26/11/2026). */
+  natureza: NaturezaPagamentoContrato
 }
 
 export type ContratoDetalhe = {
@@ -474,7 +478,7 @@ async function ordensDoContrato(
   empId: string
 ): Promise<Record<string, unknown>[]> {
   const SEL =
-    "id, codigo, descricao, tipo, situacao, valor_inicial_cobranca, valor_pago, vencimento, data_pagamento, processo_compra_id, excluido, fornecedor_id, beneficiario_fornecedor_id, arquivo_nota_fiscal"
+    "id, codigo, descricao, tipo, situacao, valor_inicial_cobranca, valor_pago, vencimento, data_pagamento, processo_compra_id, excluido, fornecedor_id, beneficiario_fornecedor_id, arquivo_nota_fiscal, contrato_pagamento, bubble_id"
   const direto = await admin
     .from("ordens_pagamento")
     .select(SEL)
@@ -711,6 +715,11 @@ export async function buscarContrato(
           ? (processoPorId.get(processoId) ?? null)
           : null,
         temNota: Boolean(texto(o.arquivo_nota_fiscal)),
+        natureza: naturezaDaOrdem({
+          contrato_pagamento: texto(o.contrato_pagamento),
+          legado: Boolean(texto(o.bubble_id)),
+          tipo: texto(o.tipo),
+        }),
       }
     }),
   }
@@ -825,6 +834,8 @@ export type GerarOrdensParams = {
   aguardarDocumento?: boolean
   /** Tela de confirmação da auditoria (Contratos): os alertas já confirmados. */
   confirmacao?: Confirmacao
+  /** Pagamento avulso (periodicidade "única"): o que está sendo pago — vai na descrição. */
+  motivoAvulso?: string | null
   pagamento: (fornecedorId: string) => Promise<{
     detalhe?: DetalhePagamento
     boletos?: File[]
@@ -906,7 +917,7 @@ export async function gerarOrdensContrato(
   // Ordem CANCELADA não ocupa o vencimento: a parcela pode ser gerada de novo.
   const { data: existentes, error: erroExist } = await admin
     .from("ordens_pagamento")
-    .select("vencimento, situacao")
+    .select("vencimento, situacao, contrato_pagamento, bubble_id, tipo")
     .eq("contrato_id", contratoId)
     .eq("emp_proprietaria_id", empId)
     .not("excluido", "is", true)
@@ -917,12 +928,30 @@ export async function gerarOrdensContrato(
     }
     return { erro: `Falha ao checar ordens existentes: ${erroExist.message}` }
   }
+  // Parcelas (26/11/2026): só parcela — e ordem do sistema anterior, que pode
+  // ser a mensalidade — ocupa o vencimento. Pagamento avulso não pula nada: é
+  // um pagamento a mais, mesmo no dia de uma parcela.
+  const emVigor = (existentes ?? [])
+    .filter((o) => !(SITUACOES_QUE_LIBERAM_VENCIMENTO as readonly string[]).includes(texto(o.situacao) ?? ""))
+    .map((o) => ({
+      venc: texto(o.vencimento)?.slice(0, 10) ?? null,
+      natureza: naturezaDaOrdem({
+        contrato_pagamento: texto(o.contrato_pagamento),
+        legado: Boolean(texto(o.bubble_id)),
+        tipo: texto(o.tipo),
+      }),
+    }))
   const jaTem = new Set(
-    (existentes ?? [])
-      .filter((o) => !(SITUACOES_QUE_LIBERAM_VENCIMENTO as readonly string[]).includes(texto(o.situacao) ?? ""))
-      .map((o) => texto(o.vencimento)?.slice(0, 10))
-      .filter((v): v is string => Boolean(v))
+    recorrente
+      ? emVigor
+          .filter((o) => o.natureza !== "avulso")
+          .map((o) => o.venc)
+          .filter((v): v is string => Boolean(v))
+      : []
   )
+  const parcelasExistentes = emVigor
+    .filter((o) => o.natureza === "parcela" && o.venc)
+    .map((o) => o.venc as string)
   const total = alvos.length
   const novos = alvos
     .map((venc, i) => ({ venc, parcela: i + 1 }))
@@ -988,10 +1017,13 @@ export async function gerarOrdensContrato(
       : camposAutorizacaoInicial(
           ordinariaFixa ? motivoDispensaContrato(texto(linha.codigo)) : null
         )
-  const registros = novos.map(({ venc, parcela }, i) => ({
+  const registros = novos.map(({ venc }, i) => ({
     codigo: gerarCodigoProcesso(),
     tipo: "Contrato",
-    descricao: descricaoOrdemContrato(objeto, venc, parcela, total),
+    descricao: recorrente
+      ? descricaoParcelaContrato(objeto, venc, numeroDaParcela(parcelasExistentes, novos.map((n) => n.venc), venc))
+      : descricaoAvulsoContrato(objeto, venc, params.motivoAvulso ?? null),
+    contrato_pagamento: recorrente ? "parcela" : "avulso",
     ...autorizacao,
     valor_inicial_cobranca: params.valorParcela,
     forma_pagamento: params.formaPagamento,
@@ -1037,19 +1069,26 @@ export async function gerarOrdensContrato(
 }
 
 /**
- * Descrição padrão (dinâmica) das ordens geradas por um contrato. Usa o objeto
- * do contrato + parcela X/N (quando parcelado) + vencimento — o que veio do
- * Bubble não tinha descrição; toda ordem criada aqui nasce descrita.
+ * Descrição das ordens geradas pelo contrato (26/11/2026): a parcela leva o
+ * NÚMERO NO CONTRATO (não na geração — gerar um mês por vez dava ordens sem
+ * número) e o avulso diz que é avulso e o que paga. O total não vai na
+ * descrição: muda a cada parcela gerada; a tela mostra "parcela 3 de 12".
  */
-function descricaoOrdemContrato(
-  objeto: string,
-  venc: string,
-  parcela: number,
-  total: number
-): string {
-  const data = `${venc.slice(8, 10)}/${venc.slice(5, 7)}/${venc.slice(0, 4)}`
-  const parc = total > 1 ? ` — parcela ${parcela}/${total}` : ""
-  return `${objeto}${parc}, venc. ${data}`
+function dataBR(venc: string): string {
+  return `${venc.slice(8, 10)}/${venc.slice(5, 7)}/${venc.slice(0, 4)}`
+}
+
+function descricaoParcelaContrato(objeto: string, venc: string, numero: number): string {
+  return `${objeto} — parcela ${numero}, venc. ${dataBR(venc)}`
+}
+
+function descricaoAvulsoContrato(objeto: string, venc: string, motivo: string | null): string {
+  return `${objeto} — pagamento avulso${motivo ? `: ${motivo}` : ""}, venc. ${dataBR(venc)}`
+}
+
+/** Número da parcela nova no contrato: as parcelas em vigor e as novas, por vencimento. */
+function numeroDaParcela(existentes: string[], novas: string[], venc: string): number {
+  return [...existentes, ...novas].sort().indexOf(venc) + 1
 }
 
 // ── Lookups para os formulários ──────────────────────────────────────────────
@@ -1589,5 +1628,51 @@ export async function anexarNotaOrdemContrato(
   await registrarEvento(ordemId, "documento_fiscal", await usuarioDaTrilha(), `${onde}: nota fiscal anexada.`, {
     arquivo_nota_fiscal: r.caminho,
   })
+  return {}
+}
+
+/**
+ * Corrige a natureza de uma ordem do contrato — parcela prevista ou pagamento
+ * avulso (26/11/2026). Muitas mensalidades foram geradas como "pagamento
+ * extraordinário" (e ordens do sistema anterior não têm a informação): quem
+ * opera reclassifica na tela, inclusive ordem já paga. Só muda a etiqueta e a
+ * numeração das parcelas; autorização e valores ficam como estão. Fica na
+ * trilha da ordem. RPA e ordem de compra não entram (têm dono próprio).
+ */
+export async function classificarOrdemContrato(
+  contratoId: string,
+  ordemId: string,
+  natureza: "parcela" | "avulso"
+): Promise<{ erro?: string }> {
+  const empId = await tenantAtual()
+  const admin = await createAdminClient()
+  const { data: o, error } = await admin
+    .from("ordens_pagamento")
+    .select("id, contrato_id, tipo, processo_compra_id, contrato_pagamento, situacao")
+    .eq("id", ordemId)
+    .eq("emp_proprietaria_id", empId)
+    .not("excluido", "is", true)
+    .maybeSingle()
+  if (error) return { erro: `Falha ao carregar a ordem: ${error.message}` }
+  if (!o || texto(o.contrato_id) !== contratoId) return { erro: "Ordem não encontrada neste contrato." }
+  if (o.tipo === TIPO_ORDEM_RPA || o.processo_compra_id) {
+    return { erro: "Ordem de RPA ou de compra não se reclassifica — é sempre um pagamento avulso." }
+  }
+  if (texto(o.contrato_pagamento) === natureza) return {}
+  const { error: erroUpd } = await admin
+    .from("ordens_pagamento")
+    .update({ contrato_pagamento: natureza })
+    .eq("id", ordemId)
+    .eq("emp_proprietaria_id", empId)
+  if (erroUpd) return { erro: `Falha ao reclassificar: ${erroUpd.message}` }
+  await registrarEvento(
+    ordemId,
+    "corrigida",
+    await usuarioDaTrilha(),
+    natureza === "parcela"
+      ? "Reclassificada como parcela do contrato (pagamento previsto)."
+      : "Reclassificada como pagamento avulso do contrato (fora das parcelas).",
+    { antes: { contrato_pagamento: texto(o.contrato_pagamento) }, depois: { contrato_pagamento: natureza }, reavaliada: true }
+  )
   return {}
 }

@@ -15,6 +15,7 @@ import {
   criarContrato,
   excluirCategoriaContrato,
   autorizarContrato,
+  classificarOrdemContrato,
   editarOrdemContrato,
   excluirContrato,
   excluirOrdemContrato,
@@ -116,10 +117,21 @@ export async function gerarOrdensContratoAction(
   const id = texto(formData, "contrato_id")
   if (!id) return { erro: "Contrato inválido." }
 
+  // Dois caminhos (26/11/2026): "Gerar parcelas" (mensal/anual, numeradas no
+  // contrato) e "Pagamento avulso" (uma ordem, extraordinária ou sob demanda,
+  // com o que está sendo pago). Sem o modo, vale a periodicidade enviada.
+  const modo = texto(formData, "modo")
   const per = texto(formData, "periodicidade")
-  const periodicidade = PERIODICIDADES.some((p) => p.chave === per)
-    ? (per as Periodicidade)
-    : "mensal"
+  const periodicidade: Periodicidade =
+    modo === "avulso"
+      ? "unica"
+      : PERIODICIDADES.some((p) => p.chave === per) && !(modo === "parcelas" && per === "unica")
+        ? (per as Periodicidade)
+        : "mensal"
+  const motivoAvulso = texto(formData, "motivo_avulso").replace(/\s+/g, " ").slice(0, 200)
+  if (modo === "avulso" && motivoAvulso.length < 5) {
+    return { erro: "Diga o que este pagamento avulso paga (pelo menos 5 caracteres)." }
+  }
   const valorBruto = texto(formData, "valor_parcela")
   const forma = texto(formData, "forma_pagamento")
   if (!(FORMAS_ORDEM_CONTRATO as readonly string[]).includes(forma)) {
@@ -134,6 +146,7 @@ export async function gerarOrdensContratoAction(
     quantidade: Number(texto(formData, "quantidade")) || 1,
     formaPagamento: forma,
     aguardarDocumento: true,
+    motivoAvulso: motivoAvulso || null,
     pagamento: (fornecedorId) =>
       lerPagamentoOrdemFutura(
         formData,
@@ -148,8 +161,9 @@ export async function gerarOrdensContratoAction(
   const params = new URLSearchParams({
     geradas: String(geradas ?? 0),
     puladas: String(puladas ?? 0),
+    tipoGerado: periodicidade === "unica" ? "avulso" : "parcelas",
   })
-  redirect(`/painel/compras/contratos/${id}?${params.toString()}`)
+  redirect(`/painel/compras/contratos/${id}?${params.toString()}#ordens`)
 }
 
 /** Nota da parcela recorrente: a ordem sai do contrato e vai para autorização. */
@@ -369,4 +383,20 @@ export async function autorizarContratoAction(
   revalidar(id)
   revalidatePath("/painel/financeiro/ordens")
   redirect(`/painel/compras/contratos/${id}?autorizado=${parcelas ?? 0}`)
+}
+
+/** Parcela ↔ pagamento avulso: corrige a natureza de uma ordem do contrato. */
+export async function classificarOrdemContratoAction(
+  _prev: EstadoForm,
+  formData: FormData
+): Promise<EstadoForm> {
+  await requireEdicaoContratos()
+  const contratoId = texto(formData, "contrato_id")
+  const ordemId = texto(formData, "ordem_id")
+  const natureza = texto(formData, "natureza")
+  if (!contratoId || !ordemId || (natureza !== "parcela" && natureza !== "avulso")) return { erro: "Ordem inválida." }
+  const { erro } = await classificarOrdemContrato(contratoId, ordemId, natureza)
+  if (erro) return { erro }
+  revalidar(contratoId)
+  return { ok: natureza === "parcela" ? "Agora é parcela do contrato." : "Agora é pagamento avulso." }
 }

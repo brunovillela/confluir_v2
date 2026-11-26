@@ -19,9 +19,10 @@ Tudo parte do contrato. Abra-o para ver, em ordem:
 3. **RPA — pagamento a autônomo** — quando o fornecedor é pessoa física, os
    recibos dele e o botão **Emitir RPA** (mais abaixo; serviço pontual sem
    contrato entra como **compra de serviço**, e o RPA nasce dela);
-4. **Aditivos** (quando houver) e as **Ordens de pagamento** do contrato — as
-   parcelas e as ordens dos RPAs, com o botão **Nova ordem de pagamento**, que
-   gera as parcelas, e a coluna **Nota**, para anexar a nota fiscal que falta.
+4. **Aditivos** (quando houver) e os **Pagamentos do contrato** — as
+   **parcelas** numeradas e os **pagamentos avulsos** em quadros separados, com
+   os botões **Gerar parcelas** e **Pagamento avulso**, e a coluna **Nota**, para
+   anexar a nota fiscal que falta.
 
 <Print src="compras/contrato-novo.png" alt="Formulário Novo contrato: objeto, fornecedor, valor, vigência, o departamento Administrativo escolhido e o centro de custo 1.1 - Despesas Administrativas, filtrado por ele; responsável, categoria e arquivo." legenda="No cadastro, o centro de custo só se habilita depois do departamento e lista apenas os dele." />
 
@@ -61,14 +62,42 @@ prorrogam ou alteram o original. O aditivo é criado a partir da página do
 contrato principal, pelo botão **Adicionar aditivo**, no topo da página (ao lado de
 **Excluir**); o cartão **Aditivos** só aparece quando já há aditivo. Um aditivo não recebe outro aditivo.
 
-## Gerar ordens de pagamento
+## Parcelas e pagamentos avulsos
 
-No cartão **Ordens de pagamento** do contrato, clique em **Nova ordem de
-pagamento**: o formulário abre ali mesmo, acima da lista.
+O contrato paga de dois jeitos, e cada um tem seu quadro no cartão **Pagamentos
+do contrato**:
+
+- **Parcelas** — os pagamentos **previstos** no contrato: a mensalidade do
+  serviço, o aluguel, a assinatura. São numeradas no contrato, pela ordem dos
+  vencimentos: **Parcela 1 de 12**, **Parcela 2 de 12**… A cancelada sai da
+  numeração. Nascem autorizadas pela autorização do contrato e esperam só a nota
+  de cada competência.
+- **Pagamentos avulsos** — o que fica **fora** das parcelas: um serviço extra, um
+  reembolso, cada pedido de um contrato **sob demanda**, os RPAs. Cada um diz o
+  que paga e passa pela **autorização pontual**.
+
+Na dúvida: se o pagamento se repete todo mês (ou todo ano) no mesmo valor, é
+**parcela**. Num contrato **sob demanda**, o botão principal é **Pagamento sob
+demanda**. Ordens do sistema anterior, sem essa informação, ficam em **Do sistema
+anterior**, recolhido no fim do cartão.
+
+<Aviso tipo="atencao" titulo="Mensalidade lançada como avulso">
+  Se o contrato tem pagamentos avulsos do mesmo valor em meses diferentes, o
+  cartão avisa: provavelmente são as mensalidades. Use **É parcela** na linha de
+  cada um (e **É avulso** para o contrário). A mudança só reclassifica e
+  renumera as parcelas: autorização e valores ficam como estão, e a troca fica
+  no histórico da ordem.
+</Aviso>
+
+### Gerar parcelas
+
+Clique em **Gerar parcelas**: o formulário abre ali mesmo, acima dos quadros.
 
 <PassoAPasso>
-  <Passo titulo="Escolha a periodicidade">
-    Mensal, anual ou única, com o valor da parcela e o primeiro vencimento. O
+  <Passo titulo="Periodicidade, valor e quantidade">
+    Mensal ou anual, com o valor da parcela, o primeiro vencimento e quantas
+    parcelas. Uma prévia diz quais números serão criados, na sequência das que
+    já existem (por exemplo, *Serão criadas as parcelas 4 a 15*). O
     primeiro vencimento já vem sugerido: a parcela seguinte à última lançada, ou
     hoje, se essa data já passou. Abaixo do campo aparece a última parcela em
     vigor, e um aviso quando a data escolhida está no passado ou antes dela.
@@ -88,18 +117,23 @@ pagamento**: o formulário abre ali mesmo, acima da lista.
       conferido).
   </Passo>
   <Passo titulo="Gere">
-    O sistema cria as ordens tendo o fornecedor do contrato como favorecido.
-    **Mensal ou anual** (contrato autorizado): as parcelas nascem *Aguardando
-    documento fiscal* (veja abaixo). **Única**: é pagamento extraordinário e nasce
-    **Em autorização**, mesmo no valor do contrato.
+    O sistema cria as parcelas tendo o fornecedor do contrato como favorecido. Com
+    o contrato autorizado, elas nascem *Aguardando documento fiscal* (veja abaixo).
   </Passo>
   <Passo titulo="Rode de novo sem medo">
-    A geração é idempotente: vencimentos que já têm ordem são pulados, então
-    rodar de novo só completa o que falta — nunca duplica. As ordens de RPA não
-    contam: uma parcela pode vencer no mesmo dia de um RPA. A ordem **cancelada**
-    também não conta: a parcela dela pode ser gerada de novo.
+    Vencimento que já tem parcela é pulado, então rodar de novo só completa o que
+    falta — nunca duplica. Pagamento avulso e RPA não ocupam o vencimento: uma
+    parcela pode vencer no mesmo dia de um avulso. A parcela **cancelada** também
+    não conta: ela pode ser gerada de novo.
   </Passo>
 </PassoAPasso>
+
+### Pagamento avulso
+
+Clique em **Pagamento avulso** (ou **Pagamento sob demanda**) e informe **o que
+este pagamento paga**, o valor, o vencimento e a forma de pagamento. A ordem nasce
+**Em autorização** e passa pela autorização pontual, mesmo no valor do contrato. O
+que você escreveu vai na descrição da ordem e aparece no quadro dos avulsos.
 
 ### Parcelas recorrentes aguardam a nota
 
@@ -116,7 +150,7 @@ do contrato, anexe a **nota** de cada competência (PDF ou foto) e clique em
 - **Parcela com valor diferente do contratado**, num contrato de valor fixo: espera
   a nota sem autorização e depois passa pela alçada.
 
-A periodicidade **única** segue direto para autorização.
+O pagamento avulso segue direto para autorização.
 
 ### Editar ou excluir uma ordem
 
@@ -139,7 +173,7 @@ compra. Para **trocar** uma nota já anexada, use a tela da ordem no Financeiro.
 
 ### Excluir ordens em massa
 
-Na lista **Ordens de pagamento** do contrato, as ordens ainda **não
+Nos quadros de **Pagamentos do contrato**, as ordens ainda **não
 autorizadas** (aguardando documento fiscal, em autorização ou aguardando
 informações) ganham uma caixa de seleção. Marque as que quiser — ou todas, pela
 caixa do cabeçalho — e clique em **Excluir marcadas**. Ordens já autorizadas ou
@@ -471,10 +505,11 @@ Mais regras do aviso:
 ## Erros comuns
 
 - **"Autorize o contrato antes de gerar parcelas recorrentes."** Quem tem **Contratos
-  — autorizar** clica em **Autorizar contrato**, no topo. Sem isso, só a periodicidade
-  única é gerada.
-- **"Gerei a parcela no valor do contrato e ela foi para a alçada."** Periodicidade
-  única é sempre pagamento extraordinário. Para a parcela fixa, use mensal ou anual.
+  — autorizar** clica em **Autorizar contrato**, no topo. Sem isso, só o pagamento
+  avulso pode ser registrado.
+- **"Lancei a mensalidade e ela foi para a alçada."** Ela foi lançada como
+  **pagamento avulso**, que sempre passa pela autorização pontual. Mensalidade é
+  **parcela**: use **Gerar parcelas** e, nas que já foram lançadas, **É parcela**.
 - **"A ordem foi paga — ajustes só pelo Financeiro."** Ordem paga ou em processamento
   não se altera pelo contrato.
 - **"O fornecedor deste contrato é pessoa jurídica."** RPA é só para autônomo, com
