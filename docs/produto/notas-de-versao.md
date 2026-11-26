@@ -6,6 +6,7 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 
 ## 25/11/2026 — Ordens: escolher a conta do favorecido na correção
 
+- Aquisição: o mesmo fornecedor pode mandar mais de uma proposta na cotação (versões, marcas ou condições diferentes) — a cotação rápida não recusa mais. Para a regra da proposta única, cada fornecedor conta uma vez: duas propostas da mesma empresa acima do limite ainda pedem a justificativa.
 - Ordens: no Corrigir ordem, ao escolher Pix ou TED aparece a lista com as contas cadastradas do favorecido (a favorita já marcada), e dá para trocar só a conta. A conta do filiado favorecido de um custeio ou de um reembolso passa a ser encontrada — antes a correção para TED dizia que ele não tinha conta registrada.
 
 ## 24/11/2026 — Contratos: parcela no lugar de uma cancelada
