@@ -85,6 +85,7 @@ export const PROCESSOS_IA: ProcessoIA[] = [
   // Veículos
   { chave: "veiculos.abastecimento", titulo: "Leitura do cupom de abastecimento", modulo: "veiculos", simples: true },
   { chave: "veiculos.contrato_locacao", titulo: "Leitura do contrato de locação", modulo: "veiculos" },
+  { chave: "veiculos.cnh", titulo: "Leitura da CNH do condutor", modulo: "veiculos" },
   // Institucional
   { chave: "institucional.atas_leitura", titulo: "Leitura das atas de reunião", modulo: "institucional" },
   { chave: "institucional.relatorio_diretoria", titulo: "Relatório mensal da diretoria", modulo: "institucional" },

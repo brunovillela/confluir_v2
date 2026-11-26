@@ -1,7 +1,7 @@
 "use client"
 
-import { useActionState } from "react"
-import { Loader2, Save, UserCheck, UserX } from "lucide-react"
+import { useActionState, useState, useTransition } from "react"
+import { Loader2, Save, Sparkles, UserCheck, UserX } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { CATEGORIAS_CNH } from "@/lib/veiculos-constantes"
 
 import { definirAutorizacaoAction, salvarCondutorAction } from "./actions"
+import { lerCnh, type LeituraCnh } from "./ia-actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
 
@@ -35,8 +36,75 @@ export function CondutorForm({
     {}
   )
   const envio = useEnvioFormulario(formAction, estado)
+  const k = dados?.usuario_id ?? "novo"
+  // Controlados para a leitura da CNH pela IA poder preenchê-los.
+  const [usuarioId, setUsuarioId] = useState(dados?.usuario_id ?? "")
+  const [numero, setNumero] = useState(dados?.cnh_numero ?? "")
+  const [categoria, setCategoria] = useState(dados?.cnh_categoria ?? "")
+  const [validade, setValidade] = useState(dados?.cnh_validade ?? "")
+  const [observacao, setObservacao] = useState(dados?.observacao ?? "")
+  const [leitura, setLeitura] = useState<LeituraCnh | null>(null)
+  const [lendo, iniciarLeitura] = useTransition()
+
+  // Ao escolher o arquivo, a IA lê a carteira e preenche o que conseguiu; a
+  // pessoa confere antes de salvar (o arquivo segue anexado no envio).
+  function lerArquivo(arquivo: File | undefined) {
+    setLeitura(null)
+    if (!arquivo) return
+    const fd = new FormData()
+    fd.set("arquivo", arquivo)
+    if (usuarioId) fd.set("usuario_id", usuarioId)
+    iniciarLeitura(async () => {
+      const r = await lerCnh(fd)
+      setLeitura(r)
+      if (r.erro) return
+      if (r.numero) setNumero(r.numero)
+      if (r.categoria) setCategoria(r.categoria)
+      if (r.validade) setValidade(r.validade)
+      if (r.observacao && !observacao.trim()) setObservacao(r.observacao)
+      if (!dados && !usuarioId && r.usuarioId && usuarios.some((u) => u.id === r.usuarioId)) {
+        setUsuarioId(r.usuarioId)
+      }
+    })
+  }
+
   return (
     <form action={formAction} {...envio} className="grid max-w-2xl gap-4">
+      <div className="grid gap-1.5">
+        <Label htmlFor={`cnh_arquivo-${k}`}>CNH digitalizada (PDF ou foto)</Label>
+        <Input
+          id={`cnh_arquivo-${k}`}
+          name="cnh_arquivo"
+          type="file"
+          accept="application/pdf,image/jpeg,image/png,image/webp"
+          onChange={(e) => lerArquivo(e.target.files?.[0])}
+        />
+        <p className="text-muted-foreground text-xs">
+          {lendo ? (
+            <span className="inline-flex items-center gap-1">
+              <Loader2 className="size-3 animate-spin" />
+              Lendo a CNH…
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1">
+              <Sparkles className="size-3" />
+              A IA lê a carteira e preenche nº, categoria e validade
+              {dados ? "" : " — e escolhe o usuário pelo CPF"}. Confira antes de salvar.
+            </span>
+          )}
+        </p>
+        {leitura?.erro && <p className="text-destructive text-xs">{leitura.erro}</p>}
+        {leitura && !leitura.erro && (
+          <div className="bg-muted/40 grid gap-1 rounded-md border p-2 text-xs">
+            {leitura.resumo && <p className="font-medium">Lido: {leitura.resumo}</p>}
+            {(leitura.avisos ?? []).map((a) => (
+              <p key={a} className="text-warning-fg">
+                {a}
+              </p>
+            ))}
+          </div>
+        )}
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor={`usuario-${dados?.usuario_id ?? "novo"}`}>
@@ -49,7 +117,8 @@ export function CondutorForm({
             id={`usuario-${dados?.usuario_id ?? "novo"}`}
             name={dados ? "usuario_id_visual" : "usuario_id"}
             required
-            defaultValue={dados?.usuario_id ?? ""}
+            value={usuarioId}
+            onChange={(e) => setUsuarioId(e.target.value)}
             disabled={Boolean(dados)}
             className={SELECT}
           >
@@ -70,7 +139,8 @@ export function CondutorForm({
           <Input
             id={`cnh_numero-${dados?.usuario_id ?? "novo"}`}
             name="cnh_numero"
-            defaultValue={dados?.cnh_numero ?? ""}
+            value={numero}
+            onChange={(e) => setNumero(e.target.value)}
             className="tabular-nums"
           />
         </div>
@@ -81,7 +151,8 @@ export function CondutorForm({
           <select
             id={`cnh_categoria-${dados?.usuario_id ?? "novo"}`}
             name="cnh_categoria"
-            defaultValue={dados?.cnh_categoria ?? ""}
+            value={categoria}
+            onChange={(e) => setCategoria(e.target.value)}
             className={SELECT}
           >
             <option value="">(não informada)</option>
@@ -100,19 +171,9 @@ export function CondutorForm({
             id={`cnh_validade-${dados?.usuario_id ?? "novo"}`}
             name="cnh_validade"
             type="date"
-            defaultValue={dados?.cnh_validade ?? ""}
+            value={validade}
+            onChange={(e) => setValidade(e.target.value)}
             className="[color-scheme:light] dark:[color-scheme:dark]"
-          />
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor={`cnh_arquivo-${dados?.usuario_id ?? "novo"}`}>
-            CNH digitalizada (PDF/JPG/PNG)
-          </Label>
-          <Input
-            id={`cnh_arquivo-${dados?.usuario_id ?? "novo"}`}
-            name="cnh_arquivo"
-            type="file"
-            accept="application/pdf,image/jpeg,image/png"
           />
         </div>
         <div className="grid gap-1.5">
@@ -122,7 +183,8 @@ export function CondutorForm({
           <Input
             id={`observacao-${dados?.usuario_id ?? "novo"}`}
             name="observacao"
-            defaultValue={dados?.observacao ?? ""}
+            value={observacao}
+            onChange={(e) => setObservacao(e.target.value)}
           />
         </div>
       </div>

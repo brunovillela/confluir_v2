@@ -6,6 +6,7 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 
 ## 26/11/2026 — Ordens: filtro por projeto com as ordens das compras
 
+- Veículos → Condutores: ao escolher o arquivo da CNH (PDF da CNH Digital, foto ou digitalização), a IA lê a carteira e preenche o número de registro, a categoria, a validade e as observações (EAR, lentes); no cadastro novo, já escolhe o usuário dono do CPF. Aparecem o que foi lido e os avisos — CNH vencida, campo ilegível, CPF diferente do cadastro da pessoa. Confira antes de salvar.
 - Projetos: as despesas ficam num cartão só, Despesas do projeto: cada compra e cada custeio com as suas ordens de pagamento embaixo, as ordens lançadas direto no projeto e os reembolsos somados. Transferir uma compra (ou um custeio) para outro projeto leva todas as ordens dela.
 - Custeio institucional: o custeio pode ser de um projeto. Escolha o Projeto no cadastro ou, no custeio já autorizado, use Vincular a um projeto na página dele: as ordens do custeio entram no gasto do projeto e no filtro Projeto do Financeiro.
 - Financeiro → Ordens: o filtro Projeto passa a achar também as ordens que vieram de uma compra do projeto (antes, só as lançadas com o projeto). A ordem de uma compra herda o projeto dela, e quando a compra muda de projeto — na edição da compra ou na transferência de despesa — as ordens vão junto.
