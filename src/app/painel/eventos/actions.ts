@@ -14,7 +14,10 @@ import {
 import { type EstadoForm } from "@/lib/contas"
 import {
   estadoDoRsvp,
+  marcarInscricoesEncerradas,
   obterEvento,
+  podeFecharInscricoes,
+  podeReabrirInscricoes,
   type SituacaoEvento,
 } from "@/lib/db/eventos"
 import {
@@ -518,4 +521,53 @@ export async function conciliarFiliadosAction(
   return {
     ok: `${conferidas} inscrito(s) sem vínculo conferido(s); ${casadas} casado(s) com uma filiação.`,
   }
+}
+
+/**
+ * Fechar as inscrições à mão (26/11/2026). O link público e o portal deixam de
+ * aceitar inscrição; a reserva interna de convidados continua. Ninguém é
+ * avisado: quem já se inscreveu não muda de situação.
+ */
+export async function fecharInscricoesAction(
+  _prev: EstadoForm,
+  fd: FormData
+): Promise<EstadoForm> {
+  const sessao = await requirePermissao("eventos_gestao")
+  const id = txt(fd, "id")
+  if (!id) return { erro: "Evento inválido." }
+  const evento = await obterEvento(id)
+  if (!evento) return { erro: "Evento não encontrado." }
+  if (evento.inscricoes_encerradas_em) return { ok: "As inscrições já estavam fechadas." }
+  if (!podeFecharInscricoes(evento)) {
+    return { erro: "Só dá para fechar as inscrições de evento publicado e com o prazo de inscrição em aberto." }
+  }
+  const r = await marcarInscricoesEncerradas(id, true, sessao.usuario.id)
+  if (r.erro) return { erro: r.erro }
+  revalidatePath(`${BASE}/${id}`)
+  return { ok: "Inscrições fechadas." }
+}
+
+/** Reabrir: só enquanto o prazo configurado não terminou. */
+export async function reabrirInscricoesAction(
+  _prev: EstadoForm,
+  fd: FormData
+): Promise<EstadoForm> {
+  await requirePermissao("eventos_gestao")
+  const id = txt(fd, "id")
+  if (!id) return { erro: "Evento inválido." }
+  const evento = await obterEvento(id)
+  if (!evento) return { erro: "Evento não encontrado." }
+  if (!evento.inscricoes_encerradas_em) return { ok: "As inscrições já estavam abertas." }
+  if (!podeReabrirInscricoes(evento)) {
+    return {
+      erro:
+        evento.situacao !== "publicado"
+          ? "Só dá para reabrir as inscrições de evento publicado."
+          : "O prazo de inscrição configurado já terminou. Para reabrir, mude o prazo em Editar.",
+    }
+  }
+  const r = await marcarInscricoesEncerradas(id, false, null)
+  if (r.erro) return { erro: r.erro }
+  revalidatePath(`${BASE}/${id}`)
+  return { ok: "Inscrições reabertas." }
 }

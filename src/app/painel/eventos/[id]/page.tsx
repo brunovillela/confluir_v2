@@ -6,6 +6,7 @@ import {
   DoorOpen,
   ExternalLink,
   ListChecks,
+  LockKeyhole,
   Pencil,
   TriangleAlert,
   UserPlus,
@@ -36,14 +37,18 @@ import {
   inscricoesAbertas,
   listarInscricoes,
   obterEvento,
+  podeFecharInscricoes,
+  podeReabrirInscricoes,
   SITUACOES_EVENTO,
   SITUACOES_INSCRICAO,
 } from "@/lib/db/eventos"
+import { nomesDosUsuarios } from "@/lib/db/comum"
 import { contarFiliados } from "@/lib/db/eventos-filiados"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 
 import { BaixarRelacao } from "./baixar-relacao"
+import { FecharInscricoesForm, ReabrirInscricoesForm } from "./fechar-inscricoes"
 import {
   AvaliarInscricao,
   ConciliarFiliadosForm,
@@ -93,13 +98,17 @@ export default async function EventoPage({
   const evento = await obterEvento(id)
   if (!evento) notFound()
 
-  const [indicadores, inscricoes, filiacao] = await Promise.all([
+  const [indicadores, inscricoes, filiacao, nomes] = await Promise.all([
     indicadoresDoEvento(evento),
     listarInscricoes({ eventoId: id, situacao: "todas" }),
     contarFiliados(id),
+    nomesDosUsuarios(evento.inscricoes_encerradas_por ? [evento.inscricoes_encerradas_por] : []),
   ])
   const { capacidade } = indicadores
   const abertura = inscricoesAbertas(evento, capacidade)
+  const encerradasPor = evento.inscricoes_encerradas_por
+    ? (nomes.get(evento.inscricoes_encerradas_por) ?? null)
+    : null
 
   return (
     <>
@@ -176,6 +185,9 @@ export default async function EventoPage({
                   </a>
                 </Button>
               )}
+              {podeFecharInscricoes(evento) && (
+                <FecharInscricoesForm eventoId={evento.id} />
+              )}
             </div>
           )}
         </div>
@@ -202,7 +214,30 @@ export default async function EventoPage({
         </Alert>
       )}
 
-      {!abertura.aberta && evento.situacao === "publicado" && (
+      {evento.inscricoes_encerradas_em && evento.situacao === "publicado" && (
+        <Alert variant="warning">
+          <LockKeyhole />
+          <AlertDescription>
+            <span>
+              <strong>Inscrições fechadas pela equipe</strong>
+              {encerradasPor ? ` por ${encerradasPor}` : ""} em{" "}
+              {formatarDataHora(evento.inscricoes_encerradas_em)}. O link
+              público e o portal não aceitam novas inscrições.
+              {!podeReabrirInscricoes(evento) &&
+                " O prazo de inscrição configurado já terminou; para reabrir, mude o prazo em Editar."}
+            </span>
+            {gestor && podeReabrirInscricoes(evento) && (
+              <div className="mt-3">
+                <ReabrirInscricoesForm eventoId={evento.id} />
+              </div>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {!abertura.aberta &&
+        evento.situacao === "publicado" &&
+        !evento.inscricoes_encerradas_em && (
         <Alert variant="warning">
           <AlertDescription>
             Inscrições fechadas: {abertura.motivo}

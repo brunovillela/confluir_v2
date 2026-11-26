@@ -74,6 +74,9 @@ export type Evento = {
   overbooking_percentual: number
   inscricoes_abrem_em: string | null
   inscricoes_fecham_em: string | null
+  /** Fechadas à mão por quem organiza (antes do prazo); null = não fechadas. */
+  inscricoes_encerradas_em: string | null
+  inscricoes_encerradas_por: string | null
   limite_inscricoes: number | null
   cota_convidados: number | null
   exige_aprovacao: boolean
@@ -187,7 +190,7 @@ export async function termosEmVigor(): Promise<Termo[]> {
 // ── Eventos ──────────────────────────────────────────────────────────────────
 
 const CAMPOS_EVENTO =
-  "id, slug, titulo, descricao, card_url, local, endereco, inicio, termino, lotacao_maxima, overbooking_percentual, inscricoes_abrem_em, inscricoes_fecham_em, limite_inscricoes, cota_convidados, exige_aprovacao, confirma_filiado_automatico, exige_foto, exige_rsvp, rsvp_abre_em, rsvp_enviado_lote_em, situacao, adiado_para, motivo_situacao, agenda_id, criado_por, created_at"
+  "id, slug, titulo, descricao, card_url, local, endereco, inicio, termino, lotacao_maxima, overbooking_percentual, inscricoes_abrem_em, inscricoes_fecham_em, inscricoes_encerradas_em, inscricoes_encerradas_por, limite_inscricoes, cota_convidados, exige_aprovacao, confirma_filiado_automatico, exige_foto, exige_rsvp, rsvp_abre_em, rsvp_enviado_lote_em, situacao, adiado_para, motivo_situacao, agenda_id, criado_por, created_at"
 
 function mapEvento(e: Record<string, unknown>, nome: string | null): Evento {
   return {
@@ -204,6 +207,8 @@ function mapEvento(e: Record<string, unknown>, nome: string | null): Evento {
     overbooking_percentual: Number(e.overbooking_percentual ?? 0),
     inscricoes_abrem_em: (e.inscricoes_abrem_em as string | null) ?? null,
     inscricoes_fecham_em: (e.inscricoes_fecham_em as string | null) ?? null,
+    inscricoes_encerradas_em: (e.inscricoes_encerradas_em as string | null) ?? null,
+    inscricoes_encerradas_por: (e.inscricoes_encerradas_por as string | null) ?? null,
     limite_inscricoes: (e.limite_inscricoes as number | null) ?? null,
     cota_convidados: (e.cota_convidados as number | null) ?? null,
     exige_aprovacao: e.exige_aprovacao === true,
@@ -437,6 +442,9 @@ export function inscricoesAbertas(
   if (evento.situacao !== "publicado") {
     return { aberta: false, motivo: "As inscrições ainda não estão abertas." }
   }
+  if (evento.inscricoes_encerradas_em) {
+    return { aberta: false, motivo: "As inscrições foram encerradas." }
+  }
   if (evento.inscricoes_abrem_em && new Date(evento.inscricoes_abrem_em) > agora) {
     return { aberta: false, motivo: "As inscrições ainda não começaram." }
   }
@@ -452,6 +460,46 @@ export function inscricoesAbertas(
     return { aberta: false, motivo: "As vagas se esgotaram." }
   }
   return { aberta: true }
+}
+
+/** O prazo configurado em "Inscrições fecham em" já passou. */
+export function prazoDeInscricaoTerminou(evento: Evento, agora = new Date()): boolean {
+  return !!evento.inscricoes_fecham_em && new Date(evento.inscricoes_fecham_em) < agora
+}
+
+/**
+ * Fechar à mão (26/11/2026): só evento publicado, ainda não fechado, com o
+ * prazo configurado em aberto — passado o prazo, já está fechado sozinho.
+ * Reabrir: fechado à mão, publicado e prazo em aberto; o prazo configurado é
+ * o limite, e mudá-lo é tarefa do Editar.
+ */
+export function podeFecharInscricoes(evento: Evento, agora = new Date()): boolean {
+  return evento.situacao === "publicado" && !evento.inscricoes_encerradas_em && !prazoDeInscricaoTerminou(evento, agora)
+}
+
+export function podeReabrirInscricoes(evento: Evento, agora = new Date()): boolean {
+  return evento.situacao === "publicado" && !!evento.inscricoes_encerradas_em && !prazoDeInscricaoTerminou(evento, agora)
+}
+
+/** Fecha (true) ou reabre (false) as inscrições do evento à mão. */
+export async function marcarInscricoesEncerradas(
+  eventoId: string,
+  encerrar: boolean,
+  usuarioId: string | null
+): Promise<{ erro?: string }> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { error } = await admin
+    .from("eventos")
+    .update(
+      encerrar
+        ? { inscricoes_encerradas_em: new Date().toISOString(), inscricoes_encerradas_por: usuarioId }
+        : { inscricoes_encerradas_em: null, inscricoes_encerradas_por: null }
+    )
+    .eq("emp_proprietaria_id", emp)
+    .eq("id", eventoId)
+  if (error) return { erro: `Falha ao ${encerrar ? "fechar" : "reabrir"} as inscrições: ${error.message}` }
+  return {}
 }
 
 // ── Inscrições ───────────────────────────────────────────────────────────────

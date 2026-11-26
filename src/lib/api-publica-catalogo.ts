@@ -99,6 +99,6 @@ export const ENDPOINTS_API: EndpointApi[] = [
     escopo: "eventos",
     descricao: "Eventos (inscrições, encontros, cursos).",
     parametros: [{ nome: "situacao", descricao: "Ex.: publicado, rascunho, cancelado; todos (padrão)" }],
-    campos: "linhas[] { id, titulo, situacao, inicio, termino, local, inscricoesAbremEm, inscricoesFechamEm, limiteInscricoes }",
+    campos: "linhas[] { id, titulo, situacao, inicio, termino, local, inscricoesAbremEm, inscricoesFechamEm, inscricoesEncerradasEm (fechadas à mão; null = não), limiteInscricoes }",
   },
 ]

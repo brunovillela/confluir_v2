@@ -22,6 +22,7 @@ export const GET = rotaApi("eventos", async (req) => {
           local: r.local ?? null,
           inscricoesAbremEm: r.inscricoes_abrem_em ?? null,
           inscricoesFechamEm: r.inscricoes_fecham_em ?? null,
+          inscricoesEncerradasEm: r.inscricoes_encerradas_em ?? null,
           limiteInscricoes: r.limite_inscricoes ?? null,
         }
       }),
