@@ -18,6 +18,7 @@ import {
 import { requirePermissao } from "@/lib/auth"
 import { rotuloMotivo } from "@/lib/contas-funcao-constantes"
 import { obterAcesso } from "@/lib/db/acessos"
+import { OutrosCadastros } from "@/components/outros-cadastros"
 import { hojeSP } from "@/lib/db/comum"
 import { AVISO_SQL_CONTAS, listarOcupacoes, ocupanteNoDia } from "@/lib/db/contas-funcao"
 import { formatarData } from "@/lib/formato"
@@ -105,6 +106,14 @@ export default async function AcessoPage({
             <strong>Conceder login</strong> para enviar o convite por e-mail.
           </AlertDescription>
         </Alert>
+      )}
+
+      {acesso.usuarioId && !acesso.contaFuncao && (
+        <OutrosCadastros
+          usuarioId={acesso.usuarioId}
+          voltar={`/painel/gestao/usuarios/${acesso.id}`}
+          podeUnificar
+        />
       )}
 
       {conta && (

@@ -379,7 +379,63 @@ function NovaPessoa({ aoCancelar }: { aoCancelar: () => void }) {
         ) : (
           <PessoaJaCadastrada pessoa={estado.existente} />
         ))}
+
+      {estado.parecidos && v && (
+        <Alert variant="warning">
+          <AlertDescription className="grid gap-3">
+            <span>
+              Já há {estado.parecidos.length === 1 ? "um cadastro" : `${estado.parecidos.length} cadastros`} com
+              o nome <strong>{v.nome}</strong>, sem este CPF. Pode ser a mesma pessoa num cadastro
+              antigo: {soCadastro ? "confira antes de cadastrar outra." : "se for, conceda o acesso a ele em vez de criar outro."}
+            </span>
+            <ul className="grid gap-2">
+              {estado.parecidos.map((p) => (
+                <li key={p.usuarioId} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-2">
+                  <span className="text-sm">
+                    <strong>{p.nome ?? "(sem nome)"}</strong>
+                    <span className="text-muted-foreground block text-xs">
+                      {p.email ?? "sem e-mail"} · {p.temLogin ? "com login" : "sem login"}
+                    </span>
+                  </span>
+                  {!soCadastro && <ConcederAoParecido usuarioId={p.usuarioId} cpf={v.cpf} />}
+                </li>
+              ))}
+            </ul>
+            {/* Reenvia o que foi digitado com a confirmação de que é outra pessoa. */}
+            <form action={formAction}>
+              <input type="hidden" name="nome_completo" value={v.nome} />
+              <input type="hidden" name="cpf" value={v.cpf} />
+              <input type="hidden" name="email" value={v.email} />
+              <input type="hidden" name="vinculo_instituicao" value={v.vinculo} />
+              <input type="hidden" name="nome_confirmado" value="1" />
+              <Button type="submit" size="sm" variant="outline" disabled={pendente}>
+                {pendente ? <Loader2 className="animate-spin" /> : <UserRoundPlus />}
+                É outra pessoa: cadastrar mesmo assim
+              </Button>
+            </form>
+          </AlertDescription>
+        </Alert>
+      )}
     </div>
+  )
+}
+
+/** "É esta pessoa": concede o acesso ao cadastro antigo e completa nele o CPF digitado. */
+function ConcederAoParecido({ usuarioId, cpf }: { usuarioId: string; cpf: string }) {
+  const [estado, formAction, pendente] = useActionState<EstadoForm, FormData>(
+    concederAcessoAction,
+    {}
+  )
+  return (
+    <form action={formAction} className="grid gap-1">
+      <input type="hidden" name="usuario_id" value={usuarioId} />
+      <input type="hidden" name="cpf" value={cpf} />
+      <Button type="submit" size="sm" disabled={pendente}>
+        {pendente ? <Loader2 className="animate-spin" /> : <UserPlus />}
+        É esta pessoa: conceder acesso
+      </Button>
+      {estado.erro && <span className="text-destructive text-xs">{estado.erro}</span>}
+    </form>
   )
 }
 

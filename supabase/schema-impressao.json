@@ -76,7 +76,7 @@
  "funcao:set_emp_from_jwt()": "ae62c93354d0051083c8b887089cfb70",
  "funcao:set_updated_at()": "6dd1c33f615782ada257661fca7e105c",
  "funcao:unificar_condutores(p_emp uuid, p_principal uuid, p_secundario uuid, p_autor uuid)": "5a8d58efd3255bc817164569f268ae56",
- "funcao:unificar_usuarios(p_emp uuid, p_principal uuid, p_secundario uuid, p_autor uuid, p_simular boolean)": "e15e4370902e1d5da63a4b4dd1d5440f",
+ "funcao:unificar_usuarios(p_emp uuid, p_principal uuid, p_secundario uuid, p_autor uuid, p_simular boolean)": "97cced8e9369c74d05dd995a19451c59",
  "funcao:viagens_solicitar_ao_entrar_diretoria()": "7c792a9c6f28785281c7fa0a5ee0e6b1",
  "funcao:viagens_solicitar_ao_entrar_vinculo()": "a816c1e78882ac93b01e32fc881ecc2f",
  "funcao:votacao_conferencia(p_assembleia_id uuid)": "451a3bd53f35ae20d15c126907815e8a",

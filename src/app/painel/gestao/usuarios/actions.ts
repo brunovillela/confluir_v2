@@ -33,6 +33,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 import { marcarRevogadoNaRevisao } from "@/lib/db/acessos-revisao-ciclo"
 import { CHAVES_PERMISSAO } from "@/lib/permissoes-catalogo"
+import { cpfConfiavel } from "@/lib/cpf"
 
 const CHAVE = "permissoes"
 const ALT = ["gestao_sistema"]
@@ -106,6 +107,19 @@ export async function concederAcessoAction(
   const usuarioId = texto(formData, "usuario_id")
   if (!usuarioId) return { erro: "Selecione a pessoa." }
 
+  // Veio da Nova pessoa ("é esta pessoa", achada pelo nome): o CPF digitado
+  // completa o cadastro antigo, se ele não tiver CPF.
+  const cpf = cpfConfiavel(texto(formData, "cpf"))
+  if (cpf) {
+    const admin = await createAdminClient()
+    await admin
+      .from("usuarios")
+      .update({ cpf, updated_at: new Date().toISOString() })
+      .eq("id", usuarioId)
+      .eq("emp_proprietaria_id", await tenantAtual())
+      .is("cpf", null)
+  }
+
   const { id, erro } = await concederAcesso(usuarioId)
   if (erro) return { erro }
   revalidatePath("/painel/gestao/usuarios")
@@ -135,6 +149,8 @@ export async function novaPessoaAction(
     ...valores,
     vinculo: valores.vinculo || null,
     emailOpcional: soCadastro,
+    conferirNome: true,
+    nomeConfirmado: formData.get("nome_confirmado") === "1",
   })
   if (r.erro || r.existente || !r.usuarioId) return { ...r, valores }
   if (soCadastro) {

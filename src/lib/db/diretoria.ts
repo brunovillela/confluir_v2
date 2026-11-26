@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto"
 import { cpfConfiavel } from "@/lib/cpf"
 import { esquemaAusente, lerEmLotes, texto } from "@/lib/db/comum"
 import { tenantAtual } from "@/lib/tenant"
+import { usuarioPreferidoPorCpf } from "@/lib/db/usuarios-duplicados"
 
 import { createAdminClient } from "@/lib/supabase/admin"
 
@@ -457,16 +458,8 @@ export async function adicionarIntegrante(
     cpf = cpfConfiavel(texto(fil?.cpf))
     if (!nome) nome = texto(fil?.nome_completo) ?? ""
     if (cpf) {
-      const { data: usr } = await admin
-        .from("usuarios")
-        .select("id")
-        .eq("cpf", cpf)
-        .eq("emp_proprietaria_id", await tenantAtual())
-        .not("deletado", "is", true)
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle()
-      usuario_id = texto(usr?.id)
+      // Com mais de um cadastro no CPF, o que tem login (ver usuarios-duplicados).
+      usuario_id = await usuarioPreferidoPorCpf(cpf)
     }
   }
   if (!nome) return { erro: "Informe o nome ou vincule um filiado." }
@@ -532,16 +525,8 @@ export async function atualizarIntegrante(
     patch.cpf = cpf
     patch.nome = dados.nome || texto(fil?.nome_completo) || ""
     if (cpf) {
-      const { data: usr } = await admin
-        .from("usuarios")
-        .select("id")
-        .eq("cpf", cpf)
-        .eq("emp_proprietaria_id", await tenantAtual())
-        .not("deletado", "is", true)
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle()
-      patch.usuario_id = texto(usr?.id)
+      // Com mais de um cadastro no CPF, o que tem login (ver usuarios-duplicados).
+      patch.usuario_id = await usuarioPreferidoPorCpf(cpf)
     } else {
       patch.usuario_id = null
     }

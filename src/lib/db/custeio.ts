@@ -1,4 +1,5 @@
 import "server-only"
+import { usuarioPreferidoPorCpf } from "@/lib/db/usuarios-duplicados"
 import type { Apontamento } from "@/lib/auditoria-confirmacao"
 import { inserirOrdensVerificadasCompat, type Confirmacao } from "@/lib/db/ordens-verificacao"
 import { cpfConfiavel } from "@/lib/cpf"
@@ -1201,17 +1202,9 @@ async function gerarOrdensCusteio(
   const cpf = fornecedorId ? null : cpfConfiavel(texto(c.beneficiario_cpf))
   let usuarioId: string | null = null
   if (cpf) {
-    const { data: u } = await admin
-      .from("usuarios")
-      .select("id")
-      .eq("cpf", cpf)
-      .eq("emp_proprietaria_id", empId)
-      // Cadastro excluído (sobra de mesclagem) não recebe ordem.
-      .not("deletado", "is", true)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle()
-    usuarioId = u ? String(u.id) : null
+    // Excluídos e unificados ficam de fora; com mais de um cadastro no CPF,
+    // o que tem login (ver usuarios-duplicados).
+    usuarioId = await usuarioPreferidoPorCpf(cpf, empId)
   }
 
   const nome = texto(c.beneficiario_nome) ?? "Beneficiário"
@@ -1605,22 +1598,13 @@ async function filiacaoDoBeneficiario(c: Record<string, unknown>): Promise<strin
 
 /** Favorecido das ordens: assessoria → fornecedor; pessoa → usuário pelo CPF; senão avulso. */
 async function favorecidoDoCusteio(c: Record<string, unknown>, empId: string) {
-  const admin = await createAdminClient()
   const fornecedorId = c.tipo_beneficiario === "assessoria" ? texto(c.fornecedor_id) : null
   const cpf = fornecedorId ? null : cpfConfiavel(texto(c.beneficiario_cpf))
   let usuarioId: string | null = null
   if (cpf) {
-    const { data: u } = await admin
-      .from("usuarios")
-      .select("id")
-      .eq("cpf", cpf)
-      .eq("emp_proprietaria_id", empId)
-      // Cadastro excluído (sobra de mesclagem) não recebe ordem.
-      .not("deletado", "is", true)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle()
-    usuarioId = u ? String(u.id) : null
+    // Excluídos e unificados ficam de fora; com mais de um cadastro no CPF,
+    // o que tem login (ver usuarios-duplicados).
+    usuarioId = await usuarioPreferidoPorCpf(cpf, empId)
   }
   const nome = texto(c.beneficiario_nome) ?? "Beneficiário"
   return {

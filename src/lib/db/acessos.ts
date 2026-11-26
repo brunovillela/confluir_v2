@@ -14,6 +14,7 @@ import {
   CHAVES_PERMISSAO,
 } from "@/lib/permissoes-catalogo"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { cadastrosPorCpf, cadastrosPorNome } from "@/lib/db/usuarios-duplicados"
 import { origemAtual } from "@/lib/tenant-url"
 import { VINCULOS_INSTITUICAO } from "@/lib/vinculos-instituicao"
 
@@ -222,13 +223,19 @@ export type PessoaExistente = {
   nome: string | null
   email: string | null
   /** Por que achamos que é ela. */
-  motivo: "cpf" | "email"
+  motivo: "cpf" | "email" | "nome"
+  temLogin?: boolean
 }
 
 export type ResultadoNovaPessoa = {
   erro?: string
   /** A pessoa já está em `usuarios`: conceder acesso a ela, não cadastrar de novo. */
   existente?: PessoaExistente
+  /**
+   * Já há cadastro com o mesmo nome (sem o CPF digitado): pode ser a mesma
+   * pessoa num cadastro antigo. Quem cadastra confirma antes de criar outro.
+   */
+  parecidos?: PessoaExistente[]
   usuarioId?: string
   /** Cadastrada sem acesso próprio (usa uma conta de função): o nome, para o aviso. */
   cadastrado?: string
@@ -247,6 +254,9 @@ export type ResultadoNovaPessoa = {
  * - E-mail já em `usuarios`: sem CPF lá, é provavelmente a mesma pessoa
  *   (cadastro antigo) → existente; com outro CPF → erro, porque o login é
  *   pelo e-mail e duas pessoas não podem dividi-lo.
+ * - Nome completo já em `usuarios` (com CPF vazio ou igual) e `conferirNome`
+ *   → devolve os parecidos; só cria com `nomeConfirmado` (25/11/2026: o
+ *   Bubble deixou cadastros sem CPF, e a mesma pessoa ganhava outro).
  * - `emailOpcional`: quem não terá acesso próprio (usa uma conta de função,
  *   como recepcao@) pode ficar sem e-mail; informado, passa pelas mesmas regras.
  */
@@ -256,6 +266,10 @@ export async function cadastrarPessoa(dados: {
   email: string
   vinculo: string | null
   emailOpcional?: boolean
+  /** Procura cadastros com o mesmo nome antes de criar. */
+  conferirNome?: boolean
+  /** Quem cadastra já viu os parecidos e confirmou que é outra pessoa. */
+  nomeConfirmado?: boolean
 }): Promise<ResultadoNovaPessoa> {
   const nome = dados.nome.trim().replace(/\s+/g, " ")
   const email = dados.email.trim().toLowerCase()
@@ -272,26 +286,30 @@ export async function cadastrarPessoa(dados: {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
 
-  const { data: porCpf } = await admin
-    .from("usuarios")
-    .select("id, nome_completo, email, deletado")
-    .eq("emp_proprietaria_id", emp)
-    .in("cpf", grafiasDoCpf(cpf))
-    .order("deletado", { ascending: true })
-    .limit(1)
-    .maybeSingle()
-  if (porCpf) {
-    if (porCpf.deletado) {
-      return { erro: "Este CPF pertence a um cadastro excluído do sistema. Fale com o suporte para reativá-lo." }
-    }
+  // Com mais de um cadastro no CPF, o preferido: com login, com acesso, o mais antigo.
+  const [vivo] = await cadastrosPorCpf(cpf)
+  if (vivo) {
     return {
       existente: {
-        usuarioId: String(porCpf.id),
-        nome: texto(porCpf.nome_completo),
-        email: texto(porCpf.email),
+        usuarioId: vivo.usuarioId,
+        nome: vivo.nome,
+        email: vivo.email,
         motivo: "cpf",
+        temLogin: vivo.temLogin,
       },
     }
+  }
+  const { data: excluido } = await admin
+    .from("usuarios")
+    .select("id")
+    .eq("emp_proprietaria_id", emp)
+    .in("cpf", grafiasDoCpf(cpf))
+    .eq("deletado", true)
+    .is("unificado_em_id", null)
+    .limit(1)
+    .maybeSingle()
+  if (excluido) {
+    return { erro: "Este CPF pertence a um cadastro excluído do sistema. Fale com o suporte para reativá-lo." }
   }
 
   const { data: porEmail } = email
@@ -322,6 +340,25 @@ export async function cadastrarPessoa(dados: {
         email: texto(porEmail.email),
         motivo: "email",
       },
+    }
+  }
+
+  if (dados.conferirNome && !dados.nomeConfirmado) {
+    // CPF diferente preenchido nos dois = outra pessoa com o mesmo nome.
+    const parecidos = (await cadastrosPorNome(nome)).filter((c) => {
+      const outro = cpfConfiavel(c.cpf)
+      return !outro || outro === cpf
+    })
+    if (parecidos.length > 0) {
+      return {
+        parecidos: parecidos.slice(0, 5).map((c) => ({
+          usuarioId: c.usuarioId,
+          nome: c.nome,
+          email: c.email,
+          motivo: "nome",
+          temLogin: c.temLogin,
+        })),
+      }
     }
   }
 

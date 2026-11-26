@@ -25,6 +25,8 @@ import type { EmpresaOpcao } from "@/components/empresa-combobox"
 
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 
+import { OutrosCadastros } from "@/components/outros-cadastros"
+
 import { DiariasDoIntegrante } from "./diarias-do-integrante"
 import { FichaDiretorForm } from "./ficha-form"
 
@@ -93,6 +95,16 @@ export default async function DiretorPage({
           {integrante.cpf && <> · CPF {formatarCnpjCpf(integrante.cpf)}</>}
         </p>
       </div>
+
+      {integrante.usuarioId && (
+        <OutrosCadastros
+          usuarioId={integrante.usuarioId}
+          voltar={`/painel/institucional/diretoria/${mandatoId}/${integranteId}`}
+          podeUnificar={
+            sessao.permissoes["permissoes"] === true || sessao.permissoes["gestao_sistema"] === true
+          }
+        />
+      )}
 
       <FichaDiretorForm
         integranteId={integranteId}
