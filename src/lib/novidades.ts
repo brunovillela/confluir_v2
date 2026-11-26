@@ -16,6 +16,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-11-26",
     titulo: "Ordens: filtro por projeto com as ordens das compras",
     itens: [
+      "Portal do associado, votação e oposição: o filiado com dois e-mails no cadastro (o pessoal e o da empresa) recebe o código nos dois e agora entra por qualquer um deles. Antes, depois de entrar por um, o outro dava \"Este CPF já está vinculado a outra conta de acesso\".",
       "Arquivos enviados ficam menores: em qualquer campo de arquivo, a foto grande (de celular, por exemplo) é reduzida antes de sair do navegador — sem diferença visível — e o envio espera ela ficar pronta; foto acima de 4 MB deixa de dar erro. No servidor, fotos e PDFs sem assinatura são compactados antes de guardar. Documentos com assinatura digital (gov.br, ICP-Brasil) e os PDFs assinados pelo sistema são guardados exatamente como vieram.",
       "Aquisição: a nova compra ganhou o campo Finalidade (para quê), obrigatório — ele entra na descrição da ordem e era o que a auditoria mais cobrava. Na compra vinculada a um projeto, a finalidade é opcional: o projeto já diz para quê, e a auditoria não a cobra.",
       "Ordens devolvidas de qualquer origem: quem lançou um reembolso, uma diária ou um custeio devolvido agora é avisado e lembrado toda semana, como já era nas compras. Na caixa de entrada, o item Ordens devolvidas para você abre Minhas ordens devolvidas, com o motivo e o botão Abrir a origem, onde se corrige.",

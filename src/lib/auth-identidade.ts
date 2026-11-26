@@ -29,7 +29,9 @@ import { tenantAtual } from "@/lib/tenant"
  *      filiado); o CPF é a autodeclaração do opositor, como sempre foi.
  *   3. Conta já vinculada a OUTRO CPF: recusa (e-mail compartilhado entre
  *      pessoas diferentes — dado legado — se resolve na secretaria).
- *   4. CPF já vinculado a OUTRA conta: recusa (índice único no banco).
+ *   4. CPF já vinculado a OUTRA conta: recusa (índice único no banco) —
+ *      exceto o filiado provado pelo e-mail do cadastro, para quem o vínculo
+ *      passa à conta que acabou de entrar (dois e-mails no cadastro, 26/11).
  *   5. Mesmo CPF: idempotente; um não filiado que se filia vira `filiado`.
  */
 
@@ -156,14 +158,33 @@ export async function vincularIdentidade(dados: {
   }
 
   const nome = tipo === "nao_filiado" ? (dados.nome ?? null) : null
-  const { error } = await admin.from("auth_identidades").insert({
+  const linha = {
     auth_user_id: dados.userId,
     emp_proprietaria_id: emp,
     tipo,
     cpf,
     nome,
     vinculada_por: dados.por,
-  })
+  }
+  let { error } = await admin.from("auth_identidades").insert(linha)
+  // Filiado com DOIS e-mails no cadastro (pessoal e da empresa): o código vai
+  // aos dois, e cada e-mail é uma conta de acesso. Entrar pelo segundo batia
+  // no "CPF já vinculado a outra conta" (26/11/2026). Aqui a prova é a mesma
+  // da regra 1 — o e-mail desta conta é do cadastro deste CPF —, então o
+  // vínculo passa para esta conta; a outra volta a ele quando entrar de novo
+  // pelo e-mail dela (se ainda for do cadastro). O não filiado não passa por
+  // aqui: o CPF dele é só declarado e não pode ser tomado por outra conta.
+  // (Um vínculo antigo de "não filiado" com este CPF também cede: a prova
+  // pelo cadastro é mais forte que a autodeclaração.)
+  if (error?.code === "23505" && tipo === "filiado") {
+    await admin
+      .from("auth_identidades")
+      .delete()
+      .eq("emp_proprietaria_id", emp)
+      .eq("cpf", cpf)
+      .neq("auth_user_id", dados.userId)
+    ;({ error } = await admin.from("auth_identidades").insert(linha))
+  }
   if (error) {
     // 23505 = o CPF já é de outra conta (índice único por tenant).
     if (error.code === "23505") return { ok: false, erro: ERRO_CPF_EM_OUTRA_CONTA }
