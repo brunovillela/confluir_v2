@@ -211,13 +211,16 @@ export function MarcosProjeto({
   marcos,
   hoje,
   editor,
+  abertoInicial = false,
 }: {
   projetoId: string
   marcos: MarcoProjeto[]
   hoje: string
   editor: boolean
+  /** Já abre com o formulário do novo marco (botão Novo marco do topo). */
+  abertoInicial?: boolean
 }) {
-  const [novo, setNovo] = useState(false)
+  const [novo, setNovo] = useState(abertoInicial)
   const cumpridos = marcos.filter((m) => m.concluidoEm).length
   return (
     <div className="grid gap-4">

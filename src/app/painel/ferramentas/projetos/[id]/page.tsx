@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, CircleAlert, Pencil } from "lucide-react"
+import { ArrowLeft, CircleAlert, Flag, Pencil, Plus } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -44,7 +44,8 @@ export default async function ProjetoPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ salvo?: string }>
+  /** incluir: abre o cartão vazio de Marcos ou de Tarefas com o formulário (botões do topo). */
+  searchParams: Promise<{ salvo?: string; incluir?: string }>
 }) {
   const sessao = await requirePermissao("ferramentas_projetos", [
     "ferramentas_projetos_edicao",
@@ -54,7 +55,7 @@ export default async function ProjetoPage({
   const editaTarefas = editor || podeAcessar(sessao.permissoes, "ferramentas_tarefas", ["ferramentas_demandas"])
   const veDemandas = podeAcessar(sessao.permissoes, "ferramentas_demandas", ["ferramentas_tarefas"])
   const { id } = await params
-  const { salvo } = await searchParams
+  const { salvo, incluir } = await searchParams
 
   const [projeto, tarefas, demanda, pessoas, avulsas, marcos, modelos, destinos, transferencias] = await Promise.all([
     obterProjeto(id),
@@ -72,6 +73,12 @@ export default async function ProjetoPage({
   const transfere = editor && projeto.finalizado !== true
   const concluidas = tarefas.tarefas.filter((t) => t.concluido).length
   const pendentes = tarefas.tarefas.length - concluidas
+  // Marcos e Tarefas só aparecem com histórico; vazios, quem edita os começa
+  // pelos botões do topo (que abrem o cartão com o formulário).
+  const criaMarco = editor && !projeto.finalizado
+  const criaTarefa = editaTarefas && !projeto.finalizado
+  const mostraMarcos = marcos.length > 0 || (criaMarco && incluir === "marco")
+  const mostraTarefas = tarefas.tarefas.length > 0 || (criaTarefa && incluir === "tarefa")
 
   const saldo =
     projeto.orcamento != null ? projeto.orcamento - projeto.gasto.total : null
@@ -122,8 +129,26 @@ export default async function ProjetoPage({
           <SeloSituacaoProjeto nivel={situacao.nivel} motivos={situacao.motivos} />
           {projeto.estrategico && <Badge variant="secondary">Estratégico</Badge>}
         </div>
-        {editor && (
+        {(editor || (criaTarefa && !mostraTarefas)) && (
           <div className="flex flex-wrap items-start gap-2">
+            {criaMarco && !mostraMarcos && (
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/painel/ferramentas/projetos/${id}?incluir=marco#marcos`} scroll={false}>
+                  <Flag />
+                  Novo marco
+                </Link>
+              </Button>
+            )}
+            {criaTarefa && !mostraTarefas && (
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/painel/ferramentas/projetos/${id}?incluir=tarefa#tarefas`} scroll={false}>
+                  <Plus />
+                  Nova tarefa
+                </Link>
+              </Button>
+            )}
+            {editor && (
+            <>
             <Button variant="outline" size="sm" asChild>
               <Link href={`/painel/ferramentas/projetos/${id}/editar`}>
                 <Pencil />
@@ -134,6 +159,8 @@ export default async function ProjetoPage({
               <UsarModelo modo="projeto" alvoId={id} modelos={modelos.map((m) => ({ id: m.id, nome: m.nome }))} />
             )}
             <ProjetoAcoes projetoId={id} finalizado={projeto.finalizado === true} pendentes={pendentes} />
+            </>
+            )}
           </div>
         )}
       </div>
@@ -210,11 +237,19 @@ export default async function ProjetoPage({
         </Card>
       </div>
 
-      <Card>
-        <CardContent>
-          <MarcosProjeto projetoId={id} marcos={marcos} hoje={hoje} editor={editor && !projeto.finalizado} />
-        </CardContent>
-      </Card>
+      {mostraMarcos && (
+        <Card id="marcos">
+          <CardContent>
+            <MarcosProjeto
+              projetoId={id}
+              marcos={marcos}
+              hoje={hoje}
+              editor={criaMarco}
+              abertoInicial={marcos.length === 0}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {(marcos.length > 0 || tarefas.tarefas.some((t) => t.inicio || t.prazo)) && (
         <Card>
@@ -243,7 +278,8 @@ export default async function ProjetoPage({
         </Card>
       )}
 
-      <Card>
+      {mostraTarefas && (
+      <Card id="tarefas">
         <CardContent className="grid gap-4">
           {(() => {
             const titulo = (
@@ -267,6 +303,7 @@ export default async function ProjetoPage({
                 pai={{ campo: "projeto_id", id }}
                 avulsas={avulsas}
                 cabecalho={titulo}
+                abertoInicial={tarefas.tarefas.length === 0}
                 dica={
                   demanda
                     ? undefined
@@ -286,6 +323,7 @@ export default async function ProjetoPage({
           />
         </CardContent>
       </Card>
+      )}
 
       <EventosDoProjeto eventos={projeto.eventos} />
       <DespesasDoProjeto

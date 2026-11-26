@@ -326,6 +326,7 @@ export function IncluirTarefas({
   dica,
   cabecalho,
   rotuloNova = "Nova tarefa",
+  abertoInicial = false,
 }: {
   pessoas: OpcaoPessoa[]
   pai: PaiFixo
@@ -334,8 +335,10 @@ export function IncluirTarefas({
   /** Fica à esquerda, na mesma linha dos botões (título do cartão). */
   cabecalho?: ReactNode
   rotuloNova?: string
+  /** Já abre com o formulário da nova tarefa. */
+  abertoInicial?: boolean
 }) {
-  const [aberto, setAberto] = useState<"nova" | "vincular" | null>(null)
+  const [aberto, setAberto] = useState<"nova" | "vincular" | null>(abertoInicial ? "nova" : null)
   const alternar = (qual: "nova" | "vincular") => setAberto((a) => (a === qual ? null : qual))
   return (
     <div className="grid gap-3">
