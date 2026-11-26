@@ -428,7 +428,7 @@
 <a id="p10"></a>
 ## P10. Pessoal: RH dos funcionários da entidade
 
-**Finalidade.** Gestão dos funcionários da própria entidade: cadastro, ponto, férias, folha e contracheques, diárias, benefícios, SST (ASO, atestados, treinamentos), envio do movimento à contabilidade e o tempo de uso do painel fora do expediente (`pessoal_uso_painel`: só quem, início e fim de cada bloco de uso, sem página nem conteúdo; só de quem tem jornada vinculada) e o motivo que o funcionário informa para esse uso (`pessoal_uso_justificativas`).
+**Finalidade.** Gestão dos funcionários da própria entidade: cadastro, ponto, férias, folha e contracheques, diárias, benefícios, SST (ASO, atestados, treinamentos), envio do movimento à contabilidade e o tempo de uso do painel fora do expediente (`pessoal_uso_painel`: só quem, início e fim de cada bloco de uso, sem página nem conteúdo; só de quem tem jornada vinculada) e o motivo que o funcionário informa para esse uso (`pessoal_uso_justificativas`); e o plano de saúde (`pessoal_saude_*`): contrato, tabelas por faixa etária, regras de custeio, quem está no plano (titular, dependentes, agregados e ex-funcionários que o mantiveram, arts. 30 e 31 da Lei 9.656) e, se houver, a coparticipação do mês — só o valor, nunca o procedimento.
 
 **Titulares.** Funcionários da entidade, dependentes (inclusive menores), prestadores autônomos.
 
@@ -445,7 +445,7 @@
 
 **Transferência internacional.** Vercel: Funções em São Paulo (gru1); empresa e rede de borda nos EUA; Sentry: União Europeia (Alemanha); Brevo / Resend: Brevo: União Europeia (França); Resend: EUA; Telegram: Exterior; OpenAI: EUA; Bubble (sistema legado): EUA. Mecanismo do art. 33: cláusulas contratuais (Resolução CD/ANPD 19/2024), a verificar na B2.
 
-**Retenção.** Documentos trabalhistas: prazo legal de cada um (FGTS e ponto: 5 anos; ASO e exposição: 20 anos, NR-07; informes de rendimentos: 5 anos). Uso do sistema fora do expediente e motivos informados: 5 anos (RT37, no motor de retenção). Códigos RT18–RT21 em retencao.md (proposta a validar).
+**Retenção.** Documentos trabalhistas: prazo legal de cada um (FGTS e ponto: 5 anos; ASO e exposição: 20 anos, NR-07; informes de rendimentos: 5 anos). Plano de saúde (adesões, regras e coparticipação): 5 anos após a exclusão do beneficiário, como o RT18. Uso do sistema fora do expediente e motivos informados: 5 anos (RT37, no motor de retenção). Códigos RT18–RT21 em retencao.md (proposta a validar).
 
 **Medidas de segurança.** RLS por tenant; acesso por permissão do módulo Pessoal; contracheque liberado individualmente ao funcionário.
 

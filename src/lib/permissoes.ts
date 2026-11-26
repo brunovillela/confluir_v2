@@ -226,6 +226,14 @@ export const MODULOS: Modulo[] = [
     oculto: true,
   },
   {
+    titulo: "Plano de saúde",
+    href: "/painel/pessoal/plano-saude",
+    icone: "BriefcaseBusiness",
+    descricao: "Contratos, tabelas por faixa etária, regras de custeio e a conferência do mês",
+    chave: "pessoal_gestao",
+    oculto: true,
+  },
+  {
     titulo: "Treinamentos",
     href: "/painel/pessoal/treinamentos",
     icone: "BriefcaseBusiness",

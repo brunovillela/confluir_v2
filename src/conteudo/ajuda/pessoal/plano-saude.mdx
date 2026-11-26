@@ -1,0 +1,98 @@
+O **plano de saúde** dos funcionários fica em **Pessoal → Plano de saúde**: o
+contrato com a operadora, a tabela de preço de cada produto nas faixas etárias
+da ANS, quanto a entidade paga e quanto é descontado de cada um, quem pode ser
+dependente e quem está no plano. Com isso, o sistema faz a **conferência do
+mês** que antes era feita à mão.
+
+<RequerPermissao>Gestão de Pessoal</RequerPermissao>
+
+## Passo a passo
+
+<PassoAPasso>
+  <Passo titulo="O contrato">
+    Em **Novo contrato**, informe o nome, a operadora, o tipo de contratação e o
+    **mês de aniversário** (o mês do reajuste anual). Diga também quando o preço
+    da nova faixa etária passa a valer: no mês seguinte ao aniversário (o mais
+    comum) ou já no mês do aniversário. Se o contrato cobra coparticipação, marque.
+    Se ele já está em **Contratos**, ligue-o para reunir fornecedor, vigência e
+    arquivo. Pode haver mais de um contrato.
+  </Passo>
+  <Passo titulo="Os produtos">
+    Cada plano do contrato (Básico, Executivo…), com o registro na ANS e a
+    acomodação.
+  </Passo>
+  <Passo titulo="A tabela de preço">
+    Para cada produto, o preço das **10 faixas etárias da ANS** (0 a 18, 19 a 23
+    … 59 ou mais) e a data a partir da qual vale. No reajuste, use **Nova tabela
+    (reajuste)**: informe o percentual e clique em **Aplicar sobre a tabela
+    atual** para preencher os valores, confira com a carta da operadora e grave.
+    A tabela anterior fica guardada, então os meses passados continuam certos.
+  </Passo>
+  <Passo titulo="As regras de custeio">
+    Quanto a entidade paga: um **percentual da mensalidade** (100%, 50%…) ou um
+    **valor fixo**, com teto opcional. O resto vira desconto do funcionário.
+    Cada regra pode valer só para alguns beneficiários (titular, cônjuge,
+    filhos, agregados), condições do titular (ativo, demitido ou aposentado que
+    manteve o plano), produtos, cargos, departamentos, pessoas, idades ou um
+    período. Com coparticipação, diga quanto dela é descontado do funcionário
+    e o limite por mês.
+  </Passo>
+  <Passo titulo="Os dependentes">
+    Quais graus podem entrar no plano e até que idade, com uma idade maior
+    para quem comprova ser estudante.
+  </Passo>
+  <Passo titulo="Quem está no plano">
+    Em **Incluir no plano**, escolha o titular e o produto e informe se é o
+    próprio funcionário, um dependente dele ou um agregado. O dependente vem do
+    cadastro do funcionário; se ainda não estiver lá, **Cadastrar dependente
+    novo** cria o registro também no Pessoal. Para tirar alguém do plano,
+    **edite** e informe a data de exclusão: o histórico fica.
+  </Passo>
+</PassoAPasso>
+
+## A regra que vale
+
+As regras são conferidas pela **prioridade**, da menor para a maior, e vale a
+**primeira que casa** com o beneficiário. Ponha as exceções antes da regra
+geral. Exemplo:
+
+| Prioridade | Regra | Para |
+| --- | --- | --- |
+| 1 | Aposentados pagam tudo (entidade 0%) | Condição: aposentado ou demitido |
+| 10 | Titular 100% | Beneficiário: titular |
+| 20 | Diretoria: dependentes 100% | Cargo: Diretor |
+| 100 | Dependentes 50% | Todos |
+
+Os **aposentados e demitidos que mantêm o plano** (arts. 30 e 31 da Lei 9.656)
+entram como titulares com essa condição, e a regra deles diz quanto pagam.
+
+## A conferência do mês
+
+Em **Conferência do mês**, cada contrato mostra, titular por titular:
+
+- cada beneficiário com a **idade e a faixa do mês**, a mensalidade da tabela
+  vigente, a parte da entidade e a do funcionário, e a regra usada;
+- o total do titular e, com coparticipação, o campo para lançar o valor do mês
+  (só o total; o procedimento nunca é registrado);
+- **o que mudou** em relação ao mês anterior: mudança de faixa, tabela nova,
+  entrada, saída e o desconto anterior → novo;
+- os **alertas**: dependente que perdeu o direito pela idade, comprovante de
+  estudante vencido, beneficiário sem data de nascimento, produto sem tabela
+  vigente ou sem regra de custeio.
+
+Os quadros do topo somam as mensalidades, a parte da entidade e os descontos,
+para comparar com a fatura da operadora.
+
+<Aviso tipo="nota" titulo="Tabela fora da regra da ANS">
+  Ao gravar uma tabela, o sistema confere a Resolução Normativa nº 63 da ANS:
+  a última faixa não pode custar mais de 6 vezes a primeira, e a variação da
+  7ª para a 10ª faixa não pode passar a da 1ª para a 7ª. Se a tabela quebrar
+  uma regra, o aviso aparece e é preciso marcar **Gravar mesmo assim**.
+</Aviso>
+
+<VejaTambem
+  links={[
+    { href: "/painel/ajuda/pessoal/funcionarios", titulo: "Funcionários" },
+    { href: "/painel/ajuda/pessoal/movimento-folha", titulo: "Movimento da folha" },
+  ]}
+/>

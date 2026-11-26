@@ -173,6 +173,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "Tipos de reembolso do ACT, avaliação e pagamento em folha",
       },
       {
+        slug: "plano-saude",
+        titulo: "Plano de saúde",
+        resumo: "Contrato, tabelas por faixa etária, regras de custeio e de dependentes, e a conferência do mês",
+      },
+      {
         slug: "informes",
         titulo: "Informes de rendimentos",
         resumo: "A geração dos informes anuais e a liberação ao funcionário",

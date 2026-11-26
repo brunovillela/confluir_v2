@@ -10,6 +10,7 @@ import {
   FileBadge,
   GraduationCap,
   HandCoins,
+  HeartHandshake,
   HeartPulse,
   ReceiptText,
   ShieldAlert,
@@ -299,6 +300,14 @@ export default async function PessoalPage() {
           ? "Rode supabase/reembolsos-act.sql para ativar"
           : "Benefícios do acordo pagos no contracheque",
       icone: ReceiptText,
+    },
+    {
+      mostrar: veGestao,
+      href: "/painel/pessoal/plano-saude",
+      titulo: "Plano de saúde",
+      indicador: "Contratos e conferência do mês",
+      descricao: "Tabelas por faixa etária, custeio e dependentes",
+      icone: HeartHandshake,
     },
     {
       mostrar: veGestao,

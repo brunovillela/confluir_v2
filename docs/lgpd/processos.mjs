@@ -155,7 +155,7 @@ export const PROCESSOS = [
     id: "P10",
     nome: "Pessoal: RH dos funcionários da entidade",
     tabelas: /^(aso$|pes_|pessoal_|prestadores_|prestcont_|empresa_departamentos_integrantes$)/,
-    finalidade: "Gestão dos funcionários da própria entidade: cadastro, ponto, férias, folha e contracheques, diárias, benefícios, SST (ASO, atestados, treinamentos), envio do movimento à contabilidade e o tempo de uso do painel fora do expediente (`pessoal_uso_painel`: só quem, início e fim de cada bloco de uso, sem página nem conteúdo; só de quem tem jornada vinculada) e o motivo que o funcionário informa para esse uso (`pessoal_uso_justificativas`).",
+    finalidade: "Gestão dos funcionários da própria entidade: cadastro, ponto, férias, folha e contracheques, diárias, benefícios, SST (ASO, atestados, treinamentos), envio do movimento à contabilidade e o tempo de uso do painel fora do expediente (`pessoal_uso_painel`: só quem, início e fim de cada bloco de uso, sem página nem conteúdo; só de quem tem jornada vinculada) e o motivo que o funcionário informa para esse uso (`pessoal_uso_justificativas`); e o plano de saúde (`pessoal_saude_*`): contrato, tabelas por faixa etária, regras de custeio, quem está no plano (titular, dependentes, agregados e ex-funcionários que o mantiveram, arts. 30 e 31 da Lei 9.656) e, se houver, a coparticipação do mês — só o valor, nunca o procedimento.",
     titulares: "Funcionários da entidade, dependentes (inclusive menores), prestadores autônomos",
     baseLegal: [
       "Art. 7º, II e V: obrigações trabalhistas, previdenciárias e fiscais; contrato de trabalho.",
@@ -163,7 +163,7 @@ export const PROCESSOS = [
     ],
     compartilhamento: "Escritório de contabilidade (movimento da folha), eSocial/órgãos públicos, plano de saúde.",
     suboperadores: [...BASE, "email", "telegram", "openai", "bubble"],
-    retencao: "Documentos trabalhistas: prazo legal de cada um (FGTS e ponto: 5 anos; ASO e exposição: 20 anos, NR-07; informes de rendimentos: 5 anos). Uso do sistema fora do expediente e motivos informados: 5 anos (RT37, no motor de retenção). Códigos RT18–RT21 em retencao.md (proposta a validar).",
+    retencao: "Documentos trabalhistas: prazo legal de cada um (FGTS e ponto: 5 anos; ASO e exposição: 20 anos, NR-07; informes de rendimentos: 5 anos). Plano de saúde (adesões, regras e coparticipação): 5 anos após a exclusão do beneficiário, como o RT18. Uso do sistema fora do expediente e motivos informados: 5 anos (RT37, no motor de retenção). Códigos RT18–RT21 em retencao.md (proposta a validar).",
     seguranca: "RLS por tenant; acesso por permissão do módulo Pessoal; contracheque liberado individualmente ao funcionário.",
     observacoes: "Comprovantes mandados ao bot do Telegram (recibo de reembolso, atestado) passam pelo Telegram e pela IA por iniciativa do próprio funcionário; o chat mostra só o período do atestado. Pendências: a resenha do ponto envia à IA até 30 funcionários por nome (com os totais de uso do sistema fora do expediente, sem horários nem o texto do motivo); `pessoal_folha_competencias.snapshot` guarda cópia de dados pessoais; documentos ainda no CDN do Bubble.",
   },

@@ -90,7 +90,8 @@ const LANCAMENTOS: { tabela: string; coluna: string; rotulo: string; plural: str
   { tabela: "pessoal_nivel_salarial", coluna: "funcionario_id", rotulo: "lançamento de nível salarial", plural: "lançamentos de nível salarial" },
   { tabela: "pessoal_anuenio", coluna: "funcionario_id", rotulo: "lançamento de anuênio", plural: "lançamentos de anuênio" },
   { tabela: "pessoal_atividades_executores", coluna: "funcionario_id", rotulo: "atividade avaliada (SST)", plural: "atividades avaliadas (SST)" },
-  { tabela: "pessoal_plano_saude", coluna: "titular_id", rotulo: "plano de saúde", plural: "planos de saúde" },
+  { tabela: "pessoal_saude_beneficiarios", coluna: "titular_id", rotulo: "registro no plano de saúde", plural: "registros no plano de saúde" },
+  { tabela: "pessoal_saude_coparticipacoes", coluna: "titular_id", rotulo: "coparticipação do plano de saúde", plural: "coparticipações do plano de saúde" },
 ]
 
 /** Configuração do funcionário no Pessoal — sai junto quando ele é excluído. */
