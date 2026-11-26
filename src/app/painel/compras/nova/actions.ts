@@ -1,6 +1,6 @@
 "use server"
 
-import { comQuantidade, lerQuantidade } from "@/lib/compras-quantidade"
+import { comQuantidade, FINALIDADE_MINIMA, lerQuantidade } from "@/lib/compras-quantidade"
 import { revalidatePath } from "next/cache"
 import { enviarLinkAutomatico } from "@/lib/db/rpa-assinatura"
 import { validarNitPis } from "@/lib/cpf"
@@ -153,7 +153,14 @@ export async function criarCompra(
     if (quantidade === null) return { erro: "Informe a quantidade (um número maior que zero).", campo: "quantidade" }
     const unidade = texto(formData, "unidade")
     if (!unidade) return { erro: "Informe a unidade (unidades, caixas, kg, serviço…).", campo: "unidade" }
-    produto = comQuantidade(produtoDigitado, quantidade, unidade.slice(0, 40))
+    // Finalidade (26/11/2026): obrigatória, salvo na compra de um projeto —
+    // o projeto já diz para quê.
+    const finalidade = texto(formData, "finalidade").replace(/\s+/g, " ").slice(0, 300)
+    const deProjeto = texto(formData, "com_projeto") === "on" && !!texto(formData, "projeto_id")
+    if (formData.has("finalidade") && !deProjeto && finalidade.length < FINALIDADE_MINIMA) {
+      return { erro: "Diga para quê é a compra (a finalidade) — ou vincule-a a um projeto.", campo: "finalidade" }
+    }
+    produto = comQuantidade(produtoDigitado, quantidade, unidade.slice(0, 40), finalidade || null)
   }
   // O que a IA disse faltar, respondido na tela de confirmação (23/11/2026).
   const complemento = texto(formData, "complemento_descricao").slice(0, 800)

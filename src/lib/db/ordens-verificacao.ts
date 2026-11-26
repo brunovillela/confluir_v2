@@ -253,12 +253,14 @@ async function avaliarDescricaoIA(
   descricao: string,
   criterios: string,
   tipo: string,
-  valor: number | null
+  valor: number | null,
+  /** Compra de projeto (26/11/2026): a finalidade é a do projeto — não se cobra. */
+  projeto: string | null = null
 ): Promise<{ status: StatusVerificacao; detalhe: string }> {
-  const chave = JSON.stringify([await tenantAtual(), descricao, criterios, tipo, valor])
+  const chave = JSON.stringify([await tenantAtual(), descricao, criterios, tipo, valor, projeto])
   const guardado = PARECERES_IA.get(chave)
   if (guardado && Date.now() - guardado.em < PARECER_IA_MS) return guardado.parecer
-  const parecer = await consultarIA(descricao, criterios, tipo, valor)
+  const parecer = await consultarIA(descricao, criterios, tipo, valor, projeto)
   // Falha da IA não fica guardada: a próxima análise tenta de novo.
   if (parecer.status !== "na") {
     if (PARECERES_IA.size > 500) PARECERES_IA.clear()
@@ -271,7 +273,8 @@ async function consultarIA(
   descricao: string,
   criterios: string,
   tipo: string,
-  valor: number | null
+  valor: number | null,
+  projeto: string | null = null
 ): Promise<{ status: StatusVerificacao; detalhe: string }> {
   const { dados, erro } = await gerarJsonIA({ processo: "financeiro.ordens_verificacao",
     system: SISTEMA_DESCRICAO,
@@ -280,6 +283,11 @@ async function consultarIA(
       `Tipo da ordem: ${tipo}`,
       `Valor: ${valor === null ? "—" : formatarMoeda(valor)}`,
       `Descrição: ${descricao}`,
+      ...(projeto
+        ? [
+            `Compra vinculada ao projeto "${projeto}". A finalidade é a do projeto: NÃO aponte falta de finalidade, justificativa ou "para quê" — avalie só o restante dos critérios (o quê, a quantidade…).`,
+          ]
+        : []),
     ].join("\n"),
   })
   if (erro || !dados) return { status: "na", detalhe: `IA indisponível — não avaliada (${erro ?? "sem resposta"}).` }
@@ -309,12 +317,13 @@ export async function regraDescricaoCompras(): Promise<{ ativa: boolean; criteri
  */
 export async function conferirDescricaoCompra(
   descricao: string,
-  valor: number | null
+  valor: number | null,
+  projeto: string | null = null
 ): Promise<{ status: StatusVerificacao; detalhe: string }> {
   const { ativa, criterios, valorMinimo } = await regraDescricaoCompras()
   if (!ativa) return { status: "na", detalhe: "A auditoria não avalia a descrição." }
   if (valor !== null && valor < valorMinimo) return { status: "na", detalhe: `Abaixo de ${formatarMoeda(valorMinimo)} — não avaliada.` }
-  return avaliarDescricaoIA(descricao, criterios, "Compras", valor)
+  return avaliarDescricaoIA(descricao, criterios, "Compras", valor, projeto)
 }
 
 /** A descrição-base avaliada pela IA (sem o "parcela x/y" do lote nem o "(pagamento n)" da compra). */
@@ -550,10 +559,16 @@ async function verificarLinha(
           r("na", `Abaixo de ${formatarMoeda(minimo)} — não avaliada.`)
           break
         }
+        // Compra de projeto (26/11/2026): a finalidade é a do projeto — a IA
+        // recebe o nome dele e não cobra a finalidade na descrição.
+        const procIA = t(linha.processo_compra_id) ? await buscar("compras_solicitacoes", linha.processo_compra_id) : null
+        const projetoId = t(linha.projeto_id) ?? t(procIA?.solicitacao_projeto_id)
+        const projeto = projetoId ? await buscar("projeto", projetoId) : null
+        const nomeProjeto = t(projeto?.descricao_sumaria)
         // Parcelas de um lote têm a mesma descrição-base: avalia uma vez.
-        const chaveMemo = chaveDaDescricao(descricao)
+        const chaveMemo = `${chaveDaDescricao(descricao)}|${nomeProjeto ?? ""}`
         if (!memoIA.has(chaveMemo)) {
-          memoIA.set(chaveMemo, await avaliarDescricaoIA(descricao, String(p.criterios || CRITERIOS_DESCRICAO_PADRAO), tipo, valor))
+          memoIA.set(chaveMemo, await avaliarDescricaoIA(descricao, String(p.criterios || CRITERIOS_DESCRICAO_PADRAO), tipo, valor, nomeProjeto))
         }
         const v = memoIA.get(chaveMemo)!
         r(v.status, v.detalhe)

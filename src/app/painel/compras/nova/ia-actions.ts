@@ -415,13 +415,23 @@ export async function conferirDescricaoAction(input: {
   valor?: string
   quantidade?: string
   unidade?: string
+  /** Para quê (26/11/2026). */
+  finalidade?: string
+  /** Compra de projeto: a finalidade é a do projeto. */
+  projeto?: string
 }): Promise<ConferenciaDescricao> {
   await requirePermissao("aquisicoes_compras_edicao", ["aquisicoes_compra_direta"])
   const produto = (input.produto ?? "").trim()
   if (produto.length < 3) return { status: "na", detalhe: "" }
   const valor = input.valor ? parseValorBR(input.valor) : null
-  // Como a action grava: a quantidade entra no fim da descrição.
+  // Como a action grava: finalidade e quantidade entram no fim da descrição.
   const q = lerQuantidade(input.quantidade)
-  const descricao = q !== null && input.unidade?.trim() ? comQuantidade(produto, q, input.unidade) : produto
-  return conferirDescricaoCompra(`Compra — ${descricao}`.slice(0, 500), valor ?? null)
+  const finalidade = (input.finalidade ?? "").trim() || null
+  const descricao =
+    q !== null && input.unidade?.trim()
+      ? comQuantidade(produto, q, input.unidade, finalidade)
+      : finalidade
+        ? `${produto} — Finalidade: ${finalidade}`
+        : produto
+  return conferirDescricaoCompra(`Compra — ${descricao}`.slice(0, 500), valor ?? null, input.projeto?.trim() || null)
 }

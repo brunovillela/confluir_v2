@@ -38,15 +38,38 @@ export function lerQuantidade(bruto: string | null | undefined): number | null {
   return Number.isFinite(n) && n > 0 ? n : null
 }
 
-/** A descrição com a quantidade no fim: "Bolo de chocolate — Quantidade: 2 unidades". */
-export function comQuantidade(produto: string, quantidade: number, unidade: string): string {
+/** Finalidade (26/11/2026): antes da quantidade — "… — Finalidade: … — Quantidade: …". */
+const FINALIDADE = /\s+—\s+Finalidade:\s+(.+)$/
+
+/** Mínimo de caracteres da finalidade (quando exigida). */
+export const FINALIDADE_MINIMA = 5
+
+/**
+ * A descrição com a finalidade e a quantidade no fim:
+ * "Bolo de chocolate — Finalidade: lanche da assembleia — Quantidade: 2 unidades".
+ * FINALIDADE (26/11/2026): a falta dela era o alerta mais comum da auditoria
+ * (58 em 30 dias); compra de projeto dispensa — o projeto diz para quê.
+ */
+export function comQuantidade(produto: string, quantidade: number, unidade: string, finalidade?: string | null): string {
   const base = separarQuantidade(produto).produto
-  return `${base} — Quantidade: ${formatarQuantidade(quantidade)} ${unidade.trim()}`
+  const f = (finalidade ?? "").replace(/\s+/g, " ").trim().replace(/[.;]+$/, "")
+  return `${base}${f ? ` — Finalidade: ${f}` : ""} — Quantidade: ${formatarQuantidade(quantidade)} ${unidade.trim()}`
 }
 
-/** O inverso, para editar ou repetir uma compra: tira o sufixo da quantidade. */
-export function separarQuantidade(produto: string): { produto: string; quantidade: string | null; unidade: string | null } {
+/** O inverso, para editar ou repetir uma compra: tira os sufixos da quantidade e da finalidade. */
+export function separarQuantidade(produto: string): {
+  produto: string
+  quantidade: string | null
+  unidade: string | null
+  finalidade: string | null
+} {
   const m = produto.match(SUFIXO)
-  if (!m) return { produto: produto.trim(), quantidade: null, unidade: null }
-  return { produto: produto.slice(0, m.index).trim(), quantidade: m[1], unidade: m[2].trim() }
+  const resto = m ? produto.slice(0, m.index).trim() : produto.trim()
+  const f = resto.match(FINALIDADE)
+  return {
+    produto: f ? resto.slice(0, f.index).trim() : resto,
+    quantidade: m ? m[1] : null,
+    unidade: m ? m[2].trim() : null,
+    finalidade: f ? f[1].trim() : null,
+  }
 }

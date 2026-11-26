@@ -15,7 +15,22 @@ test.describe("quantidade da compra na descrição", () => {
   test("compõe e separa de volta (editar e repetir)", () => {
     const d = comQuantidade("Bolo de chocolate para a reunião", 2.5, "kg")
     expect(d).toBe("Bolo de chocolate para a reunião — Quantidade: 2,5 kg")
-    expect(separarQuantidade(d)).toEqual({ produto: "Bolo de chocolate para a reunião", quantidade: "2,5", unidade: "kg" })
+    expect(separarQuantidade(d)).toEqual({ produto: "Bolo de chocolate para a reunião", quantidade: "2,5", unidade: "kg", finalidade: null })
+  })
+
+  test("a finalidade entra antes da quantidade e sai de volta", () => {
+    const d = comQuantidade("Bolo de chocolate", 2, "unidades", "  lanche da assembleia de 20/11. ")
+    expect(d).toBe("Bolo de chocolate — Finalidade: lanche da assembleia de 20/11 — Quantidade: 2 unidades")
+    expect(separarQuantidade(d)).toEqual({
+      produto: "Bolo de chocolate",
+      quantidade: "2",
+      unidade: "unidades",
+      finalidade: "lanche da assembleia de 20/11",
+    })
+    // Compor de novo (editar) não duplica nem a finalidade nem a quantidade.
+    expect(comQuantidade(d, 3, "unidades", "lanche do conselho")).toBe(
+      "Bolo de chocolate — Finalidade: lanche do conselho — Quantidade: 3 unidades"
+    )
   })
 
   test("não duplica a quantidade ao compor de novo", () => {
@@ -24,6 +39,6 @@ test.describe("quantidade da compra na descrição", () => {
   })
 
   test("descrição sem quantidade fica como está", () => {
-    expect(separarQuantidade("Serviço de transporte")).toEqual({ produto: "Serviço de transporte", quantidade: null, unidade: null })
+    expect(separarQuantidade("Serviço de transporte")).toEqual({ produto: "Serviço de transporte", quantidade: null, unidade: null, finalidade: null })
   })
 })

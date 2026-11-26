@@ -17,6 +17,7 @@ export type InicialCompra = {
   produto: string
   quantidade: string | null
   unidade: string | null
+  finalidade: string | null
   observacao: string | null
   tipo: "bem" | "servico" | ""
   departamentoId: string | null
@@ -33,7 +34,7 @@ export async function compraParaRepetir(processoId: string, usuarioId: string): 
   const escopo = await escopoComprasDoUsuario(usuarioId)
   if (!compraNoEscopo(escopo, { departamentoId: p.departamento_id, solicitanteId: p.solicitante_id })) return null
   const fornecimento = (p.fornecimentos ?? []).find((f) => f.fornecedor_id) ?? null
-  const { produto, quantidade, unidade } = separarQuantidade(p.produto ?? "")
+  const { produto, quantidade, unidade, finalidade } = separarQuantidade(p.produto ?? "")
   return {
     origemId: p.id,
     origemCodigo: p.codigo,
@@ -41,6 +42,7 @@ export async function compraParaRepetir(processoId: string, usuarioId: string): 
     produto,
     quantidade,
     unidade,
+    finalidade,
     observacao: p.observacao,
     tipo: p.e_produto === true ? "bem" : p.e_produto === false ? "servico" : "",
     departamentoId: p.departamento_id,

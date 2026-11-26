@@ -185,6 +185,7 @@ export function NovaCompraForm({
   const observacaoRef = useRef<HTMLTextAreaElement>(null)
   const quantidadeRef = useRef<HTMLInputElement>(null)
   const unidadeRef = useRef<HTMLInputElement>(null)
+  const finalidadeRef = useRef<HTMLInputElement>(null)
   const [iaPendente, setIaPendente] = useState(false)
   const [iaErro, setIaErro] = useState<string | null>(null)
   // Conferência da descrição com a régua da auditoria, antes de gravar.
@@ -324,12 +325,21 @@ export function NovaCompraForm({
     }
     const quantidade = quantidadeRef.current?.value.trim() ?? ""
     const unidade = unidadeRef.current?.value.trim() ?? ""
-    const chave = [produto, quantidade, unidade].join("|")
+    const finalidade = finalidadeRef.current?.value.trim() ?? ""
+    const projeto = projetoSel?.nome ?? ""
+    const chave = [produto, quantidade, unidade, finalidade, projeto].join("|")
     if (chave === conferidoRef.current) return
     conferidoRef.current = chave
     const valor = (produtoRef.current?.form?.elements.namedItem("valor") as HTMLInputElement | null)?.value
     setConferindo(true)
-    const r = await conferirDescricaoAction({ produto, valor: valor || undefined, quantidade, unidade }).catch(() => null)
+    const r = await conferirDescricaoAction({
+      produto,
+      valor: valor || undefined,
+      quantidade,
+      unidade,
+      finalidade,
+      projeto: projeto || undefined,
+    }).catch(() => null)
     // Mudou enquanto a IA lia: vale a próxima conferência.
     if (conferidoRef.current !== chave) return
     setConferindo(false)
@@ -806,6 +816,28 @@ export function NovaCompraForm({
                       </datalist>
                     </div>
                   </div>
+                  {/* Finalidade (26/11/2026): a falta dela era o alerta mais comum da
+                      auditoria. Compra de projeto dispensa — o projeto diz para quê. */}
+                  <div className="grid gap-1">
+                    <Label htmlFor="finalidade" className="text-xs">
+                      Finalidade (para quê){comProjeto ? " — opcional: a compra é do projeto" : " *"}
+                    </Label>
+                    <Input
+                      id="finalidade"
+                      name="finalidade"
+                      ref={finalidadeRef}
+                      required={!comProjeto}
+                      minLength={comProjeto ? undefined : 5}
+                      maxLength={300}
+                      placeholder={
+                        comProjeto
+                          ? `A do projeto${projetoSel ? ` “${projetoSel.nome}”` : ""} — complete só se precisar`
+                          : "Ex.: lanche da assembleia de 20/11; material da oficina de formação"
+                      }
+                      defaultValue={inicial?.finalidade ?? undefined}
+                      onBlur={() => void conferirDescricao()}
+                    />
+                  </div>
                   {iaErro && <p className="text-destructive text-xs">{iaErro}</p>}
                   {conferindo ? (
                     <p className="text-muted-foreground inline-flex items-center gap-1 text-xs">
@@ -825,8 +857,8 @@ export function NovaCompraForm({
                     </p>
                   ) : (
                     <p className="text-muted-foreground text-xs">
-                      Só a descrição e a quantidade vão para a ordem de pagamento, e é o que a auditoria lê: diga o
-                      quê e para quê.
+                      A descrição, a finalidade e a quantidade vão para a ordem de pagamento, e é o que a auditoria
+                      lê: diga o quê e para quê.
                     </p>
                   )}
                 </div>
