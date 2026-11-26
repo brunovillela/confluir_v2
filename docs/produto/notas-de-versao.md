@@ -6,6 +6,10 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 
 ## 26/11/2026 — Ordens: filtro por projeto com as ordens das compras
 
+- Ordens devolvidas de qualquer origem: quem lançou um reembolso, uma diária ou um custeio devolvido agora é avisado e lembrado toda semana, como já era nas compras. Na caixa de entrada, o item Ordens devolvidas para você abre Minhas ordens devolvidas, com o motivo e o botão Abrir a origem, onde se corrige.
+- Contratos: as ordens do sistema anterior com o valor que o contrato repete passaram a ser parcelas e entram na numeração (Parcela 1, 2, 3…); as demais seguem em Do sistema anterior.
+- Financeiro: Centros de custo voltou para os atalhos principais do painel (estava recolhido em Mais ferramentas).
+- Financeiro → Ordens (Extrato): a seção Lançamentos futuros abre recolhida, para o dia de hoje, as vencidas e as pagas aparecerem logo. Ela abre ao clicar nos cartões Próximos 7 dias ou Próximos 30 dias, em mostrar todos, ou no próprio título.
 - Tarefas: embaixo do título de cada tarefa, em letra menor, aparece de onde ela vem — o projeto ou a demanda —, em Meu perfil → Minhas tarefas e na lista de Tarefas (a coluna Vínculo saiu). Quem executa a tarefa vê o nome mesmo sem a permissão de Projetos ou Demandas; o link para a página fica com quem tem a permissão. No calendário de prazos, a origem aparece junto com o responsável.
 - Financeiro → Ordens devolvidas (novo): todas as ordens devolvidas esperando correção, da mais antiga para a mais nova, com há quantos dias estão paradas, o motivo, quem devolveu e quem lançou. Paradas há mais de 30 dias ficam em destaque; cada uma se corrige (abre a compra ou a ordem) ou se cancela com motivo. Em Minhas solicitações, a devolvida parada há mais de 30 dias ganha o aviso.
 - Contratos sem valor: quando as parcelas repetem o mesmo valor, o sistema sugere — na página do contrato (Usar R$ …) e na Saúde dos contratos (Preencher todos, com a lista). Com o valor, a parcela nesse valor nasce autorizada pelo contrato, sem passar pela alçada.
