@@ -225,6 +225,7 @@ export async function eventosParaFiliado(
       vagasRestantes: capacidade?.publicasRestantes ?? null,
       inscricoesAbremEm:
         evento.situacao === "publicado" &&
+        !evento.inscricoes_encerradas_em &&
         evento.inscricoes_abrem_em &&
         new Date(evento.inscricoes_abrem_em) > agora
           ? evento.inscricoes_abrem_em

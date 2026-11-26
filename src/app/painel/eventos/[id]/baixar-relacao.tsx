@@ -17,7 +17,9 @@ import { Label } from "@/components/ui/label"
 import { SelectNativo } from "@/components/ui/select-nativo"
 import {
   OPCOES_PADRAO,
+  PRESENCA_NA_RELACAO,
   QUEM_NA_RELACAO,
+  type PresencaNaRelacao,
   urlRelacao,
   type OpcoesRelacao,
   type QuemNaRelacao,
@@ -32,10 +34,16 @@ export function BaixarRelacao({
   eventoId,
   confirmados,
   listaEspera,
+  temPresenca = false,
+  dias = [],
 }: {
   eventoId: string
   confirmados: number
   listaEspera: number
+  /** A porta já registrou alguma presença: libera "quem veio / quem faltou". */
+  temPresenca?: boolean
+  /** Dias do evento ({ id, rótulo }); com mais de um, dá para escolher o dia. */
+  dias?: { id: string; rotulo: string }[]
 }) {
   const [o, setO] = useState<OpcoesRelacao>(OPCOES_PADRAO)
   const muda = (p: Partial<OpcoesRelacao>) => setO((atual) => ({ ...atual, ...p }))
@@ -45,7 +53,7 @@ export function BaixarRelacao({
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
           <Download />
-          Baixar confirmados…
+          {temPresenca ? "Baixar relação…" : "Baixar confirmados…"}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
@@ -58,6 +66,43 @@ export function BaixarRelacao({
         </DialogHeader>
 
         <div className="grid gap-4">
+          {temPresenca && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-1.5">
+                <Label htmlFor="relacao-presenca">Presença</Label>
+                <SelectNativo
+                  id="relacao-presenca"
+                  value={o.presenca}
+                  onChange={(e) => muda({ presenca: e.target.value as PresencaNaRelacao })}
+                >
+                  {PRESENCA_NA_RELACAO.map((p) => (
+                    <option key={p.valor} value={p.valor}>
+                      {p.rotulo}
+                    </option>
+                  ))}
+                </SelectNativo>
+              </div>
+              {dias.length > 1 && o.presenca !== "todos" && (
+                <div className="grid gap-1.5">
+                  <Label htmlFor="relacao-dia">Dia</Label>
+                  <SelectNativo
+                    id="relacao-dia"
+                    value={o.dia ?? ""}
+                    onChange={(e) => muda({ dia: e.target.value || null })}
+                  >
+                    <option value="">
+                      {o.presenca === "ausentes" ? "Nenhum dia" : "Qualquer dia"}
+                    </option>
+                    {dias.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.rotulo}
+                      </option>
+                    ))}
+                  </SelectNativo>
+                </div>
+              )}
+            </div>
+          )}
           <div className="grid gap-1.5">
             <Label htmlFor="relacao-quem">Quem entra</Label>
             <SelectNativo
@@ -74,7 +119,7 @@ export function BaixarRelacao({
           </div>
 
           <div className="grid gap-3">
-            {listaEspera > 0 && (
+            {listaEspera > 0 && o.presenca === "todos" && (
               <Opcao
                 id="relacao-espera"
                 marcado={o.espera}

@@ -77,6 +77,8 @@ export type Evento = {
   /** Fechadas à mão por quem organiza (antes do prazo); null = não fechadas. */
   inscricoes_encerradas_em: string | null
   inscricoes_encerradas_por: string | null
+  /** Recado de quem fechou, mostrado a quem tenta se inscrever. */
+  inscricoes_encerradas_mensagem: string | null
   limite_inscricoes: number | null
   cota_convidados: number | null
   exige_aprovacao: boolean
@@ -190,7 +192,7 @@ export async function termosEmVigor(): Promise<Termo[]> {
 // ── Eventos ──────────────────────────────────────────────────────────────────
 
 const CAMPOS_EVENTO =
-  "id, slug, titulo, descricao, card_url, local, endereco, inicio, termino, lotacao_maxima, overbooking_percentual, inscricoes_abrem_em, inscricoes_fecham_em, inscricoes_encerradas_em, inscricoes_encerradas_por, limite_inscricoes, cota_convidados, exige_aprovacao, confirma_filiado_automatico, exige_foto, exige_rsvp, rsvp_abre_em, rsvp_enviado_lote_em, situacao, adiado_para, motivo_situacao, agenda_id, criado_por, created_at"
+  "id, slug, titulo, descricao, card_url, local, endereco, inicio, termino, lotacao_maxima, overbooking_percentual, inscricoes_abrem_em, inscricoes_fecham_em, inscricoes_encerradas_em, inscricoes_encerradas_por, inscricoes_encerradas_mensagem, limite_inscricoes, cota_convidados, exige_aprovacao, confirma_filiado_automatico, exige_foto, exige_rsvp, rsvp_abre_em, rsvp_enviado_lote_em, situacao, adiado_para, motivo_situacao, agenda_id, criado_por, created_at"
 
 function mapEvento(e: Record<string, unknown>, nome: string | null): Evento {
   return {
@@ -209,6 +211,7 @@ function mapEvento(e: Record<string, unknown>, nome: string | null): Evento {
     inscricoes_fecham_em: (e.inscricoes_fecham_em as string | null) ?? null,
     inscricoes_encerradas_em: (e.inscricoes_encerradas_em as string | null) ?? null,
     inscricoes_encerradas_por: (e.inscricoes_encerradas_por as string | null) ?? null,
+    inscricoes_encerradas_mensagem: (e.inscricoes_encerradas_mensagem as string | null) ?? null,
     limite_inscricoes: (e.limite_inscricoes as number | null) ?? null,
     cota_convidados: (e.cota_convidados as number | null) ?? null,
     exige_aprovacao: e.exige_aprovacao === true,
@@ -443,7 +446,8 @@ export function inscricoesAbertas(
     return { aberta: false, motivo: "As inscrições ainda não estão abertas." }
   }
   if (evento.inscricoes_encerradas_em) {
-    return { aberta: false, motivo: "As inscrições foram encerradas." }
+    const recado = evento.inscricoes_encerradas_mensagem?.trim()
+    return { aberta: false, motivo: recado ? `As inscrições foram encerradas. ${recado}` : "As inscrições foram encerradas." }
   }
   if (evento.inscricoes_abrem_em && new Date(evento.inscricoes_abrem_em) > agora) {
     return { aberta: false, motivo: "As inscrições ainda não começaram." }
@@ -485,7 +489,8 @@ export function podeReabrirInscricoes(evento: Evento, agora = new Date()): boole
 export async function marcarInscricoesEncerradas(
   eventoId: string,
   encerrar: boolean,
-  usuarioId: string | null
+  usuarioId: string | null,
+  mensagem: string | null = null
 ): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
@@ -493,8 +498,8 @@ export async function marcarInscricoesEncerradas(
     .from("eventos")
     .update(
       encerrar
-        ? { inscricoes_encerradas_em: new Date().toISOString(), inscricoes_encerradas_por: usuarioId }
-        : { inscricoes_encerradas_em: null, inscricoes_encerradas_por: null }
+        ? { inscricoes_encerradas_em: new Date().toISOString(), inscricoes_encerradas_por: usuarioId, inscricoes_encerradas_mensagem: mensagem }
+        : { inscricoes_encerradas_em: null, inscricoes_encerradas_por: null, inscricoes_encerradas_mensagem: null }
     )
     .eq("emp_proprietaria_id", emp)
     .eq("id", eventoId)

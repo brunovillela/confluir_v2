@@ -6,6 +6,8 @@
 
 export type QuemNaRelacao = "todos" | "filiados" | "convidados" | "nao_filiados"
 export type FormatoRelacao = "xlsx" | "pdf" | "assinatura"
+/** Recorte pela presença registrada na porta (26/11/2026). */
+export type PresencaNaRelacao = "todos" | "presentes" | "ausentes"
 
 export type OpcoesRelacao = {
   quem: QuemNaRelacao
@@ -15,6 +17,12 @@ export type OpcoesRelacao = {
   cpfParcial: boolean
   /** Leva e-mail e telefone. Desligado para arquivo que vai a terceiro. */
   contato: boolean
+  /**
+   * presentes: quem teve presença registrada (qualquer situação); ausentes: os
+   * confirmados sem presença. Com `dia`, conta só aquele dia do evento.
+   */
+  presenca: PresencaNaRelacao
+  dia: string | null
 }
 
 export const QUEM_NA_RELACAO: { valor: QuemNaRelacao; rotulo: string }[] = [
@@ -24,7 +32,20 @@ export const QUEM_NA_RELACAO: { valor: QuemNaRelacao; rotulo: string }[] = [
   { valor: "nao_filiados", rotulo: "Só não filiados" },
 ]
 
-export const OPCOES_PADRAO: OpcoesRelacao = { quem: "todos", espera: false, cpfParcial: false, contato: true }
+export const PRESENCA_NA_RELACAO: { valor: PresencaNaRelacao; rotulo: string }[] = [
+  { valor: "todos", rotulo: "Todos os confirmados" },
+  { valor: "presentes", rotulo: "Só quem veio" },
+  { valor: "ausentes", rotulo: "Só quem faltou" },
+]
+
+export const OPCOES_PADRAO: OpcoesRelacao = {
+  quem: "todos",
+  espera: false,
+  cpfParcial: false,
+  contato: true,
+  presenca: "todos",
+  dia: null,
+}
 
 export function lerOpcoesRelacao(sp: URLSearchParams): OpcoesRelacao {
   const quem = sp.get("quem") as QuemNaRelacao | null
@@ -34,6 +55,10 @@ export function lerOpcoesRelacao(sp: URLSearchParams): OpcoesRelacao {
     espera: sp.get("espera") === "1",
     cpfParcial: sp.get("cpf") === "parcial",
     contato: sp.get("contato") !== "0",
+    presenca: PRESENCA_NA_RELACAO.some((p) => p.valor === sp.get("presenca"))
+      ? (sp.get("presenca") as PresencaNaRelacao)
+      : "todos",
+    dia: sp.get("dia") || null,
   }
 }
 
@@ -44,6 +69,8 @@ export function urlRelacao(eventoId: string, formato: FormatoRelacao, o: OpcoesR
   if (o.espera) sp.set("espera", "1")
   if (o.cpfParcial) sp.set("cpf", "parcial")
   if (!o.contato) sp.set("contato", "0")
+  if (o.presenca !== "todos") sp.set("presenca", o.presenca)
+  if (o.presenca !== "todos" && o.dia) sp.set("dia", o.dia)
   const q = sp.toString()
   return `/painel/eventos/${eventoId}/confirmados/${formato === "xlsx" ? "xlsx" : "pdf"}${q ? `?${q}` : ""}`
 }
@@ -56,9 +83,17 @@ export function cpfParcial(cpf: string | null): string | null {
 }
 
 /** Recorte em palavras, para o subtítulo do PDF e o livro de exportações. */
-export function descreverRecorte(o: OpcoesRelacao): string {
+export function descreverRecorte(o: OpcoesRelacao, rotuloDia?: string | null): string {
+  const base =
+    o.presenca === "presentes"
+      ? "quem veio"
+      : o.presenca === "ausentes"
+        ? "confirmados que faltaram"
+        : o.espera
+          ? "confirmados e lista de espera"
+          : "confirmados"
   const partes = [
-    o.espera ? "confirmados e lista de espera" : "confirmados",
+    o.presenca !== "todos" && rotuloDia ? `${base} em ${rotuloDia}` : base,
     o.quem !== "todos" ? QUEM_NA_RELACAO.find((q) => q.valor === o.quem)!.rotulo.toLowerCase() : null,
     o.cpfParcial ? "CPF parcial" : null,
     o.contato ? null : "sem contato",

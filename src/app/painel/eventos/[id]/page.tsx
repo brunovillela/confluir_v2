@@ -223,6 +223,9 @@ export default async function EventoPage({
               {encerradasPor ? ` por ${encerradasPor}` : ""} em{" "}
               {formatarDataHora(evento.inscricoes_encerradas_em)}. O link
               público e o portal não aceitam novas inscrições.
+              {evento.inscricoes_encerradas_mensagem && (
+                <> Recado mostrado: &ldquo;{evento.inscricoes_encerradas_mensagem}&rdquo;</>
+              )}
               {!podeReabrirInscricoes(evento) &&
                 " O prazo de inscrição configurado já terminou; para reabrir, mude o prazo em Editar."}
             </span>
@@ -407,6 +410,11 @@ export default async function EventoPage({
                 eventoId={id}
                 confirmados={capacidade.confirmadas}
                 listaEspera={capacidade.listaEspera}
+                temPresenca={indicadores.presencasPorDia.some((p) => p.presentes > 0)}
+                dias={indicadores.presencasPorDia.map((p) => ({
+                  id: p.dia.id,
+                  rotulo: `${formatarData(p.dia.data)}${p.dia.rotulo ? ` — ${p.dia.rotulo}` : ""}`,
+                }))}
               />
             </CardAction>
           )}

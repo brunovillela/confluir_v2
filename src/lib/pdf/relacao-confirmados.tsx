@@ -20,11 +20,13 @@ export type LinhaRelacaoConfirmados = {
   convidado: boolean
   /** Está na lista de espera, não confirmada. */
   espera: boolean
+  /** Em quantos dias do evento a porta registrou a presença. */
+  diasPresente: number
 }
 
 const CM = 28.35
 const LETRA = 9
-const COL = { num: 28, cpf: 80, tel: 82, tipo: 62, assinatura: 150 }
+const COL = { num: 28, cpf: 80, tel: 82, tipo: 62, dias: 44, assinatura: 150 }
 
 const s = StyleSheet.create({
   conteudo: { lineHeight: 1.4 },
@@ -46,6 +48,7 @@ const s = StyleSheet.create({
   cpf: { width: COL.cpf, paddingRight: 4 },
   tel: { width: COL.tel, paddingRight: 4 },
   tipo: { width: COL.tipo, paddingRight: 4 },
+  dias: { width: COL.dias, paddingRight: 4, textAlign: "right" },
   assinatura: { width: COL.assinatura, borderBottomWidth: 0.5, borderColor: "#6b7280", marginLeft: 4 },
   assinaturaTitulo: { width: COL.assinatura, marginLeft: 4 },
   espera: { color: "#b45309", fontSize: 8 },
@@ -72,6 +75,8 @@ export function RelacaoConfirmadosPDF({
   assinatura,
   telefone,
   recorte,
+  titulo,
+  totalDias,
   linhas,
 }: {
   entidade: string | null
@@ -84,6 +89,10 @@ export function RelacaoConfirmadosPDF({
   telefone: boolean
   /** O recorte em palavras ("confirmados · só filiados · CPF parcial"). */
   recorte: string
+  /** Título do documento; o padrão segue o formato (relação ou lista de presença). */
+  titulo?: string
+  /** Com mais de um dia, a coluna "Dias" mostra em quantos a pessoa esteve. */
+  totalDias?: number
   linhas: LinhaRelacaoConfirmados[]
 }) {
   const gerado = new Date().toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" })
@@ -91,6 +100,7 @@ export function RelacaoConfirmadosPDF({
   const convidados = linhas.filter((l) => l.convidado && !l.espera).length
   const emEspera = linhas.filter((l) => l.espera).length
   const colTelefone = telefone && !assinatura
+  const colDias = (totalDias ?? 0) > 1
   return (
     <Document title={`Confirmados — ${evento}`}>
       <Page size="A4" style={s.page}>
@@ -102,13 +112,14 @@ export function RelacaoConfirmadosPDF({
             </View>
           ) : null}
           {entidade ? <Text style={s.org}>{entidade}</Text> : null}
-          <Text style={s.titulo}>{assinatura ? "Lista de presença" : "Relação de confirmados"}</Text>
+          <Text style={s.titulo}>{titulo ?? (assinatura ? "Lista de presença" : "Relação de confirmados")}</Text>
           <Text style={s.subtitulo}>{[evento, quando].filter(Boolean).join(" · ")}</Text>
 
           <View style={s.grade}>
             <View style={s.tile}>
-              <Text style={s.rotulo}>Confirmados</Text>
-              <Text style={s.tileValor}>{n(linhas.length - emEspera)}</Text>
+              {/* No recorte de presença entra gente de qualquer situação: conta todos. */}
+              <Text style={s.rotulo}>{titulo ? "Na relação" : "Confirmados"}</Text>
+              <Text style={s.tileValor}>{n(titulo ? linhas.length : linhas.length - emEspera)}</Text>
             </View>
             <View style={s.tile}>
               <Text style={s.rotulo}>Filiados</Text>
@@ -133,6 +144,7 @@ export function RelacaoConfirmadosPDF({
             <Text style={s.cpf}>CPF</Text>
             {colTelefone ? <Text style={s.tel}>Telefone</Text> : null}
             <Text style={s.tipo}>Tipo</Text>
+            {colDias ? <Text style={s.dias}>Dias</Text> : null}
             {assinatura ? <Text style={s.assinaturaTitulo}>Assinatura</Text> : null}
           </View>
           {linhas.map((l, i) => (
@@ -146,6 +158,7 @@ export function RelacaoConfirmadosPDF({
               <Text style={s.cpf}>{l.cpf ?? "—"}</Text>
               {colTelefone ? <Text style={s.tel}>{caber(l.telefone ? formatarTelefone(l.telefone) : "—", COL.tel - 4, LETRA)}</Text> : null}
               <Text style={s.tipo}>{tipo(l)}</Text>
+              {colDias ? <Text style={s.dias}>{`${l.diasPresente} de ${totalDias}`}</Text> : null}
               {assinatura ? <View style={s.assinatura} /> : null}
             </View>
           ))}

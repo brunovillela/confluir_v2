@@ -8,7 +8,7 @@ import { logoDataUri } from "@/lib/db/oficios-assinatura"
 import { obterOrganizacao, urlLogo } from "@/lib/db/organizacao"
 import { cpfParcial, descreverRecorte, lerOpcoesRelacao } from "@/lib/eventos-relacao-opcoes"
 import { registrarExportacao } from "@/lib/exportacoes"
-import { formatarCnpjCpf, formatarDataHora } from "@/lib/formato"
+import { formatarCnpjCpf, formatarData, formatarDataHora } from "@/lib/formato"
 import { RelacaoConfirmadosPDF } from "@/lib/pdf/relacao-confirmados"
 
 export const runtime = "nodejs"
@@ -29,8 +29,20 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const sp = new URL(request.url).searchParams
   const assinatura = sp.get("assinatura") === "1"
   const opcoes = lerOpcoesRelacao(sp)
-  const recorte = descreverRecorte(opcoes)
-  const [{ linhas }, org] = await Promise.all([relacaoDeConfirmados(id, opcoes), obterOrganizacao().catch(() => null)])
+  const [{ linhas, dias, diaEscolhido }, org] = await Promise.all([
+    relacaoDeConfirmados(id, opcoes),
+    obterOrganizacao().catch(() => null),
+  ])
+  const recorte = descreverRecorte(
+    opcoes,
+    diaEscolhido ? `${formatarData(diaEscolhido.data)}${diaEscolhido.rotulo ? ` — ${diaEscolhido.rotulo}` : ""}` : null
+  )
+  const titulo =
+    opcoes.presenca === "presentes"
+      ? "Relação de presença"
+      : opcoes.presenca === "ausentes"
+        ? "Confirmados que faltaram"
+        : undefined
   const logo = await logoDataUri(urlLogo(org?.logomarca ?? null))
   await registrarExportacao(request, {
     usuarioId: sessao.usuario.id,
@@ -55,6 +67,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     assinatura,
     telefone: opcoes.contato,
     recorte,
+    titulo,
+    // "Dias" só interessa quando o recorte é de presença e o evento tem vários.
+    totalDias: opcoes.presenca !== "todos" && !diaEscolhido ? dias.length : 0,
     linhas: linhas.map((l) => ({
       nome: l.nome,
       cpf: opcoes.cpfParcial ? cpfParcial(l.cpf) : l.cpf ? formatarCnpjCpf(l.cpf) : null,
@@ -62,10 +77,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       filiado: !!l.filiacao_id,
       convidado: !!l.reservada_por,
       espera: l.situacao === "lista_espera",
+      diasPresente: l.diasPresente.size,
     })),
   }) as Parameters<typeof renderToBuffer>[0]
   const pdf = await renderToBuffer(elemento)
-  const arquivo = `${assinatura ? "lista-presenca" : "confirmados"}-${evento.slug || id.slice(0, 8)}.pdf`
+  const prefixo =
+    opcoes.presenca === "presentes" ? "presentes" : opcoes.presenca === "ausentes" ? "faltaram" : "confirmados"
+  const arquivo = `${assinatura ? "lista-presenca" : prefixo}-${evento.slug || id.slice(0, 8)}.pdf`
   return new Response(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",

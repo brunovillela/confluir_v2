@@ -541,7 +541,9 @@ export async function fecharInscricoesAction(
   if (!podeFecharInscricoes(evento)) {
     return { erro: "Só dá para fechar as inscrições de evento publicado e com o prazo de inscrição em aberto." }
   }
-  const r = await marcarInscricoesEncerradas(id, true, sessao.usuario.id)
+  const mensagem = txt(fd, "mensagem")
+  if (mensagem.length > 300) return { erro: "A mensagem passa de 300 caracteres — encurte para caber no aviso." }
+  const r = await marcarInscricoesEncerradas(id, true, sessao.usuario.id, mensagem || null)
   if (r.erro) return { erro: r.erro }
   revalidatePath(`${BASE}/${id}`)
   return { ok: "Inscrições fechadas." }
