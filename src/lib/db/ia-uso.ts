@@ -216,6 +216,7 @@ const ROTULO_ACAO: Record<string, string> = {
   preferencias: "Alterou a configuração da IA",
   modelos_processo: "Alterou o modelo por processo",
   cotas_departamento: "Alterou as cotas por departamento",
+  minutos_humanos: "Ajustou o tempo humano do inventário",
 }
 
 export function rotuloAcaoGestao(acao: string): string {

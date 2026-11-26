@@ -342,6 +342,29 @@ export async function salvarModelosProcessoIA(
   return {}
 }
 
+/**
+ * Inventário da IA: minutos de uma pessoa por operação, ajustados pela Gestão
+ * (processo → minutos; o que não está aqui usa a estimativa do catálogo).
+ * Lido à parte da configuração (lib/db/ia-inventario.ts), para a coluna nova
+ * não derrubar a leitura da IA antes da migração.
+ */
+export async function salvarMinutosHumanosIA(
+  ajustes: Record<string, number>,
+  mudancas: string[],
+  usuarioId: string
+): Promise<{ erro?: string }> {
+  const r = await gravar({ minutos_humanos: ajustes }, usuarioId)
+  if (r.erro) return r
+  if (mudancas.length) {
+    await registrarEvento(
+      "minutos_humanos",
+      mudancas.slice(0, 8).join("; ") + (mudancas.length > 8 ? ` (+${mudancas.length - 8})` : ""),
+      usuarioId
+    )
+  }
+  return {}
+}
+
 /** Cotas mensais por departamento (US$). Departamento sem cota = sem limite próprio. */
 export async function salvarCotasIA(cotas: Record<string, number>, nomes: Map<string, string>, usuarioId: string): Promise<{ erro?: string }> {
   const antes = await obterConfigIA()

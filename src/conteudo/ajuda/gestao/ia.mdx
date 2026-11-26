@@ -154,6 +154,33 @@ se não puder ser lida no servidor —, antes que alguém tente usar a IA e dê 
 cara com o erro. Se a chave já foi usada com sucesso nas últimas 24 horas, o
 teste não roda. O resultado aparece em **Último teste**, no cartão da chave.
 
+## Inventário da IA
+
+O botão **Inventário** abre a lista de todas as operações que o sistema faz
+com IA, agrupadas por módulo, com o que uma pessoa teria de fazer sem ela. Para
+cada operação:
+
+- **Feitas**: quantas vezes deu certo no período (falhas e chamadas barradas
+  pela Gestão aparecem embaixo e não contam como tempo poupado).
+- **Custo médio**: o custo estimado de uma operação, pelos preços informados em
+  Configuração e em Modelo por processo. Chamadas de um modelo sem preço ficam
+  fora da média (a tela diz quantas); sem preço nenhum, aparece o tamanho médio
+  em tokens.
+- **Pessoa levaria**: os minutos que uma pessoa gastaria na operação típica.
+  O sistema traz uma estimativa; ajuste ao jeito da entidade em **Tempo de uma
+  pessoa por operação**, no fim da página. Em branco, vale a estimativa.
+- **Tempo poupado**: operações feitas × minutos da pessoa. O ajuste vale também
+  para trás, porque a conta é refeita a cada visita.
+- **Custo por hora poupada**: quanto a IA custou para cada hora de trabalho
+  poupada naquela operação.
+
+O período padrão é **Desde o início**: o acumulado desde que o uso da IA passou
+a ser registrado (19/11/2026). **Baixar planilha** leva tudo para o Excel, para a
+prestação de contas.
+
+São estimativas: o tempo de uma pessoa varia com o tamanho do documento e com
+a prática de quem faz, e o custo depende dos preços informados.
+
 ## Erros comuns
 
 - **"A chave não passou no teste e não foi salva."** A OpenAI recusou: confira

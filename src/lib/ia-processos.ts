@@ -42,64 +42,71 @@ export type ProcessoIA = {
    * costuma dar conta. A Gestão sugere a troca de modelo só nesses processos.
    */
   simples?: true
+  /**
+   * Inventário da IA: minutos que uma pessoa levaria para fazer a operação
+   * típica à mão (estimativa; a Gestão ajusta em ia_config.minutos_humanos).
+   */
+  minutos: number
+  /** O que a pessoa faria sem a IA (para o inventário). */
+  semIA: string
 }
 
 export const PROCESSOS_IA: ProcessoIA[] = [
   // Filiados
-  { chave: "filiados.receitas_relatorio", titulo: "Leitura do relatório de recebimento da fonte", modulo: "filiados" },
-  { chave: "filiados.termos_redacao", titulo: "Redação dos termos de filiação", modulo: "filiados", simples: true },
-  { chave: "filiados.lista_trabalhadores", titulo: "Leitura de lista de trabalhadores (aptos e atualização de cadastros)", modulo: "filiados" },
+  { chave: "filiados.receitas_relatorio", titulo: "Leitura do relatório de recebimento da fonte", modulo: "filiados", minutos: 45, semIA: "Conferir o relatório da fonte nome a nome e lançar os recebimentos" },
+  { chave: "filiados.termos_redacao", titulo: "Redação dos termos de filiação", modulo: "filiados", simples: true, minutos: 20, semIA: "Redigir o termo de filiação" },
+  { chave: "filiados.lista_trabalhadores", titulo: "Leitura de lista de trabalhadores (aptos e atualização de cadastros)", modulo: "filiados", minutos: 60, semIA: "Digitar ou conferir a lista de trabalhadores contra o cadastro" },
   // Representação
-  { chave: "representacao.acordos_leitura", titulo: "Leitura do PDF do acordo coletivo", modulo: "representacao" },
-  { chave: "representacao.acordos_extracao", titulo: "Extração das cláusulas do acordo", modulo: "representacao" },
-  { chave: "representacao.acordos_comparacao", titulo: "Comparação de acordos coletivos", modulo: "representacao" },
-  { chave: "representacao.empregador_reuniao_ata", titulo: "Leitura da ata de reunião com o empregador", modulo: "representacao" },
-  { chave: "representacao.congresso_importacao", titulo: "Importação de participantes de congresso", modulo: "representacao" },
-  { chave: "representacao.congresso_relatoria", titulo: "Sugestões na relatoria do congresso (redação, fusão, eixo, contradições, síntese)", modulo: "representacao" },
-  { chave: "representacao.congresso_mocao", titulo: "Triagem de moção de congresso", modulo: "representacao" },
-  { chave: "representacao.congresso_documentos", titulo: "Leitura do caderno de teses e do regimento do congresso", modulo: "representacao" },
+  { chave: "representacao.acordos_leitura", titulo: "Leitura do PDF do acordo coletivo", modulo: "representacao", minutos: 30, semIA: "Ler o PDF do acordo e anotar vigência, partes e dados principais" },
+  { chave: "representacao.acordos_extracao", titulo: "Extração das cláusulas do acordo", modulo: "representacao", minutos: 120, semIA: "Separar e transcrever o acordo cláusula a cláusula" },
+  { chave: "representacao.acordos_comparacao", titulo: "Comparação de acordos coletivos", modulo: "representacao", minutos: 180, semIA: "Comparar dois acordos cláusula a cláusula e anotar as diferenças" },
+  { chave: "representacao.empregador_reuniao_ata", titulo: "Leitura da ata de reunião com o empregador", modulo: "representacao", minutos: 30, semIA: "Ler a ata e registrar pauta, encaminhamentos e presentes" },
+  { chave: "representacao.congresso_importacao", titulo: "Importação de participantes de congresso", modulo: "representacao", minutos: 45, semIA: "Digitar a lista de participantes do congresso" },
+  { chave: "representacao.congresso_relatoria", titulo: "Sugestões na relatoria do congresso (redação, fusão, eixo, contradições, síntese)", modulo: "representacao", minutos: 20, semIA: "Redigir, fundir ou classificar propostas da relatoria" },
+  { chave: "representacao.congresso_mocao", titulo: "Triagem de moção de congresso", modulo: "representacao", minutos: 10, semIA: "Ler e classificar uma moção" },
+  { chave: "representacao.congresso_documentos", titulo: "Leitura do caderno de teses e do regimento do congresso", modulo: "representacao", minutos: 90, semIA: "Ler o caderno de teses e o regimento e montar a configuração" },
   // Comunicação
-  { chave: "comunicacao.resumo_noticias", titulo: "Resumo de notícias", modulo: "comunicacao", simples: true },
-  { chave: "comunicacao.resumo_prompt", titulo: "Melhoria do prompt do resumo", modulo: "comunicacao", simples: true },
-  { chave: "comunicacao.textos_geracao", titulo: "Assistente de redação: gerar texto", modulo: "comunicacao" },
-  { chave: "comunicacao.politica_editorial", titulo: "Política editorial", modulo: "comunicacao" },
-  { chave: "comunicacao.aniversariantes", titulo: "Mensagens de aniversário", modulo: "comunicacao", simples: true },
+  { chave: "comunicacao.resumo_noticias", titulo: "Resumo de notícias", modulo: "comunicacao", simples: true, minutos: 30, semIA: "Ler as notícias do dia e escrever o resumo" },
+  { chave: "comunicacao.resumo_prompt", titulo: "Melhoria do prompt do resumo", modulo: "comunicacao", simples: true, minutos: 10, semIA: "Reescrever as instruções do resumo" },
+  { chave: "comunicacao.textos_geracao", titulo: "Assistente de redação: gerar texto", modulo: "comunicacao", minutos: 30, semIA: "Escrever o texto do zero" },
+  { chave: "comunicacao.politica_editorial", titulo: "Política editorial", modulo: "comunicacao", minutos: 60, semIA: "Redigir a política editorial" },
+  { chave: "comunicacao.aniversariantes", titulo: "Mensagens de aniversário", modulo: "comunicacao", simples: true, minutos: 5, semIA: "Escrever uma mensagem de aniversário" },
   // Compras e contratos
-  { chave: "compras.descricao", titulo: "Redação da descrição da compra", modulo: "compras", simples: true },
-  { chave: "compras.nota_fiscal", titulo: "Leitura da nota fiscal da compra", modulo: "compras" },
-  { chave: "compras.minuta_contrato", titulo: "Minuta de contrato", modulo: "compras" },
-  { chave: "compras.fornecedor_cnpj", titulo: "Preenchimento do fornecedor pelo CNPJ", modulo: "compras", simples: true },
+  { chave: "compras.descricao", titulo: "Redação da descrição da compra", modulo: "compras", simples: true, minutos: 5, semIA: "Redigir a descrição da compra" },
+  { chave: "compras.nota_fiscal", titulo: "Leitura da nota fiscal da compra", modulo: "compras", minutos: 5, semIA: "Digitar os dados da nota fiscal" },
+  { chave: "compras.minuta_contrato", titulo: "Minuta de contrato", modulo: "compras", minutos: 90, semIA: "Redigir a minuta do contrato" },
+  { chave: "compras.fornecedor_cnpj", titulo: "Preenchimento do fornecedor pelo CNPJ", modulo: "compras", simples: true, minutos: 5, semIA: "Consultar o CNPJ e preencher o cadastro do fornecedor" },
   // Financeiro
-  { chave: "financeiro.tributos_guia", titulo: "Leitura de guia de tributo", modulo: "financeiro" },
-  { chave: "financeiro.comprovantes_distribuicao", titulo: "Distribuição de comprovantes nas ordens", modulo: "financeiro" },
-  { chave: "financeiro.ordens_verificacao", titulo: "Verificação (auditoria) das ordens", modulo: "financeiro" },
+  { chave: "financeiro.tributos_guia", titulo: "Leitura de guia de tributo", modulo: "financeiro", minutos: 5, semIA: "Digitar os dados da guia" },
+  { chave: "financeiro.comprovantes_distribuicao", titulo: "Distribuição de comprovantes nas ordens", modulo: "financeiro", minutos: 15, semIA: "Achar a ordem de cada comprovante e anexar" },
+  { chave: "financeiro.ordens_verificacao", titulo: "Verificação (auditoria) das ordens", modulo: "financeiro", minutos: 10, semIA: "Conferir a ordem contra as regras da auditoria" },
   // Pessoal
-  { chave: "pessoal.contracheque_leitura", titulo: "Leitura da folha / contracheque em PDF", modulo: "pessoal" },
-  { chave: "pessoal.ponto_cartao", titulo: "Leitura do cartão de ponto", modulo: "pessoal" },
-  { chave: "pessoal.ponto_marcacoes", titulo: "Ajuste das marcações de ponto", modulo: "pessoal" },
-  { chave: "pessoal.ponto_resenha", titulo: "Resenha do ponto", modulo: "pessoal" },
-  { chave: "pessoal.sst", titulo: "Atribuições e SST", modulo: "pessoal" },
-  { chave: "pessoal.plano_saude_fatura", titulo: "Leitura da fatura do plano de saúde", modulo: "pessoal" },
+  { chave: "pessoal.contracheque_leitura", titulo: "Leitura da folha / contracheque em PDF", modulo: "pessoal", minutos: 30, semIA: "Digitar a folha ou o contracheque" },
+  { chave: "pessoal.ponto_cartao", titulo: "Leitura do cartão de ponto", modulo: "pessoal", minutos: 20, semIA: "Digitar as marcações do cartão de ponto" },
+  { chave: "pessoal.ponto_marcacoes", titulo: "Ajuste das marcações de ponto", modulo: "pessoal", minutos: 10, semIA: "Conferir e ajustar as marcações do mês" },
+  { chave: "pessoal.ponto_resenha", titulo: "Resenha do ponto", modulo: "pessoal", minutos: 30, semIA: "Analisar o ponto do período e escrever a resenha" },
+  { chave: "pessoal.sst", titulo: "Atribuições e SST", modulo: "pessoal", minutos: 60, semIA: "Redigir atribuições e riscos do cargo" },
+  { chave: "pessoal.plano_saude_fatura", titulo: "Leitura da fatura do plano de saúde", modulo: "pessoal", minutos: 45, semIA: "Conferir a fatura do plano linha a linha" },
   // Saúde
-  { chave: "saude.cat_leitura", titulo: "Leitura de CAT em PDF", modulo: "saude" },
+  { chave: "saude.cat_leitura", titulo: "Leitura de CAT em PDF", modulo: "saude", minutos: 10, semIA: "Digitar os dados da CAT" },
   // Veículos
-  { chave: "veiculos.abastecimento", titulo: "Leitura do cupom de abastecimento", modulo: "veiculos", simples: true },
-  { chave: "veiculos.contrato_locacao", titulo: "Leitura do contrato de locação", modulo: "veiculos" },
-  { chave: "veiculos.cnh", titulo: "Leitura da CNH do condutor", modulo: "veiculos" },
+  { chave: "veiculos.abastecimento", titulo: "Leitura do cupom de abastecimento", modulo: "veiculos", simples: true, minutos: 3, semIA: "Digitar os dados do cupom de abastecimento" },
+  { chave: "veiculos.contrato_locacao", titulo: "Leitura do contrato de locação", modulo: "veiculos", minutos: 20, semIA: "Ler o contrato de locação e lançar os dados" },
+  { chave: "veiculos.cnh", titulo: "Leitura da CNH do condutor", modulo: "veiculos", minutos: 3, semIA: "Digitar os dados da CNH" },
   // Institucional
-  { chave: "institucional.atas_leitura", titulo: "Leitura das atas de reunião", modulo: "institucional" },
-  { chave: "institucional.relatorio_diretoria", titulo: "Relatório mensal da diretoria", modulo: "institucional" },
+  { chave: "institucional.atas_leitura", titulo: "Leitura das atas de reunião", modulo: "institucional", minutos: 30, semIA: "Ler a ata e registrar deliberações e presentes" },
+  { chave: "institucional.relatorio_diretoria", titulo: "Relatório mensal da diretoria", modulo: "institucional", minutos: 120, semIA: "Levantar os números do mês e escrever o relatório" },
   // Ferramentas
-  { chave: "ferramentas.oficios", titulo: "Redação de ofícios", modulo: "ferramentas" },
+  { chave: "ferramentas.oficios", titulo: "Redação de ofícios", modulo: "ferramentas", minutos: 30, semIA: "Redigir o ofício" },
   // Cessão de espaços
-  { chave: "espacos.termo", titulo: "Termo de cessão de espaço", modulo: "espacos" },
+  { chave: "espacos.termo", titulo: "Termo de cessão de espaço", modulo: "espacos", minutos: 20, semIA: "Redigir o termo de cessão" },
   // Painel e ajuda
-  { chave: "painel.ajuda", titulo: "Pergunte à ajuda", modulo: "painel", simples: true },
+  { chave: "painel.ajuda", titulo: "Pergunte à ajuda", modulo: "painel", simples: true, minutos: 5, semIA: "Procurar a resposta no manual" },
   // Telegram
-  { chave: "telegram.conversa", titulo: "Conversa com o bot", modulo: "telegram", simples: true },
-  { chave: "telegram.comprovante", titulo: "Comprovante enviado ao bot (foto/PDF)", modulo: "telegram" },
+  { chave: "telegram.conversa", titulo: "Conversa com o bot", modulo: "telegram", simples: true, minutos: 3, semIA: "Abrir o sistema e fazer a consulta" },
+  { chave: "telegram.comprovante", titulo: "Comprovante enviado ao bot (foto/PDF)", modulo: "telegram", minutos: 5, semIA: "Lançar o comprovante no sistema" },
   // Gestão
-  { chave: "gestao.teste_chave", titulo: "Teste da chave de IA", modulo: "outros" },
+  { chave: "gestao.teste_chave", titulo: "Teste da chave de IA", modulo: "outros", minutos: 0, semIA: "Não substitui trabalho de ninguém" },
 ]
 
 const POR_CHAVE = new Map(PROCESSOS_IA.map((p) => [p.chave, p]))
@@ -113,6 +120,8 @@ export function processoIA(chave: string | null | undefined): ProcessoIA {
       chave: chave || PROCESSO_NAO_IDENTIFICADO,
       titulo: "Processo não identificado",
       modulo: "outros",
+      minutos: 0,
+      semIA: "Sem estimativa",
     }
   )
 }

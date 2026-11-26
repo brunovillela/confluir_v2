@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, FileSpreadsheet, KeyRound, ShieldCheck, Sparkles } from "lucide-react"
+import { ArrowLeft, Boxes, FileSpreadsheet, KeyRound, ShieldCheck, Sparkles } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -163,6 +163,12 @@ export default async function IAPage({ searchParams }: { searchParams: Promise<B
         <p className="text-muted-foreground mt-1 text-xs">
           De que conta sai a IA, quanto ela é usada — por pessoa, processo, departamento e módulo — e os limites da entidade.
         </p>
+        <Button variant="outline" size="sm" asChild className="mt-3">
+          <Link href={`${ROTA}/inventario`}>
+            <Boxes />
+            Inventário: operações, custo médio e tempo poupado
+          </Link>
+        </Button>
       </div>
 
       {!config.disponivel && (

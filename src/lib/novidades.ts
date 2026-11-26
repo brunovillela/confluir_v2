@@ -16,6 +16,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-11-26",
     titulo: "Ordens: filtro por projeto com as ordens das compras",
     itens: [
+      "Gestão → Inteligência Artificial → Inventário (novo): todas as operações que o sistema faz com IA, por módulo, com quantas vezes rodaram, o custo médio de cada uma, quanto tempo uma pessoa levaria para fazê-la à mão e o tempo de trabalho poupado — no período ou acumulado desde o início. O tempo de cada operação vem estimado e a Gestão pode ajustá-lo ao jeito da entidade. Sai também em planilha.",
       "Projetos, viagens e diárias: no Financeiro, o filtro Projeto das ordens acha também a ordem da fatura de viagens e a da remessa de diárias do projeto. A diária entra no gasto do projeto líquida das infrações abatidas, como na remessa. O /diaria do Telegram pergunta o projeto depois do motivo, e a diária já lançada ganha, troca ou perde o projeto na página dela (Pessoal ou Diretoria → Diárias).",
       "Eventos e Projetos: o evento ganhou o campo Projeto (se houver). As viagens pedidas para o evento entram sozinhas no projeto e no gasto dele — inclusive pelo Telegram —, e no pedido de viagem, ao escolher o evento, o projeto já vem preenchido. A página do projeto mostra os Eventos do projeto, com a data, a situação e as inscrições confirmadas; a do evento mostra o projeto.",
       "Financeiro → Cartões: a lista ganhou busca (apelido, bandeira, final ou titular) e filtros de tipo, uso e situação. Ao abrir um cartão e voltar, a lista reabre com o filtro que estava.",

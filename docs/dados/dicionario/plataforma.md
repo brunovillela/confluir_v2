@@ -586,6 +586,7 @@ Configuração da IA da entidade (Gestão › Inteligência Artificial, 19/11/20
 | `precos_modelos` | jsonb | não | `'{}'::jsonb` |  | nenhum | Preços por modelo, em US$ por 1 milhão de tokens: {"<modelo>": {"entrada": n, "cache": n, "saida": n}}, para estimar o custo das chamadas que usam modelos além do geral. |
 | `cotas_departamento` | jsonb | não | `'{}'::jsonb` |  | nenhum | Cota mensal de IA por departamento: {"<departamento_id>": limite em US$}. Trava e avisa como o teto geral. |
 | `cotacao_usd_brl` | numeric(10,4) | sim |  |  | nenhum | Cotação informada pela Gestão (R$ por US$ 1) para mostrar o custo da IA também em reais. Nulo = só dólar. |
+| `minutos_humanos` | jsonb | não | `'{}'::jsonb` |  |  | Inventário da IA: minutos que uma pessoa levaria para fazer cada operação à mão (processo de lib/ia-processos.ts → minutos), ajustados pela Gestão; sem ajuste vale a estimativa do catálogo (26/11/2026). |
 
 Checks: `ia_config_chave_final_curta` `CHECK (((chave_final IS NULL) OR (length(chave_final) <= 4)))`; `ia_config_limite_positivo` `CHECK (((limite_mensal_usd IS NULL) OR (limite_mensal_usd > (0)::numeric)))`
 

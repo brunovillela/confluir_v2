@@ -16,10 +16,12 @@ import {
   removerChaveIA,
   salvarChaveIA,
   salvarCotasIA,
+  salvarMinutosHumanosIA,
   salvarModelosProcessoIA,
   salvarPreferenciasIA,
 } from "@/lib/db/ia-config"
 import { definirPrincipais } from "@/lib/db/departamento-principal"
+import { minutosAjustadosIA } from "@/lib/db/ia-inventario"
 import { listarDepartamentosCompletos } from "@/lib/db/departamentos"
 import { MODELO_IA, testarChaveIA } from "@/lib/ia"
 import { MODULOS_IA, PROCESSOS_IA } from "@/lib/ia-processos"
@@ -289,4 +291,32 @@ export async function salvarPrincipaisAction(_prev: EstadoForm, fd: FormData): P
   }
   revalidatePath(ROTA)
   return { ok: r.alterados ? "Departamentos principais salvos. Valem para as próximas chamadas de IA e a próxima revisão de acessos." : "Nada mudou." }
+}
+
+/**
+ * Inventário da IA: minutos de uma pessoa por operação. Campo `min:<processo>`;
+ * em branco ou igual à estimativa do catálogo, vale a estimativa.
+ */
+export async function salvarMinutosHumanosAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  const sessao = await requirePermissao("gestao_sistema")
+  const antes = await minutosAjustadosIA()
+  const ajustes: Record<string, number> = {}
+  const mudancas: string[] = []
+  for (const p of PROCESSOS_IA) {
+    const nome = `min:${p.chave}`
+    if (!fd.has(nome)) {
+      if (antes[p.chave] !== undefined) ajustes[p.chave] = antes[p.chave]
+      continue
+    }
+    const v = numeroOuNulo(fd, nome)
+    if (v === "invalido" || (v !== null && v > 24 * 60)) return { erro: "Use minutos entre 0 e 1.440 (ex.: 15).", campo: nome }
+    const novo = v === null || v === p.minutos ? null : Math.round(v * 10) / 10
+    if (novo !== null) ajustes[p.chave] = novo
+    if ((antes[p.chave] ?? null) !== novo) mudancas.push(`${p.chave}: ${novo === null ? `estimativa (${p.minutos} min)` : `${novo} min`}`)
+  }
+  if (!mudancas.length) return { ok: "Nada mudou." }
+  const r = await salvarMinutosHumanosIA(ajustes, mudancas, String(sessao.usuario.id))
+  if (r.erro) return { erro: r.erro }
+  revalidatePath(`${ROTA}/inventario`)
+  return { ok: `Tempo humano ajustado em ${mudancas.length} ${mudancas.length === 1 ? "operação" : "operações"}.` }
 }
