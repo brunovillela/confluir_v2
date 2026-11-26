@@ -19,6 +19,17 @@ const TEXTAREA =
 
 type Painel = "cancelar" | "corrigir" | "reenviar" | null
 
+type Conta = { id: string; rotulo: string; pix: boolean; ted: boolean; favorito: boolean }
+
+/** "pix" / "ted" pela forma (mesma leitura de ordens-destino); o resto não pede conta. */
+function destinoDaFormaCliente(forma: string): "pix" | "ted" | null {
+  const f = forma.trim().toLowerCase()
+  if (!f || f.includes("qr")) return null
+  if (f === "pix") return "pix"
+  if (/ted|doc|dep[oó]sito|transfer/.test(f)) return "ted"
+  return null
+}
+
 /**
  * Ações do Financeiro sobre uma ordem ainda não paga: corrigir (com motivo —
  * valor acima do aprovado devolve para autorização; o centro de custo é pela
@@ -32,6 +43,7 @@ export function AcoesOrdem({
   podeCancelar,
   podeReenviar,
   atual,
+  contas = [],
 }: {
   ordemId: string
   situacao: string
@@ -43,9 +55,18 @@ export function AcoesOrdem({
     valor: string
     vencimento: string
     formaPagamento: string
+    dadosBancariosId: string
   }
+  /** Contas/chaves do favorecido (para Pix/TED). */
+  contas?: Conta[]
 }) {
   const [aberto, setAberto] = useState<Painel>(null)
+  const [forma, setForma] = useState(atual.formaPagamento)
+  const destino = destinoDaFormaCliente(forma)
+  const servem = destino ? contas.filter((c) => (destino === "pix" ? c.pix : c.ted)) : []
+  // A conta atual, se serve; senão a favorita que serve; senão a primeira.
+  const contaInicial =
+    servem.find((c) => c.id === atual.dadosBancariosId)?.id ?? servem.find((c) => c.favorito)?.id ?? servem[0]?.id ?? ""
   const [estCancelar, acaoCancelar, pendCancelar] = useActionState(cancelarOrdemAction, {})
   const envio1 = useEnvioFormulario(acaoCancelar, estCancelar)
   const [estCorrigir, acaoCorrigir, pendCorrigir] = useActionState(corrigirOrdemAction, {})
@@ -126,7 +147,13 @@ export function AcoesOrdem({
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="corr_forma">Forma de pagamento</Label>
-              <select id="corr_forma" name="forma_pagamento" defaultValue={atual.formaPagamento} className={SELECT}>
+              <select
+                id="corr_forma"
+                name="forma_pagamento"
+                value={forma}
+                onChange={(e) => setForma(e.target.value)}
+                className={SELECT}
+              >
                 <option value="" disabled>Escolha…</option>
                 {!formas.includes(atual.formaPagamento) && atual.formaPagamento && (
                   <option value={atual.formaPagamento}>{atual.formaPagamento}</option>
@@ -139,6 +166,31 @@ export function AcoesOrdem({
               </select>
             </div>
           </div>
+          {destino && (
+            <div className="grid gap-1.5">
+              <Label htmlFor="corr_conta">{destino === "pix" ? "Chave Pix do favorecido" : "Conta do favorecido"}</Label>
+              {servem.length > 0 ? (
+                <select
+                  key={`${destino}-${contaInicial}`}
+                  id="corr_conta"
+                  name="dados_bancarios_id"
+                  defaultValue={contaInicial}
+                  className={SELECT}
+                >
+                  {servem.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.rotulo}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p className="text-warning-fg text-xs">
+                  O favorecido não tem {destino === "pix" ? "chave Pix" : "conta bancária"} cadastrada. Cadastre na ficha dele
+                  ou escolha outra forma.
+                </p>
+              )}
+            </div>
+          )}
           <div className="grid gap-1.5">
             <Label htmlFor="corr_motivo">Motivo da correção *</Label>
             <textarea id="corr_motivo" name="motivo" rows={2} required className={TEXTAREA} />

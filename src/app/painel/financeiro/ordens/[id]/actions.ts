@@ -173,6 +173,7 @@ export async function corrigirOrdemAction(
       valor,
       vencimento: vencimento || null,
       formaPagamento: texto(formData, "forma_pagamento") || null,
+      dadosBancariosId: texto(formData, "dados_bancarios_id") || null,
     },
     texto(formData, "motivo")
   )

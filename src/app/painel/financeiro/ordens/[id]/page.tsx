@@ -37,6 +37,7 @@ import { mesEstaFechado } from "@/lib/db/meses-fechados"
 import { nomeDoDepartamento, travaDaReclassificacao } from "@/lib/db/ordens-reclassificacao"
 import { estornosDaOrdem, janelaDeEstorno, obterPrazoEstorno } from "@/lib/db/ordens-estorno"
 import { extratoDaOrdem } from "@/lib/db/ordens-extrato"
+import { contasDoFavorecido } from "@/lib/db/ordens-destino"
 import { JANELA_DIAS, ordensParecidas, type OrdemParecida } from "@/lib/db/ordens-duplicidade"
 import type { StatusAuditoria } from "@/lib/db/ordens-auditoria"
 import { TIPO_ORDEM_FOLHA } from "@/lib/contracheques-constantes"
@@ -188,6 +189,8 @@ export default async function OrdemPage({
     ordem.arquivo_pagamento !== null ||
     situacao === "Paga"
   const aberta = !SITUACOES_ENCERRADAS.includes(situacao)
+  // Contas/chaves do favorecido para a correção (Pix/TED) — inclusive o filiado do custeio.
+  const contasFavorecido = podeEditar && situacao !== "Paga" ? await contasDoFavorecido(ordem as Record<string, unknown>) : []
 
   // Estorno: pendente trava o reenvio genérico; o botão vale só na ordem paga,
   // dentro do prazo pós-pagamento, para quem tem a permissão.
@@ -491,7 +494,9 @@ export default async function OrdemPage({
                     : Number(ordem.valor_inicial_cobranca).toFixed(2).replace(".", ","),
                 vencimento: typeof ordem.vencimento === "string" ? ordem.vencimento : "",
                 formaPagamento: typeof ordem.forma_pagamento === "string" ? ordem.forma_pagamento : "",
+                dadosBancariosId: typeof ordem.dados_bancarios_id === "string" ? ordem.dados_bancarios_id : "",
               }}
+              contas={contasFavorecido}
             />
           )}
         </CardContent>

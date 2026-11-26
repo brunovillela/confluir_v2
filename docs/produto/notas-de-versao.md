@@ -4,6 +4,10 @@
 
 O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga. É o mesmo conteúdo do aviso "O que há de novo" dentro do sistema. O detalhe técnico de cada entrega está no histórico do git; as decisões de arquitetura, em [`docs/arquitetura/adr/`](../arquitetura/adr/LEIA-ME.md).
 
+## 25/11/2026 — Ordens: escolher a conta do favorecido na correção
+
+- Ordens: no Corrigir ordem, ao escolher Pix ou TED aparece a lista com as contas cadastradas do favorecido (a favorita já marcada), e dá para trocar só a conta. A conta do filiado favorecido de um custeio ou de um reembolso passa a ser encontrada — antes a correção para TED dizia que ele não tinha conta registrada.
+
 ## 24/11/2026 — Contratos: parcela no lugar de uma cancelada
 
 - Ofícios parados em assinatura: quando vários chegam juntos ao dia do lembrete, quem enviou recebe um aviso só, com a lista dos ofícios e o atalho para os que aguardam assinatura (antes, era um aviso por ofício). E o PDF de um ofício emitido à mão aceita até 4 MB, como diz a mensagem.

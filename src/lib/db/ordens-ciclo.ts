@@ -593,6 +593,8 @@ export type CorrecaoOrdem = {
   /** Ausente = não mexe; a troca do centro é pela reclassificação (ordens-reclassificacao.ts). */
   centroCustoDespesaId?: string | null
   formaPagamento: string | null
+  /** Conta/chave do favorecido escolhida (Pix/TED). Ausente = a do cadastro. */
+  dadosBancariosId?: string | null
 }
 
 /**
@@ -646,7 +648,7 @@ export async function corrigirOrdem(
   const { data: o } = await admin
     .from("ordens_pagamento")
     .select(
-      "id, situacao, tipo, descricao, valor_inicial_cobranca, vencimento, centro_custo_despesa_id, forma_pagamento, autorizacao_esta_autorizado, caixa_conta_id, dados_bancarios_id, pix_codigo, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso, processo_compra_id, fornecimento_id"
+      "id, situacao, tipo, descricao, valor_inicial_cobranca, vencimento, centro_custo_despesa_id, forma_pagamento, autorizacao_esta_autorizado, caixa_conta_id, dados_bancarios_id, pix_codigo, fornecedor_id, beneficiario_fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso, processo_compra_id, fornecimento_id, custeio_id"
     )
     .eq("id", ordemId)
     .eq("emp_proprietaria_id", await tenantAtual())
@@ -681,6 +683,18 @@ export async function corrigirOrdem(
     campo("centro_custo_despesa_id", o.centro_custo_despesa_id, nova.centroCustoDespesaId)
   }
   campo("forma_pagamento", o.forma_pagamento, nova.formaPagamento)
+  // Conta escolhida na correção: só vale se é do favorecido e serve à forma.
+  let contaEscolhida: string | null = null
+  if (nova.dadosBancariosId) {
+    const { contasDoFavorecido, destinoDaForma } = await import("@/lib/db/ordens-destino")
+    const destino = destinoDaForma(nova.formaPagamento ?? o.forma_pagamento)
+    const conta = (await contasDoFavorecido(o)).find((c) => c.id === nova.dadosBancariosId)
+    if (!destino || !conta || !(destino === "pix" ? conta.pix : conta.ted)) {
+      return { erro: "A conta escolhida não é do favorecido ou não serve a esta forma de pagamento. Escolha outra." }
+    }
+    contaEscolhida = conta.id
+    campo("dados_bancarios_id", o.dados_bancarios_id, contaEscolhida)
+  }
   if (Object.keys(mudancas).length === 0) return { erro: "Nada foi alterado." }
 
   if ("forma_pagamento" in mudancas && !nova.formaPagamento) {
@@ -688,7 +702,7 @@ export async function corrigirOrdem(
   }
   // Conta do cadastro que passa a valer na ordem (a remessa paga nela).
   let dadoDaForma: string | null = null
-  if ("forma_pagamento" in mudancas) {
+  if ("forma_pagamento" in mudancas && !contaEscolhida) {
     // Trocar para Pix/TED exige a conta do favorecido registrada (ordens-destino.ts).
     const { dadoDoCadastroPara, faltaDestinoBancario } = await import("@/lib/db/ordens-destino")
     const semDestino = await faltaDestinoBancario([{ ...o, forma_pagamento: nova.formaPagamento }])

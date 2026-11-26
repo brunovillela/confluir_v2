@@ -13,6 +13,13 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-25",
+    titulo: "Ordens: escolher a conta do favorecido na correção",
+    itens: [
+      "Ordens: no Corrigir ordem, ao escolher Pix ou TED aparece a lista com as contas cadastradas do favorecido (a favorita já marcada), e dá para trocar só a conta. A conta do filiado favorecido de um custeio ou de um reembolso passa a ser encontrada — antes a correção para TED dizia que ele não tinha conta registrada.",
+    ],
+  },
+  {
     id: "2026-11-24",
     titulo: "Contratos: parcela no lugar de uma cancelada",
     itens: [

@@ -77,11 +77,53 @@ function comoCadastro(d: Record<string, unknown>): DadoCadastro {
   }
 }
 
-const chaveDe = (l: LinhaDestino): string | null => {
+const chaveDaOrdem = (l: LinhaDestino): string | null => {
   const fornecedor = t(l.beneficiario_fornecedor_id) ?? t(l.fornecedor_id)
   if (fornecedor) return `f:${fornecedor}`
   const usuario = t(l.beneficiario_usuario_id)
   return usuario ? `u:${usuario}` : null
+}
+
+/**
+ * FAVORECIDO PELA ORIGEM (25/11/2026): a ordem do custeio a um filiado (e a do
+ * reembolso ao filiado) não traz usuário nem fornecedor — só o nome avulso —, e
+ * a conta dele, cadastrada na filiação, não era achada: a correção para TED
+ * recusava "sem a conta bancária… registrada". A origem diz quem é: o custeio
+ * (filiação ou fornecedor) e o pedido de reembolso (filiado). Chave "p:<filiação>".
+ * Guardada fora da linha (a linha pode ir para o insert).
+ */
+const chaveDaOrigem = new WeakMap<LinhaDestino, string>()
+
+const chaveDe = (l: LinhaDestino): string | null => chaveDaOrdem(l) ?? chaveDaOrigem.get(l) ?? null
+
+async function resolverChavesPelaOrigem(linhas: LinhaDestino[]): Promise<void> {
+  const sem = linhas.filter((l) => !chaveDaOrdem(l) && !chaveDaOrigem.has(l))
+  if (sem.length === 0) return
+  const admin = await createAdminClient()
+  const custeios = [...new Set(sem.map((l) => t(l.custeio_id)).filter((v): v is string => Boolean(v)))]
+  const ordens = [...new Set(sem.filter((l) => !t(l.custeio_id)).map((l) => t(l.id)).filter((v): v is string => Boolean(v)))]
+  const vazio = Promise.resolve({ data: [] as Record<string, unknown>[] })
+  const [{ data: cs }, { data: rs }] = await Promise.all([
+    custeios.length ? admin.from("institucional_custeios").select("id, filiacao_id, fornecedor_id").in("id", custeios) : vazio,
+    ordens.length
+      ? admin.from("filiacao_reembolsos").select("ordem_pagamento_id, filiado_id").in("ordem_pagamento_id", ordens)
+      : vazio,
+  ])
+  const doCusteio = new Map(((cs ?? []) as Record<string, unknown>[]).map((c) => [String(c.id), c]))
+  const doReembolso = new Map(((rs ?? []) as Record<string, unknown>[]).map((r) => [String(r.ordem_pagamento_id), t(r.filiado_id)]))
+  for (const l of sem) {
+    const c = t(l.custeio_id) ? doCusteio.get(String(l.custeio_id)) : undefined
+    const chave = c
+      ? t(c.fornecedor_id)
+        ? `f:${c.fornecedor_id}`
+        : t(c.filiacao_id)
+          ? `p:${c.filiacao_id}`
+          : null
+      : t(l.id) && doReembolso.get(String(l.id))
+        ? `p:${doReembolso.get(String(l.id))}`
+        : null
+    if (chave) chaveDaOrigem.set(l, chave)
+  }
 }
 
 /**
@@ -94,17 +136,31 @@ const chaveDe = (l: LinhaDestino): string | null => {
 async function cadastroDosFavorecidos(linhas: LinhaDestino[]): Promise<Map<string, DadoCadastro[]>> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
-  const fornecedores = [...new Set(linhas.map((l) => t(l.beneficiario_fornecedor_id) ?? t(l.fornecedor_id)).filter((v): v is string => Boolean(v)))]
-  const usuarios = [
-    ...new Set(
-      linhas
-        .filter((l) => !(t(l.beneficiario_fornecedor_id) ?? t(l.fornecedor_id)))
-        .map((l) => t(l.beneficiario_usuario_id))
-        .filter((v): v is string => Boolean(v))
-    ),
-  ]
+  await resolverChavesPelaOrigem(linhas)
+  const chaves = [...new Set(linhas.map(chaveDe).filter((v): v is string => Boolean(v)))]
+  const deTipo = (p: string) => chaves.filter((c) => c.startsWith(p)).map((c) => c.slice(2))
+  const fornecedores = deTipo("f:")
+  const usuarios = deTipo("u:")
+  const filiacoesFavorecidas = deTipo("p:")
   const saida = new Map<string, DadoCadastro[]>()
   const juntar = (chave: string, d: DadoCadastro) => saida.set(chave, [...(saida.get(chave) ?? []), d])
+
+  // Favorecido filiado (pela origem): as contas de todos os cadastros dele (CPF).
+  for (const filiacaoId of filiacoesFavorecidas) {
+    const donos = await donosDaPessoa("filiado", filiacaoId)
+    const vazioP = Promise.resolve({ data: [] as Record<string, unknown>[] })
+    const [a, b, c] = await Promise.all([
+      donos.filiado_id.length ? admin.from("dados_bancarios").select(COLUNAS).in("filiado_id", donos.filiado_id) : vazioP,
+      donos.usuario_id.length ? admin.from("dados_bancarios").select(COLUNAS).in("usuario_id", donos.usuario_id) : vazioP,
+      donos.fornecedor_id.length
+        ? admin.from("dados_bancarios").select(COLUNAS).in("fornecedor_id", donos.fornecedor_id).is("arquivada_em", null)
+        : vazioP,
+    ])
+    const chave = `p:${filiacaoId}`
+    for (const d of [...(a.data ?? []), ...(b.data ?? []), ...(c.data ?? [])] as Record<string, unknown>[]) {
+      if (!(saida.get(chave) ?? []).some((x) => x.id === String(d.id))) juntar(chave, comoCadastro(d))
+    }
+  }
 
   const [porFornecedor, porUsuario, pessoas, integrantes] = await Promise.all([
     fornecedores.length
@@ -337,13 +393,47 @@ export async function completarFormaPadrao(linhas: LinhaDestino[]): Promise<stri
 export async function dadoDoCadastroPara(linha: LinhaDestino, forma: unknown): Promise<string | null> {
   const destino = destinoDaForma(forma)
   if (!destino) return null
+  const cadastro = await cadastroDosFavorecidos([linha])
   const chave = chaveDe(linha)
-  const meus = chave ? ((await cadastroDosFavorecidos([linha])).get(chave) ?? []) : []
+  const meus = chave ? (cadastro.get(chave) ?? []) : []
   const escolhido = t(linha.dados_bancarios_id)
   if (escolhido && meus.some((d) => d.id === escolhido && serve(d, destino))) return escolhido
   const servem = meus.filter((d) => d.id && serve(d, destino))
   const melhor = (destino === "pix" ? servem.find((d) => d.prefere_pix) : null) ?? servem[0]
   return melhor?.id ?? null
+}
+
+/** Uma conta/chave do favorecido para escolher na correção da ordem. */
+export type ContaDoFavorecido = { id: string; rotulo: string; pix: boolean; ted: boolean; favorito: boolean }
+
+const ultimos = (v: string | null, n = 4) => (v ? (v.length > n ? `…${v.slice(-n)}` : v) : "")
+
+/**
+ * As contas e chaves cadastradas do favorecido da ordem (de qualquer papel da
+ * pessoa, e pela origem quando a ordem não traz o favorecido). Só as que têm
+ * id (a ficha antiga do diretor entra quando a ordem a usa).
+ */
+export async function contasDoFavorecido(linha: LinhaDestino): Promise<ContaDoFavorecido[]> {
+  const cadastro = await cadastroDosFavorecidos([linha])
+  const chave = chaveDe(linha)
+  return (chave ? (cadastro.get(chave) ?? []) : [])
+    .filter((d): d is DadoCadastro & { id: string } => Boolean(d.id))
+    .map((d) => {
+      const pix = serve(d, "pix")
+      const ted = serve(d, "ted")
+      const partes = [
+        ted ? `${d.banco ?? d.banco_codigo ?? "Banco"} · ag. ${d.agencia} · conta ${ultimos(d.conta)}` : null,
+        pix ? `Pix ${d.pix_tipo ? `(${d.pix_tipo}) ` : ""}${ultimos(d.pix, 6)}` : null,
+      ].filter(Boolean)
+      return {
+        id: d.id,
+        rotulo: `${partes.join(" · ")}${d.favorecido ? ` — ${d.favorecido}` : ""}${d.favorito ? " (favorita)" : ""}`,
+        pix,
+        ted,
+        favorito: d.favorito,
+      }
+    })
+    .filter((c) => c.pix || c.ted)
 }
 
 /** Situações em que a ordem ainda não foi paga nem entrou em remessa. */
