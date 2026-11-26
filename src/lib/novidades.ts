@@ -16,6 +16,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-11-26",
     titulo: "Ordens: filtro por projeto com as ordens das compras",
     itens: [
+      "Financeiro → Cartões: a lista ganhou busca (apelido, bandeira, final ou titular) e filtros de tipo, uso e situação. Ao abrir um cartão e voltar, a lista reabre com o filtro que estava.",
       "Financeiro → Ordens, possíveis duplicadas a pagar: a lista abre com os pares — a ordem X parece duplicada da ordem Y —, com as duas lado a lado (código, situação, descrição, vencimento e, se já paga, a data do pagamento), o favorecido e o valor. Antes, as ordens apareciam soltas, sem dizer qual repetia qual.",
       "Financeiro → Centros de custo: ao abrir uma conta e voltar, a lista reabre com a busca, o tipo, a situação e a página que estavam. A busca pelo nome da conta ignora acento.",
       "Auditoria das ordens: o alerta Vencimento já passado ganhou tolerância de 3 dias (a compra lançada logo depois de vencer não alerta mais) e não avalia a ordem já paga — a regularização lançada depois do pagamento. O vencimento de meses ou anos atrás continua alertando.",

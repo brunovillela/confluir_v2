@@ -1,13 +1,13 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, CreditCard } from "lucide-react"
+import { CreditCard } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { VoltarLista } from "@/components/voltar-lista"
 import { requirePermissao } from "@/lib/auth"
 import { rotuloTipoCartao, rotuloUsoCartao } from "@/lib/compras-constantes"
 import { pessoasAutorizaveis } from "@/lib/db/caixa"
@@ -39,12 +39,7 @@ export default async function CartaoPage({ params }: { params: Promise<{ id: str
   return (
     <>
       <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-          <Link href="/painel/financeiro/cartoes">
-            <ArrowLeft />
-            Cartões
-          </Link>
-        </Button>
+        <VoltarLista chave="cartoes" base="/painel/financeiro/cartoes" rotulo="Cartões" />
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">{nomeCartao(cartao)}</h1>
           <CreditCard className="text-muted-foreground size-5" />
