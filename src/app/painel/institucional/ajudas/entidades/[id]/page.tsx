@@ -109,6 +109,7 @@ export default async function EntidadeApoiadaPage({
   params: Promise<{ id: string }>
   searchParams: Promise<{
     salvo?: string
+    existente?: string
     editar?: string
     endereco?: string
     conta?: string
@@ -191,6 +192,15 @@ export default async function EntidadeApoiadaPage({
           {e.created_at && <> · cadastrada em {formatarData(e.created_at)}</>}
         </p>
       </div>
+
+      {brutos.existente === "1" && (
+        <Alert className="border-info/40 text-info-fg">
+          <AlertDescription>
+            Este CNPJ/CPF já tinha cadastro no Confluir — é este. Ele passou a valer como entidade apoiada; use-o na
+            ajuda (não foi criado outro).
+          </AlertDescription>
+        </Alert>
+      )}
 
       {brutos.salvo === "1" && (
         <Alert className="border-success/40 text-success-fg">

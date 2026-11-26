@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from "react"
 import { Check, ChevronsUpDown, TriangleAlert, X } from "lucide-react"
 
-import { semAcento } from "@/lib/texto"
+import { casaBusca, semAcento } from "@/lib/texto"
 import { cn } from "@/lib/utils"
 
 export type EmpresaOpcao = {
@@ -71,7 +71,7 @@ export function EmpresaCombobox({
     return indice
       .filter(
         (i) =>
-          i.texto.includes(termo) ||
+          casaBusca(i.texto, termo) ||
           (digitos.length >= 3 && i.digitos.includes(digitos))
       )
       .map((i) => i.f)

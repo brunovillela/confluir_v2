@@ -3,6 +3,7 @@ import { hojeSP, lerEmLotes } from "@/lib/db/comum"
 import { lerDocumentoTitular, mesmoTitular, validarCnpj, validarCpf, validarNitPis } from "@/lib/cpf"
 import { conferirTitularPix } from "@/lib/pix-titular"
 import { formatarCnpjCpf } from "@/lib/formato"
+import { casaBusca } from "@/lib/texto"
 import { tenantAtual } from "@/lib/tenant"
 
 /** CPF (11) ou CNPJ (14) com dígitos verificadores corretos. */
@@ -462,7 +463,7 @@ export async function listarEntidadesApoiadas(
   busca = ""
 ): Promise<EntidadeApoiadaLinha[]> {
   const admin = await createAdminClient()
-  let q = admin
+  const q = admin
     .from("empresa")
     .select(
       "id, nome_fantasia, nome_razao, cnpj_cpf, pessoa_juridica, fornecedor_bloqueado, bloqueado, inativa"
@@ -470,19 +471,10 @@ export async function listarEntidadesApoiadas(
     .eq("emp_proprietaria_id", await tenantAtual())
     .eq("entidade_apoiada", true)
     .not("inativa", "is", true)
-  const termo = busca.trim().replace(/[,()]/g, " ").trim()
-  if (termo) {
-    const digitos = termo.replace(/\D/g, "")
-    q = q.or(
-      [
-        `nome_fantasia.ilike.%${termo}%`,
-        `nome_razao.ilike.%${termo}%`,
-        digitos ? `cnpj_cpf.like.%${digitos}%` : null,
-      ]
-        .filter(Boolean)
-        .join(",")
-    )
-  }
+  // A busca é feita em memória, sem acento e por palavras (casaBusca): a
+  // lista de entidades é pequena, e o ilike cru não achava nome com acento
+  // diferente ou com espaço repetido.
+  const termo = busca.trim()
   let data: Record<string, unknown>[]
   try {
     // Em lotes (U8): o PostgREST corta em 1.000 linhas.
@@ -492,6 +484,14 @@ export async function listarEntidadesApoiadas(
   } catch (error) {
     if (esquemaAusente(error as { code?: string })) return [] // coluna entidade_apoiada ainda não existe
     throw new Error(`Falha ao listar entidades apoiadas: ${(error as Error).message}`)
+  }
+  if (termo) {
+    const digitos = termo.replace(/\D/g, "")
+    data = data.filter(
+      (e) =>
+        casaBusca(`${e.nome_fantasia ?? ""} ${e.nome_razao ?? ""}`, termo) ||
+        (digitos.length >= 3 && String(e.cnpj_cpf ?? "").replace(/\D/g, "").includes(digitos))
+    )
   }
   return data.map((e) => ({
     id: String(e.id),
@@ -529,11 +529,18 @@ export async function marcarEntidadeApoiada(
 
 export async function criarEntidadeApoiada(
   dados: DadosFornecedor
-): Promise<{ id?: string; erro?: string }> {
+): Promise<{ id?: string; erro?: string; existente?: boolean }> {
   const invalido = validarDados(dados)
   if (invalido) return { erro: invalido }
-  if (dados.cnpj_cpf && (await cnpjDuplicado(dados.cnpj_cpf))) {
-    return { erro: "Já existe um cadastro ativo com este CNPJ/CPF." }
+  // O CPF/CNPJ já tem cadastro (de fornecedor ou de entidade): não cria outro
+  // — passa a valer como entidade apoiada e é ele que se abre (25/11/2026: a
+  // recusa "já existe" travava quem não achava a entidade na busca, e Mesclar
+  // não aparece porque não há dois cadastros).
+  const existente = dados.cnpj_cpf ? await outroComDocumento(dados.cnpj_cpf) : null
+  if (existente) {
+    const marcou = await marcarEntidadeApoiada(existente.id)
+    if (marcou.erro) return { erro: marcou.erro }
+    return { id: existente.id, existente: true }
   }
   const admin = await createAdminClient()
   const { data, error } = await admin

@@ -17,6 +17,7 @@ import {
   usuarioDaTrilha,
 } from "@/lib/db/ordens-ciclo"
 import { esquemaAusente, lerEmLotes, texto } from "@/lib/db/comum"
+import { casaBusca } from "@/lib/texto"
 import { getSessaoPainel } from "@/lib/auth"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -360,13 +361,11 @@ export async function listarContratos(opcoes: {
     linhaContrato(c, hoje, fornecedores, departamentos, categorias)
   )
 
-  const busca = (opcoes.busca ?? "").trim().toLowerCase()
+  const busca = (opcoes.busca ?? "").trim()
   if (busca) {
-    linhas = linhas.filter((c) =>
-      [c.codigo, c.objeto, c.fornecedorNome]
-        .filter(Boolean)
-        .some((v) => v!.toLowerCase().includes(busca))
-    )
+    // Sem acento e por palavras (casaBusca): o nome do fornecedor pode ter
+    // acento ou espaço diferente do digitado.
+    linhas = linhas.filter((c) => casaBusca([c.codigo, c.objeto, c.fornecedorNome].filter(Boolean).join(" "), busca))
   }
 
   const s = opcoes.situacao ?? "todos"

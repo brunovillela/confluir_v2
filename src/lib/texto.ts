@@ -13,6 +13,22 @@ export function semAcento(s: string): string {
 }
 
 /**
+ * O texto contém todas as palavras do termo? Sem acento, sem caixa, com os
+ * espaços repetidos e a pontuação solta ignorados e as palavras em qualquer
+ * ordem (25/11/2026: "FABRICIA DA SILVA DA PENHA  - SAMBA PRAÇA SANTO ANTONIO",
+ * gravado com dois espaços, não aparecia buscando "penha - samba" nem
+ * "Antônio"). Termo vazio casa tudo.
+ */
+export function casaBusca(texto: string, termo: string): boolean {
+  const palavras = semAcento(termo)
+    .split(/[\s\-–—,.;:/()]+/)
+    .filter(Boolean)
+  if (palavras.length === 0) return true
+  const alvo = semAcento(texto).replace(/\s+/g, " ")
+  return palavras.every((p) => alvo.includes(p))
+}
+
+/**
  * Escapa `%`, `_` e `\` para usar o texto como valor literal em `ilike`/`like`
  * do PostgREST (S15): sem isto, "a_b" casa "axb" e "%" casa tudo.
  */

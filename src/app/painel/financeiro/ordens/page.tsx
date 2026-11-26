@@ -237,12 +237,19 @@ export default async function OrdensPage({
 
   const params = await searchParams
   const filtros = normalizarFiltros(params)
-  const dias = Math.min(Math.max(Number(params.dias) || 30, 30), 1095)
+  // Período das pagas no extrato: "todos" = todo o histórico. Filtrando um
+  // favorecido, o padrão é todo o histórico dele (25/11/2026) — quem filtra
+  // uma pessoa ou empresa quer ver tudo dela, não só o último mês.
+  const dias: number | null =
+    params.dias === "todos" || (!params.dias && filtros.beneficiario)
+      ? null
+      : Math.min(Math.max(Number(params.dias) || 30, 30), 1095)
   const futurosTodos = params.futuros === "todos"
-  const extratoUrl = (m: { dias?: number; futuros?: string }) => {
+  const extratoUrl = (m: { dias?: number | null; futuros?: string }) => {
     const u = new URLSearchParams(montarUrl(filtros, {}).split("?")[1] ?? "")
-    const d = m.dias ?? dias
-    if (d !== 30) u.set("dias", String(d))
+    const d = m.dias === undefined ? dias : m.dias
+    if (d === null) u.set("dias", "todos")
+    else if (d !== 30) u.set("dias", String(d))
     if ((m.futuros ?? (futurosTodos ? "todos" : "")) === "todos") u.set("futuros", "todos")
     const q = u.toString()
     return `/painel/financeiro/ordens${q ? `?${q}` : ""}`
@@ -554,7 +561,9 @@ export default async function OrdensPage({
         <ExtratoOrdensView
           extrato={extrato}
           urlMaisFuturos={futurosTodos ? null : extratoUrl({ futuros: "todos" })}
-          urlMaisPassado={extratoUrl({ dias: dias + 30 })}
+          urlMaisPassado={dias === null ? null : extratoUrl({ dias: dias + 30 })}
+          urlTodoPeriodo={extratoUrl({ dias: null })}
+          urlLista={montarUrl(filtros, { visao: "lista", pagina: 1 })}
           debitos={debitos}
         />
       )}

@@ -2,6 +2,7 @@ import Link from "next/link"
 import { AlertTriangle, CalendarClock, Copy, CalendarDays, CheckCircle2, ChevronDown, ReceiptText } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import type { DiaExtrato, ExtratoOrdens, OrdemLinha } from "@/lib/db/financeiro"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { cn } from "@/lib/utils"
@@ -219,6 +220,8 @@ export function ExtratoOrdensView({
   extrato,
   urlMaisFuturos,
   urlMaisPassado,
+  urlTodoPeriodo,
+  urlLista,
   debitos,
 }: {
   /** Contas de débito para pagar do extrato; null = sem permissão de pagar. */
@@ -226,17 +229,47 @@ export function ExtratoOrdensView({
   extrato: ExtratoOrdens
   /** Link que mostra todos os futuros (null quando já mostra). */
   urlMaisFuturos: string | null
-  urlMaisPassado: string
+  /** Mais 30 dias para trás (null quando já mostra todo o período). */
+  urlMaisPassado: string | null
+  /** O extrato com todo o histórico de pagas. */
+  urlTodoPeriodo: string
+  /** A mesma busca na visão Lista. */
+  urlLista: string
 }) {
   const { hoje } = extrato
   const vazioGeral =
     extrato.futuros.length + extrato.atrasadas.length + extrato.realizados.length + extrato.hojeDia.linhas.length === 0 &&
     extrato.futurosAlem.quantidade === 0
+  // Pagas que o período escondeu: dizer quantas e oferecer o período todo.
+  const antes =
+    extrato.pagasAntes > 0 && extrato.realizadosDe
+      ? `${extrato.pagasAntes} ordem(ns) paga(s) antes de ${formatarData(extrato.realizadosDe)}`
+      : null
   if (vazioGeral) {
     return (
-      <div className="text-muted-foreground flex h-40 flex-col items-center justify-center gap-2 rounded-xl border text-center">
+      <div className="text-muted-foreground flex min-h-40 flex-col items-center justify-center gap-2 rounded-xl border p-4 text-center">
         <ReceiptText className="size-6" />
-        <p className="text-sm">Nenhuma ordem no período com esses filtros.</p>
+        {antes ? (
+          <>
+            <p className="text-sm">
+              Nenhuma ordem desde {formatarData(extrato.realizadosDe!)} com esses filtros. Há {antes}.
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button size="sm" asChild>
+                <Link href={urlTodoPeriodo} scroll={false}>
+                  Ver todo o período
+                </Link>
+              </Button>
+              <Button size="sm" variant="outline" asChild>
+                <Link href={urlLista}>Abrir na Lista</Link>
+              </Button>
+            </div>
+          </>
+        ) : (
+          <p className="text-sm">
+            Nenhuma ordem {extrato.realizadosDe ? "no período" : ""} com esses filtros.
+          </p>
+        )}
       </div>
     )
   }
@@ -291,16 +324,25 @@ export function ExtratoOrdensView({
       <Bloco
         selecao={selecao}
         ancora="pagas"
-        titulo={`Pagas desde ${formatarData(extrato.realizadosDe)}`}
+        titulo={extrato.realizadosDe ? `Pagas desde ${formatarData(extrato.realizadosDe)}` : "Pagas — todo o período"}
         icone={CheckCircle2}
         dias={extrato.realizados}
         hoje={hoje}
         data="pagamento"
         vazio="Nenhum pagamento no período."
         rodape={
-          <Link href={urlMaisPassado} scroll={false} className="text-primary hover:underline">
-            Ver mais 30 dias para trás
-          </Link>
+          urlMaisPassado ? (
+            <span className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+              {antes && (
+                <Link href={urlTodoPeriodo} scroll={false} className="text-primary font-medium hover:underline">
+                  +{antes} — ver todo o período
+                </Link>
+              )}
+              <Link href={urlMaisPassado} scroll={false} className="text-primary hover:underline">
+                Ver mais 30 dias para trás
+              </Link>
+            </span>
+          ) : null
         }
       />
       {selecao && <BarraSelecao debitos={debitos} hoje={hoje} />}

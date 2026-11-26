@@ -365,7 +365,15 @@ export type ExtratoOrdens = {
   atrasadas: DiaExtrato[]
   /** Pagas (pela data do pagamento) de `realizadosDe` até ontem, do mais recente ao mais antigo. */
   realizados: DiaExtrato[]
-  realizadosDe: string
+  /** Início do período das pagas; null = todo o histórico. */
+  realizadosDe: string | null
+  /**
+   * Pagas ANTES do período, com os mesmos filtros (só contada quando há
+   * filtro — sem filtro seria a base inteira). Avisa que o extrato não
+   * mostra tudo (25/11/2026: filtrar uma favorecida paga há 2 meses dava
+   * "Nenhuma ordem" e parecia que ela não tinha ordens).
+   */
+  pagasAntes: number
   /** Resumo do topo: o que falta pagar, por prazo (independe do horizonte). */
   resumo: Record<"vencidas" | "hoje" | "dias7" | "dias30", { quantidade: number; total: number }>
 }
@@ -395,7 +403,7 @@ function porDia(linhas: OrdemLinha[], dataDe: (o: OrdemLinha) => string, desc: b
  */
 export async function extratoOrdens(
   filtros: FiltrosOrdens,
-  { dias = 30, futurosDias = 30 }: { dias?: number; futurosDias?: number | null } = {}
+  { dias = 30, futurosDias = 30 }: { dias?: number | null; futurosDias?: number | null } = {}
 ): Promise<ExtratoOrdens> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
@@ -405,7 +413,7 @@ export async function extratoOrdens(
     d.setUTCDate(d.getUTCDate() + n)
     return d.toISOString().slice(0, 10)
   }
-  const realizadosDe = somar(hoje, -dias)
+  const realizadosDe = dias === null ? null : somar(hoje, -dias)
   const limiteFuturo = futurosDias === null ? null : somar(hoje, futurosDias)
   const beneficiario = filtros.beneficiario ?? ""
   const doFiliado = beneficiario.startsWith("f:") ? await ordensDoFiliado(beneficiario.slice(2)) : []
@@ -421,14 +429,45 @@ export async function extratoOrdens(
     // Tudo o que não está pago (futuro, hoje e atrasado).
     lerEmLotes<Omit<OrdemLinha, "favorecido">>((de, ate) => base().neq("situacao", "Paga").order("id").range(de, ate)),
     // Pagas no período (sem data de pagamento, vale o vencimento — legado).
-    lerEmLotes<Omit<OrdemLinha, "favorecido">>((de, ate) =>
-      base()
-        .eq("situacao", "Paga")
-        .or(`data_pagamento.gte.${realizadosDe},and(data_pagamento.is.null,vencimento.gte.${realizadosDe})`)
+    lerEmLotes<Omit<OrdemLinha, "favorecido">>((de, ate) => {
+      const q = base().eq("situacao", "Paga")
+      return (realizadosDe
+        ? q.or(`data_pagamento.gte.${realizadosDe},and(data_pagamento.is.null,vencimento.gte.${realizadosDe})`)
+        : q
+      )
         .order("id")
         .range(de, ate)
-    ),
+    }),
   ])
+
+  // Pagas antes do período, com os mesmos filtros — só com filtro aplicado.
+  const temFiltro = Boolean(
+    beneficiario ||
+      (filtros.busca ?? "").trim() ||
+      (filtros.tipo && filtros.tipo !== "todos") ||
+      filtros.centroCusto ||
+      filtros.departamento ||
+      filtros.projeto ||
+      filtros.formaPagamento ||
+      filtros.pendencia ||
+      !situacaoLivre
+  )
+  let pagasAntes = 0
+  if (realizadosDe && temFiltro) {
+    let q = aplicarFiltrosOrdens(
+      admin.from("ordens_pagamento").select("id", { count: "exact", head: true }),
+      filtros,
+      emp,
+      doFiliado,
+      idsPendencia,
+      idsBusca
+    )
+    if (situacaoLivre) q = q.not("situacao", "in", `(${FORA_DO_EXTRATO.map((s) => `"${s}"`).join(",")})`)
+    const { count } = await q
+      .eq("situacao", "Paga")
+      .or(`data_pagamento.lt.${realizadosDe},and(data_pagamento.is.null,vencimento.lt.${realizadosDe})`)
+    pagasAntes = count ?? 0
+  }
 
   const ate = (o: { vencimento: string | null }) => (o.vencimento ?? "").slice(0, 10)
   const pagoEm = (o: { data_pagamento: string | null; vencimento: string | null }) => (o.data_pagamento ?? o.vencimento ?? "").slice(0, 10)
@@ -437,7 +476,7 @@ export async function extratoOrdens(
   const alem = futurasTodas.filter((o) => limiteFuturo !== null && ate(o) > limiteFuturo)
   const deHoje = [...abertas.filter((o) => ate(o) === hoje), ...pagas.filter((o) => pagoEm(o) === hoje)]
   const atrasadas = abertas.filter((o) => !ate(o) || ate(o) < hoje)
-  const realizadas = pagas.filter((o) => pagoEm(o) < hoje && pagoEm(o) >= realizadosDe)
+  const realizadas = pagas.filter((o) => pagoEm(o) < hoje && (realizadosDe === null || pagoEm(o) >= realizadosDe))
   const resumoDe = (ls: Omit<OrdemLinha, "favorecido">[]) => ({ quantidade: ls.length, total: somaDia(ls.map((o) => ({ ...o, favorecido: null }))) })
   const ate7 = somar(hoje, 7)
   const ate30 = somar(hoje, 30)
@@ -482,6 +521,7 @@ export async function extratoOrdens(
     atrasadas: porDia(com(atrasadas), (o) => ate(o) || "sem vencimento", false),
     realizados: porDia(com(realizadas), pagoEm, true),
     realizadosDe,
+    pagasAntes,
     resumo,
   }
 }

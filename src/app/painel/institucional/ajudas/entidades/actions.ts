@@ -52,10 +52,10 @@ export async function criarEntidadeAction(
   formData: FormData
 ): Promise<EstadoForm> {
   await requireEdicao()
-  const { id, erro } = await criarEntidadeApoiada(lerDados(formData))
+  const { id, erro, existente } = await criarEntidadeApoiada(lerDados(formData))
   if (erro || !id) return { erro: erro ?? "Falha ao cadastrar." }
   revalidar(id)
-  redirect(`${BASE}/${id}?salvo=1`)
+  redirect(`${BASE}/${id}?${existente ? "existente=1" : "salvo=1"}`)
 }
 
 export async function atualizarEntidadeAction(
