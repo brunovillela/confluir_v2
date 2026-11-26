@@ -33,6 +33,7 @@ import {
 } from "@/lib/db/viagens"
 import { formatarData } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
+import { ViagensDaPessoa } from "@/components/viagens-da-pessoa"
 
 import { solicitarViagem } from "./actions"
 import { CancelarViagemBotao } from "./cancelar-viagem"
@@ -110,6 +111,16 @@ export default async function MinhasViagensPage({
             </AlertDescription>
           </Alert>
         ))}
+
+      {/* Quanto já foi adquirido para a pessoa, por ano — sem valores: quem viaja não vê o custo. */}
+      {historico.some((v) => v.situacao === "atendida") && (
+        <ViagensDaPessoa
+          usuarioId={usuarioId}
+          nome={null}
+          mostrarValores={false}
+          mostrarLista={false}
+        />
+      )}
 
       <TabelaViagens
         titulo="Em andamento"

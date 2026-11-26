@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react"
 
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { AvatarPessoa } from "@/components/pessoa-nome"
+import { ViagensDaPessoa } from "@/components/viagens-da-pessoa"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -254,6 +255,19 @@ export default async function FuncionarioPage({
             </CardContent>
           </Card>
         </>
+      )}
+      {temGestao && (
+        <ViagensDaPessoa
+          usuarioId={id}
+          nome={usuario.nome_completo ?? usuario.nome_guerra ?? null}
+          mostrarValores
+          baseDetalhe={podeAcessar(sessao.permissoes, "viagens_gestao") ? "/painel/institucional/viagens" : undefined}
+          verTodas={
+            podeAcessar(sessao.permissoes, "viagens_gestao")
+              ? `/painel/institucional/viagens/solicitacoes?pessoa=${encodeURIComponent(usuario.nome_completo ?? usuario.nome_guerra ?? "")}`
+              : undefined
+          }
+        />
       )}
       {temGestao && (
         <ExcluirFuncionario

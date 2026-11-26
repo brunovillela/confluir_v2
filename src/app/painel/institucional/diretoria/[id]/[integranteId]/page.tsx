@@ -26,6 +26,8 @@ import type { EmpresaOpcao } from "@/components/empresa-combobox"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 
 import { OutrosCadastros } from "@/components/outros-cadastros"
+import { ViagensDaPessoa } from "@/components/viagens-da-pessoa"
+import { podeAcessar } from "@/lib/permissoes"
 
 import { DiariasDoIntegrante } from "./diarias-do-integrante"
 import { FichaDiretorForm } from "./ficha-form"
@@ -116,6 +118,21 @@ export default async function DiretorPage({
 
       {veDiarias && integrante.usuarioId && (
         <DiariasDoIntegrante usuarioId={integrante.usuarioId} nome={integrante.nome} />
+      )}
+
+      {integrante.usuarioId && (
+        <ViagensDaPessoa
+          usuarioId={integrante.usuarioId}
+          nome={integrante.nome}
+          // Valores para quem já vê os custos da diretoria (diárias) ou atende as viagens.
+          mostrarValores={veDiarias || podeAcessar(sessao.permissoes, "viagens_gestao")}
+          baseDetalhe={podeAcessar(sessao.permissoes, "viagens_gestao") ? "/painel/institucional/viagens" : undefined}
+          verTodas={
+            podeAcessar(sessao.permissoes, "viagens_gestao")
+              ? `/painel/institucional/viagens/solicitacoes?pessoa=${encodeURIComponent(integrante.nome ?? "")}`
+              : undefined
+          }
+        />
       )}
 
       <Card>
