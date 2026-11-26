@@ -38,6 +38,7 @@ import {
   vencimentoParcela,
   MAX_PARCELAS,
   naturezaDaOrdem,
+  valorSugeridoDasParcelas,
   DIAS_FINALIZACAO_LOTE,
   podeAnexarNotaPeloContrato,
   SITUACOES_QUE_LIBERAM_VENCIMENTO,
@@ -1899,4 +1900,119 @@ export async function finalizarContratosEmLote(
     feitos += lote.length
   }
   return { finalizados: feitos }
+}
+
+// ── Valor do contrato pelas parcelas (26/11/2026) ────────────────────────────
+
+export type SugestaoValorContrato = {
+  id: string
+  codigo: string | null
+  objeto: string | null
+  valor: number
+  repeticoes: number
+  total: number
+}
+
+/** Ordens de contrato do tenant, agrupadas por contrato, no formato da sugestão. */
+async function ordensPorContrato(contratoIds?: string[]) {
+  const admin = await createAdminClient()
+  const empId = await tenantAtual()
+  const linhas = await lerEmLotes<Record<string, unknown>>((de, ate) => {
+    let q = admin
+      .from("ordens_pagamento")
+      .select("contrato_id, valor_inicial_cobranca, situacao, tipo, processo_compra_id, contrato_pagamento, bubble_id")
+      .eq("emp_proprietaria_id", empId)
+      .not("contrato_id", "is", null)
+      .not("excluido", "is", true)
+    if (contratoIds) q = q.in("contrato_id", contratoIds)
+    return q.order("id").range(de, ate)
+  })
+  const por = new Map<string, Parameters<typeof valorSugeridoDasParcelas>[0]>()
+  for (const o of linhas) {
+    const cid = texto(o.contrato_id) as string
+    const lista = por.get(cid) ?? []
+    lista.push({
+      natureza: naturezaDaOrdem({ contrato_pagamento: texto(o.contrato_pagamento), legado: Boolean(texto(o.bubble_id)), tipo: texto(o.tipo) }),
+      situacao: texto(o.situacao),
+      tipo: texto(o.tipo),
+      processo_compra_id: texto(o.processo_compra_id),
+      valor: o.valor_inicial_cobranca == null ? null : Number(o.valor_inicial_cobranca),
+    })
+    por.set(cid, lista)
+  }
+  return por
+}
+
+/** Contratos sem valor (não sob demanda) cujas parcelas repetem o mesmo valor. */
+export async function sugestoesDeValorContrato(verSigilosos: boolean): Promise<SugestaoValorContrato[]> {
+  const admin = await createAdminClient()
+  const empId = await tenantAtual()
+  const [contratos, categorias] = await Promise.all([
+    lerEmLotes<Record<string, unknown>>((de, ate) =>
+      admin
+        .from("contratos")
+        .select("id, codigo, objeto, valor, sob_demanda, apoio_institucional, categoria_id")
+        .eq("emp_proprietaria_id", empId)
+        .not("deletado", "is", true)
+        .order("id")
+        .range(de, ate)
+    ),
+    mapaCategorias(admin, empId),
+  ])
+  const sem = contratos.filter((c) => {
+    const cid = texto(c.categoria_id)
+    return (
+      !(Number(c.valor) > 0) &&
+      c.sob_demanda !== true &&
+      c.apoio_institucional !== true &&
+      (verSigilosos || !(cid && categorias.get(cid)?.sigiloso))
+    )
+  })
+  if (!sem.length) return []
+  const por = await ordensPorContrato()
+  const saida: SugestaoValorContrato[] = []
+  for (const c of sem) {
+    const s = valorSugeridoDasParcelas(por.get(String(c.id)) ?? [])
+    if (s) saida.push({ id: String(c.id), codigo: texto(c.codigo), objeto: texto(c.objeto), ...s })
+  }
+  return saida
+}
+
+/** A sugestão de valor de UM contrato (página do contrato). */
+export async function sugestaoDeValorDoContrato(contratoId: string): Promise<{ valor: number; repeticoes: number; total: number } | null> {
+  const por = await ordensPorContrato([contratoId])
+  return valorSugeridoDasParcelas(por.get(contratoId) ?? [])
+}
+
+/**
+ * Preenche o valor do contrato com o que as parcelas repetem (recalculado
+ * aqui). Só contrato ainda sem valor e não sob demanda.
+ */
+export async function preencherValorPelasParcelas(contratoIds: string[]): Promise<{ erro?: string; preenchidos?: number }> {
+  const ids = [...new Set(contratoIds.filter(Boolean))]
+  if (!ids.length) return { preenchidos: 0 }
+  const admin = await createAdminClient()
+  const empId = await tenantAtual()
+  const por = await ordensPorContrato(ids.length <= 200 ? ids : undefined)
+  const { data: cs, error } = await admin
+    .from("contratos")
+    .select("id, valor, sob_demanda")
+    .eq("emp_proprietaria_id", empId)
+    .in("id", ids.slice(0, 1000))
+  if (error) return { erro: `Falha ao carregar os contratos: ${error.message}` }
+  let feitos = 0
+  for (const c of cs ?? []) {
+    if (Number(c.valor) > 0 || c.sob_demanda === true) continue
+    const s = valorSugeridoDasParcelas(por.get(String(c.id)) ?? [])
+    if (!s) continue
+    const { error: e } = await admin
+      .from("contratos")
+      .update({ valor: s.valor })
+      .eq("id", String(c.id))
+      .eq("emp_proprietaria_id", empId)
+      .or("valor.is.null,valor.eq.0")
+    if (e) return { erro: `Parou depois de ${feitos}: ${e.message}`, preenchidos: feitos }
+    feitos++
+  }
+  return { preenchidos: feitos }
 }

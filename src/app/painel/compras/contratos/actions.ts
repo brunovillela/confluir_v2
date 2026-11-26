@@ -22,6 +22,8 @@ import {
   excluirOrdensContrato,
   finalizarContrato,
   finalizarContratosEmLote,
+  preencherValorPelasParcelas,
+  sugestoesDeValorContrato,
   reabrirContrato,
   gerarOrdensContrato,
   receberDocumentoOrdemContrato,
@@ -450,4 +452,20 @@ export async function finalizarContratosEmLoteAction(
   if (erro) return { erro }
   revalidatePath("/painel/compras/contratos")
   redirect(`/painel/compras/contratos?situacao=finalizados&finalizadosLote=${finalizados ?? 0}`)
+}
+
+/** Valor do contrato pelas parcelas — um contrato (página dele) ou todos os sugeridos (Saúde). */
+export async function preencherValorPelasParcelasAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  await requireEdicaoContratos()
+  const id = texto(formData, "contrato_id")
+  const ids = id ? [id] : (await sugestoesDeValorContrato(true)).map((s) => s.id)
+  const { erro, preenchidos } = await preencherValorPelasParcelas(ids)
+  if (erro) return { erro }
+  if (id) {
+    revalidar(id)
+    redirect(`/painel/compras/contratos/${id}?salvo=1`)
+  }
+  revalidatePath("/painel/compras/contratos")
+  revalidatePath("/painel/compras/contratos/saude")
+  redirect(`/painel/compras/contratos/saude?valoresPreenchidos=${preenchidos ?? 0}`)
 }

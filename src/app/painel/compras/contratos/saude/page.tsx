@@ -19,7 +19,9 @@ import {
   type ApontamentoContrato,
   type PendenciaContrato,
 } from "@/lib/db/contratos-saude"
-import { formatarData } from "@/lib/formato"
+import { sugestoesDeValorContrato } from "@/lib/db/contratos"
+import { formatarData, formatarMoeda } from "@/lib/formato"
+import { PreencherValorPelasParcelas } from "../valor-pelas-parcelas"
 import { podeAcessar } from "@/lib/permissoes"
 import { semAcento } from "@/lib/texto"
 
@@ -33,16 +35,20 @@ type Filtro = PendenciaContrato | ApontamentoContrato | "apontamento"
 export default async function SaudeContratosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ busca?: string; pagina?: string; tipo?: string }>
+  searchParams: Promise<{ busca?: string; pagina?: string; tipo?: string; valoresPreenchidos?: string }>
 }) {
   const sessao = await requirePermissao("aquisicoes_contratos", ["aquisicoes_contratos_edicao"])
   const podeEditar = podeAcessar(sessao.permissoes, "aquisicoes_contratos_edicao")
-  const { busca = "", pagina: paginaTexto, tipo: tipoBruto } = await searchParams
+  const { busca = "", pagina: paginaTexto, tipo: tipoBruto, valoresPreenchidos } = await searchParams
   const pagina = Math.max(1, Number(paginaTexto) || 1)
   const todos: readonly string[] = [...TIPOS_PENDENCIA_CONTRATO, ...TIPOS_APONTAMENTO_CONTRATO, "apontamento"]
   const tipo = todos.includes(tipoBruto ?? "") ? (tipoBruto as Filtro) : null
 
-  const dados = await saudeContratos({ verSigilosos: podeEditar })
+  const [dados, sugestoes] = await Promise.all([
+    saudeContratos({ verSigilosos: podeEditar }),
+    // Sem valor, mas as parcelas repetem um (26/11/2026).
+    podeEditar ? sugestoesDeValorContrato(true).catch(() => []) : Promise.resolve([]),
+  ])
   const semPendencia = dados.emUso - dados.comPendencia
   const percentual = percentualSaude(semPendencia, dados.emUso)
   const faixa = faixaDaSaude(percentual)
@@ -87,6 +93,51 @@ export default async function SaudeContratosPage({
           problema no cadastro. A pendência derruba a saúde; o apontamento só avisa.
         </p>
       </div>
+
+      {valoresPreenchidos !== undefined && (
+        <p className="border-success/40 text-success-fg rounded-md border px-3 py-2 text-sm">
+          {Number(valoresPreenchidos) > 0
+            ? `Valor preenchido em ${valoresPreenchidos} contrato(s), pelo valor que as parcelas repetem.`
+            : "Nenhum contrato a preencher."}
+        </p>
+      )}
+
+      {sugestoes.length > 0 && (
+        <Card className="border-warning/40">
+          <CardContent className="grid gap-3 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p>
+                <strong>{sugestoes.length}</strong> contrato(s) sem valor têm parcelas que repetem o mesmo valor. Com o valor
+                preenchido, a parcela nesse valor nasce autorizada pelo contrato (sem passar pela alçada) e o apontamento
+                &ldquo;Sem valor&rdquo; some.
+              </p>
+              <PreencherValorPelasParcelas
+                rotulo={`Preencher ${sugestoes.length}`}
+                confirmacao={`Cada um recebe o valor que ao menos 80% das parcelas dele repetem. Por exemplo: ${sugestoes
+                  .slice(0, 3)
+                  .map((x) => `${x.codigo ?? "(sem código)"} → ${formatarMoeda(x.valor)}`)
+                  .join("; ")}. Dá para mudar depois, em Editar, contrato a contrato.`}
+              />
+            </div>
+            <details>
+              <summary className="text-muted-foreground cursor-pointer text-xs">Ver os contratos e os valores</summary>
+              <ul className="mt-2 grid gap-1 text-xs">
+                {sugestoes.map((x) => (
+                  <li key={x.id} className="flex flex-wrap gap-x-2">
+                    <Link href={`/painel/compras/contratos/${x.id}`} className="text-primary tabular-nums hover:underline">
+                      {x.codigo ?? "(sem código)"}
+                    </Link>
+                    <span className="text-muted-foreground line-clamp-1 max-w-96">{x.objeto ?? ""}</span>
+                    <span className="tabular-nums">
+                      {formatarMoeda(x.valor)} ({x.repeticoes} de {x.total} parcelas)
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
         <Card>

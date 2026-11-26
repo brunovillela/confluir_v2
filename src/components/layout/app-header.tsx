@@ -55,6 +55,7 @@ const ROTULOS_SEGMENTO: Record<string, string> = {
   alteracoes: "Alterações",
   veiculos: "Veículos",
   minhas: "Minhas solicitações",
+  devolvidas: "Devolvidas",
   recorrentes: "Recorrentes sem contrato",
   "plano-saude": "Plano de saúde",
   notificacoes: "Notificações",

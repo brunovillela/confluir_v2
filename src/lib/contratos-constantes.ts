@@ -277,3 +277,37 @@ export const MOTIVOS_FINALIZACAO_CONTRATO = [
 
 /** Finalização em lote: "vencido há mais de N dias" (sem pagamento em aberto). */
 export const DIAS_FINALIZACAO_LOTE = [30, 90, 180, 365] as const
+
+// ── Valor do contrato sugerido pelas parcelas (26/11/2026) ───────────────────
+//
+// 552 dos 605 contratos não tinham valor: a parcela no valor do contrato não
+// era reconhecida como autorizada (caía na alçada à toa) e a Saúde acusava
+// quase todos. Quando as parcelas já lançadas repetem o mesmo valor, ele é o
+// valor do contrato (o valor por parcela, comparado na geração).
+
+/**
+ * O valor que as parcelas repetem: ao menos 2 ordens (parcelas ou do sistema
+ * anterior, não canceladas, sem RPA nem compra) e o valor mais frequente em
+ * 80% delas. Senão, null (valores variados não dizem o valor do contrato).
+ */
+export function valorSugeridoDasParcelas(
+  ordens: { natureza: NaturezaPagamentoContrato; situacao: string | null; tipo: string | null; processo_compra_id: string | null; valor: number | null }[]
+): { valor: number; repeticoes: number; total: number } | null {
+  const valores = ordens
+    .filter(
+      (o) =>
+        o.natureza !== "avulso" &&
+        o.situacao !== "Cancelada" &&
+        o.tipo !== "RPA" &&
+        !o.processo_compra_id &&
+        o.valor !== null &&
+        o.valor > 0
+    )
+    .map((o) => Math.round((o.valor as number) * 100) / 100)
+  if (valores.length < 2) return null
+  const freq = new Map<number, number>()
+  for (const v of valores) freq.set(v, (freq.get(v) ?? 0) + 1)
+  const [valor, repeticoes] = [...freq].sort((a, b) => b[1] - a[1])[0]
+  if (repeticoes < 2 || repeticoes / valores.length < 0.8) return null
+  return { valor, repeticoes, total: valores.length }
+}

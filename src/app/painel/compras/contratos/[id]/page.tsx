@@ -44,7 +44,9 @@ import {
   podeAnexarNotaPeloContrato,
   rotuloParcela,
   ultimoVencimentoEmVigor,
+  valorSugeridoDasParcelas,
 } from "@/lib/contratos-constantes"
+import { PreencherValorPelasParcelas } from "../valor-pelas-parcelas"
 import { contratoDoRpa, listarRpas } from "@/lib/db/compras-rpa"
 import { rpasComLinkPendente } from "@/lib/db/rpa-assinatura"
 import { AnexarRpaAssinadoBotao } from "../../rpa/rpa-forms"
@@ -173,6 +175,9 @@ export default async function ContratoPage({
   const parcelasPagas = parcelas.filter(
     (o) => o.situacao !== "Cancelada" && (Boolean(o.data_pagamento) || o.situacao === "Paga")
   ).length
+  // Sem valor, mas as parcelas repetem um: sugere preencher (26/11/2026).
+  const valorSugerido =
+    podeEditar && !(Number(c.valor) > 0) && !c.sob_demanda ? valorSugeridoDasParcelas(detalhe.ordens) : null
   // Mensalidade gerada como pagamento extraordinário: o sinal que motivou a separação.
   const avulsosRepetidos = c.sob_demanda ? 0 : avulsosParecemParcelas(avulsos)
   const paginacao = lerPaginacao(brutos, 10)
@@ -381,6 +386,25 @@ export default async function ContratoPage({
                 )}
               </span>
               {!c.autorizado && podeAutorizar && <AutorizarContrato contratoId={c.id} />}
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {valorSugerido && (
+        <Alert variant="warning">
+          <AlertDescription>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span>
+                <span className="font-medium">Contrato sem valor.</span> {valorSugerido.repeticoes} das{" "}
+                {valorSugerido.total} parcelas são de <strong>{formatarMoeda(valorSugerido.valor)}</strong>. Com o valor
+                preenchido, a parcela nesse valor já nasce autorizada pelo contrato, sem passar pela alçada.
+              </span>
+              <PreencherValorPelasParcelas
+                contratoId={c.id}
+                rotulo={`Usar ${formatarMoeda(valorSugerido.valor)}`}
+                confirmacao={`O valor do contrato (por parcela) passa a ser ${formatarMoeda(valorSugerido.valor)}. Dá para mudar depois em Editar.`}
+              />
             </div>
           </AlertDescription>
         </Alert>

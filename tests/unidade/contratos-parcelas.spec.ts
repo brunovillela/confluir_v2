@@ -5,6 +5,7 @@ import {
   naturezaDaOrdem,
   numerarParcelas,
   rotuloParcela,
+  valorSugeridoDasParcelas,
 } from "@/lib/contratos-constantes"
 
 test.describe("parcelas × pagamentos avulsos do contrato", () => {
@@ -49,5 +50,28 @@ test.describe("parcelas × pagamentos avulsos do contrato", () => {
         { ...base, valor: 1750, vencimento: "2026-11-05" },
       ])
     ).toBe(0)
+  })
+})
+
+test.describe("valor do contrato pelas parcelas", () => {
+  const p = (valor: number | null, extra: Partial<{ natureza: "parcela" | "avulso" | "anterior"; situacao: string; tipo: string }> = {}) => ({
+    natureza: extra.natureza ?? ("anterior" as const),
+    situacao: extra.situacao ?? "Paga",
+    tipo: extra.tipo ?? "Contrato",
+    processo_compra_id: null,
+    valor,
+  })
+
+  test("parcelas repetidas sugerem o valor; uma fora do padrão não atrapalha", () => {
+    const r = valorSugeridoDasParcelas([p(5637.56), p(5637.56), p(5637.56), p(5637.56), p(6000)])
+    expect(r).toEqual({ valor: 5637.56, repeticoes: 4, total: 5 })
+  })
+
+  test("valores variados, uma só parcela ou só avulsos/cancelados: sem sugestão", () => {
+    expect(valorSugeridoDasParcelas([p(1750), p(1400), p(1610)])).toBeNull()
+    expect(valorSugeridoDasParcelas([p(523.1)])).toBeNull()
+    expect(
+      valorSugeridoDasParcelas([p(300, { natureza: "avulso" }), p(300, { natureza: "avulso" }), p(300, { situacao: "Cancelada" })])
+    ).toBeNull()
   })
 })

@@ -90,7 +90,7 @@ export async function filasDoFinanceiro({ veAvaliacoes }: { veAvaliacoes: boolea
     { codigo: "estornos", rotulo: "estornos para corrigir", quantidade: n(estornos), href: "/painel/financeiro/estornos?situacao=pendentes", urgente: true },
     { codigo: "processando", rotulo: `Processando há ${DIAS_PROCESSANDO_PARADO} dias ou mais`, quantidade: parados.length, href: lista({ pendencia: "processando_parado" }), urgente: true },
     { codigo: "autorizacao", rotulo: "em autorização", quantidade: n(emAutorizacao), href: lista({ situacao: "Em autorização" }), urgente: false },
-    { codigo: "informacoes_paradas", rotulo: `aguardando informações há ${DIAS_AGUARDANDO_PARADO} dias ou mais`, quantidade: aguardandoParados.length, href: lista({ pendencia: "aguardando_parado" }), urgente: true },
+    { codigo: "informacoes_paradas", rotulo: `aguardando informações há ${DIAS_AGUARDANDO_PARADO} dias ou mais`, quantidade: aguardandoParados.length, href: `${ORDENS}/devolvidas`, urgente: true },
     { codigo: "informacoes", rotulo: "aguardando informações", quantidade: Math.max(0, n(aguardandoInfo) - aguardandoParados.length), href: lista({ situacao: "Aguardando informações" }), urgente: false },
     { codigo: "comprovante", rotulo: `pagas sem comprovante (${DIAS_COMPROVANTE} dias)`, quantidade: n(semComprovante), href: `${ORDENS}/comprovantes?dias=${DIAS_COMPROVANTE}`, urgente: false },
     { codigo: "devolucoes_paradas", rotulo: `devoluções de compras canceladas paradas há ${DIAS_COBRAR_DEVOLUCAO} dias — cobrar o fornecedor`, quantidade: nParadas, href: "/painel/financeiro/conciliacao?situacao=pendente#devolucoes", urgente: true },

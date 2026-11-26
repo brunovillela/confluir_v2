@@ -15,6 +15,10 @@ import { listarMinhasSolicitacoes, type MinhaSolicitacao } from "@/lib/db/compra
 import { hojeSP } from "@/lib/db/comum"
 import { lerComprasConfig } from "@/lib/db/compras-config"
 import { ordensDevolvidasDe } from "@/lib/db/compras-ordens-devolvidas"
+import { DIAS_DEVOLVIDA_ESQUECIDA } from "@/lib/db/ordens-devolvidas-paradas"
+
+/** Dias desde a devolução (AAAA-MM-DD). */
+const diasParada = (desde: string) => Math.round((Date.now() - Date.parse(desde.slice(0, 10))) / 86_400_000)
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
 export const metadata: Metadata = { title: "Minhas solicitações — Confluir" }
@@ -169,6 +173,12 @@ export default async function MinhasSolicitacoesPage({
                   <span className="text-muted-foreground min-w-0 truncate text-xs">{d.descricao ?? ""}</span>
                 </p>
                 <p className="text-warning-fg text-xs font-medium">Motivo: {d.motivo ?? "não informado"}</p>
+                {d.devolvidaEm && diasParada(d.devolvidaEm) > DIAS_DEVOLVIDA_ESQUECIDA && (
+                  <p className="text-destructive text-xs font-medium">
+                    Parada há {diasParada(d.devolvidaEm)} dias. Corrija e reenvie — ou, se não vai mais ser paga, peça
+                    ao Financeiro para cancelá-la.
+                  </p>
+                )}
                 <p className="text-muted-foreground flex flex-wrap gap-x-3 text-xs">
                   <span>Ordem {d.codigo ?? "—"}</span>
                   {d.valor !== null && <span>{formatarMoeda(d.valor)}</span>}
