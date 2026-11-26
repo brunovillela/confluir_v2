@@ -18,10 +18,8 @@ import {
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { AcoesLinhaOrdem } from "@/app/painel/compras/contratos/[id]/ordens-contrato"
 import { requirePermissao } from "@/lib/auth"
-import { rotuloCentroCusto } from "@/lib/centros-custo-rotulo"
-import { listarDepartamentos, listarFornecedores } from "@/lib/db/compras"
+import { listarCentrosCustoParaCompra, listarDepartamentos, listarFornecedores } from "@/lib/db/compras"
 import { ordemMexivelPeloContrato } from "@/lib/db/contratos"
-import { listarCentrosCusto } from "@/lib/db/financeiro"
 import {
   buscarContrato,
   historicoDoContrato,
@@ -91,7 +89,7 @@ export default async function ContratoPage({
     listarFornecedores(),
     listarUsuariosAtivos(),
     listarDepartamentos(),
-    listarCentrosCusto(),
+    listarCentrosCustoParaCompra(),
     listarCondutores(),
   ])
   // Responsável que saiu da lista continua selecionado (lib/db/opcoes-pessoas).
@@ -222,7 +220,8 @@ export default async function ContratoPage({
                 })),
                 centrosCusto: centros.map((c) => ({
                   id: String(c.id),
-                  rotulo: rotuloCentroCusto(c),
+                  rotulo: c.nome,
+            departamentoId: c.departamentoId,
                 })),
                 condutores,
               }}

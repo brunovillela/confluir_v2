@@ -16,13 +16,11 @@ import {
 } from "@/components/ui/table"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { requirePermissao } from "@/lib/auth"
-import { listarDepartamentos, listarFornecedores } from "@/lib/db/compras"
-import { listarCentrosCusto } from "@/lib/db/financeiro"
+import { listarCentrosCustoParaCompra, listarDepartamentos, listarFornecedores } from "@/lib/db/compras"
 import { listarCondutores, listarContratos, listarUsuariosAtivos } from "@/lib/db/veiculos"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
 import { NovoContratoForm } from "./contrato-forms"
-import { rotuloCentroCusto } from "@/lib/centros-custo-rotulo"
 
 export const metadata: Metadata = { title: "Contratos de aluguel — Confluir" }
 
@@ -44,7 +42,7 @@ export default async function ContratosPage({
       listarFornecedores(),
       listarUsuariosAtivos(),
       listarDepartamentos(),
-      listarCentrosCusto(),
+      listarCentrosCustoParaCompra(),
       listarCondutores(),
     ])
   const condutores = condutoresRes.condutores
@@ -108,7 +106,8 @@ export default async function ContratosPage({
           departamentos={departamentos.map((d) => ({ id: d.id, rotulo: d.nome }))}
           centrosCusto={centros.map((c) => ({
             id: String(c.id),
-            rotulo: rotuloCentroCusto(c),
+            rotulo: c.nome,
+            departamentoId: c.departamentoId,
           }))}
           condutores={condutores}
           responsavelPadraoId={sessao.usuario.id}

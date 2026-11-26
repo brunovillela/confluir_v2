@@ -25,6 +25,7 @@ import {
   excluirOrdemAluguel,
 } from "@/lib/db/veiculos-locacao-ordens"
 import { CATEGORIAS_LOCACAO, type CategoriaLocacao } from "@/lib/locacao-periodo"
+import { validarCentroDoDepartamento } from "@/lib/db/contratos"
 import { parseValorBR } from "@/lib/valores"
 
 function texto(formData: FormData, campo: string): string {
@@ -68,6 +69,11 @@ export async function criarContratoAction(
   const uso = lerUso(formData)
   const erroUso = validarUso(uso)
   if (erroUso) return { erro: erroUso }
+  const erroCentro = await validarCentroDoDepartamento(
+    texto(formData, "centro_custo_id") || null,
+    texto(formData, "departamento_id") || null,
+  )
+  if (erroCentro) return { erro: erroCentro }
 
   let arquivoUrl: string | null = null
   const arquivo = formData.get("arquivo_contrato")
@@ -226,6 +232,17 @@ export async function editarContratoAction(
   const valorMensal = valorTexto ? parseValorBR(valorTexto) : null
   if (valorTexto && (valorMensal === null || valorMensal < 0))
     return { erro: "Valor mensal inválido." }
+  // Centro × departamento só se confere quando um dos dois muda: contrato
+  // antigo com o par desencontrado continua editável no resto.
+  const centroId = texto(formData, "centro_custo_id") || null
+  const deptoId = texto(formData, "departamento_id") || null
+  if (
+    centroId !== (texto(formData, "centro_custo_original") || null) ||
+    deptoId !== (texto(formData, "departamento_original") || null)
+  ) {
+    const erroCentro = await validarCentroDoDepartamento(centroId, deptoId)
+    if (erroCentro) return { erro: erroCentro }
+  }
 
   let arquivoUrl: string | null = null
   const novoArquivo = arquivo(formData, "arquivo_contrato")

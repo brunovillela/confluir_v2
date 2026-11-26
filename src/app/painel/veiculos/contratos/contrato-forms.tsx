@@ -70,7 +70,8 @@ export type OpcoesContrato = {
   fornecedores: FornecedorOpcao[]
   usuarios: Opcao[]
   departamentos: Opcao[]
-  centrosCusto: Opcao[]
+  /** Centros usáveis com o departamento de cada um (filtro do select). */
+  centrosCusto: (Opcao & { departamentoId: string | null })[]
   /** Condutores aptos — o condutor do uso dedicado. */
   condutores: Opcao[]
 }
@@ -139,7 +140,20 @@ function CamposContrato({
     atual?.responsavelNome,
   )
   const departamentos = comAtual(opcoes.departamentos, atual?.departamento_id)
-  const centrosCusto = comAtual(opcoes.centrosCusto, atual?.centro_custo_id)
+  // Centro de custo filtrado pelo departamento, como no contrato de Aquisição:
+  // só se habilita depois dele, e trocar o departamento descarta um centro de
+  // outro. Contrato antigo com centro e sem departamento abre no departamento
+  // do centro, para a edição não apagar o centro sem ninguém pedir.
+  const deptoDoCentro = opcoes.centrosCusto.find((c) => c.id === atual?.centro_custo_id)?.departamentoId ?? ""
+  const [depto, setDepto] = useState(atual?.departamento_id ?? deptoDoCentro)
+  const [centro, setCentro] = useState(atual?.centro_custo_id ?? "")
+  const centrosCusto = depto
+    ? comAtual(
+        opcoes.centrosCusto.filter((c) => c.departamentoId === depto),
+        atual?.centro_custo_id && depto === (atual.departamento_id ?? deptoDoCentro) ? atual.centro_custo_id : null,
+      )
+    : []
+  const centroValor = centrosCusto.some((c) => c.id === centro) ? centro : ""
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <div className="grid gap-1.5">
@@ -217,7 +231,8 @@ function CamposContrato({
         <select
           id={id("departamento_id")}
           name="departamento_id"
-          defaultValue={atual?.departamento_id ?? ""}
+          value={depto}
+          onChange={(e) => setDepto(e.target.value)}
           className={SELECT}
         >
           <option value="">(não informado)</option>
@@ -230,13 +245,27 @@ function CamposContrato({
       </div>
       <div className="grid gap-1.5">
         <Label htmlFor={id("centro_custo_id")}>Centro de custo</Label>
+        {atual && (
+          <>
+            <input type="hidden" name="centro_custo_original" value={atual.centro_custo_id ?? ""} />
+            <input type="hidden" name="departamento_original" value={atual.departamento_id ?? ""} />
+          </>
+        )}
         <select
           id={id("centro_custo_id")}
           name="centro_custo_id"
-          defaultValue={atual?.centro_custo_id ?? ""}
+          value={centroValor}
+          onChange={(e) => setCentro(e.target.value)}
+          disabled={!depto}
           className={SELECT}
         >
-          <option value="">(não informado)</option>
+          <option value="">
+            {!depto
+              ? "Escolha o departamento primeiro"
+              : centrosCusto.length === 0
+                ? "Nenhum centro neste departamento"
+                : "(não informado)"}
+          </option>
           {centrosCusto.map((c) => (
             <option key={c.id} value={c.id}>
               {c.rotulo}
