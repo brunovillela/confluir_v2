@@ -432,7 +432,7 @@ Pedido de viagem (passagens e/ou hospedagens) para diretor, funcionário ou conv
 
 - **LGPD:** identificação · titulares: diretores, funcionários, convidados
 - **RLS:** ligado · policies: `tenant_isolation`
-- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`, `viagem_herda_projeto_do_evento` → `viagem_herda_projeto_do_evento`
 
 | Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
 |---|---|---|---|---|---|---|

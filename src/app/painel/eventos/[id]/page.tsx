@@ -46,6 +46,7 @@ import { nomesDosUsuarios } from "@/lib/db/comum"
 import { contarFiliados } from "@/lib/db/eventos-filiados"
 import { formatarData, formatarDataHora } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
+import { projetoDoEvento } from "@/lib/db/projetos"
 
 import { BaixarRelacao } from "./baixar-relacao"
 import { FecharInscricoesForm, ReabrirInscricoesForm } from "./fechar-inscricoes"
@@ -98,11 +99,12 @@ export default async function EventoPage({
   const evento = await obterEvento(id)
   if (!evento) notFound()
 
-  const [indicadores, inscricoes, filiacao, nomes] = await Promise.all([
+  const [indicadores, inscricoes, filiacao, nomes, projeto] = await Promise.all([
     indicadoresDoEvento(evento),
     listarInscricoes({ eventoId: id, situacao: "todas" }),
     contarFiliados(id),
     nomesDosUsuarios(evento.inscricoes_encerradas_por ? [evento.inscricoes_encerradas_por] : []),
+    projetoDoEvento(id),
   ])
   const { capacidade } = indicadores
   const abertura = inscricoesAbertas(evento, capacidade)
@@ -144,6 +146,14 @@ export default async function EventoPage({
               {evento.termino ? ` até ${formatarDataHora(evento.termino)}` : ""}
               {evento.local ? ` · ${evento.local}` : ""}
             </p>
+            {projeto && (
+              <p className="text-muted-foreground mt-0.5 text-xs">
+                Projeto:{" "}
+                <Link href={`/painel/ferramentas/projetos/${projeto.id}`} className="text-primary hover:underline">
+                  {projeto.titulo}
+                </Link>
+              </p>
+            )}
           </div>
           {gestor && (
             <div className="flex flex-wrap gap-2">

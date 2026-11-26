@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { obterConfig, obterEvento } from "@/lib/db/eventos"
+import { projetoDoEvento, projetosAbertosParaTransferencia } from "@/lib/db/projetos"
 
 import { EventoForm } from "../../evento-forms"
 
@@ -19,7 +20,15 @@ export default async function EditarEventoPage({
 }) {
   await requirePermissao("eventos_gestao")
   const { id } = await params
-  const [evento, { config }] = await Promise.all([obterEvento(id), obterConfig()])
+  const [evento, { config }, abertos, projetoAtual] = await Promise.all([
+    obterEvento(id),
+    obterConfig(),
+    projetosAbertosParaTransferencia().catch(() => []),
+    projetoDoEvento(id),
+  ])
+  // O projeto atual entra na lista mesmo finalizado, para não se perder ao salvar.
+  const projetos =
+    projetoAtual && !abertos.some((p) => p.id === projetoAtual.id) ? [projetoAtual, ...abertos] : abertos
   if (!evento) notFound()
 
   return (
@@ -41,6 +50,7 @@ export default async function EditarEventoPage({
         <CardContent>
           <EventoForm
             modoFoto={config.modo_foto}
+            projetos={projetos}
             inicial={{
               id: evento.id,
               titulo: evento.titulo,
@@ -60,6 +70,7 @@ export default async function EditarEventoPage({
               exige_foto: evento.exige_foto,
               exige_rsvp: evento.exige_rsvp,
               rsvp_abre_em: evento.rsvp_abre_em,
+              projeto_id: projetoAtual?.id ?? null,
             }}
           />
         </CardContent>

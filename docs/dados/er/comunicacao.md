@@ -95,6 +95,7 @@ erDiagram
     uuid emp_proprietaria_id FK
     uuid agenda_id FK
     uuid criado_por FK
+    uuid projeto_id FK
   }
   eventos_campos {
     uuid id PK
@@ -175,6 +176,7 @@ erDiagram
   comunicacao_textos }o--o| comunicacao_textos : "origem_id"
   comunicacao_textos }o--o| usuarios : "solicitado_por"
   eventos }o--o| agenda : "agenda_id"
+  eventos }o--o| projeto : "projeto_id"
   eventos }o--o| usuarios : "criado_por"
   eventos_campos }o--o| eventos : "evento_id"
   eventos_config }o--o| usuarios : "atualizada_por"

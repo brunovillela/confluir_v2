@@ -49,13 +49,18 @@ export type EventoInicial = {
   exige_foto: boolean
   exige_rsvp: boolean
   rsvp_abre_em: string | null
+  /** Projeto do evento (Ferramentas → Projetos). */
+  projeto_id?: string | null
 }
 
 export function EventoForm({
   inicial,
   modoFoto,
+  projetos = [],
 }: {
   inicial?: EventoInicial
+  /** Projetos para o campo Projeto: os em andamento (e o atual do evento). */
+  projetos?: { id: string; titulo: string }[]
   /** Modo do tenant: define se a exigência de foto sequer pode ser oferecida. */
   modoFoto: "nenhuma" | "visual" | "biometrica"
 }) {
@@ -170,6 +175,23 @@ export function EventoForm({
           />
         </div>
       </div>
+
+      {projetos.length > 0 && (
+        <div className="grid gap-2">
+          <Label htmlFor="projeto_id">Projeto (se houver)</Label>
+          <select id="projeto_id" name="projeto_id" defaultValue={inicial?.projeto_id ?? ""} className={SELECT}>
+            <option value="">Nenhum</option>
+            {projetos.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.titulo}
+              </option>
+            ))}
+          </select>
+          <p className="text-muted-foreground text-xs">
+            As viagens pedidas para o evento entram no projeto (e no gasto dele).
+          </p>
+        </div>
+      )}
 
       {/* ── Capacidade ── */}
       <div className="grid gap-4 rounded-md border p-4">

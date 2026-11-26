@@ -819,6 +819,7 @@ export type DetalheProjeto = {
   solicitacoes: SolicitacaoDoProjeto[]
   custeios: CusteioDoProjeto[]
   viagens: ViagemDoProjeto[]
+  eventos: EventoDoProjeto[]
 }
 
 export async function obterProjeto(id: string): Promise<DetalheProjeto | null> {
@@ -873,7 +874,7 @@ export async function obterProjeto(id: string): Promise<DetalheProjeto | null> {
     situacao: ROTULOS_SITUACAO_PROCESSO[derivarSituacao(s)],
     valor: numero(s.compra_valor),
   }))
-  const { gastos, ordens, custeios, viagens } = await gastosDosProjetos([id])
+  const [{ gastos, ordens, custeios, viagens }, eventos] = await Promise.all([gastosDosProjetos([id]), eventosDoProjeto(id)])
 
   return {
     id: p.id as string,
@@ -894,8 +895,93 @@ export async function obterProjeto(id: string): Promise<DetalheProjeto | null> {
     ordens: ordens.get(id) ?? [],
     custeios: custeios.get(id) ?? [],
     viagens: viagens.get(id) ?? [],
+    eventos,
     solicitacoes,
   }
+}
+
+// ── Eventos do projeto ──────────────────────────────────────────────────────
+
+/**
+ * EVENTOS DO PROJETO (26/11/2026): o evento (módulo Eventos) pode ser de um
+ * projeto. As viagens pedidas para ele herdam o projeto (gatilho da migração
+ * 20261126185633), e o projeto mostra os eventos com as inscrições.
+ */
+export type EventoDoProjeto = {
+  id: string
+  titulo: string | null
+  inicio: string | null
+  situacao: string
+  /** Inscrições confirmadas. */
+  confirmadas: number
+}
+
+export async function eventosDoProjeto(projetoId: string): Promise<EventoDoProjeto[]> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data, error } = await admin
+    .from("eventos")
+    .select("id, titulo, inicio, situacao")
+    .eq("emp_proprietaria_id", emp)
+    .eq("projeto_id", projetoId)
+    .order("inicio", { ascending: false, nullsFirst: false })
+  if (error) {
+    if (esquemaAusente(error)) return []
+    throw new Error(`Falha ao ler os eventos do projeto: ${error.message}`)
+  }
+  const eventos = data ?? []
+  if (!eventos.length) return []
+  const inscricoes = await lerEmLotesPorIds<Record<string, unknown>>(
+    eventos.map((e) => String(e.id)),
+    (fatia, de, ate) =>
+      admin
+        .from("eventos_inscricoes")
+        .select("id, evento_id")
+        .eq("emp_proprietaria_id", emp)
+        .eq("situacao", "confirmada")
+        .in("evento_id", fatia)
+        .order("id")
+        .range(de, ate)
+  ).catch(() => [] as Record<string, unknown>[])
+  const conta = new Map<string, number>()
+  for (const i of inscricoes) conta.set(String(i.evento_id), (conta.get(String(i.evento_id)) ?? 0) + 1)
+  return eventos.map((e) => ({
+    id: String(e.id),
+    titulo: texto(e.titulo),
+    inicio: texto(e.inicio),
+    situacao: String(e.situacao ?? ""),
+    confirmadas: conta.get(String(e.id)) ?? 0,
+  }))
+}
+
+/** O projeto do evento (id e título), ou null. */
+export async function projetoDoEvento(eventoId: string): Promise<{ id: string; titulo: string } | null> {
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("eventos")
+    .select("projeto_id, projeto(descricao_sumaria)")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("id", eventoId)
+    .maybeSingle()
+  if (error || !data || !texto(data.projeto_id)) return null
+  const p = (Array.isArray(data.projeto) ? data.projeto[0] : data.projeto) as { descricao_sumaria?: string | null } | null
+  return { id: String(data.projeto_id), titulo: texto(p?.descricao_sumaria) ?? "(sem título)" }
+}
+
+/** Projeto de cada evento (para o pedido de viagem sugerir o projeto). */
+export async function projetosDosEventos(eventoIds: string[]): Promise<Map<string, string>> {
+  const mapa = new Map<string, string>()
+  if (!eventoIds.length) return mapa
+  const admin = await createAdminClient()
+  const { data, error } = await admin
+    .from("eventos")
+    .select("id, projeto_id")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .in("id", eventoIds)
+    .not("projeto_id", "is", null)
+  if (error) return mapa
+  for (const e of data ?? []) mapa.set(String(e.id), String(e.projeto_id))
+  return mapa
 }
 
 // ── Escrita ─────────────────────────────────────────────────────────────────

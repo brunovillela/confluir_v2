@@ -35,6 +35,7 @@ import { UsarModelo } from "../../modelos/usar-modelo"
 import { MarcosProjeto } from "./marcos"
 import { ProjetoAcoes } from "./projeto-acoes"
 import { DespesasDoProjeto } from "./despesas"
+import { EventosDoProjeto } from "./eventos"
 
 export const metadata: Metadata = { title: "Projeto — Confluir" }
 
@@ -286,6 +287,7 @@ export default async function ProjetoPage({
         </CardContent>
       </Card>
 
+      <EventosDoProjeto eventos={projeto.eventos} />
       <DespesasDoProjeto
         projetoId={id}
         solicitacoes={projeto.solicitacoes}

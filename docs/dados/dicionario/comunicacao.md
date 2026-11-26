@@ -502,7 +502,7 @@ Eventos da entidade com inscrição pública: datas, lotação, regras de aprova
 
 - **LGPD:** nenhum dado pessoal
 - **RLS:** ligado · policies: `tenant_isolation`
-- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+- **Triggers:** `evento_leva_projeto_as_viagens` → `evento_leva_projeto_as_viagens`, `set_emp_from_jwt` → `set_emp_from_jwt`
 
 | Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
 |---|---|---|---|---|---|---|
@@ -539,10 +539,11 @@ Eventos da entidade com inscrição pública: datas, lotação, regras de aprova
 | `inscricoes_encerradas_em` | timestamp with time zone | sim |  |  | nenhum | Quando quem organiza fechou as inscrições à mão (antes do prazo). Preenchida: o link público e o portal não aceitam inscrição. Reabrir limpa. |
 | `inscricoes_encerradas_por` | uuid | sim |  |  | nenhum | Usuário (usuarios.id) que fechou as inscrições à mão. |
 | `inscricoes_encerradas_mensagem` | text | sim |  |  | nenhum | Mensagem opcional de quem fechou as inscrições à mão, exibida a quem tenta se inscrever (página pública e portal). Reabrir limpa. |
+| `projeto_id` | uuid | sim |  | → projeto (set null) | nenhum | Projeto a que o evento pertence (opcional). As viagens pedidas para o evento herdam o projeto. |
 
 Checks: `ck_eventos_cota_convidados` `CHECK (((cota_convidados IS NULL) OR (cota_convidados >= 0))) NOT VALID`; `ck_eventos_overbooking` `CHECK (((overbooking_percentual >= (0)::numeric) AND (overbooking_percentual <= (100)::numeric))) NOT VALID`; `ck_eventos_situacao` `CHECK ((situacao = ANY (ARRAY['rascunho'::text, 'publicado'::text, 'encerrado'::text, 'cancelado'::text, 'adiado'::text]))) NOT VALID`
 
-Índices: `eventos_pkey`, `idx_eventos_emp_inicio`, `idx_eventos_rsvp_pendente`, `ux_eventos_slug`
+Índices: `eventos_pkey`, `eventos_projeto_idx`, `idx_eventos_emp_inicio`, `idx_eventos_rsvp_pendente`, `ux_eventos_slug`
 
 ## eventos_campos
 

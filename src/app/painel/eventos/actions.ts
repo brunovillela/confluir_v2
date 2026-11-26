@@ -24,6 +24,7 @@ import {
   conciliarFiliados,
   sincronizarAgenda,
 } from "@/lib/db/eventos-filiados"
+import { lerProjetoDoForm, projetoDoEvento } from "@/lib/db/projetos"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -164,6 +165,15 @@ export async function salvarEvento(
     return { erro: "O fim das inscrições não pode ser antes da abertura." }
   }
 
+  // Projeto do evento (opcional): as viagens pedidas para ele herdam o
+  // projeto. Mantido como estava, vale mesmo se o projeto já foi finalizado.
+  const projetoEscolhido = txt(fd, "projeto_id") || null
+  const projetoAtual = id ? ((await projetoDoEvento(id))?.id ?? null) : null
+  if (projetoEscolhido && projetoEscolhido !== projetoAtual) {
+    const lido = await lerProjetoDoForm(fd)
+    if ("erro" in lido) return { erro: lido.erro }
+  }
+
   const admin = await createAdminClient()
   const emp = await tenantAtual()
 
@@ -204,6 +214,7 @@ export async function salvarEvento(
     exige_foto: marcado(fd, "exige_foto"),
     exige_rsvp: marcado(fd, "exige_rsvp"),
     rsvp_abre_em: deCampoDataHora(rsvpAbre),
+    projeto_id: projetoEscolhido,
     updated_at: new Date().toISOString(),
   }
   if (cardUrl) dados.card_url = cardUrl

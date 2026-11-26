@@ -150,7 +150,7 @@ export function ViagemForm({
   acao: (prev: EstadoForm, formData: FormData) => Promise<EstadoForm>
   departamentos: Opcao[]
   departamentoPadrao: string | null
-  eventos: Opcao[]
+  eventos: (Opcao & { projetoId?: string | null })[]
   /** Projetos em andamento: a viagem do projeto entra no gasto dele. */
   projetos?: Opcao[]
   /** Política de viagens, das Configurações — aparece no topo do pedido. */
@@ -171,6 +171,7 @@ export function ViagemForm({
   const [pessoaId, setPessoaId] = useState("")
   const [departamentoId, setDepartamentoId] = useState(departamentoPadrao ?? "")
   const [evento, setEvento] = useState("")
+  const [projetoId, setProjetoId] = useState("")
   const [paraTerceiro, setParaTerceiro] = useState(paraQuem ? !paraQuem.proprio : false)
   const escolheQuemViaja = !paraQuem || paraTerceiro
 
@@ -392,7 +393,12 @@ export function ViagemForm({
                 name="evento_id"
                 className={SELECT}
                 value={evento}
-                onChange={(e) => setEvento(e.target.value)}
+                onChange={(e) => {
+                  setEvento(e.target.value)
+                  // O evento do projeto traz o projeto (quem pede costuma esquecer).
+                  const doEvento = eventos.find((x) => x.id === e.target.value)?.projetoId
+                  if (doEvento && projetos.some((p) => p.id === doEvento)) setProjetoId(doEvento)
+                }}
               >
                 <option value="">Nenhum</option>
                 {eventos.length > 0 && (
@@ -410,7 +416,13 @@ export function ViagemForm({
             {projetos.length > 0 && (
               <div className="grid gap-1.5">
                 <Label htmlFor="projeto_id">Projeto (se houver)</Label>
-                <select id="projeto_id" name="projeto_id" className={SELECT} defaultValue="">
+                <select
+                  id="projeto_id"
+                  name="projeto_id"
+                  className={SELECT}
+                  value={projetoId}
+                  onChange={(e) => setProjetoId(e.target.value)}
+                >
                   <option value="">Nenhum</option>
                   {projetos.map((p) => (
                     <option key={p.id} value={p.id}>

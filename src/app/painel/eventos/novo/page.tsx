@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { obterConfig } from "@/lib/db/eventos"
+import { projetosAbertosParaTransferencia } from "@/lib/db/projetos"
 
 import { EventoForm } from "../evento-forms"
 
@@ -20,7 +21,10 @@ export const metadata: Metadata = { title: "Novo evento — Confluir" }
 
 export default async function NovoEventoPage() {
   await requirePermissao("eventos_gestao")
-  const { ativo, config } = await obterConfig()
+  const [{ ativo, config }, projetos] = await Promise.all([
+    obterConfig(),
+    projetosAbertosParaTransferencia().catch(() => []),
+  ])
 
   return (
     <>
@@ -54,7 +58,7 @@ export default async function NovoEventoPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <EventoForm modoFoto={config.modo_foto} />
+            <EventoForm modoFoto={config.modo_foto} projetos={projetos} />
           </CardContent>
         </Card>
       )}

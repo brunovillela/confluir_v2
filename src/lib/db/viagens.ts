@@ -7,7 +7,7 @@ import { listarDepartamentos } from "@/lib/db/compras"
 import { diretoresParaDiaria } from "@/lib/db/diarias-diretoria"
 import { listarEventos } from "@/lib/db/eventos"
 import { funcionariosParaSelecao } from "@/lib/db/pessoal"
-import { projetosAbertosParaTransferencia } from "@/lib/db/projetos"
+import { projetosAbertosParaTransferencia, projetosDosEventos } from "@/lib/db/projetos"
 import { formatarData } from "@/lib/formato"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -312,7 +312,8 @@ export async function buscarViagem(id: string): Promise<Viagem | null> {
 /** Departamentos, eventos que ainda não terminaram e projetos em andamento, para os selects do pedido. */
 export async function opcoesDoFormViagem(): Promise<{
   departamentos: { id: string; nome: string }[]
-  eventos: { id: string; nome: string }[]
+  /** projetoId: o projeto do evento, que o pedido sugere. */
+  eventos: { id: string; nome: string; projetoId: string | null }[]
   projetos: { id: string; nome: string }[]
 }> {
   const [departamentos, { eventos }, projetos] = await Promise.all([
@@ -321,15 +322,16 @@ export async function opcoesDoFormViagem(): Promise<{
     projetosAbertosParaTransferencia().catch(() => []),
   ])
   const hoje = hojeSP()
+  const futuros = eventos.filter((e) => (e.termino ?? e.inicio ?? hoje).slice(0, 10) >= hoje)
+  const projetoDoEvento = await projetosDosEventos(futuros.map((e) => e.id)).catch(() => new Map<string, string>())
   return {
     departamentos,
     projetos: projetos.map((p) => ({ id: p.id, nome: p.titulo })),
-    eventos: eventos
-      .filter((e) => (e.termino ?? e.inicio ?? hoje).slice(0, 10) >= hoje)
-      .map((e) => ({
-        id: e.id,
-        nome: `${e.titulo ?? "(sem título)"}${e.inicio ? ` — ${formatarData(e.inicio)}` : ""}`,
-      })),
+    eventos: futuros.map((e) => ({
+      id: e.id,
+      nome: `${e.titulo ?? "(sem título)"}${e.inicio ? ` — ${formatarData(e.inicio)}` : ""}`,
+      projetoId: projetoDoEvento.get(e.id) ?? null,
+    })),
   }
 }
 
