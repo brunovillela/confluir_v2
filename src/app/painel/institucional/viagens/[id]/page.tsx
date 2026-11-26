@@ -23,7 +23,10 @@ import { urlVoucher } from "@/lib/db/viagens-atendimento"
 import { formatarCnpjCpf, formatarData, formatarDataHora, formatarMoeda } from "@/lib/formato"
 import { ROTULO_BENEFICIARIO } from "@/lib/viagens-constantes"
 
+import { projetosAbertosParaTransferencia } from "@/lib/db/projetos"
+
 import { AcoesViagem, ItemAtendimento, ReservaItemForm } from "./atendimento"
+import { VincularProjetoViagem } from "./vincular-projeto"
 
 export const metadata: Metadata = { title: "Viagem — Confluir" }
 
@@ -45,8 +48,9 @@ export default async function ViagemGestaoPage({
   const emCimaDaHora =
     (viagem.situacao === "solicitada" || viagem.situacao === "em_atendimento") &&
     pedidoEmCimaDaHora(viagem, config?.antecedenciaDias ?? null)
-  const [fornecedores, vouchers] = await Promise.all([
+  const [fornecedores, projetos, vouchers] = await Promise.all([
     encerrada ? Promise.resolve([]) : listarFornecedores(),
+    viagem.projetoId || encerrada ? Promise.resolve([]) : projetosAbertosParaTransferencia().catch(() => []),
     Promise.all(viagem.itens.map(async (i) => [i.id, await urlVoucher(i.voucher)] as const)),
   ])
   const urls = new Map(vouchers)
@@ -132,7 +136,22 @@ export default async function ViagemGestaoPage({
             <Campo rotulo="Motivo" valor={viagem.motivo} />
             <Campo rotulo="Departamento que banca" valor={viagem.departamentoNome} />
             <Campo rotulo="Evento" valor={nomeDoEvento(viagem)} />
+            {viagem.projetoId && (
+              <div>
+                <dt className="text-muted-foreground text-xs">Projeto</dt>
+                <dd>
+                  <Link href={`/painel/ferramentas/projetos/${viagem.projetoId}`} className="text-primary hover:underline">
+                    {viagem.projetoTitulo ?? "(projeto)"}
+                  </Link>
+                </dd>
+              </div>
+            )}
           </dl>
+          {!viagem.projetoId && !encerrada && projetos.length > 0 && (
+            <div className="mt-4 border-t pt-4">
+              <VincularProjetoViagem viagemId={viagem.id} projetos={projetos} />
+            </div>
+          )}
         </CardContent>
       </Card>
 

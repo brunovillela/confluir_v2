@@ -8,6 +8,7 @@ import { type EstadoForm } from "@/lib/contas"
 import { criarSolicitacaoDiaria } from "@/lib/db/diarias"
 import { diretoresParaDiaria } from "@/lib/db/diarias-diretoria"
 import { enviarRemessaParaAvaliacao } from "@/lib/db/diarias-remessas"
+import { lerProjetoDoForm } from "@/lib/db/projetos"
 import {
   adicionarDespesaDiaria,
   removerDespesaDiaria,
@@ -50,7 +51,11 @@ export async function lancarDiariaDiretor(
   const diretor = diretores.find((d) => d.usuarioId === diretorId)
   if (!diretor) return { erro: "Essa pessoa não está na diretoria em exercício." }
 
+  const projeto = await lerProjetoDoForm(formData)
+  if ("erro" in projeto) return { erro: projeto.erro }
+
   const { erro, id, remessaId } = await criarSolicitacaoDiaria({
+    projeto_id: projeto.projetoId,
     funcionario_id: diretorId,
     diaria_id: diariaId,
     quantidade,

@@ -692,7 +692,7 @@ Livro das transferências de despesa (compra ou ordem de pagamento) de um projet
 | `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
 | `origem_id` | uuid | não |  | → projeto (**cascade**) | nenhum | Projeto de onde a despesa saiu. |
 | `destino_id` | uuid | não |  | → projeto (**cascade**) | nenhum | Projeto para onde a despesa foi. |
-| `tipo` | text | não |  |  | nenhum | compra = a solicitação de compra com as ordens dela; custeio = o custeio institucional com as ordens dele; ordem = a ordem lançada direto no projeto. |
+| `tipo` | text | não |  |  | nenhum | compra = a solicitação de compra com as ordens dela; custeio = o custeio institucional com as ordens dele; viagem = a viagem com as passagens e hospedagens; ordem = a ordem lançada direto no projeto. |
 | `compra_id` | uuid | sim |  | → compras_solicitacoes (set null) | nenhum | A compra transferida (tipo compra). |
 | `ordem_id` | uuid | sim |  | → ordens_pagamento (set null) | nenhum | A ordem transferida (tipo ordem). |
 | `descricao` | text | sim |  |  | nenhum | Código e descrição da compra ou da ordem no momento da transferência. |
@@ -702,8 +702,9 @@ Livro das transferências de despesa (compra ou ordem de pagamento) de um projet
 | `usuario_id` | uuid | sim |  | → usuarios (set null) | identificação | Quem fez a transferência. |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `custeio_id` | uuid | sim |  | → institucional_custeios (set null) | nenhum | O custeio transferido (tipo custeio). |
+| `viagem_id` | uuid | sim |  | → viagens_solicitacoes (set null) | nenhum | A viagem transferida (tipo viagem). |
 
-Checks: `financeiro_transferencias_projeto_motivo_check` `CHECK (((char_length(motivo) >= 3) AND (char_length(motivo) <= 500)))`; `financeiro_transferencias_projeto_projetos_check` `CHECK ((origem_id <> destino_id))`; `financeiro_transferencias_projeto_tipo_check` `CHECK ((tipo = ANY (ARRAY['compra'::text, 'ordem'::text, 'custeio'::text])))`
+Checks: `financeiro_transferencias_projeto_motivo_check` `CHECK (((char_length(motivo) >= 3) AND (char_length(motivo) <= 500)))`; `financeiro_transferencias_projeto_projetos_check` `CHECK ((origem_id <> destino_id))`; `financeiro_transferencias_projeto_tipo_check` `CHECK ((tipo = ANY (ARRAY['compra'::text, 'ordem'::text, 'custeio'::text, 'viagem'::text])))`
 
 Índices: `financeiro_transferencias_projeto_destino_idx`, `financeiro_transferencias_projeto_origem_idx`, `financeiro_transferencias_projeto_pkey`
 

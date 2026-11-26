@@ -15,6 +15,7 @@ import {
 } from "@/lib/db/diarias-despesas"
 import { quadroParaDiaria } from "@/lib/db/diarias-diretoria"
 import { enviarRemessaParaAvaliacao } from "@/lib/db/diarias-remessas"
+import { lerProjetoDoForm } from "@/lib/db/projetos"
 
 function revalidar() {
   revalidatePath("/painel/perfil/diarias")
@@ -56,7 +57,11 @@ export async function solicitarDiaria(
     return { erro: "O término não pode ser antes do início.", campo: "data_termino" }
   }
 
+  const projeto = await lerProjetoDoForm(formData)
+  if ("erro" in projeto) return { erro: projeto.erro }
+
   const { erro, remessaId } = await criarSolicitacaoDiaria({
+    projeto_id: projeto.projetoId,
     funcionario_id: sessao.usuario.id as string,
     diaria_id: diariaId,
     quantidade,

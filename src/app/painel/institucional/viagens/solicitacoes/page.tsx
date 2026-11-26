@@ -116,6 +116,7 @@ export default async function ViagensPage({
           acao={lancarViagem}
           rotulo="Lançar viagem"
           departamentos={opcoes.departamentos}
+          projetos={opcoes.projetos}
           departamentoPadrao={null}
           orientacoes={config?.orientacoes ?? null}
           antecedenciaDias={config?.antecedenciaDias ?? null}

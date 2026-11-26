@@ -14,6 +14,7 @@ import type { DiretorParaDiaria } from "@/lib/db/diarias-diretoria"
 import { formatarMoeda } from "@/lib/formato"
 
 import { lancarDiariaDiretor } from "./actions"
+import { CampoProjeto } from "@/components/campo-projeto"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none"
@@ -25,9 +26,12 @@ const SELECT =
 export function LancarDiariaDiretor({
   diretores,
   tipos,
+  projetos = [],
 }: {
   diretores: DiretorParaDiaria[]
   tipos: { id: string; nome: string; valor: number | null }[]
+  /** Projetos em andamento: a diária do projeto entra no gasto dele. */
+  projetos?: { id: string; titulo: string }[]
 }) {
   const [aberto, setAberto] = useState(false)
   const [diretorId, setDiretorId] = useState("")
@@ -146,6 +150,7 @@ export function LancarDiariaDiretor({
               <Input id="data_termino" name="data_termino" type="date" />
             </div>
           </div>
+          <CampoProjeto projetos={projetos} />
           <div className="grid gap-1.5">
             <Label htmlFor="motivo">Atividade</Label>
             <Textarea

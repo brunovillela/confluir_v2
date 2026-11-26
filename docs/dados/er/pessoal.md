@@ -175,6 +175,7 @@ erDiagram
     uuid solicitante_id FK
     uuid remessa_id FK
     uuid complemento_de FK
+    uuid projeto_id FK
   }
   pessoal_faltas_config {
     uuid id PK
@@ -482,6 +483,7 @@ erDiagram
   pessoal_diarias_solicitacoes }o--o| ordens_pagamento : "ordem_pagamento_id"
   pessoal_diarias_solicitacoes }o--o| pessoal_diarias_remessas : "remessa_id"
   pessoal_diarias_solicitacoes }o--o| pessoal_diarias_solicitacoes : "complemento_de"
+  pessoal_diarias_solicitacoes }o--o| projeto : "projeto_id"
   pessoal_diarias_solicitacoes }o--o| usuarios : "avaliador_id"
   pessoal_diarias_solicitacoes }o--o| usuarios : "solicitante_id"
   pessoal_diarias_solicitacoes }o--|| financeiro_diarias : "diaria_id"

@@ -141,6 +141,7 @@ erDiagram
     uuid ordem_id FK
     uuid usuario_id FK
     uuid custeio_id FK
+    uuid viagem_id FK
   }
   financeiro_tributos {
     uuid id PK
@@ -266,6 +267,7 @@ erDiagram
   financeiro_transferencias_projeto }o--o| institucional_custeios : "custeio_id"
   financeiro_transferencias_projeto }o--o| ordens_pagamento : "ordem_id"
   financeiro_transferencias_projeto }o--o| usuarios : "usuario_id"
+  financeiro_transferencias_projeto }o--o| viagens_solicitacoes : "viagem_id"
   financeiro_transferencias_projeto }o--|| projeto : "destino_id"
   financeiro_transferencias_projeto }o--|| projeto : "origem_id"
   financeiro_tributos }o--o| centros_de_custo : "centro_custo_despesa_id"

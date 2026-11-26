@@ -94,6 +94,7 @@ export default async function MinhasViagensPage({
           <ViagemForm
             acao={solicitarViagem}
             departamentos={opcoes.departamentos}
+            projetos={opcoes.projetos}
             departamentoPadrao={podeProprio ? quadro.departamentoId : null}
             eventos={opcoes.eventos}
             pessoas={pessoas}

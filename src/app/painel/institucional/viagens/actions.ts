@@ -11,6 +11,7 @@ import {
   lerEventoDoForm,
   lerItensDoForm,
 } from "@/lib/db/viagens"
+import { lerProjetoDoForm, vincularViagemAoProjeto } from "@/lib/db/projetos"
 import {
   avisarViajantePedidoPorOutro,
   concluirAtendimento,
@@ -39,6 +40,8 @@ export async function lancarViagem(
   if (formData.get("evento_id") === "__externo" && !evento.eventoExterno) {
     return { erro: "Informe o nome do evento externo." }
   }
+  const projeto = await lerProjetoDoForm(formData)
+  if ("erro" in projeto) return { erro: projeto.erro }
 
   const quem = await lerBeneficiarioDoForm(formData)
   if ("erro" in quem) return { erro: quem.erro }
@@ -51,6 +54,7 @@ export async function lancarViagem(
     departamentoId:
       String(formData.get("departamento_id") ?? "").trim() || quem.departamentoDaPessoa,
     ...evento,
+    projetoId: projeto.projetoId,
     motivo,
     itens: lidos.itens,
   })
@@ -152,4 +156,16 @@ export async function encerrarViagemAction(
   if (erro) return { erro }
   revalidarViagem(id)
   return { ok: como === "recusada" ? "Pedido recusado e avisado." : "Viagem cancelada e avisada." }
+}
+
+/** Liga ao projeto a viagem sem projeto: as passagens e hospedagens entram no gasto dele. */
+export async function vincularProjetoViagemAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  await requirePermissao(CHAVE)
+  const id = String(formData.get("viagem_id") ?? "")
+  const projetoId = String(formData.get("projeto_id") ?? "")
+  const r = await vincularViagemAoProjeto(id, projetoId)
+  if (r.erro) return { erro: r.erro }
+  revalidarViagem(id)
+  revalidatePath(`/painel/ferramentas/projetos/${projetoId}`)
+  return { ok: r.ok }
 }

@@ -459,10 +459,11 @@ Pedido de viagem (passagens e/ou hospedagens) para diretor, funcionário ou conv
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `updated_at` | timestamp with time zone | sim |  |  |  |  |
 | `evento_externo` | text | sim |  |  |  | Nome do evento de fora (não cadastrado em Eventos). Excludente com evento_id. |
+| `projeto_id` | uuid | sim |  | → projeto (set null) | nenhum | Projeto a que a viagem pertence (opcional). As passagens e hospedagens dela entram no gasto do projeto. |
 
 Checks: `viagens_solicitacoes_beneficiario_check` `CHECK ((((beneficiario_tipo = 'convidado'::text) AND (convidado_nome IS NOT NULL)) OR ((beneficiario_tipo <> 'convidado'::text) AND (beneficiario_usuario_id IS NOT NULL))))`; `viagens_solicitacoes_beneficiario_tipo_check` `CHECK ((beneficiario_tipo = ANY (ARRAY['funcionario'::text, 'diretor'::text, 'convidado'::text])))`; `viagens_solicitacoes_situacao_check` `CHECK ((situacao = ANY (ARRAY['solicitada'::text, 'em_atendimento'::text, 'atendida'::text, 'cancelada'::text, 'recusada'::text])))`
 
-Índices: `idx_viagens_solic_beneficiario`, `idx_viagens_solic_emp_criacao`, `idx_viagens_solic_evento`, `idx_viagens_solic_situacao`, `idx_viagens_solic_solicitante`, `viagens_solicitacoes_pkey`
+Índices: `idx_viagens_solic_beneficiario`, `idx_viagens_solic_emp_criacao`, `idx_viagens_solic_evento`, `idx_viagens_solic_situacao`, `idx_viagens_solic_solicitante`, `viagens_solicitacoes_pkey`, `viagens_solicitacoes_projeto_idx`
 
 ## viagens_telegram_conversas
 

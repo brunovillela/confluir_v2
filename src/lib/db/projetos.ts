@@ -67,6 +67,23 @@ export type GastoProjeto = {
   reembolsos: { quantidade: number; total: number }
   solicitacoes: number
   custeios: number
+  /** Viagens do projeto (passagens e hospedagens) e o que elas custam. */
+  viagens: { quantidade: number; total: number }
+  /** Diárias do projeto (com as despesas): só a soma, como os reembolsos. */
+  diarias: { quantidade: number; total: number }
+}
+
+export type ViagemDoProjeto = {
+  id: string
+  numero: number | null
+  situacao: string
+  /** "2 passagens, 1 hospedagem" — sem o nome de quem viaja. */
+  resumo: string
+  evento: string | null
+  /** Faturado (com a parte da taxa) ou, antes da fatura, o valor reservado. */
+  valor: number
+  pago: number
+  faturado: number
 }
 
 export type OrdemDoProjeto = {
@@ -106,6 +123,8 @@ function gastoVazio(): GastoProjeto {
     reembolsos: { quantidade: 0, total: 0 },
     solicitacoes: 0,
     custeios: 0,
+    viagens: { quantidade: 0, total: 0 },
+    diarias: { quantidade: 0, total: 0 },
   }
 }
 
@@ -139,12 +158,13 @@ async function gastosDosProjetos(projetoIds: string[]): Promise<{
   gastos: Map<string, GastoProjeto>
   ordens: Map<string, OrdemDoProjeto[]>
   custeios: Map<string, CusteioDoProjeto[]>
+  viagens: Map<string, ViagemDoProjeto[]>
 }> {
   const gastos = new Map<string, GastoProjeto>()
   const ordensPorProjeto = new Map<string, OrdemDoProjeto[]>()
   const custeiosPorProjeto = new Map<string, CusteioDoProjeto[]>()
   const ids = [...new Set(projetoIds.filter(Boolean))]
-  if (ids.length === 0) return { gastos, ordens: ordensPorProjeto, custeios: custeiosPorProjeto }
+  if (ids.length === 0) return { gastos, ordens: ordensPorProjeto, custeios: custeiosPorProjeto, viagens: new Map() }
 
   const admin = await createAdminClient()
   const emp = await tenantAtual()
@@ -305,16 +325,192 @@ async function gastosDosProjetos(projetoIds: string[]): Promise<{
     g.reembolsos.total += valor
   }
 
+  // Viagens e diárias (26/11): o projeto fica no pedido, não na ordem (a
+  // fatura e a remessa juntam pedidos de projetos diferentes numa ordem só).
+  // A ordem que já entrou acima por outro caminho não conta de novo.
+  const jaContadas = new Set(ordens.keys())
+  const viagensPorProjeto = await viagensEDiariasDosProjetos(ids, jaContadas, doProjeto)
+
   for (const g of gastos.values()) {
     g.pago = Math.round(g.pago * 100) / 100
     g.aPagar = Math.round(g.aPagar * 100) / 100
     g.comprometido = Math.round(g.comprometido * 100) / 100
     g.reembolsos.total = Math.round(g.reembolsos.total * 100) / 100
+    g.viagens.total = Math.round(g.viagens.total * 100) / 100
+    g.diarias.total = Math.round(g.diarias.total * 100) / 100
     g.total = Math.round((g.pago + g.aPagar + g.comprometido) * 100) / 100
   }
   for (const lista of ordensPorProjeto.values()) lista.sort((a, b) => (b.data ?? "").localeCompare(a.data ?? ""))
-  return { gastos, ordens: ordensPorProjeto, custeios: custeiosPorProjeto }
+  return { gastos, ordens: ordensPorProjeto, custeios: custeiosPorProjeto, viagens: viagensPorProjeto }
 }
+
+/** Viagem cancelada ou recusada: só conta o que já foi faturado. */
+const VIAGEM_ENCERRADA_SEM_CUSTO = new Set(["cancelada", "recusada"])
+/** Diária que ainda vai ser paga (sem ordem, entra como comprometido). */
+const DIARIA_COMPROMETE = new Set(["aguardando", "aprovada"])
+
+async function lerPorProjeto(
+  tabela: string,
+  colunas: string,
+  ids: string[],
+  emp: string
+): Promise<Record<string, unknown>[]> {
+  const admin = await createAdminClient()
+  try {
+    return await lerEmLotesPorIds<Record<string, unknown>>(ids, (fatia, de, ate) =>
+      admin.from(tabela).select(colunas).eq("emp_proprietaria_id", emp).in("projeto_id", fatia).order("id").range(de, ate)
+    )
+  } catch (e) {
+    // Antes da migração 20261126171742 a coluna não existe: nenhum.
+    if (esquemaAusente(e as { code?: string })) return []
+    throw e
+  }
+}
+
+/**
+ * Soma as viagens (passagens e hospedagens) e as diárias dos projetos no
+ * gasto. O item de viagem vale o que a fatura cobrou dele (com a parte da
+ * taxa da agência); a diária vale o valor dela mais as despesas. Pago ou a
+ * pagar pela situação da ordem que pagou; sem ordem ainda, comprometido.
+ */
+async function viagensEDiariasDosProjetos(
+  ids: string[],
+  jaContadas: Set<string>,
+  doProjeto: (pid: string) => GastoProjeto
+): Promise<Map<string, ViagemDoProjeto[]>> {
+  const porProjeto = new Map<string, ViagemDoProjeto[]>()
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const [viagens, diarias] = await Promise.all([
+    lerPorProjeto(
+      "viagens_solicitacoes",
+      "id, numero, projeto_id, situacao, evento_externo, eventos(titulo), viagens_itens(tipo, valor, fatura_id)",
+      ids,
+      emp
+    ),
+    lerPorProjeto("pessoal_diarias_solicitacoes", "id, projeto_id, situacao, valor_total, ordem_pagamento_id", ids, emp),
+  ])
+  if (!viagens.length && !diarias.length) return porProjeto
+
+  type ItemBruto = { tipo?: string; valor?: unknown; fatura_id?: unknown }
+  const faturaIds = [
+    ...new Set(
+      viagens.flatMap((v) => ((v.viagens_itens ?? []) as ItemBruto[]).map((i) => texto(i.fatura_id))).filter((v): v is string => !!v)
+    ),
+  ]
+  const [faturas, despesas] = await Promise.all([
+    lerEmLotesPorIds<Record<string, unknown>>(faturaIds, (fatia, de, ate) =>
+      admin
+        .from("viagens_faturas")
+        .select("id, valor_itens, valor_total, ordem_pagamento_id")
+        .eq("emp_proprietaria_id", emp)
+        .in("id", fatia)
+        .order("id")
+        .range(de, ate)
+    ),
+    lerEmLotesPorIds<Record<string, unknown>>(
+      diarias.map((d) => String(d.id)),
+      (fatia, de, ate) =>
+        admin.from("pessoal_diarias_solicitacao_despesas").select("id, solicitacao_id, valor").in("solicitacao_id", fatia).order("id").range(de, ate)
+    ).catch(() => [] as Record<string, unknown>[]),
+  ])
+  const fatura = new Map(faturas.map((f) => [String(f.id), f]))
+  const ordemIds = [
+    ...new Set(
+      [...faturas.map((f) => texto(f.ordem_pagamento_id)), ...diarias.map((d) => texto(d.ordem_pagamento_id))].filter(
+        (v): v is string => !!v
+      )
+    ),
+  ]
+  const ordens = new Map(
+    (
+      await lerEmLotesPorIds<Record<string, unknown>>(ordemIds, (fatia, de, ate) =>
+        admin.from("ordens_pagamento").select("id, situacao, excluido").eq("emp_proprietaria_id", emp).in("id", fatia).order("id").range(de, ate)
+      )
+    ).map((o) => [String(o.id), o])
+  )
+  const despesasDe = new Map<string, number>()
+  for (const d of despesas) {
+    const sid = String(d.solicitacao_id)
+    despesasDe.set(sid, (despesasDe.get(sid) ?? 0) + (Number(d.valor ?? 0) || 0))
+  }
+
+  /** Lança o valor no gasto pela ordem; devolve a situação para a tela. */
+  const lancar = (g: GastoProjeto, valor: number, ordemId: string | null, semOrdemConta: boolean): SituacaoCusto => {
+    const o = ordemId ? ordens.get(ordemId) : undefined
+    if (ordemId && jaContadas.has(ordemId)) return "ja_contado"
+    if (o && contaNoGasto(o)) {
+      if (o.situacao === "Paga") {
+        g.pago += valor
+        return "pago"
+      }
+      g.aPagar += valor
+      return "a_pagar"
+    }
+    if (!semOrdemConta) return "sem_custo"
+    g.comprometido += valor
+    return "comprometido"
+  }
+
+  for (const v of viagens) {
+    const pid = String(v.projeto_id)
+    const g = doProjeto(pid)
+    const encerrada = VIAGEM_ENCERRADA_SEM_CUSTO.has(String(v.situacao))
+    const itens = (v.viagens_itens ?? []) as ItemBruto[]
+    let valorViagem = 0
+    let pago = 0
+    let faturado = 0
+    for (const i of itens) {
+      const bruto = Number(i.valor ?? 0) || 0
+      if (bruto <= 0) continue
+      const f = texto(i.fatura_id) ? fatura.get(String(i.fatura_id)) : undefined
+      const itensF = Number(f?.valor_itens ?? 0) || 0
+      const valor = f && itensF > 0 ? Math.round(((bruto * (Number(f.valor_total ?? 0) || 0)) / itensF) * 100) / 100 : bruto
+      // Sem fatura, o item reservado é custo a vir — salvo viagem cancelada.
+      const situacao = lancar(g, valor, f ? texto(f.ordem_pagamento_id) : null, !encerrada)
+      if (situacao === "sem_custo" || situacao === "ja_contado") continue
+      valorViagem += valor
+      if (situacao === "pago") pago += valor
+      if (f) faturado += valor
+    }
+    g.viagens.quantidade += 1
+    g.viagens.total += valorViagem
+    const passagens = itens.filter((i) => i.tipo === "passagem").length
+    const hospedagens = itens.filter((i) => i.tipo === "hospedagem").length
+    const evento = v.eventos as { titulo?: string } | null
+    const lista = porProjeto.get(pid) ?? []
+    lista.push({
+      id: String(v.id),
+      numero: v.numero == null ? null : Number(v.numero),
+      situacao: String(v.situacao ?? ""),
+      resumo: [
+        passagens ? `${passagens} passage${passagens === 1 ? "m" : "ns"}` : null,
+        hospedagens ? `${hospedagens} hospedage${hospedagens === 1 ? "m" : "ns"}` : null,
+      ]
+        .filter(Boolean)
+        .join(", "),
+      evento: texto(evento?.titulo) ?? texto(v.evento_externo),
+      valor: Math.round(valorViagem * 100) / 100,
+      pago: Math.round(pago * 100) / 100,
+      faturado: Math.round(faturado * 100) / 100,
+    })
+    porProjeto.set(pid, lista)
+  }
+
+  for (const d of diarias) {
+    const g = doProjeto(String(d.projeto_id))
+    const valor = Math.round(((Number(d.valor_total ?? 0) || 0) + (despesasDe.get(String(d.id)) ?? 0)) * 100) / 100
+    if (valor <= 0) continue
+    const situacao = lancar(g, valor, texto(d.ordem_pagamento_id), DIARIA_COMPROMETE.has(String(d.situacao)))
+    if (situacao === "sem_custo" || situacao === "ja_contado") continue
+    g.diarias.quantidade += 1
+    g.diarias.total += valor
+  }
+  for (const lista of porProjeto.values()) lista.sort((a, b) => (b.numero ?? 0) - (a.numero ?? 0))
+  return porProjeto
+}
+
+type SituacaoCusto = "pago" | "a_pagar" | "comprometido" | "sem_custo" | "ja_contado"
 
 // ── Marcos e tarefas por projeto (carteira) ──────────────────────────────────
 
@@ -622,6 +818,7 @@ export type DetalheProjeto = {
   ordens: OrdemDoProjeto[]
   solicitacoes: SolicitacaoDoProjeto[]
   custeios: CusteioDoProjeto[]
+  viagens: ViagemDoProjeto[]
 }
 
 export async function obterProjeto(id: string): Promise<DetalheProjeto | null> {
@@ -676,7 +873,7 @@ export async function obterProjeto(id: string): Promise<DetalheProjeto | null> {
     situacao: ROTULOS_SITUACAO_PROCESSO[derivarSituacao(s)],
     valor: numero(s.compra_valor),
   }))
-  const { gastos, ordens, custeios } = await gastosDosProjetos([id])
+  const { gastos, ordens, custeios, viagens } = await gastosDosProjetos([id])
 
   return {
     id: p.id as string,
@@ -696,6 +893,7 @@ export async function obterProjeto(id: string): Promise<DetalheProjeto | null> {
     gasto: gastos.get(id) ?? gastoVazio(),
     ordens: ordens.get(id) ?? [],
     custeios: custeios.get(id) ?? [],
+    viagens: viagens.get(id) ?? [],
     solicitacoes,
   }
 }
@@ -806,13 +1004,14 @@ export async function marcosNoPeriodo(
 /**
  * TRANSFERÊNCIA DE DESPESA (25/11/2026). A despesa lançada no projeto errado
  * passa para outro projeto em andamento: a COMPRA ou o CUSTEIO (26/11), cada
- * um com TODAS as suas ordens, ou a ORDEM lançada direto no projeto. Os dois projetos precisam estar abertos e
+ * um com TODAS as suas ordens, a VIAGEM (com as passagens e hospedagens) ou
+ * a ORDEM lançada direto no projeto. Os dois projetos precisam estar abertos e
  * o motivo é obrigatório. O centro de custo não muda (reclassificar é do
  * Financeiro). Fica no livro `financeiro_transferencias_projeto` e na trilha
  * de cada ordem movida. Reembolso a filiado não se transfere por aqui: ele é
  * mostrado só somado, sem os nomes.
  */
-export type TipoTransferencia = "compra" | "custeio" | "ordem"
+export type TipoTransferencia = "compra" | "custeio" | "viagem" | "ordem"
 
 export type TransferenciaProjeto = {
   id: string
@@ -878,6 +1077,7 @@ export async function transferirDespesa(params: {
   let valor = 0
   let compraId: string | null = null
   let custeioId: string | null = null
+  let viagemId: string | null = null
   let ordemId: string | null = null
   const somaDasOrdens = (os: Record<string, unknown>[]) => os.filter(contaNoGasto).reduce((s, o) => s + valorDaOrdem(o), 0)
 
@@ -915,6 +1115,26 @@ export async function transferirDespesa(params: {
       : CUSTEIO_COMPROMETE.has(String(c.situacao))
         ? (Number(c.valor_parcela ?? 0) || 0) * (Number(c.num_parcelas ?? 1) || 1)
         : 0
+  } else if (tipo === "viagem") {
+    const { data: v, error: erroV } = await admin
+      .from("viagens_solicitacoes")
+      .select("id, numero, situacao, projeto_id, viagens_itens(valor, fatura:viagens_faturas(valor_itens, valor_total))")
+      .eq("emp_proprietaria_id", emp)
+      .eq("id", itemId)
+      .maybeSingle()
+    if (erroV && esquemaAusente(erroV)) return { erro: "As viagens ainda não têm projeto: falta aplicar a migração 20261126171742." }
+    if (!v || v.projeto_id !== origemId) return { erro: "Esta viagem não está mais neste projeto — recarregue a página." }
+    viagemId = String(v.id)
+    descricao = v.numero != null ? `Viagem nº ${v.numero}` : "Viagem"
+    // As passagens e hospedagens vão junto; a ordem da fatura (de várias
+    // viagens) não muda — o projeto fica na viagem.
+    // O mesmo valor do gasto: o item faturado leva a parte da taxa da agência.
+    type ItemT = { valor?: unknown; fatura?: { valor_itens?: unknown; valor_total?: unknown } | null }
+    valor = ((v.viagens_itens ?? []) as ItemT[]).reduce((s, i) => {
+      const bruto = Number(i.valor ?? 0) || 0
+      const itens = Number(i.fatura?.valor_itens ?? 0) || 0
+      return s + (itens > 0 ? Math.round(((bruto * (Number(i.fatura?.valor_total ?? 0) || 0)) / itens) * 100) / 100 : bruto)
+    }, 0)
   } else {
     const { data: o } = await admin.from("ordens_pagamento").select(COLUNAS).eq("emp_proprietaria_id", emp).eq("id", itemId).maybeSingle()
     if (!o || o.projeto_id !== origemId) return { erro: "Esta ordem não está mais neste projeto — recarregue a página." }
@@ -949,6 +1169,7 @@ export async function transferirDespesa(params: {
       compra_id: compraId,
       ordem_id: ordemId,
       ...(custeioId ? { custeio_id: custeioId } : {}),
+      ...(viagemId ? { viagem_id: viagemId } : {}),
       descricao: descricao?.slice(0, 500) ?? null,
       valor,
       ordens: ordensMovidas.length,
@@ -968,7 +1189,9 @@ export async function transferirDespesa(params: {
     ? { tabela: "compras_solicitacoes", coluna: "solicitacao_projeto_id", id: compraId, nome: "A compra" }
     : custeioId
       ? { tabela: "institucional_custeios", coluna: "projeto_id", id: custeioId, nome: "O custeio" }
-      : null
+      : viagemId
+        ? { tabela: "viagens_solicitacoes", coluna: "projeto_id", id: viagemId, nome: "A viagem" }
+        : null
   if (pai) {
     const { data: movido, error } = await admin
       .from(pai.tabela)
@@ -1005,10 +1228,10 @@ export async function transferirDespesa(params: {
       { de: origemId, para: destinoId, motivo, transferencia_id: livro.id }
     )
   }
-  const oQue = tipo === "compra" ? "A compra" : tipo === "custeio" ? "O custeio" : "A ordem"
+  const oQue = tipo === "compra" ? "A compra" : tipo === "custeio" ? "O custeio" : tipo === "viagem" ? "A viagem" : "A ordem"
   const dela = tipo === "custeio" ? "dele" : "dela"
   const junto =
-    tipo !== "ordem" && idsOrdens.length
+    tipo !== "ordem" && tipo !== "viagem" && idsOrdens.length
       ? ` (com ${idsOrdens.length === 1 ? `a ordem ${dela}` : `as ${idsOrdens.length} ordens ${dela}`})`
       : ""
   return { ok: `${oQue}${junto} foi para o projeto "${nomeDestino}".` }
@@ -1044,6 +1267,54 @@ export async function vincularCusteioAoProjeto(custeioId: string, projetoId: str
   if (!feito?.length) return { erro: "O custeio mudou enquanto você vinculava — recarregue a página." }
   await admin.from("ordens_pagamento").update({ projeto_id: projetoId }).eq("emp_proprietaria_id", emp).eq("custeio_id", custeioId)
   return { ok: `Custeio vinculado ao projeto "${texto(p.descricao_sumaria) ?? "(sem título)"}".` }
+}
+
+/**
+ * Lê o projeto escolhido num formulário (campo `projeto_id`) e confere que
+ * ele existe e está em andamento. Vazio = sem projeto.
+ */
+export async function lerProjetoDoForm(formData: FormData): Promise<{ projetoId: string | null } | { erro: string }> {
+  const id = String(formData.get("projeto_id") ?? "").trim()
+  if (!id) return { projetoId: null }
+  const admin = await createAdminClient()
+  const { data: p } = await admin
+    .from("projeto")
+    .select("id, finalizado")
+    .eq("emp_proprietaria_id", await tenantAtual())
+    .eq("id", id)
+    .maybeSingle()
+  if (!p) return { erro: "Projeto não encontrado." }
+  if (p.finalizado === true) return { erro: "O projeto escolhido está finalizado." }
+  return { projetoId: id }
+}
+
+/**
+ * Liga ao projeto a viagem que ainda não tem projeto (na página da viagem).
+ * Trocar de projeto é transferência, com motivo, na página do projeto.
+ */
+export async function vincularViagemAoProjeto(viagemId: string, projetoId: string): Promise<{ erro?: string; ok?: string }> {
+  if (!projetoId) return { erro: "Escolha o projeto." }
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const [{ data: v, error }, { data: p }] = await Promise.all([
+    admin.from("viagens_solicitacoes").select("id, projeto_id").eq("emp_proprietaria_id", emp).eq("id", viagemId).maybeSingle(),
+    admin.from("projeto").select("id, descricao_sumaria, finalizado").eq("emp_proprietaria_id", emp).eq("id", projetoId).maybeSingle(),
+  ])
+  if (error && esquemaAusente(error)) return { erro: "As viagens ainda não têm projeto: falta aplicar a migração 20261126171742." }
+  if (!v) return { erro: "Viagem não encontrada." }
+  if (!p) return { erro: "Projeto não encontrado." }
+  if (p.finalizado === true) return { erro: "O projeto está finalizado: reabra-o para vincular a viagem." }
+  if (texto(v.projeto_id)) return { erro: "A viagem já tem projeto: para trocar, transfira-a na página do projeto." }
+  const { data: feito, error: erroU } = await admin
+    .from("viagens_solicitacoes")
+    .update({ projeto_id: projetoId })
+    .eq("emp_proprietaria_id", emp)
+    .eq("id", viagemId)
+    .is("projeto_id", null)
+    .select("id")
+  if (erroU) return { erro: `Não foi possível vincular: ${erroU.message}` }
+  if (!feito?.length) return { erro: "A viagem mudou enquanto você vinculava — recarregue a página." }
+  return { ok: `Viagem vinculada ao projeto "${texto(p.descricao_sumaria) ?? "(sem título)"}".` }
 }
 
 /** O livro de transferências do projeto: o que saiu e o que entrou. */
@@ -1083,7 +1354,7 @@ export async function listarTransferencias(projetoId: string): Promise<Transfere
       sentido: saiu ? "saiu" : "entrou",
       outroProjetoId: outro,
       outroProjeto: nomeProjeto.get(outro) ?? "(projeto)",
-      tipo: l.tipo === "ordem" ? "ordem" : l.tipo === "custeio" ? "custeio" : "compra",
+      tipo: l.tipo === "ordem" ? "ordem" : l.tipo === "custeio" ? "custeio" : l.tipo === "viagem" ? "viagem" : "compra",
       descricao: texto(l.descricao),
       valor: Number(l.valor ?? 0) || 0,
       motivo: String(l.motivo ?? ""),

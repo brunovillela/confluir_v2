@@ -7,6 +7,7 @@ import { listarDepartamentos } from "@/lib/db/compras"
 import { diretoresParaDiaria } from "@/lib/db/diarias-diretoria"
 import { listarEventos } from "@/lib/db/eventos"
 import { funcionariosParaSelecao } from "@/lib/db/pessoal"
+import { projetosAbertosParaTransferencia } from "@/lib/db/projetos"
 import { formatarData } from "@/lib/formato"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -87,6 +88,9 @@ export type Viagem = {
   eventoTitulo: string | null
   /** Evento de fora (congresso, audiência) — só o nome. */
   eventoExterno: string | null
+  /** Projeto a que a viagem pertence (entra no gasto dele). */
+  projetoId: string | null
+  projetoTitulo: string | null
   motivo: string
   situacao: SituacaoViagem
   motivoSituacao: string | null
@@ -99,7 +103,7 @@ export type Viagem = {
 }
 
 const SELECT_VIAGEM =
-  "id, numero, beneficiario_tipo, beneficiario_usuario_id, convidado_nome, convidado_cpf, convidado_nascimento, convidado_email, convidado_telefone, solicitante_id, departamento_id, evento_id, evento_externo, motivo, situacao, motivo_situacao, atendido_por, atendido_em, created_at, empresa_departamentos(departamento), eventos(titulo), viagens_itens(*, fornecedor:empresa!viagens_itens_fornecedor_id_fkey(nome_fantasia, nome_razao))"
+  "id, numero, beneficiario_tipo, beneficiario_usuario_id, convidado_nome, convidado_cpf, convidado_nascimento, convidado_email, convidado_telefone, solicitante_id, departamento_id, evento_id, evento_externo, projeto_id, motivo, situacao, motivo_situacao, atendido_por, atendido_em, created_at, empresa_departamentos(departamento), eventos(titulo), projeto(descricao_sumaria), viagens_itens(*, fornecedor:empresa!viagens_itens_fornecedor_id_fkey(nome_fantasia, nome_razao))"
 
 function hora(v: unknown): string | null {
   const s = texto(v)
@@ -186,6 +190,8 @@ async function normalizar(linhas: Record<string, unknown>[]): Promise<Viagem[]> 
       eventoId: texto(l.evento_id),
       eventoTitulo: texto(evento?.titulo),
       eventoExterno: texto(l.evento_externo),
+      projetoId: texto(l.projeto_id),
+      projetoTitulo: texto((l.projeto as { descricao_sumaria?: string } | null)?.descricao_sumaria),
       motivo: String(l.motivo ?? ""),
       situacao: l.situacao as SituacaoViagem,
       motivoSituacao: texto(l.motivo_situacao),
@@ -303,18 +309,21 @@ export async function buscarViagem(id: string): Promise<Viagem | null> {
   return viagem ?? null
 }
 
-/** Departamentos e eventos que ainda não terminaram, para os selects do pedido. */
+/** Departamentos, eventos que ainda não terminaram e projetos em andamento, para os selects do pedido. */
 export async function opcoesDoFormViagem(): Promise<{
   departamentos: { id: string; nome: string }[]
   eventos: { id: string; nome: string }[]
+  projetos: { id: string; nome: string }[]
 }> {
-  const [departamentos, { eventos }] = await Promise.all([
+  const [departamentos, { eventos }, projetos] = await Promise.all([
     listarDepartamentos(),
     listarEventos({ situacao: "publicado" }).catch(() => ({ eventos: [] })),
+    projetosAbertosParaTransferencia().catch(() => []),
   ])
   const hoje = hojeSP()
   return {
     departamentos,
+    projetos: projetos.map((p) => ({ id: p.id, nome: p.titulo })),
     eventos: eventos
       .filter((e) => (e.termino ?? e.inicio ?? hoje).slice(0, 10) >= hoje)
       .map((e) => ({
@@ -420,6 +429,8 @@ export type NovaViagem = {
   eventoId: string | null
   /** Evento de fora; vale quando eventoId é nulo. */
   eventoExterno?: string | null
+  /** Projeto da viagem (opcional): as passagens e hospedagens entram no gasto dele. */
+  projetoId?: string | null
   motivo: string
   itens: ItemViagemEntrada[]
 }
@@ -501,6 +512,7 @@ export async function criarViagem(nova: NovaViagem): Promise<{ erro?: string; id
       departamento_id: nova.departamentoId,
       evento_id: nova.eventoId,
       evento_externo: nova.eventoId ? null : (nova.eventoExterno ?? null),
+      ...(nova.projetoId ? { projeto_id: nova.projetoId } : {}),
       motivo: nova.motivo,
     })
     .select("id")

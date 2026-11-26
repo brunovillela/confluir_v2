@@ -815,10 +815,11 @@ Solicitação de diária de um funcionário ou diretor (período, motivo, valore
 | `valor_descontos` | numeric(12,2) | sim |  |  | financeiro | Infrações de trânsito abatidas na aprovação (a diária entra líquida na remessa). |
 | `pendencia_observacao` | text | sim |  |  |  | Não conformidade apontada pelo avaliador na última devolução da remessa. |
 | `complemento_de` | uuid | sim |  | → pessoal_diarias_solicitacoes |  | Diária já recebida de que esta solicitação é complemento: só despesas lançadas depois da viagem (valor da diária zero). |
+| `projeto_id` | uuid | sim |  | → projeto (set null) | nenhum | Projeto da atividade que gerou a diária (opcional). A diária (com as despesas) entra no gasto do projeto. |
 
 Checks: `pessoal_diarias_solicitacoes_beneficiario_tipo_check` `CHECK ((beneficiario_tipo = ANY (ARRAY['funcionario'::text, 'diretor'::text])))`; `pessoal_diarias_solicitacoes_quantidade_check` `CHECK ((quantidade > (0)::numeric))`; `pessoal_diarias_solicitacoes_situacao_check` `CHECK ((situacao = ANY (ARRAY['aguardando'::text, 'aprovada'::text, 'reprovada'::text, 'cancelada'::text])))`
 
-Índices: `idx_diarias_solicitacoes_complemento`, `idx_diarias_solicitacoes_departamento`, `idx_diarias_solicitacoes_funcionario`, `idx_diarias_solicitacoes_remessa`, `idx_diarias_solicitacoes_situacao`, `idx_diarias_solicitacoes_tipo_benef`, `pessoal_diarias_solicitacoes_pkey`
+Índices: `idx_diarias_solicitacoes_complemento`, `idx_diarias_solicitacoes_departamento`, `idx_diarias_solicitacoes_funcionario`, `idx_diarias_solicitacoes_remessa`, `idx_diarias_solicitacoes_situacao`, `idx_diarias_solicitacoes_tipo_benef`, `pessoal_diarias_solicitacoes_pkey`, `pessoal_diarias_solicitacoes_projeto_idx`
 
 ## pessoal_faltas_config
 

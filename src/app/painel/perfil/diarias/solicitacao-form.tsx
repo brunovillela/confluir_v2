@@ -13,6 +13,7 @@ import { cancelarMinhaDiaria, solicitarDiaria } from "./actions"
 import { confirmarEnvio } from "@/components/ui/confirmacao"
 import { ErroNoCampo } from "@/components/ui/erro-no-campo"
 import { useEnvioFormulario } from "@/hooks/use-envio-formulario"
+import { CampoProjeto } from "@/components/campo-projeto"
 
 const SELECT =
   "border-input bg-background text-foreground h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none [color-scheme:light] dark:[color-scheme:dark]"
@@ -23,9 +24,12 @@ const SELECT =
  */
 export function SolicitarDiariaForm({
   tipos,
+  projetos = [],
   rotulo = "Solicitar diária",
 }: {
   tipos: { id: string; rotulo: string }[]
+  /** Projetos em andamento: a diária do projeto entra no gasto dele. */
+  projetos?: { id: string; titulo: string }[]
   rotulo?: string
 }) {
   const [aberto, setAberto] = useState(false)
@@ -100,6 +104,7 @@ export function SolicitarDiariaForm({
               <Label htmlFor="data_termino">Término</Label>
               <Input id="data_termino" name="data_termino" type="date" />
             </div>
+            <CampoProjeto projetos={projetos} className="sm:col-span-2" />
             <div className="grid gap-1.5 sm:col-span-2">
               <Label htmlFor="motivo">Motivo *</Label>
               <textarea

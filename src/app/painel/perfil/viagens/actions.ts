@@ -14,6 +14,7 @@ import {
   lerItensDoForm,
   type NovaViagem,
 } from "@/lib/db/viagens"
+import { lerProjetoDoForm } from "@/lib/db/projetos"
 import {
   avisarEquipeNovaViagem,
   avisarViajantePedidoPorOutro,
@@ -50,6 +51,8 @@ export async function solicitarViagem(
   if (formData.get("evento_id") === "__externo" && !evento.eventoExterno) {
     return { erro: "Informe o nome do evento externo." }
   }
+  const projeto = await lerProjetoDoForm(formData)
+  if ("erro" in projeto) return { erro: projeto.erro }
 
   let quem: Pick<NovaViagem, "beneficiarioTipo" | "beneficiarioUsuarioId" | "convidado"> & {
     departamentoDaPessoa: string | null
@@ -86,6 +89,7 @@ export async function solicitarViagem(
     departamentoId:
       String(formData.get("departamento_id") ?? "").trim() || quem.departamentoDaPessoa,
     ...evento,
+    projetoId: projeto.projetoId,
     motivo,
     itens: lidos.itens,
   })

@@ -24,7 +24,7 @@ const SELECT =
   "border-input bg-background focus-visible:ring-ring/50 h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
 
 /**
- * Transferir a compra (com as ordens dela) ou a ordem para outro projeto em
+ * Transferir a compra, o custeio (com as ordens), a viagem ou a ordem para outro projeto em
  * andamento. O motivo é obrigatório e fica no livro de transferências.
  */
 export function TransferirDespesa({
@@ -36,7 +36,7 @@ export function TransferirDespesa({
   projetos,
 }: {
   origemId: string
-  tipo: "compra" | "custeio" | "ordem"
+  tipo: "compra" | "custeio" | "viagem" | "ordem"
   itemId: string
   rotulo: string
   valor: number | null
@@ -48,7 +48,7 @@ export function TransferirDespesa({
     if (r.ok) setAberto(false)
     return r
   }, {})
-  const oQue = tipo === "compra" ? "a compra" : tipo === "custeio" ? "o custeio" : "a ordem"
+  const oQue = tipo === "compra" ? "a compra" : tipo === "custeio" ? "o custeio" : tipo === "viagem" ? "a viagem" : "a ordem"
   const sufixo = `${tipo}-${itemId}`
 
   return (
@@ -73,7 +73,9 @@ export function TransferirDespesa({
               ? `A compra ${rotulo} vai para o projeto escolhido, com todas as ordens de pagamento dela.`
               : tipo === "custeio"
                 ? `O custeio ${rotulo} vai para o projeto escolhido, com todas as ordens de pagamento dele.`
-                : `A ordem ${rotulo} vai para o projeto escolhido.`}
+                : tipo === "viagem"
+                  ? `A viagem ${rotulo} vai para o projeto escolhido, com as passagens e hospedagens dela.`
+                  : `A ordem ${rotulo} vai para o projeto escolhido.`}
             {valor != null && valor > 0 && ` Valor: ${formatarMoeda(valor)}.`} O centro de custo não muda; se precisar,
             reclassifique a ordem no Financeiro.
           </DialogDescription>

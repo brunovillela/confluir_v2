@@ -28,6 +28,8 @@ import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { semAcento } from "@/lib/texto"
 
 import { AbasDiretoria } from "../abas-diretoria"
+import { projetosAbertosParaTransferencia } from "@/lib/db/projetos"
+
 import { LancarDiariaDiretor } from "./lancar-diaria"
 
 export const metadata: Metadata = { title: "Diárias da diretoria — Confluir" }
@@ -59,11 +61,12 @@ export default async function DiariasDiretoriaPage({
   await requirePermissao("diretoria_diarias", ["configuracoes"])
 
   const brutos = await searchParams
-  const [{ disponivel, solicitacoes }, diretores, { tipos }, { remessas }] = await Promise.all([
+  const [{ disponivel, solicitacoes }, diretores, { tipos }, { remessas }, projetos] = await Promise.all([
     listarSolicitacoesDiaria({ quadro: "diretor" }),
     diretoresParaDiaria(),
     listarTiposDiaria(),
     listarRemessasNovas({ quadro: "diretor" }),
+    projetosAbertosParaTransferencia().catch(() => []),
   ])
   // Remessas a avaliar (abertas ou reenviadas, com diária aguardando) — 08/10.
   const prontas = remessas.filter((r) => !r.enviada && r.situacao !== "devolvida" && r.situacao !== "preparacao" && r.contagem.aguardando + r.contagem.aprovada > 0).length
@@ -190,6 +193,7 @@ export default async function DiariasDiretoriaPage({
 
       <LancarDiariaDiretor
         diretores={diretores}
+        projetos={projetos}
         tipos={tipos
           .filter((t) => t.ativa && (t.quadro === "diretor" || t.quadro === "ambos"))
           .map((t) => ({ id: t.id, nome: t.nome, valor: t.valor_reembolso }))}

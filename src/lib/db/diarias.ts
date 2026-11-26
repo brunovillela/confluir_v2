@@ -418,6 +418,8 @@ export type NovaSolicitacaoDiaria = {
   departamento_id?: string | null
   /** Quem lançou, quando não foi o próprio beneficiário. */
   solicitante_id?: string | null
+  /** Projeto da atividade (opcional): a diária entra no gasto dele. */
+  projeto_id?: string | null
 }
 
 export async function criarSolicitacaoDiaria(
@@ -456,6 +458,7 @@ export async function criarSolicitacaoDiaria(
     beneficiario_tipo: quadro,
     departamento_id: nova.departamento_id ?? null,
     solicitante_id: nova.solicitante_id ?? null,
+    ...(nova.projeto_id ? { projeto_id: nova.projeto_id } : {}),
   }
   const inserir = (novas: boolean) =>
     admin

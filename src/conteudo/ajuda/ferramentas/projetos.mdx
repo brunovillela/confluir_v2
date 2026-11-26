@@ -23,7 +23,7 @@ e a finalização.
   <Passo titulo="Acompanhe">
     A página do projeto mostra os **marcos**, as **tarefas** e as **Despesas do
     projeto**: cada compra e cada custeio com as suas ordens de pagamento embaixo,
-    as ordens lançadas direto no projeto e os reembolsos. O cartão do orçamento
+    as viagens, as ordens lançadas direto no projeto, os reembolsos e as diárias. O cartão do orçamento
     diz quanto já foi gasto, em **Pago**, **A pagar** e **Comprometido**, e o
     **Saldo**.
   </Passo>
@@ -48,15 +48,27 @@ as lançadas direto no projeto e as de **reembolsos** a filiados do projeto. Cad
 ordem conta uma vez só, e as canceladas e estornadas ficam de fora. A ordem de uma
 compra ou de um custeio é sempre do projeto dele.
 
+Entram também as **viagens** e as **diárias** do projeto — escolhidas no campo
+**Projeto (se houver)** do pedido de viagem e da diária. Como a fatura da agência e a
+remessa de diárias juntam pedidos de projetos diferentes numa ordem só, o projeto
+fica no pedido: cada passagem ou hospedagem vale o que a fatura cobrou dela (com a
+parte da taxa da agência) e cada diária vale o valor dela mais as despesas. Pago ou a
+pagar segue a ordem da fatura ou da remessa; antes dela, é comprometido. A viagem
+cancelada ou recusada só conta o que já foi faturado. A viagem já pedida sem projeto
+pode ser ligada a um na página dela (Viagens), em **Vincular**.
+
 - **Pago**: as ordens já pagas.
 - **A pagar**: as que ainda estão em autorização, aguardando documento, a pagar ou
   processando.
 - **Comprometido**: a compra (não cancelada) ou o custeio (aguardando autorização ou
-  autorizado) que ainda não virou ordem.
+  autorizado) que ainda não virou ordem, a passagem ou hospedagem reservada ainda sem
+  fatura e a diária aguardando ou aprovada ainda sem ordem.
 
 O **Saldo** é o orçamento menos o gasto. Em **Despesas do projeto**, o código leva à
-compra, ao custeio ou à ordem. Os reembolsos a filiados entram só somados, sem os
-nomes: o detalhe fica em Reembolsos.
+compra, ao custeio, à viagem ou à ordem. A viagem aparece com o número e o que ela
+tem (passagens, hospedagens, evento), sem o nome de quem viaja. Os reembolsos a
+filiados e as diárias entram só somados, sem os nomes: o detalhe fica em Reembolsos
+e nas remessas de diárias.
 
 ### Transferir despesa para outro projeto
 
@@ -65,6 +77,8 @@ a transfere para outro projeto **em andamento**, no botão de setas da linha:
 
 - Na linha da **compra**, ela vai com **todas** as ordens de pagamento dela.
 - Na linha do **custeio**, ele vai com **todas** as ordens dele.
+- Na linha da **viagem**, ela vai com as passagens e hospedagens. A ordem da fatura
+  não muda: ela pode pagar viagens de vários projetos.
 - Em **Ordens lançadas direto no projeto**, vai a **ordem**. A ordem de uma compra
   ou de um custeio não tem o botão: ela vai junto com a compra ou o custeio.
 

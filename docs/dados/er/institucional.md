@@ -104,6 +104,7 @@ erDiagram
     uuid evento_id FK
     uuid evento_inscricao_id FK
     uuid atendido_por FK
+    uuid projeto_id FK
   }
   viagens_telegram_conversas {
     text chat_id PK
@@ -146,6 +147,7 @@ erDiagram
   viagens_solicitacoes }o--o| empresa_departamentos : "departamento_id"
   viagens_solicitacoes }o--o| eventos : "evento_id"
   viagens_solicitacoes }o--o| eventos_inscricoes : "evento_inscricao_id"
+  viagens_solicitacoes }o--o| projeto : "projeto_id"
   viagens_solicitacoes }o--o| usuarios : "atendido_por"
   viagens_solicitacoes }o--o| usuarios : "beneficiario_usuario_id"
   viagens_solicitacoes }o--o| usuarios : "solicitante_id"

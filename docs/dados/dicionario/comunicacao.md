@@ -538,6 +538,7 @@ Eventos da entidade com inscrição pública: datas, lotação, regras de aprova
 | `rsvp_enviado_lote_em` | timestamp with time zone | sim |  |  |  |  |
 | `inscricoes_encerradas_em` | timestamp with time zone | sim |  |  | nenhum | Quando quem organiza fechou as inscrições à mão (antes do prazo). Preenchida: o link público e o portal não aceitam inscrição. Reabrir limpa. |
 | `inscricoes_encerradas_por` | uuid | sim |  |  | nenhum | Usuário (usuarios.id) que fechou as inscrições à mão. |
+| `inscricoes_encerradas_mensagem` | text | sim |  |  | nenhum | Mensagem opcional de quem fechou as inscrições à mão, exibida a quem tenta se inscrever (página pública e portal). Reabrir limpa. |
 
 Checks: `ck_eventos_cota_convidados` `CHECK (((cota_convidados IS NULL) OR (cota_convidados >= 0))) NOT VALID`; `ck_eventos_overbooking` `CHECK (((overbooking_percentual >= (0)::numeric) AND (overbooking_percentual <= (100)::numeric))) NOT VALID`; `ck_eventos_situacao` `CHECK ((situacao = ANY (ARRAY['rascunho'::text, 'publicado'::text, 'encerrado'::text, 'cancelado'::text, 'adiado'::text]))) NOT VALID`
 

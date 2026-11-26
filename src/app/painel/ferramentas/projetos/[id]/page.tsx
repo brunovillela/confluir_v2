@@ -290,6 +290,7 @@ export default async function ProjetoPage({
         projetoId={id}
         solicitacoes={projeto.solicitacoes}
         custeios={projeto.custeios}
+        viagens={projeto.viagens}
         ordens={projeto.ordens}
         gasto={projeto.gasto}
         transfere={transfere}
@@ -317,7 +318,7 @@ export default async function ProjetoPage({
                       {t.quem && <span className="text-muted-foreground block text-xs">{t.quem}</span>}
                     </TableCell>
                     <TableCell className="max-w-72">
-                      <span className="line-clamp-2">{t.descricao ?? (t.tipo === "compra" ? "Compra" : "Ordem")}</span>
+                      <span className="line-clamp-2">{t.descricao ?? (t.tipo === "compra" ? "Compra" : t.tipo === "custeio" ? "Custeio" : t.tipo === "viagem" ? "Viagem" : "Ordem")}</span>
                     </TableCell>
                     <TableCell className="max-w-56">
                       <span className="text-muted-foreground block text-xs">{t.sentido === "saiu" ? "Foi para" : "Veio de"}</span>

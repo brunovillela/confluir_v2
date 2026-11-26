@@ -3,21 +3,24 @@ import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ROTULOS_SITUACAO_CUSTEIO, type SituacaoCusteio } from "@/lib/custeio-constantes"
-import type { CusteioDoProjeto, GastoProjeto, OrdemDoProjeto, SolicitacaoDoProjeto } from "@/lib/db/projetos"
+import type { CusteioDoProjeto, GastoProjeto, OrdemDoProjeto, SolicitacaoDoProjeto, ViagemDoProjeto } from "@/lib/db/projetos"
 import { formatarData, formatarMoeda } from "@/lib/formato"
+import { ROTULO_SITUACAO_VIAGEM } from "@/lib/viagens-constantes"
 
 import { TransferirDespesa } from "./transferir-despesa"
 
 /**
  * DESPESAS DO PROJETO (26/11/2026): compras e custeios, cada um com as suas
- * ordens de pagamento embaixo; depois as ordens lançadas direto no projeto e,
- * só somados, os reembolsos a filiados. A compra e o custeio se transferem
+ * ordens de pagamento embaixo; as viagens (passagens e hospedagens); depois
+ * as ordens lançadas direto no projeto e, só somados, os reembolsos a filiados
+ * e as diárias. A compra e o custeio se transferem
  * com todas as ordens; a ordem de um deles não se transfere sozinha.
  */
 export function DespesasDoProjeto({
   projetoId,
   solicitacoes,
   custeios,
+  viagens,
   ordens,
   gasto,
   transfere,
@@ -26,6 +29,7 @@ export function DespesasDoProjeto({
   projetoId: string
   solicitacoes: SolicitacaoDoProjeto[]
   custeios: CusteioDoProjeto[]
+  viagens: ViagemDoProjeto[]
   ordens: OrdemDoProjeto[]
   gasto: GastoProjeto
   transfere: boolean
@@ -40,9 +44,15 @@ export function DespesasDoProjeto({
     else avulsas.push(o)
   }
   const colunas = transfere ? 6 : 5
-  const vazio = !solicitacoes.length && !custeios.length && !avulsas.length && gasto.reembolsos.quantidade === 0
+  const vazio =
+    !solicitacoes.length &&
+    !custeios.length &&
+    !viagens.length &&
+    !avulsas.length &&
+    gasto.reembolsos.quantidade === 0 &&
+    gasto.diarias.quantidade === 0
 
-  const botao = (tipo: "compra" | "custeio" | "ordem", id: string, rotulo: string, valor: number | null) =>
+  const botao = (tipo: "compra" | "custeio" | "viagem" | "ordem", id: string, rotulo: string, valor: number | null) =>
     transfere ? (
       <TableCell className="text-right">
         <TransferirDespesa origemId={projetoId} tipo={tipo} itemId={id} rotulo={rotulo} valor={valor} projetos={destinos} />
@@ -91,8 +101,8 @@ export function DespesasDoProjeto({
       <CardContent>
         <p className="text-sm font-medium">Despesas do projeto</p>
         <p className="text-muted-foreground mb-3 text-xs">
-          Cada compra e cada custeio com as suas ordens de pagamento. Transferir uma compra ou um custeio para outro
-          projeto leva todas as ordens dele.
+          Cada compra e cada custeio com as suas ordens de pagamento, as viagens e as diárias. Transferir uma compra
+          ou um custeio para outro projeto leva todas as ordens dele; a viagem leva as passagens e hospedagens.
         </p>
         {vazio ? (
           <p className="text-muted-foreground py-6 text-center text-sm">Nenhuma despesa ligada a este projeto.</p>
@@ -162,6 +172,39 @@ export function DespesasDoProjeto({
                 </CompraOuCusteio>
               ))}
 
+              {viagens.length > 0 && titulo(`Viagens (${viagens.length})`)}
+              {viagens.map((v) => (
+                <TableRow key={`v-${v.id}`}>
+                  <TableCell className="font-medium whitespace-nowrap">
+                    <Link href={`/painel/institucional/viagens/${v.id}`} className="text-primary hover:underline">
+                      Viagem nº {v.numero ?? "—"}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="max-w-80">
+                    <span className="line-clamp-1">{[v.resumo || null, v.evento].filter(Boolean).join(" · ") || "—"}</span>
+                    {v.valor > 0 && (
+                      <span className="text-muted-foreground block text-xs">
+                        {v.pago >= v.valor
+                          ? "Paga"
+                          : v.faturado >= v.valor
+                            ? "Faturada, a pagar"
+                            : v.faturado > 0
+                              ? `Faturado ${formatarMoeda(v.faturado)}; o resto ainda sem fatura`
+                              : "Reservada, ainda sem fatura"}
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {ROTULO_SITUACAO_VIAGEM[v.situacao as keyof typeof ROTULO_SITUACAO_VIAGEM] ?? v.situacao}
+                  </TableCell>
+                  <TableCell />
+                  <TableCell className="text-right font-medium whitespace-nowrap tabular-nums">
+                    {v.valor > 0 ? formatarMoeda(v.valor) : "—"}
+                  </TableCell>
+                  {botao("viagem", v.id, v.numero != null ? `nº ${v.numero}` : "", v.valor)}
+                </TableRow>
+              ))}
+
               {avulsas.length > 0 && titulo(`Ordens lançadas direto no projeto (${avulsas.length})`)}
               {avulsas.map((o) => (
                 <TableRow key={o.id}>
@@ -190,6 +233,23 @@ export function DespesasDoProjeto({
                     </TableCell>
                     <TableCell className="text-right font-medium whitespace-nowrap tabular-nums">
                       {formatarMoeda(gasto.reembolsos.total)}
+                    </TableCell>
+                    {transfere && <TableCell />}
+                  </TableRow>
+                </>
+              )}
+
+              {gasto.diarias.quantidade > 0 && (
+                <>
+                  {titulo("Diárias")}
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={4} className="text-muted-foreground text-sm">
+                      {gasto.diarias.quantidade.toLocaleString("pt-BR")} diária
+                      {gasto.diarias.quantidade === 1 ? "" : "s"} (com as despesas), somadas no gasto (o detalhe fica nas
+                      remessas)
+                    </TableCell>
+                    <TableCell className="text-right font-medium whitespace-nowrap tabular-nums">
+                      {formatarMoeda(gasto.diarias.total)}
                     </TableCell>
                     {transfere && <TableCell />}
                   </TableRow>

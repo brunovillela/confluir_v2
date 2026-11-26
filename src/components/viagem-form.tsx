@@ -139,6 +139,7 @@ export function ViagemForm({
   departamentos,
   departamentoPadrao,
   eventos,
+  projetos = [],
   pessoas,
   paraQuem,
   abertoInicial = false,
@@ -150,6 +151,8 @@ export function ViagemForm({
   departamentos: Opcao[]
   departamentoPadrao: string | null
   eventos: Opcao[]
+  /** Projetos em andamento: a viagem do projeto entra no gasto dele. */
+  projetos?: Opcao[]
   /** Política de viagens, das Configurações — aparece no topo do pedido. */
   orientacoes?: string | null
   /** Antecedência recomendada (dias); pedido mais em cima ganha alerta. */
@@ -404,6 +407,19 @@ export function ViagemForm({
                 <option value="__externo">Evento externo (de outra entidade)…</option>
               </select>
             </div>
+            {projetos.length > 0 && (
+              <div className="grid gap-1.5">
+                <Label htmlFor="projeto_id">Projeto (se houver)</Label>
+                <select id="projeto_id" name="projeto_id" className={SELECT} defaultValue="">
+                  <option value="">Nenhum</option>
+                  {projetos.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             {evento === "__externo" && (
               <div className="grid gap-1.5 sm:col-span-2">
                 <Label htmlFor="evento_externo">Nome do evento externo *</Label>

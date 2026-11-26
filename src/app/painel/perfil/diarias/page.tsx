@@ -39,6 +39,8 @@ import {
 import { formatarData, formatarMoeda } from "@/lib/formato"
 
 import { adicionarMinhaDespesa, enviarMinhaRemessa, removerMinhaDespesa } from "./actions"
+import { projetosAbertosParaTransferencia } from "@/lib/db/projetos"
+
 import { CancelarDiariaBotao, SolicitarDiariaForm } from "./solicitacao-form"
 
 export const metadata: Metadata = { title: "Minhas diárias — Confluir" }
@@ -57,11 +59,12 @@ export default async function MinhasDiariasPage({
     await exigirFuncionario(sessao.usuario.id as string, { ativo: true })
   }
   const { salvo, enviada } = await searchParams
-  const [{ disponivel, solicitacoes }, { tipos }, tiposDespesa, minhasRemessas] = await Promise.all([
+  const [{ disponivel, solicitacoes }, { tipos }, tiposDespesa, minhasRemessas, projetos] = await Promise.all([
     minhasSolicitacoesDiaria(sessao.usuario.id as string),
     listarTiposDiaria(),
     listarTiposDespesaDiaria(),
     listarRemessasNovas({ beneficiarioId: sessao.usuario.id as string }).catch(() => ({ disponivel: false, remessas: [] })),
+    projetosAbertosParaTransferencia().catch(() => []),
   ])
   // 08/10: a avaliação é da remessa — a pessoa vê a dela e, devolvida, o que corrigir.
   const remessasEmCurso = minhasRemessas.remessas.filter((r) => !r.enviada && r.valorTotal > 0)
@@ -212,6 +215,7 @@ export default async function MinhasDiariasPage({
 
       {disponivel && (
         <SolicitarDiariaForm
+          projetos={projetos}
           tipos={ativos.map((t) => ({
             id: t.id,
             rotulo: `${t.nome} — ${formatarMoeda(t.valor_reembolso)}`,
