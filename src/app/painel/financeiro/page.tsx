@@ -120,7 +120,6 @@ export default async function FinanceiroPage() {
       descricao: "Plano de contas: códigos, classificadores e indicações",
       href: "/painel/financeiro/centros-custo",
       icone: CircleDollarSign,
-      recolhido: true,
     },
     veEstornos && {
       titulo: "Estornos de pagamento",
