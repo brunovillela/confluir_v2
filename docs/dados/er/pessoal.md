@@ -282,12 +282,6 @@ erDiagram
     uuid sindicato_id FK
     uuid tabela_id FK
   }
-  pessoal_plano_saude {
-    uuid id PK
-    uuid emp_proprietaria_id FK
-    uuid titular_id FK
-    uuid dependente_id FK
-  }
   pessoal_ponto_importacao_itens {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -332,6 +326,48 @@ erDiagram
   pessoal_registro_ponto_remessas {
     uuid id PK
     uuid emp_proprietaria_id FK
+  }
+  pessoal_saude_beneficiarios {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid produto_id FK
+    uuid titular_id FK
+    uuid dependente_id FK
+    uuid criado_por FK
+  }
+  pessoal_saude_contratos {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid contrato_id FK
+    uuid criado_por FK
+  }
+  pessoal_saude_coparticipacoes {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid contrato_id FK
+    uuid titular_id FK
+    uuid criado_por FK
+  }
+  pessoal_saude_produtos {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid contrato_id FK
+  }
+  pessoal_saude_regras_custeio {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid contrato_id FK
+  }
+  pessoal_saude_regras_dependentes {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid contrato_id FK
+  }
+  pessoal_saude_tabelas {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid produto_id FK
+    uuid criado_por FK
   }
   pessoal_tabelas_salariais {
     uuid id PK
@@ -475,8 +511,6 @@ erDiagram
   pessoal_nivel_salarial_base }o--o| empresa : "sindicato_id"
   pessoal_nivel_salarial_base }o--o| pessoal_cargo : "cargo_id"
   pessoal_nivel_salarial_base }o--o| pessoal_tabelas_salariais : "tabela_id"
-  pessoal_plano_saude }o--o| pessoal_dependentes : "dependente_id"
-  pessoal_plano_saude }o--|| usuarios : "titular_id"
   pessoal_ponto_importacao_itens }o--o| pessoal_registro_ponto : "registro_id"
   pessoal_ponto_importacao_itens }o--o| usuarios : "aplicado_por"
   pessoal_ponto_importacao_itens }o--o| usuarios : "funcionario_id"
@@ -492,6 +526,20 @@ erDiagram
   pessoal_reembolsos_act }o--|| usuarios : "funcionario_id"
   pessoal_registro_ponto }o--o| pessoal_registro_ponto_remessas : "remessa_id"
   pessoal_registro_ponto }o--o| usuarios : "funcionario_id"
+  pessoal_saude_beneficiarios }o--o| pessoal_dependentes : "dependente_id"
+  pessoal_saude_beneficiarios }o--o| usuarios : "criado_por"
+  pessoal_saude_beneficiarios }o--|| pessoal_saude_produtos : "produto_id"
+  pessoal_saude_beneficiarios }o--|| usuarios : "titular_id"
+  pessoal_saude_contratos }o--o| contratos : "contrato_id"
+  pessoal_saude_contratos }o--o| usuarios : "criado_por"
+  pessoal_saude_coparticipacoes }o--o| usuarios : "criado_por"
+  pessoal_saude_coparticipacoes }o--|| pessoal_saude_contratos : "contrato_id"
+  pessoal_saude_coparticipacoes }o--|| usuarios : "titular_id"
+  pessoal_saude_produtos }o--|| pessoal_saude_contratos : "contrato_id"
+  pessoal_saude_regras_custeio }o--|| pessoal_saude_contratos : "contrato_id"
+  pessoal_saude_regras_dependentes }o--|| pessoal_saude_contratos : "contrato_id"
+  pessoal_saude_tabelas }o--o| usuarios : "criado_por"
+  pessoal_saude_tabelas }o--|| pessoal_saude_produtos : "produto_id"
   pessoal_tabelas_salariais }o--o| usuarios : "criado_por"
   pessoal_telegram_arquivos }o--|| usuarios : "usuario_id"
   pessoal_telegram_diarias }o--|| usuarios : "usuario_id"

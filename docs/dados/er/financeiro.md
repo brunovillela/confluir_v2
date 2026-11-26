@@ -132,6 +132,15 @@ erDiagram
     uuid id PK
     uuid conta_bancaria_id FK
   }
+  financeiro_transferencias_projeto {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid origem_id FK
+    uuid destino_id FK
+    uuid compra_id FK
+    uuid ordem_id FK
+    uuid usuario_id FK
+  }
   financeiro_tributos {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -252,6 +261,11 @@ erDiagram
   financeiro_remessa_itens }o--|| financeiro_remessas : "remessa_id"
   financeiro_remessa_itens }o--|| ordens_pagamento : "ordem_id"
   financeiro_remessas }o--|| financeiro_contas_bancarias : "conta_bancaria_id"
+  financeiro_transferencias_projeto }o--o| compras_solicitacoes : "compra_id"
+  financeiro_transferencias_projeto }o--o| ordens_pagamento : "ordem_id"
+  financeiro_transferencias_projeto }o--o| usuarios : "usuario_id"
+  financeiro_transferencias_projeto }o--|| projeto : "destino_id"
+  financeiro_transferencias_projeto }o--|| projeto : "origem_id"
   financeiro_tributos }o--o| centros_de_custo : "centro_custo_despesa_id"
   financeiro_tributos }o--o| empresa : "beneficiario_empresa_id"
   financeiro_tributos }o--o| empresa_departamentos : "departamento_id"

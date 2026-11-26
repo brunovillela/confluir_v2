@@ -20,7 +20,7 @@ import {
 import { requirePermissao } from "@/lib/auth"
 import { demandaDoProjeto, listarPessoasAtribuiveis, listarTarefas, listarTarefasAvulsas } from "@/lib/db/nucleo"
 import { hojeSP } from "@/lib/db/comum"
-import { listarMarcos, obterProjeto } from "@/lib/db/projetos"
+import { listarMarcos, listarTransferencias, obterProjeto, projetosAbertosParaTransferencia } from "@/lib/db/projetos"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
 import { situacaoDoProjeto } from "@/lib/projetos-constantes"
@@ -34,6 +34,7 @@ import { listarModelos } from "@/lib/db/modelos"
 import { UsarModelo } from "../../modelos/usar-modelo"
 import { MarcosProjeto } from "./marcos"
 import { ProjetoAcoes } from "./projeto-acoes"
+import { TransferirDespesa } from "./transferir-despesa"
 
 export const metadata: Metadata = { title: "Projeto — Confluir" }
 
@@ -54,7 +55,7 @@ export default async function ProjetoPage({
   const { id } = await params
   const { salvo } = await searchParams
 
-  const [projeto, tarefas, demanda, pessoas, avulsas, marcos, modelos] = await Promise.all([
+  const [projeto, tarefas, demanda, pessoas, avulsas, marcos, modelos, destinos, transferencias] = await Promise.all([
     obterProjeto(id),
     listarTarefas({ paiTipo: "projeto", paiId: id }),
     demandaDoProjeto(id),
@@ -62,8 +63,12 @@ export default async function ProjetoPage({
     editaTarefas ? listarTarefasAvulsas() : Promise.resolve([]),
     listarMarcos(id),
     editor ? listarModelos("projeto") : Promise.resolve([]),
+    editor ? projetosAbertosParaTransferencia(id) : Promise.resolve([]),
+    listarTransferencias(id),
   ])
   if (!projeto) notFound()
+  // Transfere despesa quem edita projetos, com este projeto em andamento.
+  const transfere = editor && projeto.finalizado !== true
   const concluidas = tarefas.tarefas.filter((t) => t.concluido).length
   const pendentes = tarefas.tarefas.length - concluidas
 
@@ -299,6 +304,7 @@ export default async function ProjetoPage({
                   <TableHead>Situação</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
+                  {transfere && <TableHead className="w-10"><span className="sr-only">Transferir</span></TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -316,6 +322,24 @@ export default async function ProjetoPage({
                     <TableCell className="whitespace-nowrap">{o.situacao ?? "—"}</TableCell>
                     <TableCell className="whitespace-nowrap tabular-nums">{o.data ? formatarData(o.data) : "—"}</TableCell>
                     <TableCell className="text-right tabular-nums whitespace-nowrap">{formatarMoeda(o.valor)}</TableCell>
+                    {transfere && (
+                      <TableCell className="text-right">
+                        {o.transferivel ? (
+                          <TransferirDespesa
+                            origemId={id}
+                            tipo="ordem"
+                            itemId={o.id}
+                            rotulo={o.codigo ?? ""}
+                            valor={o.valor}
+                            projetos={destinos}
+                          />
+                        ) : (
+                          <span className="text-muted-foreground text-xs whitespace-nowrap" title="Vai junto com a compra, em Solicitações de compra vinculadas">
+                            pela compra
+                          </span>
+                        )}
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
@@ -339,6 +363,7 @@ export default async function ProjetoPage({
                   <TableHead>Objeto</TableHead>
                   <TableHead>Situação</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
+                  {transfere && <TableHead className="w-10"><span className="sr-only">Transferir</span></TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -361,6 +386,18 @@ export default async function ProjetoPage({
                     <TableCell className="text-right tabular-nums whitespace-nowrap">
                       {s.valor != null ? formatarMoeda(s.valor) : "—"}
                     </TableCell>
+                    {transfere && (
+                      <TableCell className="text-right">
+                        <TransferirDespesa
+                          origemId={id}
+                          tipo="compra"
+                          itemId={s.id}
+                          rotulo={s.codigo ?? ""}
+                          valor={s.valor}
+                          projetos={destinos}
+                        />
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
@@ -368,6 +405,50 @@ export default async function ProjetoPage({
           )}
         </CardContent>
       </Card>
+      {transferencias.length > 0 && (
+        <Card>
+          <CardContent>
+            <p className="mb-3 text-sm font-medium">Transferências de despesa</p>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Quando</TableHead>
+                  <TableHead>Despesa</TableHead>
+                  <TableHead>Projeto</TableHead>
+                  <TableHead>Motivo</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {transferencias.map((t) => (
+                  <TableRow key={t.id}>
+                    <TableCell className="whitespace-nowrap tabular-nums">
+                      {formatarData(t.quando)}
+                      {t.quem && <span className="text-muted-foreground block text-xs">{t.quem}</span>}
+                    </TableCell>
+                    <TableCell className="max-w-72">
+                      <span className="line-clamp-2">{t.descricao ?? (t.tipo === "compra" ? "Compra" : "Ordem")}</span>
+                    </TableCell>
+                    <TableCell className="max-w-56">
+                      <span className="text-muted-foreground block text-xs">{t.sentido === "saiu" ? "Foi para" : "Veio de"}</span>
+                      <Link href={`/painel/ferramentas/projetos/${t.outroProjetoId}`} className="text-primary line-clamp-1 hover:underline">
+                        {t.outroProjeto}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="max-w-72">
+                      <span className="line-clamp-3 text-sm">{t.motivo}</span>
+                    </TableCell>
+                    <TableCell className={`text-right tabular-nums whitespace-nowrap ${t.sentido === "saiu" ? "text-muted-foreground" : ""}`}>
+                      {t.sentido === "saiu" ? "−" : "+"}
+                      {formatarMoeda(t.valor)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
     </>
   )
 }

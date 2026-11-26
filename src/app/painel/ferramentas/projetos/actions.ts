@@ -14,6 +14,7 @@ import {
   definirMarcoConcluido,
   editarMarco,
   excluirMarco,
+  transferirDespesa,
   type DadosProjeto,
 } from "@/lib/db/projetos"
 
@@ -161,4 +162,23 @@ export async function excluirMarcoAction(_prev: EstadoForm, formData: FormData):
   if (erro) return { erro }
   revalidarMarcos(projetoId)
   return { ok: "Marco excluído." }
+}
+
+/** Transfere a compra (com as ordens dela) ou a ordem para outro projeto aberto. */
+export async function transferirDespesaAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const sessao = await requirePermissao("ferramentas_projetos_edicao")
+  const origemId = texto(formData, "origem_id")
+  const tipo = texto(formData, "tipo") === "ordem" ? "ordem" : "compra"
+  const r = await transferirDespesa({
+    origemId,
+    destinoId: texto(formData, "destino_id"),
+    tipo,
+    itemId: texto(formData, "item_id"),
+    motivo: texto(formData, "motivo"),
+    usuarioId: sessao.usuario.id,
+  })
+  if (r.erro) return { erro: r.erro }
+  revalidatePath("/painel/ferramentas/projetos")
+  revalidatePath(`/painel/ferramentas/projetos/${origemId}`)
+  return { ok: r.ok }
 }

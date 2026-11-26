@@ -2,7 +2,7 @@
 
 # Financeiro
 
-31 tabelas. Diagrama: [er/financeiro.md](../er/financeiro.md).
+32 tabelas. Diagrama: [er/financeiro.md](../er/financeiro.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -29,6 +29,7 @@
 | [financeiro_pedidos_dados_bancarios](#financeiro_pedidos_dados_bancarios) | identificação, financeiro | Pedidos de dados bancários ao favorecido (fornecedor, usuário ou filiado) por link de uso único, sem login: ele informa a chave Pix ou a con… |
 | [financeiro_remessa_itens](#financeiro_remessa_itens) | financeiro, identificação | Cada pagamento incluído numa remessa CNAB: favorecido, dados bancários ou Pix, valor e o retorno do banco (ocorrência, valor e data pagos). |
 | [financeiro_remessas](#financeiro_remessas) | financeiro, identificação | Arquivos de remessa CNAB 240 de pagamentos gerados pela entidade e o retorno do banco importado depois. |
+| [financeiro_transferencias_projeto](#financeiro_transferencias_projeto) | identificação | Livro das transferências de despesa (compra ou ordem de pagamento) de um projeto para outro, com o motivo e quem fez (Ferramentas → Projetos… |
 | [financeiro_tributos](#financeiro_tributos) | identificação | Tributos da entidade (DARF, FGTS, GPS, IPTU, alvará, DUDA…): o cadastro, como o contrato — órgão beneficiário, centro de custo, periodicidad… |
 | [financeiro_tributos_lancamentos](#financeiro_tributos_lancamentos) | identificação | Guias dos tributos, uma por competência (como a parcela do contrato): prevista, lançada — com a ordem de pagamento — ou cancelada. Migrado d… |
 | [financeiro_tributos_retencoes](#financeiro_tributos_retencoes) | financeiro | Retenções de cada RPA pago, na competência do pagamento, no tributo que as recolhe (INSS retido e patronal, IRRF, ISS). A guia da competênci… |
@@ -676,6 +677,34 @@ Arquivos de remessa CNAB 240 de pagamentos gerados pela entidade e o retorno do 
 Checks: `financeiro_remessas_situacao_check` `CHECK ((situacao = ANY (ARRAY['gerada'::text, 'enviada'::text, 'retornada'::text, 'cancelada'::text])))`
 
 Índices: `financeiro_remessas_conta_bancaria_id_numero_key`, `financeiro_remessas_emp_idx`, `financeiro_remessas_pkey`
+
+## financeiro_transferencias_projeto
+
+Livro das transferências de despesa (compra ou ordem de pagamento) de um projeto para outro, com o motivo e quem fez (Ferramentas → Projetos).
+
+- **LGPD:** identificação · titulares: funcionarios,diretores
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `origem_id` | uuid | não |  | → projeto (**cascade**) | nenhum | Projeto de onde a despesa saiu. |
+| `destino_id` | uuid | não |  | → projeto (**cascade**) | nenhum | Projeto para onde a despesa foi. |
+| `tipo` | text | não |  |  | nenhum | compra = a solicitação de compra com as ordens dela; ordem = a ordem lançada direto no projeto. |
+| `compra_id` | uuid | sim |  | → compras_solicitacoes (set null) | nenhum | A compra transferida (tipo compra). |
+| `ordem_id` | uuid | sim |  | → ordens_pagamento (set null) | nenhum | A ordem transferida (tipo ordem). |
+| `descricao` | text | sim |  |  | nenhum | Código e descrição da compra ou da ordem no momento da transferência. |
+| `valor` | numeric(14,2) | não | `0` |  | financeiro | Valor que mudou de projeto (ordens que contam no gasto, ou o valor da compra sem ordem). |
+| `ordens` | integer | não | `0` |  | nenhum | Quantas ordens de pagamento mudaram de projeto junto. |
+| `motivo` | text | não |  |  | nenhum | Por que a despesa mudou de projeto, escrito por quem transferiu. |
+| `usuario_id` | uuid | sim |  | → usuarios (set null) | identificação | Quem fez a transferência. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Checks: `financeiro_transferencias_projeto_motivo_check` `CHECK (((char_length(motivo) >= 3) AND (char_length(motivo) <= 500)))`; `financeiro_transferencias_projeto_projetos_check` `CHECK ((origem_id <> destino_id))`; `financeiro_transferencias_projeto_tipo_check` `CHECK ((tipo = ANY (ARRAY['compra'::text, 'ordem'::text])))`
+
+Índices: `financeiro_transferencias_projeto_destino_idx`, `financeiro_transferencias_projeto_origem_idx`, `financeiro_transferencias_projeto_pkey`
 
 ## financeiro_tributos
 

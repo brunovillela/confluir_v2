@@ -2,7 +2,7 @@
 
 # Pessoal (RH da entidade)
 
-64 tabelas. Diagrama: [er/pessoal.md](../er/pessoal.md).
+70 tabelas. Diagrama: [er/pessoal.md](../er/pessoal.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -52,7 +52,6 @@
 | [pessoal_jornadas](#pessoal_jornadas) | — | Jornadas de trabalho da entidade (ex.: "Administrativo 8h–17h"): configuradas uma vez e vinculadas aos funcionários. Alterar a jornada alter… |
 | [pessoal_nivel_salarial](#pessoal_nivel_salarial) | financeiro, trabalhista | Lançamento de nível salarial de um funcionário (nível atual e próximo, tipo de avanço: automático, mérito, ajuste, inicial). Espelho do Bubb… |
 | [pessoal_nivel_salarial_base](#pessoal_nivel_salarial_base) | — | Tabela salarial: cargo x nível vertical x horizontal x carreira, com o salário base. Espelho do Bubble; cadastrada em Pessoal > Níveis. |
-| [pessoal_plano_saude](#pessoal_plano_saude) | **sensível: saúde**, identificação, trabalhista | Beneficiário do plano de saúde vinculado a um funcionário titular (dependente, aposentado). Espelho do Bubble. Sem uso encontrado no código … |
 | [pessoal_ponto_importacao_itens](#pessoal_ponto_importacao_itens) | identificação, trabalhista | Um funcionário de um relatório de ponto importado: as páginas dele, a leitura da IA, a apuração pelas batidas e a situação até virar o regis… |
 | [pessoal_ponto_importacoes](#pessoal_ponto_importacoes) | identificação, trabalhista | Relatório de ponto (PDF do relógio, um ou vários funcionários) enviado a uma remessa para apurar as horas pelas batidas (src/lib/db/ponto-im… |
 | [pessoal_ponto_isencoes](#pessoal_ponto_isencoes) | identificação, trabalhista | Isenções de registro de ponto: funcionário, período e justificativa; quem está isento no mês da remessa não aparece como pendente (src/lib/d… |
@@ -61,6 +60,13 @@
 | [pessoal_reembolsos_act_tipos](#pessoal_reembolsos_act_tipos) | — | Tipos de reembolso previstos no ACT dos funcionários, com teto e proporção reembolsável. Cadastrados em Pessoal > Reembolsos. |
 | [pessoal_registro_ponto](#pessoal_registro_ponto) | trabalhista, financeiro | Espelho de ponto mensal (PDF) de um funcionário numa remessa, com saldos de horas extras 70% e 100% e as marcações diárias lidas por IA. Mig… |
 | [pessoal_registro_ponto_remessas](#pessoal_registro_ponto_remessas) | — | Remessa mensal de espelhos de ponto (mês de referência, finalizada). Migrada do Bubble; gerida em Pessoal > Ponto. |
+| [pessoal_saude_beneficiarios](#pessoal_saude_beneficiarios) | identificação, trabalhista | Adesão ao plano de saúde: o titular (funcionário ativo, ou demitido ou aposentado que manteve o plano), um dependente dele ou um agregado, c… |
+| [pessoal_saude_contratos](#pessoal_saude_contratos) | identificação | Contrato de plano de saúde dos funcionários com uma operadora: tipo de contratação, mês de aniversário (reajuste anual), quando muda a faixa… |
+| [pessoal_saude_coparticipacoes](#pessoal_saude_coparticipacoes) | financeiro, **sensível: saúde** | Valor da coparticipação do plano de saúde cobrado no mês por titular; só o total, nunca o procedimento. |
+| [pessoal_saude_produtos](#pessoal_saude_produtos) | — | Produto (plano) de um contrato de plano de saúde: nome, registro na ANS, acomodação e abrangência. |
+| [pessoal_saude_regras_custeio](#pessoal_saude_regras_custeio) | identificação | Regra de custeio do plano de saúde: quanto a entidade paga (percentual da mensalidade ou valor fixo, com teto) e a parte do funcionário na c… |
+| [pessoal_saude_regras_dependentes](#pessoal_saude_regras_dependentes) | — | Graus de dependente aceitos num contrato de plano de saúde e a idade-limite (e a de estudante). |
+| [pessoal_saude_tabelas](#pessoal_saude_tabelas) | — | Tabela de preço de um produto de plano de saúde nas 10 faixas etárias da ANS (RN 63/2003), com vigência; cada reajuste é uma tabela nova. |
 | [pessoal_tabelas_salariais](#pessoal_tabelas_salariais) | identificação | Tabela salarial de um período, com os degraus em pessoal_nivel_salarial_base; no máximo uma vigente por entidade (src/lib/db/tabelas-salaria… |
 | [pessoal_telegram_arquivos](#pessoal_telegram_arquivos) | identificação, financeiro, **sensível: saúde** | Comprovante mandado ao bot do Telegram (foto ou PDF) aguardando confirmação: o que a IA leu e o passo da conversa; apagada ao confirmar ou c… |
 | [pessoal_telegram_diarias](#pessoal_telegram_diarias) | identificação | Pedido de diária em andamento no bot do Telegram (/diaria): o passo da conversa e as respostas até ali; apagada ao confirmar ou cancelar e e… |
@@ -1298,31 +1304,6 @@ Tabela salarial: cargo x nível vertical x horizontal x carreira, com o salário
 
 Índices: `pessoal_nivel_salarial_base_bubble_id_key`, `pessoal_nivel_salarial_base_pkey`, `pessoal_nivel_salarial_base_tabela_idx`
 
-## pessoal_plano_saude
-
-Beneficiário do plano de saúde vinculado a um funcionário titular (dependente, aposentado). Espelho do Bubble. Sem uso encontrado no código (possível legado do Bubble).
-
-- **LGPD:** **sensível: saúde**, identificação, trabalhista · titulares: funcionários; dependentes (menores!)
-- **RLS:** ligado · policies: `tenant_isolation`
-- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
-
-| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
-|---|---|---|---|---|---|---|
-| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
-| `bubble_id` | text | sim |  |  |  |  |
-| `emp_proprietaria_id` | uuid | sim | `'c763cb99-edfd-4840-8453-ed3fcb66d4a1'::uuid` | → empresa |  |  |
-| `aposentado` | boolean | não | `false` |  | trabalhista |  |
-| `nome_beneficiario` | text | sim |  |  | identificação |  |
-| `situacao_dependente` | text | sim |  |  | **sensível: saúde** | Situação do dependente no plano de saúde. |
-| `titular_id` | uuid | não |  | → usuarios |  |  |
-| `dependente_id` | uuid | sim |  | → pessoal_dependentes |  |  |
-| `created_at` | timestamp with time zone | sim | `now()` |  |  |  |
-| `updated_at` | timestamp with time zone | sim | `now()` |  |  |  |
-
-Únicas: `UNIQUE (bubble_id)`
-
-Índices: `pessoal_plano_saude_bubble_id_key`, `pessoal_plano_saude_pkey`
-
 ## pessoal_ponto_importacao_itens
 
 Um funcionário de um relatório de ponto importado: as páginas dele, a leitura da IA, a apuração pelas batidas e a situação até virar o registro da remessa.
@@ -1547,6 +1528,218 @@ Remessa mensal de espelhos de ponto (mês de referência, finalizada). Migrada d
 Únicas: `UNIQUE (bubble_id)`
 
 Índices: `pessoal_registro_ponto_remessas_bubble_id_key`, `pessoal_registro_ponto_remessas_liberar_idx`, `pessoal_registro_ponto_remessas_pkey`
+
+## pessoal_saude_beneficiarios
+
+Adesão ao plano de saúde: o titular (funcionário ativo, ou demitido ou aposentado que manteve o plano), um dependente dele ou um agregado, com o produto, a carteirinha e as datas de inclusão e exclusão.
+
+- **LGPD:** identificação, trabalhista · titulares: funcionários, dependentes (inclusive menores), ex-funcionários
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  |  |
+| `produto_id` | uuid | não |  | → pessoal_saude_produtos |  | Produto do plano. |
+| `titular_id` | uuid | não |  | → usuarios | identificação | Funcionário titular. |
+| `tipo` | text | não |  |  |  | titular, dependente ou agregado. |
+| `dependente_id` | uuid | sim |  | → pessoal_dependentes (set null) | identificação | Dependente em pessoal_dependentes (tipo dependente). |
+| `grau` | text | sim |  |  |  | Grau do agregado (no dependente, vale o de pessoal_dependentes). |
+| `nome` | text | sim |  |  | identificação | Nome do agregado. |
+| `nascimento` | date | sim |  |  | identificação | Nascimento do agregado (define a faixa etária). |
+| `cpf` | text | sim |  |  | identificação | CPF do agregado. |
+| `condicao` | text | não | `'ativo'::text` |  | trabalhista | Condição do titular: ativo, demitido (art. 30 da Lei 9.656) ou aposentado (art. 31). |
+| `carteirinha` | text | sim |  |  | identificação | Número da carteirinha na operadora. |
+| `inclusao` | date | não |  |  |  | Data de inclusão no plano. |
+| `exclusao` | date | sim |  |  |  | Data de exclusão do plano (vazio: ativo). |
+| `motivo_exclusao` | text | sim |  |  | trabalhista | Motivo da exclusão. |
+| `estudante_ate` | date | sim |  |  | identificação | Comprovante de estudante válido até esta data (vale a idade-limite de estudante). |
+| `observacao` | text | sim |  |  |  | Observação livre. |
+| `criado_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem registrou. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | sim |  |  |  |  |
+
+Checks: `pessoal_saude_beneficiarios_agregado_check` `CHECK (((tipo <> 'agregado'::text) OR ((nome IS NOT NULL) AND (nascimento IS NOT NULL))))`; `pessoal_saude_beneficiarios_condicao_check` `CHECK ((condicao = ANY (ARRAY['ativo'::text, 'demitido'::text, 'aposentado'::text])))`; `pessoal_saude_beneficiarios_datas_check` `CHECK (((exclusao IS NULL) OR (exclusao >= inclusao)))`; `pessoal_saude_beneficiarios_tipo_check` `CHECK ((tipo = ANY (ARRAY['titular'::text, 'dependente'::text, 'agregado'::text])))`
+
+Índices: `pessoal_saude_beneficiarios_pkey`, `pessoal_saude_beneficiarios_produto_idx`, `pessoal_saude_beneficiarios_titular_idx`
+
+## pessoal_saude_contratos
+
+Contrato de plano de saúde dos funcionários com uma operadora: tipo de contratação, mês de aniversário (reajuste anual), quando muda a faixa etária e se há coparticipação (src/lib/db/plano-saude.ts).
+
+- **LGPD:** identificação · titulares: usuários do sistema
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  |  |
+| `nome` | text | não |  |  |  | Nome do contrato na entidade (ex.: "Unimed — empresarial"). |
+| `operadora` | text | não |  |  |  | Nome da operadora. |
+| `registro_ans_operadora` | text | sim |  |  |  | Registro da operadora na ANS. |
+| `contrato_id` | uuid | sim |  | → contratos (set null) |  | O contrato em Contratos (fornecedor, vigência, arquivo), quando cadastrado lá. |
+| `tipo_contratacao` | text | não | `'coletivo_empresarial'::text` |  |  | coletivo_empresarial, coletivo_adesao ou individual. |
+| `mes_aniversario` | smallint | sim |  |  |  | Mês do reajuste anual da tabela (1–12). |
+| `faixa_muda` | text | não | `'mes_seguinte'::text` |  |  | Quando o preço da nova faixa etária vale: mes_seguinte (ao do aniversário) ou mes_aniversario. |
+| `coparticipacao` | boolean | não | `false` |  |  | O contrato cobra coparticipação. |
+| `inicio` | date | sim |  |  |  | Início do contrato. |
+| `fim` | date | sim |  |  |  | Fim do contrato (vazio: em vigor). |
+| `observacoes` | text | sim |  |  |  | Observações livres. |
+| `ativo` | boolean | não | `true` |  |  | Contrato em uso. |
+| `criado_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem cadastrou. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | sim |  |  |  |  |
+
+Checks: `pessoal_saude_contratos_datas_check` `CHECK (((fim IS NULL) OR (inicio IS NULL) OR (fim >= inicio)))`; `pessoal_saude_contratos_faixa_check` `CHECK ((faixa_muda = ANY (ARRAY['mes_seguinte'::text, 'mes_aniversario'::text])))`; `pessoal_saude_contratos_mes_check` `CHECK (((mes_aniversario IS NULL) OR ((mes_aniversario >= 1) AND (mes_aniversario <= 12))))`; `pessoal_saude_contratos_tipo_check` `CHECK ((tipo_contratacao = ANY (ARRAY['coletivo_empresarial'::text, 'coletivo_adesao'::text, 'individual'::text])))`
+
+Índices: `pessoal_saude_contratos_pkey`
+
+## pessoal_saude_coparticipacoes
+
+Valor da coparticipação do plano de saúde cobrado no mês por titular; só o total, nunca o procedimento.
+
+- **LGPD:** financeiro, **sensível: saúde** · titulares: funcionários
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  |  |
+| `contrato_id` | uuid | não |  | → pessoal_saude_contratos (**cascade**) |  | Contrato de plano de saúde. |
+| `titular_id` | uuid | não |  | → usuarios | identificação | Funcionário titular. |
+| `competencia` | text | não |  |  |  | Mês (AAAA-MM). |
+| `valor` | numeric(12,2) | não |  |  | financeiro, **sensível: saúde** | Total da coparticipação do titular e dependentes no mês (revela uso do plano). |
+| `criado_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem lançou. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | sim |  |  |  |  |
+
+Únicas: `UNIQUE (contrato_id, titular_id, competencia)`
+
+Checks: `pessoal_saude_coparticipacoes_competencia_check` `CHECK ((competencia ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'::text))`; `pessoal_saude_coparticipacoes_valor_check` `CHECK ((valor >= (0)::numeric))`
+
+Índices: `pessoal_saude_coparticipacoes_pkey`, `pessoal_saude_coparticipacoes_unica`
+
+## pessoal_saude_produtos
+
+Produto (plano) de um contrato de plano de saúde: nome, registro na ANS, acomodação e abrangência.
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  |  |
+| `contrato_id` | uuid | não |  | → pessoal_saude_contratos (**cascade**) |  | Contrato de plano de saúde. |
+| `nome` | text | não |  |  |  | Nome do produto (ex.: Básico, Executivo). |
+| `registro_ans` | text | sim |  |  |  | Número de registro do produto na ANS. |
+| `acomodacao` | text | sim |  |  |  | enfermaria ou apartamento. |
+| `abrangencia` | text | sim |  |  |  | Abrangência geográfica (texto livre). |
+| `ativo` | boolean | não | `true` |  |  | Produto em uso. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | sim |  |  |  |  |
+
+Checks: `pessoal_saude_produtos_acomodacao_check` `CHECK (((acomodacao IS NULL) OR (acomodacao = ANY (ARRAY['enfermaria'::text, 'apartamento'::text]))))`
+
+Índices: `pessoal_saude_produtos_contrato_idx`, `pessoal_saude_produtos_pkey`
+
+## pessoal_saude_regras_custeio
+
+Regra de custeio do plano de saúde: quanto a entidade paga (percentual da mensalidade ou valor fixo, com teto) e a parte do funcionário na coparticipação, com filtros opcionais; vale a de menor prioridade que casa.
+
+- **LGPD:** identificação · titulares: funcionários
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  |  |
+| `contrato_id` | uuid | não |  | → pessoal_saude_contratos (**cascade**) |  | Contrato de plano de saúde. |
+| `nome` | text | não |  |  |  | Nome da regra (ex.: "Titular 100%"). |
+| `prioridade` | integer | não | `100` |  |  | Ordem de avaliação: menor primeiro; a primeira regra que casa vale. |
+| `vigencia_inicio` | date | sim |  |  |  | Início da vigência (vazio: sempre). |
+| `vigencia_fim` | date | sim |  |  |  | Fim da vigência (vazio: sem fim). |
+| `beneficiarios` | text[] | sim |  |  |  | Filtro: titular e/ou graus de dependente (vazio: todos). |
+| `condicoes` | text[] | sim |  |  |  | Filtro: condição do titular — ativo, demitido, aposentado (vazio: todas). |
+| `produtos` | uuid[] | sim |  |  |  | Filtro: produtos (vazio: todos). |
+| `cargos` | text[] | sim |  |  |  | Filtro: cargos do titular (vazio: todos). |
+| `departamentos` | text[] | sim |  |  |  | Filtro: departamentos do titular (vazio: todos). |
+| `funcionarios` | uuid[] | sim |  |  | identificação | Filtro: titulares específicos (vazio: todos). |
+| `idade_min` | smallint | sim |  |  |  | Filtro: idade mínima do beneficiário. |
+| `idade_max` | smallint | sim |  |  |  | Filtro: idade máxima do beneficiário. |
+| `modo` | text | não | `'percentual'::text` |  |  | percentual (da mensalidade) ou valor_fixo. |
+| `entidade_percentual` | numeric(5,2) | sim |  |  |  | Percentual da mensalidade pago pela entidade (modo percentual). |
+| `entidade_valor` | numeric(12,2) | sim |  |  |  | Valor pago pela entidade (modo valor_fixo), limitado à mensalidade. |
+| `entidade_teto` | numeric(12,2) | sim |  |  |  | Teto do que a entidade paga por beneficiário (opcional). |
+| `copart_funcionario_percentual` | numeric(5,2) | sim |  |  |  | Percentual da coparticipação descontado do funcionário (vazio: 100%). |
+| `copart_limite_mensal` | numeric(12,2) | sim |  |  |  | Limite mensal do desconto de coparticipação (opcional). |
+| `clausula` | text | sim |  |  |  | Cláusula do acordo coletivo ou norma interna que sustenta a regra. |
+| `ativo` | boolean | não | `true` |  |  | Regra em uso. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | sim |  |  |  |  |
+
+Checks: `pessoal_saude_regras_custeio_copart_check` `CHECK (((copart_funcionario_percentual IS NULL) OR ((copart_funcionario_percentual >= (0)::numeric) AND (copart_funcionario_percentual <= (100)::numeric))))`; `pessoal_saude_regras_custeio_datas_check` `CHECK (((vigencia_fim IS NULL) OR (vigencia_inicio IS NULL) OR (vigencia_fim >= vigencia_inicio)))`; `pessoal_saude_regras_custeio_modo_check` `CHECK ((modo = ANY (ARRAY['percentual'::text, 'valor_fixo'::text])))`; `pessoal_saude_regras_custeio_pct_check` `CHECK (((entidade_percentual IS NULL) OR ((entidade_percentual >= (0)::numeric) AND (entidade_percentual <= (100)::numeric))))`; `pessoal_saude_regras_custeio_valor_check` `CHECK ((((modo = 'percentual'::text) AND (entidade_percentual IS NOT NULL)) OR ((modo = 'valor_fixo'::text) AND (entidade_valor IS NOT NULL))))`
+
+Índices: `pessoal_saude_regras_custeio_contrato_idx`, `pessoal_saude_regras_custeio_pkey`
+
+## pessoal_saude_regras_dependentes
+
+Graus de dependente aceitos num contrato de plano de saúde e a idade-limite (e a de estudante).
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  |  |
+| `contrato_id` | uuid | não |  | → pessoal_saude_contratos (**cascade**) |  | Contrato de plano de saúde. |
+| `grau` | text | não |  |  |  | Grau de parentesco (como em pessoal_dependentes) ou Agregado. |
+| `permitido` | boolean | não | `true` |  |  | O grau pode entrar no plano. |
+| `idade_limite` | smallint | sim |  |  |  | Idade em que perde o direito (vazio: sem limite). |
+| `idade_limite_estudante` | smallint | sim |  |  |  | Idade-limite para quem comprova ser estudante (vazio: igual à geral). |
+| `observacao` | text | sim |  |  |  | Observação livre. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | sim |  |  |  |  |
+
+Únicas: `UNIQUE (contrato_id, grau)`
+
+Índices: `pessoal_saude_regras_dependentes_pkey`, `pessoal_saude_regras_dependentes_unica`
+
+## pessoal_saude_tabelas
+
+Tabela de preço de um produto de plano de saúde nas 10 faixas etárias da ANS (RN 63/2003), com vigência; cada reajuste é uma tabela nova.
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  |  |
+| `produto_id` | uuid | não |  | → pessoal_saude_produtos (**cascade**) |  | Produto. |
+| `vigencia_inicio` | date | não |  |  |  | Início da vigência. |
+| `vigencia_fim` | date | sim |  |  |  | Fim da vigência (vazio: até a próxima tabela). |
+| `motivo` | text | não | `'inicial'::text` |  |  | inicial, reajuste_anual, reajuste_ans, renegociacao ou correcao. |
+| `percentual` | numeric(7,4) | sim |  |  |  | Percentual do reajuste sobre a tabela anterior, quando houver. |
+| `precos` | numeric(12,2)[] | não |  |  |  | Mensalidade das 10 faixas, na ordem: 0–18, 19–23, 24–28, 29–33, 34–38, 39–43, 44–48, 49–53, 54–58, 59+. |
+| `observacao` | text | sim |  |  |  | Observação livre. |
+| `criado_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem registrou. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | sim |  |  |  |  |
+
+Únicas: `UNIQUE (produto_id, vigencia_inicio)`
+
+Checks: `pessoal_saude_tabelas_datas_check` `CHECK (((vigencia_fim IS NULL) OR (vigencia_fim >= vigencia_inicio)))`; `pessoal_saude_tabelas_motivo_check` `CHECK ((motivo = ANY (ARRAY['inicial'::text, 'reajuste_anual'::text, 'reajuste_ans'::text, 'renegociacao'::text, 'correcao'::text])))`; `pessoal_saude_tabelas_precos_check` `CHECK ((array_length(precos, 1) = 10))`
+
+Índices: `pessoal_saude_tabelas_pkey`, `pessoal_saude_tabelas_unica`
 
 ## pessoal_tabelas_salariais
 

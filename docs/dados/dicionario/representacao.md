@@ -2,7 +2,7 @@
 
 # Representação, acordos e negociações
 
-52 tabelas. Diagrama: [er/representacao.md](../er/representacao.md).
+53 tabelas. Diagrama: [er/representacao.md](../er/representacao.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -22,6 +22,7 @@
 | [congresso_chapas](#congresso_chapas) | **sensível: sindical** | Chapas inscritas na eleição da delegação para a etapa seguinte, com horário de inscrição, situação (homologada, impugnada, retirada), votos … |
 | [congresso_config_versoes](#congresso_config_versoes) | — | Histórico da configuração de cada congresso (só inserção): quem mudou, por quê e, depois da aprovação do regimento, a deliberação que autori… |
 | [congresso_crachas](#congresso_crachas) | **sensível: sindical** | Vias do crachá de cada participante. Só a via ativa vale; segunda via invalida a anterior. O QR leva um código cujo hash fica aqui. |
+| [congresso_criancas](#congresso_criancas) | identificação, **sensível: saúde** | Creche do congresso: crianças dos participantes, idade, cuidados (alergia, medicação) e quem pode buscar. |
 | [congresso_eixos](#congresso_eixos) | — | Eixos temáticos do congresso. |
 | [congresso_falas](#congresso_falas) | identificação | Fila de fala da plenária: quem se inscreveu, tipo (fala, a favor, contra, questão de ordem, esclarecimento, encaminhamento, declaração de vo… |
 | [congresso_grupo_funcoes](#congresso_grupo_funcoes) | **sensível: sindical** | Coordenação e relatoria de cada grupo de trabalho, eleitas no grupo ou indicadas pela comissão. |
@@ -475,6 +476,32 @@ Checks: `congresso_crachas_via_check` `CHECK ((via > 0))`
 
 Índices: `congresso_crachas_ativo`, `congresso_crachas_codigo`, `congresso_crachas_pkey`
 
+## congresso_criancas
+
+Creche do congresso: crianças dos participantes, idade, cuidados (alergia, medicação) e quem pode buscar.
+
+- **LGPD:** identificação, **sensível: saúde** · titulares: crianças filhas de participantes
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `congresso_id` | uuid | não |  | → congressos (**cascade**) |  |  |
+| `participante_id` | uuid | não |  | → congresso_participantes (**cascade**) |  |  |
+| `nome` | text | não |  |  | identificação | Nome da criança. |
+| `nascimento` | date | não |  |  | identificação | Data de nascimento da criança (idade aceita pela creche). |
+| `cuidados` | text | sim |  |  | **sensível: saúde** | Cuidados informados pelo responsável: alergia, medicação, necessidade especial. |
+| `autorizados` | text | sim |  |  | identificação | Quem, além do responsável, pode buscar a criança. |
+| `situacao` | text | não | `'inscrita'::text` |  |  |  |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | sim |  |  |  |  |
+
+Checks: `congresso_criancas_nome_check` `CHECK ((length(TRIM(BOTH FROM nome)) > 0))`; `congresso_criancas_situacao_check` `CHECK ((situacao = ANY (ARRAY['inscrita'::text, 'confirmada'::text, 'lista_espera'::text, 'cancelada'::text])))`
+
+Índices: `congresso_criancas_congresso`, `congresso_criancas_pkey`
+
 ## congresso_eixos
 
 Eixos temáticos do congresso.
@@ -888,10 +915,12 @@ Propostas do congresso: caderno de teses, etapas anteriores, novas no grupo ou e
 | `criada_por` | text | sim |  |  | identificação | Quem registrou a proposta no sistema (relator ou usuário do painel). |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `updated_at` | timestamp with time zone | sim |  |  |  |  |
+| `percentual_origem` | numeric(5,2) | sim |  |  | nenhum | Percentual a favor que a proposta obteve na etapa de origem (quando veio de outra etapa). |
+| `origem_proposta_id` | uuid | sim |  | → congresso_propostas (set null) | nenhum | Proposta da etapa anterior de onde esta veio (rastro entre etapas). |
 
 Checks: `congresso_propostas_classificacao_check` `CHECK (((classificacao IS NULL) OR (classificacao = ANY (ARRAY['consenso'::text, 'debate'::text]))))`; `congresso_propostas_numero_check` `CHECK ((numero > 0))`; `congresso_propostas_origem_check` `CHECK ((origem = ANY (ARRAY['caderno'::text, 'etapa_anterior'::text, 'documento'::text, 'grupo'::text, 'plenaria'::text, 'fusao'::text])))`; `congresso_propostas_situacao_check` `CHECK ((situacao = ANY (ARRAY['em_debate'::text, 'entregue'::text, 'fundida'::text, 'plenaria'::text, 'aprovada'::text, 'rejeitada'::text, 'retirada'::text, 'anais'::text])))`; `congresso_propostas_texto_check` `CHECK ((length(TRIM(BOTH FROM texto)) > 0))`; `congresso_propostas_versao_check` `CHECK ((versao > 0))`
 
-Índices: `congresso_propostas_eixo`, `congresso_propostas_grupo`, `congresso_propostas_numero`, `congresso_propostas_pkey`
+Índices: `congresso_propostas_eixo`, `congresso_propostas_grupo`, `congresso_propostas_numero`, `congresso_propostas_origem_unica`, `congresso_propostas_pkey`
 
 ## congresso_resolucao_eventos
 
@@ -1052,10 +1081,22 @@ Bases, entidades, segmentos ou ramos que formam as delegações, com limite de d
 | `ordem` | integer | não | `0` |  |  |  |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `updated_at` | timestamp with time zone | sim |  |  |  |  |
+| `token_hash` | text | sim |  |  | **credencial (nunca exportar)** | SHA-256 do link da entidade (o link em claro só existe na mensagem enviada); gerar de novo invalida o anterior. |
+| `link_gerado_em` | timestamp with time zone | sim |  |  | nenhum | Quando o link da entidade foi gerado. |
+| `representante_nome` | text | sim |  |  | identificação | Representante legal que assinou a indicação da delegação. |
+| `representante_cpf` | text | sim |  |  | identificação | CPF do representante legal que assinou a indicação. |
+| `representante_cargo` | text | sim |  |  | identificação | Cargo do representante legal na entidade. |
+| `indicacao_assinada_em` | timestamp with time zone | sim |  |  | nenhum | Quando o representante assinou a indicação. |
+| `indicacao_hash` | text | sim |  |  | nenhum | SHA-256 da lista indicada no momento da assinatura: se a lista mudar, a assinatura deixa de valer. |
+| `indicacao_ip` | text | sim |  |  | identificação | IP de onde a indicação foi assinada (prova da assinatura eletrônica). |
+| `indicacao_navegador` | text | sim |  |  | identificação | Navegador usado na assinatura da indicação. |
+| `taxa_paga_em` | date | sim |  |  | nenhum | Data do pagamento da taxa ou do rateio pela entidade. |
+| `taxa_paga_valor` | numeric(12,2) | sim |  |  | nenhum | Valor pago pela entidade. |
+| `taxa_obs` | text | sim |  |  | nenhum | Observação sobre o pagamento (comprovante, isenção). |
 
 Checks: `congresso_unidades_limite_delegados_check` `CHECK (((limite_delegados IS NULL) OR (limite_delegados >= 0)))`; `congresso_unidades_nome_check` `CHECK ((length(TRIM(BOTH FROM nome)) > 0))`; `congresso_unidades_socios_check` `CHECK (((socios IS NULL) OR (socios >= 0)))`; `congresso_unidades_tipo_check` `CHECK ((tipo = ANY (ARRAY['base'::text, 'entidade'::text, 'segmento'::text, 'ramo'::text, 'delegacao'::text])))`
 
-Índices: `congresso_unidades_nome`, `congresso_unidades_pkey`
+Índices: `congresso_unidades_nome`, `congresso_unidades_pkey`, `congresso_unidades_token`
 
 ## congresso_votacao_itens
 

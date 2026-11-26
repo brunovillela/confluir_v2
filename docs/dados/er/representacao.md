@@ -105,6 +105,12 @@ erDiagram
     uuid participante_id FK
     uuid emitido_por FK
   }
+  congresso_criancas {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid congresso_id FK
+    uuid participante_id FK
+  }
   congresso_eixos {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -210,6 +216,7 @@ erDiagram
     uuid eixo_id FK
     uuid grupo_id FK
     uuid fundida_em FK
+    uuid origem_proposta_id FK
   }
   congresso_resolucao_eventos {
     uuid id PK
@@ -394,6 +401,8 @@ erDiagram
   congresso_crachas }o--o| usuarios : "emitido_por"
   congresso_crachas }o--|| congresso_participantes : "participante_id"
   congresso_crachas }o--|| congressos : "congresso_id"
+  congresso_criancas }o--|| congresso_participantes : "participante_id"
+  congresso_criancas }o--|| congressos : "congresso_id"
   congresso_eixos }o--|| congressos : "congresso_id"
   congresso_falas }o--o| congresso_participantes : "participante_id"
   congresso_falas }o--o| congresso_sessoes : "sessao_id"
@@ -440,6 +449,7 @@ erDiagram
   congresso_propostas }o--o| congresso_eixos : "eixo_id"
   congresso_propostas }o--o| congresso_grupos : "grupo_id"
   congresso_propostas }o--o| congresso_propostas : "fundida_em"
+  congresso_propostas }o--o| congresso_propostas : "origem_proposta_id"
   congresso_propostas }o--|| congressos : "congresso_id"
   congresso_resolucao_eventos }o--|| congresso_resolucoes : "resolucao_id"
   congresso_resolucao_eventos }o--|| congressos : "congresso_id"

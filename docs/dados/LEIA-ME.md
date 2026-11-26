@@ -2,7 +2,7 @@
 
 # Dicionário de dados do Confluir
 
-Gerado a partir do banco de produção (catálogo do Postgres + comentários). **458 tabelas** no schema `public`, **275** com dado pessoal (1414 colunas etiquetadas).
+Gerado a partir do banco de produção (catálogo do Postgres + comentários). **466 tabelas** no schema `public`, **280** com dado pessoal (1455 colunas etiquetadas).
 
 - Etiquetas LGPD: cada tabela termina o comentário com `[lgpd:<categorias>|titulares:<quem>]` e cada coluna com dado pessoal com `[lgpd:<categoria>]` (Onda A4).
 - Para mudar uma descrição ou classificação: migração com `comment on …` (`npm run db:nova`), aplicar, e `npm run db:dicionario`.
@@ -14,12 +14,12 @@ Gerado a partir do banco de produção (catálogo do Postgres + comentários). *
 
 | Categoria | Tabelas |
 |---|---|
-| identificação | 211 |
+| identificação | 215 |
 | **sensível: sindical** | 69 |
 | trabalhista | 55 |
-| financeiro | 50 |
+| financeiro | 51 |
 | **credencial (nunca exportar)** | 21 |
-| **sensível: saúde** | 18 |
+| **sensível: saúde** | 19 |
 
 ## Módulos
 
@@ -28,12 +28,12 @@ Gerado a partir do banco de produção (catálogo do Postgres + comentários). *
 | Filiação e portal do associado | 62 | 42 | [dicionario/filiacao.md](dicionario/filiacao.md) | [er/filiacao.md](er/filiacao.md) |
 | Empregadores e grupos empresariais | 4 | 0 | [dicionario/empregadores.md](dicionario/empregadores.md) | [er/empregadores.md](er/empregadores.md) |
 | Votações e assembleias | 33 | 15 | [dicionario/votacao.md](dicionario/votacao.md) | [er/votacao.md](er/votacao.md) |
-| Representação, acordos e negociações | 52 | 32 | [dicionario/representacao.md](dicionario/representacao.md) | [er/representacao.md](er/representacao.md) |
+| Representação, acordos e negociações | 53 | 33 | [dicionario/representacao.md](dicionario/representacao.md) | [er/representacao.md](er/representacao.md) |
 | Diretoria e ofícios | 11 | 8 | [dicionario/diretoria.md](dicionario/diretoria.md) | [er/diretoria.md](er/diretoria.md) |
-| Pessoal (RH da entidade) | 64 | 43 | [dicionario/pessoal.md](dicionario/pessoal.md) | [er/pessoal.md](er/pessoal.md) |
+| Pessoal (RH da entidade) | 70 | 46 | [dicionario/pessoal.md](dicionario/pessoal.md) | [er/pessoal.md](er/pessoal.md) |
 | Saúde do trabalhador | 13 | 11 | [dicionario/saude.md](dicionario/saude.md) | [er/saude.md](er/saude.md) |
 | Jurídico | 5 | 4 | [dicionario/juridico.md](dicionario/juridico.md) | [er/juridico.md](er/juridico.md) |
-| Financeiro | 31 | 22 | [dicionario/financeiro.md](dicionario/financeiro.md) | [er/financeiro.md](er/financeiro.md) |
+| Financeiro | 32 | 23 | [dicionario/financeiro.md](dicionario/financeiro.md) | [er/financeiro.md](er/financeiro.md) |
 | Compras, fornecedores e contratos | 25 | 14 | [dicionario/compras.md](dicionario/compras.md) | [er/compras.md](er/compras.md) |
 | Institucional, diárias, viagens e patrimônio | 16 | 10 | [dicionario/institucional.md](dicionario/institucional.md) | [er/institucional.md](er/institucional.md) |
 | Hospedagem | 18 | 10 | [dicionario/hospedagem.md](dicionario/hospedagem.md) | [er/hospedagem.md](er/hospedagem.md) |
