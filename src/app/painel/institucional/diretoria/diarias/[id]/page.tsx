@@ -8,11 +8,13 @@ import { DespesasDepoisDaViagem } from "@/components/diarias-despesa-posterior"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
 import { requirePermissao } from "@/lib/auth"
 import { buscarSolicitacaoDiaria, descontosDaDiaria } from "@/lib/db/diarias"
+import { projetosAbertosParaTransferencia, tituloDoProjeto } from "@/lib/db/projetos"
 import { listarTiposDespesaDiaria } from "@/lib/db/diarias-config"
 import { urlComprovanteDespesa } from "@/lib/db/diarias-despesas"
 import { cobrancasDiariaPendentes } from "@/lib/db/veiculos"
 
 import { adicionarDespesaDiretoria, removerDespesaDiretoria } from "../actions"
+import { ProjetoDaDiaria } from "@/app/painel/pessoal/diarias/projeto-diaria"
 
 export const metadata: Metadata = { title: "Diária da diretoria — Confluir" }
 
@@ -35,6 +37,13 @@ export default async function DiariaDiretoriaPage({
     redirect(`/painel/pessoal/diarias/${id}`)
   }
 
+// Projetos para o campo Projeto: os em andamento e o atual (mesmo finalizado).
+  const abertos = await projetosAbertosParaTransferencia().catch(() => [])
+  const projetoAtual =
+    solicitacao.projeto_id && !abertos.some((p) => p.id === solicitacao.projeto_id)
+      ? { id: solicitacao.projeto_id, titulo: (await tituloDoProjeto(solicitacao.projeto_id)) ?? "(projeto)" }
+      : null
+  const projetos = projetoAtual ? [projetoAtual, ...abertos] : abertos
   const aguardando = solicitacao.situacao === "aguardando"
   const [infracoesPendentes, descontos, urls, { tipos }] = await Promise.all([
     aguardando && solicitacao.funcionario_id
@@ -81,6 +90,7 @@ export default async function DiariaDiretoriaPage({
         salvo={salvo === "1"}
       />
 
+      <ProjetoDaDiaria diariaId={id} projetoId={solicitacao.projeto_id} projetos={projetos} />
       <DespesasDepoisDaViagem
         diaria={solicitacao}
         diariaBase="/painel/institucional/diretoria/diarias"

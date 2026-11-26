@@ -192,3 +192,25 @@ export async function excluirTipoDiaria(
   return { ok: "Tipo excluído." }
 }
 
+
+/**
+ * Projeto da diária já lançada (26/11). A diária de funcionário é do Pessoal;
+ * a de diretor, da Diretoria — cada uma com a permissão da sua porta.
+ */
+export async function definirProjetoDiariaAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  const id = String(formData.get("diaria_id") ?? "")
+  const { buscarSolicitacaoDiaria } = await import("@/lib/db/diarias")
+  const diaria = await buscarSolicitacaoDiaria(id)
+  if (!diaria) return { erro: "Diária não encontrada." }
+  if (diaria.beneficiarioTipo === "diretor") await requirePermissao("diretoria_diarias", ["configuracoes"])
+  else await requirePermissao("pessoal_gestao", ["pessoal_diarias"])
+  const { definirProjetoDaDiaria } = await import("@/lib/db/projetos")
+  const projetoAntes = diaria.projeto_id
+  const projetoId = String(formData.get("projeto_id") ?? "").trim() || null
+  const r = await definirProjetoDaDiaria(id, projetoId)
+  if (r.erro) return { erro: r.erro }
+  revalidatePath(`/painel/pessoal/diarias/${id}`)
+  revalidatePath(`/painel/institucional/diretoria/diarias/${id}`)
+  for (const pid of [projetoAntes, projetoId]) if (pid) revalidatePath(`/painel/ferramentas/projetos/${pid}`)
+  return { ok: r.ok }
+}

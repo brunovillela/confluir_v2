@@ -84,6 +84,29 @@ test.describe("conversa do /diaria", () => {
     expect(ok).toEqual({ confirmar: true, enviarRemessa: true })
   })
 
+  test("com projetos em andamento, pergunta o projeto depois do motivo", () => {
+    const comProjetos: ContextoDiaria = { ...ctx, projetos: [{ id: "proj-1", titulo: "Congresso 2027" }] }
+    const respostas: EntradaDiaria[] = [
+      { botao: "t:tipo-local" },
+      { botao: "i:-" },
+      { texto: "1" },
+      { texto: "Plenária do congresso" },
+    ]
+    const noProjeto = conversa(respostas, comProjetos)
+    expect(noProjeto.passo).toBe("projeto")
+    const botoes = perguntaDoPassoDiaria(noProjeto, comProjetos).botoes!.flat().map((x) => x.dado)
+    expect(botoes).toContain("dg:p:proj-1")
+    expect(botoes).toContain("dg:p:-")
+    expect(responderDiariaBot(noProjeto, { botao: "p:outro" }, comProjetos)).toHaveProperty("erro")
+    const fim = conversa([...respostas, { botao: "p:proj-1" }], comProjetos)
+    expect(fim.passo).toBe("confirmar")
+    expect(fim.dados.projetoId).toBe("proj-1")
+    expect(resumoDiariaBot(fim.dados, comProjetos)).toContain("Projeto: Congresso 2027")
+    const semProjeto = conversa([...respostas, { botao: "p:-" }], comProjetos)
+    expect(semProjeto.passo).toBe("confirmar")
+    expect(semProjeto.dados.projetoId).toBeNull()
+  })
+
   test("a quantidade sugerida é um dia por dia do período", () => {
     expect(quantidadeSugerida({ inicio: "2026-11-12", termino: "2026-11-14" })).toBe(3)
     expect(quantidadeSugerida({ inicio: "2026-11-12", termino: "2026-11-12" })).toBe(1)

@@ -200,6 +200,13 @@ function escaparLike(termo: string): string {
 
 const NENHUMA = "00000000-0000-0000-0000-000000000000"
 
+/** Filtro Projeto: as ordens de viagens e diárias do projeto (sem projeto na ordem). */
+async function ordensDosPedidos(projeto: string | undefined): Promise<string[]> {
+  if (!projeto) return []
+  const { ordensDosPedidosDoProjeto } = await import("@/lib/db/projetos")
+  return ordensDosPedidosDoProjeto(projeto).catch(() => [])
+}
+
 /** As ordens de um filiado: as dos pedidos de reembolso e as dos custeios dele. */
 async function ordensDoFiliado(filiadoId: string): Promise<string[]> {
   const admin = await createAdminClient()
@@ -238,7 +245,9 @@ function aplicarFiltrosOrdens<T>(
   ordensDoFiliado: string[] = [],
   idsPendencia: IdsPendencia = {},
   /** A busca já traduzida em cadastros de favorecido (ordens-busca.ts). */
-  busca_: IdsDaBusca = { usuarios: [], empresas: [], ordens: [] }
+  busca_: IdsDaBusca = { usuarios: [], empresas: [], ordens: [] },
+  /** Filtro Projeto: as ordens de fatura de viagem e de remessa de diárias do projeto. */
+  ordensDoProjeto: string[] = []
 ): T {
   let q = (builder as unknown as BuilderFiltros)
     .eq("emp_proprietaria_id", empId)
@@ -261,7 +270,12 @@ function aplicarFiltrosOrdens<T>(
   else if (beneficiario) q = q.or(`beneficiario_fornecedor_id.eq.${beneficiario},fornecedor_id.eq.${beneficiario}`)
   if (centroCusto) q = q.eq("centro_custo_despesa_id", centroCusto)
   if (departamento) q = q.eq("departamento_id", departamento)
-  if (projeto) q = q.eq("projeto_id", projeto)
+  // A ordem da fatura de viagem e a da remessa de diárias não levam projeto
+  // (juntam pedidos de vários): entram pelos pedidos do projeto.
+  if (projeto)
+    q = ordensDoProjeto.length
+      ? q.or(`projeto_id.eq.${projeto},id.in.(${ordensDoProjeto.join(",")})`)
+      : q.eq("projeto_id", projeto)
   if (formaPagamento) q = q.eq("forma_pagamento", formaPagamento)
   const hoje = hojeSP()
   if (pendencia === "vencidas") q = q.eq("situacao", "A pagar").lt("vencimento", hoje)
@@ -333,7 +347,8 @@ export async function listarOrdens(
     await tenantAtual(),
     beneficiario.startsWith("f:") ? await ordensDoFiliado(beneficiario.slice(2)) : [],
     await idsDaPendencia(filtros.pendencia),
-    await idsDaBusca(filtros.busca ?? "")
+    await idsDaBusca(filtros.busca ?? ""),
+    await ordensDosPedidos(filtros.projeto)
   )
 
   const de = (pagina - 1) * porPagina
@@ -422,11 +437,15 @@ export async function extratoOrdens(
   const limiteFuturo = futurosDias === null ? null : somar(hoje, futurosDias)
   const beneficiario = filtros.beneficiario ?? ""
   const doFiliado = beneficiario.startsWith("f:") ? await ordensDoFiliado(beneficiario.slice(2)) : []
-  const [idsPendencia, idsBusca] = await Promise.all([idsDaPendencia(filtros.pendencia), idsDaBusca(filtros.busca ?? "")])
+  const [idsPendencia, idsBusca, doProjeto] = await Promise.all([
+    idsDaPendencia(filtros.pendencia),
+    idsDaBusca(filtros.busca ?? ""),
+    ordensDosPedidos(filtros.projeto),
+  ])
   const situacaoLivre = !filtros.situacao || filtros.situacao === "todas"
 
   const base = () => {
-    let q = aplicarFiltrosOrdens(admin.from("ordens_pagamento").select(SELECT_ORDEM), filtros, emp, doFiliado, idsPendencia, idsBusca)
+    let q = aplicarFiltrosOrdens(admin.from("ordens_pagamento").select(SELECT_ORDEM), filtros, emp, doFiliado, idsPendencia, idsBusca, doProjeto)
     if (situacaoLivre) q = q.not("situacao", "in", `(${FORA_DO_EXTRATO.map((s) => `"${s}"`).join(",")})`)
     return q
   }
@@ -465,7 +484,8 @@ export async function extratoOrdens(
       emp,
       doFiliado,
       idsPendencia,
-      idsBusca
+      idsBusca,
+      doProjeto
     )
     if (situacaoLivre) q = q.not("situacao", "in", `(${FORA_DO_EXTRATO.map((s) => `"${s}"`).join(",")})`)
     const { count } = await q

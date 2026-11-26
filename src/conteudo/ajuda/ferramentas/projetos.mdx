@@ -52,10 +52,16 @@ Entram também as **viagens** e as **diárias** do projeto — escolhidas no cam
 **Projeto (se houver)** do pedido de viagem e da diária. Como a fatura da agência e a
 remessa de diárias juntam pedidos de projetos diferentes numa ordem só, o projeto
 fica no pedido: cada passagem ou hospedagem vale o que a fatura cobrou dela (com a
-parte da taxa da agência) e cada diária vale o valor dela mais as despesas. Pago ou a
+parte da taxa da agência) e cada diária vale o que vai na remessa: o valor dela menos
+as infrações abatidas na aprovação, mais as despesas. Pago ou a
 pagar segue a ordem da fatura ou da remessa; antes dela, é comprometido. A viagem
 cancelada ou recusada só conta o que já foi faturado. A viagem já pedida sem projeto
-pode ser ligada a um na página dela (Viagens), em **Vincular**.
+pode ser ligada a um na página dela (Viagens), em **Vincular**; a diária já lançada
+ganha, troca ou perde o projeto na página dela (Pessoal ou Diretoria → Diárias), no
+cartão **Projeto**. No Financeiro, o filtro **Projeto** das ordens acha também a ordem
+da fatura e a da remessa que pagam viagens e diárias do projeto — mas mostra a ordem
+inteira, que pode incluir pedidos de outros projetos; o valor do projeto é o desta
+página.
 
 O **evento** (módulo Eventos) também pode ser de um projeto, no campo **Projeto** do
 evento. Aí as viagens pedidas para ele entram no projeto sozinhas — inclusive as

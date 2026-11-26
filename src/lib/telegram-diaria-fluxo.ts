@@ -1,6 +1,7 @@
 /**
  * Roteiro do /diaria no bot do Telegram (17/11/2026): o pedido de diária em
- * perguntas curtas, uma por vez — tipo, início, término, quantidade e motivo.
+ * perguntas curtas, uma por vez — tipo, início, término, quantidade, motivo e,
+ * havendo projetos em andamento, o projeto da atividade (26/11).
  * Puro (sem banco nem Telegram) para dar para testar: recebe o passo atual e a
  * resposta, devolve o próximo passo. Quem grava e manda as mensagens é
  * lib/telegram-diaria.ts, pela MESMA criarSolicitacaoDiaria do painel (Meu
@@ -14,7 +15,7 @@
  * diária lançada para outra pessoa.
  */
 
-export type PassoDiaria = "tipo" | "inicio" | "termino" | "quantidade" | "motivo" | "confirmar"
+export type PassoDiaria = "tipo" | "inicio" | "termino" | "quantidade" | "motivo" | "projeto" | "confirmar"
 
 export type DadosDiariaBot = {
   tipoId?: string
@@ -22,6 +23,8 @@ export type DadosDiariaBot = {
   termino?: string | null
   quantidade?: number
   motivo?: string
+  /** Projeto da atividade (a diária entra no gasto dele); null = nenhum. */
+  projetoId?: string | null
 }
 
 export type EstadoDiariaBot = { passo: PassoDiaria; dados: DadosDiariaBot }
@@ -39,6 +42,8 @@ export type ContextoDiaria = {
   tipos: TipoDiariaBot[]
   /** A remessa em preparação da pessoa, se houver: o que já está nela. */
   remessaAberta?: { codigo: string | null; valorTotal: number; devolvida?: boolean } | null
+  /** Projetos em andamento. Sem nenhum, o passo do projeto é pulado. */
+  projetos?: { id: string; titulo: string }[]
 }
 
 /** Resposta da pessoa: texto digitado ou o `dado` de um botão (sem o "dg:"). */
@@ -167,6 +172,15 @@ export function perguntaDoPassoDiaria(estado: EstadoDiariaBot, ctx: ContextoDiar
     }
     case "motivo":
       return { texto: "Qual o motivo? <i>Ex.: viagem ao Rio de Janeiro com pernoite</i>" }
+    case "projeto":
+      return {
+        texto: "A atividade é de algum projeto? <i>A diária entra no gasto dele.</i>",
+        botoes: [
+          [b("Nenhum projeto", "p:-")],
+          ...(ctx.projetos ?? []).map((pr) => [b(pr.titulo.slice(0, 60), `p:${pr.id}`)]),
+          CANCELAR,
+        ],
+      }
     case "confirmar":
       return {
         texto: [resumoDiariaBot(d, ctx), "", "Confere?"].join("\n"),
@@ -197,6 +211,8 @@ export function resumoDiariaBot(d: DadosDiariaBot, ctx: ContextoDiaria): string 
     linhas.push(`Quantidade: ${quantidadeCurta(d.quantidade)}${total}`)
   }
   if (d.motivo) linhas.push(`Motivo: ${escapar(d.motivo)}`)
+  const projeto = d.projetoId ? ctx.projetos?.find((pr) => pr.id === d.projetoId) : null
+  if (projeto) linhas.push(`Projeto: ${escapar(projeto.titulo)}`)
   const r = ctx.remessaAberta
   const codigo = r?.codigo ? ` ${escapar(r.codigo)}` : ""
   linhas.push(
@@ -283,6 +299,16 @@ export function responderDiariaBot(
     case "motivo": {
       if (!texto || texto.startsWith("/")) return { erro: "Escreva o motivo (ou /cancelar)." }
       d.motivo = texto.slice(0, LIMITE_MOTIVO)
+      return ir(ctx.projetos?.length ? "projeto" : "confirmar", d)
+    }
+    case "projeto": {
+      if (botao === "p:-") {
+        d.projetoId = null
+        return ir("confirmar", d)
+      }
+      const id = botao?.startsWith("p:") ? botao.slice(2) : null
+      if (!id || !ctx.projetos?.some((pr) => pr.id === id)) return { erro: "Toque num dos projetos acima (ou em Nenhum projeto)." }
+      d.projetoId = id
       return ir("confirmar", d)
     }
     case "confirmar": {

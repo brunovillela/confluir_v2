@@ -370,7 +370,8 @@ async function lerPorProjeto(
 /**
  * Soma as viagens (passagens e hospedagens) e as diárias dos projetos no
  * gasto. O item de viagem vale o que a fatura cobrou dele (com a parte da
- * taxa da agência); a diária vale o valor dela mais as despesas. Pago ou a
+ * taxa da agência); a diária vale o que vai na remessa: o valor dela menos as
+ * infrações abatidas, mais as despesas. Pago ou a
  * pagar pela situação da ordem que pagou; sem ordem ainda, comprometido.
  */
 async function viagensEDiariasDosProjetos(
@@ -388,7 +389,7 @@ async function viagensEDiariasDosProjetos(
       ids,
       emp
     ),
-    lerPorProjeto("pessoal_diarias_solicitacoes", "id, projeto_id, situacao, valor_total, ordem_pagamento_id", ids, emp),
+    lerPorProjeto("pessoal_diarias_solicitacoes", "id, projeto_id, situacao, valor_total, valor_descontos, ordem_pagamento_id", ids, emp),
   ])
   if (!viagens.length && !diarias.length) return porProjeto
 
@@ -499,7 +500,11 @@ async function viagensEDiariasDosProjetos(
 
   for (const d of diarias) {
     const g = doProjeto(String(d.projeto_id))
-    const valor = Math.round(((Number(d.valor_total ?? 0) || 0) + (despesasDe.get(String(d.id)) ?? 0)) * 100) / 100
+    // Como na remessa (valorNaRemessa): líquida das infrações abatidas, mais as despesas.
+    const valor =
+      Math.round(
+        ((Number(d.valor_total ?? 0) || 0) - (Number(d.valor_descontos ?? 0) || 0) + (despesasDe.get(String(d.id)) ?? 0)) * 100
+      ) / 100
     if (valor <= 0) continue
     const situacao = lancar(g, valor, texto(d.ordem_pagamento_id), DIARIA_COMPROMETE.has(String(d.situacao)))
     if (situacao === "sem_custo" || situacao === "ja_contado") continue
@@ -1401,6 +1406,83 @@ export async function vincularViagemAoProjeto(viagemId: string, projetoId: strin
   if (erroU) return { erro: `Não foi possível vincular: ${erroU.message}` }
   if (!feito?.length) return { erro: "A viagem mudou enquanto você vinculava — recarregue a página." }
   return { ok: `Viagem vinculada ao projeto "${texto(p.descricao_sumaria) ?? "(sem título)"}".` }
+}
+
+/**
+ * Põe, troca ou tira o projeto de uma diária já lançada (em qualquer
+ * situação: é só a classificação do gasto; a ordem da remessa não muda). O
+ * projeto novo precisa estar em andamento.
+ */
+export async function definirProjetoDaDiaria(diariaId: string, projetoId: string | null): Promise<{ erro?: string; ok?: string }> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data: d, error } = await admin
+    .from("pessoal_diarias_solicitacoes")
+    .select("id, projeto_id")
+    .eq("emp_proprietaria_id", emp)
+    .eq("id", diariaId)
+    .maybeSingle()
+  if (error && esquemaAusente(error)) return { erro: "As diárias ainda não têm projeto: falta aplicar a migração 20261126171742." }
+  if (!d) return { erro: "Diária não encontrada." }
+  if ((texto(d.projeto_id) ?? null) === projetoId) return { ok: "Nada mudou." }
+  let titulo: string | null = null
+  if (projetoId) {
+    const { data: p } = await admin
+      .from("projeto")
+      .select("descricao_sumaria, finalizado")
+      .eq("emp_proprietaria_id", emp)
+      .eq("id", projetoId)
+      .maybeSingle()
+    if (!p) return { erro: "Projeto não encontrado." }
+    if (p.finalizado === true) return { erro: "O projeto está finalizado: reabra-o para pôr a diária nele." }
+    titulo = texto(p.descricao_sumaria) ?? "(sem título)"
+  }
+  const { error: erroU } = await admin
+    .from("pessoal_diarias_solicitacoes")
+    .update({ projeto_id: projetoId, updated_at: new Date().toISOString() })
+    .eq("emp_proprietaria_id", emp)
+    .eq("id", diariaId)
+  if (erroU) return { erro: `Não foi possível salvar: ${erroU.message}` }
+  return { ok: titulo ? `Diária no projeto "${titulo}".` : "Diária sem projeto." }
+}
+
+/**
+ * Ordens que pagam viagens e diárias do projeto sem levar o projeto: a da
+ * fatura da agência (pode juntar viagens de vários projetos) e a da remessa
+ * de diárias (o mês inteiro de uma pessoa). Para o filtro Projeto do
+ * Financeiro achar também essas — a ordem aparece inteira, com o valor total.
+ */
+export async function ordensDosPedidosDoProjeto(projetoId: string): Promise<string[]> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const [viagens, diarias] = await Promise.all([
+    admin.from("viagens_solicitacoes").select("id, viagens_itens(fatura_id)").eq("emp_proprietaria_id", emp).eq("projeto_id", projetoId),
+    admin
+      .from("pessoal_diarias_solicitacoes")
+      .select("ordem_pagamento_id")
+      .eq("emp_proprietaria_id", emp)
+      .eq("projeto_id", projetoId)
+      .not("ordem_pagamento_id", "is", null),
+  ])
+  const ids = new Set<string>()
+  for (const d of (diarias.data ?? []) as Record<string, unknown>[]) if (texto(d.ordem_pagamento_id)) ids.add(String(d.ordem_pagamento_id))
+  const faturas = [
+    ...new Set(
+      ((viagens.data ?? []) as Record<string, unknown>[])
+        .flatMap((v) => ((v.viagens_itens ?? []) as { fatura_id?: unknown }[]).map((i) => texto(i.fatura_id)))
+        .filter((v): v is string => !!v)
+    ),
+  ]
+  if (faturas.length) {
+    const { data } = await admin
+      .from("viagens_faturas")
+      .select("ordem_pagamento_id")
+      .eq("emp_proprietaria_id", emp)
+      .in("id", faturas)
+      .not("ordem_pagamento_id", "is", null)
+    for (const f of (data ?? []) as Record<string, unknown>[]) ids.add(String(f.ordem_pagamento_id))
+  }
+  return [...ids]
 }
 
 /** O livro de transferências do projeto: o que saiu e o que entrou. */

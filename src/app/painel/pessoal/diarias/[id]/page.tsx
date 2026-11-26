@@ -8,11 +8,13 @@ import { DetalheDiaria } from "@/components/diaria-detalhe"
 import { DespesasDepoisDaViagem } from "@/components/diarias-despesa-posterior"
 import { requirePermissao } from "@/lib/auth"
 import { buscarSolicitacaoDiaria, descontosDaDiaria, listarSolicitacoesDiaria } from "@/lib/db/diarias"
+import { projetosAbertosParaTransferencia, tituloDoProjeto } from "@/lib/db/projetos"
 import { funcionarioDaArea } from "@/lib/db/pessoal-area"
 import { formatarData } from "@/lib/formato"
 import { recorteDaLista, urlNaLista } from "@/lib/lista-estado"
 import { urlComprovanteDespesa } from "@/lib/db/diarias-despesas"
 import { cobrancasDiariaPendentes } from "@/lib/db/veiculos"
+import { ProjetoDaDiaria } from "../projeto-diaria"
 
 export const metadata: Metadata = {
   title: "Solicitação de diária — Confluir",
@@ -71,6 +73,13 @@ export default async function SolicitacaoDiariaPage({
         }
       : null
 
+// Projetos para o campo Projeto: os em andamento e o atual (mesmo finalizado).
+  const abertos = await projetosAbertosParaTransferencia().catch(() => [])
+  const projetoAtual =
+    solicitacao.projeto_id && !abertos.some((p) => p.id === solicitacao.projeto_id)
+      ? { id: solicitacao.projeto_id, titulo: (await tituloDoProjeto(solicitacao.projeto_id)) ?? "(projeto)" }
+      : null
+  const projetos = projetoAtual ? [projetoAtual, ...abertos] : abertos
   const aguardando = solicitacao.situacao === "aguardando"
   // Aguardando: infrações do infrator para descontar. Avaliada: o que já foi
   // descontado (trilha).
@@ -123,6 +132,7 @@ export default async function SolicitacaoDiariaPage({
           ) : undefined
         }
       />
+      <ProjetoDaDiaria diariaId={id} projetoId={solicitacao.projeto_id} projetos={projetos} />
       <DespesasDepoisDaViagem
         diaria={solicitacao}
         diariaBase="/painel/pessoal/diarias"

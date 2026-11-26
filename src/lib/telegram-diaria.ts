@@ -4,6 +4,7 @@ import { hojeSP } from "@/lib/db/comum"
 import { criarSolicitacaoDiaria, listarTiposDiaria, tipoDiariaLiberado } from "@/lib/db/diarias"
 import { quadroParaDiaria } from "@/lib/db/diarias-diretoria"
 import { enviarRemessaParaAvaliacao, listarRemessasNovas } from "@/lib/db/diarias-remessas"
+import { projetosAbertosParaTransferencia } from "@/lib/db/projetos"
 import type { UsuarioTelegram } from "@/lib/db/telegram"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { editarMensagemTelegram, enviarTelegram, responderCallbackTelegram } from "@/lib/telegram"
@@ -90,11 +91,15 @@ async function tiposDaPessoa(u: UsuarioTelegram, quadro: Quadro): Promise<Contex
 }
 
 async function contexto(u: UsuarioTelegram, quadro: Quadro, passo: PassoDiaria): Promise<ContextoDiaria> {
-  const [tipos, remessas] = await Promise.all([
+  const [tipos, remessas, projetos] = await Promise.all([
     tiposDaPessoa(u, quadro),
     passo === "confirmar"
       ? listarRemessasNovas({ beneficiarioId: u.id }).catch(() => ({ remessas: [] }))
       : Promise.resolve({ remessas: [] }),
+    // O motivo decide se pergunta o projeto; projeto e confirmar mostram a lista.
+    passo === "motivo" || passo === "projeto" || passo === "confirmar"
+      ? projetosAbertosParaTransferencia().catch(() => [])
+      : Promise.resolve([]),
   ])
   // A mesma remessa que garantirRemessaAberta vai usar: a mais antiga do
   // quadro ainda não enviada, em preparação ou devolvida (a lista vem da
@@ -105,6 +110,7 @@ async function contexto(u: UsuarioTelegram, quadro: Quadro, passo: PassoDiaria):
   return {
     hoje: hojeSP(),
     tipos,
+    projetos,
     remessaAberta: aberta
       ? { codigo: aberta.codigo, valorTotal: aberta.valorTotal, devolvida: aberta.situacao === "devolvida" }
       : null,
@@ -209,6 +215,8 @@ async function concluir(
     data_termino: d.termino ?? null,
     beneficiario_tipo: quadro.quadro,
     departamento_id: quadro.departamentoId,
+    // Só um projeto ainda em andamento (a lista do contexto é a de agora).
+    projeto_id: d.projetoId && ctx.projetos?.some((p) => p.id === d.projetoId) ? d.projetoId : null,
   })
   if (erro || !id) {
     await gravarConversa(chatId, u, c)

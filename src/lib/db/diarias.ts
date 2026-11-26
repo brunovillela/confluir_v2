@@ -153,6 +153,8 @@ export type SolicitacaoDiaria = {
   avaliacao_data: string | null
   avaliacao_observacao: string | null
   ordem_pagamento_id: string | null
+  /** Projeto da atividade (entra no gasto dele). */
+  projeto_id: string | null
   ordemCodigo: string | null
   ordemSituacao: string | null
   /** Remessa do beneficiário em que a diária entrou (null = antes das remessas). */
@@ -293,6 +295,7 @@ async function normalizarSolicitacoes(
     avaliacao_data: (s.avaliacao_data as string | null) ?? null,
     avaliacao_observacao: (s.avaliacao_observacao as string | null) ?? null,
     ordem_pagamento_id: (s.ordem_pagamento_id as string | null) ?? null,
+    projeto_id: (s.projeto_id as string | null) ?? null,
     ordemCodigo: s.ordem_pagamento_id
       ? (ordem.get(String(s.ordem_pagamento_id))?.codigo ?? null)
       : null,
