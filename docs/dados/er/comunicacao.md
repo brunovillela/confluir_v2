@@ -129,6 +129,12 @@ erDiagram
     uuid termo_foto_id FK
     uuid avaliada_por FK
   }
+  eventos_inscricoes_fechamentos {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid evento_id FK
+    uuid usuario_id FK
+  }
   eventos_presencas {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -190,6 +196,8 @@ erDiagram
   eventos_inscricoes }o--o| filiacoes : "filiacao_id"
   eventos_inscricoes }o--o| usuarios : "avaliada_por"
   eventos_inscricoes }o--o| usuarios : "reservada_por"
+  eventos_inscricoes_fechamentos }o--o| usuarios : "usuario_id"
+  eventos_inscricoes_fechamentos }o--|| eventos : "evento_id"
   eventos_presencas }o--o| eventos_dias : "dia_id"
   eventos_presencas }o--o| eventos_inscricoes : "inscricao_id"
   eventos_presencas }o--o| usuarios : "confirmada_por"

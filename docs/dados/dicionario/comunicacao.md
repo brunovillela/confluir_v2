@@ -2,7 +2,7 @@
 
 # Comunicação, eventos e avisos
 
-29 tabelas. Diagrama: [er/comunicacao.md](../er/comunicacao.md).
+30 tabelas. Diagrama: [er/comunicacao.md](../er/comunicacao.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -29,6 +29,7 @@
 | [eventos_dias](#eventos_dias) | — | Dias e horários de um evento de vários dias; a presença é registrada por dia. |
 | [eventos_inscricao_respostas](#eventos_inscricao_respostas) | identificação | Respostas do inscrito aos campos extras do formulário do evento. |
 | [eventos_inscricoes](#eventos_inscricoes) | identificação, **sensível: sindical**, **credencial (nunca exportar)** | Inscrições em eventos, de filiados ou convidados sem login: identificação, foto, consentimento LGPD, aprovação, RSVP, controle de acesso e a… |
+| [eventos_inscricoes_fechamentos](#eventos_inscricoes_fechamentos) | — | Histórico de fechamentos e reaberturas à mão das inscrições de um evento (só inserção). |
 | [eventos_presencas](#eventos_presencas) | identificação | Presença confirmada de um inscrito em um dia do evento, pela recepção, por QR code ou busca. |
 | [eventos_termos](#eventos_termos) | — | Versões dos termos de consentimento exibidos na inscrição (participação e uso de foto); a inscrição guarda qual versão foi aceita. |
 | [eventos_titular_sessao](#eventos_titular_sessao) | identificação, **credencial (nunca exportar)** | Sessões curtas do canal LGPD do convidado de evento: ele se identifica pelo e-mail, confirma por código e pode consultar ou anonimizar seus … |
@@ -693,6 +694,28 @@ Inscrições em eventos, de filiados ou convidados sem login: identificação, f
 Checks: `ck_eventos_insc_acesso` `CHECK ((acesso_situacao = ANY (ARRAY['nao_aplica'::text, 'pendente'::text, 'enviado'::text, 'erro'::text, 'removido'::text]))) NOT VALID`; `ck_eventos_insc_origem` `CHECK ((origem = ANY (ARRAY['publica'::text, 'portal'::text, 'painel'::text, 'planilha'::text]))) NOT VALID`; `ck_eventos_insc_situacao` `CHECK ((situacao = ANY (ARRAY['pendente'::text, 'confirmada'::text, 'recusada'::text, 'cancelada'::text, 'lista_espera'::text]))) NOT VALID`
 
 Índices: `eventos_inscricoes_pkey`, `idx_eventos_insc_convidado_por`, `idx_eventos_insc_cpf`, `idx_eventos_insc_evento`, `idx_eventos_insc_filiacao`, `idx_eventos_insc_reservada_por`, `idx_eventos_insc_rsvp_token`, `idx_eventos_insc_titular`, `ux_eventos_insc_cpf_evento`, `ux_eventos_insc_token`
+
+## eventos_inscricoes_fechamentos
+
+Histórico de fechamentos e reaberturas à mão das inscrições de um evento (só inserção).
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `evento_id` | uuid | não |  | → eventos (**cascade**) |  |  |
+| `acao` | text | não |  |  | nenhum | fechou ou reabriu. |
+| `mensagem` | text | sim |  |  | nenhum | Recado mostrado a quem tentou se inscrever (só no fechamento). |
+| `usuario_id` | uuid | sim |  | → usuarios (set null) | identificação | Quem fechou ou reabriu. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Checks: `eventos_inscricoes_fechamentos_acao_check` `CHECK ((acao = ANY (ARRAY['fechou'::text, 'reabriu'::text])))`
+
+Índices: `eventos_inscricoes_fechamentos_evento`, `eventos_inscricoes_fechamentos_pkey`
 
 ## eventos_presencas
 

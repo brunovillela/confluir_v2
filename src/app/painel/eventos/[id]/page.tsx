@@ -35,6 +35,7 @@ import { requirePermissao } from "@/lib/auth"
 import {
   indicadoresDoEvento,
   inscricoesAbertas,
+  listarFechamentosInscricoes,
   listarInscricoes,
   obterEvento,
   podeFecharInscricoes,
@@ -50,6 +51,7 @@ import { projetoDoEvento } from "@/lib/db/projetos"
 
 import { BaixarRelacao } from "./baixar-relacao"
 import { FecharInscricoesForm, ReabrirInscricoesForm } from "./fechar-inscricoes"
+import { HistoricoFechamentos } from "./historico-fechamentos"
 import {
   AvaliarInscricao,
   ConciliarFiliadosForm,
@@ -99,12 +101,13 @@ export default async function EventoPage({
   const evento = await obterEvento(id)
   if (!evento) notFound()
 
-  const [indicadores, inscricoes, filiacao, nomes, projeto] = await Promise.all([
+  const [indicadores, inscricoes, filiacao, nomes, projeto, fechamentos] = await Promise.all([
     indicadoresDoEvento(evento),
     listarInscricoes({ eventoId: id, situacao: "todas" }),
     contarFiliados(id),
     nomesDosUsuarios(evento.inscricoes_encerradas_por ? [evento.inscricoes_encerradas_por] : []),
     projetoDoEvento(id),
+    listarFechamentosInscricoes(id),
   ])
   const { capacidade } = indicadores
   const abertura = inscricoesAbertas(evento, capacidade)
@@ -244,8 +247,17 @@ export default async function EventoPage({
                 <ReabrirInscricoesForm eventoId={evento.id} />
               </div>
             )}
+            {fechamentos.length > 1 && (
+              <div className="mt-3">
+                <HistoricoFechamentos itens={fechamentos} />
+              </div>
+            )}
           </AlertDescription>
         </Alert>
+      )}
+
+      {!evento.inscricoes_encerradas_em && fechamentos.length > 0 && (
+        <HistoricoFechamentos itens={fechamentos} />
       )}
 
       {!abertura.aberta &&

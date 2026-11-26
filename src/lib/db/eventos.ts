@@ -494,17 +494,63 @@ export async function marcarInscricoesEncerradas(
 ): Promise<{ erro?: string }> {
   const admin = await createAdminClient()
   const emp = await tenantAtual()
+  const agora = new Date().toISOString()
   const { error } = await admin
     .from("eventos")
     .update(
       encerrar
-        ? { inscricoes_encerradas_em: new Date().toISOString(), inscricoes_encerradas_por: usuarioId, inscricoes_encerradas_mensagem: mensagem }
+        ? { inscricoes_encerradas_em: agora, inscricoes_encerradas_por: usuarioId, inscricoes_encerradas_mensagem: mensagem }
         : { inscricoes_encerradas_em: null, inscricoes_encerradas_por: null, inscricoes_encerradas_mensagem: null }
     )
     .eq("emp_proprietaria_id", emp)
     .eq("id", eventoId)
   if (error) return { erro: `Falha ao ${encerrar ? "fechar" : "reabrir"} as inscrições: ${error.message}` }
+  // Histórico (26/11/2026): o evento só guarda o último fechamento; a trilha
+  // guarda o vaivém. Falha aqui não desfaz o fechamento — só fica registrada.
+  const { error: erroHistorico } = await admin.from("eventos_inscricoes_fechamentos").insert({
+    emp_proprietaria_id: emp,
+    evento_id: eventoId,
+    acao: encerrar ? "fechou" : "reabriu",
+    mensagem: encerrar ? mensagem : null,
+    usuario_id: usuarioId,
+    created_at: agora,
+  })
+  if (erroHistorico) console.error("eventos_inscricoes_fechamentos:", erroHistorico.message)
   return {}
+}
+
+export type FechamentoInscricoes = {
+  id: string
+  acao: "fechou" | "reabriu"
+  mensagem: string | null
+  usuarioNome: string | null
+  em: string
+}
+
+/** Fechamentos e reaberturas à mão, do mais recente para o mais antigo. */
+export async function listarFechamentosInscricoes(eventoId: string): Promise<FechamentoInscricoes[]> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data, error } = await admin
+    .from("eventos_inscricoes_fechamentos")
+    .select("id, acao, mensagem, usuario_id, created_at")
+    .eq("emp_proprietaria_id", emp)
+    .eq("evento_id", eventoId)
+    .order("created_at", { ascending: false })
+    .limit(200)
+  if (error) {
+    if (esquemaAusente(error)) return []
+    throw new Error(`Falha ao ler o histórico de fechamentos: ${error.message}`)
+  }
+  const linhas = data ?? []
+  const nomes = await nomesDosUsuarios(linhas.map((l) => l.usuario_id as string | null).filter((id): id is string => !!id))
+  return linhas.map((l) => ({
+    id: l.id as string,
+    acao: l.acao as "fechou" | "reabriu",
+    mensagem: (l.mensagem as string | null) ?? null,
+    usuarioNome: l.usuario_id ? (nomes.get(l.usuario_id as string) ?? null) : null,
+    em: l.created_at as string,
+  }))
 }
 
 // ── Inscrições ───────────────────────────────────────────────────────────────
