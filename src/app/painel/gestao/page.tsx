@@ -3,6 +3,7 @@ import Link from "next/link"
 import {
   AlertTriangle,
   CheckCircle2,
+  Mail,
   Plug,
   ScanFace,
   ScrollText,
@@ -24,6 +25,7 @@ import { requirePermissao } from "@/lib/auth"
 import { revisarAcessos, ROTULO_MOTIVO, type MotivoRevisao } from "@/lib/db/acessos-revisao"
 import { DIAS_ENTRE_REVISOES, saudeRevisaoPeriodica } from "@/lib/db/acessos-revisao-ciclo"
 import { segundoFatorAtivo } from "@/lib/db/acessos-mfa"
+import { resumoEmails } from "@/lib/db/email-uso"
 import { mesAtual, obterConfigIA } from "@/lib/db/ia-config"
 import { resumoUsoIA } from "@/lib/db/ia-uso"
 import { listarWebhooks } from "@/lib/db/webhooks"
@@ -49,6 +51,18 @@ const GRUPOS: { titulo: string; areas: Area[] }[] = [
         descricao: "Chave de API própria, modelo, teto mensal e o uso por pessoa, processo, departamento e módulo",
         href: "/painel/gestao/ia",
         icone: Sparkles,
+        chave: "gestao_sistema",
+      },
+    ],
+  },
+  {
+    titulo: "E-mail",
+    areas: [
+      {
+        titulo: "E-mail",
+        descricao: "Os e-mails que o sistema envia, por processo, pessoa e departamento, e se chegaram",
+        href: "/painel/gestao/email",
+        icone: Mail,
         chave: "gestao_sistema",
       },
     ],
@@ -131,7 +145,8 @@ function n(qtd: number, singular: string, plural: string): string {
 /** Saúde do sistema: o que merece a atenção do administrador agora. */
 async function sinais(podeUsuarios: boolean, podeConfig: boolean): Promise<Sinal[]> {
   const lista: Sinal[] = []
-  const [revisao, periodica, chaves, webhooks, agentes, ia, usoMes] = await Promise.all([
+  const seteDias = { de: new Date(Date.now() - 7 * 24 * 3600_000), ate: new Date(Date.now() + 60_000) }
+  const [revisao, periodica, chaves, webhooks, agentes, ia, usoMes, emails] = await Promise.all([
     podeUsuarios ? revisarAcessos() : Promise.resolve(null),
     podeUsuarios ? saudeRevisaoPeriodica() : Promise.resolve(null),
     podeConfig ? listarChavesApi() : Promise.resolve(null),
@@ -139,6 +154,7 @@ async function sinais(podeUsuarios: boolean, podeConfig: boolean): Promise<Sinal
     podeConfig ? listarAgentes() : Promise.resolve(null),
     podeConfig ? obterConfigIA() : Promise.resolve(null),
     podeConfig ? resumoUsoIA(mesAtual().de, mesAtual().ate) : Promise.resolve(null),
+    podeConfig ? resumoEmails(seteDias.de, seteDias.ate) : Promise.resolve(null),
   ])
 
   if (revisao) {
@@ -214,6 +230,28 @@ async function sinais(podeUsuarios: boolean, podeConfig: boolean): Promise<Sinal
     }
     if (t && t.falhas > 0) {
       lista.push({ texto: `${n(t.falhas, "chamada de IA falhou", "chamadas de IA falharam")} neste mês`, href: "/painel/gestao/ia?falhas=1#historico", alerta: t.falhas >= 5 })
+    }
+  }
+
+  // E-mail nos últimos 7 dias: o que não saiu e o que o provedor rejeitou.
+  if (emails?.disponivel && emails.total) {
+    const t = emails.total
+    if (t.falhas > 0) {
+      lista.push({
+        texto: `${n(t.falhas, "e-mail não saiu", "e-mails não saíram")} nos últimos 7 dias`,
+        href: "/painel/gestao/email?periodo=7d&situacao=falhou#historico",
+        alerta: true,
+      })
+    }
+    const testes = emails.por.situacao.find((x) => x.chave === "teste")?.enviados ?? 0
+    const reais = t.enviados - testes
+    if (t.rejeitados > 0) {
+      const taxa = reais > 0 ? t.rejeitados / reais : 0
+      lista.push({
+        texto: `${n(t.rejeitados, "e-mail rejeitado", "e-mails rejeitados")} nos últimos 7 dias (${Math.round(taxa * 100)}% dos enviados)`,
+        href: "/painel/gestao/email?periodo=7d&situacao=rejeitado#historico",
+        alerta: taxa >= 0.05,
+      })
     }
   }
 

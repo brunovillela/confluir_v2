@@ -30,6 +30,8 @@ const ROTULOS_SEGMENTO: Record<string, string> = {
   configuracao: "Configuração",
   configuracoes: "Configurações",
   revisao: "Revisão de acessos",
+  email: "E-mail",
+  inventario: "Inventário",
   solicitacoes: "Solicitações",
   comparacoes: "Comparações",
   cartoes: "Cartões",

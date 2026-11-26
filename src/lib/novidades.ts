@@ -16,6 +16,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-11-26",
     titulo: "Ordens: filtro por projeto com as ordens das compras",
     itens: [
+      "Gestão → E-mail (novo): os e-mails que o sistema envia, por processo, módulo, pessoa e departamento, com quantos foram entregues, rejeitados ou não saíram. O histórico busca pelo destinatário — para responder \"o e-mail chegou para fulano?\" — e mostra o motivo da rejeição. Sai também em planilha, e a Saúde do sistema avisa quando a rejeição passa de 5%.",
       "Projetos: os cartões de Marcos e de Tarefas só aparecem quando o projeto tem algum. Sem nenhum, quem edita usa Novo marco e Nova tarefa, no topo da página, que abrem o cartão já com o formulário.",
       "Gestão → Inteligência Artificial → Inventário (novo): todas as operações que o sistema faz com IA, por módulo, com quantas vezes rodaram, o custo médio de cada uma, quanto tempo uma pessoa levaria para fazê-la à mão e o tempo de trabalho poupado — no período ou acumulado desde o início. O tempo de cada operação vem estimado e a Gestão pode ajustá-lo ao jeito da entidade. Sai também em planilha.",
       "Projetos, viagens e diárias: no Financeiro, o filtro Projeto das ordens acha também a ordem da fatura de viagens e a da remessa de diárias do projeto. A diária entra no gasto do projeto líquida das infrações abatidas, como na remessa. O /diaria do Telegram pergunta o projeto depois do motivo, e a diária já lançada ganha, troca ou perde o projeto na página dela (Pessoal ou Diretoria → Diárias).",

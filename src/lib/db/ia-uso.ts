@@ -59,7 +59,7 @@ function linhaCrua(r: Record<string, unknown>): Omit<LinhaUso, "rotulo" | "detal
   }
 }
 
-async function nomesDosDepartamentos(ids: string[]): Promise<Map<string, string>> {
+export async function nomesDosDepartamentos(ids: string[]): Promise<Map<string, string>> {
   const unicos = [...new Set(ids.filter(Boolean))]
   if (unicos.length === 0) return new Map()
   const admin = await createAdminClient()

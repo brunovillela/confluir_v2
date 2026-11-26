@@ -198,3 +198,40 @@ export function mudancaDoEvento(e: Record<string, unknown>): Record<string, stri
   if (REJEICOES.has(evento)) return { rejeitado_em: em, rejeicao: `${evento}${e.reason ? `: ${String(e.reason)}` : ""}`.slice(0, 200) }
   return null
 }
+
+/** Como o envio terminou, do ponto de vista de quem consulta (Gestão › E-mail). */
+export type EstadoEnvio = "entregue" | "rejeitado" | "adiado" | "aguardando" | "falhou" | "teste" | "sem_configuracao" | "enviando"
+
+export const ROTULO_ESTADO: Record<EstadoEnvio, string> = {
+  entregue: "Entregue",
+  rejeitado: "Rejeitado",
+  adiado: "Adiado",
+  aguardando: "Enviado, sem retorno",
+  falhou: "Não saiu",
+  teste: "Teste (não entregue)",
+  sem_configuracao: "Envio não configurado",
+  enviando: "Enviando",
+}
+
+/**
+ * O estado que vale de um envio: a rejeição definitiva vence a entrega (o
+ * provedor pode avisar a entrega e depois a reclamação de spam); a entrega
+ * vence o adiamento; sem retorno do provedor, vale a situação do envio.
+ */
+export function estadoDoEnvio(e: { situacao: string; entregueEm: string | null; adiadoEm: string | null; rejeitadoEm: string | null }): EstadoEnvio {
+  if (e.situacao === "falhou" || e.situacao === "teste" || e.situacao === "sem_configuracao" || e.situacao === "enviando") return e.situacao
+  if (e.rejeitadoEm) return "rejeitado"
+  if (e.entregueEm) return "entregue"
+  if (e.adiadoEm) return "adiado"
+  return "aguardando"
+}
+
+/** Filtro de situação do histórico (Gestão › E-mail). */
+export const FILTROS_SITUACAO = [
+  { valor: "problemas", rotulo: "Com problema (não saiu, rejeitado ou adiado)" },
+  { valor: "rejeitado", rotulo: "Rejeitados" },
+  { valor: "falhou", rotulo: "Não saíram" },
+  { valor: "adiado", rotulo: "Adiados" },
+  { valor: "entregue", rotulo: "Entregues" },
+  { valor: "aguardando", rotulo: "Enviados, sem retorno" },
+] as const

@@ -1,0 +1,67 @@
+Em **Gestão → E-mail** a entidade acompanha os e-mails que o Confluir envia:
+quantos saíram, de qual processo, quem disparou e se chegaram ao destinatário.
+
+<RequerPermissao>Gestão do sistema</RequerPermissao>
+
+## O que é registrado
+
+Cada e-mail que o sistema manda (códigos de acesso, avisos de votação, ordens
+de compra, mensagens aos filiados, avisos do sino e os demais) vira uma linha
+com:
+
+- o **processo** que enviou e o módulo dele;
+- **quem disparou** e o departamento da pessoa — vazio quando o envio é
+  automático (tarefa agendada) ou parte de um fluxo público;
+- o **destinatário**;
+- a **situação**: se o provedor aceitou o e-mail e, depois, se ele foi
+  entregue, adiado ou rejeitado.
+
+O assunto e o texto do e-mail **não** são guardados. O endereço do
+destinatário é apagado depois de 1 ano (regra RT38 da retenção de dados); os
+números continuam.
+
+## E-mails enviados
+
+No alto, os números do período (este mês, mês passado, 7, 30 ou 90 dias):
+
+- **E-mails**: quantos saíram. Os de teste (ambiente de testes, que não
+  entregam) aparecem à parte.
+- **Entregues**: o servidor do destinatário aceitou o e-mail.
+- **Rejeitados**: endereço inexistente, caixa bloqueada ou marcado como spam.
+  Acima de 5% dos enviados, a reputação do domínio cai e os e-mails passam a
+  cair no spam de todo mundo — vale corrigir os endereços.
+- **Não saíram**: o provedor recusou ou não respondeu.
+
+O gráfico mostra os e-mails por dia, com a parte rejeitada ou que não saiu em
+vermelho. Abaixo, a tabela agrupa **por processo, módulo, pessoa, departamento,
+situação ou dia**; clicar numa linha abre o histórico já filtrado.
+
+A entrega e a rejeição chegam do provedor (Brevo) segundos ou minutos depois
+do envio. Até lá, o e-mail aparece como **Enviado, sem retorno**.
+
+## Histórico de envios
+
+Serve para responder "o e-mail chegou para fulano?": digite o endereço (ou
+parte dele) em **Destinatário** e filtre. Dá para filtrar também por processo e
+por situação — **Com problema** junta os que não saíram, os rejeitados e os
+adiados.
+
+| Situação | O que quer dizer |
+|---|---|
+| Entregue | O servidor do destinatário aceitou. Se a pessoa não achou, peça para olhar o spam ou as abas de promoções. |
+| Rejeitado | Endereço inexistente, caixa bloqueada ou marcado como spam. Corrija o endereço no cadastro. |
+| Adiado | A caixa está cheia ou o servidor estava ocupado; o provedor ainda tenta de novo. |
+| Enviado, sem retorno | O provedor aceitou, mas ainda não avisou a entrega. |
+| Não saiu | O provedor recusou ou não respondeu; o motivo aparece embaixo. |
+| Teste | Ambiente de testes: o e-mail não é entregue de propósito. |
+
+## Planilha
+
+**Baixar planilha** leva para o Excel os resumos (por processo, módulo, pessoa
+e departamento) e todos os envios do período, com o destinatário e a situação.
+A exportação fica registrada no livro de exportações.
+
+## Saúde do sistema
+
+Na página inicial da Gestão aparecem os e-mails que não saíram e os rejeitados
+dos últimos 7 dias — como alerta quando a rejeição passa de 5%.

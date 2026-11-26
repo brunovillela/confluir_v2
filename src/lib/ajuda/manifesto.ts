@@ -780,6 +780,11 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "Chave de API própria guardada cifrada, modelo, teto mensal, IA por módulo e o uso por pessoa, processo, departamento e módulo",
       },
       {
+        slug: "email",
+        titulo: "E-mail",
+        resumo: "Os e-mails que o sistema envia, por processo, pessoa e departamento, se chegaram, e a busca pelo destinatário",
+      },
+      {
         slug: "usuarios",
         titulo: "Usuários e permissões",
         resumo: "Acesso ao painel, permissões por área e alçada",

@@ -85,3 +85,14 @@ test("evento do Brevo vira entrega, adiamento ou rejeição no registro", async 
   expect(mudancaDoEvento({ event: "click" })).toBeNull()
   expect(mudancaDoEvento({ event: "opened" })).toBeNull()
 })
+
+test("estado do envio: rejeição vence entrega, entrega vence adiamento", async () => {
+  const { estadoDoEnvio } = await import("../../src/lib/email-processos")
+  const base = { situacao: "enviado", entregueEm: null, adiadoEm: null, rejeitadoEm: null }
+  expect(estadoDoEnvio(base)).toBe("aguardando")
+  expect(estadoDoEnvio({ ...base, adiadoEm: "x" })).toBe("adiado")
+  expect(estadoDoEnvio({ ...base, adiadoEm: "x", entregueEm: "y" })).toBe("entregue")
+  expect(estadoDoEnvio({ ...base, entregueEm: "y", rejeitadoEm: "z" })).toBe("rejeitado")
+  expect(estadoDoEnvio({ ...base, situacao: "falhou" })).toBe("falhou")
+  expect(estadoDoEnvio({ ...base, situacao: "teste", entregueEm: "y" })).toBe("teste")
+})
