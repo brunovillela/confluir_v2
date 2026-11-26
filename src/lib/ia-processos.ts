@@ -79,6 +79,7 @@ export const PROCESSOS_IA: ProcessoIA[] = [
   { chave: "pessoal.ponto_marcacoes", titulo: "Ajuste das marcações de ponto", modulo: "pessoal" },
   { chave: "pessoal.ponto_resenha", titulo: "Resenha do ponto", modulo: "pessoal" },
   { chave: "pessoal.sst", titulo: "Atribuições e SST", modulo: "pessoal" },
+  { chave: "pessoal.plano_saude_fatura", titulo: "Leitura da fatura do plano de saúde", modulo: "pessoal" },
   // Saúde
   { chave: "saude.cat_leitura", titulo: "Leitura de CAT em PDF", modulo: "saude" },
   // Veículos

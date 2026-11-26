@@ -24,7 +24,7 @@
 | P07 | [Diretoria, mandatos e ofícios](#p07) | 8 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P08 | [Saúde do trabalhador (CAT, atendimentos, CIPA)](#p08) | 11 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, trabalhista | sim |
 | P09 | [Jurídico](#p09) | 4 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista | sim |
-| P10 | [Pessoal: RH dos funcionários da entidade](#p10) | 47 | identificação, **sensível: saúde**, financeiro, trabalhista | sim |
+| P10 | [Pessoal: RH dos funcionários da entidade](#p10) | 48 | identificação, **sensível: saúde**, financeiro, trabalhista | sim |
 | P11 | [Financeiro, compras, fornecedores e contratos](#p11) | 39 | identificação, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P12 | [Institucional: custeios, viagens, linhas e patrimônio](#p12) | 10 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P13 | [Hospedagem conveniada e cessão de espaços](#p13) | 12 | identificação, **sensível: filiação/posição sindical**, financeiro, credencial (segredo de acesso, nunca exportar) | sim |
@@ -428,7 +428,7 @@
 <a id="p10"></a>
 ## P10. Pessoal: RH dos funcionários da entidade
 
-**Finalidade.** Gestão dos funcionários da própria entidade: cadastro, ponto, férias, folha e contracheques, diárias, benefícios, SST (ASO, atestados, treinamentos), envio do movimento à contabilidade e o tempo de uso do painel fora do expediente (`pessoal_uso_painel`: só quem, início e fim de cada bloco de uso, sem página nem conteúdo; só de quem tem jornada vinculada) e o motivo que o funcionário informa para esse uso (`pessoal_uso_justificativas`); e o plano de saúde (`pessoal_saude_*`): contrato, tabelas por faixa etária, regras de custeio, quem está no plano (titular, dependentes, agregados e ex-funcionários que o mantiveram, arts. 30 e 31 da Lei 9.656) e, se houver, a coparticipação do mês — só o valor, nunca o procedimento.
+**Finalidade.** Gestão dos funcionários da própria entidade: cadastro, ponto, férias, folha e contracheques, diárias, benefícios, SST (ASO, atestados, treinamentos), envio do movimento à contabilidade e o tempo de uso do painel fora do expediente (`pessoal_uso_painel`: só quem, início e fim de cada bloco de uso, sem página nem conteúdo; só de quem tem jornada vinculada) e o motivo que o funcionário informa para esse uso (`pessoal_uso_justificativas`); e o plano de saúde (`pessoal_saude_*`): contrato, tabelas por faixa etária, regras de custeio, quem está no plano (titular, dependentes, agregados e ex-funcionários que o mantiveram, arts. 30 e 31 da Lei 9.656) e, se houver, a coparticipação do mês — só o valor, nunca o procedimento; e a fatura da operadora lida por IA (`pessoal_saude_faturas`: nome, carteirinha e valores de cada beneficiário, sem o arquivo e sem CPF) para conferir com o cálculo.
 
 **Titulares.** Funcionários da entidade, dependentes (inclusive menores), prestadores autônomos.
 
@@ -451,7 +451,7 @@
 
 **Observações.** Comprovantes mandados ao bot do Telegram (recibo de reembolso, atestado) passam pelo Telegram e pela IA por iniciativa do próprio funcionário; o chat mostra só o período do atestado. Pendências: a resenha do ponto envia à IA até 30 funcionários por nome (com os totais de uso do sistema fora do expediente, sem horários nem o texto do motivo); `pessoal_folha_competencias.snapshot` guarda cópia de dados pessoais; documentos ainda no CDN do Bubble.
 
-<details><summary>Tabelas (47) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (48) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -493,6 +493,7 @@
 | [pessoal_saude_beneficiarios](../dados/dicionario/pessoal.md#pessoal_saude_beneficiarios) | identificacao, trabalhista | `titular_id` (identificacao), `dependente_id` (identificacao), `nome` (identificacao), `nascimento` (identificacao), `cpf` (identificacao), `condicao` (trabalhista), `carteirinha` (identificacao), `motivo_exclusao` (trabalhista), `estudante_ate` (identificacao), `criado_por` (identificacao) |
 | [pessoal_saude_contratos](../dados/dicionario/pessoal.md#pessoal_saude_contratos) | identificacao | `criado_por` (identificacao) |
 | [pessoal_saude_coparticipacoes](../dados/dicionario/pessoal.md#pessoal_saude_coparticipacoes) | sens. saude, financeiro | `titular_id` (identificacao), `valor` (financeiro), `valor` (sens. saude), `criado_por` (identificacao) |
+| [pessoal_saude_faturas](../dados/dicionario/pessoal.md#pessoal_saude_faturas) | financeiro | `linhas` (identificacao), `linhas` (financeiro), `conferida_por` (identificacao), `criado_por` (identificacao) |
 | [pessoal_saude_regras_custeio](../dados/dicionario/pessoal.md#pessoal_saude_regras_custeio) | identificacao | `funcionarios` (identificacao) |
 | [pessoal_tabelas_salariais](../dados/dicionario/pessoal.md#pessoal_tabelas_salariais) | identificacao | `criado_por` (identificacao) |
 | [pessoal_telegram_arquivos](../dados/dicionario/pessoal.md#pessoal_telegram_arquivos) | identificacao, sens. saude, financeiro | `chat_id` (identificacao), `usuario_id` (identificacao), `passo` (nenhum), `dados` (identificacao), `dados` (financeiro), `dados` (sens. saude), `atualizado_em` (nenhum), `expira_em` (nenhum) |
@@ -920,4 +921,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 280 de 280 tabelas com dado pessoal atribuídas a 17 processos.
+Cobertura: 281 de 281 tabelas com dado pessoal atribuídas a 17 processos.

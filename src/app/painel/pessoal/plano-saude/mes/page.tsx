@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { AlertTriangle, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react"
+import { AlertTriangle, ArrowLeft, ChevronLeft, ChevronRight, FileCheck2 } from "lucide-react"
 
 import { TileIndicador } from "@/components/graficos/tile"
 import { RotuloTrilha } from "@/components/layout/trilha-rotulos"
@@ -85,6 +85,14 @@ export default async function ConferenciaMesPage({ searchParams }: { searchParam
                 {comMudanca ? ` · ${comMudanca} com mudança em relação ao mês anterior` : ""}
                 {comAlerta ? ` · ${comAlerta} com alerta` : ""}
               </CardDescription>
+              <div>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/painel/pessoal/plano-saude/fatura?mes=${mes}&contrato=${contrato.id}`}>
+                    <FileCheck2 />
+                    Conferir com a fatura
+                  </Link>
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="grid gap-4">
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

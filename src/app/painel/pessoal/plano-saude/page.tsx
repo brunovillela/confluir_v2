@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, CalendarRange, HeartPulse } from "lucide-react"
+import { ArrowLeft, CalendarRange, FileCheck2, HeartPulse } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -37,12 +37,20 @@ export default async function PlanoSaudePage({ searchParams }: { searchParams: P
             </p>
           </div>
           {disponivel && contratos.length > 0 && (
-            <Button asChild>
-              <Link href="/painel/pessoal/plano-saude/mes">
-                <CalendarRange />
-                Conferência do mês
-              </Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" asChild>
+                <Link href="/painel/pessoal/plano-saude/fatura">
+                  <FileCheck2 />
+                  Fatura da operadora
+                </Link>
+              </Button>
+              <Button asChild>
+                <Link href="/painel/pessoal/plano-saude/mes">
+                  <CalendarRange />
+                  Conferência do mês
+                </Link>
+              </Button>
+            </div>
           )}
         </div>
       </div>

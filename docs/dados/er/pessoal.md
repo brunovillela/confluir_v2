@@ -348,6 +348,13 @@ erDiagram
     uuid titular_id FK
     uuid criado_por FK
   }
+  pessoal_saude_faturas {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid contrato_id FK
+    uuid conferida_por FK
+    uuid criado_por FK
+  }
   pessoal_saude_produtos {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -535,6 +542,9 @@ erDiagram
   pessoal_saude_coparticipacoes }o--o| usuarios : "criado_por"
   pessoal_saude_coparticipacoes }o--|| pessoal_saude_contratos : "contrato_id"
   pessoal_saude_coparticipacoes }o--|| usuarios : "titular_id"
+  pessoal_saude_faturas }o--o| usuarios : "conferida_por"
+  pessoal_saude_faturas }o--o| usuarios : "criado_por"
+  pessoal_saude_faturas }o--|| pessoal_saude_contratos : "contrato_id"
   pessoal_saude_produtos }o--|| pessoal_saude_contratos : "contrato_id"
   pessoal_saude_regras_custeio }o--|| pessoal_saude_contratos : "contrato_id"
   pessoal_saude_regras_dependentes }o--|| pessoal_saude_contratos : "contrato_id"

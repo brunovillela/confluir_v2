@@ -2,7 +2,7 @@
 
 # Pessoal (RH da entidade)
 
-70 tabelas. Diagrama: [er/pessoal.md](../er/pessoal.md).
+71 tabelas. Diagrama: [er/pessoal.md](../er/pessoal.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -63,6 +63,7 @@
 | [pessoal_saude_beneficiarios](#pessoal_saude_beneficiarios) | identificação, trabalhista | Adesão ao plano de saúde: o titular (funcionário ativo, ou demitido ou aposentado que manteve o plano), um dependente dele ou um agregado, c… |
 | [pessoal_saude_contratos](#pessoal_saude_contratos) | identificação | Contrato de plano de saúde dos funcionários com uma operadora: tipo de contratação, mês de aniversário (reajuste anual), quando muda a faixa… |
 | [pessoal_saude_coparticipacoes](#pessoal_saude_coparticipacoes) | financeiro, **sensível: saúde** | Valor da coparticipação do plano de saúde cobrado no mês por titular; só o total, nunca o procedimento. |
+| [pessoal_saude_faturas](#pessoal_saude_faturas) | financeiro | Fatura da operadora do plano de saúde lida por IA, por contrato e mês, para conferir com o cálculo do sistema. Sem o arquivo e sem CPF. |
 | [pessoal_saude_produtos](#pessoal_saude_produtos) | — | Produto (plano) de um contrato de plano de saúde: nome, registro na ANS, acomodação e abrangência. |
 | [pessoal_saude_regras_custeio](#pessoal_saude_regras_custeio) | identificação | Regra de custeio do plano de saúde: quanto a entidade paga (percentual da mensalidade ou valor fixo, com teto) e a parte do funcionário na c… |
 | [pessoal_saude_regras_dependentes](#pessoal_saude_regras_dependentes) | — | Graus de dependente aceitos num contrato de plano de saúde e a idade-limite (e a de estudante). |
@@ -1621,6 +1622,36 @@ Valor da coparticipação do plano de saúde cobrado no mês por titular; só o 
 Checks: `pessoal_saude_coparticipacoes_competencia_check` `CHECK ((competencia ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'::text))`; `pessoal_saude_coparticipacoes_valor_check` `CHECK ((valor >= (0)::numeric))`
 
 Índices: `pessoal_saude_coparticipacoes_pkey`, `pessoal_saude_coparticipacoes_unica`
+
+## pessoal_saude_faturas
+
+Fatura da operadora do plano de saúde lida por IA, por contrato e mês, para conferir com o cálculo do sistema. Sem o arquivo e sem CPF.
+
+- **LGPD:** financeiro · titulares: funcionários, dependentes
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  |  |
+| `contrato_id` | uuid | não |  | → pessoal_saude_contratos (**cascade**) |  | Contrato de plano de saúde. |
+| `competencia` | text | não |  |  |  | Mês da fatura (AAAA-MM). |
+| `arquivo_nome` | text | sim |  |  |  | Nome do arquivo lido (o arquivo não é guardado). |
+| `total` | numeric(12,2) | sim |  |  |  | Total cobrado na fatura. |
+| `linhas` | jsonb | não | `'[]'::jsonb` |  | identificação, financeiro | Linhas da fatura: nome, carteirinha, mensalidade, coparticipação (só o valor), outros valores e o beneficiário casado. |
+| `conferida_em` | timestamp with time zone | sim |  |  |  | Quando a fatura foi marcada como conferida. |
+| `conferida_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem marcou como conferida. |
+| `observacao` | text | sim |  |  |  | Observação de quem conferiu. |
+| `criado_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem enviou a fatura. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | sim |  |  |  |  |
+
+Únicas: `UNIQUE (contrato_id, competencia)`
+
+Checks: `pessoal_saude_faturas_competencia_check` `CHECK ((competencia ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'::text))`; `pessoal_saude_faturas_linhas_check` `CHECK ((jsonb_typeof(linhas) = 'array'::text))`
+
+Índices: `pessoal_saude_faturas_emp_idx`, `pessoal_saude_faturas_pkey`, `pessoal_saude_faturas_unica`
 
 ## pessoal_saude_produtos
 

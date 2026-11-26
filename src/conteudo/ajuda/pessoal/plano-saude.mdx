@@ -85,6 +85,34 @@ para comparar com a fatura da operadora. Com coparticipação, a parte que não 
 descontada do funcionário entra na parte da entidade: a entidade mais os
 descontos dá as mensalidades mais a coparticipação, como na fatura.
 
+## A fatura da operadora
+
+Em **Fatura da operadora** (ou **Conferir com a fatura**, na conferência do
+mês), envie a fatura do mês: PDF, planilha, CSV ou foto, até 4 MB. A IA lê o
+valor de cada beneficiário (mensalidade, coparticipação e outros valores, como
+pró-rata e taxas) e o sistema casa cada linha com quem está no plano, pela
+carteirinha, pelo CPF ou pelo nome.
+
+A tela compara, beneficiário por beneficiário, o **calculado** com o
+**cobrado**:
+
+- **Cobrado sem estar no plano**: a operadora cobrou alguém que o sistema não
+  tem no mês (ou a linha não casou com ninguém);
+- **No plano, sem cobrança**: o sistema tem a pessoa, a fatura não;
+- **Valor diferente**: a mensalidade cobrada não é a da tabela e da faixa;
+- **Confere**.
+
+Em **Linhas da fatura**, a linha que não casou (ou casou errado) se casa à mão.
+Com coparticipação, **Lançar a coparticipação da fatura** grava o total de cada
+titular no mês, para o desconto. Explicadas as diferenças, **Marque como
+conferida**, com uma observação.
+
+<Aviso tipo="nota" titulo="O que fica guardado">
+  O arquivo da fatura não é guardado. Ficam o nome, a carteirinha e os valores
+  de cada linha e com quem ela casou. O CPF só serve para casar, e da
+  coparticipação só entra o valor: o procedimento nunca é lido.
+</Aviso>
+
 ## Avisos, folha e Meu perfil
 
 - **Caixa de entrada**: o item **Plano de saúde para conferir** conta os
