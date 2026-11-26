@@ -8,6 +8,7 @@ import { formatarData, formatarMoeda } from "@/lib/formato"
 import { cn } from "@/lib/utils"
 
 import { SituacaoBadge } from "../situacao-badge"
+import { AbrirSecaoPorAncora } from "./abrir-secao"
 import { BarraSelecao, MarcarDia, MarcarOrdem, SelecaoExtrato } from "./selecao-extrato"
 
 // O que pode ser pago (e ir para a remessa) a partir do extrato.
@@ -276,12 +277,15 @@ export function ExtratoOrdensView({
   const selecao = debitos !== null
   const conteudo = (
     <div className="grid gap-4">
+      <AbrirSecaoPorAncora />
       <Resumo resumo={extrato.resumo} />
 
       <Bloco
         selecao={selecao}
         ancora="futuros"
         titulo="Lançamentos futuros"
+        // Nasce retraído (26/11/2026); abre ao pedir todos ou pelos cartões do resumo.
+        aberto={urlMaisFuturos === null}
         icone={CalendarClock}
         dias={extrato.futuros}
         hoje={hoje}
