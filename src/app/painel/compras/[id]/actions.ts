@@ -19,6 +19,7 @@ import {
   adicionarProposta,
   buscarProcesso,
   cotacaoRapida,
+  fornecedoresQueCotaram,
   pedeJustificativaPropostaUnica,
   regraPropostaUnica,
   salvarJustificativaPropostaUnica,
@@ -271,7 +272,7 @@ export async function registrarCompraAction(
   if (!processo) return { erro: "Processo não encontrado." }
   if (processo.aquisicao_direta === false) {
     const total = processo.propostas.filter((p) => p.escolhida).reduce((s, p) => s + (p.valor_proposta ?? 0), 0)
-    const j = await lerJustificativa(formData, processo.propostas.length, total)
+    const j = await lerJustificativa(formData, fornecedoresQueCotaram(processo.propostas), total)
     if (j.erro) return { erro: j.erro }
     if (j.justificativa) {
       const r = await salvarJustificativaPropostaUnica(processoId, j.justificativa)
@@ -325,13 +326,10 @@ export async function cotacaoRapidaAction(
     })
   }
   if (propostas.length === 0) return { erro: "Registre ao menos uma proposta." }
-  if (new Set(propostas.map((p) => p.fornecedor_id)).size !== propostas.length) {
-    return { erro: "O mesmo fornecedor aparece em mais de uma proposta." }
-  }
   const escolhida = propostas.find((p) => p.escolhida)
   if (!escolhida) return { erro: "Marque qual proposta foi escolhida." }
 
-  const j = await lerJustificativa(formData, propostas.length, escolhida.valor)
+  const j = await lerJustificativa(formData, fornecedoresQueCotaram(propostas), escolhida.valor)
   if (j.erro) return { erro: j.erro }
 
   const enviados: string[] = []

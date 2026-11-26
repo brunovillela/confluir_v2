@@ -1514,7 +1514,16 @@ export async function regraPropostaUnica(): Promise<{ ativa: boolean; limite: nu
   }
 }
 
-/** Com uma só proposta e valor acima do limite, a compra pede justificativa. */
+/**
+ * Quantos fornecedores diferentes cotaram. O mesmo fornecedor pode mandar mais
+ * de uma proposta (versões, marcas, condições), mas para a regra da proposta
+ * única conta como uma só cotação. Proposta sem fornecedor conta à parte.
+ */
+export function fornecedoresQueCotaram(propostas: { fornecedor_id: string | null }[]): number {
+  return new Set(propostas.map((p, i) => p.fornecedor_id ?? `sem-${i}`)).size
+}
+
+/** Com um só fornecedor cotado e valor acima do limite, a compra pede justificativa. */
 export function pedeJustificativaPropostaUnica(
   regra: { ativa: boolean; limite: number },
   numPropostas: number,

@@ -564,20 +564,25 @@ async function verificarLinha(
           r("na", "Não é compra pelo setor de Aquisição.")
           break
         }
-        const { count } = await admin
+        // Conta fornecedores, não propostas: duas do mesmo fornecedor (versões,
+        // marcas) não são cotação.
+        const { data: props } = await admin
           .from("compras_propostas")
-          .select("id", { count: "exact", head: true })
+          .select("fornecedor_id")
           .eq("processo_compra_id", String(proc.id))
+        const count = (props ?? []).length
+        const fornecedores = new Set((props ?? []).map((x, i) => (x.fornecedor_id as string | null) ?? `sem-${i}`)).size
         const limite = n(p.valor) ?? 0
-        if ((count ?? 0) > 1) r("ok", `${count} propostas.`)
+        const unica = count > 1 ? `${count} propostas, todas do mesmo fornecedor,` : "Uma só proposta"
+        if (fornecedores > 1) r("ok", count > fornecedores ? `${count} propostas de ${fornecedores} fornecedores.` : `${count} propostas.`)
         else if (valor !== null && valor > limite) {
           const porque = t(proc.proposta_unica_justificativa)
           r(
             "falha",
-            `Uma só proposta para ${formatarMoeda(valor)} — aceito até ${formatarMoeda(limite)}.${porque ? ` Justificativa do comprador: ${porque}` : " Sem justificativa registrada."}`
+            `${unica} para ${formatarMoeda(valor)} — aceito até ${formatarMoeda(limite)}.${porque ? ` Justificativa do comprador: ${porque}` : " Sem justificativa registrada."}`
           )
         }
-        else r("ok", `Uma só proposta, dentro do limite de ${formatarMoeda(limite)}.`)
+        else r("ok", `${unica}, dentro do limite de ${formatarMoeda(limite)}.`)
         break
       }
       case "fracionamento": {

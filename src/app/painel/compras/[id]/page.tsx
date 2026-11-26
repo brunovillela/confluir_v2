@@ -23,6 +23,7 @@ import {
   empresasPorId,
   FORNECIMENTO_LEGADO,
   listarFornecedores,
+  fornecedoresQueCotaram,
   pedeJustificativaPropostaUnica,
   regraPropostaUnica,
   urlArquivoCompras,
@@ -863,7 +864,7 @@ export default async function ProcessoCompraPage({
                 resumo={`Serão criados ${escolhidas.length} fornecimento(s), total ${formatarMoeda(totalEscolhidas)}.`}
                 justificativaAcimaDe={
                   processo.aquisicao_direta === false &&
-                  pedeJustificativaPropostaUnica(regraUnica, processo.propostas.length, totalEscolhidas)
+                  pedeJustificativaPropostaUnica(regraUnica, fornecedoresQueCotaram(processo.propostas), totalEscolhidas)
                     ? regraUnica.limite
                     : null
                 }

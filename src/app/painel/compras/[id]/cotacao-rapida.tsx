@@ -46,11 +46,17 @@ export function CotacaoRapidaForm({
   const [proxima, setProxima] = useState(1)
   const [escolhida, setEscolhida] = useState("0")
   const [valores, setValores] = useState<Record<number, string>>({})
+  const [forns, setForns] = useState<Record<number, string | null>>({})
   const [erroArquivo, setErroArquivo] = useState<string | null>(null)
 
   const valorEscolhida = parseValorBR(valores[Number(escolhida)] ?? "") ?? 0
   const preenchidas = linhas.filter((i) => (valores[i] ?? "").trim()).length
-  const pedeJustificativa = regra.ativa && preenchidas <= 1 && valorEscolhida > regra.limite
+  // O mesmo fornecedor pode mandar mais de uma proposta, mas conta como uma cotação só.
+  const cotaram = new Set(
+    linhas.filter((i) => (valores[i] ?? "").trim()).map((i) => forns[i] ?? `linha-${i}`)
+  ).size
+  const repetido = preenchidas > cotaram
+  const pedeJustificativa = regra.ativa && cotaram <= 1 && valorEscolhida > regra.limite
 
   const envio = useEnvioFormulario(formAction, estado, {
     antes: (e) => {
@@ -134,7 +140,11 @@ export function CotacaoRapidaForm({
             <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_9rem_10rem]">
               <div className="grid gap-1.5">
                 <Label>Fornecedor *</Label>
-                <EmpresaCombobox empresas={fornecedores} name={`fornecedor_id_${id}`} />
+                <EmpresaCombobox
+                  empresas={fornecedores}
+                  name={`fornecedor_id_${id}`}
+                  onChange={(v) => setForns((f) => ({ ...f, [id]: v }))}
+                />
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor={`rap-valor-${id}`}>Valor *</Label>
@@ -206,14 +216,19 @@ export function CotacaoRapidaForm({
         </div>
       )}
 
-      {regra.ativa && !pedeJustificativa && preenchidas <= 1 && (
+      {repetido && (
+        <p className="text-muted-foreground text-xs">
+          Há mais de uma proposta do mesmo fornecedor. Pode registrar todas; para a cotação, cada fornecedor conta uma vez.
+        </p>
+      )}
+      {regra.ativa && !pedeJustificativa && cotaram <= 1 && (
         <p className="text-muted-foreground text-xs">
           Com uma só proposta acima de {moeda(regra.limite)}, a auditoria pede a justificativa e alerta quem autoriza.
         </p>
       )}
       {pedeJustificativa && (
         <div className="grid gap-1.5">
-          <Label htmlFor="rap-justificativa">Por que só uma proposta? *</Label>
+          <Label htmlFor="rap-justificativa">{repetido ? "Por que só um fornecedor?" : "Por que só uma proposta?"} *</Label>
           <Textarea
             id="rap-justificativa"
             name="justificativa_proposta_unica"
