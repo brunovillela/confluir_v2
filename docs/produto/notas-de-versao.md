@@ -6,6 +6,8 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 
 ## 26/11/2026 — Ordens: filtro por projeto com as ordens das compras
 
+- Financeiro → Ordens devolvidas (novo): todas as ordens devolvidas esperando correção, da mais antiga para a mais nova, com há quantos dias estão paradas, o motivo, quem devolveu e quem lançou. Paradas há mais de 30 dias ficam em destaque; cada uma se corrige (abre a compra ou a ordem) ou se cancela com motivo. Em Minhas solicitações, a devolvida parada há mais de 30 dias ganha o aviso.
+- Contratos sem valor: quando as parcelas repetem o mesmo valor, o sistema sugere — na página do contrato (Usar R$ …) e na Saúde dos contratos (Preencher todos, com a lista). Com o valor, a parcela nesse valor nasce autorizada pelo contrato, sem passar pela alçada.
 - Contratos: no filtro Vencidos, um quadro separa os contratos vencidos que ainda têm pagamento em aberto (Ver só esses — a linha mostra quantos) dos que só acabaram, que podem ser finalizados em lote: escolha há quanto tempo venceram (30, 90, 180 dias ou 1 ano), veja quantos são e finalize. Cada um pode ser reaberto.
 - Correções: o aviso de ordem devolvida não corta mais o "s" final do motivo; o NIT/PIS com pontos é aceito no RPA avulso.
 - Contratos: novo botão Finalizar contrato — para o contrato cumprido, rescindido ou substituído. Ele fica como Finalizado (com a data, quem finalizou e o motivo), sai de vigentes e vencidos e dos alertas, e entra no filtro Finalizados. As parcelas ainda não autorizadas que vencem depois podem ser excluídas junto; dá para reabrir se foi engano.
