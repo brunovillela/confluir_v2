@@ -540,10 +540,17 @@ async function verificarLinha(
         break
       }
       case "vencimento_passado": {
-        const tol = n(p.tolerancia) ?? 0
+        const tol = n(p.tolerancia) ?? 3
+        const pagaEm = t(linha.data_pagamento)?.slice(0, 10) ?? null
         if (!venc) r("na", "A ordem não tem vencimento.")
         // Dinheiro é pago no ato da compra: a data é a da compra, não atraso.
         else if (t(linha.forma_pagamento) === FORMA_PAGA_NO_ATO) r("na", "Dinheiro — pago no ato da compra.")
+        // Já paga (26/11/2026): na reavaliação de ordem paga e na regularização
+        // lançada depois do pagamento, o vencimento passado é o do pagamento
+        // feito, não atraso. A tolerância (padrão 3 dias) cobre a compra lançada
+        // logo depois de vencer — ~80 dos 183 alertas desde 01/10.
+        else if (pagaEm || t(linha.situacao) === "Paga")
+          r("na", `Já paga${pagaEm ? ` em ${formatarData(pagaEm)}` : ""} — lançada depois do pagamento.`)
         else if (venc < somarDias(hoje, -tol)) r("falha", `Vencimento ${formatarData(venc)} já passou.`)
         else r("ok", `Vence em ${formatarData(venc)}.`)
         break

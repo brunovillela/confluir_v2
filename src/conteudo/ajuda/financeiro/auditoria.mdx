@@ -146,8 +146,10 @@ ainda não foi personalizado.
   valor, em até *N* dias do vencimento. Na compra, também a ordem de outra
   compra com a **data da compra** em até *N* dias: assim a compra lançada dias
   depois, que ganha vencimento novo, ainda é comparada com a do mesmo dia.
-- **Vencimento já passado** — com tolerância em dias. Não se aplica a ordens em
-  **dinheiro**: são pagas no ato da compra, e o vencimento é a data da compra.
+- **Vencimento já passado** — com tolerância em dias (padrão 3: a compra lançada
+  logo depois de vencer não alerta). Não se aplica a ordens em **dinheiro** (pagas
+  no ato da compra, e o vencimento é a data da compra) nem à ordem **já paga** —
+  a regularização lançada depois do pagamento e a reavaliação de ordem paga.
 - **Vencimento distante demais** — vencimento mais de *N* dias à frente (padrão
   120), que costuma ser o ano digitado errado. Vem desligada (Aceitar) para
   contratos, custeio e locação, cujas parcelas nascem à frente de propósito.

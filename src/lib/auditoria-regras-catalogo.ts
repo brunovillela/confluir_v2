@@ -164,10 +164,11 @@ export const REGRAS_AUDITORIA: RegraCatalogo[] = [
     codigo: "vencimento_passado",
     titulo: "Vencimento já passado",
     pergunta: "Aceita criar ordem com vencimento anterior a hoje?",
-    explicacao: "Ordem que nasce vencida costuma significar multa, juros ou lançamento atrasado.",
+    explicacao:
+      "Ordem que nasce vencida costuma significar multa, juros ou lançamento atrasado. A ordem já paga (lançada depois do pagamento) não é avaliada; a tolerância aceita o vencimento de poucos dias atrás.",
     origens: TODAS,
     padrao: { "*": "alertar" },
-    parametros: [{ chave: "tolerancia", rotulo: "Tolerância (dias)", tipo: "dias", padrao: 0 }],
+    parametros: [{ chave: "tolerancia", rotulo: "Tolerância (dias)", tipo: "dias", padrao: 3 }],
   },
   {
     codigo: "vencimento_distante",
