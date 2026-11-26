@@ -373,57 +373,177 @@ export type MesContrato = {
   totais: { mensalidade: number; entidade: number; funcionario: number; coparticipacao: number; desconto: number }
 }
 
-/** A conferência do mês de cada contrato ativo (com as mudanças sobre o mês anterior). */
-export async function conferenciaDoMes(competencia: string): Promise<{ disponivel: boolean; contratos: MesContrato[] }> {
-  const { disponivel, contratos } = await listarContratosSaude()
-  if (!disponivel) return { disponivel, contratos: [] }
-  const { admin, emp } = await ctx()
+type Cops = { titular_id: unknown; competencia: unknown; valor: unknown }
+
+/** Calcula um contrato no mês e no anterior; `soTitular` restringe a um titular (Meu perfil). */
+function calcularContrato(
+  completo: ContratoCompleto,
+  competencia: string,
+  titulares: Map<string, Titular>,
+  cops: Cops[],
+  soTitular?: string
+): MesContrato {
+  const anterior = deslocarCompetencia(competencia, -1)
+  const copsDe = (comp: string) =>
+    new Map(
+      cops
+        .filter((x) => x.competencia === comp && (!soTitular || String(x.titular_id) === soTitular))
+        .map((x) => [String(x.titular_id), Number(x.valor)])
+    )
+  const base = {
+    faixaMuda: completo.contrato.faixaMuda,
+    beneficiarios: soTitular ? completo.beneficiarios.filter((b) => b.titularId === soTitular) : completo.beneficiarios,
+    titulares,
+    tabelas: completo.tabelas,
+    regras: completo.regras,
+    regrasDependentes: completo.regrasDependentes,
+  }
+  const grupos = calcularMes({ ...base, competencia, coparticipacoes: copsDe(competencia) })
+  const antes = calcularMes({ ...base, competencia: anterior, coparticipacoes: copsDe(anterior) })
+  const soma = (f: (g: GrupoTitular) => number) => Math.round(grupos.reduce((s, g) => s + f(g), 0) * 100) / 100
+  return {
+    contrato: completo.contrato,
+    grupos,
+    mudancas: mudancasEntreMeses(antes, grupos),
+    totais: {
+      mensalidade: soma((g) => g.mensalidade),
+      entidade: soma((g) => g.entidade),
+      funcionario: soma((g) => g.funcionario),
+      coparticipacao: soma((g) => g.coparticipacao),
+      desconto: soma((g) => g.desconto),
+    },
+  }
+}
+
+async function titularesDaArea(): Promise<Map<string, Titular>> {
   const area = await funcionariosDaArea()
-  const titulares = new Map<string, Titular>(
-    area.map((f) => [f.usuarioId, { id: f.usuarioId, nome: f.nome, cargo: f.cargo, departamento: f.departamento }])
-  )
-  const saida: MesContrato[] = []
-  for (const c of contratos.filter((x) => x.ativo)) {
+  return new Map(area.map((f) => [f.usuarioId, { id: f.usuarioId, nome: f.nome, cargo: f.cargo, departamento: f.departamento }]))
+}
+
+async function coparticipacoesDe(contratoId: string, competencias: string[], titularId?: string): Promise<Cops[]> {
+  const { admin, emp } = await ctx()
+  let q = admin
+    .from("pessoal_saude_coparticipacoes")
+    .select("titular_id, competencia, valor")
+    .eq("emp_proprietaria_id", emp)
+    .eq("contrato_id", contratoId)
+    .in("competencia", competencias)
+  if (titularId) q = q.eq("titular_id", titularId)
+  const { data } = await q
+  return (data ?? []) as Cops[]
+}
+
+/**
+ * A conferência de cada contrato ativo em cada competência pedida (com as
+ * mudanças sobre o mês anterior a cada uma). Lê cada contrato uma vez só.
+ */
+export async function conferenciaDosMeses(
+  competencias: string[]
+): Promise<{ disponivel: boolean; meses: Map<string, MesContrato[]> }> {
+  const meses = new Map<string, MesContrato[]>(competencias.map((c) => [c, []]))
+  const { disponivel, contratos } = await listarContratosSaude()
+  if (!disponivel) return { disponivel, meses }
+  const ativos = contratos.filter((x) => x.ativo)
+  if (!ativos.length) return { disponivel, meses }
+  const titulares = await titularesDaArea()
+  const todas = [...new Set(competencias.flatMap((c) => [c, deslocarCompetencia(c, -1)]))]
+  for (const c of ativos) {
     const completo = await obterContratoSaude(c.id)
     if (!completo) continue
     for (const b of completo.beneficiarios) {
       if (!titulares.has(b.titularId)) titulares.set(b.titularId, { id: b.titularId, nome: b.titularNome, cargo: null, departamento: null })
     }
-    const anterior = deslocarCompetencia(competencia, -1)
-    const { data: cops } = await admin
-      .from("pessoal_saude_coparticipacoes")
-      .select("titular_id, competencia, valor")
-      .eq("emp_proprietaria_id", emp)
-      .eq("contrato_id", c.id)
-      .in("competencia", [competencia, anterior])
-    const copsDe = (comp: string) =>
-      new Map(((cops ?? []) as Linha[]).filter((x) => x.competencia === comp).map((x) => [String(x.titular_id), Number(x.valor)]))
-    const base = {
-      faixaMuda: completo.contrato.faixaMuda,
-      beneficiarios: completo.beneficiarios,
-      titulares,
-      tabelas: completo.tabelas,
-      regras: completo.regras,
-      regrasDependentes: completo.regrasDependentes,
-    }
-    const grupos = calcularMes({ ...base, competencia, coparticipacoes: copsDe(competencia) })
-    const antes = calcularMes({ ...base, competencia: anterior, coparticipacoes: copsDe(anterior) })
-    const soma = (f: (g: GrupoTitular) => number) => Math.round(grupos.reduce((s, g) => s + f(g), 0) * 100) / 100
-    saida.push({
-      contrato: completo.contrato,
-      grupos,
-      mudancas: mudancasEntreMeses(antes, grupos),
-      totais: {
-        mensalidade: soma((g) => g.mensalidade),
-        entidade: soma((g) => g.entidade),
-        funcionario: soma((g) => g.funcionario),
-        coparticipacao: soma((g) => g.coparticipacao),
-        desconto: soma((g) => g.desconto),
-      },
-    })
+    const cops = await coparticipacoesDe(c.id, todas)
+    for (const comp of competencias) meses.get(comp)!.push(calcularContrato(completo, comp, titulares, cops))
   }
-  return { disponivel: true, contratos: saida }
+  return { disponivel: true, meses }
 }
+
+/** A conferência do mês de cada contrato ativo (com as mudanças sobre o mês anterior). */
+export async function conferenciaDoMes(competencia: string): Promise<{ disponivel: boolean; contratos: MesContrato[] }> {
+  const { disponivel, meses } = await conferenciaDosMeses([competencia])
+  return { disponivel, contratos: meses.get(competencia) ?? [] }
+}
+
+// ── Avisos (caixa de entrada) ───────────────────────────────────────────────
+
+export type AvisosPlanoSaude = {
+  /** Beneficiários com alerta no mês (perda do direito, comprovante vencido, falta de dado, tabela ou regra). */
+  comAlerta: number
+  /** Beneficiários que mudam de faixa no mês seguinte. */
+  mudamDeFaixa: number
+  total: number
+  /** Para onde levar: o mês com alerta ou, sem alerta, o seguinte (com a mudança de faixa). */
+  competencia: string
+}
+
+/** O que pede atenção no plano de saúde: os alertas do mês e as mudanças de faixa do seguinte. */
+export async function avisosPlanoSaude(hoje: string): Promise<AvisosPlanoSaude | null> {
+  const atual = hoje.slice(0, 7)
+  const proximo = deslocarCompetencia(atual, 1)
+  const { disponivel, meses } = await conferenciaDosMeses([atual, proximo])
+  if (!disponivel) return null
+  const doMes = meses.get(atual) ?? []
+  const comAlerta = doMes.reduce((s, c) => s + c.grupos.reduce((t, g) => t + g.linhas.filter((l) => l.alertas.length).length, 0), 0)
+  const mudamDeFaixa = (meses.get(proximo) ?? []).reduce(
+    (s, c) => s + [...c.mudancas.values()].flat().filter((m) => m.texto.startsWith("mudou de faixa")).length,
+    0
+  )
+  return { comAlerta, mudamDeFaixa, total: comAlerta + mudamDeFaixa, competencia: comAlerta ? atual : proximo }
+}
+
+// ── Meu perfil ──────────────────────────────────────────────────────────────
+
+/** A pessoa é titular de algum plano hoje? */
+export async function temPlanoSaude(usuarioId: string, hoje: string): Promise<boolean> {
+  const { admin, emp } = await ctx()
+  const { count, error } = await admin
+    .from("pessoal_saude_beneficiarios")
+    .select("id", { count: "exact", head: true })
+    .eq("emp_proprietaria_id", emp)
+    .eq("titular_id", usuarioId)
+    .lte("inclusao", hoje)
+    .or(`exclusao.is.null,exclusao.gte.${hoje}`)
+  if (error) return false
+  return (count ?? 0) > 0
+}
+
+export type MeuPlano = { atual: MesContrato; proximo: MesContrato }
+
+/** O plano de saúde da própria pessoa: este mês e o seguinte, só o grupo dela. */
+export async function meuPlanoDeSaude(usuarioId: string, hoje: string): Promise<MeuPlano[]> {
+  const { admin, emp } = await ctx()
+  const { data, error } = await admin
+    .from("pessoal_saude_beneficiarios")
+    .select("produto_id")
+    .eq("emp_proprietaria_id", emp)
+    .eq("titular_id", usuarioId)
+  if (error || !data?.length) return []
+  const produtos = [...new Set(data.map((d) => String(d.produto_id)))]
+  const { data: ps } = await admin.from("pessoal_saude_produtos").select("contrato_id").eq("emp_proprietaria_id", emp).in("id", produtos)
+  const contratos = [...new Set((ps ?? []).map((p) => String(p.contrato_id)))]
+  const atual = hoje.slice(0, 7)
+  const proximo = deslocarCompetencia(atual, 1)
+  const area = (await funcionariosDaArea()).find((f) => f.usuarioId === usuarioId)
+  const saida: MeuPlano[] = []
+  for (const id of contratos) {
+    const completo = await obterContratoSaude(id)
+    if (!completo || !completo.contrato.ativo) continue
+    const meu = completo.beneficiarios.find((b) => b.titularId === usuarioId)
+    const titulares = new Map<string, Titular>([
+      [
+        usuarioId,
+        { id: usuarioId, nome: area?.nome ?? meu?.titularNome ?? "", cargo: area?.cargo ?? null, departamento: area?.departamento ?? null },
+      ],
+    ])
+    const cops = await coparticipacoesDe(id, [deslocarCompetencia(atual, -1), atual, proximo], usuarioId)
+    const a = calcularContrato(completo, atual, titulares, cops, usuarioId)
+    const p = calcularContrato(completo, proximo, titulares, cops, usuarioId)
+    if (a.grupos.length || p.grupos.length) saida.push({ atual: a, proximo: p })
+  }
+  return saida
+}
+
 
 // ── Gravação ────────────────────────────────────────────────────────────────
 

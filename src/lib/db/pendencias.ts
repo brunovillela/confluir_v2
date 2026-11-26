@@ -10,6 +10,7 @@ import { contagemPendenciasDesconto, exclusoesNaoCumpridas } from "@/lib/db/desc
 import { contagemDiasParaConferir } from "@/lib/db/ponto-marcacoes"
 import { funcionariosSemJornada } from "@/lib/db/jornada-pendentes"
 import { avisosDeUsoDoMes } from "@/lib/db/uso-fora-expediente"
+import { avisosPlanoSaude } from "@/lib/db/plano-saude"
 import { LIMITE_AVISO_MES_MIN } from "@/lib/uso-fora-expediente"
 import { DIAS_SILENCIO_COBRANCA, empresasParaCobrar, relacoesDoRhALancar } from "@/lib/db/repasse"
 import { SITUACAO_EM_AUTORIZACAO } from "@/lib/db/ordens-ciclo"
@@ -270,6 +271,30 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
       },
     }
     fontes.push(usoFora)
+    // Plano de saúde (25/11): alertas da conferência do mês (perda do direito
+    // pela idade, comprovante de estudante vencido, falta de dado, tabela ou
+    // regra) e quem muda de faixa etária no mês seguinte.
+    const planoSaude: Fonte = {
+      chave: "plano_saude",
+      titulo: "Plano de saúde para conferir",
+      descricao: "Alertas do mês e mudanças de faixa etária no mês seguinte",
+      href: "/painel/pessoal/plano-saude/mes",
+      tabela: "pessoal_saude_beneficiarios",
+      montar: (q) => head(q),
+      contarCom: async () => {
+        const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date())
+        const a = await avisosPlanoSaude(hoje).catch(() => null)
+        if (!a) return null
+        const partes = [
+          a.comAlerta ? `${a.comAlerta} beneficiário${a.comAlerta === 1 ? "" : "s"} com alerta neste mês` : "",
+          a.mudamDeFaixa ? `${a.mudamDeFaixa} muda${a.mudamDeFaixa === 1 ? "" : "m"} de faixa no mês que vem` : "",
+        ].filter(Boolean)
+        if (partes.length) planoSaude.descricao = partes.join(" · ")
+        planoSaude.href = `/painel/pessoal/plano-saude/mes?mes=${a.competencia}`
+        return a.total
+      },
+    }
+    fontes.push(planoSaude)
   }
   if (pode("pessoal_gestao", ["pessoal_faltas_justificadas"])) {
     fontes.push({

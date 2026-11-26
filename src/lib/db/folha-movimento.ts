@@ -15,6 +15,8 @@ import {
   type TipoCorrigivel,
 } from "@/lib/movimento-alteracoes"
 import { nascimentoDe, type NascimentoUsuario } from "@/lib/nascimento"
+import { conferenciaDoMes } from "@/lib/db/plano-saude"
+import { moeda as moedaBR } from "@/lib/plano-saude"
 import { tenantAtual } from "@/lib/tenant"
 
 /**
@@ -51,6 +53,7 @@ export const SECOES = [
   { id: "faltas", titulo: "Faltas", evento: "S-1200" },
   { id: "variaveis", titulo: "Variáveis da remuneração", evento: "S-1200" },
   { id: "descontos", titulo: "Descontos", evento: "S-1200" },
+  { id: "plano_saude", titulo: "Plano de saúde", evento: "S-1200" },
   { id: "pendencias", titulo: "Pendências do cadastro", evento: "—" },
 ] as const
 
@@ -953,6 +956,46 @@ export async function calcularMovimento(
       retroativo: false,
       origem: `/painel/veiculos/infracoes/${i.id}`,
     })
+  }
+
+  // 9b. Plano de saúde (25/11): o desconto do mês de cada funcionário titular
+  // (a parte dele nas mensalidades + a coparticipação), com o que mudou desde
+  // o mês anterior (faixa etária, tabela nova, entrada e saída). Repete todo
+  // mês, como o valor a descontar; quem manteve o plano depois de sair
+  // (arts. 30 e 31) paga direto e fica de fora.
+  const plano = await conferenciaDoMes(competencia).catch(() => null)
+  for (const c of plano?.contratos ?? []) {
+    for (const g of c.grupos) {
+      const f = g.titular.id
+      const p = pessoa.get(f)
+      const titular = g.linhas.find((l) => l.beneficiario.tipo === "titular")?.beneficiario
+      if (!p || !funcionarios.has(f) || (titular && titular.condicao !== "ativo")) continue
+      const mudou = (c.mudancas.get(f) ?? []).map((m) => `${m.nome}: ${m.texto}`)
+      if (!g.desconto && !mudou.length) continue
+      const dependentes = g.linhas.filter((l) => l.beneficiario.tipo !== "titular").length
+      // Quem perdeu o direito ainda está no plano: avisa, para não descontar sem conferir.
+      const atencao = g.linhas.flatMap((l) => l.alertas.filter((x) => x.startsWith("Perdeu o direito")).map((x) => `${l.beneficiario.nome}: ${x.replace(/\.$/, "").toLowerCase()}`))
+      const quem = `${titular ? "titular" : "sem o titular"}${dependentes ? ` + ${dependentes} ${dependentes === 1 ? "dependente ou agregado" : "dependentes ou agregados"}` : ""}`
+      const partes = [
+        `mensalidades ${moedaBR(g.funcionario)}`,
+        g.descontoCopart ? `coparticipação ${moedaBR(g.descontoCopart)}` : "",
+      ].filter(Boolean)
+      linhas.push({
+        chave: `saude:${competencia}:${c.contrato.id}:${f}`,
+        secao: "plano_saude",
+        funcionarioId: f,
+        nome: p.nome,
+        cpf: p.cpf,
+        matricula: p.matricula,
+        descricao: `${c.contrato.nome} (${quem}): desconto de ${partes.join(" + ")}${mudou.length ? `. Mudou: ${mudou.join("; ")}` : ""}${atencao.length ? `. Atenção: ${atencao.join("; ")}` : ""}`,
+        inicio: inicioMes,
+        fim: null,
+        quantidade: null,
+        valor: g.desconto || null,
+        retroativo: false,
+        origem: `/painel/pessoal/plano-saude/mes?mes=${competencia}`,
+      })
+    }
   }
 
   // 10. Pendências do cadastro dos ativos (informativas, repetem enquanto houver).

@@ -13,6 +13,7 @@ import {
   GraduationCap,
   HandCoins,
   Handshake,
+  HeartHandshake,
   HeartPulse,
   Inbox,
   ListTodo,
@@ -46,6 +47,7 @@ import { usuarioTemCaixa } from "@/lib/db/caixa"
 import { usuarioTemCartao } from "@/lib/db/compras-pagamento"
 import { contarRemessasDiaria } from "@/lib/db/diarias-historico"
 import { temHistoricoDeVeiculo } from "@/lib/db/veiculos-condutor"
+import { temPlanoSaude } from "@/lib/db/plano-saude"
 import { resumoMinhasTarefas } from "@/lib/db/nucleo"
 import { areaDoDiretor, diretoriaDoUsuario } from "@/lib/db/perfil-diretor"
 import {
@@ -215,6 +217,13 @@ const MEUS_VEICULOS: AreaPerfil = {
   icone: CarFront,
 }
 
+const MEU_PLANO_SAUDE: AreaPerfil = {
+  titulo: "Meu plano de saúde",
+  descricao: "Quem está no plano, a mensalidade de cada um e o desconto no contracheque",
+  href: "/painel/perfil/plano-saude",
+  icone: HeartHandshake,
+}
+
 const MEU_CARTAO: AreaPerfil = {
   titulo: "Meu cartão",
   descricao: "Compras e faturas do cartão da entidade que está com você",
@@ -236,7 +245,7 @@ export default async function PerfilPage({
 }) {
   const { usuario, permissoes } = await requireSessaoPainel()
   const { area: avisoArea } = await searchParams
-  const [perfil, telefones, enderecos, temCaixa, temCartao, remessasAnteriores, temVeiculos, minhasTarefas] = await Promise.all([
+  const [perfil, telefones, enderecos, temCaixa, temCartao, remessasAnteriores, temVeiculos, minhasTarefas, temPlano] = await Promise.all([
     obterPerfil(usuario.id),
     listarTelefones(usuario.id),
     listarEnderecos(usuario.id),
@@ -245,6 +254,7 @@ export default async function PerfilPage({
     contarRemessasDiaria(usuario.id).catch(() => 0),
     temHistoricoDeVeiculo(usuario.id).catch(() => false),
     resumoMinhasTarefas(String(usuario.id)).catch(() => ({ abertas: 0, atrasadas: 0 })),
+    temPlanoSaude(String(usuario.id), hojeSP()).catch(() => false),
   ])
   if (!perfil) return null
 
@@ -611,7 +621,7 @@ export default async function PerfilPage({
                   {g.titulo}
                 </h3>
                 <div className={GRADE_AREAS}>
-                  {g.itens.map((r) => (
+                  {[...g.itens, ...(g.titulo === "Saúde e segurança" && temPlano ? [MEU_PLANO_SAUDE] : [])].map((r) => (
                     <CartaoArea
                       key={r.href}
                       titulo={r.titulo}
@@ -665,6 +675,14 @@ export default async function PerfilPage({
               descricao={MEUS_VEICULOS.descricao}
               href={MEUS_VEICULOS.href}
               icone={MEUS_VEICULOS.icone}
+            />
+          )}
+          {temPlano && !perfil.ehFuncionario && (
+            <CartaoArea
+              titulo={MEU_PLANO_SAUDE.titulo}
+              descricao={MEU_PLANO_SAUDE.descricao}
+              href={MEU_PLANO_SAUDE.href}
+              icone={MEU_PLANO_SAUDE.icone}
             />
           )}
           {temCaixa && (
