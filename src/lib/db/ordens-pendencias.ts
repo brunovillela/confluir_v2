@@ -13,7 +13,6 @@ import { tenantAtual } from "@/lib/tenant"
  */
 
 export const ABERTAS_PAGAVEIS = ["A pagar", "Processando"]
-export const DIAS_PROCESSANDO_PARADO = 5
 
 function somarDias(iso: string, dias: number): string {
   const d = new Date(`${iso}T12:00:00Z`)
@@ -45,34 +44,13 @@ export async function idsDuplicadasAPagar(): Promise<string[]> {
   return [...parecidas.keys()]
 }
 
-/** Processando há DIAS_PROCESSANDO_PARADO dias ou mais (última troca na trilha). */
-export async function idsProcessandoParado(): Promise<string[]> {
-  const admin = await createAdminClient()
-  const emp = await tenantAtual()
-  const { data } = await admin
-    .from("ordens_pagamento")
-    .select("id")
-    .eq("emp_proprietaria_id", emp)
-    .not("excluido", "is", true)
-    .eq("situacao", "Processando")
-    .limit(1000)
-  const ids = (data ?? []).map((o) => String(o.id))
-  const limite = somarDias(hojeSP(), -DIAS_PROCESSANDO_PARADO)
-  const parados: string[] = []
-  for (let i = 0; i < ids.length; i += 200) {
-    const { data: evs } = await admin
-      .from("ordens_pagamento_eventos")
-      .select("ordem_id, created_at")
-      .in("ordem_id", ids.slice(i, i + 200))
-      .eq("tipo", "situacao_alterada")
-      .eq("dados->>para", "Processando")
-      .order("created_at", { ascending: false })
-    const ultima = new Map<string, string>()
-    for (const e of evs ?? []) if (!ultima.has(String(e.ordem_id))) ultima.set(String(e.ordem_id), String(e.created_at).slice(0, 10))
-    for (const [id, d] of ultima) if (d <= limite) parados.push(id)
-  }
-  return parados
-}
+/*
+ * PROCESSANDO É AGENDADO (26/11/2026). "Processando há 5 dias" acusava como
+ * parado o boleto agendado no banco: as 69 ordens em Processando tinham
+ * vencimento futuro. Processando só pede ação depois do vencimento (o débito
+ * saiu e o pagamento não foi registrado) — a fila "processando_parado" conta
+ * isso pela própria data (ver filasDoFinanceiro e a lista de ordens).
+ */
 
 export const DIAS_AGUARDANDO_PARADO = 15
 

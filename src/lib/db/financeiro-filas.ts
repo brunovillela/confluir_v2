@@ -5,10 +5,8 @@ import { hojeSP } from "@/lib/db/comum"
 import {
   ABERTAS_PAGAVEIS,
   DIAS_AGUARDANDO_PARADO,
-  DIAS_PROCESSANDO_PARADO,
   idsAguardandoParado,
   idsDuplicadasAPagar,
-  idsProcessandoParado,
 } from "@/lib/db/ordens-pendencias"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -49,9 +47,11 @@ export async function filasDoFinanceiro({ veAvaliacoes }: { veAvaliacoes: boolea
   const ordens = () => admin.from("ordens_pagamento").select("id", { count: "exact", head: true }).eq("emp_proprietaria_id", emp).not("excluido", "is", true)
   const n = (r: { count: number | null }) => r.count ?? 0
 
-  const [venceHoje, vencidas, aguardandoInfo, emAutorizacao, semComprovante, extrato, estornos, parados, duplicadas, devolucoes, devolucoesParadas, aguardandoParados] = await Promise.all([
+  const [venceHoje, vencidas, aguardandoInfo, emAutorizacao, semComprovante, extrato, estornos, parados, agendados, duplicadas, devolucoes, devolucoesParadas, aguardandoParados] = await Promise.all([
     ordens().in("situacao", ABERTAS_PAGAVEIS).eq("vencimento", hoje),
-    ordens().in("situacao", ABERTAS_PAGAVEIS).lt("vencimento", hoje),
+    // Vencidas = A pagar com vencimento passado (risco de atraso). Processando
+    // vencido é outra coisa: o débito saiu e falta registrar (fila própria).
+    ordens().eq("situacao", "A pagar").lt("vencimento", hoje),
     ordens().eq("situacao", "Aguardando informações"),
     veAvaliacoes ? ordens().eq("situacao", "Em autorização") : Promise.resolve({ count: 0 }),
     ordens()
@@ -61,7 +61,9 @@ export async function filasDoFinanceiro({ veAvaliacoes }: { veAvaliacoes: boolea
       .in("forma_pagamento", FORMAS_COM_COMPROVANTE),
     admin.from("banco_lancamentos").select("id", { count: "exact", head: true }).eq("emp_proprietaria_id", emp).eq("situacao", "pendente"),
     admin.from("ordens_pagamento_estornos").select("id", { count: "exact", head: true }).eq("emp_proprietaria_id", emp).is("resolvido_em", null),
-    idsProcessandoParado().catch(() => []),
+    ordens().eq("situacao", "Processando").lt("vencimento", hoje),
+    // Processando com vencimento hoje ou adiante: agendado no banco — só informa.
+    ordens().eq("situacao", "Processando").gte("vencimento", hoje),
     idsDuplicadasAPagar().catch(() => []),
     // Compras canceladas pelo vendedor com o dinheiro ainda por voltar.
     admin
@@ -88,13 +90,14 @@ export async function filasDoFinanceiro({ veAvaliacoes }: { veAvaliacoes: boolea
     { codigo: "hoje", rotulo: "vencem hoje", quantidade: n(venceHoje), href: lista({ pendencia: "vence_hoje" }), urgente: true },
     { codigo: "duplicadas", rotulo: "possíveis duplicadas a pagar", quantidade: duplicadas.length, href: lista({ pendencia: "duplicadas" }), urgente: true },
     { codigo: "estornos", rotulo: "estornos para corrigir", quantidade: n(estornos), href: "/painel/financeiro/estornos?situacao=pendentes", urgente: true },
-    { codigo: "processando", rotulo: `Processando há ${DIAS_PROCESSANDO_PARADO} dias ou mais`, quantidade: parados.length, href: lista({ pendencia: "processando_parado" }), urgente: true },
+    { codigo: "processando", rotulo: "Processando com vencimento passado — registrar o pagamento", quantidade: n(parados), href: lista({ pendencia: "processando_parado" }), urgente: true },
     { codigo: "autorizacao", rotulo: "em autorização", quantidade: n(emAutorizacao), href: lista({ situacao: "Em autorização" }), urgente: false },
     { codigo: "informacoes_paradas", rotulo: `aguardando informações há ${DIAS_AGUARDANDO_PARADO} dias ou mais`, quantidade: aguardandoParados.length, href: `${ORDENS}/devolvidas`, urgente: true },
     { codigo: "informacoes", rotulo: "aguardando informações", quantidade: Math.max(0, n(aguardandoInfo) - aguardandoParados.length), href: lista({ situacao: "Aguardando informações" }), urgente: false },
     { codigo: "comprovante", rotulo: `pagas sem comprovante (${DIAS_COMPROVANTE} dias)`, quantidade: n(semComprovante), href: `${ORDENS}/comprovantes?dias=${DIAS_COMPROVANTE}`, urgente: false },
     { codigo: "devolucoes_paradas", rotulo: `devoluções de compras canceladas paradas há ${DIAS_COBRAR_DEVOLUCAO} dias — cobrar o fornecedor`, quantidade: nParadas, href: "/painel/financeiro/conciliacao?situacao=pendente#devolucoes", urgente: true },
     { codigo: "devolucoes", rotulo: "devoluções de compras canceladas a receber", quantidade: devolucoes.error ? 0 : Math.max(0, n(devolucoes) - nParadas), href: "/painel/financeiro/conciliacao?situacao=pendente#devolucoes", urgente: false },
+    { codigo: "agendados", rotulo: "agendados (Processando) até o vencimento", quantidade: n(agendados), href: lista({ situacao: "Processando" }), urgente: false },
     { codigo: "extrato", rotulo: "lançamentos do extrato a conciliar", quantidade: n(extrato), href: "/painel/financeiro/conciliacao?situacao=pendente", urgente: false },
   ]
   return filas.filter((f) => f.quantidade > 0)

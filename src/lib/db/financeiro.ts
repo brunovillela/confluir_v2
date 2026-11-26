@@ -9,7 +9,7 @@ import { descreverParecidas, ordensParecidas, type OrdemParecida } from "@/lib/d
 import { rotuloCentroCusto } from "@/lib/centros-custo-rotulo"
 import { idsDaBusca, type IdsDaBusca } from "@/lib/db/ordens-busca"
 import { semAcento } from "@/lib/texto"
-import { ABERTAS_PAGAVEIS, idsAguardandoParado, idsDuplicadasAPagar, idsProcessandoParado, idsSemCentroComRateio } from "@/lib/db/ordens-pendencias"
+import { ABERTAS_PAGAVEIS, idsAguardandoParado, idsDuplicadasAPagar, idsSemCentroComRateio } from "@/lib/db/ordens-pendencias"
 
 export const ORDENS_POR_PAGINA = 50
 
@@ -142,7 +142,7 @@ export const PENDENCIAS_ORDENS = {
   vencidas: "A pagar vencidas",
   vence_hoje: "Vencem hoje",
   duplicadas: "Possíveis duplicadas a pagar",
-  processando_parado: "Processando há 5 dias ou mais",
+  processando_parado: "Processando com vencimento passado",
   aguardando_parado: "Aguardando informações há 15 dias ou mais",
   sem_comprovante: "Pagas por Pix ou TED sem comprovante",
   sem_centro: "Pagas sem centro de custo",
@@ -157,7 +157,6 @@ type IdsPendencia = { incluir?: string[]; excluir?: string[] }
 
 async function idsDaPendencia(pendencia: FiltrosOrdens["pendencia"]): Promise<IdsPendencia> {
   if (pendencia === "duplicadas") return { incluir: await idsDuplicadasAPagar() }
-  if (pendencia === "processando_parado") return { incluir: await idsProcessandoParado() }
   if (pendencia === "aguardando_parado") return { incluir: await idsAguardandoParado() }
   if (pendencia === "sem_centro") return { excluir: await idsSemCentroComRateio().catch(() => []) }
   return {}
@@ -260,7 +259,8 @@ function aplicarFiltrosOrdens<T>(
   if (projeto) q = q.eq("projeto_id", projeto)
   if (formaPagamento) q = q.eq("forma_pagamento", formaPagamento)
   const hoje = hojeSP()
-  if (pendencia === "vencidas") q = q.in("situacao", ABERTAS_PAGAVEIS).lt("vencimento", hoje)
+  if (pendencia === "vencidas") q = q.eq("situacao", "A pagar").lt("vencimento", hoje)
+  if (pendencia === "processando_parado") q = q.eq("situacao", "Processando").lt("vencimento", hoje)
   if (pendencia === "vence_hoje") q = q.in("situacao", ABERTAS_PAGAVEIS).eq("vencimento", hoje)
   if (pendencia === "sem_comprovante")
     q = q.eq("situacao", "Paga").is("arquivo_pagamento", null).in("forma_pagamento", FORMAS_COM_COMPROVANTE)
