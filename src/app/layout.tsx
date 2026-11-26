@@ -3,6 +3,7 @@ import { Suspense } from "react"
 import { Geist_Mono, Poppins } from "next/font/google"
 
 import { ProgressoNavegacao } from "@/components/layout/progresso-navegacao"
+import { ReducaoDeArquivos } from "@/components/layout/reducao-arquivos"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ConfirmacaoHost } from "@/components/ui/confirmacao"
 import { Toaster } from "@/components/ui/sonner"
@@ -60,6 +61,8 @@ export default function RootLayout({
           </Suspense>
           {children}
           <Toaster richColors />
+          {/* Reduz fotos grandes de qualquer campo de arquivo antes do envio. */}
+          <ReducaoDeArquivos />
           {/* Um diálogo só para todas as confirmações (components/ui/confirmacao). */}
           <ConfirmacaoHost />
         </ThemeProvider>

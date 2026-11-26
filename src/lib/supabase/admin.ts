@@ -9,6 +9,7 @@ import {
 
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/env"
 import { usuarioIdAtual } from "@/lib/sessao-atual"
+import { reduzirParaArmazenar } from "@/lib/reducao-arquivo"
 import { conferirArquivo } from "@/lib/uploads"
 import { escrevePeloTenant } from "@/lib/supabase/tabelas-tenant"
 import { tenantAtual } from "@/lib/tenant"
@@ -55,6 +56,11 @@ function jwtDoTenant(tenantId: string): string {
  * recusa conteúdo ativo (HTML, SVG, executável) e grava o contentType
  * DETECTADO, não o que o navegador declarou. Um ponto só cobre os 46 uploads.
  * `update()` recebe o mesmo tratamento; os demais métodos passam direto.
+ *
+ * Redução (26/11/2026): depois da conferência, foto e PDF sem assinatura são
+ * reduzidos com a menor perda possível antes de ir ao bucket
+ * (lib/reducao-arquivo.ts). Documento com assinatura digital, PDF gerado pelo
+ * sistema e caminhos de assinados vão intactos.
  */
 function storageConferido(storage: SupabaseClient["storage"]): SupabaseClient["storage"] {
   return new Proxy(storage, {
@@ -75,7 +81,8 @@ function storageConferido(storage: SupabaseClient["storage"]): SupabaseClient["s
                 })
                 if (!r.ok) return { data: null, error: { message: r.erro, name: "ArquivoRecusado" } }
                 const finais = r.contentType ? { ...(opcoes ?? {}), contentType: r.contentType } : opcoes
-                return original.call(bAlvo, caminho, corpo, finais)
+                const reducao = await reduzirParaArmazenar(corpo, { tipo: r.contentType, caminho })
+                return original.call(bAlvo, caminho, reducao.corpo, finais)
               }
             }
             const v = Reflect.get(bAlvo, bProp)

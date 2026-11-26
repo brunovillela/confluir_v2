@@ -97,6 +97,7 @@ export function FotoPerfil({
             ref={entrada}
             name="foto"
             type="file"
+            data-manter-original
             accept="image/jpeg,image/png,image/webp"
             onChange={async (e) => {
               const original = e.target.files?.[0]

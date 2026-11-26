@@ -760,6 +760,7 @@ export function SlideForm({
               id={`imagem-${sufixo}`}
               name="imagem"
               type="file"
+              data-manter-original
               accept="image/jpeg,image/png,image/webp,image/gif"
               onChange={async (e) => {
                 const original = e.target.files?.[0]
