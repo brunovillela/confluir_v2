@@ -6,6 +6,7 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 
 ## 26/11/2026 — Ordens: filtro por projeto com as ordens das compras
 
+- Aquisição: a nova compra ganhou o campo Finalidade (para quê), obrigatório — ele entra na descrição da ordem e era o que a auditoria mais cobrava. Na compra vinculada a um projeto, a finalidade é opcional: o projeto já diz para quê, e a auditoria não a cobra.
 - Ordens devolvidas de qualquer origem: quem lançou um reembolso, uma diária ou um custeio devolvido agora é avisado e lembrado toda semana, como já era nas compras. Na caixa de entrada, o item Ordens devolvidas para você abre Minhas ordens devolvidas, com o motivo e o botão Abrir a origem, onde se corrige.
 - Contratos: as ordens do sistema anterior com o valor que o contrato repete passaram a ser parcelas e entram na numeração (Parcela 1, 2, 3…); as demais seguem em Do sistema anterior.
 - Financeiro: Centros de custo voltou para os atalhos principais do painel (estava recolhido em Mais ferramentas).
