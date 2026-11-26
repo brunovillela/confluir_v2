@@ -1,6 +1,6 @@
 import "server-only"
 
-import { alcadaDoUsuario, avaliarOrdemCompra, listarOrdensParaAvaliacao } from "@/lib/db/compras"
+import { alcadaDoUsuario, avaliarOrdemCompra, listarOrdensParaAvaliacao, permissoesEfetivasDoUsuario } from "@/lib/db/compras"
 import { permissoesPorUsuario, type UsuarioTelegram } from "@/lib/db/telegram"
 import { formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
@@ -30,23 +30,24 @@ function linhaOrdem(o: { codigo: string | null; tipo: string | null; favorecidoN
   return `<b>${formatarMoeda(o.valor_inicial_cobranca ?? 0)}</b>${partes ? ` — ${partes}` : ""}\n${(o.produto ?? o.descricao ?? "").slice(0, 140)}`
 }
 
-async function contexto(u: UsuarioTelegram): Promise<{ alcada: number; erro?: string }> {
+async function contexto(u: UsuarioTelegram): Promise<{ alcada: number; permissoes?: Record<string, unknown>; erro?: string }> {
   if (u.emp && u.emp !== (await tenantAtual())) return { alcada: 0, erro: "Para aprovar pelo Telegram, use o endereço da sua entidade no painel (Aprovar)." }
   const p = (await permissoesPorUsuario(u.id)) ?? {}
   if (!podeAcessar(p, "aquisicoes_avaliacoes", ["financeiro_pagamento"])) return { alcada: 0, erro: "Sua conta não avalia ordens de pagamento." }
   const alcada = alcadaDoUsuario(p)
   if (alcada <= 0) return { alcada: 0, erro: "Sua conta não tem alçada de aprovação." }
-  return { alcada }
+  // A permissão específica (custeio, contrato) pode vir de um perfil: lê as efetivas.
+  return { alcada, permissoes: await permissoesEfetivasDoUsuario(u.id) }
 }
 
 /** /aprovar — lista as ordens na alçada, cada uma com os botões. */
 export async function responderAprovar(chatId: string, u: UsuarioTelegram): Promise<void> {
-  const { alcada, erro } = await contexto(u)
+  const { alcada, permissoes, erro } = await contexto(u)
   if (erro) {
     await enviarTelegram({ chatId, texto: erro })
     return
   }
-  const lista = await listarOrdensParaAvaliacao(alcada)
+  const lista = await listarOrdensParaAvaliacao(alcada, permissoes)
   if (lista.dentroDaAlcada.length === 0) {
     await enviarTelegram({
       chatId,

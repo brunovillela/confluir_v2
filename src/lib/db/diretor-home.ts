@@ -109,7 +109,7 @@ export async function paraAprovar(sessao: SessaoPainel): Promise<ParaAprovar> {
   const podeDiariasQuadro = podeAcessar(sessao.permissoes, "pessoal_gestao", ["pessoal_diarias"])
 
   const [ordens, assinaturas, diarias] = await Promise.all([
-    podeOrdens ? listarOrdensParaAvaliacao(alcada).catch(() => ({ dentroDaAlcada: [], acimaDaAlcada: [] })) : Promise.resolve({ dentroDaAlcada: [], acimaDaAlcada: [] }),
+    podeOrdens ? listarOrdensParaAvaliacao(alcada, p).catch(() => ({ dentroDaAlcada: [], acimaDaAlcada: [] })) : Promise.resolve({ dentroDaAlcada: [], acimaDaAlcada: [] }),
     assinaturasPendentes(String(sessao.usuario.email ?? sessao.user.email ?? "")),
     podeDiariasDiretoria || podeDiariasQuadro
       ? listarSolicitacoesDiaria().then((r) => r.solicitacoes).catch(() => [] as SolicitacaoDiaria[])

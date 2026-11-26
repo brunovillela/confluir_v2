@@ -2296,17 +2296,24 @@ export type OrdemParaAvaliacao = OrdemDoProcesso & {
   processo_compra_id: string | null
   produto: string | null
   departamentoNome: string | null
+  /**
+   * Permissão específica que a ordem exige e o avaliador NÃO tem (custeio,
+   * contrato extraordinário) — o rótulo; nulo quando nada falta (26/11/2026).
+   */
+  faltaPermissao: string | null
 }
 
 export type ListaAvaliacoes = {
   /** Dentro da alçada do avaliador — pode aprovar. */
   dentroDaAlcada: OrdemParaAvaliacao[]
-  /** Acima da alçada — visível como contexto, sem ação. */
+  /** Acima da alçada ou sem a permissão exigida — visível como contexto, sem ação. */
   acimaDaAlcada: OrdemParaAvaliacao[]
 }
 
 export async function listarOrdensParaAvaliacao(
-  alcada: number
+  alcada: number,
+  /** Permissões efetivas do avaliador: sem elas não se confere a permissão específica. */
+  permissoes?: Record<string, unknown>
 ): Promise<ListaAvaliacoes> {
   const admin = await createAdminClient()
   const { data, error } = await admin
@@ -2379,8 +2386,23 @@ export async function listarOrdensParaAvaliacao(
       })
     }
   }
+  // Contratos de apoio institucional não exigem a permissão de contratos.
+  const contratoIds = [
+    ...new Set(
+      brutas
+        .filter((o) => o.contrato_id && o.tipo === "Contrato" && !o.processo_compra_id && !o.custeio_id)
+        .map((o) => String(o.contrato_id))
+    ),
+  ]
+  const apoio = new Set<string>()
+  if (contratoIds.length) {
+    const { data: cs } = await admin.from("contratos").select("id, apoio_institucional").in("id", contratoIds)
+    for (const c of (cs ?? []) as Record<string, unknown>[]) if (c.apoio_institucional === true) apoio.add(String(c.id))
+  }
   const completas: OrdemParaAvaliacao[] = ordens.map((o, i) => {
     const bruta = brutas[i]
+    const exigida = exigenciaDaOrdem(bruta, apoio)
+    const faltaPermissao = exigida && permissoes && permissoes[exigida.chave] !== true ? exigida.rotulo : null
     const processoId = (bruta.processo_compra_id as string | null) ?? null
     const processo = processoId ? processoPorId.get(processoId) : undefined
     return {
@@ -2394,6 +2416,7 @@ export async function listarOrdensParaAvaliacao(
       departamentoNome: processo?.solicitacao_departamento_id
         ? (nomeDepto.get(String(processo.solicitacao_departamento_id)) ?? null)
         : null,
+      faltaPermissao,
     }
   })
 
@@ -2403,7 +2426,7 @@ export async function listarOrdensParaAvaliacao(
     // Sem valor definido não há como conferir alçada — fica não-aprovável
     // (caso das ordens legadas migradas, que vieram com valor nulo).
     const valor = o.valor_inicial_cobranca
-    if (alcada > 0 && valor !== null && valor <= alcada) dentro.push(o)
+    if (alcada > 0 && valor !== null && valor <= alcada && !o.faltaPermissao) dentro.push(o)
     else acima.push(o)
   }
   return { dentroDaAlcada: dentro, acimaDaAlcada: acima }
@@ -2447,12 +2470,24 @@ export async function permissaoEspecificaDaOrdem(
     .eq("id", ordemId)
     .maybeSingle()
   if (!o) return null
+  const apoio = new Set<string>()
+  if (o.contrato_id && !o.custeio_id) {
+    const { data: c } = await admin.from("contratos").select("apoio_institucional").eq("id", String(o.contrato_id)).maybeSingle()
+    if (c?.apoio_institucional === true) apoio.add(String(o.contrato_id))
+  }
+  return exigenciaDaOrdem(o, apoio)
+}
+
+/** A regra em si (síncrona): usada na aprovação e na lista de avaliações. */
+function exigenciaDaOrdem(
+  o: Record<string, unknown>,
+  contratosDeApoio: Set<string>
+): { chave: string; rotulo: string; origem: string } | null {
   if (o.custeio_id) {
     return { chave: "custeio_institucional_autorizacao", rotulo: "Custeio institucional — autorizar", origem: "custeio" }
   }
   if (o.contrato_id && o.tipo === "Contrato" && !o.processo_compra_id) {
-    const { data: c } = await admin.from("contratos").select("apoio_institucional").eq("id", String(o.contrato_id)).maybeSingle()
-    if (c?.apoio_institucional === true) return null
+    if (contratosDeApoio.has(String(o.contrato_id))) return null
     return { chave: "aquisicoes_contratos_autorizacao", rotulo: "Contratos — autorizar", origem: "contrato" }
   }
   return null

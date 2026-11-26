@@ -87,7 +87,7 @@ export default async function AvaliacoesComprasPage({
   const { salvo } = await searchParams
   const alcada = alcadaDoUsuario(sessao.permissoes)
   const { dentroDaAlcada, acimaDaAlcada } =
-    await listarOrdensParaAvaliacao(alcada)
+    await listarOrdensParaAvaliacao(alcada, sessao.permissoes as Record<string, unknown>)
 
   return (
     <>
@@ -164,11 +164,11 @@ export default async function AvaliacoesComprasPage({
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              Acima da sua alçada ({acimaDaAlcada.length})
+              Fora do seu alcance ({acimaDaAlcada.length})
             </CardTitle>
             <CardDescription>
-              Visíveis como contexto — precisam de um avaliador com alçada
-              maior.
+              Visíveis como contexto — acima da sua alçada ou exigem uma
+              permissão que você não tem; precisam de outro avaliador.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3">
@@ -177,7 +177,18 @@ export default async function AvaliacoesComprasPage({
                 key={o.id}
                 className="border-border flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-md border p-3 opacity-75"
               >
-                <DadosOrdem ordem={o} />
+                <div className="min-w-0">
+                  <DadosOrdem ordem={o} />
+                  {o.faltaPermissao && (
+                    <p className="text-warning-fg mt-1 text-xs">
+                      Precisa da permissão &quot;{o.faltaPermissao}&quot;
+                      {alcada > 0 && o.valor_inicial_cobranca !== null && o.valor_inicial_cobranca > alcada
+                        ? ", além de alçada maior"
+                        : ""}
+                      .
+                    </p>
+                  )}
+                </div>
                 <span className="text-sm font-semibold whitespace-nowrap tabular-nums">
                   {formatarMoeda(o.valor_inicial_cobranca)}
                 </span>
