@@ -17,8 +17,16 @@ import {
 import {
   criarCompraDireta,
   criarSolicitacao,
+  regraLimiteDireta,
   subirComprovanteCompras,
+  type NovaCompraDireta,
 } from "@/lib/db/compras"
+import {
+  EXPLICACAO_DISPENSA_MINIMA,
+  MAX_ORCAMENTOS_DIRETA,
+  MOTIVOS_DISPENSA_COTACAO,
+  textoDispensa,
+} from "@/lib/compras-cotacao-direta"
 import { escopoComprasDoUsuario } from "@/lib/db/compras-acesso"
 import { compradoresPossiveis } from "@/lib/db/compras-compradores"
 import { impedimentoDoPrestador, obterConfigRpa, rpasDoMesDoPagamento } from "@/lib/db/compras-rpa"
@@ -38,6 +46,73 @@ function texto(formData: FormData, campo: string): string {
 
 function dataISO(valor: string): string | null {
   return /^\d{4}-\d{2}-\d{2}$/.test(valor) ? valor : null
+}
+
+/**
+ * Aquisição direta acima do limite da auditoria: lê os orçamentos de outros
+ * fornecedores (e sobe os arquivos) ou o motivo da dispensa. Abaixo do limite,
+ * ou com a regra em "Aceitar", não pede nada.
+ */
+async function lerCotacaoDireta(
+  formData: FormData,
+  valor: number,
+  fornecedorCompraId: string
+): Promise<{ cotacao?: NovaCompraDireta["cotacao"]; arquivos: string[]; erro?: string }> {
+  const regra = await regraLimiteDireta()
+  if (!regra.ativa || !(valor > regra.limite)) return { arquivos: [] }
+  const limite = regra.limite.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+  const modo = texto(formData, "cotacao_modo")
+  if (modo === "dispensa") {
+    const motivo = texto(formData, "dispensa_motivo")
+    if (!(MOTIVOS_DISPENSA_COTACAO as readonly string[]).includes(motivo)) {
+      return { arquivos: [], erro: "Escolha o motivo da dispensa da cotação." }
+    }
+    const explicacao = texto(formData, "dispensa_explicacao").replace(/\s+/g, " ")
+    if (explicacao.length < EXPLICACAO_DISPENSA_MINIMA) {
+      return { arquivos: [], erro: `Explique a dispensa da cotação (pelo menos ${EXPLICACAO_DISPENSA_MINIMA} caracteres).` }
+    }
+    return { cotacao: { orcamentos: [], dispensa: textoDispensa(motivo, explicacao.slice(0, 800)) }, arquivos: [] }
+  }
+  if (modo !== "orcamentos") {
+    return { arquivos: [], erro: `Compra acima de ${limite}: registre os orçamentos de outros fornecedores ou o motivo da dispensa.` }
+  }
+  const linhas = Math.min(Number(texto(formData, "orcamentos_linhas")) || 0, 20)
+  const lidos: { fornecedor_id: string; valor: number; arquivo?: File }[] = []
+  for (let i = 0; i < linhas; i++) {
+    const fornecedorId = texto(formData, `orcamento_fornecedor_${i}`)
+    const valorTexto = texto(formData, `orcamento_valor_${i}`)
+    const arquivo = formData.get(`orcamento_arquivo_${i}`)
+    const temArquivo = arquivo instanceof File && arquivo.size > 0
+    if (!fornecedorId && !valorTexto && !temArquivo) continue
+    const n = lidos.length + 1
+    if (!fornecedorId) return { arquivos: [], erro: `Orçamento ${n}: escolha o fornecedor.` }
+    if (fornecedorId === fornecedorCompraId) {
+      return { arquivos: [], erro: `Orçamento ${n}: tem de ser de outro fornecedor, não do desta compra.` }
+    }
+    const v = parseValorBR(valorTexto)
+    if (v === null || v <= 0) return { arquivos: [], erro: `Orçamento ${n}: informe o valor orçado.` }
+    lidos.push({ fornecedor_id: fornecedorId, valor: v, arquivo: temArquivo ? arquivo : undefined })
+  }
+  if (lidos.length === 0) {
+    return { arquivos: [], erro: `Compra acima de ${limite}: registre ao menos um orçamento de outro fornecedor, ou escolha a dispensa.` }
+  }
+  if (lidos.length > MAX_ORCAMENTOS_DIRETA) return { arquivos: [], erro: `No máximo ${MAX_ORCAMENTOS_DIRETA} orçamentos.` }
+  const arquivos: string[] = []
+  const orcamentos: NonNullable<NovaCompraDireta["cotacao"]>["orcamentos"] = []
+  for (const o of lidos) {
+    let caminho: string | null = null
+    if (o.arquivo) {
+      const r = await subirComprovanteCompras("propostas", o.arquivo)
+      if (r.erro || !r.caminho) {
+        if (arquivos.length) await (await createAdminClient()).storage.from("compras").remove(arquivos)
+        return { arquivos: [], erro: r.erro ?? "Falha ao subir o orçamento." }
+      }
+      caminho = r.caminho
+      arquivos.push(caminho)
+    }
+    orcamentos.push({ fornecedor_id: o.fornecedor_id, valor: o.valor, arquivo_url: caminho })
+  }
+  return { cotacao: { orcamentos, dispensa: null }, arquivos }
 }
 
 /** O fornecedor é um marketplace (a nota pode vir depois)? */
@@ -151,6 +226,12 @@ export async function criarCompra(
   if (valor === null || valor <= 0) return { erro: "Informe o valor da compra.", campo: "valor" }
   const dataCompra = dataISO(texto(formData, "data_compra"))
   if (!dataCompra) return { erro: "Informe a data da compra.", campo: "data_compra" }
+  // Acima do limite da aquisição direta: orçamentos ou dispensa (25/11/2026).
+  const { cotacao, arquivos: arquivosCotacao, erro: erroCotacao } = await lerCotacaoDireta(formData, valor, fornecedorId)
+  if (erroCotacao) return { erro: erroCotacao }
+  const removerCotacao = async () => {
+    if (arquivosCotacao.length) await (await createAdminClient()).storage.from("compras").remove(arquivosCotacao)
+  }
 
   // Serviço de autônomo pago por RPA: o RPA substitui SÓ o documento
   // fiscal. Forma, "Pagar em" e o "para onde" ficam na compra, como em
@@ -169,7 +250,7 @@ export async function criarCompra(
     // informado é o bruto ou o líquido) ou um RPA avulso já emitido para o
     // fornecedor. A ordem nasce no LÍQUIDO do recibo.
     // NIT/PIS informado na tela (prestador sem ele no cadastro): vai para o cadastro.
-    const nit = texto(formData, "nit_pis").replace(/D/g, "")
+    const nit = texto(formData, "nit_pis").replace(/\D/g, "")
     if (nit) {
       if (!validarNitPis(nit)) return { erro: "NIT/PIS inválido — confira os 11 dígitos.", campo: "nit_pis" }
       await (await createAdminClient())
@@ -224,8 +305,10 @@ export async function criarCompra(
       recebedor_id: sessao.usuario.id,
       detalhe,
       por_rpa: true,
+      cotacao,
     })
     if (apontamentos || erro) {
+      await removerCotacao()
       if (detalhe.arquivo_boleto) await (await createAdminClient()).storage.from("compras").remove([detalhe.arquivo_boleto])
       if (apontamentos) return { apontamentos }
     }
@@ -318,7 +401,9 @@ export async function criarCompra(
     detalhe,
     ...(marketplace && !caminho ? { nota_a_receber: true, vendedor_id: vendedorId } : {}),
     abater_credito: String(formData.get("abater_credito") ?? "") === "1",
+    cotacao,
   })
+  if (apontamentos || erro) await removerCotacao()
   if (apontamentos) {
     // Nada foi gravado: os arquivos sobem de novo no reenvio.
     const enviados = [caminho, detalhe.arquivo_boleto].filter((c): c is string => typeof c === "string" && !!c)

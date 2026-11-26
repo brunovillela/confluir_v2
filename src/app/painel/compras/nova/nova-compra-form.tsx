@@ -61,6 +61,7 @@ import {
 import { ErroNoCampo } from "@/components/ui/erro-no-campo"
 import { UNIDADES_COMPRA } from "@/lib/compras-quantidade"
 import type { InicialCompra } from "@/lib/db/compras-repetir"
+import { CotacaoDireta } from "./cotacao-direta"
 
 type Opcao = { id: string; nome: string }
 type CentroOpcao = { id: string; nome: string; departamentoId: string | null }
@@ -100,7 +101,10 @@ export function NovaCompraForm({
   permiteDireta = true,
   creditos = {},
   inicial = null,
+  limiteDireta = null,
 }: {
+  /** Limite da aquisição direta (regra da auditoria ativa); acima dele, a seção Cotação. */
+  limiteDireta?: number | null
   /** Repetir compra: o formulário abre com o que se repete da compra de origem. */
   inicial?: InicialCompra | null
   /** Saldo de crédito (compra cancelada pelo vendedor) por fornecedor. */
@@ -234,6 +238,8 @@ export function NovaCompraForm({
   const avulsosDoFornecedor = rpasAvulsos.filter((r) => r.fornecedorId === fornecedorId)
   const rpaEscolhido = porRpa && rpaOrigem === "avulso" ? avulsosDoFornecedor.find((r) => r.id === rpaId) : undefined
   const valorDigitado = parseValorBR(valorTxt)
+  // Lida da nota (semi), o valor vem no campo sem passar pelo onChange.
+  const valorParaLimite = valorDigitado ?? (semi && leitura?.valor ? parseValorBR(String(leitura.valor)) : null)
   // Antes de cadastrar: o limite de RPAs do prestador (mês de emissão do RPA
   // novo e mês do "Pagar em") e o NIT/PIS que falta. O servidor confere de novo.
   const [vencimentoTxt, setVencimentoTxt] = useState("")
@@ -412,7 +418,7 @@ export function NovaCompraForm({
         if (total > LIMITE_ENVIO) {
           e.preventDefault()
           setEnvioErro(
-            "Nota e boleto juntos passam de 4 MB. Envie arquivos menores (ex.: PDF em vez de digitalização em alta resolução)."
+            "Os arquivos juntos (nota, boleto e orçamentos) passam de 4 MB. Envie arquivos menores (ex.: PDF em vez de digitalização em alta resolução)."
           )
           return
         }
@@ -1126,6 +1132,15 @@ export function NovaCompraForm({
                     : "A ordem sai com o valor já descontado; se o crédito cobrir tudo, ela já fica paga."}
                 </span>
               </label>
+            )}
+            {/* Acima do limite da aquisição direta: orçamentos ou dispensa (25/11/2026). */}
+            {limiteDireta !== null && valorParaLimite !== null && valorParaLimite > limiteDireta && (
+              <CotacaoDireta
+                fornecedores={fornecedores}
+                limite={limiteDireta}
+                valor={valorParaLimite}
+                fornecedorCompraId={fornecedorId}
+              />
             )}
             {/* Abaixo do fornecedor: a opção só aparece com serviço de pessoa física. */}
             {rpaDisponivel && (

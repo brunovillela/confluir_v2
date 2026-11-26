@@ -1059,6 +1059,15 @@ export type NovaCompraDireta = NovaSolicitacao & {
    * a ordem sai com o valor descontado; coberta por inteiro, já sai Paga.
    */
   abater_credito?: boolean
+  /**
+   * Acima do limite da aquisição direta (lib/compras-cotacao-direta): os
+   * orçamentos de outros fornecedores — viram propostas, com a compra como a
+   * escolhida — ou o texto da dispensa da cotação.
+   */
+  cotacao?: {
+    orcamentos: { fornecedor_id: string; valor: number; arquivo_url: string | null }[]
+    dispensa: string | null
+  }
 }
 
 /**
@@ -1103,12 +1112,50 @@ export async function criarCompraDireta(
       recebimento_data: nova.ja_recebido ? nova.data_compra : null,
       recebimento_recebido_por_id: nova.ja_recebido ? nova.recebedor_id : null,
       estocavel: false,
+      ...(nova.cotacao?.dispensa ? { proposta_unica_justificativa: nova.cotacao.dispensa } : {}),
       emp_proprietaria_id: await tenantAtual(),
   })
   if (erroProcesso || !processo) {
     if (esquemaAusente(erroProcesso)) return { erro: AVISO_SQL }
     return {
       erro: `Não foi possível registrar a compra: ${erroProcesso?.message}`,
+    }
+  }
+
+  // Desfaz o processo recém-criado (as propostas não caem em cascata).
+  const apagarProcessoNovo = async () => {
+    await admin.from("compras_propostas").delete().eq("processo_compra_id", processo.id)
+    await admin.from("compras_solicitacoes").delete().eq("id", processo.id)
+  }
+
+  // Orçamentos da cotação (acima do limite): gravados antes da ordem, para a
+  // auditoria da ordem já os contar.
+  if (nova.cotacao?.orcamentos.length) {
+    const emp = await tenantAtual()
+    const agora = new Date().toISOString()
+    const { error: erroPropostas } = await admin.from("compras_propostas").insert([
+      {
+        processo_compra_id: processo.id,
+        fornecedor_id: nova.fornecedor_id,
+        valor_proposta: nova.valor,
+        forma_pagamento: nova.forma_pagamento,
+        escolhida: true,
+        escolhida_em: agora,
+        escolhida_por_id: nova.comprador_id,
+        emp_proprietaria_id: emp,
+      },
+      ...nova.cotacao.orcamentos.map((o) => ({
+        processo_compra_id: processo.id,
+        fornecedor_id: o.fornecedor_id,
+        valor_proposta: o.valor,
+        proposta_arquivo_url: o.arquivo_url,
+        escolhida: false,
+        emp_proprietaria_id: emp,
+      })),
+    ])
+    if (erroPropostas) {
+      await apagarProcessoNovo()
+      return { erro: `Não foi possível registrar os orçamentos: ${erroPropostas.message}` }
     }
   }
 
@@ -1146,7 +1193,7 @@ export async function criarCompraDireta(
       emp_proprietaria_id: await tenantAtual(),
     }, nova.confirmacao ? { confirmacao: nova.confirmacao } : {})
   if (erroOrdem || !ordem) {
-    await admin.from("compras_solicitacoes").delete().eq("id", processo.id)
+    await apagarProcessoNovo()
     // Apontamentos da auditoria: nada fica gravado; a tela pergunta.
     if (erroOrdem?.apontamentos) return { apontamentos: erroOrdem.apontamentos }
     return {
@@ -1182,7 +1229,7 @@ export async function criarCompraDireta(
     .single()
   if (erroFornecimento || !fornecimento) {
     await apagarOrdem()
-    await admin.from("compras_solicitacoes").delete().eq("id", processo.id)
+    await apagarProcessoNovo()
     if (esquemaAusente(erroFornecimento)) return { erro: AVISO_SQL }
     return {
       erro: `Não foi possível registrar o fornecimento: ${erroFornecimento?.message}`,
@@ -1216,7 +1263,7 @@ export async function criarCompraDireta(
     if (erro) {
       await admin.from("compras_fornecimentos").delete().eq("processo_id", processo.id)
       await admin.from("ordens_pagamento").delete().eq("id", ordem.id)
-      await admin.from("compras_solicitacoes").delete().eq("id", processo.id)
+      await apagarProcessoNovo()
       return { erro }
     }
   }
@@ -1507,6 +1554,21 @@ export async function listarMinhasSolicitacoes(usuarioId: string): Promise<Minha
 export async function regraPropostaUnica(): Promise<{ ativa: boolean; limite: number }> {
   try {
     const regra = (await regrasConfiguradas("compras")).find((r) => r.regra.codigo === "proposta_unica")
+    if (!regra) return { ativa: false, limite: 0 }
+    return { ativa: regra.severidade !== "aceitar", limite: Number(regra.parametros.valor) || 0 }
+  } catch {
+    return { ativa: false, limite: 0 }
+  }
+}
+
+/**
+ * A regra "Aquisição direta acima do limite" da auditoria: ativa = não está
+ * em "Aceitar"; limite = o valor configurado. Acima dele, o formulário de
+ * compra direta pede os orçamentos ou o motivo da dispensa.
+ */
+export async function regraLimiteDireta(): Promise<{ ativa: boolean; limite: number }> {
+  try {
+    const regra = (await regrasConfiguradas("compras")).find((r) => r.regra.codigo === "direta_limite")
     if (!regra) return { ativa: false, limite: 0 }
     return { ativa: regra.severidade !== "aceitar", limite: Number(regra.parametros.valor) || 0 }
   } catch {

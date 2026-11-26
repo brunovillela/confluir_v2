@@ -148,6 +148,24 @@ Ao mudar para **Aquisição direta**, o formulário pergunta **Como preencher?**
   </Passo>
 </PassoAPasso>
 
+### Acima do limite: orçamentos ou dispensa da cotação
+
+Quando o valor passa do limite da **aquisição direta** (regra **Aquisição direta
+acima do limite**, em Financeiro → Auditoria das ordens), aparece a seção
+**Cotação** logo abaixo do valor. Escolha uma das duas:
+
+- **Tenho orçamentos de outros fornecedores** — para cada orçamento (até três),
+  o fornecedor, o valor orçado e, se tiver, o PDF ou a foto. O fornecedor desta
+  compra entra como a proposta escolhida e os orçamentos ficam como as outras
+  propostas do processo, no cartão **Cotação**. Com eles, a auditoria marca a
+  compra como cotada e não alerta.
+- **A cotação foi dispensada** — o motivo (fornecedor exclusivo, emergência,
+  preço tabelado, continuidade ou padronização, outro) e a explicação. A ordem
+  sai com o alerta do limite já trazendo o motivo, que aparece também no processo
+  em **Cotação dispensada**; a tela de confirmação não pede outra justificativa.
+
+O orçamento tem de ser de **outro** fornecedor, não do desta compra.
+
 ### Formas de pagamento: o que cada uma pede
 
 A forma sozinha não basta para a auditoria — é preciso dizer **com o quê** a
@@ -178,8 +196,8 @@ compra foi paga. Ao escolher a forma, aparece o campo correspondente:
   e o boleto ficam nos campos próprios da ordem.
 </Aviso>
 
-<Aviso tipo="atencao" titulo="Nota e boleto juntos: até 4 MB">
-  A nota e o boleto vão no mesmo envio, que tem limite de cerca de 4 MB somados.
+<Aviso tipo="atencao" titulo="Arquivos juntos: até 4 MB">
+  A nota, o boleto e os orçamentos vão no mesmo envio, que tem limite de cerca de 4 MB somados.
   Se passar, a tela avisa antes de enviar — prefira o PDF original a uma
   digitalização em alta resolução.
 </Aviso>

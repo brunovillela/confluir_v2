@@ -14,6 +14,7 @@ import { obterConfigRpa } from "@/lib/db/compras-rpa"
 import { listarRpasAvulsos } from "@/lib/db/rpa-compra-direta"
 import { podeAcessar } from "@/lib/permissoes"
 import {
+  regraLimiteDireta,
   listarCentrosCustoParaCompra,
   listarDepartamentos,
   listarFornecedores,
@@ -56,6 +57,8 @@ export default async function NovaCompraPage({
   const creditos = direta ? await saldosDeCreditoPorFornecedor().catch(() => ({})) : {}
   // Compra no âmbito de um contrato (17/11/2026).
   const contratos = await listarContratosParaCompra().catch(() => [])
+  // Acima do limite da aquisição direta, a compra pede orçamentos ou a dispensa.
+  const limiteDireta = direta ? await regraLimiteDireta() : { ativa: false, limite: 0 }
   // Só os departamentos pelos quais a pessoa compra (sem restrição: todos).
   const departamentos = escopo.todos
     ? todosDepartamentos
@@ -111,6 +114,7 @@ export default async function NovaCompraPage({
         rpaPatronal={direta ? await aliquotaPatronalRpa() : null}
         rpasAvulsos={rpasAvulsos}
         inicial={inicial}
+        limiteDireta={limiteDireta.ativa ? limiteDireta.limite : null}
       />
     </>
   )

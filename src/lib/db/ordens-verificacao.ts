@@ -26,6 +26,7 @@ import { formatarData, formatarMoeda } from "@/lib/formato"
 import { DIAS_VENCIMENTO_ANTIGO, vencimentoAntigo } from "@/lib/ordens-vencimento"
 import { gerarJsonIA } from "@/lib/ia"
 import { periodoDaDescricao } from "@/lib/locacao-periodo"
+import { ehDispensa } from "@/lib/compras-cotacao-direta"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -654,8 +655,25 @@ async function verificarLinha(
         const proc = await buscar("compras_solicitacoes", linha.processo_compra_id)
         const limite = n(p.valor) ?? 0
         if (!proc || proc.aquisicao_direta !== true) r("na", "Não é aquisição direta.")
-        else if (valor !== null && valor > limite) r("falha", `Aquisição direta de ${formatarMoeda(valor)} — aceita até ${formatarMoeda(limite)}.`)
-        else r("ok", `Dentro do limite de ${formatarMoeda(limite)}.`)
+        else if (valor !== null && valor > limite) {
+          // Acima do limite (25/11/2026): com orçamentos de outros fornecedores
+          // (propostas do processo), está cotada; com a dispensa, o alerta
+          // segue com o motivo — já explicado, não pede justificativa de novo.
+          const { data: props } = await admin
+            .from("compras_propostas")
+            .select("fornecedor_id")
+            .eq("processo_compra_id", String(proc.id))
+          const fornecedores = new Set((props ?? []).map((x) => x.fornecedor_id as string | null).filter(Boolean)).size
+          const dispensa = ehDispensa(t(proc.proposta_unica_justificativa)) ? t(proc.proposta_unica_justificativa) : null
+          if (fornecedores > 1) {
+            r("ok", `Acima de ${formatarMoeda(limite)}, cotada: ${fornecedores - 1} orçamento(s) de outros fornecedores.`)
+          } else if (dispensa) {
+            r("falha", `Aquisição direta de ${formatarMoeda(valor)} — aceita até ${formatarMoeda(limite)}. ${dispensa}`)
+            saida[saida.length - 1].justificar = false
+          } else {
+            r("falha", `Aquisição direta de ${formatarMoeda(valor)} — aceita até ${formatarMoeda(limite)}. Sem orçamentos de outros fornecedores nem motivo de dispensa.`)
+          }
+        } else r("ok", `Dentro do limite de ${formatarMoeda(limite)}.`)
         break
       }
       case "sem_documento_fiscal": {

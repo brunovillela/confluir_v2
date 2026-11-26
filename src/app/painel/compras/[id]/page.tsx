@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { ehDispensa } from "@/lib/compras-cotacao-direta"
 import { notFound, redirect } from "next/navigation"
 import { Barcode, CopyPlus, FileText, Pencil, Receipt } from "lucide-react"
 
@@ -659,6 +660,13 @@ export default async function ProcessoCompraPage({
                 </Campo>
               </>
             )}
+            {ehDispensa(processo.proposta_unica_justificativa) && (
+              <Campo rotulo="Cotação dispensada" colSpan>
+                <span className="whitespace-pre-wrap">
+                  {processo.proposta_unica_justificativa!.replace(/^Dispensa de cotação — /, "")}
+                </span>
+              </Campo>
+            )}
             {processo.observacao && (
               <Campo rotulo="Observações" colSpan>
                 <span className="whitespace-pre-wrap">{processo.observacao}</span>
@@ -676,7 +684,9 @@ export default async function ProcessoCompraPage({
               <div>
                 <CardTitle className="text-base">Cotação</CardTitle>
                 <CardDescription>
-                  {processo.em_cotacao
+                  {processo.aquisicao_direta === true
+                    ? "Orçamentos de outros fornecedores, registrados com a aquisição direta"
+                    : processo.em_cotacao
                     ? `Aberta${processo.cotacaoResponsavelNome ? ` — responsável ${processo.cotacaoResponsavelNome}` : ""}${processo.cotacao_inicio ? `, desde ${formatarData(processo.cotacao_inicio)}` : ""}`
                     : processo.cotacao_termino
                       ? `Encerrada em ${formatarData(processo.cotacao_termino)}${processo.cotacaoResponsavelNome ? ` — responsável ${processo.cotacaoResponsavelNome}` : ""}`
