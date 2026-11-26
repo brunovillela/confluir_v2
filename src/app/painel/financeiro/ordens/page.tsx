@@ -40,7 +40,7 @@ import {
 } from "@/lib/db/financeiro"
 import { TIPO_ORDEM_FOLHA } from "@/lib/contracheques-constantes"
 import { TIPO_ORDEM_RPA } from "@/lib/rpa-calculo"
-import { TIPO_ORDEM_FATURA_CARTAO } from "@/lib/ordens-situacoes"
+import { PROCESSANDO_VENCIDA, TIPO_ORDEM_FATURA_CARTAO } from "@/lib/ordens-situacoes"
 import { TIPO_ORDEM_TRIBUTO } from "@/lib/tributos-constantes"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { OPCOES_POR_PAGINA } from "@/lib/paginacao"
@@ -224,7 +224,10 @@ function CabecalhoOrdenavel({
 const CHIPS_SITUACAO: { valor: string; rotulo: string }[] = [
   { valor: "todas", rotulo: "Todas" },
   { valor: "abertas", rotulo: "Em aberto (todas as não pagas)" },
-  ...SITUACOES_ORDEM.map((s) => ({ valor: s, rotulo: s })),
+  ...SITUACOES_ORDEM.flatMap((s) =>
+    // Processando = agendada até o vencimento; a vencida tem opção própria.
+    s === "Processando" ? [{ valor: s, rotulo: s }, { valor: PROCESSANDO_VENCIDA, rotulo: PROCESSANDO_VENCIDA }] : [{ valor: s, rotulo: s }]
+  ),
 ]
 
 export default async function OrdensPage({
@@ -647,7 +650,7 @@ export default async function OrdensPage({
                   {formatarMoeda(o.valor_pago ?? o.valor_inicial_cobranca)}
                 </TableCell>
                 <TableCell>
-                  <SituacaoBadge situacao={o.situacao} />
+                  <SituacaoBadge situacao={o.situacao} vencimento={o.vencimento} />
                 </TableCell>
               </TableRow>
             ))}

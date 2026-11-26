@@ -132,7 +132,7 @@ function LinhaOrdem({
           >
             {ordem.codigo ?? "(sem código)"}
           </Link>
-          <SituacaoBadge situacao={ordem.situacao} />
+          <SituacaoBadge situacao={ordem.situacao} vencimento={ordem.vencimento} />
         </div>
         <span className="text-sm font-medium whitespace-nowrap tabular-nums">
           {formatarMoeda(ordem.valor_pago ?? ordem.valor_inicial_cobranca)}

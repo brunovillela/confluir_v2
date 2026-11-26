@@ -70,3 +70,21 @@ export function destinoDaSituacao(valor: string, atual?: string): string | null 
   }
   return DESTINOS_SITUACAO.find((d) => d.valor === valor)?.destino ?? null
 }
+
+// ── Processando (vencida) (26/11/2026) ───────────────────────────────────────
+//
+// "Processando" é o pagamento agendado no banco: normal até o vencimento.
+// Vencido e ainda Processando, o débito saiu e falta registrar — a tela mostra
+// "Processando (vencida)". Não é uma situação gravada: deriva do vencimento.
+
+export const PROCESSANDO_VENCIDA = "Processando (vencida)"
+
+function hojeEmSaoPaulo(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date())
+}
+
+/** A situação como a tela mostra: Processando com vencimento passado vira "Processando (vencida)". */
+export function situacaoExibida(situacao: string | null, vencimento?: string | null, hoje: string = hojeEmSaoPaulo()): string | null {
+  if (situacao === "Processando" && vencimento && vencimento.slice(0, 10) < hoje) return PROCESSANDO_VENCIDA
+  return situacao
+}

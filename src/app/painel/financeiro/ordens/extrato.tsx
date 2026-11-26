@@ -82,7 +82,7 @@ function Linha({ o, data, selecao }: { o: OrdemLinha; data: "vencimento" | "paga
             Duplicada?
           </Badge>
         )}
-        <SituacaoBadge situacao={o.situacao} />
+        <SituacaoBadge situacao={o.situacao} vencimento={o.vencimento} />
       </span>
       <span className="text-right text-sm font-medium whitespace-nowrap tabular-nums">{formatarMoeda(valor)}</span>
     </Link>

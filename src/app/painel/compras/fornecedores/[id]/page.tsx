@@ -1024,7 +1024,7 @@ export default async function FornecedorPage({
                         : formatarData(o.vencimento)}
                     </TableCell>
                     <TableCell>
-                      <SituacaoBadge situacao={o.situacao} />
+                      <SituacaoBadge situacao={o.situacao} vencimento={o.vencimento} />
                     </TableCell>
                   </TableRow>
                 ))}

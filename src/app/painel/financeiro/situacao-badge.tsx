@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge"
+import { PROCESSANDO_VENCIDA, situacaoExibida } from "@/lib/ordens-situacoes"
 import { cn } from "@/lib/utils"
 
 /** Cores por situação da ordem de pagamento (valores reais do banco). */
@@ -6,6 +7,8 @@ const ESTILOS: Record<string, string> = {
   Paga: "border-success/40 text-success-fg",
   "A pagar": "border-info/40 text-info-fg",
   Processando: "border-warning/40 text-warning-fg",
+  // Agendada e já vencida: o débito saiu e falta registrar o pagamento.
+  [PROCESSANDO_VENCIDA]: "border-destructive/40 text-destructive",
   // Compra no cartão de crédito: quitada pela ordem da fatura.
   "Na fatura": "border-success/40 text-success-fg",
   "Em autorização": "border-warning/40 text-warning-fg",
@@ -17,11 +20,13 @@ const ESTILOS: Record<string, string> = {
   Estornado: "border-destructive/40 text-destructive",
 }
 
-export function SituacaoBadge({ situacao }: { situacao: string | null }) {
-  if (!situacao) return <span className="text-muted-foreground">—</span>
+/** Com o vencimento, "Processando" já vencida aparece como "Processando (vencida)". */
+export function SituacaoBadge({ situacao, vencimento }: { situacao: string | null; vencimento?: string | null }) {
+  const exibida = situacaoExibida(situacao, vencimento)
+  if (!exibida) return <span className="text-muted-foreground">—</span>
   return (
-    <Badge variant="outline" className={cn("whitespace-nowrap", ESTILOS[situacao])}>
-      {situacao}
+    <Badge variant="outline" className={cn("whitespace-nowrap", ESTILOS[exibida])}>
+      {exibida}
     </Badge>
   )
 }

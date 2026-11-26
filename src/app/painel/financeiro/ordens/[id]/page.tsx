@@ -259,7 +259,7 @@ export default async function OrdemPage({
           <h1 className="text-2xl font-semibold tracking-tight">
             Ordem {texto(ordem.codigo)}
           </h1>
-          <SituacaoBadge situacao={(ordem.situacao as string) ?? null} />
+          <SituacaoBadge situacao={(ordem.situacao as string) ?? null} vencimento={(ordem.vencimento as string | null) ?? null} />
           {typeof ordem.tipo === "string" && ordem.tipo && (
             <Badge variant="outline" className="text-muted-foreground">
               {ordem.tipo}

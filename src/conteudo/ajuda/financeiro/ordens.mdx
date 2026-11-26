@@ -435,7 +435,10 @@ bancárias de remessa e ao caixa. Contas de despesa e de receita não aparecem.
   pede motivo (a observação é opcional); as demais trocas de situação pedem.
   Com o pagamento
   registrado, fica **Paga**; se o pagamento não sair, **Trocar situação → A
-  pagar** a devolve à fila, ainda autorizada.
+  pagar** a devolve à fila, ainda autorizada. Processando é o pagamento
+  agendado: até o vencimento, é normal. Passado o vencimento sem o pagamento
+  registrado, a ordem aparece como **Processando (vencida)** (em vermelho) —
+  o débito saiu e falta registrar. O filtro de situação tem as duas opções.
 </Aviso>
 
 <Aviso tipo="nota" titulo="Compra paga em dinheiro">

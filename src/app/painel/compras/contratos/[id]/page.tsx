@@ -1054,7 +1054,7 @@ function TabelaOrdens({
               </TableCell>
               <TableCell className="text-right whitespace-nowrap tabular-nums">{formatarMoeda(o.valor)}</TableCell>
               <TableCell>
-                <SituacaoBadge situacao={o.situacao} />
+                <SituacaoBadge situacao={o.situacao} vencimento={o.vencimento} />
               </TableCell>
               <TableCell className="max-w-80">
                 <Link

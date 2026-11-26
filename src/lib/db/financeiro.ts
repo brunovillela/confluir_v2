@@ -9,6 +9,7 @@ import { descreverParecidas, ordensParecidas, type OrdemParecida } from "@/lib/d
 import { rotuloCentroCusto } from "@/lib/centros-custo-rotulo"
 import { idsDaBusca, type IdsDaBusca } from "@/lib/db/ordens-busca"
 import { semAcento } from "@/lib/texto"
+import { PROCESSANDO_VENCIDA } from "@/lib/ordens-situacoes"
 import { ABERTAS_PAGAVEIS, idsAguardandoParado, idsDuplicadasAPagar, idsSemCentroComRateio } from "@/lib/db/ordens-pendencias"
 
 export const ORDENS_POR_PAGINA = 50
@@ -63,13 +64,14 @@ export const SITUACOES_ORDEM = [
 ] as const
 
 /** Filtro de situação: "todas", o grupo "abertas" ou uma situação exata. */
-export type FiltroSituacaoOrdem = "todas" | "abertas" | (typeof SITUACOES_ORDEM)[number]
+export type FiltroSituacaoOrdem = "todas" | "abertas" | (typeof SITUACOES_ORDEM)[number] | typeof PROCESSANDO_VENCIDA
 
 /** Lê o filtro da URL (aceita os valores antigos "pagas"/"canceladas"). */
 export function filtroSituacaoOrdem(valor: string | undefined): FiltroSituacaoOrdem {
   if (valor === "pagas") return "Paga"
   if (valor === "canceladas") return "Cancelada"
   if (valor === "abertas") return "abertas"
+  if (valor === PROCESSANDO_VENCIDA) return PROCESSANDO_VENCIDA
   return (SITUACOES_ORDEM as readonly string[]).includes(valor ?? "")
     ? (valor as FiltroSituacaoOrdem)
     : "todas"
@@ -142,7 +144,7 @@ export const PENDENCIAS_ORDENS = {
   vencidas: "A pagar vencidas",
   vence_hoje: "Vencem hoje",
   duplicadas: "Possíveis duplicadas a pagar",
-  processando_parado: "Processando com vencimento passado",
+  processando_parado: "Processando (vencida)",
   aguardando_parado: "Aguardando informações há 15 dias ou mais",
   sem_comprovante: "Pagas por Pix ou TED sem comprovante",
   sem_centro: "Pagas sem centro de custo",
@@ -243,6 +245,9 @@ function aplicarFiltrosOrdens<T>(
     .not("excluido", "is", true)
 
   if (situacao === "abertas") q = q.in("situacao", SITUACOES_ABERTAS)
+  // Processando = agendada até o vencimento; vencida, é "Processando (vencida)".
+  else if (situacao === PROCESSANDO_VENCIDA) q = q.eq("situacao", "Processando").lt("vencimento", hojeSP())
+  else if (situacao === "Processando") q = q.eq("situacao", "Processando").or(`vencimento.is.null,vencimento.gte.${hojeSP()}`)
   else if (situacao !== "todas") q = q.eq("situacao", situacao)
   if (tipo && tipo !== "todos") q = q.eq("tipo", tipo)
   if (beneficiario.startsWith("u:")) q = q.eq("beneficiario_usuario_id", beneficiario.slice(2))
