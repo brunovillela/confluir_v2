@@ -13,6 +13,13 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-26",
+    titulo: "Ordens: filtro por projeto com as ordens das compras",
+    itens: [
+      "Financeiro → Ordens: o filtro Projeto passa a achar também as ordens que vieram de uma compra do projeto (antes, só as lançadas com o projeto). A ordem de uma compra herda o projeto dela, e quando a compra muda de projeto — na edição da compra ou na transferência de despesa — as ordens vão junto.",
+    ],
+  },
+  {
     id: "2026-11-25",
     titulo: "Ordens: escolher a conta do favorecido na correção",
     itens: [

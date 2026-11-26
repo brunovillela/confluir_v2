@@ -47,8 +47,10 @@ function listaJsonb(v: unknown): string[] {
  * de pagamento e os reembolsos ligados ao projeto (60 e 44 desde a virada)
  * não apareciam, e a compra cancelada contava. Agora o gasto são as ORDENS:
  * a que tem o projeto, a que nasceu de uma compra do projeto e a de um
- * reembolso do projeto — cada uma uma vez só (a ordem de compra nova não
- * leva o projeto: 14 de 98 desde a virada). Cancelada, estornada ou excluída
+ * reembolso do projeto — cada uma uma vez só. Desde 26/11/2026 a ordem de
+ * compra herda o projeto da compra no banco (gatilho da migração
+ * 20261126021530); o vínculo pela compra segue valendo para o que escapar.
+ * Cancelada, estornada ou excluída
  * não conta. A compra (ou o reembolso) do projeto ainda sem ordem entra como
  * comprometido.
  */

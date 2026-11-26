@@ -803,7 +803,7 @@ Ordens de pagamento da entidade (compras, contratos, diárias, reembolsos, RPA, 
 
 - **LGPD:** financeiro, identificação, trabalhista · titulares: fornecedores PF, funcionários, diretores, filiados, convidados (beneficiários)
 - **RLS:** ligado · policies: `tenant_isolation`
-- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `ordem_herda_projeto_da_compra` → `ordem_herda_projeto_da_compra`, `set_emp_from_jwt` → `set_emp_from_jwt`
 
 | Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
 |---|---|---|---|---|---|---|

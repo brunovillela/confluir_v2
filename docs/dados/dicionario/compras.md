@@ -414,7 +414,7 @@ Processo de compra: da solicitação (ou aquisição direta) à cotação, avali
 
 - **LGPD:** identificação · titulares: usuários do sistema, fornecedores PF
 - **RLS:** ligado · policies: `tenant_isolation`
-- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+- **Triggers:** `compra_leva_projeto_as_ordens` → `compra_leva_projeto_as_ordens`, `set_emp_from_jwt` → `set_emp_from_jwt`
 
 | Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
 |---|---|---|---|---|---|---|
