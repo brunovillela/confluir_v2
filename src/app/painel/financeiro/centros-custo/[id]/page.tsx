@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Pencil, Receipt } from "lucide-react"
+import { Pencil, Receipt } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -29,6 +29,8 @@ import {
 } from "@/lib/db/financeiro"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { podeAcessar } from "@/lib/permissoes"
+
+import { VoltarLista } from "@/components/voltar-lista"
 
 import { SituacaoBadge } from "../../situacao-badge"
 import { CentroCustoForm } from "../centro-form"
@@ -72,12 +74,7 @@ export default async function CentroCustoPage({
   return (
     <>
       <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-          <Link href="/painel/financeiro/centros-custo">
-            <ArrowLeft />
-            Centros de custo
-          </Link>
-        </Button>
+        <VoltarLista chave="centros-custo" base="/painel/financeiro/centros-custo" rotulo="Centros de custo" />
         <h1 className="text-2xl font-semibold tracking-tight">
           {centro.nome_da_conta ?? "(sem nome)"}
         </h1>

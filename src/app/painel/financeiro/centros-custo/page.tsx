@@ -15,10 +15,12 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Paginacao } from "@/components/paginacao"
+import { LembrarLista } from "@/components/voltar-lista"
 import { requirePermissao } from "@/lib/auth"
 import { listarCentrosCusto } from "@/lib/db/financeiro"
 import { lerPaginacao, paginar } from "@/lib/paginacao"
 import { podeAcessar } from "@/lib/permissoes"
+import { semAcento } from "@/lib/texto"
 
 export const metadata: Metadata = { title: "Centros de custo — Confluir" }
 
@@ -54,7 +56,7 @@ export default async function CentrosCustoPage({
     ),
   ].sort((a, b) => a.localeCompare(b, "pt-BR"))
 
-  const busca = (sp.busca ?? "").trim().toLowerCase()
+  const busca = semAcento((sp.busca ?? "").trim().toLowerCase())
   const tipo = tipos.includes(sp.tipo ?? "") ? sp.tipo! : ""
   const situacao = ["usaveis", "nao_usaveis"].includes(sp.situacao ?? "")
     ? sp.situacao!
@@ -66,7 +68,7 @@ export default async function CentrosCustoPage({
     if (situacao === "nao_usaveis" && c.usavel === true) return false
     if (!busca) return true
     return (
-      (c.nome_da_conta ?? "").toLowerCase().includes(busca) ||
+      semAcento((c.nome_da_conta ?? "").toLowerCase()).includes(busca) ||
       (c.acesso ?? "").toLowerCase().includes(busca) ||
       (c.classificador ?? "").toLowerCase().includes(busca)
     )
@@ -76,8 +78,18 @@ export default async function CentrosCustoPage({
   const paginacao = lerPaginacao(sp, 30)
   const paginaAtual = paginar(contas, paginacao)
 
+  // Recorte atual (busca, tipo, situação e página): a conta volta a ele.
+  const q = new URLSearchParams()
+  if (sp.busca?.trim()) q.set("busca", sp.busca.trim())
+  if (tipo) q.set("tipo", tipo)
+  if (situacao !== "todas") q.set("situacao", situacao)
+  if (sp.pagina) q.set("pagina", sp.pagina)
+  if (sp.porPagina) q.set("porPagina", sp.porPagina)
+  const urlAtual = `/painel/financeiro/centros-custo${q.size ? `?${q}` : ""}`
+
   return (
     <>
+      <LembrarLista chave="centros-custo" url={urlAtual} />
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
           <Link href="/painel/financeiro">
