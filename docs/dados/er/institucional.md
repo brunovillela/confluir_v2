@@ -32,6 +32,7 @@ erDiagram
     uuid caixa_conta_id FK
     uuid fornecedor_id FK
     uuid cancelado_por_id FK
+    uuid projeto_id FK
   }
   institucional_ramais {
     uuid id PK
@@ -117,6 +118,7 @@ erDiagram
   institucional_custeios }o--o| filiacoes : "filiacao_id"
   institucional_custeios }o--o| institucional_custeio_convidados : "convidado_id"
   institucional_custeios }o--o| institucional_custeio_finalidades : "finalidade_id"
+  institucional_custeios }o--o| projeto : "projeto_id"
   institucional_custeios }o--o| usuarios : "autorizador_id"
   institucional_custeios }o--o| usuarios : "cancelado_por_id"
   institucional_custeios }o--o| usuarios : "criado_por_id"

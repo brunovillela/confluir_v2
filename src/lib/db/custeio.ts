@@ -693,6 +693,8 @@ export type DadosCusteio = {
   descricao?: string | null
   evento?: string | null
   centroCustoDespesaId?: string | null
+  /** Projeto do custeio (opcional): as ordens herdam e entram no gasto dele. */
+  projetoId?: string | null
   cadencia: string
   valorParcela: number
   numParcelas?: number
@@ -766,6 +768,7 @@ async function montarRegistroCusteio(
     ...snapshot,
     descricao: texto(dados.descricao),
     evento: texto(dados.evento),
+    ...(dados.projetoId !== undefined ? { projeto_id: dados.projetoId } : {}),
     centro_custo_despesa_id: centroCusto,
     cadencia: recorrente ? "recorrente" : "pontual",
     valor_parcela: dados.valorParcela,

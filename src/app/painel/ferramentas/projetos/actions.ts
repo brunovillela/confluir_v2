@@ -168,7 +168,8 @@ export async function excluirMarcoAction(_prev: EstadoForm, formData: FormData):
 export async function transferirDespesaAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
   const sessao = await requirePermissao("ferramentas_projetos_edicao")
   const origemId = texto(formData, "origem_id")
-  const tipo = texto(formData, "tipo") === "ordem" ? "ordem" : "compra"
+  const bruto = texto(formData, "tipo")
+  const tipo = bruto === "ordem" ? "ordem" : bruto === "custeio" ? "custeio" : "compra"
   const r = await transferirDespesa({
     origemId,
     destinoId: texto(formData, "destino_id"),

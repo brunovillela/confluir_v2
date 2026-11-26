@@ -34,7 +34,7 @@ import { listarModelos } from "@/lib/db/modelos"
 import { UsarModelo } from "../../modelos/usar-modelo"
 import { MarcosProjeto } from "./marcos"
 import { ProjetoAcoes } from "./projeto-acoes"
-import { TransferirDespesa } from "./transferir-despesa"
+import { DespesasDoProjeto } from "./despesas"
 
 export const metadata: Metadata = { title: "Projeto — Confluir" }
 
@@ -200,8 +200,8 @@ export default async function ProjetoPage({
               </Linha>
             </dl>
             <p className="text-muted-foreground text-xs">
-              O gasto soma as ordens de pagamento do projeto (as que vieram das compras e dos reembolsos
-              também), sem as canceladas. Comprometido é a compra ainda sem ordem.
+              O gasto soma as ordens de pagamento do projeto (as das compras, dos custeios e dos reembolsos
+              também), sem as canceladas. Comprometido é a compra ou o custeio ainda sem ordem.
               {projeto.gasto.reembolsos.quantidade > 0 &&
                 ` Inclui ${projeto.gasto.reembolsos.quantidade.toLocaleString("pt-BR")} reembolso${projeto.gasto.reembolsos.quantidade === 1 ? "" : "s"} a filiados (${formatarMoeda(projeto.gasto.reembolsos.total)}).`}
             </p>
@@ -286,125 +286,15 @@ export default async function ProjetoPage({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent>
-          <p className="mb-3 text-sm font-medium">Ordens de pagamento</p>
-          {projeto.ordens.length === 0 ? (
-            <p className="text-muted-foreground py-6 text-center text-sm">
-              {projeto.gasto.reembolsos.quantidade > 0
-                ? "Só ordens de reembolso a filiados, somadas no orçamento."
-                : "Nenhuma ordem de pagamento ligada a este projeto."}
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Código</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Situação</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  {transfere && <TableHead className="w-10"><span className="sr-only">Transferir</span></TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {projeto.ordens.map((o) => (
-                  <TableRow key={o.id}>
-                    <TableCell className="whitespace-nowrap">
-                      <Link href={`/painel/financeiro/ordens/${o.id}`} className="text-primary font-medium hover:underline">
-                        {o.codigo ?? "—"}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="max-w-80">
-                      <span className="line-clamp-1">{o.descricao ?? "—"}</span>
-                      {o.origem === "compra" && <span className="text-muted-foreground block text-xs">Da compra do projeto</span>}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">{o.situacao ?? "—"}</TableCell>
-                    <TableCell className="whitespace-nowrap tabular-nums">{o.data ? formatarData(o.data) : "—"}</TableCell>
-                    <TableCell className="text-right tabular-nums whitespace-nowrap">{formatarMoeda(o.valor)}</TableCell>
-                    {transfere && (
-                      <TableCell className="text-right">
-                        {o.transferivel ? (
-                          <TransferirDespesa
-                            origemId={id}
-                            tipo="ordem"
-                            itemId={o.id}
-                            rotulo={o.codigo ?? ""}
-                            valor={o.valor}
-                            projetos={destinos}
-                          />
-                        ) : (
-                          <span className="text-muted-foreground text-xs whitespace-nowrap" title="Vai junto com a compra, em Solicitações de compra vinculadas">
-                            pela compra
-                          </span>
-                        )}
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent>
-          <p className="mb-3 text-sm font-medium">Solicitações de compra vinculadas</p>
-          {projeto.solicitacoes.length === 0 ? (
-            <p className="text-muted-foreground py-6 text-center text-sm">
-              Nenhuma solicitação de compra vinculada a este projeto.
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Código</TableHead>
-                  <TableHead>Objeto</TableHead>
-                  <TableHead>Situação</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  {transfere && <TableHead className="w-10"><span className="sr-only">Transferir</span></TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {projeto.solicitacoes.map((s) => (
-                  <TableRow key={s.id}>
-                    <TableCell className="whitespace-nowrap">
-                      <Link
-                        href={`/painel/compras/${s.id}`}
-                        className="text-primary font-medium hover:underline"
-                      >
-                        {s.codigo ?? "—"}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="max-w-80">
-                      <span className="line-clamp-1">{s.descricao ?? "—"}</span>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {s.situacao ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums whitespace-nowrap">
-                      {s.valor != null ? formatarMoeda(s.valor) : "—"}
-                    </TableCell>
-                    {transfere && (
-                      <TableCell className="text-right">
-                        <TransferirDespesa
-                          origemId={id}
-                          tipo="compra"
-                          itemId={s.id}
-                          rotulo={s.codigo ?? ""}
-                          valor={s.valor}
-                          projetos={destinos}
-                        />
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      <DespesasDoProjeto
+        projetoId={id}
+        solicitacoes={projeto.solicitacoes}
+        custeios={projeto.custeios}
+        ordens={projeto.ordens}
+        gasto={projeto.gasto}
+        transfere={transfere}
+        destinos={destinos}
+      />
       {transferencias.length > 0 && (
         <Card>
           <CardContent>

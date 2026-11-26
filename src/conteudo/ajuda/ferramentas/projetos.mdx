@@ -21,8 +21,9 @@ e a finalização.
     **Detalhamento** e, se for o caso, **Projeto estratégico**.
   </Passo>
   <Passo titulo="Acompanhe">
-    A página do projeto mostra os **marcos**, as **tarefas**, as **ordens de
-    pagamento** e as **solicitações de compra vinculadas**. O cartão do orçamento
+    A página do projeto mostra os **marcos**, as **tarefas** e as **Despesas do
+    projeto**: cada compra e cada custeio com as suas ordens de pagamento embaixo,
+    as ordens lançadas direto no projeto e os reembolsos. O cartão do orçamento
     diz quanto já foi gasto, em **Pago**, **A pagar** e **Comprometido**, e o
     **Saldo**.
   </Passo>
@@ -41,19 +42,20 @@ e a finalização.
 
 ### Quanto o projeto gastou
 
-O gasto do projeto são as **ordens de pagamento** ligadas a ele, de três jeitos: a
-ordem lançada com o projeto, a ordem que nasceu de uma **compra** do projeto e a
-ordem de um **reembolso** a filiado do projeto. Cada ordem conta uma vez só, e as
-canceladas e estornadas ficam de fora.
+O gasto do projeto são as **ordens de pagamento** ligadas a ele: as das **compras**
+do projeto, as dos **custeios** do projeto (Institucional → Custeio institucional),
+as lançadas direto no projeto e as de **reembolsos** a filiados do projeto. Cada
+ordem conta uma vez só, e as canceladas e estornadas ficam de fora. A ordem de uma
+compra ou de um custeio é sempre do projeto dele.
 
 - **Pago**: as ordens já pagas.
 - **A pagar**: as que ainda estão em autorização, aguardando documento, a pagar ou
   processando.
-- **Comprometido**: a compra do projeto que ainda não virou ordem (e não foi
-  cancelada).
+- **Comprometido**: a compra (não cancelada) ou o custeio (aguardando autorização ou
+  autorizado) que ainda não virou ordem.
 
-O **Saldo** é o orçamento menos o gasto. A lista de **Ordens de pagamento** da página
-leva a cada ordem no Financeiro. Os reembolsos a filiados entram só somados, sem os
+O **Saldo** é o orçamento menos o gasto. Em **Despesas do projeto**, o código leva à
+compra, ao custeio ou à ordem. Os reembolsos a filiados entram só somados, sem os
 nomes: o detalhe fica em Reembolsos.
 
 ### Transferir despesa para outro projeto
@@ -61,10 +63,10 @@ nomes: o detalhe fica em Reembolsos.
 Quando uma despesa foi lançada no projeto errado, quem tem **Projetos — editar**
 a transfere para outro projeto **em andamento**, no botão de setas da linha:
 
-- Em **Solicitações de compra vinculadas**, a **compra** vai com as ordens de
-  pagamento dela.
-- Em **Ordens de pagamento**, vai a **ordem** lançada direto no projeto. A ordem que
-  veio de uma compra do projeto mostra **pela compra**: transfira a compra.
+- Na linha da **compra**, ela vai com **todas** as ordens de pagamento dela.
+- Na linha do **custeio**, ele vai com **todas** as ordens dele.
+- Em **Ordens lançadas direto no projeto**, vai a **ordem**. A ordem de uma compra
+  ou de um custeio não tem o botão: ela vai junto com a compra ou o custeio.
 
 Escolha o **Projeto de destino** e escreva o **Motivo**, que é obrigatório. Os dois
 projetos precisam estar em andamento: para mexer num finalizado, reabra-o antes. O

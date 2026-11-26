@@ -38,6 +38,8 @@ import { contasAbertasParaCompras } from "@/lib/db/caixa"
 import { listarCentrosCusto } from "@/lib/db/financeiro"
 import { SITUACOES_ENCERRADAS, SITUACOES_NAO_AUTORIZADAS } from "@/lib/db/ordens-ciclo"
 import { hojeLocalISO } from "@/lib/compras-constantes"
+import { projetosAbertosParaTransferencia, tituloDoProjeto } from "@/lib/db/projetos"
+import { VincularProjetoCusteio } from "./vincular-projeto"
 import {
   CADENCIAS,
   situacaoExibidaCusteio,
@@ -131,8 +133,16 @@ export default async function CusteioPage({
         listarConvidados(),
         contasAbertasParaCompras(),
         listarAssessoriasParaCusteio(),
+        projetosAbertosParaTransferencia(),
       ])
     : null
+  // Projeto do custeio; sem projeto, quem edita pode vincular (o autorizado não se edita).
+  const projetoId = str(c.projeto_id)
+  const vinculaProjeto = !projetoId && podeEditar && situacao !== "cancelado" && !editando
+  const [tituloProjeto, destinosProjeto] = await Promise.all([
+    projetoId ? tituloDoProjeto(projetoId) : Promise.resolve(null),
+    vinculaProjeto ? projetosAbertosParaTransferencia() : Promise.resolve([]),
+  ])
   const urlFormalizacao = await urlFormalizacaoCusteio(str(c.arquivo_formalizacao))
   const pagoCom = await pagoComDoCusteio(id, str(c.forma_pagamento))
 
@@ -149,6 +159,7 @@ export default async function CusteioPage({
         descricao: str(c.descricao),
         evento: str(c.evento),
         centro_custo_despesa_id: str(c.centro_custo_despesa_id),
+        projeto_id: str(c.projeto_id),
         cadencia: String(c.cadencia),
         valor_parcela:
           typeof c.valor_parcela === "number" ? c.valor_parcela : null,
@@ -352,6 +363,7 @@ export default async function CusteioPage({
           {editando && opcoes && inicial ? (
             <CusteioForm
               custeio={inicial}
+              projetos={opcoes[6].map((p) => ({ id: p.id, nome: p.titulo }))}
               finalidades={opcoes[0].map((f) => ({
                 id: f.id,
                 nome: f.nome,
@@ -410,6 +422,23 @@ export default async function CusteioPage({
               <Campo rotulo="Forma de pagamento" valor={str(c.forma_pagamento)} />
               {pagoCom && <Campo rotulo="Para onde" valor={pagoCom} />}
               <Campo rotulo="Evento" valor={str(c.evento)} />
+              <div>
+                <dt className="text-muted-foreground text-xs">Projeto</dt>
+                <dd className="mt-0.5 text-sm">
+                  {projetoId ? (
+                    <Link href={`/painel/ferramentas/projetos/${projetoId}`} className="text-primary hover:underline">
+                      {tituloProjeto ?? "Projeto"}
+                    </Link>
+                  ) : (
+                    "—"
+                  )}
+                </dd>
+              </div>
+              {vinculaProjeto && (
+                <div className="sm:col-span-2 lg:col-span-3">
+                  <VincularProjetoCusteio custeioId={id} projetos={destinosProjeto} />
+                </div>
+              )}
               <div className="sm:col-span-2 lg:col-span-3">
                 <dt className="text-muted-foreground text-xs">Descrição</dt>
                 <dd className="mt-0.5 text-sm">{str(c.descricao) ?? "—"}</dd>

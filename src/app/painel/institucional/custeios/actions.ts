@@ -173,6 +173,7 @@ function lerDadosCusteio(formData: FormData): DadosCusteio {
     descricao: ouNull(texto(formData, "descricao")),
     evento: ouNull(texto(formData, "evento")),
     centroCustoDespesaId: ouNull(texto(formData, "centro_custo_despesa_id")),
+    projetoId: ouNull(texto(formData, "projeto_id")),
     cadencia: texto(formData, "cadencia") === "recorrente"
       ? "recorrente"
       : "pontual",
@@ -553,4 +554,16 @@ export async function receberDocumentoCusteioAction(
         ? "Documento recebido — a parcela já estava autorizada e seguiu para pagamento."
         : "Documento recebido — a ordem seguiu para autorização.",
   }
+}
+
+/** Liga ao projeto o custeio que ainda não tem projeto (o já autorizado não se edita). */
+export async function vincularProjetoCusteioAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  await requirePermissao("custeio_institucional_edicao")
+  const custeioId = texto(formData, "custeio_id")
+  const { vincularCusteioAoProjeto } = await import("@/lib/db/projetos")
+  const r = await vincularCusteioAoProjeto(custeioId, texto(formData, "projeto_id"))
+  if (r.erro) return { erro: r.erro }
+  revalidatePath(`/painel/institucional/custeios/${custeioId}`)
+  revalidatePath("/painel/ferramentas/projetos")
+  return { ok: r.ok }
 }

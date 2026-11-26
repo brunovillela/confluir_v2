@@ -103,7 +103,7 @@ Custeio institucional pago a diretor, filiado, convidado ou fornecedor: finalida
 
 - **LGPD:** identificação, financeiro, **sensível: sindical** · titulares: diretores, filiados, convidados, fornecedores PF
 - **RLS:** ligado · policies: `tenant_isolation`
-- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+- **Triggers:** `custeio_leva_projeto_as_ordens` → `custeio_leva_projeto_as_ordens`, `set_emp_from_jwt` → `set_emp_from_jwt`
 
 | Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
 |---|---|---|---|---|---|---|
@@ -149,8 +149,9 @@ Custeio institucional pago a diretor, filiado, convidado ou fornecedor: finalida
 | `cancelamento_motivo` | text | sim |  |  |  | Motivo do cancelamento do custeio (pelo Custeio ou, quando todas as ordens foram canceladas, pelo Financeiro). |
 | `cancelado_em` | timestamp with time zone | sim |  |  |  | Quando o custeio foi cancelado. |
 | `cancelado_por_id` | uuid | sim |  | → usuarios |  | Quem cancelou o custeio (ou a última ordem dele no Financeiro). |
+| `projeto_id` | uuid | sim |  | → projeto (set null) | nenhum | Projeto a que o custeio pertence (opcional). As ordens do custeio herdam o projeto e entram no gasto dele. |
 
-Índices: `idx_custeios_emp`, `idx_custeios_finalidade`, `idx_custeios_fornecedor`, `idx_custeios_situacao`, `institucional_custeios_pkey`
+Índices: `idx_custeios_emp`, `idx_custeios_finalidade`, `idx_custeios_fornecedor`, `idx_custeios_situacao`, `institucional_custeios_pkey`, `institucional_custeios_projeto_idx`
 
 ## institucional_ramais
 

@@ -13,6 +13,7 @@ import {
 } from "@/lib/db/custeio"
 import { contasAbertasParaCompras } from "@/lib/db/caixa"
 import { listarCentrosCusto } from "@/lib/db/financeiro"
+import { projetosAbertosParaTransferencia } from "@/lib/db/projetos"
 
 import { CusteioForm } from "../custeio-form"
 
@@ -21,13 +22,14 @@ export const metadata: Metadata = { title: "Novo custeio — Confluir" }
 export default async function NovoCusteioPage() {
   await requirePermissao("custeio_institucional_edicao")
 
-  const [finalidades, centros, diretores, convidados, caixas, assessorias] = await Promise.all([
+  const [finalidades, centros, diretores, convidados, caixas, assessorias, projetos] = await Promise.all([
     listarFinalidades(),
     listarCentrosCusto(),
     listarDiretoresParaCusteio(),
     listarConvidados(),
     contasAbertasParaCompras(),
     listarAssessoriasParaCusteio(),
+    projetosAbertosParaTransferencia(),
   ])
 
   return (
@@ -53,6 +55,7 @@ export default async function NovoCusteioPage() {
         <CardContent>
           <CusteioForm
             caixas={caixas}
+            projetos={projetos.map((p) => ({ id: p.id, nome: p.titulo }))}
             finalidades={finalidades.map((f) => ({
               id: f.id,
               nome: f.nome,

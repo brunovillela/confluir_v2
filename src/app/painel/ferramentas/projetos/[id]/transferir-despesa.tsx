@@ -36,7 +36,7 @@ export function TransferirDespesa({
   projetos,
 }: {
   origemId: string
-  tipo: "compra" | "ordem"
+  tipo: "compra" | "custeio" | "ordem"
   itemId: string
   rotulo: string
   valor: number | null
@@ -48,7 +48,7 @@ export function TransferirDespesa({
     if (r.ok) setAberto(false)
     return r
   }, {})
-  const oQue = tipo === "compra" ? "a compra" : "a ordem"
+  const oQue = tipo === "compra" ? "a compra" : tipo === "custeio" ? "o custeio" : "a ordem"
   const sufixo = `${tipo}-${itemId}`
 
   return (
@@ -70,8 +70,10 @@ export function TransferirDespesa({
           <DialogTitle>Transferir para outro projeto</DialogTitle>
           <DialogDescription>
             {tipo === "compra"
-              ? `A compra ${rotulo} vai para o projeto escolhido, com as ordens de pagamento dela.`
-              : `A ordem ${rotulo} vai para o projeto escolhido.`}
+              ? `A compra ${rotulo} vai para o projeto escolhido, com todas as ordens de pagamento dela.`
+              : tipo === "custeio"
+                ? `O custeio ${rotulo} vai para o projeto escolhido, com todas as ordens de pagamento dele.`
+                : `A ordem ${rotulo} vai para o projeto escolhido.`}
             {valor != null && valor > 0 && ` Valor: ${formatarMoeda(valor)}.`} O centro de custo não muda; se precisar,
             reclassifique a ordem no Financeiro.
           </DialogDescription>

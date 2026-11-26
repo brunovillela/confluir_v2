@@ -60,6 +60,7 @@ export type CusteioInicial = {
   descricao: string | null
   evento: string | null
   centro_custo_despesa_id: string | null
+  projeto_id?: string | null
   cadencia: string
   valor_parcela: number | null
   num_parcelas: number | null
@@ -79,6 +80,7 @@ export function CusteioForm({
   convidados,
   fornecedores = [],
   caixas = [],
+  projetos = [],
   aoCancelarHref,
 }: {
   custeio?: CusteioInicial
@@ -90,6 +92,8 @@ export function CusteioForm({
   fornecedores?: EmpresaOpcao[]
   /** Contas de caixa abertas (forma Dinheiro). */
   caixas?: CaixaOpcao[]
+  /** Projetos em andamento: o custeio entra no gasto do escolhido. */
+  projetos?: Opcao[]
   aoCancelarHref: string
 }) {
   const [estado, formAction, pendente] = useActionState(
@@ -249,6 +253,21 @@ export function CusteioForm({
             ))}
           </select>
         </div>
+      </div>
+
+      <div className="grid gap-1.5">
+        <Label htmlFor="projeto_id">Projeto (opcional)</Label>
+        <select id="projeto_id" name="projeto_id" className={SELECT} defaultValue={custeio?.projeto_id ?? ""}>
+          <option value="">Sem projeto</option>
+          {projetos.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.nome}
+            </option>
+          ))}
+        </select>
+        <p className="text-muted-foreground text-xs">
+          As ordens do custeio entram no gasto do projeto escolhido (Ferramentas → Projetos).
+        </p>
       </div>
 
       <fieldset className="border-border grid gap-4 rounded-md border p-4">

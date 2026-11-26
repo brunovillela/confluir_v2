@@ -140,6 +140,7 @@ erDiagram
     uuid compra_id FK
     uuid ordem_id FK
     uuid usuario_id FK
+    uuid custeio_id FK
   }
   financeiro_tributos {
     uuid id PK
@@ -262,6 +263,7 @@ erDiagram
   financeiro_remessa_itens }o--|| ordens_pagamento : "ordem_id"
   financeiro_remessas }o--|| financeiro_contas_bancarias : "conta_bancaria_id"
   financeiro_transferencias_projeto }o--o| compras_solicitacoes : "compra_id"
+  financeiro_transferencias_projeto }o--o| institucional_custeios : "custeio_id"
   financeiro_transferencias_projeto }o--o| ordens_pagamento : "ordem_id"
   financeiro_transferencias_projeto }o--o| usuarios : "usuario_id"
   financeiro_transferencias_projeto }o--|| projeto : "destino_id"
