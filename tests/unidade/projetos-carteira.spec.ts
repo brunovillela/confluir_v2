@@ -33,7 +33,7 @@ test("atenção: tarefas atrasadas, marco em até 7 dias, orçamento estourado",
     hoje
   )
   expect(r.nivel).toBe("atencao")
-  expect(r.motivos).toEqual(["2 tarefas atrasadas", 'Marco "Divulgar" vence em 26/11', "Solicitado em Aquisição passou do orçamento"])
+  expect(r.motivos).toEqual(["2 tarefas atrasadas", 'Marco "Divulgar" vence em 26/11', "O gasto passou do orçamento"])
 })
 
 test("marco hoje é atenção, não atraso", () => {

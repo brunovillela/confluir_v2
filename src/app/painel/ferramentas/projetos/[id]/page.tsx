@@ -68,7 +68,7 @@ export default async function ProjetoPage({
   const pendentes = tarefas.tarefas.length - concluidas
 
   const saldo =
-    projeto.orcamento != null ? projeto.orcamento - projeto.gastoCompras : null
+    projeto.orcamento != null ? projeto.orcamento - projeto.gasto.total : null
 
   const periodo =
     projeto.inicio || projeto.termino_previsao
@@ -90,7 +90,7 @@ export default async function ProjetoPage({
   )
   const usoOrcamento =
     projeto.orcamento != null && projeto.orcamento > 0
-      ? (projeto.gastoCompras / projeto.orcamento) * 100
+      ? (projeto.gasto.total / projeto.orcamento) * 100
       : null
 
   return (
@@ -178,20 +178,28 @@ export default async function ProjetoPage({
                 <Progress
                   value={Math.min(usoOrcamento, 100)}
                   className={`h-2 ${usoOrcamento > 100 ? "[&>[data-slot=progress-indicator]]:bg-destructive" : ""}`}
-                  aria-label="Parte do orçamento já solicitada"
+                  aria-label="Parte do orçamento já gasta"
                 />
                 <p className="text-muted-foreground text-xs">
-                  {usoOrcamento.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}% do orçamento solicitado
+                  {usoOrcamento.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}% do orçamento gasto
                 </p>
               </div>
             )}
             <dl className="grid gap-1.5 border-t pt-3 text-sm">
-              <Linha rotulo="Solicitado em Aquisição">{formatarMoeda(projeto.gastoCompras)}</Linha>
+              <Linha rotulo="Pago">{formatarMoeda(projeto.gasto.pago)}</Linha>
+              <Linha rotulo="A pagar">{formatarMoeda(projeto.gasto.aPagar)}</Linha>
+              <Linha rotulo="Comprometido">{formatarMoeda(projeto.gasto.comprometido)}</Linha>
+              <Linha rotulo="Gasto">{formatarMoeda(projeto.gasto.total)}</Linha>
               <Linha rotulo="Saldo" alerta={saldo != null && saldo < 0}>
                 {saldo != null ? formatarMoeda(saldo) : "—"}
               </Linha>
-              <Linha rotulo="Solicitações">{projeto.solicitacoes.length.toLocaleString("pt-BR")}</Linha>
             </dl>
+            <p className="text-muted-foreground text-xs">
+              O gasto soma as ordens de pagamento do projeto (as que vieram das compras e dos reembolsos
+              também), sem as canceladas. Comprometido é a compra ainda sem ordem.
+              {projeto.gasto.reembolsos.quantidade > 0 &&
+                ` Inclui ${projeto.gasto.reembolsos.quantidade.toLocaleString("pt-BR")} reembolso${projeto.gasto.reembolsos.quantidade === 1 ? "" : "s"} a filiados (${formatarMoeda(projeto.gasto.reembolsos.total)}).`}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -270,6 +278,49 @@ export default async function ProjetoPage({
             desvincular={editaTarefas}
             pessoas={editaTarefas ? pessoas : undefined}
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent>
+          <p className="mb-3 text-sm font-medium">Ordens de pagamento</p>
+          {projeto.ordens.length === 0 ? (
+            <p className="text-muted-foreground py-6 text-center text-sm">
+              {projeto.gasto.reembolsos.quantidade > 0
+                ? "Só ordens de reembolso a filiados, somadas no orçamento."
+                : "Nenhuma ordem de pagamento ligada a este projeto."}
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Código</TableHead>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead>Situação</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {projeto.ordens.map((o) => (
+                  <TableRow key={o.id}>
+                    <TableCell className="whitespace-nowrap">
+                      <Link href={`/painel/financeiro/ordens/${o.id}`} className="text-primary font-medium hover:underline">
+                        {o.codigo ?? "—"}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="max-w-80">
+                      <span className="line-clamp-1">{o.descricao ?? "—"}</span>
+                      {o.origem === "compra" && <span className="text-muted-foreground block text-xs">Da compra do projeto</span>}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">{o.situacao ?? "—"}</TableCell>
+                    <TableCell className="whitespace-nowrap tabular-nums">{o.data ? formatarData(o.data) : "—"}</TableCell>
+                    <TableCell className="text-right tabular-nums whitespace-nowrap">{formatarMoeda(o.valor)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 

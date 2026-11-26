@@ -376,6 +376,8 @@ export async function sincronizarAgenda(evento: Evento): Promise<void> {
     termino: evento.termino,
     dia_todo: false,
     local: evento.local,
+    // O evento publicado está no portal: o compromisso também.
+    aplicativo: true,
     evento_id: evento.id,
     emp_proprietaria_id: emp,
   }

@@ -48,7 +48,7 @@ function dataCurta(iso: string): string {
  *  • Atrasado — marco com a data vencida e não concluído, ou o término
  *    previsto já passou sem o projeto ser finalizado;
  *  • Atenção — tarefas atrasadas, marco vencendo em até DIAS_AVISO_MARCO
- *    dias ou o solicitado em Aquisição passou do orçamento;
+ *    dias ou o gasto (ordens e compras sem ordem) passou do orçamento;
  *  • No prazo — nada disso. Projeto finalizado é só "Finalizado".
  */
 export function situacaoDoProjeto(
@@ -80,6 +80,6 @@ export function situacaoDoProjeto(
   for (const m of abertos.filter((m) => m.dataPrevista <= limite)) {
     atencao.push(`Marco "${m.titulo}" vence em ${dataCurta(m.dataPrevista)}`)
   }
-  if (p.saldo != null && p.saldo < 0) atencao.push("Solicitado em Aquisição passou do orçamento")
+  if (p.saldo != null && p.saldo < 0) atencao.push("O gasto passou do orçamento")
   return atencao.length ? { nivel: "atencao", motivos: atencao } : { nivel: "no_prazo", motivos: [] }
 }

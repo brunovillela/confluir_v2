@@ -111,14 +111,16 @@ export async function AbaDia({ sessao }: { sessao: SessaoPainel }) {
           <CartaoHud titulo="Agenda do dia" icone={CalendarDays} href="/painel/ferramentas/agenda">
             <ListaHud vazio="">
               {resumo.agenda.map((e) => (
-                <li key={e.id} className="grid gap-0.5 py-2 text-sm first:pt-0 last:pb-0">
-                  <span className="hud-numero text-primary text-xs">
-                    <HorarioEvento evento={e} />
-                  </span>
-                  <span className="truncate font-medium">{(e.atividade ?? "(sem título)").trim()}</span>
-                  {(e.local || e.tipo) && (
-                    <span className="text-muted-foreground truncate text-xs">{[e.local, e.tipo].filter(Boolean).join(" · ")}</span>
-                  )}
+                <li key={e.id} className="py-2 text-sm first:pt-0 last:pb-0">
+                  <Link href={`/painel/ferramentas/agenda/${e.id}`} className="group grid gap-0.5">
+                    <span className="hud-numero text-primary text-xs">
+                      <HorarioEvento evento={e} />
+                    </span>
+                    <span className="truncate font-medium group-hover:underline">{(e.atividade ?? "(sem título)").trim()}</span>
+                    {(e.local || e.tipo) && (
+                      <span className="text-muted-foreground truncate text-xs">{[e.local, e.tipo].filter(Boolean).join(" · ")}</span>
+                    )}
+                  </Link>
                 </li>
               ))}
             </ListaHud>

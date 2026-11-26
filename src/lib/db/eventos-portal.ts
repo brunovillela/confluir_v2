@@ -328,7 +328,7 @@ export type ItemAgendaCalendario = {
   informacoes: string | null
 }
 
-/** Compromisso da agenda do portal (A84) — só os marcados para o aplicativo. */
+/** Compromisso da agenda do portal (A84) — os marcados para o aplicativo e os eventos publicados. */
 export async function itemDaAgendaParaCalendario(
   id: string,
   tenantId: string
@@ -339,7 +339,7 @@ export async function itemDaAgendaParaCalendario(
     .select("id, atividade, local, inicio, termino, dia_todo, tipo, informacoes_gerais")
     .eq("emp_proprietaria_id", tenantId)
     .eq("id", id)
-    .eq("aplicativo", true)
+    .or("aplicativo.eq.true,evento_id.not.is.null")
     .maybeSingle()
   if (!data || !texto(data.inicio)) return null
   return {

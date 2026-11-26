@@ -9,10 +9,10 @@ import { createAdminClient } from "@/lib/supabase/admin"
 
 /**
  * Projetos — tabela `projeto` (101 registros migrados do Bubble). É a dimensão
- * orçamentária que amarra Compras: `compras_solicitacoes.solicitacao_projeto_id`
- * aponta para daqui (1.868 de 6.525 solicitações vinculadas). O gasto exibido é
- * a soma de `compra_valor` das solicitações do projeto — não há vínculo direto
- * de `ordens_pagamento` com projeto no legado (`ordens_pagamento_raw` veio vazio).
+ * orçamentária que amarra Compras (`compras_solicitacoes.solicitacao_projeto_id`),
+ * ordens de pagamento (`ordens_pagamento.projeto_id`) e reembolsos
+ * (`filiacao_reembolsos.projeto_id`). O gasto exibido vem das ordens — ver
+ * gastosDosProjetos (`ordens_pagamento_raw` do legado veio vazio e não é usado).
  *
  * Convenções da tabela:
  * • `descricao_sumaria` = título do projeto (o campo `descricao` veio sempre nulo).
@@ -40,43 +40,178 @@ function listaJsonb(v: unknown): string[] {
   return []
 }
 
-// ── Gasto por projeto (via Aquisição) ─────────────────────────────────────────
+// ── Gasto por projeto (ordens, compras e reembolsos) ─────────────────────────
 
 /**
- * Soma de `compra_valor` das solicitações de compra, agrupada por projeto.
- * Uma consulta só para a tela de listagem, evitando N+1.
+ * GASTO REAL DO PROJETO (25/11/2026). Antes, só a soma das compras: as ordens
+ * de pagamento e os reembolsos ligados ao projeto (60 e 44 desde a virada)
+ * não apareciam, e a compra cancelada contava. Agora o gasto são as ORDENS:
+ * a que tem o projeto, a que nasceu de uma compra do projeto e a de um
+ * reembolso do projeto — cada uma uma vez só (a ordem de compra nova não
+ * leva o projeto: 14 de 98 desde a virada). Cancelada, estornada ou excluída
+ * não conta. A compra (ou o reembolso) do projeto ainda sem ordem entra como
+ * comprometido.
  */
-async function gastoPorProjeto(
+export type GastoProjeto = {
+  /** Ordens pagas. */
+  pago: number
+  /** Ordens ainda não pagas (em autorização, a pagar, aguardando documento…). */
+  aPagar: number
+  /** Compras e reembolsos do projeto que ainda não viraram ordem. */
+  comprometido: number
+  /** pago + aPagar + comprometido. */
+  total: number
+  ordens: number
+  /** Reembolsos a filiados: só a soma (o detalhe fica em Reembolsos). */
+  reembolsos: { quantidade: number; total: number }
+  solicitacoes: number
+}
+
+export type OrdemDoProjeto = {
+  id: string
+  codigo: string | null
+  descricao: string | null
+  situacao: string | null
+  valor: number
+  data: string | null
+  origem: "projeto" | "compra"
+}
+
+const SITUACOES_FORA_DO_GASTO = new Set(["Cancelada", "Estornado"])
+
+function gastoVazio(): GastoProjeto {
+  return { pago: 0, aPagar: 0, comprometido: 0, total: 0, ordens: 0, reembolsos: { quantidade: 0, total: 0 }, solicitacoes: 0 }
+}
+
+function valorDaOrdem(o: Record<string, unknown>): number {
+  return Number(o.valor_pago ?? o.valor_inicial_cobranca ?? o.valor ?? 0) || 0
+}
+
+function contaNoGasto(o: Record<string, unknown>): boolean {
+  return o.excluido !== true && !SITUACOES_FORA_DO_GASTO.has(String(o.situacao ?? ""))
+}
+
+async function gastosDosProjetos(
   projetoIds: string[]
-): Promise<Map<string, { total: number; solicitacoes: number }>> {
-  const mapa = new Map<string, { total: number; solicitacoes: number }>()
+): Promise<{ gastos: Map<string, GastoProjeto>; ordens: Map<string, OrdemDoProjeto[]> }> {
+  const gastos = new Map<string, GastoProjeto>()
+  const ordensPorProjeto = new Map<string, OrdemDoProjeto[]>()
   const ids = [...new Set(projetoIds.filter(Boolean))]
-  if (ids.length === 0) return mapa
+  if (ids.length === 0) return { gastos, ordens: ordensPorProjeto }
 
   const admin = await createAdminClient()
-  // PostgREST devolve no máximo 1.000 linhas por requisição; há ~1.868
-  // solicitações vinculadas a projetos, então paginamos por `range` até
-  // esgotar para não subestimar o gasto.
-  const PAGINA = 1000
-  for (let inicio = 0; ; inicio += PAGINA) {
-    const { data } = await admin
-      .from("compras_solicitacoes")
-      .select("solicitacao_projeto_id, compra_valor")
-      .in("solicitacao_projeto_id", ids)
-      .range(inicio, inicio + PAGINA - 1)
+  const emp = await tenantAtual()
+  const COLUNAS_ORDEM =
+    "id, codigo, descricao, situacao, excluido, tipo, valor, valor_pago, valor_inicial_cobranca, vencimento, data_pagamento, projeto_id, processo_compra_id"
 
-    const linhas = data ?? []
-    for (const linha of linhas) {
-      const pid = linha.solicitacao_projeto_id as string | null
-      if (!pid) continue
-      const atual = mapa.get(pid) ?? { total: 0, solicitacoes: 0 }
-      atual.total += numero(linha.compra_valor) ?? 0
-      atual.solicitacoes += 1
-      mapa.set(pid, atual)
-    }
-    if (linhas.length < PAGINA) break
+  const [compras, reembolsos, ordensDiretas] = await Promise.all([
+    lerEmLotesPorIds(ids, (fatia, de, ate) =>
+      admin
+        .from("compras_solicitacoes")
+        .select("id, solicitacao_projeto_id, compra_valor, cancelado")
+        .eq("emp_proprietaria_id", emp)
+        .in("solicitacao_projeto_id", fatia)
+        .order("id")
+        .range(de, ate)
+    ),
+    lerEmLotesPorIds(ids, (fatia, de, ate) =>
+      admin
+        .from("filiacao_reembolsos")
+        .select("id, projeto_id, ordem_pagamento_id, valor")
+        .eq("emp_proprietaria_id", emp)
+        .in("projeto_id", fatia)
+        .order("id")
+        .range(de, ate)
+    ),
+    lerEmLotesPorIds(ids, (fatia, de, ate) =>
+      admin.from("ordens_pagamento").select(COLUNAS_ORDEM).eq("emp_proprietaria_id", emp).in("projeto_id", fatia).order("id").range(de, ate)
+    ),
+  ])
+
+  const projetoDaCompra = new Map(compras.map((c) => [String(c.id), String(c.solicitacao_projeto_id)]))
+  const ordens = new Map<string, Record<string, unknown>>(ordensDiretas.map((o) => [String(o.id), o]))
+  const dasCompras = await lerEmLotesPorIds([...projetoDaCompra.keys()], (fatia, de, ate) =>
+    admin.from("ordens_pagamento").select(COLUNAS_ORDEM).eq("emp_proprietaria_id", emp).in("processo_compra_id", fatia).order("id").range(de, ate)
+  )
+  for (const o of dasCompras) ordens.set(String(o.id), o)
+  const faltam = reembolsos.map((r) => texto(r.ordem_pagamento_id)).filter((v): v is string => !!v && !ordens.has(v))
+  const dosReembolsos = await lerEmLotesPorIds(faltam, (fatia, de, ate) =>
+    admin.from("ordens_pagamento").select(COLUNAS_ORDEM).eq("emp_proprietaria_id", emp).in("id", fatia).order("id").range(de, ate)
+  )
+  for (const o of dosReembolsos) ordens.set(String(o.id), o)
+
+  const projetoDoReembolsoPorOrdem = new Map<string, string>()
+  for (const r of reembolsos) {
+    const oid = texto(r.ordem_pagamento_id)
+    if (oid) projetoDoReembolsoPorOrdem.set(oid, String(r.projeto_id))
   }
-  return mapa
+  const doProjeto = (pid: string) => {
+    let g = gastos.get(pid)
+    if (!g) gastos.set(pid, (g = gastoVazio()))
+    return g
+  }
+
+  // Ordens: o projeto da própria ordem; senão, o da compra ou o do reembolso.
+  const comprasComOrdem = new Set<string>()
+  for (const o of ordens.values()) {
+    const id = String(o.id)
+    const compra = texto(o.processo_compra_id)
+    const pid = texto(o.projeto_id) ?? (compra ? projetoDaCompra.get(compra) : undefined) ?? projetoDoReembolsoPorOrdem.get(id)
+    if (!pid || !ids.includes(pid)) continue
+    // A compra que já teve ordem sai do comprometido, mesmo com a ordem
+    // cancelada (a compra refeita ganha outra ordem; não conta duas vezes).
+    if (compra) comprasComOrdem.add(compra)
+    if (!contaNoGasto(o)) continue
+    const g = doProjeto(pid)
+    const valor = valorDaOrdem(o)
+    if (o.situacao === "Paga") g.pago += valor
+    else g.aPagar += valor
+    g.ordens += 1
+    const ehReembolso = projetoDoReembolsoPorOrdem.has(id) || o.tipo === "Reembolso"
+    if (ehReembolso) {
+      g.reembolsos.quantidade += 1
+      g.reembolsos.total += valor
+      continue
+    }
+    const lista = ordensPorProjeto.get(pid) ?? []
+    lista.push({
+      id,
+      codigo: texto(o.codigo),
+      descricao: texto(o.descricao),
+      situacao: texto(o.situacao),
+      valor,
+      data: texto(o.data_pagamento) ?? texto(o.vencimento),
+      origem: compra && !texto(o.projeto_id) ? "compra" : "projeto",
+    })
+    ordensPorProjeto.set(pid, lista)
+  }
+
+  // Compras sem nenhuma ordem e reembolsos sem ordem: comprometido.
+  for (const c of compras) {
+    const pid = String(c.solicitacao_projeto_id)
+    const g = doProjeto(pid)
+    g.solicitacoes += 1
+    if (c.cancelado === true || comprasComOrdem.has(String(c.id))) continue
+    g.comprometido += numero(c.compra_valor) ?? 0
+  }
+  for (const r of reembolsos) {
+    if (texto(r.ordem_pagamento_id)) continue
+    const g = doProjeto(String(r.projeto_id))
+    const valor = Number(r.valor ?? 0) || 0
+    g.comprometido += valor
+    g.reembolsos.quantidade += 1
+    g.reembolsos.total += valor
+  }
+
+  for (const g of gastos.values()) {
+    g.pago = Math.round(g.pago * 100) / 100
+    g.aPagar = Math.round(g.aPagar * 100) / 100
+    g.comprometido = Math.round(g.comprometido * 100) / 100
+    g.reembolsos.total = Math.round(g.reembolsos.total * 100) / 100
+    g.total = Math.round((g.pago + g.aPagar + g.comprometido) * 100) / 100
+  }
+  for (const lista of ordensPorProjeto.values()) lista.sort((a, b) => (b.data ?? "").localeCompare(a.data ?? ""))
+  return { gastos, ordens: ordensPorProjeto }
 }
 
 // ── Marcos e tarefas por projeto (carteira) ──────────────────────────────────
@@ -245,8 +380,7 @@ export type ProjetoLinha = {
   termino_previsao: string | null
   finalizado: boolean | null
   estrategico: boolean | null
-  gastoCompras: number
-  solicitacoes: number
+  gasto: GastoProjeto
   tarefas: TarefasDoProjeto
   /** O próximo marco em aberto (o de data mais próxima, mesmo vencido). */
   proximoMarco: MarcoProjeto | null
@@ -284,15 +418,15 @@ export async function listarProjetos(
 
   const linhas = data ?? []
   const ids = linhas.map((p) => p.id as string)
-  const [gastos, marcos, tarefas] = await Promise.all([gastoPorProjeto(ids), marcosPorProjeto(ids), tarefasPorProjeto(ids)])
+  const [{ gastos }, marcos, tarefas] = await Promise.all([gastosDosProjetos(ids), marcosPorProjeto(ids), tarefasPorProjeto(ids)])
   const hoje = hojeSP()
 
   return linhas.map((p) => {
-    const g = gastos.get(p.id)
+    const g = gastos.get(p.id) ?? gastoVazio()
     const ms = marcos.get(p.id) ?? []
     const ts = tarefas.get(p.id) ?? { total: 0, concluidas: 0, atrasadas: 0 }
     const orcamento = numero(p.orcamento)
-    const gasto = g?.total ?? 0
+    const gasto = g.total
     return {
       id: p.id,
       titulo: texto(p.descricao_sumaria),
@@ -302,8 +436,7 @@ export async function listarProjetos(
       termino_previsao: texto(p.termino_previsao),
       finalizado: p.finalizado as boolean | null,
       estrategico: p.estrategico as boolean | null,
-      gastoCompras: gasto,
-      solicitacoes: g?.solicitacoes ?? 0,
+      gasto: g,
       tarefas: ts,
       proximoMarco: ms.find((m) => !m.concluidoEm) ?? null,
       marcos: { total: ms.length, concluidos: ms.filter((m) => m.concluidoEm).length },
@@ -328,7 +461,8 @@ export type ResumoProjetos = {
   emAndamento: number
   finalizados: number
   orcamentoAndamento: number
-  solicitadoCompras: number
+  /** Gasto (pago, a pagar e comprometido) dos projetos em andamento. */
+  gastoAndamento: number
 }
 
 export async function resumoProjetos(): Promise<ResumoProjetos> {
@@ -340,9 +474,9 @@ export async function resumoProjetos(): Promise<ResumoProjetos> {
 
   const linhas = data ?? []
   const emAndamento = linhas.filter((p) => p.finalizado !== true)
-  const gastos = await gastoPorProjeto(linhas.map((p) => p.id))
-  let solicitadoCompras = 0
-  for (const g of gastos.values()) solicitadoCompras += g.total
+  const { gastos } = await gastosDosProjetos(emAndamento.map((p) => p.id))
+  let gastoAndamento = 0
+  for (const g of gastos.values()) gastoAndamento += g.total
 
   return {
     total: linhas.length,
@@ -352,7 +486,7 @@ export async function resumoProjetos(): Promise<ResumoProjetos> {
       (s, p) => s + (numero(p.orcamento) ?? 0),
       0
     ),
-    solicitadoCompras,
+    gastoAndamento: Math.round(gastoAndamento * 100) / 100,
   }
 }
 
@@ -381,7 +515,9 @@ export type DetalheProjeto = {
   centroCustoId: string | null
   centroCustoNome: string | null
   departamentos: string[]
-  gastoCompras: number
+  gasto: GastoProjeto
+  /** Ordens de pagamento do projeto (sem as de reembolso, que entram só somadas). */
+  ordens: OrdemDoProjeto[]
   solicitacoes: SolicitacaoDoProjeto[]
 }
 
@@ -428,6 +564,7 @@ export async function obterProjeto(id: string): Promise<DetalheProjeto | null> {
       "id, codigo, descricao_objetivo, solicitacao_produto, compra_valor, cancelado, recebido, comprado, em_cotacao, cotacao_termino"
     )
     .eq("solicitacao_projeto_id", id)
+    .eq("emp_proprietaria_id", await tenantAtual())
     .order("compra_valor", { ascending: false, nullsFirst: false })
   const solicitacoes: SolicitacaoDoProjeto[] = (sols ?? []).map((s) => ({
     id: s.id as string,
@@ -436,7 +573,7 @@ export async function obterProjeto(id: string): Promise<DetalheProjeto | null> {
     situacao: ROTULOS_SITUACAO_PROCESSO[derivarSituacao(s)],
     valor: numero(s.compra_valor),
   }))
-  const gastoCompras = solicitacoes.reduce((sum, s) => sum + (s.valor ?? 0), 0)
+  const { gastos, ordens } = await gastosDosProjetos([id])
 
   return {
     id: p.id as string,
@@ -453,7 +590,8 @@ export async function obterProjeto(id: string): Promise<DetalheProjeto | null> {
     centroCustoId,
     centroCustoNome,
     departamentos,
-    gastoCompras,
+    gasto: gastos.get(id) ?? gastoVazio(),
+    ordens: ordens.get(id) ?? [],
     solicitacoes,
   }
 }

@@ -114,7 +114,7 @@ export default async function ProjetosPage({
         <CardResumo rotulo="Atrasados" valor={contar("atrasado")} href={linkSaude("atrasado")} tom="perigo" />
         <CardResumo rotulo="Precisam de atenção" valor={contar("atencao")} href={linkSaude("atencao")} tom="alerta" />
         <CardResumo rotulo="Orçamento em andamento" valor={formatarMoeda(resumo.orcamentoAndamento)} />
-        <CardResumo rotulo="Solicitado em Aquisição" valor={formatarMoeda(resumo.solicitadoCompras)} />
+        <CardResumo rotulo="Gasto em andamento" valor={formatarMoeda(resumo.gastoAndamento)} />
       </div>
 
       <form
@@ -241,16 +241,16 @@ export default async function ProjetosPage({
                       {p.orcamento != null && p.orcamento > 0 ? (
                         <div className="mt-1 grid gap-0.5">
                           <Progress
-                            value={Math.min((p.gastoCompras / p.orcamento) * 100, 100)}
-                            className={`h-1.5 ${p.gastoCompras > p.orcamento ? "[&>[data-slot=progress-indicator]]:bg-destructive" : ""}`}
-                            aria-label="Parte do orçamento solicitada"
+                            value={Math.min((p.gasto.total / p.orcamento) * 100, 100)}
+                            className={`h-1.5 ${p.gasto.total > p.orcamento ? "[&>[data-slot=progress-indicator]]:bg-destructive" : ""}`}
+                            aria-label="Parte do orçamento gasta"
                           />
-                          <span className={`text-xs tabular-nums ${p.gastoCompras > p.orcamento ? "text-destructive" : "text-muted-foreground"}`}>
-                            {formatarMoeda(p.gastoCompras)} solicitado
+                          <span className={`text-xs tabular-nums ${p.gasto.total > p.orcamento ? "text-destructive" : "text-muted-foreground"}`}>
+                            {formatarMoeda(p.gasto.total)} gasto
                           </span>
                         </div>
-                      ) : p.gastoCompras > 0 ? (
-                        <span className="text-muted-foreground block text-xs tabular-nums">{formatarMoeda(p.gastoCompras)} solicitado</span>
+                      ) : p.gasto.total > 0 ? (
+                        <span className="text-muted-foreground block text-xs tabular-nums">{formatarMoeda(p.gasto.total)} gasto</span>
                       ) : null}
                     </TableCell>
                   </TableRow>

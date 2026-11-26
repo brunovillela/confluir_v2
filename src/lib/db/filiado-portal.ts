@@ -363,7 +363,11 @@ export type EventoAgenda = {
   tipo: string | null
 }
 
-/** Eventos marcados no painel com aplicativo = TRUE, de hoje em diante. */
+/**
+ * Compromissos marcados no painel com aplicativo = TRUE, e os eventos
+ * publicados (espelho do módulo Eventos, com evento_id), de hoje em diante.
+ * O espelho não marcava o aplicativo até 25/11/2026: os eventos ficavam fora.
+ */
 export async function eventosDoAplicativo(limite = 30): Promise<EventoAgenda[]> {
   const admin = await createAdminClient()
   const hoje = new Intl.DateTimeFormat("en-CA", {
@@ -373,7 +377,7 @@ export async function eventosDoAplicativo(limite = 30): Promise<EventoAgenda[]> 
     .from("agenda")
     .select("id, atividade, local, inicio, termino, dia_todo, tipo")
     .eq("emp_proprietaria_id", await tenantAtual())
-    .eq("aplicativo", true)
+    .or("aplicativo.eq.true,evento_id.not.is.null")
     .gte("inicio", `${hoje}T00:00:00-03:00`)
     .order("inicio", { ascending: true })
     .limit(limite)

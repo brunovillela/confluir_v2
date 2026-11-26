@@ -149,8 +149,8 @@ export async function gestaoDoUsuario(sessao: SessaoPainel): Promise<GestaoDoUsu
       .from("agenda")
       .select("id, atividade, inicio, termino, dia_todo, local")
       .eq("emp_proprietaria_id", emp)
-      .gte("inicio", `${hoje}T00:00:00`)
-      .lt("inicio", `${somarDias(hoje, 7)}T00:00:00`)
+      .gte("inicio", `${hoje}T00:00:00-03:00`)
+      .lt("inicio", `${somarDias(hoje, 7)}T00:00:00-03:00`)
       .order("inicio", { ascending: true })
       .limit(12),
     admin

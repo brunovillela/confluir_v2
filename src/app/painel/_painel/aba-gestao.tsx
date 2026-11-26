@@ -8,6 +8,7 @@ import type { SessaoPainel } from "@/lib/auth"
 import { gestaoDoUsuario, temDecisoes } from "@/lib/db/diretor-home"
 import { agruparPorRemessa } from "@/lib/db/diarias"
 import { formatarData, formatarMoeda } from "@/lib/formato"
+import { podeAcessar } from "@/lib/permissoes"
 import { ROTULO_SITUACAO_NEGOCIACAO } from "@/lib/negociacoes-constantes"
 
 import { AbaIndicadores, type VistaIndicadores } from "./aba-indicadores"
@@ -45,6 +46,7 @@ export async function AbaGestao({
   erro?: string
 }) {
   const h = await gestaoDoUsuario(sessao)
+  const veAgenda = podeAcessar(sessao.permissoes, "ferramentas_agendas")
   const decide = temDecisoes(sessao) || h.assinaturas.length > 0
   // 08/10: diárias em remessa contam por remessa (a decisão é dela).
   const grupos = agruparPorRemessa(h.diarias)
@@ -111,7 +113,13 @@ export async function AbaGestao({
               {h.agenda.map((c) => (
                 <li key={c.id} className="flex items-start justify-between gap-3 py-2 text-sm first:pt-0 last:pb-0">
                   <span className="min-w-0">
-                    <span className="block truncate font-medium">{c.atividade ?? "(sem título)"}</span>
+                    {veAgenda ? (
+                      <Link href={`/painel/ferramentas/agenda/${c.id}`} className="block truncate font-medium hover:underline">
+                        {c.atividade ?? "(sem título)"}
+                      </Link>
+                    ) : (
+                      <span className="block truncate font-medium">{c.atividade ?? "(sem título)"}</span>
+                    )}
                     {c.local && <span className="text-muted-foreground block truncate text-xs">{c.local}</span>}
                   </span>
                   <span className="hud-numero text-muted-foreground shrink-0 text-right text-xs">

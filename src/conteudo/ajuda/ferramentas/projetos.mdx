@@ -21,8 +21,10 @@ e a finalização.
     **Detalhamento** e, se for o caso, **Projeto estratégico**.
   </Passo>
   <Passo titulo="Acompanhe">
-    A página do projeto mostra os **marcos**, as **tarefas** do projeto e as
-    **solicitações de compra vinculadas**, com o valor solicitado.
+    A página do projeto mostra os **marcos**, as **tarefas**, as **ordens de
+    pagamento** e as **solicitações de compra vinculadas**. O cartão do orçamento
+    diz quanto já foi gasto, em **Pago**, **A pagar** e **Comprometido**, e o
+    **Saldo**.
   </Passo>
   <Passo titulo="Marque as etapas com data">
     **Marcos** são as etapas do projeto com data prevista, como "Contratar o espaço"
@@ -37,6 +39,23 @@ e a finalização.
   </Passo>
 </PassoAPasso>
 
+### Quanto o projeto gastou
+
+O gasto do projeto são as **ordens de pagamento** ligadas a ele, de três jeitos: a
+ordem lançada com o projeto, a ordem que nasceu de uma **compra** do projeto e a
+ordem de um **reembolso** a filiado do projeto. Cada ordem conta uma vez só, e as
+canceladas e estornadas ficam de fora.
+
+- **Pago**: as ordens já pagas.
+- **A pagar**: as que ainda estão em autorização, aguardando documento, a pagar ou
+  processando.
+- **Comprometido**: a compra do projeto que ainda não virou ordem (e não foi
+  cancelada).
+
+O **Saldo** é o orçamento menos o gasto. A lista de **Ordens de pagamento** da página
+leva a cada ordem no Financeiro. Os reembolsos a filiados entram só somados, sem os
+nomes: o detalhe fica em Reembolsos.
+
 ### Carteira de projetos
 
 A lista de projetos é a **carteira**: cada projeto em andamento recebe uma situação,
@@ -45,14 +64,14 @@ calculada pelo sistema, e a lista mostra primeiro o que pede ação.
 | Situação | Quando |
 |---|---|
 | **Atrasado** | Há marco com a data vencida e não cumprido, ou o término previsto já passou sem o projeto ser finalizado |
-| **Atenção** | Há tarefas atrasadas, marco vencendo em até 7 dias ou o solicitado em Aquisição passou do orçamento |
+| **Atenção** | Há tarefas atrasadas, marco vencendo em até 7 dias ou o gasto passou do orçamento |
 | **No prazo** | Nenhum dos casos acima |
 
 O motivo aparece embaixo da situação, na lista, e no alto da página do projeto. Os
 quadros do topo contam os projetos em andamento: estratégicos, atrasados e que
-precisam de atenção (o clique filtra a lista), além do orçamento e do solicitado. Cada
-linha traz o andamento das tarefas, o próximo marco e o orçamento com quanto já foi
-solicitado. Os filtros são busca pelo título, tipo, andamento, situação e **Só
+precisam de atenção (o clique filtra a lista), além do orçamento e do gasto dos
+projetos em andamento. Cada linha traz o andamento das tarefas, o próximo marco e o
+orçamento com quanto já foi gasto. Os filtros são busca pelo título, tipo, andamento, situação e **Só
 estratégicos**.
 
 ### Tarefas do projeto
