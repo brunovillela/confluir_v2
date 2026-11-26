@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowUpRight, CopyCheck, FileUp, Hash, Settings } from "lucide-react"
+import { ArrowUpRight, CopyCheck, FileUp, Hash, Settings, Vote } from "lucide-react"
 
 import {
   faixaDaSaude,
@@ -11,13 +11,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { cadastrosPendentes } from "@/lib/db/filiacao-cadastros-pendentes"
 import { listarDuplicidades } from "@/lib/db/filiacao-duplicidades"
 import { saudeNumeracao, type SaudeNumeracao } from "@/lib/db/filiacao-matricula"
+import { contarDivergenciasAbertas } from "@/lib/db/votacao-divergencias"
 
 /** Cartão "Saúde dos cadastros": completos ÷ ativos, com atalho para os pendentes e as duplicidades. */
 export async function SaudeCadastros({ podeConfigurar }: { podeConfigurar: boolean }) {
-  const [{ ativos, pendentes, comApontamento }, duplicidades, numeracao] = await Promise.all([
+  const [{ ativos, pendentes, comApontamento }, duplicidades, numeracao, divergencias] = await Promise.all([
     cadastrosPendentes(),
     listarDuplicidades(),
     saudeNumeracao(1),
+    contarDivergenciasAbertas(),
   ])
   const gruposDuplicados = duplicidades.disponivel ? duplicidades.grupos.length : 0
   const completos = ativos - pendentes
@@ -69,6 +71,19 @@ export async function SaudeCadastros({ podeConfigurar }: { podeConfigurar: boole
             <span>
               <span className="tabular-nums">{gruposDuplicados.toLocaleString("pt-BR")}</span>{" "}
               {gruposDuplicados === 1 ? "possível duplicidade" : "possíveis duplicidades"} para conferir
+            </span>
+            <ArrowUpRight className="size-4" />
+          </Link>
+        )}
+        {divergencias > 0 && (
+          <Link
+            href="/painel/filiados/divergencias-votacao"
+            className="border-warning/40 bg-warning/10 hover:bg-warning/15 text-warning-fg flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium"
+          >
+            <Vote className="size-4" />
+            <span>
+              <span className="tabular-nums">{divergencias.toLocaleString("pt-BR")}</span>{" "}
+              {divergencias === 1 ? "divergência das votações" : "divergências das votações"} para tratar
             </span>
             <ArrowUpRight className="size-4" />
           </Link>

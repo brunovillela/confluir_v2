@@ -323,7 +323,16 @@ export async function registrarDadosEleitor(dados: {
     }
   } else if (fichas.length > 0) {
     // Só fichas inativas, que não conferem: segue pela lista da empresa (2b).
-    divergenciaDaLista = `Ficha de filiado inativa deste CPF ("${fichas[0].nome_completo ?? "sem nome"}") não confere com o declarado ("${nome}"). O voto foi liberado pela lista da empresa; atualize a ficha.`
+    // Diz O QUE não confere: com o mesmo nome, é o nascimento (26/11/2026 —
+    // o aviso "não confere" com dois nomes iguais confundia).
+    const f = fichas[0]
+    const nomeOk = nomesConferem(nome, f.nome_completo)
+    const nascFicha = f.nascimento_data ? String(f.nascimento_data).slice(0, 10) : null
+    const partes = [
+      !nomeOk ? `o nome da ficha ("${f.nome_completo ?? "sem nome"}") difere do declarado ("${nome}")` : null,
+      !nascimentoConfere(f) ? `o nascimento da ficha (${nascFicha}) difere do declarado (${dados.nascimento})` : null,
+    ].filter(Boolean)
+    divergenciaDaLista = `Ficha de filiado inativa deste CPF ("${f.nome_completo ?? "sem nome"}"): ${partes.join(" e ") || "não confere com o declarado"}. O voto foi liberado pela lista da empresa; atualize a ficha.`
   }
 
   // 2b. CPF sem ficha que confira (não filiado ou ficha inativa divergente):
@@ -393,8 +402,10 @@ export async function registrarDadosEleitor(dados: {
       .in("id", meusIds)
     // O setor de filiação é quem acerta cadastro — avisa pelo sino do painel.
     const { avisarSetorFiliacao } = await import("@/lib/db/notificacoes")
+    // O aviso abre a fila "Divergências das votações", já no caso (26/11/2026).
     await avisarSetorFiliacao(
-      `Possível divergência de cadastro: ${divergenciaDaLista} Confira a ficha do filiado e a lista de aptos da rodada.`
+      `Possível divergência de cadastro: ${divergenciaDaLista} Confira a ficha do filiado e a lista de aptos da rodada.`,
+      `/painel/filiados/divergencias-votacao?apto=${meusIds[0]}#${meusIds[0]}`
     )
   }
 

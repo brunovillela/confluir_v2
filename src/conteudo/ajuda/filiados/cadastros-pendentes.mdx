@@ -49,6 +49,35 @@ abre a página **Numeração sindical**, com:
 Toda troca de número fica no prontuário, e o número antigo continua sendo achado
 pela busca.
 
+## Divergências das votações
+
+Quando um voto é liberado com o cadastro em desacordo (o nome da lista da
+empresa difere da ficha, a ficha inativa não confere com o que o eleitor
+declarou, o nascimento da ficha parece errado, ou o eleitor avisou que o nome
+da lista está errado), o setor de filiação recebe o aviso **Possível
+divergência de cadastro** no sino. O aviso abre **Filiados → Cadastros
+pendentes → Divergências das votações**, já no caso.
+
+Cada caso mostra o que veio da votação (nome da lista, nome e nascimento
+declarados, se já votou, a rodada) e as fichas do CPF, com o que difere em
+vermelho. A entidade não pede documento, então a ficha só muda com uma
+**fonte** escolhida:
+
+- **Lista da empresa + declarado pelo eleitor**: o nome declarado confere com
+  o da lista (casamento, grafia). Só para o nome; a lista não traz nascimento.
+- **Confirmado com o filiado** pelo telefone ou e-mail que já estavam no
+  cadastro.
+- **Atendimento presencial.**
+- **Relação de desconto ou contracheque da empresa.**
+- **Só a declaração do eleitor na votação**: a fonte mais fraca, de quem
+  entrou pelo e-mail da lista da empresa.
+
+Quando duas fontes concordam, ou a ficha tem um nascimento impossível, a fila
+já traz a correção sugerida. O prontuário recebe uma **Atualização cadastral**
+com o valor anterior, o novo, a fonte e quem mudou. Sem mudar a ficha, basta
+dizer o que foi feito (ex.: a lista da empresa é que está errada). O caso vai
+para **Tratadas**, e volta à fila se o mesmo eleitor tiver nova divergência.
+
 ## O que conta como pendência
 
 **Filiados → Cadastros pendentes** mostra os filiados **ativos** (condição do

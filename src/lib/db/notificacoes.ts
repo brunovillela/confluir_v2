@@ -144,7 +144,7 @@ export async function marcarTodasLidas(usuarioId: string): Promise<void> {
  * resolve — por exemplo, o nome na lista da empregadora diferente do nome da
  * ficha de filiação. Best-effort: nunca derruba a ação que originou o aviso.
  */
-export async function avisarSetorFiliacao(texto: string): Promise<number> {
+export async function avisarSetorFiliacao(texto: string, link?: string | null): Promise<number> {
   try {
     const admin = await createAdminClient()
     const { data } = await admin
@@ -162,7 +162,7 @@ export async function avisarSetorFiliacao(texto: string): Promise<number> {
       .not("deletado", "is", true)
       .eq("emp_proprietaria_id", await tenantAtual())
     for (const u of ativos ?? []) {
-      await criarNotificacao({ usuarioId: String(u.id), texto })
+      await criarNotificacao({ usuarioId: String(u.id), texto, link })
     }
     return (ativos ?? []).length
   } catch {
