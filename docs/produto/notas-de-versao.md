@@ -6,6 +6,8 @@ O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga
 
 ## 26/11/2026 — Ordens: filtro por projeto com as ordens das compras
 
+- Contratos: no filtro Vencidos, um quadro separa os contratos vencidos que ainda têm pagamento em aberto (Ver só esses — a linha mostra quantos) dos que só acabaram, que podem ser finalizados em lote: escolha há quanto tempo venceram (30, 90, 180 dias ou 1 ano), veja quantos são e finalize. Cada um pode ser reaberto.
+- Correções: o aviso de ordem devolvida não corta mais o "s" final do motivo; o NIT/PIS com pontos é aceito no RPA avulso.
 - Contratos: novo botão Finalizar contrato — para o contrato cumprido, rescindido ou substituído. Ele fica como Finalizado (com a data, quem finalizou e o motivo), sai de vigentes e vencidos e dos alertas, e entra no filtro Finalizados. As parcelas ainda não autorizadas que vencem depois podem ser excluídas junto; dá para reabrir se foi engano.
 - Aquisição: quem tem alçada aprova o pagamento na própria página da compra — a ordem Em autorização traz Aprovar e Devolver; acima da alçada, a linha diz até quanto você aprova.
 - Aquisição → Avaliações de ordens: a ordem de custeio (e a de contrato que pede a autorização de contratos) só aparece em Na sua alçada para quem pode aprová-la — alçada e a permissão de autorizar. Para os demais, fica no quadro Fora do seu alcance com o aviso da permissão que falta; antes, aparecia como aprovável e só dava erro ao clicar em Aprovar. Vale também para a tela Aprovar do painel e o /aprovar do Telegram.
