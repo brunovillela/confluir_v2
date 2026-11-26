@@ -2,6 +2,7 @@ import "server-only"
 
 import { hojeSP } from "@/lib/db/comum"
 import { ordensParecidas } from "@/lib/db/ordens-duplicidade"
+import { favorecidosDasOrdens } from "@/lib/db/ordens-favorecido"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -105,4 +106,90 @@ export async function idsSemCentroComRateio(): Promise<string[]> {
     .is("ordens_pagamento.centro_custo_despesa_id", null)
     .limit(5000)
   return [...new Set((data ?? []).map((r) => String(r.ordem_id)))]
+}
+
+/** Uma ponta do par de possível duplicidade. */
+export type OrdemDoPar = {
+  id: string
+  codigo: string | null
+  descricao: string | null
+  situacao: string | null
+  vencimento: string | null
+  dataPagamento: string | null
+  valor: number | null
+}
+
+/** "A ordem X parece a mesma cobrança da ordem Y" — o par, não as ordens soltas. */
+export type ParDuplicidade = {
+  favorecido: string | null
+  /** A ordem a pagar (A pagar ou Processando). */
+  a: OrdemDoPar
+  /** A outra: também a pagar ou já paga/em outra situação. */
+  b: OrdemDoPar
+}
+
+/**
+ * Os pares por trás de "possíveis duplicadas a pagar" (26/11/2026): a lista
+ * mostrava as ordens soltas, sem dizer qual repetia qual. Cada par aparece uma
+ * vez; a ponta "a" é sempre uma ordem a pagar.
+ */
+export async function paresDuplicadasAPagar(): Promise<ParDuplicidade[]> {
+  const admin = await createAdminClient()
+  const emp = await tenantAtual()
+  const { data } = await admin
+    .from("ordens_pagamento")
+    .select("id, valor_inicial_cobranca, vencimento, beneficiario_fornecedor_id, fornecedor_id, beneficiario_usuario_id")
+    .eq("emp_proprietaria_id", emp)
+    .not("excluido", "is", true)
+    .in("situacao", ABERTAS_PAGAVEIS)
+    .limit(1000)
+  const parecidas = await ordensParecidas(
+    (data ?? []).map((o) => ({
+      id: String(o.id),
+      valor_inicial_cobranca: o.valor_inicial_cobranca as number | null,
+      vencimento: o.vencimento as string | null,
+      beneficiario_fornecedor_id: o.beneficiario_fornecedor_id as string | null,
+      fornecedor_id: o.fornecedor_id as string | null,
+      beneficiario_usuario_id: o.beneficiario_usuario_id as string | null,
+    }))
+  ).catch(() => new Map<string, { id: string }[]>())
+
+  const pares = new Map<string, [string, string]>()
+  for (const [id, outras] of parecidas) {
+    for (const o of outras) {
+      const k = [id, o.id].sort().join("|")
+      if (!pares.has(k)) pares.set(k, [id, o.id])
+    }
+  }
+  if (pares.size === 0) return []
+
+  const ids = [...new Set([...pares.values()].flat())]
+  const { data: det } = await admin
+    .from("ordens_pagamento")
+    .select("id, codigo, descricao, situacao, vencimento, data_pagamento, valor_inicial_cobranca, beneficiario_fornecedor_id, fornecedor_id, beneficiario_usuario_id, beneficiario_nome_avulso, beneficiario_doc_avulso, custeio_id")
+    .in("id", ids)
+  const porId = new Map(((det ?? []) as Record<string, unknown>[]).map((o) => [String(o.id), o]))
+  const favorecidos = await favorecidosDasOrdens([...porId.values()].map((o) => ({ ...o, id: o.id })))
+  const ponta = (o: Record<string, unknown>): OrdemDoPar => ({
+    id: String(o.id),
+    codigo: (o.codigo as string | null) ?? null,
+    descricao: (o.descricao as string | null) ?? null,
+    situacao: (o.situacao as string | null) ?? null,
+    vencimento: (o.vencimento as string | null) ?? null,
+    dataPagamento: (o.data_pagamento as string | null) ?? null,
+    valor: o.valor_inicial_cobranca === null || o.valor_inicial_cobranca === undefined ? null : Number(o.valor_inicial_cobranca),
+  })
+  const saida: ParDuplicidade[] = []
+  for (const [x, y] of pares.values()) {
+    const ox = porId.get(x)
+    const oy = porId.get(y)
+    if (!ox || !oy) continue
+    // A ponta "a" é a pagar; se as duas são, a de vencimento mais cedo.
+    const xPaga = ABERTAS_PAGAVEIS.includes(String(ox.situacao))
+    const yPaga = ABERTAS_PAGAVEIS.includes(String(oy.situacao))
+    const trocar = (!xPaga && yPaga) || (xPaga && yPaga && String(oy.vencimento ?? "") < String(ox.vencimento ?? ""))
+    const [a, b] = trocar ? [oy, ox] : [ox, oy]
+    saida.push({ favorecido: favorecidos.get(String(a.id))?.nome ?? null, a: ponta(a), b: ponta(b) })
+  }
+  return saida.sort((p, q) => String(p.a.vencimento ?? "").localeCompare(String(q.a.vencimento ?? "")))
 }

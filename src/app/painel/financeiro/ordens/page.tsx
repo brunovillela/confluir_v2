@@ -49,6 +49,8 @@ import { cn } from "@/lib/utils"
 import { SituacaoBadge } from "../situacao-badge"
 import { ExtratoOrdensView } from "./extrato"
 import { FiltroDeptoCentro } from "./filtro-depto-centro"
+import { ParesDuplicidade } from "./pares-duplicidade"
+import { paresDuplicadasAPagar } from "@/lib/db/ordens-pendencias"
 import { LembrarLista } from "@/components/voltar-lista"
 import { ExportarXlsx } from "@/components/exportar-xlsx"
 
@@ -257,7 +259,7 @@ export default async function OrdensPage({
     const q = u.toString()
     return `/painel/financeiro/ordens${q ? `?${q}` : ""}`
   }
-  const [lista, extrato, opcoes, debitos] = await Promise.all([
+  const [lista, extrato, opcoes, debitos, pares] = await Promise.all([
     filtros.visao === "lista" ? listarOrdens(filtros) : null,
     filtros.visao === "extrato" ? extratoOrdens(filtros, { dias, futurosDias: futurosTodos ? null : 30 }) : null,
     opcoesFiltrosOrdens(),
@@ -267,6 +269,8 @@ export default async function OrdensPage({
           cs.map((c) => ({ id: c.id, nome: [c.acesso, c.nome_da_conta ?? "(sem nome)"].filter(Boolean).join(" — ") }))
         )
       : null,
+    // Possíveis duplicadas: os pares (X parece duplicada de Y), não só as ordens soltas.
+    filtros.pendencia === "duplicadas" ? paresDuplicadasAPagar().catch(() => null) : null,
   ])
 
   const nomeFornecedor = (id: string) =>
@@ -559,6 +563,8 @@ export default async function OrdensPage({
           </div>
         )}
       </div>
+
+      {pares && <ParesDuplicidade pares={pares} />}
 
       {extrato && (
         <ExtratoOrdensView
