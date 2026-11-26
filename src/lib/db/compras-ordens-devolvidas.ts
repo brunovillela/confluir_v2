@@ -19,6 +19,12 @@ import { tenantAtual } from "@/lib/tenant"
  * "Quem lançou" não é coluna da ordem: é o usuário do primeiro evento da
  * trilha (a verificação na criação). Sem ele, o comprador do fornecimento e,
  * por último, o solicitante do processo.
+ *
+ * 26/11/2026: TODAS as origens (reembolso, diária, custeio…), não só compras
+ * — as de outras origens não avisavam ninguém e ficavam esquecidas. A compra
+ * leva à página da compra; as demais, a "Minhas ordens devolvidas"
+ * (/painel/devolvidas), que leva à origem de cada uma. Ordem do sistema
+ * anterior sem quem a lançou fica para a triagem do Financeiro.
  */
 
 type Linha = Record<string, unknown>
@@ -32,6 +38,7 @@ export const TIPOS_ORDEM_COMPRA = ["Compras", "Aquisição direta pelo Departame
 
 export type OrdemDevolvida = {
   id: string
+  tipo: string | null
   codigo: string | null
   descricao: string | null
   valor: number | null
@@ -80,30 +87,41 @@ async function quemLancou(client: SupabaseClient, ordens: Linha[]): Promise<Map<
   return mapa
 }
 
-async function ordensDevolvidasDoTenant(client: SupabaseClient, tenantId: string): Promise<Linha[]> {
-  const { data, error } = await client
+async function ordensDevolvidasDoTenant(
+  client: SupabaseClient,
+  tenantId: string,
+  recorte: "todas" | "compras" | "outras" = "todas"
+): Promise<Linha[]> {
+  let q = client
     .from("ordens_pagamento")
-    .select("id, codigo, descricao, valor_inicial_cobranca, processo_compra_id, fornecimento_id, autorizacao_observacao, autorizacao_autorizador_id, autorizacao_data")
+    .select("id, codigo, tipo, descricao, valor_inicial_cobranca, processo_compra_id, fornecimento_id, autorizacao_observacao, autorizacao_autorizador_id, autorizacao_data")
     .eq("emp_proprietaria_id", tenantId)
     .eq("situacao", SITUACAO_DEVOLVIDA)
-    .in("tipo", TIPOS_ORDEM_COMPRA)
-    .eq("excluido", false)
-    .limit(500)
+    // `excluido` nulo conta como não excluído (diárias e reembolsos nascem assim).
+    .not("excluido", "is", true)
+  if (recorte === "compras") q = q.in("tipo", TIPOS_ORDEM_COMPRA)
+  const { data, error } = await q.limit(500)
   if (error) {
     if (esquemaAusente(error)) return []
     throw new Error(error.message)
   }
-  return (data ?? []) as Linha[]
+  const linhas = (data ?? []) as Linha[]
+  return recorte === "outras" ? linhas.filter((o) => !TIPOS_ORDEM_COMPRA.includes(String(o.tipo))) : linhas
 }
 
-/** As ordens de compra devolvidas que a pessoa lançou (Minhas solicitações e caixa de entrada). */
+/**
+ * As ordens devolvidas que a pessoa lançou. "compras": Minhas solicitações e o
+ * item de compras da caixa de entrada; "outras": o item das demais origens;
+ * "todas": Minhas ordens devolvidas.
+ */
 export async function ordensDevolvidasDe(
   usuarioId: string,
-  amb: { client?: SupabaseClient; tenantId?: string } = {}
+  amb: { client?: SupabaseClient; tenantId?: string } = {},
+  recorte: "todas" | "compras" | "outras" = "compras"
 ): Promise<OrdemDevolvida[]> {
   const client = amb.client ?? (await createAdminClient())
   const tenantId = amb.tenantId ?? (await tenantAtual())
-  const todas = await ordensDevolvidasDoTenant(client, tenantId)
+  const todas = await ordensDevolvidasDoTenant(client, tenantId, recorte)
   if (!todas.length) return []
   const dono = await quemLancou(client, todas)
   const minhas = todas.filter((o) => dono.get(String(o.id)) === usuarioId)
@@ -123,6 +141,7 @@ async function detalhar(client: SupabaseClient, ordens: Linha[], dono: Map<strin
   return ordens
     .map((o) => ({
       id: String(o.id),
+      tipo: t(o.tipo),
       codigo: t(o.codigo),
       descricao: t(o.descricao),
       valor: (o.valor_inicial_cobranca as number | null) ?? null,
@@ -148,12 +167,19 @@ async function destinatario(client: SupabaseClient, usuarioId: string): Promise<
 }
 
 function linkDa(o: { processoId: string | null; id: string }): string {
-  return o.processoId ? `/painel/compras/${o.processoId}#ordem-devolvida` : `/painel/financeiro/ordens/${o.id}`
+  return o.processoId ? `/painel/compras/${o.processoId}#ordem-devolvida` : "/painel/devolvidas"
+}
+
+/** O que fazer, no fim do aviso: a compra se corrige na compra; as demais, na origem. */
+function oQueFazer(o: { processoId: string | null }): string {
+  return o.processoId
+    ? "Corrija a compra ou responda e reenvie para autorização."
+    : "Abra a origem (em Minhas ordens devolvidas) para corrigir; se a correção é na própria ordem, fale com o Financeiro."
 }
 
 /**
- * Na devolução (chamado por avaliarOrdem): avisa quem lançou a ordem de
- * compra, com o motivo. Outras origens seguem os próprios fluxos.
+ * Na devolução (chamado por avaliarOrdem): avisa quem lançou a ordem, com o
+ * motivo — de qualquer origem desde 26/11/2026.
  */
 export function avisarOrdemDevolvida(ordemId: string, avaliadorId: string): void {
   depoisDaResposta(async () => {
@@ -163,7 +189,7 @@ export function avisarOrdemDevolvida(ordemId: string, avaliadorId: string): void
       .select("id, codigo, descricao, tipo, processo_compra_id, fornecimento_id, autorizacao_observacao, autorizacao_autorizador_id, autorizacao_data, valor_inicial_cobranca")
       .eq("id", ordemId)
       .maybeSingle()
-    if (!o || !TIPOS_ORDEM_COMPRA.includes(String(o.tipo))) return
+    if (!o) return
     const dono = await quemLancou(client, [o as Linha])
     const usuarioId = dono.get(ordemId)
     if (!usuarioId || usuarioId === avaliadorId) return
@@ -171,7 +197,7 @@ export function avisarOrdemDevolvida(ordemId: string, avaliadorId: string): void
     if (!quem) return
     const [d] = await detalhar(client, [o as Linha], dono)
     return avisar([quem], {
-      texto: `Sua ordem foi devolvida: ${d.codigo ?? ""}${d.processoCodigo ? ` (compra ${d.processoCodigo})` : ""}${d.devolvidaPorNome ? ` por ${d.devolvidaPorNome}` : ""}. Motivo: ${semPonto(d.motivo) ?? "não informado"}. Corrija a compra ou responda e reenvie para autorização.`.slice(0, 450),
+      texto: `Sua ordem foi devolvida: ${d.codigo ?? ""}${d.processoCodigo ? ` (compra ${d.processoCodigo})` : ""}${d.devolvidaPorNome ? ` por ${d.devolvidaPorNome}` : ""}. Motivo: ${semPonto(d.motivo) ?? "não informado"}. ${oQueFazer(d)}`.slice(0, 450),
       link: linkDa(d),
       evento: "ordem_devolvida",
       assunto: `Ordem devolvida: ${d.codigo ?? ""}`,
@@ -218,7 +244,7 @@ export async function lembrarOrdensDevolvidas(
       avisos += await avisar(
         [quem],
         {
-          texto: `Lembrete: a ordem ${d.codigo ?? ""}${d.processoCodigo ? ` (compra ${d.processoCodigo})` : ""} está devolvida há ${semanas} semana${semanas === 1 ? "" : "s"}${d.devolvidaEm ? `, desde ${formatarData(d.devolvidaEm)}` : ""}. Motivo: ${semPonto(d.motivo) ?? "não informado"}. Corrija a compra ou responda e reenvie para autorização.`.slice(0, 450),
+          texto: `Lembrete: a ordem ${d.codigo ?? ""}${d.processoCodigo ? ` (compra ${d.processoCodigo})` : ""} está devolvida há ${semanas} semana${semanas === 1 ? "" : "s"}${d.devolvidaEm ? `, desde ${formatarData(d.devolvidaEm)}` : ""}. Motivo: ${semPonto(d.motivo) ?? "não informado"}. ${oQueFazer(d)}`.slice(0, 450),
           link: linkDa(d),
           evento: "ordem_devolvida",
           assunto: `Ordem devolvida há ${semanas} semana${semanas === 1 ? "" : "s"}: ${d.codigo ?? ""}`,

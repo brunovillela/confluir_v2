@@ -436,6 +436,23 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
     })
   }
 
+  // Ordens de OUTRAS origens (reembolso, diária, custeio…) que eu lancei e
+  // foram devolvidas (26/11/2026): antes ninguém era avisado.
+  if (amb.usuarioId) {
+    const usuarioId = amb.usuarioId
+    fontes.push({
+      chave: "ordens_devolvidas",
+      titulo: "Ordens devolvidas para você",
+      descricao: "Reembolsos, diárias e outras ordens que você lançou e o avaliador devolveu: corrija na origem",
+      href: "/painel/devolvidas",
+      tabela: "ordens_pagamento",
+      montar: (q) => head(q),
+      contarCom: async () => {
+        const { ordensDevolvidasDe } = await import("@/lib/db/compras-ordens-devolvidas")
+        return (await ordensDevolvidasDe(usuarioId, { client, tenantId: emp }, "outras").catch(() => null))?.length ?? null
+      },
+    })
+  }
   // Aquisição: a fila do comprador (mesmo critério da Área do comprador):
   // Via Aquisição, não cancelada, não comprada — a cotar, em cotação ou cotada.
   if (pode("aquisicoes_comprador")) {

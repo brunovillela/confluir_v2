@@ -74,7 +74,7 @@ export default async function MinhasSolicitacoesPage({
   const [lista, config, devolvidas] = await Promise.all([
     listarMinhasSolicitacoes(sessao.usuario.id),
     lerComprasConfig(),
-    ordensDevolvidasDe(sessao.usuario.id).catch(() => []),
+    ordensDevolvidasDe(sessao.usuario.id, {}, "compras").catch(() => []),
   ])
   const hoje = hojeSP()
   const podeRepetir = podeAcessar(sessao.permissoes, "aquisicoes_compras_edicao", ["aquisicoes_compra_direta"])

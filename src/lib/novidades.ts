@@ -16,6 +16,8 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-11-26",
     titulo: "Ordens: filtro por projeto com as ordens das compras",
     itens: [
+      "Ordens devolvidas de qualquer origem: quem lançou um reembolso, uma diária ou um custeio devolvido agora é avisado e lembrado toda semana, como já era nas compras. Na caixa de entrada, o item Ordens devolvidas para você abre Minhas ordens devolvidas, com o motivo e o botão Abrir a origem, onde se corrige.",
+      "Contratos: as ordens do sistema anterior com o valor que o contrato repete passaram a ser parcelas e entram na numeração (Parcela 1, 2, 3…); as demais seguem em Do sistema anterior.",
       "Financeiro: Centros de custo voltou para os atalhos principais do painel (estava recolhido em Mais ferramentas).",
       "Financeiro → Ordens (Extrato): a seção Lançamentos futuros abre recolhida, para o dia de hoje, as vencidas e as pagas aparecerem logo. Ela abre ao clicar nos cartões Próximos 7 dias ou Próximos 30 dias, em mostrar todos, ou no próprio título.",
       "Tarefas: embaixo do título de cada tarefa, em letra menor, aparece de onde ela vem — o projeto ou a demanda —, em Meu perfil → Minhas tarefas e na lista de Tarefas (a coluna Vínculo saiu). Quem executa a tarefa vê o nome mesmo sem a permissão de Projetos ou Demandas; o link para a página fica com quem tem a permissão. No calendário de prazos, a origem aparece junto com o responsável.",
