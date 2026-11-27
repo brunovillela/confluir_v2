@@ -1,0 +1,435 @@
+No dia do evento, a comissão organizadora recebe quem chega, confere a
+inscrição, entrega o crachá, registra quem entrou em cada sessão e acompanha o
+quórum. Tudo isso fica na aba **Dia do evento** do congresso e em quatro telas
+próprias: a **Mesa de credenciamento**, a **Presença na sessão** (a porta), o
+**Código da sala** no telão e a **Lista de contingência** em PDF.
+
+<RequerPermissao>Congressos e conferências — mesa de credenciamento, porta e quórum</RequerPermissao> ou <RequerPermissao>Congressos e conferências — configurar e gerir participantes</RequerPermissao>
+
+Quem tem só a permissão de **consultar** abre a aba **Dia do evento** e vê os
+números, mas não os botões. Os **Crachás em lote para pré-impressão** pedem a
+permissão de **configurar e gerir participantes**; todo o resto do dia (mesa,
+porta, código da sala, contingência, troca de suplente) vale também para quem
+tem só a permissão da mesa de credenciamento.
+
+## Antes do dia: as regras que mudam o credenciamento
+
+As regras ficam na aba **Configuração**, nas seções **Credenciamento** e
+**Presença e quórum**. Confira-as antes de abrir a mesa: elas decidem o que a
+mesa aceita.
+
+### Seção Credenciamento
+
+| Regra | Opções | Efeito no dia |
+| --- | --- | --- |
+| **Titulares se credenciam até** | data e hora (vazio = sem prazo) | Depois desse horário, quem não é suplente fica fora do prazo. A mesa mostra o aviso "O prazo de credenciamento dos titulares terminou." |
+| **Suplentes se credenciam até** | data e hora (vazio = sem prazo) | O mesmo, para os papéis da categoria Suplente. |
+| **Depois do prazo** | **Sem exceção** ou **Permite com justificativa** | Sem exceção: a mesa recusa o credenciamento fora do prazo. Com justificativa: aparece o campo **Justificativa (fora do prazo)**, obrigatório, que fica no histórico da pessoa. |
+| **Suplente assume** | **No lugar de titular ausente**, **Na ordem da lista da base** ou **Livremente** | Titular ausente: o suplente só assume a vaga de titular **não** credenciado (ou cancelado). Na ordem da lista: só o primeiro suplente da base, pela ordem de inscrição, pode assumir; os outros esperam. Livremente: sem essas duas travas. |
+| **Quem autoriza a troca** | **Não precisa**, **Coordenação da base ou delegação** ou **Comissão organizadora** | Com coordenação ou comissão, a troca pede o campo **Autorizado por**, obrigatório. Com Não precisa, o campo nem aparece. |
+| **Exige documento com foto** | sim ou não | Sim: no credenciamento presencial aparece **Documento com foto conferido**, e sem marcá-lo o credenciamento é recusado. A distância não pede. |
+| **Segunda via do crachá** | **Permitida, invalidando a anterior** ou **Proibida** | Permitida: o botão **Segunda via do crachá** aparece para quem já foi credenciado no local. Proibida: o botão some. |
+
+O **Formato** do evento (seção **Identidade**) também conta: num evento
+**Presencial**, a mesa não oferece a opção de credenciar a distância; em
+**Virtual** ou **Híbrido**, aparece o campo **Participa** com **No local** e
+**A distância**.
+
+### Seção Presença e quórum
+
+| Regra | Efeito |
+| --- | --- |
+| **Registrar saída** | Sim: na porta, ao lado de quem está presente, aparece o botão de registrar saída, e quem sai deixa de contar como presente (e no quórum). Não: só se registra a entrada. |
+| **Quórum de instalação** | Porcentagem de quem tem direito a voto agora que precisa estar na sessão (a tela diz "% dos credenciados", mas a conta usa só os credenciados com voto). 0 = não há quórum: o quadro **Quórum** diz "A configuração não exige quórum de instalação." |
+| **Registrar presença por sessão** | Entra na conta da frequência para o certificado (veja [Encerramento](/painel/ajuda/representacao/congressos-encerramento)). |
+| **Frequência mínima para certificado** | Porcentagem das sessões realizadas em que a pessoa precisa ter presença para ter direito ao certificado. |
+
+<Aviso tipo="dica" titulo="Cadastre as sessões antes">
+  A porta e o quórum trabalham por sessão. Sem sessões em **Programa e
+  grupos**, a tela **Presença na sessão** pede para cadastrá-las primeiro, e o
+  quadro da sessão mostra "Sem sessões".
+</Aviso>
+
+## A aba Dia do evento
+
+Abra o congresso e clique na aba **Dia do evento**. Os números se atualizam
+sozinhos a cada 20 segundos enquanto a aba está aberta e visível.
+
+No topo ficam os botões do dia:
+
+- **Mesa de credenciamento**: abre a mesa (veja abaixo).
+- **Presença na sessão**: abre a porta já na sessão mostrada no painel.
+- **Lista de contingência**: abre o PDF em outra aba.
+- **Crachás em lote para pré-impressão**: só para quem configura o congresso.
+
+Os quadros:
+
+- **Credenciamento**: quantos confirmados já foram credenciados ("de" quantos
+  confirmados), quantos a distância e quantos estão **com direito a voto
+  agora**.
+- **A sessão**: o título da sessão em curso (a que começou e ainda não
+  terminou; se nenhuma, a próxima; se não houver próxima, a última), os
+  **presentes agora** e quantos deles têm voto. Clique no nome de outra sessão,
+  logo abaixo, para ver os números dela.
+- **Quórum**: presentes com voto sobre o número exigido, em verde quando
+  atingido ("Quórum atingido.") e em amarelo quando falta ("Faltam N para o
+  quórum."), e a porcentagem dos votantes que estão na sessão.
+- **Por base**: confirmados, credenciados e com voto em cada base.
+- **Trocas de titular por suplente**: cada troca ativa, com a hora e quem
+  autorizou, e o botão **Desfazer**.
+
+### Quem tem direito a voto agora
+
+O sistema conta como **com direito a voto agora** (em exercício) quem cumpre
+tudo isto:
+
+- está credenciado;
+- tem um papel com voto na plenária;
+- está com a inscrição Confirmada ou Inscrita (lista de espera, recusados e
+  cancelados nunca contam);
+- é titular e **não** foi substituído, ou é suplente que **assumiu** uma vaga.
+
+O quórum é calculado sobre esse número. O exigido é a porcentagem da regra
+**Quórum de instalação** aplicada a ele, arredondada para cima. Os presentes do
+quórum são os que têm voto e estão com a entrada registrada na sessão (sem
+saída registrada).
+
+## Crachás em lote para pré-impressão
+
+Para não formar fila na impressora, dá para imprimir os crachás antes do dia.
+
+<PassoAPasso>
+  <Passo titulo="Gerar">
+    Na aba **Dia do evento**, clique em **Crachás em lote para
+    pré-impressão** e confirme.
+  </Passo>
+  <Passo titulo="Imprimir">
+    O PDF abre em outra aba, com quatro crachás por folha A4 (tamanho A6, com
+    linha tracejada para cortar). Saem os de todos os **confirmados** que
+    participam no local e ainda não têm crachá, em ordem alfabética.
+  </Passo>
+  <Passo titulo="Na mesa">
+    Quando a pessoa chega, basta credenciar: a mesa reconhece que o crachá já
+    existe e diz "Entregue o crachá pré-impresso." Nada sai na impressora.
+  </Passo>
+</PassoAPasso>
+
+Cada crachá traz o nome da entidade, o nome do congresso, o nome da pessoa (o
+nome social, quando informado), a base, o grupo, uma faixa com o papel na cor
+do papel e o QR que a mesa e a porta leem. Da segunda via em diante, aparece
+"2ª via", "3ª via" etc.
+
+<Aviso tipo="atencao" titulo="Gerar de novo não repete">
+  O lote só traz quem ainda não tem crachá. Se você perder as folhas
+  impressas, não adianta gerar o lote outra vez: emita a **Segunda via do
+  crachá** na mesa, pessoa por pessoa, depois de credenciar. Quem for
+  confirmado depois do lote entra num próximo lote ou recebe o crachá na hora,
+  na mesa.
+</Aviso>
+
+## Mesa de credenciamento
+
+Abra pela aba **Dia do evento** (**Mesa de credenciamento**). No topo, a mesa
+mostra quantos confirmados já foram credenciados e os atalhos **Lista de
+contingência (PDF)** e **Painel do dia**.
+
+<PassoAPasso>
+  <Passo titulo="Encontre a pessoa">
+    No campo **Nome, CPF ou QR**, digite ao menos três letras do nome (com ou
+    sem acento) ou os números do CPF e tecle Enter ou **Buscar**. Ou clique em
+    **Ler QR do crachá ou do celular** e aponte a câmera para o crachá
+    pré-impresso ou para o QR que a pessoa mostra no link pessoal ("Mostre este
+    QR na mesa"). Um leitor de QR de mão que digita no campo também funciona.
+  </Passo>
+  <Passo titulo="Confira o cartão da pessoa">
+    O cartão mostra o nome (e o nome civil, se ela usa nome social), o papel
+    com a cor, a base, o grupo, o final do CPF, a acessibilidade pedida e o
+    selo **Credenciado** ou **Não credenciado**. Em amarelo vêm os avisos:
+    lista de espera, inscrição não confirmada, inscrição cancelada ou
+    recusada, prazo encerrado, ou que a pessoa foi substituída por um
+    suplente.
+  </Passo>
+  <Passo titulo="Documento e modalidade">
+    Se a configuração exige, marque **Documento com foto conferido**. Num
+    evento virtual ou híbrido, escolha em **Participa** se a pessoa está **No
+    local** ou **A distância**. Fora do prazo, com a regra que permite,
+    preencha a **Justificativa (fora do prazo)**.
+  </Passo>
+  <Passo titulo="Credenciar">
+    Clique em **Credenciar e imprimir crachá** (ou só **Credenciar**, a
+    distância). O crachá abre em outra aba, já chamando a impressão. A mesa
+    limpa a busca e volta o cursor para o campo, pronta para a próxima pessoa.
+  </Passo>
+</PassoAPasso>
+
+O que a mensagem final quer dizer:
+
+- "credenciado(a). Crachá enviado para impressão.": crachá novo emitido.
+- "credenciado(a). Entregue o crachá pré-impresso.": a pessoa já tinha crachá
+  (do lote); nada foi impresso.
+- "credenciado(a) a distância.": sem crachá; a pessoa não registra presença na
+  porta, só a distância.
+
+Só se credencia quem está com a inscrição **Confirmada**. Quem está Inscrito
+(sem confirmação), na lista de espera, recusado ou cancelado não tem o botão;
+mude a situação na aba **Participantes** antes, se for o caso. Cada
+credenciamento fica no histórico da pessoa, com a modalidade, o documento e a
+justificativa.
+
+### Segunda via do crachá
+
+Para quem já está credenciado no local, o botão **Segunda via do crachá**
+pede o motivo (vem preenchido "Perda") e imprime um crachá novo.
+
+<Aviso tipo="atencao" titulo="O crachá anterior deixa de valer">
+  Ao emitir a segunda via, o crachá anterior é invalidado na hora. Se alguém
+  ler o crachá antigo na mesa ou na porta, aparece "Este crachá foi
+  substituído por outra via e não vale mais." A emissão fica no histórico da
+  pessoa, com o número da via e o motivo. Se a regra **Segunda via do crachá**
+  estiver em **Proibida**, o botão não aparece.
+</Aviso>
+
+### Desfazer credenciamento
+
+Para corrigir um credenciamento feito por engano (pessoa errada, modalidade
+errada), clique em **Desfazer credenciamento** no cartão da pessoa e informe o
+motivo, que é obrigatório e fica no histórico. A pessoa volta a **Não
+credenciado**, deixa de contar como credenciada e deixa de ter voto agora; a
+porta passa a recusá-la ("ainda não foi credenciado(a)") até que seja
+credenciada de novo.
+
+<Aviso tipo="atencao" titulo="Desfazer não pede outra confirmação">
+  Depois de informar o motivo, o credenciamento é desfeito na hora. As
+  presenças já registradas nas sessões continuam lá. Ao credenciar de novo, a
+  pessoa passa pelas mesmas conferências (prazo, documento), e o crachá que
+  ela já tem segue valendo: a mesa diz "Entregue o crachá pré-impresso".
+</Aviso>
+
+## Troca de titular por suplente
+
+O suplente assume a vaga de um delegado titular (ou nato) na própria mesa.
+Depois da troca, o suplente passa a votar no lugar do titular, e o titular
+deixa de votar.
+
+<PassoAPasso>
+  <Passo titulo="Busque o suplente">
+    Na mesa, encontre o suplente. No cartão de quem tem papel de suplente
+    aparece o quadro **Assumir no lugar de um titular**.
+  </Passo>
+  <Passo titulo="Escolha o titular">
+    Em **Titular**, escolha um dos titulares da mesma base. Cada nome vem
+    marcado como "(credenciado)" ou "(ausente)". Titulares que já foram
+    substituídos não aparecem.
+  </Passo>
+  <Passo titulo="Autorizado por">
+    Se a regra **Quem autoriza a troca** pede, escreva no campo **Autorizado
+    por** o nome de quem da coordenação da base (ou da comissão) autorizou.
+  </Passo>
+  <Passo titulo="Registrar a troca">
+    Clique em **Registrar a troca**. Se o suplente ainda não foi credenciado, a
+    mensagem lembra: "Credencie agora." A troca só dá voto ao suplente depois
+    que ele estiver credenciado.
+  </Passo>
+</PassoAPasso>
+
+O sistema recusa a troca, com a mensagem na mesa, quando:
+
+- quem assume não é suplente, ou quem sai não é delegado titular ou nato;
+- o suplente está cancelado ou recusado no congresso;
+- o titular já foi substituído, ou o suplente já assumiu outra vaga;
+- o suplente está vinculado (campo **Suplente de**) a outro titular, ou, sem
+  vínculo, é de outra base;
+- com **Suplente assume** em **No lugar de titular ausente**, o titular está
+  credenciado;
+- com **Na ordem da lista da base**, há outro suplente da base inscrito antes
+  que ainda não assumiu;
+- falta o **Autorizado por** quando a regra o exige.
+
+Um titular cancelado pode ser substituído: é o caso mais comum de vaga aberta.
+A troca fica no histórico do titular e do suplente e aparece no quadro
+**Trocas de titular por suplente** da aba **Dia do evento**. Quando o titular
+substituído é buscado na mesa, o cartão avisa "Substituído por …"; o do
+suplente diz "Assumiu a vaga de …".
+
+<Aviso tipo="atencao" titulo="Desfazer a troca">
+  No quadro **Trocas de titular por suplente**, **Desfazer** pede confirmação:
+  "O titular volta a ter o voto, e o suplente deixa de votar." Vale na hora,
+  inclusive para o quórum. O suplente continua credenciado. Depois de desfeita,
+  a troca some do quadro e o suplente pode assumir de novo, se for o caso.
+</Aviso>
+
+## Presença na sessão (a porta)
+
+A porta registra quem entrou em cada sessão. Ela serve para o quórum, para a
+frequência do certificado e para o relatório final. Só aparecem na lista os
+credenciados que participam **no local** e não estão cancelados.
+
+<PassoAPasso>
+  <Passo titulo="Abra a sessão certa">
+    Na aba **Dia do evento**, clique em **Presença na sessão**. A porta abre na
+    sessão em curso; para outra, clique no nome dela na faixa de sessões, logo
+    abaixo do título. Numa sessão de grupo de trabalho, os membros do grupo vêm
+    primeiro na lista.
+  </Passo>
+  <Passo titulo="Leia os crachás">
+    Clique em **Ler crachás** e aponte a câmera. A câmera fica ligada e lê um
+    crachá atrás do outro, para a fila andar. Cada leitura mostra "Fulano:
+    presença registrada." ou "Fulano já estava na sessão."
+  </Passo>
+  <Passo titulo="Ou marque pela lista">
+    Para chamada nominal ou para quem esqueceu o crachá, use o campo
+    **Filtrar a lista ou buscar por nome/CPF** e clique em **Presente** ao lado
+    do nome. **Buscar** procura entre todos os participantes: se achar uma
+    única pessoa credenciada, registra direto; se achar várias, pergunta
+    **Quem é?**.
+  </Passo>
+  <Passo titulo="Saída e volta">
+    Com a regra **Registrar saída** ligada, quem está presente tem um botão de
+    saída ao lado da hora de entrada. Quem saiu aparece com o botão **Voltou**,
+    que reabre a presença dela.
+  </Passo>
+</PassoAPasso>
+
+No topo, a porta mostra quantos estão presentes "de N credenciados". A porta
+recusa quem ainda não foi credenciado ("Encaminhe à mesa de credenciamento"),
+quem foi credenciado a distância e o crachá substituído por segunda via.
+
+### Sem rede
+
+A porta continua funcionando se a conexão cair.
+
+- O registro fica guardado no próprio aparelho, com a hora em que foi feito, e
+  a tela avisa "Sem conexão: registro guardado no aparelho. Sobe sozinho
+  quando a rede voltar."
+- O topo mostra quantos registros estão "aguardando conexão".
+- Quando a rede volta, o aparelho envia tudo sozinho (tenta de novo a cada 10
+  segundos), com a hora original da entrada.
+
+<Aviso tipo="atencao" titulo="Use o mesmo aparelho até subir tudo">
+  Os registros guardados ficam só naquele aparelho e naquele navegador, para
+  aquela sessão. Não limpe os dados do navegador nem troque de aparelho
+  enquanto houver registros "aguardando conexão". Se fechar a página, abra de
+  novo a mesma sessão no mesmo aparelho para que eles subam. A hora original
+  só é aceita se o envio acontecer em até 12 horas; depois disso vale a hora
+  do envio.
+</Aviso>
+
+Quem foi marcado pela lista sem rede já aparece como presente na tela. Quem
+foi lido pelo crachá sem rede só aparece na lista depois que o registro sobe.
+Se, ao subir, o sistema recusar algum registro (por exemplo, pessoa não
+credenciada), a mensagem de erro aparece na tela.
+
+### Código da sala no telão
+
+Além da porta, o próprio participante pode registrar a presença pelo celular.
+
+<PassoAPasso>
+  <Passo titulo="Abra o código no telão">
+    Na porta, clique em **Código da sala no telão**. Abre uma tela com o nome
+    da sessão, um QR grande e o código em letras, com a contagem "Muda em Ns".
+    Leve essa tela para o projetor da sala.
+  </Passo>
+  <Passo titulo="A pessoa lê no celular">
+    No link pessoal, o participante credenciado no local toca em **Registrar
+    presença na sala** e lê o QR do telão. A presença entra como as da porta.
+  </Passo>
+</PassoAPasso>
+
+O código muda sozinho a cada poucos segundos (20, se a regra **Validade do
+código da sala** não foi mudada), para que só quem está vendo a tela consiga
+registrar. Quem lê um código vencido recebe "O código expirou. Leia de novo o
+código que está na tela agora." Se o computador do telão perder a conexão, a
+tela avisa "Sem conexão: o código não está sendo atualizado." O telão pede o
+login de alguém com a permissão da mesa.
+
+O **Telão da plenária** (quem fala, cronômetro, fila e votação) é outra tela,
+explicada em [Congressos: a plenária](/painel/ajuda/representacao/congressos-plenaria).
+
+## Lista de contingência
+
+Se o sistema ou a internet cair na mesa, use a **Lista de contingência**,
+na aba **Dia do evento** ou no topo da mesa. É um PDF com os confirmados e a
+lista de espera (marcada "(espera)"), separados por base e em ordem
+alfabética, com número, nome, papel, CPF parcial (só os dígitos do meio) e as
+colunas **Hora** e **Assinatura** em branco, para a pessoa assinar ao chegar.
+
+<Aviso tipo="dica" titulo="Imprima antes de abrir a mesa">
+  Gere e imprima a lista na véspera ou logo antes de abrir o credenciamento:
+  sem rede, não dá para gerá-la. A lista não credencia ninguém. Quando o
+  sistema voltar, credencie no Confluir quem assinou o papel.
+</Aviso>
+
+## Erros comuns
+
+- **"A inscrição não está confirmada."** A pessoa está como Inscrito. Confirme
+  a inscrição na aba **Participantes** e busque de novo na mesa.
+- **"Está na lista de espera: só credencia depois de confirmada."** Abra uma
+  vaga ou confirme a pessoa na aba **Participantes** antes.
+- **"O prazo de credenciamento dos titulares terminou."** A regra **Depois do
+  prazo** está em **Sem exceção**. Só a comissão pode mudar a regra na aba
+  **Configuração** (com regimento travado, registrando a deliberação).
+- **"Confira o documento com foto antes de credenciar."** Marque **Documento
+  com foto conferido**.
+- **"Esta pessoa já foi credenciada."** Ela já passou pela mesa. Se precisar
+  de outro crachá, use **Segunda via do crachá**.
+- **"Este crachá foi substituído por outra via e não vale mais."** A pessoa
+  está com o crachá antigo. Peça o crachá da via mais nova ou emita outra
+  segunda via.
+- **"QR não reconhecido neste congresso."** O QR é de outro congresso ou não é
+  um crachá nem um link pessoal. Busque pelo nome.
+- **"O titular está credenciado: o suplente só assume no lugar de titular
+  ausente."** A regra **Suplente assume** está em **No lugar de titular
+  ausente**.
+- **"Pela ordem da base, outro suplente assume antes."** A regra é **Na ordem
+  da lista da base**: o suplente inscrito antes ainda não assumiu.
+- **"Informe o nome de quem da comissão autorizou a troca."** Preencha
+  **Autorizado por**.
+- **"Fulano ainda não foi credenciado(a). Encaminhe à mesa de
+  credenciamento."** A porta só aceita credenciados.
+- **"Fulano está credenciado(a) para participar a distância."** A pessoa foi
+  credenciada a distância; ela não entra pela porta.
+- **"O quórum não sobe."** O quórum conta só quem tem voto agora e está com a
+  entrada registrada **na sessão mostrada**. Confira se a porta está na sessão
+  certa e se as pessoas foram credenciadas.
+- **"Não aparece o botão Crachás em lote."** Falta a permissão de configurar e
+  gerir participantes.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Congressos e conferências",
+      href: "/painel/ajuda/representacao/congressos",
+      descricao: "Configuração, papéis, delegações, programa e participantes",
+    },
+    {
+      titulo: "Congressos: relatoria",
+      href: "/painel/ajuda/representacao/congressos-relatoria",
+      descricao: "Propostas, grupos de trabalho e consolidação",
+    },
+    {
+      titulo: "Congressos: a plenária",
+      href: "/painel/ajuda/representacao/congressos-plenaria",
+      descricao: "Mesa da plenária, fila de fala, votação e telão",
+    },
+    {
+      titulo: "Congressos: encerramento",
+      href: "/painel/ajuda/representacao/congressos-encerramento",
+      descricao: "Resoluções, relatório final e certificados",
+    },
+    {
+      titulo: "Inscrição em congresso",
+      href: "/painel/ajuda/fluxos-publicos/congresso",
+      descricao: "O link pessoal, o QR para a mesa e o código da sala",
+    },
+  ]}
+/>
+
+{/* Prints sugeridos:
+  1. Aba Dia do evento com os quadros Credenciamento, sessão atual, Quórum (em verde, atingido), Por base e uma troca de suplente com o botão Desfazer.
+  2. Mesa de credenciamento com o cartão de uma pessoa confirmada: Documento com foto conferido, Participa, botão Credenciar e imprimir crachá.
+  3. Cartão de um suplente com o quadro Assumir no lugar de um titular (Titular, Autorizado por, Registrar a troca).
+  4. Porta da sessão com a câmera ligada, a contagem de presentes e o aviso "1 aguardando conexão".
+  5. Tela Código da sala com o QR grande, o código e "Muda em Ns".
+  6. Folha A4 dos crachás em lote (quatro por folha).
+  7. Primeira página da Lista de contingência.
+*/}

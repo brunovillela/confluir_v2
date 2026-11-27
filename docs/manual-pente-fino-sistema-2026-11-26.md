@@ -167,3 +167,57 @@ Cada relatório lista os prints críticos da área. Os mais urgentes são:
 - Mesário com "Registrar presença".
 - Infração com a avaliação.
 - Pedido de espaço com o termo.
+
+## Congressos: artigos das fases 3 a 7 (26/11)
+
+Foram escritos quatro artigos novos: `representacao/congressos-dia`, `congressos-relatoria`, `congressos-plenaria` e `congressos-encerramento`. O artigo público `fluxos-publicos/congresso` foi refeito e passou a cobrir o link pessoal inteiro. O artigo `representacao/congressos` foi corrigido: as 10 abas, as regras que já valem e "Encerrado" à mão.
+
+Tudo foi escrito sobre o código da main. Entidades e Creche ficaram de fora porque estavam em andamento noutra sessão.
+
+**Defeito corrigido:** `<Aviso tipo="importante">` derrubava a página inteira com erro 500, porque esse tipo não existe no componente. Os artigos `representacao/congressos` e `fluxos-publicos/congresso` já estavam fora do ar em produção por causa disso. Os tipos foram trocados por `atencao`, e o componente `Aviso` passou a cair em "nota" quando recebe um tipo desconhecido.
+
+### Possíveis defeitos vistos ao escrever
+
+Nenhum deles foi documentado como se funcionasse.
+
+**Dia do evento**
+1. O quórum inclui na base quem foi credenciado a distância, mas essa pessoa nunca conta como presente. Num evento híbrido, o quórum pode ficar inalcançável (`credenciamento.ts:106`, `congressos-dia.ts:454`).
+2. "Quórum de instalação" diz "% dos credenciados", mas a conta usa só os credenciados com voto (`config.ts:400`, `credenciamento.ts:124`).
+3. Desfazer o credenciamento:
+   - não invalida o crachá;
+   - não mexe nas trocas nem nas presenças;
+   - no novo credenciamento, a mesa diz "Entregue o crachá pré-impresso" (`congressos-dia.ts:332,338`).
+4. "Registrar presença por sessão" só pesa na frequência do certificado. Desligada, a porta e o código da sala continuam funcionando (`config.ts:398`, `congressos-dia.ts:595`).
+5. Na troca, o menu de titulares filtra pela base do suplente. Por isso, o "Suplente de" de outra base não aparece (`mesa.tsx:160`).
+6. Na porta sem rede, um registro recusado ao subir some da fila sem dizer de quem era.
+
+**Relatoria**
+7. **Reabrir relatório** não destrava depois do horário de "Relatório do grupo trava em" (`relatoria.ts:139-146`).
+8. A síntese do grupo não respeita a trava (`congressos-ia.ts:574-592`). Com a IA desligada, não há como escrevê-la à mão (`relatoria-grupo.tsx:178`).
+9. Votação 0/0/0 grava "Rejeitada no grupo" (`relatoria.ts:37`). `salvarApreciacao` não confere no servidor se a proposta é do grupo (`congressos-relatoria.ts:692-722`).
+10. Desfazer a fusão põe todas as origens em "Entregue" (`congressos-relatoria.ts:858-862`). A cota de saída conta só as propostas novas do grupo (`:355-360`).
+
+**Plenária e moções**
+11. Votação eletrônica com "Absoluta dos credenciados" nunca chega à pauta: aparece "Não registrado na pauta" (`congressos-relatoria.ts:1028`, `congressos-ao-vivo.ts:535`). O artigo manda lançar a contagem pela mesa.
+12. A prova "E — meio físico" para votar impede todo voto eletrônico (`ao-vivo.ts:55-60`). "Na dúvida da contagem" não é lida em lugar nenhum (`config.ts:541`).
+13. Abrir a votação não confere as regras do bloco, que só são conferidas ao apurar (`congressos-ao-vivo.ts:355-363`).
+14. Retirar destaque não devolve a proposta ao bloco (`congressos-relatoria.ts:929`).
+15. Desfazer a votação de moção não grava na trilha (`:1076-1092`).
+16. Não há tela com a lista nominal dos votos.
+17. O botão "PDF com as assinaturas" aparece para quem não pode abrir o PDF.
+18. A seção "Local da decisão" está marcada "só registrada", mas a validade do código e as provas de presença já valem (`config.ts:90`).
+
+**Encerramento**
+19. "A pedido" (certificado) funciona igual a "Para todos" (`encerramento.ts:154-159`). Emitir certificados não exige o encerramento.
+20. O PDF de certificados em lote imprime a data de hoje, não a da emissão (`certificados/pdf/route.ts:32`).
+21. Resoluções:
+    - Com destino "etapa seguinte", só saem pelo cartão Eleitos, que exige eleição (`eleicao/page.tsx:234-256`).
+    - Clicar de novo em "Levar ao…" duplica as propostas no destino (`congressos-encerramento.ts:630-637`).
+    - Desfazer a apuração não desfaz o que já foi levado.
+22. "Lista de delegados pública" e "Prazo do relatório final" não são lidas (`config.ts:677,688`). Resolução não tem revogar nem editar o texto.
+23. A página de resoluções do link pessoal ignora "Resoluções públicas" desligada (`congresso/eu/[token]/resolucoes/page.tsx:55-62`).
+24. Os botões de PDF do Encerramento aparecem para quem só consulta, e as rotas exigem relatoria ou gestão.
+
+**Link pessoal**
+25. "Ler e assinar" no QR público usa o último link guardado no aparelho, mesmo que seja de outro congresso. O resultado é uma página 404 (`abrir-com-meu-link.tsx:30-38`).
+26. No link pessoal, "Encerradas" junta moções protocoladas e habilitadas, que ainda vão à plenária (`mocoes-do-link.tsx:78`).

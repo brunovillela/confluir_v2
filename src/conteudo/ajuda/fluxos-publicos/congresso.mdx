@@ -1,13 +1,21 @@
-Quem se inscreve num congresso da entidade **não tem login**. Este artigo mostra
-o que a pessoa vê, para a equipe conseguir orientá-la. A configuração fica em
+Quem se inscreve num congresso da entidade **não tem login**. Tudo o que a
+pessoa faz, da inscrição ao certificado, passa por dois endereços: a página
+pública de inscrição e o link pessoal. Este artigo mostra o que ela vê em cada
+etapa, para a comissão conseguir orientá-la. A configuração fica em
 [Congressos e conferências](/painel/ajuda/representacao/congressos).
 
-## Os dois endereços
+## Os endereços
 
 | Endereço | O que é |
 | --- | --- |
-| `/congresso/<endereço-do-congresso>` | a página pública de inscrição, divulgada pela entidade |
-| `/congresso/eu/<código>` | o link pessoal de cada participante |
+| `/congresso/endereço-do-congresso` | a página pública de inscrição, divulgada pela entidade |
+| `/congresso/endereço-do-congresso/resolucoes` | as resoluções aprovadas, depois do encerramento |
+| `/congresso/eu/código-pessoal` | o link pessoal de cada participante ("Minha participação") |
+| `/congresso/eu/código-pessoal/plenaria` | a plenária no celular: votar e pedir a palavra |
+| `/congresso/mocao/código-da-moção` | o destino do QR de uma moção, para ler e assinar |
+
+As páginas que saem do link pessoal (plenária, moções, grupo, resoluções) têm
+no topo o atalho **Minha participação**, que volta para o link.
 
 ## A página de inscrição
 
@@ -20,6 +28,9 @@ espera.
 Quando estão fechadas, no lugar do formulário aparece o motivo: a inscrição por
 este link não está aberta, as inscrições ainda não começaram, estão encerradas,
 o congresso foi cancelado ou já foi encerrado.
+
+Depois do encerramento, se a regra **Resoluções públicas** estiver ligada, a
+página ganha o link **Ler as resoluções aprovadas**.
 
 ## O formulário
 
@@ -53,24 +64,246 @@ de espera, não aceita, ou aguardando a comissão organizadora.
 ## O link pessoal
 
 Depois de enviar, a pessoa cai no link pessoal, com o aviso **Guarde este
-endereço**, e recebe o mesmo link por e-mail. A página "Minha participação"
-mostra:
+endereço**, e recebe o mesmo link por e-mail. Quem foi incluído pela comissão
+(sem passar pela página) recebe o link quando a comissão o gera.
+
+A página "Minha participação" mostra sempre:
 
 - a situação: **Inscrição confirmada**, **Inscrição recebida, aguardando a
   comissão organizadora**, **Na lista de espera** (com a posição), **Inscrição
   não aceita** ou **Inscrição cancelada**;
 - como participa: o papel, a base e o grupo, com o resumo dos direitos;
-- o **Programa**, com as sessões cadastradas.
+- o **Programa**, com as sessões gerais e as do grupo da pessoa. Depois que a presença numa
+  sessão é registrada, ela aparece marcada como **presente**.
 
-A página se atualiza sozinha quando a comissão muda a situação: basta abrir o
-link de novo. Quem foi incluído pela comissão (sem passar pela página) recebe o
-link quando a comissão o gera.
+Os outros quadros aparecem conforme a etapa do congresso e a situação da
+pessoa. Nada precisa ser ligado à mão: basta abrir o link de novo.
 
-<Aviso tipo="importante" titulo="O link identifica a pessoa">
-  Ele não deve ser repassado. Se a pessoa perder o link ou ele vazar, a
-  comissão gera um novo na lista de participantes, e o anterior deixa de
-  funcionar.
+| Quadro ou botão | Quando aparece |
+| --- | --- |
+| **No credenciamento** (QR) | inscrição confirmada e ainda não credenciada |
+| **Plenária: votar e pedir a palavra** | depois do credenciamento, até o encerramento |
+| **Moções** | quando há moções no congresso ou a pessoa pode apresentar uma (não aparece para quem está na lista de espera) |
+| **Relatoria** | só para quem tem função de coordenação ou relatoria num grupo |
+| **Presença nas sessões** | depois do credenciamento, para quem participa no local, quando o congresso tem sessões |
+| **Encerramento** (certificado e resoluções) | depois que a comissão encerra o congresso |
+
+<Aviso tipo="atencao" titulo="O link identifica a pessoa">
+  Ele não deve ser repassado: quem tem o link vota, assina e pede a palavra em
+  nome da pessoa. Se ela perder o link ou ele vazar, a comissão gera um novo
+  na lista de participantes, e o anterior deixa de funcionar.
 </Aviso>
+
+Inscrição não aceita ou cancelada continua abrindo a página com a situação,
+mas sem plenária, moções nem certificado.
+
+## No credenciamento: o QR para a mesa
+
+Enquanto a inscrição está confirmada e a pessoa ainda não foi credenciada, o
+link mostra o quadro **No credenciamento**, com um QR e a frase "Mostre este QR
+na mesa: a equipe acha a sua inscrição sem digitar." Na mesa, a equipe lê o QR
+e credencia; quem não tem o celular à mão é achado pelo nome ou CPF.
+
+No credenciamento a pessoa recebe o **crachá** impresso, que tem o seu próprio
+QR. O crachá serve onde não há celular: na porta das sessões, na estação de
+voto e na estação de assinatura da mesa. Depois do credenciamento, o QR some
+do link, e aparecem a plenária e a presença nas sessões.
+
+<Aviso tipo="dica" titulo="Peça para abrir o link antes da fila">
+  Quem chega com o link aberto no celular passa mais rápido na mesa. Vale
+  lembrar no e-mail de véspera.
+</Aviso>
+
+## Presença nas sessões
+
+Quando a sala tem o telão com o código da sessão, a própria pessoa registra a
+presença pelo celular.
+
+<PassoAPasso>
+  <Passo titulo="Abrir o link pessoal">
+    No quadro **Presença nas sessões**, tocar em **Registrar presença na
+    sala**. O celular pede permissão para usar a câmera.
+  </Passo>
+  <Passo titulo="Ler o código do telão">
+    Apontar para o QR do telão. O código muda a cada poucos segundos (regra
+    **Validade do código da sala**, 20 s por padrão), por isso vale só para
+    quem está diante da tela.
+  </Passo>
+  <Passo titulo="Conferir a mensagem">
+    Aparece "Presença registrada em …" com o nome da sessão, e a sessão fica
+    marcada como **presente** no Programa. Se já estava registrada, a mensagem
+    diz isso, sem contar duas vezes.
+  </Passo>
+</PassoAPasso>
+
+Sem câmera, a pessoa toca em **Sem câmera? Digitar o código**, escolhe a
+sessão, digita as letras que aparecem no telão e clica em **Registrar**.
+
+O quadro só aparece para quem foi credenciado para participar no local. Quem
+participa a distância não registra presença por aqui.
+
+## Plenária: votar e pedir a palavra
+
+Depois do credenciamento, o link mostra o botão **Plenária: votar e pedir a
+palavra**. A página da plenária se atualiza sozinha a cada poucos segundos:
+não é preciso recarregar. No topo aparece o assunto **Em debate**.
+
+### Votação
+
+Quando a mesa abre uma votação eletrônica, ela aparece no quadro **Votação**.
+A frase logo abaixo do título diz o tipo:
+
+- **Voto secreto**: "ninguém vê em quem você votou". O voto é gravado sem o
+  nome da pessoa.
+- **Votação aberta**: "o seu voto é nominal e fica registrado com o seu nome".
+
+Numa votação simples, a pessoa toca em **A favor**, **Contra** ou
+**Abstenção**. Numa priorização, marca até o número de itens indicado
+("Escolha até …") e toca em **Enviar o voto**. Antes de gravar, o sistema pede
+confirmação.
+
+<Aviso tipo="atencao" titulo="O voto não muda depois de enviado">
+  Uma pessoa, um voto: quem votou pelo celular não vota de novo, nem na estação
+  da mesa. Depois do envio, o quadro mostra "Seu voto já foi registrado."
+</Aviso>
+
+Se a regra **Prova de presença para votar** exigir o código da sala, aparece o
+campo **Código da sala (no telão)**: a pessoa digita as letras exibidas no
+telão naquele momento e vota. Outras regras dão outro aviso no lugar da
+cédula, por exemplo "Registre a sua presença na sessão antes de votar." ou
+"Esta votação é feita na estação da mesa, com o seu crachá."
+
+O quadro também mostra quantos já votaram. Quando a mesa encerra, aparece o
+resultado. Sem votação aberta, a frase é "Nenhuma votação aberta. Quando a
+mesa abrir, ela aparece aqui sozinha." Isso também vale quando o congresso
+votará por crachá erguido ou contagem (regra **Votação eletrônica** em "Não").
+
+### Pedir a palavra
+
+O quadro **Com a palavra** mostra quem está falando, com o cronômetro, e os
+próximos da fila. Se a regra **Inscrição para falar pelo link pessoal** estiver
+ligada, a pessoa se inscreve tocando no tipo de fala: **Fala**, **A favor**,
+**Contra**, **Questão de ordem**, **Esclarecimento**, **Encaminhamento** ou
+**Declaração de voto**. A mensagem diz a posição na fila, e o quadro passa a
+mostrar "Você é o(a) Nº na fila", com o botão **Sair da fila**.
+
+Quando a mesa encerra as inscrições, os botões **Fala**, **A favor** e
+**Contra** ficam desligados; questões de ordem continuam abertas. Com a regra
+desligada, aparece "Para falar, peça a inscrição na mesa."
+
+## Moções
+
+O quadro **Moções** do link pessoal lista as moções em coleta, com o número de
+assinaturas e a marca **assinada** nas que a pessoa já assinou. As que já
+saíram da coleta ficam em **Encerradas**. O botão **Ler QR de moção** abre a
+câmera para ler o QR de uma moção mostrado por outra pessoa.
+
+### Apresentar uma moção
+
+Aparece **Apresentar moção** quando a regra **Quem apresenta a moção** está em
+"Quem tem direito de propor, pelo link pessoal" e o papel da pessoa tem o
+direito de apresentar propostas. Se a regra está em "Só a comissão registra",
+a página diz para procurar a mesa.
+
+<PassoAPasso>
+  <Passo titulo="Preencher">
+    **Tipo** (quando o congresso tem tipos de moção), **Base de origem** (vem
+    preenchida com a base da pessoa), **Título**, **Destinatário (opcional)** e
+    **Texto**. O botão só liga com um título e um texto de tamanho mínimo.
+  </Passo>
+  <Passo titulo="Apresentar a moção">
+    A moção ganha um número e abre já na página dela, com o quadro **QR para
+    colher assinaturas**.
+  </Passo>
+  <Passo titulo="Colher as assinaturas">
+    Quem apresentou mostra o QR. Quem lê com o celular abre a moção e assina
+    pelo próprio link.
+  </Passo>
+</PassoAPasso>
+
+Passado o **Prazo de entrega** das moções, não se apresenta nem se assina mais.
+
+### Assinar
+
+A pessoa abre a moção pelo quadro **Moções** (**Ler e assinar**), pelo botão
+**Ler QR de moção** ou lendo o QR com a câmera do celular. Neste último caso,
+abre a página pública da moção: se o link pessoal já foi aberto antes naquele
+aparelho, aparece o botão **Ler e assinar**, que leva à tela de assinar; se
+não, a página explica que é preciso abrir o link pessoal primeiro (ou usar
+**Ler QR de moção** de dentro dele).
+
+Na tela da moção aparecem o texto, a regra de assinatura (onde vale assinar e
+quem vê os nomes) e o progresso até o mínimo de assinaturas. A pessoa toca em
+**Assinar** e confirma.
+
+<Aviso tipo="nota" titulo="A assinatura grava o texto lido">
+  Se a moção for alterada enquanto a pessoa lê, a assinatura é recusada com "O
+  texto da moção mudou enquanto você lia. Leia de novo antes de assinar."
+</Aviso>
+
+Se a regra **Prova de presença para assinar moção** exigir o código da sala, o
+botão dá lugar a **Ler o código da sala e assinar** (lê o QR do telão) ou ao
+campo **Código lido do telão** com **Assinar com o código**. Outras regras
+mandam assinar na estação da mesa, com o crachá, ou no papel (regra **Meio de
+assinatura**). A assinatura só vale depois do credenciamento.
+
+Os nomes de quem já assinou aparecem em **Quem assinou** conforme a regra
+**Quem vê os nomes de quem assinou**: só a comissão, os credenciados ou o
+público.
+
+### Retirar a assinatura
+
+Enquanto a moção está em coleta e a regra **Quem assinou pode retirar a
+assinatura até o protocolo** está ligada, quem assinou vê **Retirar a minha
+assinatura**. Pede confirmação, e fica registrado que a pessoa retirou. Depois
+do protocolo, a assinatura não sai mais.
+
+### Acompanhar a própria moção
+
+Quem apresentou vê, na página da moção, o quadro **A sua moção**:
+
+- **Protocolar**: encerra a coleta e grava o cálculo do mínimo naquele
+  momento. Só passa se o mínimo de assinaturas foi atingido (quando a moção
+  chega à plenária por assinaturas). Conforme a configuração, a moção vai
+  direto à pauta ("Protocolada: a moção vai à pauta da plenária.") ou aguarda
+  a comissão.
+- **Retirar a moção**: tira a moção da coleta e da pauta.
+- **Alterar o texto**: só enquanto a moção está em coleta. Com assinaturas já
+  colhidas, mudar título, destinatário ou texto cria uma versão nova, e quem
+  assinou precisa assinar de novo; o sistema avisa antes de salvar.
+
+<Aviso tipo="atencao" titulo="Protocolar e retirar não têm volta pelo link">
+  Os dois pedem confirmação. Depois do protocolo, a moção não muda mais e não
+  colhe assinaturas; a moção retirada sai da lista. Para qualquer correção
+  depois disso, a pessoa procura a comissão.
+</Aviso>
+
+## Relatoria do grupo
+
+Quem recebeu da comissão uma função num grupo de trabalho (**Coordenação**,
+**Relatoria** ou **Relatoria adjunta**) vê o quadro **Relatoria**, com um botão
+por grupo. Pelo celular, registra os apontamentos do grupo sobre cada proposta
+(**Apontar**), os apontamentos gerais, as propostas novas do grupo, o
+resultado da votação no grupo (**Salvar votação**) e, ao fim, entrega o
+relatório. Os detalhes estão em
+[Relatoria e consolidação](/painel/ajuda/representacao/congressos-relatoria).
+
+<Aviso tipo="atencao" titulo="Entregar o relatório trava o grupo">
+  Depois de **Entregar relatório**, o grupo não altera mais propostas nem
+  apontamentos. O sistema pede confirmação.
+</Aviso>
+
+## Depois do encerramento: resoluções e certificado
+
+Quando a comissão encerra o congresso, a plenária sai do link e aparece o
+quadro **Encerramento**:
+
+- **Resoluções aprovadas**: as resoluções por eixo, as gerais e as moções
+  aprovadas. As marcadas como reservadas ficam de fora.
+- **Meu certificado (PDF)**: aparece para quem foi credenciado, a menos que a
+  regra **Certificado** esteja em "Não emite". O certificado sai na hora, com
+  um QR de verificação. Se a pessoa não tem direito, o link mostra o motivo,
+  por exemplo a frequência abaixo da **Frequência mínima para certificado**.
 
 ## Erros comuns
 
@@ -85,6 +318,32 @@ link quando a comissão o gera.
 - **"CPF inválido" ou "Informe o nome completo."** Confira os números do CPF e
   escreva nome e sobrenome.
 - **"Escolha a base."** O congresso tem bases e a escolha é obrigatória.
+- **"Não aparece o QR do credenciamento."** O QR só aparece com a inscrição
+  confirmada e antes do credenciamento. Inscrição aguardando a comissão ou na
+  lista de espera não tem QR.
+- **"O código expirou. Leia de novo o código que está na tela agora."** O
+  código do telão mudou entre a leitura e o envio. Basta ler de novo.
+- **"Você ainda não foi credenciado(a). Procure a mesa de credenciamento."**
+  Presença, voto e assinatura só valem depois do credenciamento.
+- **"Não aparece o botão da plenária."** A pessoa ainda não foi credenciada,
+  ou o congresso já foi encerrado.
+- **"O seu papel no congresso não vota na plenária."** O papel (ex.:
+  Observador) não tem voto. Suplente vota só depois de assumir a vaga de um
+  titular.
+- **"Para votar, leia o código exibido no telão."** A regra de prova de
+  presença exige o código da sala: digite as letras do telão no campo que
+  apareceu.
+- **"Neste congresso, a inscrição para falar é feita na mesa."** A regra
+  **Inscrição para falar pelo link pessoal** está desligada.
+- **"Ainda não atingiu o mínimo: …"** Ao protocolar a moção, faltam
+  assinaturas. A mensagem diz quantas há e quantas são exigidas.
+- **"O prazo das moções já passou."** O **Prazo de entrega** venceu: não se
+  apresenta, assina nem protocola mais pelo link.
+- **"Li o QR da moção e não aparece Assinar."** O link pessoal não foi aberto
+  naquele aparelho (ou foi aberto em aba anônima). Abra o link pessoal e use
+  **Ler QR de moção** de dentro dele.
+- **"O certificado sai depois do encerramento do congresso."** A comissão
+  ainda não encerrou o congresso.
 
 <VejaTambem
   links={[
@@ -94,9 +353,32 @@ link quando a comissão o gera.
       descricao: "Configuração, participantes e a abertura da página",
     },
     {
+      titulo: "O dia do congresso",
+      href: "/painel/ajuda/representacao/congressos-dia",
+      descricao: "Credenciamento, crachás, presença nas sessões e telão",
+    },
+    {
+      titulo: "Plenária",
+      href: "/painel/ajuda/representacao/congressos-plenaria",
+      descricao: "Fila de fala, votação eletrônica e estação de voto",
+    },
+    {
+      titulo: "Encerramento",
+      href: "/painel/ajuda/representacao/congressos-encerramento",
+      descricao: "Resoluções, certificados e relatório final",
+    },
+    {
       titulo: "Inscrição em evento",
       href: "/painel/ajuda/fluxos-publicos/evento",
       descricao: "O fluxo público dos eventos comuns",
     },
   ]}
 />
+
+{/* Prints sugeridos:
+  - fluxos-publicos/congresso-link-pessoal.png: /congresso/eu/[token] no celular, já credenciado, com Plenária, Moções, Presença nas sessões e Programa.
+  - fluxos-publicos/congresso-qr-credenciamento.png: quadro "No credenciamento" com o QR.
+  - fluxos-publicos/congresso-plenaria-celular.png: /congresso/eu/[token]/plenaria com votação aberta (A favor, Contra, Abstenção) e o quadro Com a palavra.
+  - fluxos-publicos/congresso-mocao-assinar.png: /congresso/eu/[token]/mocao/[codigo] com o texto, a regra, o progresso até o mínimo e o botão Assinar.
+  - fluxos-publicos/congresso-mocao-qr.png: quadro "QR para colher assinaturas" e "A sua moção" (Protocolar, Retirar a moção, Alterar o texto).
+*/}

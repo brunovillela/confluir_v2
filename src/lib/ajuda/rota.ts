@@ -156,6 +156,20 @@ const EXTRAS: Record<string, string> = {
   "/painel/veiculos/:id/checklist": "/painel/ajuda/veiculos/checklist",
   "/painel/veiculos/:id/abastecimentos": "/painel/ajuda/veiculos/abastecimentos",
   "/painel/veiculos/:id/infracoes": "/painel/ajuda/veiculos/infracoes",
+  // Congressos: cada fase do evento tem o seu artigo.
+  "/painel/representacao/congressos/:id/credenciamento": "/painel/ajuda/representacao/congressos-dia",
+  "/painel/representacao/congressos/:id/porta": "/painel/ajuda/representacao/congressos-dia",
+  "/painel/representacao/congressos/:id/sala": "/painel/ajuda/representacao/congressos-dia",
+  "/painel/representacao/congressos/:id/telao": "/painel/ajuda/representacao/congressos-plenaria",
+  "/painel/representacao/congressos/:id/grupos": "/painel/ajuda/representacao/congressos-relatoria",
+  "/painel/representacao/congressos/:id/consolidacao": "/painel/ajuda/representacao/congressos-relatoria",
+  "/painel/representacao/congressos/:id/propostas": "/painel/ajuda/representacao/congressos-relatoria",
+  "/painel/representacao/congressos/:id/assistente": "/painel/ajuda/representacao/congressos-relatoria",
+  "/painel/representacao/congressos/:id/plenaria": "/painel/ajuda/representacao/congressos-plenaria",
+  "/painel/representacao/congressos/:id/mocoes": "/painel/ajuda/representacao/congressos-plenaria",
+  "/painel/representacao/congressos/:id/resolucoes": "/painel/ajuda/representacao/congressos-encerramento",
+  "/painel/representacao/congressos/:id/eleicao": "/painel/ajuda/representacao/congressos-encerramento",
+  "/painel/representacao/congressos/:id/certificados": "/painel/ajuda/representacao/congressos-encerramento",
 }
 
 export type EntradaAjuda = [prefixo: string, href: string]

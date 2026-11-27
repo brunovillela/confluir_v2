@@ -1,0 +1,521 @@
+A relatoria cuida do caminho de cada proposta, do caderno de teses até a pauta
+da plenária. A comissão carrega as propostas, os grupos de trabalho debatem,
+apontam e (se o regimento mandar) votam, cada grupo entrega o seu relatório, e a
+relatoria geral consolida: funde textos parecidos, acerta eixo e abrangência,
+classifica em consenso ou debate e envia à plenária. Nenhum texto é
+sobrescrito: cada mudança vira uma versão nova, e o **rastro da proposta** mostra
+de onde ela veio.
+
+<RequerPermissao>Congressos e conferências — relatoria, consolidação e mesa da plenária</RequerPermissao> ou <RequerPermissao>Congressos e conferências — configurar e gerir participantes</RequerPermissao>
+
+Quem tem só a permissão de **consultar** abre a aba **Relatoria** e vê a
+contagem das propostas e a tabela dos grupos, mas sem os botões e sem o link
+para a tela de cada grupo. A coordenação e a relatoria de cada grupo não
+precisam de conta no Confluir: operam o grupo pelo **link pessoal**, no celular
+(veja a seção **O relator pelo link pessoal**, abaixo).
+
+## As regras que valem aqui
+
+Antes do evento, confira na aba **Configuração** as seções **Propostas** e
+**Apreciação nos grupos**. São elas que decidem o que os grupos podem fazer e o
+que acontece com cada votação.
+
+### Seção Propostas
+
+| Regra na tela | O que faz |
+| --- | --- |
+| **Propostas novas no grupo** | **Livres**, **Até um número por grupo** ou **Proibidas**. Com "Proibidas", o botão **Nova proposta do grupo** some e aparece "O regimento não admite propostas novas nos grupos: registre como apontamento numa proposta existente." |
+| **Máximo de propostas novas por grupo** | Só aparece com "Até um número por grupo" (padrão 2). Atingido o número, o grupo não registra outra. |
+| **Máximo de propostas que o grupo entrega** | 0 = sem limite. Só gera alerta (veja **Cota de saída do regimento**, abaixo). |
+| **Máximo por eixo** | 0 = sem limite. Também só alerta, por grupo e eixo. |
+| **Propostas novas em plenária** | Usada na mesa da plenária (veja o artigo da plenária). |
+| **Relatório do grupo trava em** | Data e hora. Passado esse horário, todos os grupos param de alterar propostas, apontamentos e votações, mesmo sem ter entregado. Vazio = cada grupo trava quando entrega o relatório. |
+| **Abrangências das propostas** | Lista separada por vírgula (ex.: Local, Estadual, Nacional). Com a lista preenchida, aparece o campo **Abrangência** ao colar, ao criar proposta no grupo, ao fundir e na consolidação. Vazio = não classifica. |
+| **Consolidação classifica cada item como consenso ou debate** | Ligada, a consolidação mostra os botões **Consenso** e **Debate**. O que é consenso pode ir à plenária em bloco. |
+| **Sugestões da IA na relatoria** | **Comissão e relatoria dos grupos** (padrão), **Só a comissão, no painel** ou **Desligada**. Com "Só a comissão", quem entra pelo link pessoal não vê os botões da IA. |
+| **O que cabe a este congresso decidir** | Texto que orienta a IA a apontar propostas fora da competência. A decisão continua da comissão. |
+
+### Seção Apreciação nos grupos
+
+| Regra na tela | O que faz |
+| --- | --- |
+| **Os grupos votam as propostas** | Desligada (padrão), o grupo só faz apontamentos e a relatoria consolida. Ligada, cada proposta do grupo ganha os campos **A favor**, **Contra**, **Abstenção** e o botão **Salvar votação**, e aparece o botão **Aplicar a votação dos grupos**. |
+| **Aprovada direto, sem ir à plenária, com pelo menos** | Percentual de votos a favor, contadas as abstenções, para a proposta ficar **Aprovada no grupo**. 0 = nada é aprovado direto. |
+| **Posição vencida também vai à plenária com mais de** | Percentual (até 50%). Se a posição perdedora passar dele, a proposta vai à plenária mesmo assim, como **Vai à plenária com a posição vencida**. 0 = não. |
+| **Para ir à plenária, a proposta precisa de maioria em** | **Um grupo**, **Mais de um grupo** ou **Ao menos metade dos grupos que a apreciaram**. Vale para propostas do caderno, que vários grupos apreciam. |
+
+Como o sistema classifica a votação de um grupo, sobre o total de votantes (a
+favor + contra + abstenção):
+
+- **Mais votos a favor que contra**: **Aprovada no grupo** se atingir o
+  percentual de aprovação direta; senão **Vai à plenária**, ou **Vai à plenária
+  com a posição vencida** se os contrários passarem do percentual da posição
+  vencida.
+- **Empate ou mais votos contra**: **Rejeitada no grupo**, salvo se os votos a
+  favor passarem do percentual da posição vencida. Nesse caso a proposta sobe à
+  plenária como posição vencida.
+- Nenhum voto lançado (0, 0, 0) conta como rejeitada.
+
+## A aba Relatoria
+
+Abra o congresso e clique na aba **Relatoria**. No alto ficam os botões de
+trabalho:
+
+- **Consolidação**: a tela da relatoria geral.
+- **Mesa da plenária**: a votação final (artigo próprio).
+- **Assistente da IA · ler o caderno**: só aparece se a IA não estiver
+  desligada.
+- **Aplicar a votação dos grupos**: só aparece se os grupos votam.
+- **Colar propostas (caderno de teses)**.
+
+Abaixo, o quadro **Propostas** conta quantas há em cada situação, e a tabela
+**Grupos** mostra, por grupo, quem tem **Relatoria** ou coordenação, quantas
+propostas **Novas** o grupo criou, quantos **Apontamentos** fez e se o
+**Relatório** está **Em andamento** ou **Entregue** (com data e hora). Clique no
+nome do grupo para abrir a tela dele.
+
+Se a configuração diz que não há grupos de trabalho, a tabela avisa: "A
+configuração diz que não há grupos de trabalho: as propostas vão direto à
+consolidação."
+
+### As situações de uma proposta
+
+| Situação | Quer dizer |
+| --- | --- |
+| **Em debate** | Carregada ou criada, ainda nos grupos |
+| **Entregue pelo grupo** | O grupo entregou o relatório, ou a proposta nasceu de fusão ou veio da etapa anterior |
+| **Na pauta da plenária** | Enviada à plenária |
+| **Aprovada** / **Rejeitada** | Decidida pela plenária, ou pela votação dos grupos ao aplicar |
+| **Fundida em outra** | Virou parte de uma proposta fundida |
+| **Só aos anais** | Registrada, mas não vai a voto |
+| **Retirada** | Tirada pela relatoria; fica no histórico |
+
+## Carregar as propostas
+
+### Colar o caderno de teses
+
+<PassoAPasso>
+  <Passo titulo="Abra o campo">
+    Na aba **Relatoria**, clique em **Colar propostas (caderno de teses)**.
+  </Passo>
+  <Passo titulo="Diga de onde vêm">
+    Em **Origem**, escolha **Caderno de teses**, **Etapa anterior** ou
+    **Documento**. Em **Eixo**, escolha o eixo de todas as propostas coladas (ou
+    **Sem eixo**). Se houver abrangências na configuração, escolha a
+    **Abrangência**. Em **De onde (opcional)**, escreva a fonte (ex.: "Tese da
+    Diretoria", "Encontro de Mulheres"): ela aparece no lugar da origem nas
+    listas.
+  </Passo>
+  <Passo titulo="Cole o texto">
+    Uma proposta por parágrafo, com **linha em branco** entre elas. Números no
+    início ("1.", "2)", "a)") são tirados, e quebras de linha dentro do mesmo
+    parágrafo viram espaço. Trechos com menos de 5 letras são ignorados. Abaixo
+    do campo aparece quantas propostas foram encontradas.
+  </Passo>
+  <Passo titulo="Incluir">
+    Clique em **Incluir N proposta(s)**. Elas recebem número seguido e entram
+    **Em debate**. O máximo é 300 de uma vez: divida textos maiores.
+  </Passo>
+</PassoAPasso>
+
+<Aviso tipo="dica" titulo="Um eixo por colagem">
+  O eixo vale para tudo o que você colou de uma vez. Cole um eixo por vez, ou
+  ajuste depois na consolidação com **Mover para o eixo**.
+</Aviso>
+
+Com a IA ligada, o **Assistente da relatoria** também lê o caderno em PDF ou
+texto e separa as propostas, casando cada uma com um eixo (veja a seção
+**Assistente da IA**, abaixo).
+
+### Propostas da etapa anterior
+
+Quando o congresso da etapa anterior também está no Confluir e foi ligado a este
+em **Dados do congresso**, o encerramento dele leva as resoluções marcadas
+"Levar à etapa seguinte" para cá. Elas chegam como **Entregue pelo grupo**, com
+origem "Aprovada no" + nome do congresso anterior, e **sem eixo**. Se a etapa
+anterior não está no Confluir, cole o texto escolhendo a origem **Etapa
+anterior**.
+
+<Aviso tipo="atencao" titulo="Proposta sem eixo só aparece em grupo sem eixo">
+  Cada grupo vê as propostas do seu eixo (mais as que ele mesmo criou). Uma
+  proposta sem eixo só aparece nos grupos que também não têm eixo. Mova as
+  propostas para o eixo certo antes de os grupos começarem.
+</Aviso>
+
+## Coordenação e relatoria de cada grupo
+
+<PassoAPasso>
+  <Passo titulo="Abra o grupo">
+    Na tabela **Grupos**, clique no nome do grupo. À direita fica o quadro
+    **Coordenação e relatoria**.
+  </Passo>
+  <Passo titulo="Escolha a pessoa e a função">
+    Em **Pessoa**, os participantes do grupo vêm primeiro ("Do grupo"), depois
+    os demais. Em **Função**, escolha **Relatoria**, **Relatoria adjunta** ou
+    **Coordenação**. Clique em **Registrar função**.
+  </Passo>
+  <Passo titulo="Confira o link pessoal">
+    A pessoa opera o grupo pelo próprio link pessoal. Se ela ainda não tem link,
+    gere-o na aba **Participantes**.
+  </Passo>
+</PassoAPasso>
+
+A função aparece como "eleita no grupo" ou "indicada", conforme a regra
+**Coordenação e relatoria do grupo** da seção Programa e grupos. A mesma pessoa
+pode ter função em mais de um grupo. Participante com inscrição cancelada ou
+recusada não recebe função. O **X** ao lado do nome remove a função na hora, sem
+confirmação, e a pessoa perde o acesso ao grupo pelo link.
+
+## A tela do grupo
+
+A mesma tela serve à comissão, no painel, e à relatoria do grupo, pelo link
+pessoal. No painel, o cabeçalho mostra o eixo, a sala e, depois da entrega, a
+data e hora do relatório. O botão **Todos os grupos** volta à aba Relatoria.
+
+### O que aparece
+
+- As propostas do eixo do grupo (caderno, etapa anterior, documento e fusões
+  ainda abertas) e as propostas novas do próprio grupo, marcadas "nova no
+  grupo". Propostas fundidas e retiradas não aparecem.
+- Cada cartão mostra o número, a versão (a partir da 2), a abrangência, o texto,
+  os apontamentos e, se os grupos votam, os campos de votação.
+
+### Registrar apontamentos
+
+O quadro do alto fica preso na tela enquanto você rola, para digitar rápido.
+
+<PassoAPasso>
+  <Passo titulo="Escolha a proposta">
+    No seletor, escolha a proposta, ou **Geral (sem proposta)** para um
+    apontamento sobre o tema. Atalho: o botão **Apontar** no cartão escolhe a
+    proposta e leva o cursor ao campo.
+  </Passo>
+  <Passo titulo="Escolha o tipo">
+    **Apontamento**, **Acréscimo**, **Supressão**, **Alteração** ou
+    **Dissenso**.
+  </Passo>
+  <Passo titulo="Escreva e registre">
+    Escreva o que o grupo apontou e clique em **Registrar** (ou Ctrl+Enter). O
+    campo limpa e fica pronto para o próximo.
+  </Passo>
+</PassoAPasso>
+
+O **X** ao lado de um apontamento o retira, depois de confirmar. Ele fica no
+histórico, riscado no rastro da proposta. Os apontamentos gerais aparecem no
+quadro **Apontamentos gerais**.
+
+<Aviso tipo="nota" titulo="O grupo não reescreve as propostas do caderno">
+  O lápis de edição só aparece nas propostas que o próprio grupo criou. Para
+  mudar o texto de uma proposta do caderno, registre um **Acréscimo**, uma
+  **Alteração** ou uma **Supressão**: quem muda o texto é a consolidação.
+</Aviso>
+
+### Proposta nova do grupo
+
+Clique em **Nova proposta do grupo**, escreva o texto (mínimo de 5 letras),
+escolha a abrangência se houver e clique em **Registrar proposta**. Ela recebe o
+próximo número do congresso, o eixo do grupo e a marca "nova no grupo". O botão
+some quando a regra **Propostas novas no grupo** é "Proibidas" ou quando o grupo
+atingiu o máximo, e no lugar aparece o motivo.
+
+Para corrigir o texto de uma proposta do grupo, use o lápis e **Salvar texto**:
+a versão anterior fica guardada.
+
+### Salvar a votação
+
+Só existe quando a regra **Os grupos votam as propostas** está ligada. No
+cartão, preencha **A favor** e **Contra** (obrigatórios) e **Abstenção** (vazio
+conta zero) e clique em **Salvar votação**. A mensagem explica o resultado (ex.:
+"Maioria a favor (62,5%).") e o selo mostra **Aprovada no grupo**, **Vai à
+plenária**, **Vai à plenária com a posição vencida** ou **Rejeitada no grupo**.
+Salvar de novo substitui a contagem anterior.
+
+<Aviso tipo="atencao" titulo="Salvar a votação não muda a proposta">
+  O resultado fica registrado no grupo, mas a proposta continua na mesma
+  situação. Só o botão **Aplicar a votação dos grupos**, na consolidação, leva
+  as propostas à plenária, à aprovação ou à rejeição.
+</Aviso>
+
+### Síntese do grupo
+
+O quadro **Síntese do grupo** guarda o resumo e a minuta do relatório. Com a IA
+ligada para quem está usando a tela, **Sugerir síntese** prepara um rascunho com
+base nas propostas, apontamentos e votações do grupo. O rascunho aparece no
+campo para revisar e ajustar; nada fica guardado até alguém clicar em **Guardar
+síntese**. **Descartar rascunho** volta ao texto que estava guardado. Guardar o
+campo vazio apaga a síntese.
+
+### Sugerir redação com IA
+
+Nas propostas que o grupo criou, **Sugerir redação** mostra o texto atual ao
+lado de uma redação mais clara, que pode ser ajustada. Se a mudança pode ter
+alterado o sentido, aparece o alerta "Pode ter mudado o sentido — confira:".
+**Aceitar redação** grava o texto como versão nova; **Recusar** descarta a
+sugestão.
+
+### Entregar o relatório do grupo
+
+Quando o grupo terminar, clique em **Entregar relatório** no quadro tracejado do
+fim da tela e confirme.
+
+<Aviso tipo="atencao" titulo="A entrega trava o grupo">
+  Depois de entregue, o grupo não registra nem retira apontamentos, não cria nem
+  edita propostas e não salva votações. As propostas novas do grupo passam a
+  **Entregue pelo grupo**. A tela mostra "O relatório do grupo já foi entregue."
+  e quem entregou. Só a comissão, no painel, desfaz.
+</Aviso>
+
+Para corrigir algo combinado com a relatoria do grupo, a comissão abre o grupo no
+painel e clica em **Reabrir relatório**, confirmando. O grupo volta a poder
+alterar, e as propostas novas dele voltam a **Em debate**.
+
+Se a regra **Relatório do grupo trava em** tem horário, ao passar dele todos os
+grupos ficam travados com a mensagem "Passou o horário de trava do relatório dos
+grupos." Ainda assim, cada grupo pode (e deve) clicar em **Entregar relatório**,
+para que as propostas novas dele passem a **Entregue pelo grupo**.
+
+## O relator pelo link pessoal
+
+Quem tem coordenação, relatoria ou relatoria adjunta vê, ao abrir o próprio link
+pessoal, o quadro **Relatoria** com o nome de cada grupo em que tem função.
+Tocar no grupo abre a mesma tela descrita acima, ajustada ao celular, com o nome
+da pessoa e a função no topo e o link **Minha participação** para voltar.
+
+- Tudo o que a pessoa registra sai com o nome dela (no rastro da proposta e na
+  entrega do relatório).
+- Ela só entra nos grupos em que tem função. Se a função for removida, o link
+  continua valendo para o resto, mas o grupo some.
+- Ela não pode reabrir o relatório nem registrar funções: isso é do painel.
+- Os botões de IA (**Sugerir redação**, **Sugerir síntese**) só aparecem se a
+  regra **Sugestões da IA na relatoria** for "Comissão e relatoria dos grupos".
+
+<Aviso tipo="dica" titulo="Antes da sessão dos grupos">
+  Teste com cada relator: abra o link pessoal no celular dele, entre no grupo e
+  registre um apontamento de teste (depois retire). Assim ninguém descobre na
+  hora que não tem link ou que a função não foi registrada.
+</Aviso>
+
+## Consolidação
+
+Na aba **Relatoria**, clique em **Consolidação**. O cabeçalho mostra quantos
+grupos já entregaram o relatório e quantas propostas há. Os botões do alto são
+**Aplicar a votação dos grupos** (se os grupos votam), **Assistente da IA**
+(com o número de sugestões pendentes, se a IA estiver ligada), **Mesa da
+plenária** e **Grupos**.
+
+### Filtros
+
+- **Situação**: começa em **A consolidar** (Em debate e Entregue). Há também
+  **Na pauta da plenária**, **Aprovadas**, **Rejeitadas**, **Fundidas**, **Só
+  aos anais**, **Retiradas** e **Todas**.
+- **Eixo**, incluindo **Sem eixo**.
+- **Grupo**: as propostas criadas no grupo e as que receberam apontamento dele.
+- **Buscar**: número ou palavra do texto, sem se preocupar com acento.
+
+As propostas aparecem agrupadas por eixo. Cada cartão mostra número, origem,
+grupo, abrangência, versão, situação, a marca **Consenso** ou **Debate**, os
+apontamentos de todos os grupos e o placar de cada grupo que votou.
+
+### Aplicar a votação dos grupos
+
+Com os grupos votando, depois que eles entregarem os relatórios, clique em
+**Aplicar a votação dos grupos** e confirme. Para cada proposta **Em debate** ou
+**Entregue** que tenha votação em algum grupo:
+
+- **Aprovada** se todos os grupos que a votaram a aprovaram direto;
+- **Na pauta da plenária** se foi favorável no número de grupos exigido pela
+  regra **Para ir à plenária, a proposta precisa de maioria em**;
+- **Rejeitada** se não atingiu esse número.
+
+A mensagem diz quantas foram à plenária, quantas aprovadas e quantas rejeitadas.
+Propostas sem nenhuma votação continuam onde estavam.
+
+<Aviso tipo="perigo" titulo="Aprovada ou rejeitada não volta">
+  O que **Aplicar a votação dos grupos** marca como aprovada ou rejeitada não
+  muda mais de situação nem de texto, e uma votação de grupo salva depois não é
+  reaplicada a ela. Aplique só depois que todos os grupos entregarem.
+</Aviso>
+
+### Marcar e agir em lote
+
+Marque a caixa de uma ou mais propostas. Aparece a barra de ações, presa no alto:
+
+| Botão | Efeito |
+| --- | --- |
+| **Fundir** | Com duas ou mais marcadas (veja abaixo) |
+| **Enviar à plenária** | Passa a **Na pauta da plenária**, sem confirmação |
+| **Consenso** / **Debate** | Classifica as marcadas (se a regra estiver ligada). Com a votação em bloco ligada na plenária, o que é consenso vai no bloco |
+| **Mover para o eixo…** | Muda o eixo assim que você escolhe. Muda também em quais grupos a proposta aparece |
+| **Abrangência…** | Muda a abrangência (se houver lista na configuração) |
+| **Só aos anais** | Pede confirmação: "Mandar só aos anais? Não vão à votação." |
+| **Voltar a consolidar** | Devolve a **Entregue** (desfaz Enviar à plenária, Só aos anais ou Retirar) |
+| **Retirar** | Pede confirmação. A proposta fica no histórico, como **Retirada** |
+| **Desmarcar** | Limpa a seleção |
+
+Propostas **Aprovadas**, **Rejeitadas** ou **Fundidas** não têm caixa de marcar:
+não mudam mais. Aprovar ou rejeitar só se faz pela votação.
+
+<Aviso tipo="nota" titulo="Retirar e Só aos anais têm volta">
+  Filtre por **Retiradas** ou **Só aos anais**, marque e clique em **Voltar a
+  consolidar**.
+</Aviso>
+
+### Corrigir o texto
+
+O lápis do cartão abre o texto para edição; **Salvar texto consolidado** grava
+uma versão nova, com o seu nome. Com a IA ligada, **Sugerir redação** funciona
+como na tela do grupo, para qualquer proposta aberta.
+
+### Fundir propostas
+
+<PassoAPasso>
+  <Passo titulo="Marque as parecidas">
+    Marque duas ou mais propostas e clique em **Fundir**.
+  </Passo>
+  <Passo titulo="Escreva o texto único">
+    O campo já vem com os textos das marcadas, um abaixo do outro. Reescreva como
+    texto único. Escolha o eixo (vem o da primeira marcada) e a abrangência.
+  </Passo>
+  <Passo titulo="Criar a proposta fundida">
+    Clique em **Criar a proposta fundida**. Nasce uma proposta nova, com o
+    próximo número, situação **Entregue** e origem "Fusão das propostas ...".
+    As de origem passam a **Fundida em outra**, ligadas à nova.
+  </Passo>
+</PassoAPasso>
+
+Não se funde proposta já votada, já fundida ou retirada.
+
+Para desfazer, use o botão de desfazer (seta para trás) no cartão da proposta
+fundida e confirme. As propostas de origem voltam a **Entregue** e a fundida
+passa a **Retirada**. Só dá para desfazer enquanto a fundida não foi votada.
+
+### Cota de saída do regimento
+
+Se a configuração tem **Máximo de propostas que o grupo entrega** ou **Máximo
+por eixo**, a aba Relatoria e a consolidação mostram o quadro **Acima da cota de
+saída do regimento**, com cada grupo (e eixo) que passou do limite. A conta usa
+as propostas novas criadas pelo grupo, sem contar as fundidas e as retiradas.
+
+<Aviso tipo="nota" titulo="A cota só avisa">
+  O sistema não bloqueia nem corta nada. Quem decide o que funde, retira ou manda
+  só aos anais é a relatoria.
+</Aviso>
+
+## O rastro da proposta
+
+O ícone de relógio no cartão da consolidação abre o rastro da proposta. Ele
+mostra a situação, a origem, o grupo, o eixo e a abrangência, e os quadros:
+
+- **Texto atual**, com o link para a proposta em que ela foi fundida, se for o
+  caso;
+- **Nasceu da fusão de**: as propostas de origem, com link para cada uma;
+- **Plenária**: cada votação, com a forma e o placar;
+- **Nos grupos**: o placar e o resultado em cada grupo;
+- **Apontamentos**: de todos os grupos, com data; os retirados aparecem
+  riscados;
+- **Versões do texto**: da mais nova para a mais antiga, com o motivo (Texto
+  inicial, Alterada no grupo, Consolidação, Fusão, Plenária, Correção,
+  Redação sugerida pela IA e aceita), o autor e a data.
+
+## Assistente da IA
+
+O **Assistente da relatoria** lê as propostas em consolidação (em debate,
+entregues ou na pauta), identificadas só pelo número e sem nomes, e sugere.
+Nada muda sem o aceite de alguém da relatoria. Se a regra **Sugestões da IA na
+relatoria** estiver **Desligada**, a tela mostra só o aviso.
+
+Escolha o **Eixo** (ou **Todos os eixos**) e rode uma das leituras. Pode levar um
+ou dois minutos.
+
+| Botão | Sugere | Aceitar faz |
+| --- | --- | --- |
+| **Procurar parecidas para fundir** | Grupos de propostas com o mesmo pedido, com um texto único | **Fundir N** cria a proposta fundida, como na consolidação. Desmarque a proposta que não deve entrar |
+| **Eixo, abrangência e competência** | Outro eixo, a abrangência, ou "Fora de competência?" | **Mover de eixo**, **Aplicar**, ou **Mandar só aos anais** (para competência, **Manter** recusa) |
+| **Comparar grupos** | Propostas de grupos diferentes iguais, complementares ou contraditórias | Contraditórias: **Levar como dissenso à plenária** registra um apontamento de Dissenso nas duas. As demais: **Fundir as duas…** |
+
+**Recusar** descarta a sugestão. Se as propostas mudaram depois da leitura, a
+sugestão fica para trás e a tela avisa para rodar de novo.
+
+Em **Ler o caderno de teses**, escolha o arquivo (PDF, .txt ou .md, até 4 MB) e
+clique em **Ler com a IA**. A IA separa as propostas e tenta casar cada uma com
+um eixo. Confira item a item: ajuste o texto e o eixo, desmarque o que não é
+proposta, escolha a **Origem** e a **Descrição da origem** e clique em **Gravar N
+proposta(s)**.
+
+A seção **Já decidido antes?** (não usa IA) mostra propostas em consolidação
+parecidas com resoluções de congressos anteriores ou com cláusulas do acordo
+vigente, com o percentual de semelhança. **Quanto a IA ajudou neste congresso**
+conta sugestões, aceitas, recusadas e pendentes por função.
+
+## Erros comuns
+
+- **"O grupo só altera o texto das propostas que ele criou. Para as demais,
+  registre um apontamento."** Propostas do caderno mudam pela consolidação.
+- **"O relatório do grupo já foi entregue."** Peça à comissão para clicar em
+  **Reabrir relatório** na tela do grupo, no painel.
+- **"Passou o horário de trava do relatório dos grupos."** O horário da regra
+  **Relatório do grupo trava em** passou. Reabrir o relatório não destrava: é
+  preciso mudar o horário na configuração.
+- **"Este link não dá acesso à relatoria deste grupo."** A pessoa não tem função
+  neste grupo, ou ela foi removida. Registre a função no painel.
+- **"O grupo já registrou N proposta(s) nova(s), o máximo do regimento."** A
+  regra **Máximo de propostas novas por grupo** foi atingida.
+- **"A configuração deste congresso não prevê votação nos grupos."** Ligue **Os
+  grupos votam as propostas** na seção Apreciação nos grupos.
+- **"Mais de 300 propostas de uma vez: divida em partes."** Cole o caderno em
+  partes, por exemplo um eixo por vez.
+- **"Cole o texto com uma proposta por parágrafo (linha em branco entre
+  elas)."** O texto colado não tem linha em branco separando as propostas.
+- **"Proposta já votada: o texto não muda mais."** Aprovadas e rejeitadas ficam
+  como estão.
+- **"Proposta fundida em outra: altere a proposta resultante."** Abra a fundida
+  pelo rastro.
+- **"A proposta N já foi votada e não muda."** Tire-a da seleção antes de agir em
+  lote.
+- **"A fusão já foi votada e não pode ser desfeita."**
+- **"Neste congresso, só a comissão usa as sugestões da IA."** A regra
+  **Sugestões da IA na relatoria** está em "Só a comissão, no painel".
+- **"O grupo não vê uma proposta do caderno."** Ela está em outro eixo ou sem
+  eixo. Ajuste com **Mover para o eixo** na consolidação.
+
+<VejaTambem
+  links={[
+    {
+      titulo: "Congressos e conferências",
+      href: "/painel/ajuda/representacao/congressos",
+      descricao: "Criar o congresso, configuração, programa e grupos",
+    },
+    {
+      titulo: "Congressos: o dia do evento",
+      href: "/painel/ajuda/representacao/congressos-dia",
+      descricao: "Credenciamento, porta e quórum",
+    },
+    {
+      titulo: "Congressos: a plenária",
+      href: "/painel/ajuda/representacao/congressos-plenaria",
+      descricao: "Bloco de consenso, destaques e votação das propostas",
+    },
+    {
+      titulo: "Congressos: encerramento",
+      href: "/painel/ajuda/representacao/congressos-encerramento",
+      descricao: "Resoluções, relatório e levar à etapa seguinte",
+    },
+    {
+      titulo: "Inscrição em congresso",
+      href: "/painel/ajuda/fluxos-publicos/congresso",
+      descricao: "O link pessoal do participante",
+    },
+  ]}
+/>
+
+{/* Prints sugeridos:
+  1. Aba Relatoria com os botões do alto, o quadro Propostas por situação e a tabela Grupos.
+  2. Campo "Colar propostas" aberto, com Origem, Eixo e a contagem de propostas encontradas.
+  3. Tela do grupo no painel: quadro de apontamento com os tipos e o quadro Coordenação e relatoria à direita.
+  4. Cartão de proposta no grupo com A favor / Contra / Abstenção e o selo do resultado.
+  5. Tela do grupo no celular, pelo link pessoal, com o aviso de relatório entregue.
+  6. Consolidação com propostas marcadas e a barra de ações.
+  7. Quadro de fusão ("Fundir as propostas ...").
+  8. Rastro da proposta com Versões do texto e Nos grupos.
+  9. Assistente da relatoria com uma sugestão de fusão.
+*/}

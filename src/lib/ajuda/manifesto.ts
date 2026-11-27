@@ -323,6 +323,26 @@ export const AREAS_AJUDA: AreaAjuda[] = [
         resumo: "Configuração, delegações, participantes, programa, inscrição pública e importação de listas",
       },
       {
+        slug: "congressos-dia",
+        titulo: "Congressos: o dia do evento",
+        resumo: "Credenciamento, crachás, troca de titular por suplente, presença por sessão e quórum",
+      },
+      {
+        slug: "congressos-relatoria",
+        titulo: "Congressos: propostas, grupos e consolidação",
+        resumo: "Caderno de propostas, relatoria dos grupos, apontamentos e o que vai à plenária",
+      },
+      {
+        slug: "congressos-plenaria",
+        titulo: "Congressos: plenária e moções",
+        resumo: "Mesa da plenária, fila de fala, votação eletrônica e moções com assinaturas",
+      },
+      {
+        slug: "congressos-encerramento",
+        titulo: "Congressos: encerramento, resoluções e eleição",
+        resumo: "Encerrar o congresso, resoluções, eleição da delegação, certificados e relatório final",
+      },
+      {
         slug: "votacao-presencial",
         titulo: "Montar uma votação presencial",
         resumo: "Guia operacional: materiais, urnas, lacres, mesários, apuradores e o dia da votação (inclusive offline)",

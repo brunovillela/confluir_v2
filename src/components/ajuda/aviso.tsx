@@ -26,7 +26,9 @@ export function Aviso({
   titulo?: string
   children: React.ReactNode
 }) {
-  const { variant, icone: Icone, rotulo } = CONFIG[tipo]
+  // Tipo desconhecido no MDX (ex.: "importante") vira nota em vez de derrubar
+  // a página inteira do artigo.
+  const { variant, icone: Icone, rotulo } = CONFIG[tipo] ?? CONFIG.nota
   return (
     <Alert variant={variant} className="my-4">
       <Icone />

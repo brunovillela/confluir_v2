@@ -59,6 +59,17 @@ edição com a **situação**, o **período** (vem do evento ligado) e o número
 | **Delegações** | Bases, entidades ou segmentos, com vagas, delegados, espera, natos e cota |
 | **Programa e grupos** | Eixos temáticos, grupos de trabalho e sessões |
 | **Participantes** | A lista, com busca, filtros, inclusão, importação e o link pessoal |
+| **Dia do evento** | Credenciamento, crachás, presença por sessão e quórum. Ver [O dia do evento](/painel/ajuda/representacao/congressos-dia) |
+| **Relatoria** | Propostas, grupos de trabalho e consolidação para a plenária. Ver [Propostas, grupos e consolidação](/painel/ajuda/representacao/congressos-relatoria) |
+| **Moções** | Moções, assinaturas e protocolo. Ver [Plenária e moções](/painel/ajuda/representacao/congressos-plenaria) |
+| **Encerramento** | Encerrar o congresso, resoluções, eleição da delegação e certificados. Ver [Encerramento, resoluções e eleição](/painel/ajuda/representacao/congressos-encerramento) |
+
+Na tela, as abas aparecem na ordem do trabalho: Visão geral, Dia do evento,
+Relatoria, Moções, Encerramento, Configuração, Papéis e direitos, Delegações,
+Programa e grupos e Participantes. Este artigo cobre a preparação; cada fase do
+evento tem o seu artigo.
+
+<RequerPermissao>Congressos e conferências — mesa de credenciamento, porta e quórum</RequerPermissao> e <RequerPermissao>Congressos e conferências — relatoria, consolidação e mesa da plenária</RequerPermissao> são permissões à parte, para quem trabalha só no dia do evento ou só na relatoria e na plenária.
 
 ### Visão geral
 
@@ -78,11 +89,20 @@ Encerrado, Cancelado), o evento e as **etapas**: a etapa anterior e a seguinte
 podem ser outro congresso cadastrado no Confluir ou, para a seguinte, um nome
 externo (ex.: "Plenafup 2027").
 
+<Aviso tipo="atencao" titulo="Encerrar o congresso é na aba Encerramento">
+  Pôr a situação em **Encerrado** aqui só muda o rótulo: não gera as resoluções,
+  não libera os certificados nem a página pública do resultado. Para encerrar de
+  verdade, use **Encerrar o congresso**, na aba
+  [Encerramento](/painel/ajuda/representacao/congressos-encerramento).
+</Aviso>
+
 ### Configuração: o regimento em regras
 
 Cada regra do regimento é um ajuste, agrupado em seções: Identidade, Regimento,
-Delegação, Cotas e paridade, Quem pode participar, Inscrição e Programa e
-grupos. Abaixo de cada ajuste aparece de onde veio o valor (**Padrão**,
+Delegação, Cotas e paridade, Quem pode participar, Inscrição, Programa e grupos,
+Credenciamento, Presença e quórum, Propostas, Apreciação nos grupos, Plenária,
+Moções, Eleição da delegação, Divulgação e Encerramento. As regras das fases do
+evento estão explicadas no artigo de cada fase. Abaixo de cada ajuste aparece de onde veio o valor (**Padrão**,
 **Modelo**, **Edição anterior**, **Comissão** ou **Regimento**) e, se citado, o
 artigo. Use **citar artigo** para anotar o artigo do regimento (ex.: "Art. 21,
 parágrafo único").
@@ -107,15 +127,20 @@ As regras que mais mudam o funcionamento:
   pedidos (acessibilidade, nome social, gênero).
 - **Há grupos de trabalho** e **Como se entra no grupo**.
 
-O link **Mostrar também credenciamento, local da decisão, plenária, moções e
-encerramento** abre as demais seções. Elas aparecem com o selo "Registrada;
-aplicada nas próximas etapas do módulo": dá para registrar a regra, mas o
-sistema ainda não a aplica.
+Todas essas seções já valem: o que você escolhe muda o funcionamento do
+congresso. A exceção é a seção **Local da decisão** (o que pode ser feito a
+distância e como se prova a presença). Ela fica escondida e aparece pelo link
+**Mostrar também local da decisão, moções, divulgação e encerramento**, com o
+selo "Registrada; aplicada nas próximas etapas do módulo". Apesar do selo, parte
+dela já vale: a **Validade do código da sala** e as regras de prova de presença
+para votar e para assinar moção são aplicadas no voto eletrônico e nas
+assinaturas (ver [Plenária e moções](/painel/ajuda/representacao/congressos-plenaria)).
+As regras do voto a distância no quórum ainda não são usadas.
 
 Escreva o **Motivo** (opcional) e clique em **Salvar configuração**. Cada
 gravação vira uma **versão**, listada ao lado com autor, data e motivo.
 
-<Aviso tipo="importante" titulo="Regimento aprovado trava a configuração">
+<Aviso tipo="atencao" titulo="Regimento aprovado trava a configuração">
   Clique em **Marcar o regimento como aprovado agora** quando a plenária (ou o
   órgão previsto) aprovar o regimento. Se a regra **Depois de aprovado** estiver
   em "Só muda com deliberação registrada", toda mudança passa a pedir o campo
@@ -308,11 +333,36 @@ Veja o que a pessoa vê em
   exercício.
 - **"A pessoa perdeu o link pessoal."** Gere um novo na lista de participantes:
   o anterior para de funcionar.
-- **"Mudei a seção de credenciamento e nada aconteceu."** As seções com o selo
-  "aplicada nas próximas etapas do módulo" só registram a regra.
+- **"Mudei uma regra do Local da decisão e nada aconteceu."** Nessa seção, só a
+  validade do código da sala e as provas de presença para votar e assinar já
+  valem; as regras do voto a distância no quórum ainda só ficam registradas. As
+  demais seções valem assim que você salva.
+- **"Pus o congresso como Encerrado e não saíram os certificados."** A situação
+  em Dados do congresso só muda o rótulo. Use **Encerrar o congresso**, na aba
+  Encerramento.
 
 <VejaTambem
   links={[
+    {
+      titulo: "Congressos: o dia do evento",
+      href: "/painel/ajuda/representacao/congressos-dia",
+      descricao: "Credenciamento, crachás, presença por sessão e quórum",
+    },
+    {
+      titulo: "Congressos: propostas, grupos e consolidação",
+      href: "/painel/ajuda/representacao/congressos-relatoria",
+      descricao: "Relatoria dos grupos e o que vai à plenária",
+    },
+    {
+      titulo: "Congressos: plenária e moções",
+      href: "/painel/ajuda/representacao/congressos-plenaria",
+      descricao: "Mesa, fila de fala, votação e moções",
+    },
+    {
+      titulo: "Congressos: encerramento, resoluções e eleição",
+      href: "/painel/ajuda/representacao/congressos-encerramento",
+      descricao: "Encerrar, resoluções, eleição da delegação e certificados",
+    },
     {
       titulo: "Inscrição em congresso",
       href: "/painel/ajuda/fluxos-publicos/congresso",
