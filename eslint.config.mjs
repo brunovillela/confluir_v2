@@ -18,6 +18,8 @@ const PODEM_USAR_SERVICE_ROLE = [
   "src/lib/db/email-envios.ts",
   // Controles do e-mail (teto, cotas, bloqueios): lidos a cada envio, também no agendador.
   "src/lib/db/email-controles.ts",
+  // Conta própria de e-mail da entidade: lida a cada envio (também no agendador) e pelo webhook.
+  "src/lib/db/email-conta.ts",
   "src/lib/db/filiacao-coletiva.ts",
   "src/lib/db/veiculos-avisos.ts",
   "src/lib/db/pendencias-lembrete.ts",

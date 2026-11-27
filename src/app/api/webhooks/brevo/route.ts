@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto"
 
+import { entidadeDoTokenWebhook } from "@/lib/db/email-conta"
 import { registrarEventoEnvio } from "@/lib/db/email-envios"
 import { registrarEventoBrevo, type EventoBrevo } from "@/lib/db/votacao-eventos-email"
 import { createServiceClient } from "@/lib/supabase/admin"
@@ -19,19 +20,29 @@ export const runtime = "nodejs"
  * vale). Um webhook só para todas as entidades: a entidade vem no
  * X-Mailin-custom de cada e-mail. Responde 200 a todo evento válido para a
  * Brevo não reenviar.
+ *
+ * Conta própria da entidade (Gestão › E-mail, 27/11/2026): o webhook da conta
+ * Brevo da entidade aponta para a mesma rota com o token que a Gestão gerou
+ * (whk_…, guardado só como hash). Com ele, os eventos só valem para os
+ * e-mails daquela entidade.
  */
-function autorizado(req: Request): boolean {
-  const segredo = process.env.BREVO_WEBHOOK_SECRET
-  if (!segredo) return false
+async function autorizado(req: Request): Promise<{ ok: false } | { ok: true; entidade: string | null }> {
   const veio =
     req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? new URL(req.url).searchParams.get("token") ?? ""
-  const a = Buffer.from(veio)
-  const b = Buffer.from(segredo)
-  return a.length === b.length && timingSafeEqual(a, b)
+  const segredo = process.env.BREVO_WEBHOOK_SECRET
+  if (segredo) {
+    const a = Buffer.from(veio)
+    const b = Buffer.from(segredo)
+    if (a.length === b.length && timingSafeEqual(a, b)) return { ok: true, entidade: null }
+  }
+  const entidade = veio ? await entidadeDoTokenWebhook(veio) : null
+  return entidade ? { ok: true, entidade } : { ok: false }
 }
 
 export async function POST(req: Request): Promise<Response> {
-  if (!autorizado(req)) return new Response("Não autorizado", { status: 401 })
+  const acesso = await autorizado(req)
+  if (!acesso.ok) return new Response("Não autorizado", { status: 401 })
+  const somente = acesso.entidade
   let corpo: unknown
   try {
     corpo = await req.json()
@@ -45,7 +56,13 @@ export async function POST(req: Request): Promise<Response> {
   // Cada evento vai ao registro geral do envio (Gestão › E-mail) e, se for de votação, ao apto.
   const feitos = await Promise.all(
     eventos.map(async (e) => {
-      const [envio, voto] = await Promise.all([registrarEventoEnvio(client, e), registrarEventoBrevo(client, e)])
+      // Token de entidade: a votação só lê o evento se a marca for da mesma entidade.
+      const marca = String(e["X-Mailin-custom"] ?? e["x-mailin-custom"] ?? "")
+      const votoDeOutra = somente !== null && marca.startsWith("voto|") && !marca.startsWith(`voto|${somente}|`)
+      const [envio, voto] = await Promise.all([
+        registrarEventoEnvio(client, e, somente),
+        votoDeOutra ? Promise.resolve("ignorado (outra entidade)") : registrarEventoBrevo(client, e),
+      ])
       return `${envio} · ${voto}`
     })
   )

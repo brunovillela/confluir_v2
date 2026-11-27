@@ -1,10 +1,13 @@
 import "server-only"
 
 import { textoValidade } from "@/lib/auth-email-constantes"
+import { contaEnvioDaEntidade, esquecerContaEmail, marcarChaveEmailRecusada } from "@/lib/db/email-conta"
 import { abrirRegistroEnvio, concluirRegistroEnvio, type ProvedorEmail } from "@/lib/db/email-envios"
 import { emailContatoEntidade, nomeEntidade } from "@/lib/db/organizacao"
 import { caixaAviso, COR, escaparHtml, layoutEmail } from "@/lib/email-layout"
 import { marcaComEnvio } from "@/lib/email-processos"
+import { chaveRecusada, entregar, type Credencial, type Mensagem } from "@/lib/email-provedores"
+import { tenantAtual } from "@/lib/tenant"
 import { origemAtual } from "@/lib/tenant-url"
 
 /**
@@ -80,11 +83,25 @@ export async function enviarEmail(destino: {
   /** Arquivos anexos (ex.: o PDF da ordem de compra), em base64. */
   anexos?: { nome: string; base64: string }[]
 }): Promise<boolean> {
-  const usaResend = process.env.EMAIL_PROVEDOR === "resend"
-  const chave = usaResend ? process.env.RESEND_API_KEY : process.env.BREVO_API_KEY
-  const remetente = process.env.EMAIL_REMETENTE
-  const provedor: ProvedorEmail = !chave || !remetente ? "nenhum" : usaResend ? "resend" : "brevo"
   const sandbox = process.env.EMAIL_SANDBOX === "1"
+  // Conta da plataforma (variáveis de ambiente) e, se houver, a da entidade (Gestão › E-mail).
+  const chavePlataforma = process.env.EMAIL_PROVEDOR === "resend" ? process.env.RESEND_API_KEY : process.env.BREVO_API_KEY
+  const plataforma: Credencial | null = chavePlataforma ? { provedor: process.env.EMAIL_PROVEDOR === "resend" ? "resend" : "brevo", chave: chavePlataforma } : null
+  const remetentePlataforma = process.env.EMAIL_REMETENTE ?? null
+  let emp: string | null = destino.contexto?.tenantId ?? null
+  if (!emp) {
+    try {
+      emp = await tenantAtual()
+    } catch {
+      emp = null
+    }
+  }
+  const contaEntidade = emp ? await contaEnvioDaEntidade(emp) : null
+  // A conta da entidade só vale com chave legível e remetente próprio (o domínio da plataforma não está verificado nela).
+  const daEntidade = Boolean(contaEntidade?.credencial && contaEntidade.remetenteEmail)
+  const credencial = daEntidade ? contaEntidade!.credencial! : plataforma
+  const remetente = daEntidade ? contaEntidade!.remetenteEmail! : remetentePlataforma
+  const provedor: ProvedorEmail = !credencial || !remetente ? "nenhum" : credencial.provedor
 
   // Registro do envio (Gestão › E-mail): a linha nasce antes do provedor, e o
   // id vai no X-Mailin-custom para o webhook do Brevo achar a linha.
@@ -94,12 +111,13 @@ export async function enviarEmail(destino: {
     detalhe: destino.detalhe,
     destinatario: destino.email,
     provedor,
+    conta: daEntidade ? "entidade" : "plataforma",
     situacao: provedor === "nenhum" ? "sem_configuracao" : "enviando",
     anexos: destino.anexos?.length ?? 0,
   })
   // Barrado pela Gestão (módulo desligado, teto, cota ou endereço bloqueado): não sai.
   if (registro.barrado) return false
-  if (!chave || !remetente) return false
+  if (!credencial || !remetente) return false
 
   const [entidade, emailContato, origem] = destino.contexto
     ? [destino.contexto.entidade, destino.contexto.emailContato, destino.contexto.origem]
@@ -108,9 +126,10 @@ export async function enviarEmail(destino: {
   if (registro.id) cabecalhos["X-Mailin-custom"] = marcaComEnvio(cabecalhos["X-Mailin-custom"], registro.id)
 
   const assunto = destino.assunto.replaceAll("{ENTIDADE}", entidade)
+  const responder = (daEntidade && contaEntidade!.responderPara) || emailContato
   const rodape =
     `Enviado pelo Confluir em nome de ${escaparHtml(entidade)}.` +
-    (emailContato ? " Para falar com a entidade, responda a este e-mail." : "")
+    (responder ? " Para falar com a entidade, responda a este e-mail." : "")
   const htmlContent = layoutEmail({
     corpo: destino.html.replaceAll("{ENTIDADE}", entidade),
     logoUrl: `${origem}/logo-confluir-completa-dark.png`,
@@ -119,84 +138,42 @@ export async function enviarEmail(destino: {
     rodape,
   })
 
-  // Resend (EMAIL_PROVEDOR=resend): mesmo conteúdo, outro provedor. Existe
-  // para migrar o canal do app sem mexer em código — só na variável.
-  if (process.env.EMAIL_PROVEDOR === "resend") {
-    // Testes: o Resend não tem modo sandbox — não enviamos nada.
-    if (sandbox) {
-      await concluirRegistroEnvio(registro, "teste")
-      return true
-    }
-    try {
-      const resposta = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${chave}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: `Confluir — ${entidade} <${remetente}>`,
-          to: [destino.email],
-          subject: assunto,
-          html: htmlContent,
-          ...(emailContato ? { reply_to: emailContato } : {}),
-          ...(Object.keys(cabecalhos).length ? { headers: cabecalhos } : {}),
-          ...(destino.anexos?.length
-            ? { attachments: destino.anexos.map((a) => ({ filename: a.nome, content: a.base64 })) }
-            : {}),
-        }),
-      })
-      await concluirRegistroEnvio(registro, resposta.ok ? "enviado" : "falhou", resposta.ok ? null : `Resend recusou (HTTP ${resposta.status})`)
-      return resposta.ok
-    } catch {
-      await concluirRegistroEnvio(registro, "falhou", "Falha de rede ao falar com o Resend")
-      return false
-    }
+  const mensagem = (doRemetente: string, nome: string): Mensagem => ({
+    remetente: { email: doRemetente, nome },
+    // Respostas vão para o contato da entidade (ou o endereço escolhido na Gestão); o envelope fica no domínio do remetente.
+    responderPara: responder ? { email: responder, nome: entidade } : null,
+    para: { email: destino.email, nome: destino.nome },
+    assunto,
+    html: htmlContent,
+    cabecalhos,
+    anexos: destino.anexos ?? [],
+    sandbox,
+  })
+
+  // Testes: o Resend não tem modo sandbox — não enviamos nada.
+  if (sandbox && credencial.provedor === "resend") {
+    await concluirRegistroEnvio(registro, "teste")
+    return true
   }
 
-  try {
-    const resposta = await fetch("https://api.brevo.com/v3/smtp/email", {
-      method: "POST",
-      headers: {
-        "api-key": chave,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        sender: { email: remetente, name: `Confluir — ${entidade}` },
-        to: [{ email: destino.email, name: destino.nome ?? undefined }],
-        // Reply-to no e-mail de contato do tenant (quando houver); envelope
-        // segue no domínio limpo. Sem contato, o Brevo usa o próprio sender.
-        ...(emailContato
-          ? { replyTo: { email: emailContato, name: entidade } }
-          : {}),
-        subject: assunto,
-        htmlContent,
-        ...(destino.anexos?.length
-          ? { attachment: destino.anexos.map((a) => ({ name: a.nome, content: a.base64 })) }
-          : {}),
-        // Testes: o Brevo aceita e descarta, sem entregar (EMAIL_SANDBOX=1).
-        ...(sandbox || Object.keys(cabecalhos).length
-          ? {
-              headers: {
-                ...cabecalhos,
-                ...(sandbox ? { "X-Sib-Sandbox": "drop" } : {}),
-              },
-            }
-          : {}),
-      }),
-    })
+  const nomeExibicao = (daEntidade && contaEntidade!.remetenteNome) || `Confluir — ${entidade}`
+  let r = await entregar(credencial, mensagem(remetente, nomeExibicao))
+  // A conta da entidade recusou a chave (revogada, sem créditos): o e-mail não
+  // pode se perder — sai pela plataforma, e a Gestão vê o erro na tela.
+  if (daEntidade && chaveRecusada(r) && plataforma && remetentePlataforma && emp) {
+    await marcarChaveEmailRecusada(emp, r.erro ?? "Chave recusada")
+    esquecerContaEmail(emp)
+    r = await entregar(plataforma, mensagem(remetentePlataforma, `Confluir — ${entidade}`))
     await concluirRegistroEnvio(
       registro,
-      resposta.ok ? (sandbox ? "teste" : "enviado") : "falhou",
-      resposta.ok ? null : `Brevo recusou (HTTP ${resposta.status})`
+      r.ok ? (sandbox ? "teste" : "enviado") : "falhou",
+      r.ok ? "A conta da entidade recusou a chave; saiu pela conta da plataforma." : r.erro,
+      "plataforma"
     )
-    return resposta.ok
-  } catch {
-    // Falha de rede no provedor não pode derrubar a ação que originou o email.
-    await concluirRegistroEnvio(registro, "falhou", "Falha de rede ao falar com o Brevo")
-    return false
+    return r.ok
   }
+  await concluirRegistroEnvio(registro, r.ok ? (sandbox ? "teste" : "enviado") : "falhou", r.erro)
+  return r.ok
 }
 
 /**

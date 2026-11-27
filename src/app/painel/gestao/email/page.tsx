@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowLeft, FileSpreadsheet, Mail } from "lucide-react"
+import { ArrowLeft, FileSpreadsheet, KeyRound, Mail } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -12,12 +12,16 @@ import { SelectNativo } from "@/components/ui/select-nativo"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
 import { listarDepartamentosCompletos } from "@/lib/db/departamentos"
+import { emailContatoEntidade, nomeEntidade } from "@/lib/db/organizacao"
+import { obterContaEmail } from "@/lib/db/email-conta"
 import { inicioDoMesEmail, listarBloqueios, obterControlesEmail } from "@/lib/db/email-controles"
 import { listarEnvios, resumoEmails, type DimensaoEmail, type EnvioEmail, type LinhaEmail } from "@/lib/db/email-uso"
 import { FILTROS_SITUACAO, MODULOS_EMAIL, PROCESSOS_EMAIL, processoEmail, ROTULO_ESTADO, tituloModuloEmail, type EstadoEnvio } from "@/lib/email-processos"
 import { formatarData, formatarDataHora } from "@/lib/formato"
+import { origemAtual } from "@/lib/tenant-url"
 
 import { Indicador } from "../ia/uso"
+import { ContaForm, RemoverContaBotao, TestarContaBotao, TokenWebhookBotao } from "./conta-forms"
 import { BloquearForm, ControlesForm, LiberarBotao, type ControlesIniciais } from "./forms"
 import { intervalo, PERIODOS, PERIODOS_PLANILHA } from "../ia/periodos"
 
@@ -184,6 +188,7 @@ export default async function EmailGestaoPage({ searchParams }: { searchParams: 
   const pagina = Math.max(1, Math.min(500, Number.parseInt(sp.pagina ?? "1", 10) || 1))
 
   const agora = new Date()
+  const [conta, entidade, contatoEntidade, origem] = await Promise.all([obterContaEmail(), nomeEntidade(), emailContatoEntidade(), origemAtual()])
   const [resumo, historico, { disponivel: temControles, controles }, bloqueios, deptos, resumoMes] = await Promise.all([
     resumoEmails(de, ate),
     listarEnvios(
@@ -385,6 +390,110 @@ export default async function EmailGestaoPage({ searchParams }: { searchParams: 
               Baixar planilha
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      {/* ── Conta de envio ────────────────────────────────────────────── */}
+      <Card id="conta">
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <KeyRound className="text-muted-foreground size-4" />
+              Conta de envio
+            </CardTitle>
+            {conta.temChave ? (
+              <Badge variant={conta.chaveIlegivel || conta.chaveTesteErro ? "warning" : "success"}>
+                {conta.chaveIlegivel ? "Chave ilegível" : conta.chaveTesteErro ? "Último teste falhou" : `Conta da entidade (${conta.provedor === "resend" ? "Resend" : "Brevo"})`}
+              </Badge>
+            ) : (
+              <Badge variant="secondary">Conta da plataforma</Badge>
+            )}
+          </div>
+          <CardDescription className="text-xs">
+            Sem configurar nada, os e-mails saem pela conta da plataforma, de nao-responda@confluir.online. Com a conta própria no Brevo ou no Resend, saem
+            pela conta da entidade, com o remetente do domínio dela, e o envio é cobrado lá. Se a chave for recusada num envio, o e-mail sai pela conta da
+            plataforma e o erro aparece aqui.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-5">
+          {!conta.disponivel ? (
+            <p className="text-muted-foreground text-sm">A conta própria ainda está sendo instalada no banco de dados.</p>
+          ) : (
+            <>
+              {conta.temChave && (
+                <div className="grid gap-3 rounded-lg border p-3 text-sm">
+                  <div className="grid gap-1 sm:grid-cols-2">
+                    <p>
+                      <span className="text-muted-foreground">Chave: </span>
+                      {conta.provedor === "resend" ? "Resend" : "Brevo"}, terminada em <span className="font-mono">{conta.chaveFinal ?? "…"}</span>
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Remetente: </span>
+                      {conta.remetenteNome ?? `Confluir — ${entidade}`} &lt;{conta.remetenteEmail ?? "—"}&gt;
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Cadastrada: </span>
+                      {conta.chaveDefinidaEm ? formatarDataHora(conta.chaveDefinidaEm) : "—"}
+                      {conta.chaveDefinidaPor ? `, por ${conta.chaveDefinidaPor}` : ""}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Último teste: </span>
+                      {conta.chaveTestadaEm ? formatarDataHora(conta.chaveTestadaEm) : "—"}
+                      {conta.chaveTestadaEm ? (conta.chaveTesteErro ? " — falhou" : " — funcionou") : ""}
+                    </p>
+                  </div>
+                  {conta.chaveTesteErro && (
+                    <Alert variant="destructive">
+                      <AlertDescription className="text-xs">{conta.chaveTesteErro}</AlertDescription>
+                    </Alert>
+                  )}
+                  {conta.chaveIlegivel && (
+                    <Alert variant="destructive">
+                      <AlertDescription className="text-xs">
+                        A chave guardada não pode ser lida neste servidor (a chave de cifra mudou). Os e-mails estão saindo pela conta da plataforma até a chave
+                        ser cadastrada de novo.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  <div className="flex flex-wrap items-start gap-3">
+                    <TestarContaBotao />
+                    <RemoverContaBotao final={conta.chaveFinal} />
+                  </div>
+                </div>
+              )}
+              <ContaForm
+                inicial={{
+                  provedor: conta.provedor,
+                  temChave: conta.temChave && !conta.chaveIlegivel,
+                  chaveFinal: conta.chaveFinal,
+                  remetenteEmail: conta.remetenteEmail,
+                  remetenteNome: conta.remetenteNome,
+                  responderPara: conta.responderPara,
+                  nomePadrao: `Confluir — ${entidade}`,
+                  contatoPadrao: contatoEntidade,
+                  podeGuardar: conta.segredosConfigurados,
+                }}
+              />
+              {!conta.segredosConfigurados && (
+                <p className="text-destructive text-xs">O servidor não tem chave de cifra (SEGREDOS_CHAVE): a chave não pode ser guardada com segurança.</p>
+              )}
+              {conta.temChave && conta.provedor === "brevo" && (
+                <div className="grid gap-2 border-t pt-4">
+                  <p className="text-sm font-medium">Webhook da conta da entidade</p>
+                  <p className="text-muted-foreground text-xs">
+                    Para o sistema saber se os e-mails da conta da entidade foram entregues ou rejeitados (e bloquear os endereços rejeitados), ligue um
+                    webhook na conta do Brevo apontando para o Confluir, com o token gerado aqui.
+                  </p>
+                  <TokenWebhookBotao temToken={Boolean(conta.webhookFinal)} final={conta.webhookFinal} url={`${origem}/api/webhooks/brevo`} />
+                </div>
+              )}
+              {conta.temChave && conta.provedor === "resend" && (
+                <p className="text-muted-foreground border-t pt-4 text-xs">
+                  Pela conta do Resend, o sistema registra se o e-mail saiu; a entrega e a rejeição ainda não chegam (o retorno do Resend fica para depois).
+                </p>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
 

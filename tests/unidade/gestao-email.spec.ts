@@ -119,3 +119,20 @@ test("travas da Gestão: essencial passa por módulo, teto e cota; endereço blo
   // Endereço bloqueado barra até o essencial.
   expect(motivoParaBarrar({ ...base, enderecoBloqueado: true, processo: "acesso.codigo" })).toMatch(/Endereço bloqueado/)
 })
+
+test("conta própria: chave com cara de chave e remetente de domínio verificado", async () => {
+  const { chaveEmailParecida, remetenteNoDominio } = await import("../../src/lib/email-processos")
+  expect(chaveEmailParecida("brevo", "xkeysib-0123456789abcdef0123456789abcdef-AbCdEf")).toBe(true)
+  expect(chaveEmailParecida("brevo", "re_123456789012")).toBe(false)
+  expect(chaveEmailParecida("resend", "re_AbC123456789_xyz")).toBe(true)
+  expect(chaveEmailParecida("resend", "xkeysib-abc")).toBe(false)
+  const dominios = [
+    { nome: "sindicato.org.br", verificado: true },
+    { nome: "outro.com", verificado: false },
+  ]
+  expect(remetenteNoDominio("comunicacao@sindicato.org.br", dominios)).toBe(true)
+  expect(remetenteNoDominio("avisos@mail.sindicato.org.br", dominios)).toBe(true)
+  expect(remetenteNoDominio("x@outro.com", dominios)).toBe(false) // domínio não verificado
+  expect(remetenteNoDominio("x@naosindicato.org.br", dominios)).toBe(false)
+  expect(remetenteNoDominio("sem-arroba", dominios)).toBe(false)
+})

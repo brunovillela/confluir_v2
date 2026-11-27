@@ -56,6 +56,53 @@ adiados.
 | Barrado pela Gestão | Não saiu por um controle da Gestão: módulo desligado, teto, cota ou endereço bloqueado. |
 | Teste | Ambiente de testes: o e-mail não é entregue de propósito. |
 
+## Conta de envio
+
+Sem configurar nada, os e-mails saem pela **conta da plataforma**, do
+remetente nao-responda@confluir.online, com o nome "Confluir — Entidade", e as
+respostas vão para o e-mail de contato da entidade.
+
+Com uma **conta própria** no Brevo ou no Resend, os e-mails saem pela conta da
+entidade: com o remetente do domínio dela (ex.:
+comunicacao@sindicato.org.br), dentro do limite e do plano dela, e o envio é
+cobrado lá.
+
+<PassoAPasso>
+  <Passo titulo="Verifique o domínio no provedor">
+    No painel do Brevo (Senders, Domains & Dedicated IPs → Domains) ou do
+    Resend (Domains), cadastre o domínio da entidade e crie os registros de
+    DNS que ele pede. Espere o domínio aparecer como verificado.
+  </Passo>
+  <Passo titulo="Crie a chave de API">
+    No Brevo: SMTP & API → API Keys. No Resend: API Keys, com permissão
+    **Full access** — a de só envio não deixa o sistema conferir os domínios.
+  </Passo>
+  <Passo titulo="Cadastre na Gestão">
+    Em **Conta de envio**, escolha o provedor, cole a chave e informe o
+    remetente; o nome que aparece e o endereço de resposta são opcionais.
+    O sistema testa a chave e confere se o remetente é de um domínio
+    verificado (ou, no Brevo, um remetente já validado) antes de salvar.
+  </Passo>
+</PassoAPasso>
+
+- A chave é guardada **cifrada**: a tela só mostra os 4 últimos caracteres.
+- Vale em até um minuto para todos os envios.
+- **Testar agora** confere a chave e lista os domínios verificados. O sistema
+  também testa a chave todo dia de manhã; o resultado aparece em **Último
+  teste**.
+- Se a chave for recusada num envio (revogada, sem créditos), o e-mail **não
+  se perde**: sai pela conta da plataforma, e o erro aparece no cartão.
+- **Voltar para a conta da plataforma** apaga a chave e o remetente.
+
+**Webhook (Brevo).** Para o sistema saber se os e-mails da conta da entidade
+foram entregues ou rejeitados — e bloquear os endereços rejeitados —, ligue um
+webhook na conta do Brevo: em **Gerar token**, o sistema mostra o endereço e o
+token (uma única vez); no Brevo, em Transactional → Settings → Webhook, crie o
+webhook com esse endereço, autenticação "Token" com o valor gerado, e os
+eventos Delivered, Soft bounce, Deferred, Hard bounce, Invalid email, Blocked e
+Spam. Pela conta do Resend, o sistema registra se o e-mail saiu, mas a entrega
+e a rejeição ainda não chegam.
+
 ## Controles
 
 No cartão **Controles** a Gestão limita o envio, como faz com a IA:

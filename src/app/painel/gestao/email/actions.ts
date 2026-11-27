@@ -5,8 +5,10 @@ import { revalidatePath } from "next/cache"
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
 import { listarDepartamentosCompletos } from "@/lib/db/departamentos"
+import { credencialDaEntidade, gerarTokenWebhookEmail, registrarTesteContaEmail, removerContaEmail, salvarContaEmail, salvarRemetenteEmail } from "@/lib/db/email-conta"
 import { bloquearEndereco, liberarEndereco, obterControlesEmail, salvarControlesEmail } from "@/lib/db/email-controles"
-import { MODULOS_EMAIL, tituloModuloEmail, type ControlesEmail } from "@/lib/email-processos"
+import { chaveEmailParecida, EMAIL_VALIDO, MODULOS_EMAIL, remetenteNoDominio, tituloModuloEmail, type ControlesEmail } from "@/lib/email-processos"
+import { testarConta } from "@/lib/email-provedores"
 
 const ROTA = "/painel/gestao/email"
 
@@ -60,12 +62,11 @@ export async function salvarControlesEmailAction(_prev: EstadoForm, fd: FormData
   return { ok: "Controles do e-mail salvos. Valem em até um minuto para todos os envios." }
 }
 
-const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export async function bloquearEnderecoAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
   const sessao = await requirePermissao("gestao_sistema")
   const endereco = String(fd.get("endereco") ?? "").trim().toLowerCase()
-  if (!EMAIL_OK.test(endereco) || endereco.length > 320) return { erro: "Informe um e-mail válido.", campo: "endereco" }
+  if (!EMAIL_VALIDO.test(endereco) || endereco.length > 320) return { erro: "Informe um e-mail válido.", campo: "endereco" }
   const motivo = String(fd.get("motivo") ?? "").trim() || null
   const r = await bloquearEndereco(endereco, motivo, String(sessao.usuario.id))
   if (r.erro) return { erro: r.erro }
@@ -79,4 +80,89 @@ export async function liberarEnderecoAction(id: string): Promise<EstadoForm> {
   if (r.erro) return { erro: r.erro }
   revalidatePath(ROTA)
   return { ok: `${r.endereco} liberado: volta a receber e-mails.` }
+}
+
+// ── Conta própria (fase 4) ──────────────────────────────────────────────────
+
+function textoOuNulo(fd: FormData, nome: string, max = 200): string | null {
+  const v = String(fd.get(nome) ?? "").trim()
+  return v ? v.slice(0, max) : null
+}
+
+/** Confere o remetente contra os domínios e remetentes verificados da conta. */
+function conferirRemetente(remetente: string, teste: { dominios: { nome: string; verificado: boolean }[]; remetentes: string[] }): string | null {
+  if (teste.remetentes.includes(remetente) || remetenteNoDominio(remetente, teste.dominios)) return null
+  const verificados = teste.dominios.filter((d) => d.verificado).map((d) => d.nome)
+  return verificados.length
+    ? `O remetente precisa ser de um domínio verificado na conta (${verificados.join(", ")}).`
+    : "A conta não tem domínio verificado nem este remetente validado. Verifique o domínio no painel do provedor (registros de DNS) e tente de novo."
+}
+
+/**
+ * Cadastra (ou troca) a conta própria: provedor, chave, remetente, nome e
+ * resposta. A chave é testada e o remetente conferido antes de gravar. Sem
+ * chave no formulário, mantém a cadastrada e troca só o remetente.
+ */
+export async function salvarContaEmailAction(_prev: EstadoForm, fd: FormData): Promise<EstadoForm> {
+  const sessao = await requirePermissao("gestao_sistema")
+  const provedor = fd.get("provedor") === "resend" ? "resend" : "brevo"
+  const chave = String(fd.get("chave") ?? "").trim()
+  const remetenteEmail = String(fd.get("remetente_email") ?? "").trim().toLowerCase()
+  const remetenteNome = textoOuNulo(fd, "remetente_nome", 80)
+  const responderPara = textoOuNulo(fd, "responder_para", 320)?.toLowerCase() ?? null
+  if (!EMAIL_VALIDO.test(remetenteEmail)) return { erro: "Informe o remetente (ex.: comunicacao@sindicato.org.br).", campo: "remetente_email" }
+  if (responderPara && !EMAIL_VALIDO.test(responderPara)) return { erro: "Endereço de resposta inválido.", campo: "responder_para" }
+
+  if (chave) {
+    if (!chaveEmailParecida(provedor, chave)) {
+      return { erro: provedor === "brevo" ? "Isso não parece uma chave de API do Brevo (começa com xkeysib-)." : "Isso não parece uma chave do Resend (começa com re_).", campo: "chave" }
+    }
+    const teste = await testarConta({ provedor, chave })
+    if (teste.erro) return { erro: `Nada foi salvo. ${teste.erro}`, campo: "chave" }
+    const semRemetente = conferirRemetente(remetenteEmail, teste)
+    if (semRemetente) return { erro: semRemetente, campo: "remetente_email" }
+    const r = await salvarContaEmail({ provedor, chave, remetenteEmail, remetenteNome, responderPara }, String(sessao.usuario.id))
+    if (r.erro) return { erro: r.erro }
+    revalidatePath(ROTA)
+    return { ok: `Conta própria do ${provedor === "brevo" ? "Brevo" : "Resend"} cadastrada: os e-mails passam a sair de ${remetenteEmail} em até um minuto.` }
+  }
+
+  const atual = await credencialDaEntidade()
+  if (!atual) return { erro: "Informe a chave de API da conta.", campo: "chave" }
+  const teste = await testarConta(atual)
+  if (teste.erro) return { erro: `A chave cadastrada não respondeu: ${teste.erro}` }
+  const semRemetente = conferirRemetente(remetenteEmail, teste)
+  if (semRemetente) return { erro: semRemetente, campo: "remetente_email" }
+  const r = await salvarRemetenteEmail({ remetenteEmail, remetenteNome, responderPara }, String(sessao.usuario.id))
+  if (r.erro) return { erro: r.erro }
+  revalidatePath(ROTA)
+  return { ok: "Remetente salvo." }
+}
+
+export async function testarContaEmailAction(): Promise<EstadoForm> {
+  await requirePermissao("gestao_sistema")
+  const c = await credencialDaEntidade()
+  if (!c) return { erro: "Não há chave legível cadastrada." }
+  const teste = await testarConta(c)
+  await registrarTesteContaEmail(teste.erro)
+  revalidatePath(ROTA)
+  if (teste.erro) return { erro: teste.erro }
+  const verificados = teste.dominios.filter((d) => d.verificado).map((d) => d.nome)
+  return { ok: `A chave respondeu.${verificados.length ? ` Domínios verificados: ${verificados.join(", ")}.` : " Nenhum domínio verificado na conta."}` }
+}
+
+export async function removerContaEmailAction(): Promise<EstadoForm> {
+  const sessao = await requirePermissao("gestao_sistema")
+  const r = await removerContaEmail(String(sessao.usuario.id))
+  if (r.erro) return { erro: r.erro }
+  revalidatePath(ROTA)
+  return { ok: "Conta própria removida: os e-mails voltam a sair pela conta da plataforma." }
+}
+
+export async function gerarTokenWebhookAction(): Promise<EstadoForm & { token?: string }> {
+  const sessao = await requirePermissao("gestao_sistema")
+  const r = await gerarTokenWebhookEmail(String(sessao.usuario.id))
+  if (r.erro || !r.token) return { erro: r.erro ?? "Não foi possível gerar o token." }
+  revalidatePath(ROTA)
+  return { ok: "Token gerado. Copie agora: ele não aparece de novo.", token: r.token }
 }

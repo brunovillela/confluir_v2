@@ -19,7 +19,7 @@
 | [auth_identidades](#auth_identidades) | identificação | Quem é a conta Supabase Auth no tenant (CPF do filiado ou do trabalhador não filiado). Só o servidor grava, após prova de posse do e-mail. |
 | [auth_vinculos_pendentes](#auth_vinculos_pendentes) | identificação | Par e-mail↔CPF derivado pelo servidor antes de enviar o código de acesso; consumido após o código ser conferido. Expira junto com o código. |
 | [email_bloqueios](#email_bloqueios) | identificação | Endereços de e-mail que o sistema não usa mais (Gestão › E-mail, 26/11/2026): rejeição definitiva informada pelo provedor ou bloqueio à mão.… |
-| [email_config](#email_config) | — | Controles do e-mail da entidade (Gestão › E-mail, 26/11/2026): módulos desligados, teto mensal de envios, parar ou só avisar no teto e cotas… |
+| [email_config](#email_config) | **credencial (nunca exportar)** | Configuração do e-mail da entidade (Gestão › E-mail): controles (módulos desligados, teto mensal, cotas por departamento; 26/11/2026) e a co… |
 | [email_envios](#email_envios) | identificação | Uma linha por e-mail enviado pelo sistema (src/lib/email.ts): processo, módulo, quem disparou, departamento, destinatário, provedor, situaçã… |
 | [empresa](#empresa) | identificação | Cadastro único de organizações: tenants (sindicatos), empregadores e fontes pagadoras, fundos de pensão, fornecedores, conveniados e entidad… |
 | [empresa_contatos](#empresa_contatos) | identificação, trabalhista | Pessoas de contato de fornecedores e empregadores (nome, cargo, telefone, e-mail), mantidas na ficha do fornecedor. A marca recebe_ordem_com… |
@@ -363,9 +363,9 @@ Checks: `email_bloqueios_endereco_minusculo` `CHECK ((endereco = lower(btrim(end
 
 ## email_config
 
-Controles do e-mail da entidade (Gestão › E-mail, 26/11/2026): módulos desligados, teto mensal de envios, parar ou só avisar no teto e cotas por departamento. Envios essenciais nunca são barrados.
+Configuração do e-mail da entidade (Gestão › E-mail): controles (módulos desligados, teto mensal, cotas por departamento; 26/11/2026) e a conta própria no Brevo ou no Resend, com a chave cifrada pela aplicação, remetente, nome e endereço de resposta (27/11/2026). Envios essenciais nunca são barrados.
 
-- **LGPD:** nenhum dado pessoal
+- **LGPD:** **credencial (nunca exportar)** · titulares: funcionarios
 - **RLS:** ligado · policies: `tenant_isolation`
 - **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
 
@@ -378,8 +378,21 @@ Controles do e-mail da entidade (Gestão › E-mail, 26/11/2026): módulos desli
 | `cotas_departamento` | jsonb | não | `'{}'::jsonb` |  |  | Cota mensal de e-mails por departamento (id → quantidade), contada pelo departamento de quem disparou. |
 | `atualizado_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem mudou a configuração por último. |
 | `updated_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `provedor` | text | sim |  |  |  | Provedor da conta própria da entidade: brevo ou resend; nulo = conta da plataforma. |
+| `chave_cifrada` | text | sim |  |  | **credencial (nunca exportar)** | Chave de API da conta própria, cifrada na aplicação (src/lib/segredos.ts, AES-256-GCM, com a entidade como dado associado). Nunca volta para a tela. |
+| `chave_versao` | integer | sim |  |  |  | Versão da chave de cifra usada (0 = derivada, 1 = SEGREDOS_CHAVE). |
+| `chave_final` | text | sim |  |  |  | Os 4 últimos caracteres da chave, para a Gestão reconhecer qual está cadastrada. |
+| `chave_definida_em` | timestamp with time zone | sim |  |  |  | Quando a chave foi cadastrada. |
+| `chave_definida_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem cadastrou a chave. |
+| `chave_testada_em` | timestamp with time zone | sim |  |  |  | Último teste da chave (na hora de salvar, no botão Testar ou no teste diário). |
+| `chave_teste_erro` | text | sim |  |  | nenhum | Erro do último teste ou da última recusa do provedor; nulo = funcionou. |
+| `remetente_email` | text | sim |  |  |  | Remetente próprio (endereço de um domínio verificado na conta da entidade); nulo = remetente da plataforma. |
+| `remetente_nome` | text | sim |  |  |  | Nome de exibição do remetente; nulo = "Confluir — <entidade>". |
+| `responder_para` | text | sim |  |  |  | Endereço para onde vão as respostas; nulo = e-mail de contato da entidade (Organização). |
+| `webhook_token_hash` | text | sim |  |  | **credencial (nunca exportar)** | sha-256 do token que o webhook da conta da entidade manda para /api/webhooks/brevo; o token em si só aparece uma vez, ao ser gerado. |
+| `webhook_token_final` | text | sim |  |  |  | Os 4 últimos caracteres do token do webhook. |
 
-Checks: `email_config_limite_positivo` `CHECK (((limite_mensal IS NULL) OR (limite_mensal > 0)))`
+Checks: `email_config_limite_positivo` `CHECK (((limite_mensal IS NULL) OR (limite_mensal > 0)))`; `email_config_provedor_valido` `CHECK (((provedor IS NULL) OR (provedor = ANY (ARRAY['brevo'::text, 'resend'::text]))))`
 
 Índices: `email_config_pkey`
 
@@ -411,8 +424,9 @@ Uma linha por e-mail enviado pelo sistema (src/lib/email.ts): processo, módulo,
 | `adiado_em` | timestamp with time zone | sim |  |  |  | Brevo: último adiamento (soft bounce ou caixa cheia); o provedor ainda tenta de novo. |
 | `rejeitado_em` | timestamp with time zone | sim |  |  |  | Brevo: rejeição definitiva (hard bounce, endereço inválido, bloqueado ou marcado como spam). |
 | `rejeicao` | text | sim |  |  | nenhum | Brevo: tipo e motivo curto da rejeição definitiva. |
+| `conta` | text | sim |  |  |  | De que conta o e-mail saiu: entidade (chave própria, Gestão › E-mail) ou plataforma. Nulo nos envios anteriores a 27/11/2026 (todos da plataforma). |
 
-Checks: `email_envios_provedor_valido` `CHECK ((provedor = ANY (ARRAY['brevo'::text, 'resend'::text, 'nenhum'::text])))`; `email_envios_situacao_valida` `CHECK ((situacao = ANY (ARRAY['enviando'::text, 'enviado'::text, 'falhou'::text, 'sem_configuracao'::text, 'teste'::text, 'barrado'::text])))`
+Checks: `email_envios_conta_valida` `CHECK (((conta IS NULL) OR (conta = ANY (ARRAY['entidade'::text, 'plataforma'::text]))))`; `email_envios_provedor_valido` `CHECK ((provedor = ANY (ARRAY['brevo'::text, 'resend'::text, 'nenhum'::text])))`; `email_envios_situacao_valida` `CHECK ((situacao = ANY (ARRAY['enviando'::text, 'enviado'::text, 'falhou'::text, 'sem_configuracao'::text, 'teste'::text, 'barrado'::text])))`
 
 Índices: `email_envios_emp_data_idx`, `email_envios_emp_destinatario_idx`, `email_envios_pkey`
 

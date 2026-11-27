@@ -30,6 +30,8 @@ export type AberturaEnvio = {
   detalhe?: string | null
   destinatario: string
   provedor: ProvedorEmail
+  /** De que conta sai: a própria da entidade ou a da plataforma. */
+  conta?: "entidade" | "plataforma"
   situacao: SituacaoEnvio
   anexos: number
 }
@@ -93,6 +95,7 @@ export async function abrirRegistroEnvio(a: AberturaEnvio): Promise<{ id: string
         destinatario: a.destinatario.trim().slice(0, 320),
         dominio: dominioDe(a.destinatario),
         provedor: a.provedor,
+        ...(a.conta ? { conta: a.conta } : {}),
         situacao: barrado ? "barrado" : a.situacao,
         erro: barrado,
         anexos: a.anexos,
@@ -107,13 +110,15 @@ export async function abrirRegistroEnvio(a: AberturaEnvio): Promise<{ id: string
 export async function concluirRegistroEnvio(
   reg: { id: string | null; emp: string | null } | null,
   situacao: SituacaoEnvio,
-  erro?: string | null
+  erro?: string | null,
+  /** A conta mudou no caminho (a da entidade recusou e saiu pela plataforma). */
+  conta?: "entidade" | "plataforma"
 ): Promise<void> {
   if (!reg?.id || !reg.emp) return
   try {
     await createServiceClient()
       .from("email_envios")
-      .update({ situacao, erro: erro ? erro.slice(0, 200) : null })
+      .update({ situacao, erro: erro ? erro.slice(0, 200) : null, ...(conta ? { conta } : {}) })
       .eq("id", reg.id)
       .eq("emp_proprietaria_id", reg.emp)
   } catch {
@@ -125,14 +130,17 @@ export async function concluirRegistroEnvio(
  * Evento do webhook do Brevo na linha do envio (pela marca `e:<id>` do
  * X-Mailin-custom). Devolve o que fez, para o log da rota. Nunca lança.
  */
-export async function registrarEventoEnvio(client: SupabaseClient, e: Record<string, unknown>): Promise<string> {
+export async function registrarEventoEnvio(client: SupabaseClient, e: Record<string, unknown>, somenteEntidade: string | null = null): Promise<string> {
   try {
     const id = envioDaMarca(String(e["X-Mailin-custom"] ?? e["x-mailin-custom"] ?? ""))
     if (!id) return "sem registro"
     const evento = String(e.event ?? "").toLowerCase()
     const mudanca = mudancaDoEvento(e)
     if (!mudanca) return `envio: ignorado (${evento})`
-    const { data, error } = await client.from("email_envios").update(mudanca).eq("id", id).select("emp_proprietaria_id, destinatario").maybeSingle()
+    let q = client.from("email_envios").update(mudanca).eq("id", id)
+    // Token da conta de uma entidade: só mexe nos e-mails dela.
+    if (somenteEntidade) q = q.eq("emp_proprietaria_id", somenteEntidade)
+    const { data, error } = await q.select("emp_proprietaria_id, destinatario").maybeSingle()
     if (error) return `erro envio: ${error.message}`
     // Rejeição definitiva: o endereço vai para os bloqueios (a Gestão libera).
     if (mudanca.rejeitado_em && data?.destinatario) {

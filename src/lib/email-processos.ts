@@ -276,3 +276,19 @@ export function motivoParaBarrar(p: {
   }
   return null
 }
+
+// ── Conta própria da entidade (fase 4) ──────────────────────────────────────
+
+/** Chave com cara de chave do provedor: Brevo "xkeysib-…", Resend "re_…". */
+export function chaveEmailParecida(provedor: "brevo" | "resend", chave: string): boolean {
+  return provedor === "brevo" ? /^xkeysib-[A-Za-z0-9-]{20,}$/.test(chave) : /^re_[A-Za-z0-9_]{10,}$/.test(chave)
+}
+
+export const EMAIL_VALIDO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/** O remetente pertence a um domínio verificado da conta (o próprio ou um subdomínio dele). */
+export function remetenteNoDominio(email: string, dominios: { nome: string; verificado: boolean }[]): boolean {
+  const d = email.trim().toLowerCase().split("@")[1]
+  if (!d) return false
+  return dominios.some((x) => x.verificado && (d === x.nome || d.endsWith(`.${x.nome}`)))
+}

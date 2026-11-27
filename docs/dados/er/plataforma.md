@@ -68,6 +68,7 @@ erDiagram
   email_config {
     uuid emp_proprietaria_id PK,FK
     uuid atualizado_por FK
+    uuid chave_definida_por FK
   }
   email_envios {
     uuid id PK
@@ -230,6 +231,7 @@ erDiagram
   auditoria_regras }o--o| usuarios : "atualizado_por"
   email_bloqueios }o--o| usuarios : "criado_por"
   email_config }o--o| usuarios : "atualizado_por"
+  email_config }o--o| usuarios : "chave_definida_por"
   email_envios }o--o| empresa_departamentos : "departamento_id"
   email_envios }o--o| usuarios : "usuario_id"
   empresa }o--o| empresa : "mesclado_em_id"
