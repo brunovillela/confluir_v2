@@ -11,11 +11,14 @@ import { Label } from "@/components/ui/label"
 import { SelectNativo } from "@/components/ui/select-nativo"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { requirePermissao } from "@/lib/auth"
+import { listarDepartamentosCompletos } from "@/lib/db/departamentos"
+import { inicioDoMesEmail, listarBloqueios, obterControlesEmail } from "@/lib/db/email-controles"
 import { listarEnvios, resumoEmails, type DimensaoEmail, type EnvioEmail, type LinhaEmail } from "@/lib/db/email-uso"
 import { FILTROS_SITUACAO, MODULOS_EMAIL, PROCESSOS_EMAIL, processoEmail, ROTULO_ESTADO, tituloModuloEmail, type EstadoEnvio } from "@/lib/email-processos"
-import { formatarDataHora } from "@/lib/formato"
+import { formatarData, formatarDataHora } from "@/lib/formato"
 
 import { Indicador } from "../ia/uso"
+import { BloquearForm, ControlesForm, LiberarBotao, type ControlesIniciais } from "./forms"
 import { intervalo, PERIODOS, PERIODOS_PLANILHA } from "../ia/periodos"
 
 export const metadata: Metadata = { title: "E-mail — Confluir" }
@@ -43,6 +46,8 @@ type Busca = {
   departamento?: string
   situacao?: string
   pagina?: string
+  /** Busca nos endereços bloqueados. */
+  b?: string
 }
 
 function pct(parte: number, todo: number): string {
@@ -55,6 +60,7 @@ const COR_ESTADO: Record<EstadoEnvio, "success" | "destructive" | "warning" | "s
   entregue: "success",
   rejeitado: "destructive",
   falhou: "destructive",
+  barrado: "warning",
   adiado: "warning",
   aguardando: "outline",
   teste: "secondary",
@@ -164,7 +170,7 @@ function DetalheEnvio({ e }: { e: EnvioEmail }) {
   if (e.estado === "entregue" && e.entregueEm) partes.push(`entregue ${formatarDataHora(e.entregueEm)}`)
   if (e.estado === "adiado" && e.adiadoEm) partes.push(`adiado ${formatarDataHora(e.adiadoEm)}; o provedor tenta de novo`)
   if (e.estado === "rejeitado") partes.push(e.rejeicao ?? "rejeição definitiva")
-  if (e.estado === "falhou" && e.erro) partes.push(e.erro)
+  if ((e.estado === "falhou" || e.estado === "barrado") && e.erro) partes.push(e.erro)
   if (e.anexos) partes.push(`${e.anexos} ${e.anexos === 1 ? "anexo" : "anexos"}`)
   return partes.length ? <span className="text-muted-foreground block text-xs">{partes.join(" · ")}</span> : null
 }
@@ -177,7 +183,8 @@ export default async function EmailGestaoPage({ searchParams }: { searchParams: 
   const { de, ate } = intervalo(periodo)
   const pagina = Math.max(1, Math.min(500, Number.parseInt(sp.pagina ?? "1", 10) || 1))
 
-  const [resumo, historico] = await Promise.all([
+  const agora = new Date()
+  const [resumo, historico, { disponivel: temControles, controles }, bloqueios, deptos, resumoMes] = await Promise.all([
     resumoEmails(de, ate),
     listarEnvios(
       {
@@ -193,7 +200,39 @@ export default async function EmailGestaoPage({ searchParams }: { searchParams: 
       POR_PAGINA + 1,
       (pagina - 1) * POR_PAGINA
     ),
+    obterControlesEmail(),
+    listarBloqueios(sp.b || null),
+    listarDepartamentosCompletos(),
+    periodo === "mes" ? null : resumoEmails(inicioDoMesEmail(agora), new Date(agora.getTime() + 60_000)),
   ])
+  const mes = periodo === "mes" ? resumo : resumoMes!
+  const noMesPorSituacao = new Map(mes.por.situacao.map((x) => [x.chave, x.enviados]))
+  // O teto conta o que saiu de verdade: aceitos pelo provedor ou a caminho.
+  const enviadosNoMes = (noMesPorSituacao.get("enviado") ?? 0) + (noMesPorSituacao.get("enviando") ?? 0)
+  const noMesPorModulo = new Map(mes.por.modulo.map((x) => [x.chave, x.enviados]))
+  const noMesPorDepto = new Map(mes.por.departamento.map((x) => [x.chave, x.enviados]))
+  const inicialControles: ControlesIniciais = {
+    modulos: MODULOS_EMAIL.map((m) => {
+      const ps = PROCESSOS_EMAIL.filter((p) => p.modulo === m.slug)
+      return {
+        slug: m.slug,
+        titulo: m.titulo,
+        total: ps.length,
+        essenciais: ps.filter((p) => p.essencial).length,
+        desligado: controles.modulosDesligados.includes(m.slug),
+        noMes: noMesPorModulo.get(m.slug) ?? 0,
+      }
+    }).filter((m) => m.total > 0),
+    limiteMensal: controles.limiteMensal,
+    bloquearNoLimite: controles.bloquearNoLimite,
+    enviadosNoMes,
+    departamentos: deptos
+      .filter((d) => !d.legado || controles.cotasDepartamento[d.id])
+      .map((d) => ({ id: d.id, nome: d.nome, cota: controles.cotasDepartamento[d.id] ?? null, noMes: noMesPorDepto.get(d.id) ?? 0 })),
+  }
+  const fracaoTeto = controles.limiteMensal ? enviadosNoMes / controles.limiteMensal : null
+  const barradosNoMes = noMesPorSituacao.get("barrado") ?? 0
+  const barradosNoPeriodo = resumo.por.situacao.find((x) => x.chave === "barrado")?.enviados ?? 0
   const total = resumo.total
   const enviados = total?.enviados ?? 0
   const testes = resumo.por.situacao.find((s) => s.chave === "teste")?.enviados ?? 0
@@ -236,6 +275,25 @@ export default async function EmailGestaoPage({ searchParams }: { searchParams: 
         </Alert>
       )}
 
+      {fracaoTeto !== null && fracaoTeto >= 0.8 && (
+        <Alert variant={fracaoTeto >= 1 ? "destructive" : "default"}>
+          <AlertDescription>
+            {fracaoTeto >= 1
+              ? controles.bloquearNoLimite
+                ? "O teto mensal de e-mails foi atingido: os e-mails não essenciais estão parados até o dia 1º ou até o teto subir."
+                : "O teto mensal de e-mails foi atingido (só alerta: os e-mails continuam saindo)."
+              : `Os e-mails do mês chegaram a ${Math.round(fracaoTeto * 100)}% do teto.`}
+          </AlertDescription>
+        </Alert>
+      )}
+      {controles.modulosDesligados.length > 0 && (
+        <Alert>
+          <AlertDescription>
+            E-mail desligado em: {controles.modulosDesligados.map(tituloModuloEmail).join(", ")}. Os envios essenciais desses módulos continuam saindo.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* ── Uso ───────────────────────────────────────────────────────── */}
       <Card>
         <CardHeader>
@@ -268,7 +326,15 @@ export default async function EmailGestaoPage({ searchParams }: { searchParams: 
               valor={inteiro.format(total?.rejeitados ?? 0)}
               detalhe={reais ? `${pct(total?.rejeitados ?? 0, reais)} — acima de 5% prejudica a reputação do domínio` : null}
             />
-            <Indicador rotulo="Não saíram" valor={inteiro.format(total?.falhas ?? 0)} detalhe="o provedor recusou ou não respondeu" />
+            <Indicador
+              rotulo="Não saíram"
+              valor={inteiro.format(total?.falhas ?? 0)}
+              detalhe={
+                barradosNoPeriodo
+                  ? `o provedor recusou ou não respondeu · ${inteiro.format(barradosNoPeriodo)} barrados pela Gestão`
+                  : "o provedor recusou ou não respondeu"
+              }
+            />
           </div>
 
           <GraficoEnvios dias={resumo.por.dia} de={de} ate={ate} />
@@ -319,6 +385,95 @@ export default async function EmailGestaoPage({ searchParams }: { searchParams: 
               Baixar planilha
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      {/* ── Controles ─────────────────────────────────────────────────── */}
+      <Card id="controles">
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base">Controles</CardTitle>
+            {barradosNoMes > 0 && <Badge variant="warning">{inteiro.format(barradosNoMes)} barrados neste mês</Badge>}
+          </div>
+          <CardDescription className="text-xs">
+            Desligar o e-mail de um módulo, pôr um teto mensal e cotas por departamento. Os envios essenciais nunca são barrados por estes controles.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {temControles ? (
+            <ControlesForm inicial={inicialControles} />
+          ) : (
+            <p className="text-muted-foreground text-sm">Os controles ainda estão sendo instalados no banco de dados.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Endereços bloqueados ──────────────────────────────────────── */}
+      <Card id="bloqueados">
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base">Endereços bloqueados</CardTitle>
+            <Badge variant="secondary">{inteiro.format(bloqueios.total)}</Badge>
+          </div>
+          <CardDescription className="text-xs">
+            O sistema não manda mais nada para estes endereços — nem os essenciais: endereço inexistente não recebe, e insistir derruba a reputação do
+            domínio. Entram sozinhos quando o provedor rejeita de vez (endereço inexistente, caixa bloqueada, marcado como spam). Se a pessoa corrigiu a
+            caixa, libere.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <BloquearForm />
+          <form method="get" action={`${ROTA}#bloqueados`} className="flex flex-wrap items-end gap-3">
+            <input type="hidden" name="periodo" value={periodo} />
+            <div className="grid gap-1.5">
+              <Label htmlFor="b" className="text-xs">
+                Procurar nos bloqueados
+              </Label>
+              <Input id="b" name="b" defaultValue={sp.b ?? ""} placeholder="parte do endereço" className="w-60" autoComplete="off" />
+            </div>
+            <Button type="submit" variant="outline">
+              Procurar
+            </Button>
+          </form>
+          {bloqueios.bloqueios.length === 0 ? (
+            <p className="text-muted-foreground text-sm">{sp.b ? "Nenhum endereço bloqueado com esse trecho." : "Nenhum endereço bloqueado."}</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Endereço</TableHead>
+                    <TableHead>Motivo</TableHead>
+                    <TableHead>Desde</TableHead>
+                    <TableHead className="w-24" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {bloqueios.bloqueios.map((b) => (
+                    <TableRow key={b.id}>
+                      <TableCell className="align-top text-sm break-all">{b.endereco}</TableCell>
+                      <TableCell className="align-top text-xs">
+                        {b.motivo ?? "—"}
+                        <span className="text-muted-foreground block">
+                          {b.origem === "manual" ? `à mão${b.criadoPor ? `, por ${b.criadoPor}` : ""}` : "rejeição do provedor"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="align-top text-xs whitespace-nowrap">{formatarData(b.criadoEm)}</TableCell>
+                      <TableCell className="text-right align-top">
+                        <LiberarBotao id={b.id} endereco={b.endereco} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {bloqueios.total > bloqueios.bloqueios.length && (
+                <p className="text-muted-foreground mt-2 text-xs">
+                  Mostrando os {inteiro.format(bloqueios.bloqueios.length)} mais recentes de {inteiro.format(bloqueios.total)}. Procure pelo endereço para
+                  achar um específico.
+                </p>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -39,6 +39,7 @@ const ROTULO_SITUACAO: Record<string, string> = {
   teste: "Teste (não entregues)",
   sem_configuracao: "Envio não configurado",
   enviando: "Sem resposta do provedor",
+  barrado: "Barrados pela Gestão",
 }
 
 function crua(r: Record<string, unknown>): Omit<LinhaEmail, "rotulo" | "detalhe"> {
@@ -156,6 +157,9 @@ export async function listarEnvios(f: FiltroEnvios, limite = 100, deslocamento =
       break
     case "falhou":
       q = q.eq("situacao", "falhou")
+      break
+    case "barrado":
+      q = q.eq("situacao", "barrado")
       break
     case "adiado":
       q = q.not("adiado_em", "is", null).is("entregue_em", null).is("rejeitado_em", null)

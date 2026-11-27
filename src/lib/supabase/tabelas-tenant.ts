@@ -22,6 +22,8 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "ia_config",
   "ia_uso",
   "email_envios",
+  "email_config",
+  "email_bloqueios",
   "gestao_eventos",
   "acessos_revisao_ciclos",
   "acessos_revisao_itens",

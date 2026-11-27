@@ -3,7 +3,8 @@ import "server-only"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 import { departamentoDaPessoa } from "@/lib/db/departamento-principal"
-import { envioDaMarca, mudancaDoEvento, processoEmail } from "@/lib/email-processos"
+import { bloquearPorRejeicao, contarEnvio, controlesEmail, enderecoBloqueado, enviadosNoMes } from "@/lib/db/email-controles"
+import { envioDaMarca, motivoParaBarrar, mudancaDoEvento, processoEmail } from "@/lib/email-processos"
 import { usuarioIdAtual } from "@/lib/sessao-atual"
 import { createServiceClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -19,7 +20,7 @@ import { tenantAtual } from "@/lib/tenant"
  * rede, o e-mail sai do mesmo jeito.
  */
 
-export type SituacaoEnvio = "enviando" | "enviado" | "falhou" | "sem_configuracao" | "teste"
+export type SituacaoEnvio = "enviando" | "enviado" | "falhou" | "sem_configuracao" | "teste" | "barrado"
 export type ProvedorEmail = "brevo" | "resend" | "nenhum"
 
 export type AberturaEnvio = {
@@ -38,14 +39,46 @@ function dominioDe(email: string): string | null {
   return d && d.length <= 255 ? d : null
 }
 
-/** Grava a linha do envio; devolve o id (null se não conseguiu registrar). */
-export async function abrirRegistroEnvio(a: AberturaEnvio): Promise<{ id: string; emp: string } | null> {
+/**
+ * Trava da Gestão (fase 3): módulo desligado, teto, cota do departamento ou
+ * endereço bloqueado. null = pode sair. Em caso de erro, não barra.
+ */
+async function travaDoEnvio(emp: string, processo: string, destinatario: string, departamentoId: string | null): Promise<string | null> {
   try {
-    const emp = a.tenantId ?? (await tenantAtual())
+    const [{ controles }, bloqueado] = await Promise.all([controlesEmail(emp), enderecoBloqueado(emp, destinatario)])
+    const precisaContar = controles.bloquearNoLimite && (controles.limiteMensal !== null || Object.keys(controles.cotasDepartamento).length > 0)
+    const contagem = precisaContar
+      ? await enviadosNoMes(emp, Boolean(departamentoId && controles.cotasDepartamento[departamentoId] !== undefined))
+      : { total: 0, porDepto: new Map<string, number>() }
+    return motivoParaBarrar({
+      processo,
+      controles,
+      enderecoBloqueado: bloqueado,
+      enviadosNoMes: contagem.total,
+      departamentoId,
+      enviadosDoDepartamento: departamentoId ? (contagem.porDepto.get(departamentoId) ?? 0) : 0,
+    })
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Confere as travas da Gestão e grava a linha do envio. Devolve o id (null se
+ * não conseguiu registrar) e, se a Gestão barrou, o motivo — aí o e-mail não
+ * sai e a linha fica como "barrado".
+ */
+export async function abrirRegistroEnvio(a: AberturaEnvio): Promise<{ id: string | null; emp: string | null; barrado: string | null }> {
+  let emp: string | null = null
+  let barrado: string | null = null
+  try {
+    emp = a.tenantId ?? (await tenantAtual())
     // Quem disparou só existe com sessão; no agendador, ninguém (usuarioIdAtual devolve null).
     const usuarioId = await usuarioIdAtual()
     const departamentoId = usuarioId ? await departamentoDaPessoa(usuarioId, emp) : null
     const proc = processoEmail(a.processo)
+    barrado = await travaDoEnvio(emp, proc.chave, a.destinatario, departamentoId)
+    if (!barrado && a.situacao === "enviando") contarEnvio(emp, departamentoId)
     const id = crypto.randomUUID()
     const { error } = await createServiceClient()
       .from("email_envios")
@@ -60,22 +93,23 @@ export async function abrirRegistroEnvio(a: AberturaEnvio): Promise<{ id: string
         destinatario: a.destinatario.trim().slice(0, 320),
         dominio: dominioDe(a.destinatario),
         provedor: a.provedor,
-        situacao: a.situacao,
+        situacao: barrado ? "barrado" : a.situacao,
+        erro: barrado,
         anexos: a.anexos,
       })
-    return error ? null : { id, emp }
+    return { id: error ? null : id, emp, barrado }
   } catch {
-    return null
+    return { id: null, emp, barrado }
   }
 }
 
 /** Resultado do provedor na linha do envio. */
 export async function concluirRegistroEnvio(
-  reg: { id: string; emp: string } | null,
+  reg: { id: string | null; emp: string | null } | null,
   situacao: SituacaoEnvio,
   erro?: string | null
 ): Promise<void> {
-  if (!reg) return
+  if (!reg?.id || !reg.emp) return
   try {
     await createServiceClient()
       .from("email_envios")
@@ -98,8 +132,14 @@ export async function registrarEventoEnvio(client: SupabaseClient, e: Record<str
     const evento = String(e.event ?? "").toLowerCase()
     const mudanca = mudancaDoEvento(e)
     if (!mudanca) return `envio: ignorado (${evento})`
-    const { error } = await client.from("email_envios").update(mudanca).eq("id", id)
-    return error ? `erro envio: ${error.message}` : `envio: ${evento}`
+    const { data, error } = await client.from("email_envios").update(mudanca).eq("id", id).select("emp_proprietaria_id, destinatario").maybeSingle()
+    if (error) return `erro envio: ${error.message}`
+    // Rejeição definitiva: o endereço vai para os bloqueios (a Gestão libera).
+    if (mudanca.rejeitado_em && data?.destinatario) {
+      await bloquearPorRejeicao(String(data.emp_proprietaria_id), String(data.destinatario), String(mudanca.rejeicao ?? evento))
+      return `envio: ${evento} (endereço bloqueado)`
+    }
+    return `envio: ${evento}`
   } catch (erro) {
     return `erro envio: ${erro instanceof Error ? erro.message : String(erro)}`
   }

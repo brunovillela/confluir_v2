@@ -200,7 +200,7 @@ export function mudancaDoEvento(e: Record<string, unknown>): Record<string, stri
 }
 
 /** Como o envio terminou, do ponto de vista de quem consulta (Gestão › E-mail). */
-export type EstadoEnvio = "entregue" | "rejeitado" | "adiado" | "aguardando" | "falhou" | "teste" | "sem_configuracao" | "enviando"
+export type EstadoEnvio = "entregue" | "rejeitado" | "adiado" | "aguardando" | "falhou" | "barrado" | "teste" | "sem_configuracao" | "enviando"
 
 export const ROTULO_ESTADO: Record<EstadoEnvio, string> = {
   entregue: "Entregue",
@@ -208,6 +208,7 @@ export const ROTULO_ESTADO: Record<EstadoEnvio, string> = {
   adiado: "Adiado",
   aguardando: "Enviado, sem retorno",
   falhou: "Não saiu",
+  barrado: "Barrado pela Gestão",
   teste: "Teste (não entregue)",
   sem_configuracao: "Envio não configurado",
   enviando: "Enviando",
@@ -219,7 +220,7 @@ export const ROTULO_ESTADO: Record<EstadoEnvio, string> = {
  * vence o adiamento; sem retorno do provedor, vale a situação do envio.
  */
 export function estadoDoEnvio(e: { situacao: string; entregueEm: string | null; adiadoEm: string | null; rejeitadoEm: string | null }): EstadoEnvio {
-  if (e.situacao === "falhou" || e.situacao === "teste" || e.situacao === "sem_configuracao" || e.situacao === "enviando") return e.situacao
+  if (e.situacao === "falhou" || e.situacao === "barrado" || e.situacao === "teste" || e.situacao === "sem_configuracao" || e.situacao === "enviando") return e.situacao
   if (e.rejeitadoEm) return "rejeitado"
   if (e.entregueEm) return "entregue"
   if (e.adiadoEm) return "adiado"
@@ -231,7 +232,47 @@ export const FILTROS_SITUACAO = [
   { valor: "problemas", rotulo: "Com problema (não saiu, rejeitado ou adiado)" },
   { valor: "rejeitado", rotulo: "Rejeitados" },
   { valor: "falhou", rotulo: "Não saíram" },
+  { valor: "barrado", rotulo: "Barrados pela Gestão" },
   { valor: "adiado", rotulo: "Adiados" },
   { valor: "entregue", rotulo: "Entregues" },
   { valor: "aguardando", rotulo: "Enviados, sem retorno" },
 ] as const
+
+/** Controles da Gestão sobre o envio (tabela email_config). */
+export type ControlesEmail = {
+  modulosDesligados: string[]
+  limiteMensal: number | null
+  bloquearNoLimite: boolean
+  cotasDepartamento: Record<string, number>
+}
+
+export const CONTROLES_PADRAO: ControlesEmail = { modulosDesligados: [], limiteMensal: null, bloquearNoLimite: false, cotasDepartamento: {} }
+
+/**
+ * Se o e-mail pode sair (null) ou o motivo de barrar. O endereço bloqueado
+ * (rejeitado de vez ou bloqueado à mão) barra qualquer processo: não adianta
+ * insistir. Módulo desligado, teto e cota nunca barram os essenciais (acesso,
+ * códigos, votação, assinatura); teto e cota só barram com "parar no teto".
+ */
+export function motivoParaBarrar(p: {
+  processo: string
+  controles: ControlesEmail
+  enderecoBloqueado: boolean
+  enviadosNoMes: number
+  departamentoId: string | null
+  enviadosDoDepartamento: number
+}): string | null {
+  if (p.enderecoBloqueado) return "Endereço bloqueado na Gestão › E-mail (rejeitado de vez ou bloqueado à mão)."
+  const proc = processoEmail(p.processo)
+  if (proc.essencial) return null
+  const c = p.controles
+  if (c.modulosDesligados.includes(proc.modulo)) return `E-mail desligado no módulo ${tituloModuloEmail(proc.modulo)} (Gestão › E-mail).`
+  if (c.bloquearNoLimite && c.limiteMensal !== null && p.enviadosNoMes >= c.limiteMensal) {
+    return "O teto mensal de e-mails da entidade foi atingido (Gestão › E-mail)."
+  }
+  const cota = p.departamentoId ? c.cotasDepartamento[p.departamentoId] : undefined
+  if (c.bloquearNoLimite && cota !== undefined && p.enviadosDoDepartamento >= cota) {
+    return "A cota mensal de e-mails do departamento foi atingida (Gestão › E-mail)."
+  }
+  return null
+}

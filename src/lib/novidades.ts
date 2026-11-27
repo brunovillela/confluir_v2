@@ -16,6 +16,7 @@ export const NOVIDADES: Novidade[] = [
     id: "2026-11-26",
     titulo: "Ordens: filtro por projeto com as ordens das compras",
     itens: [
+      "Gestão → E-mail: controles do envio — desligar o e-mail de um módulo, teto mensal de e-mails e cotas por departamento, parando ou só avisando no limite. Acesso, códigos, votação e assinatura nunca são barrados. E o endereço que o provedor rejeita de vez (inexistente, bloqueado, spam) para de receber e vai para Endereços bloqueados, onde a Gestão libera ou bloqueia à mão.",
       "Manual: o botão Ajuda desta tela (o ? no topo) agora abre o artigo da tela em que você está em quase cem telas que antes caíam no índice da área — a ficha do filiado, do funcionário e do veículo, as páginas do Meu perfil, Compras, Eventos, Ferramentas e Votações. Os artigos também ganharam avisos nas ações que não se desfazem, como concluir a apuração da urna, registrar presença no mesário, remover documento do vínculo e unificar cadastros.",
       "Gestão → E-mail (novo): os e-mails que o sistema envia, por processo, módulo, pessoa e departamento, com quantos foram entregues, rejeitados ou não saíram. O histórico busca pelo destinatário — para responder \"o e-mail chegou para fulano?\" — e mostra o motivo da rejeição. Sai também em planilha, e a Saúde do sistema avisa quando a rejeição passa de 5%.",
       "Projetos: os cartões de Marcos e de Tarefas só aparecem quando o projeto tem algum. Sem nenhum, quem edita usa Novo marco e Nova tarefa, no topo da página, que abrem o cartão já com o formulário.",

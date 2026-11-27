@@ -53,7 +53,46 @@ adiados.
 | Adiado | A caixa está cheia ou o servidor estava ocupado; o provedor ainda tenta de novo. |
 | Enviado, sem retorno | O provedor aceitou, mas ainda não avisou a entrega. |
 | Não saiu | O provedor recusou ou não respondeu; o motivo aparece embaixo. |
+| Barrado pela Gestão | Não saiu por um controle da Gestão: módulo desligado, teto, cota ou endereço bloqueado. |
 | Teste | Ambiente de testes: o e-mail não é entregue de propósito. |
+
+## Controles
+
+No cartão **Controles** a Gestão limita o envio, como faz com a IA:
+
+- **E-mail por módulo**: desmarque um módulo para ele parar de mandar e-mail.
+- **Teto mensal**: quantos e-mails a entidade pode mandar no mês (use o
+  limite do plano do provedor como referência).
+- **Cotas por departamento**: quantos e-mails cada departamento pode mandar no
+  mês, contando pelo departamento de quem disparou. Envios automáticos não
+  entram em cota.
+- **Parar ao atingir o teto ou a cota**: marcado, os e-mails não essenciais
+  param até o dia 1º; desmarcado, o teto e as cotas só aparecem como alerta.
+
+Os **envios essenciais** — acesso e senha, códigos de confirmação, votação e
+assinatura eletrônica — nunca são barrados por esses controles: ninguém fica
+sem conseguir entrar ou votar porque o teto acabou.
+
+O e-mail barrado não sai e aparece no histórico como **Barrado pela Gestão**,
+com o motivo. Uma mudança nos controles vale em até um minuto.
+
+## Endereços bloqueados
+
+Quando o provedor rejeita um e-mail de vez (endereço inexistente, caixa
+bloqueada, marcado como spam), o endereço entra sozinho em **Endereços
+bloqueados**, e o sistema não manda mais nada para ele — nem os essenciais:
+endereço inexistente não recebe, e cada nova rejeição derruba a reputação do
+domínio e faz os e-mails de todo mundo caírem no spam.
+
+- **Bloquear** à mão: informe o endereço e, se quiser, o motivo (ex.: pediu
+  para não receber).
+- **Liberar**: quando a pessoa corrigiu a caixa. Se o endereço ainda não
+  existir, a próxima rejeição o bloqueia de novo.
+- O certo, na maioria dos casos, é corrigir o e-mail no cadastro da pessoa: o
+  endereço novo não está bloqueado.
+
+Os endereços que o provedor já tinha rejeitado antes destes controles
+entraram na lista na instalação.
 
 ## Planilha
 

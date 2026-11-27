@@ -97,13 +97,15 @@ export async function enviarEmail(destino: {
     situacao: provedor === "nenhum" ? "sem_configuracao" : "enviando",
     anexos: destino.anexos?.length ?? 0,
   })
+  // Barrado pela Gestão (módulo desligado, teto, cota ou endereço bloqueado): não sai.
+  if (registro.barrado) return false
   if (!chave || !remetente) return false
 
   const [entidade, emailContato, origem] = destino.contexto
     ? [destino.contexto.entidade, destino.contexto.emailContato, destino.contexto.origem]
     : await Promise.all([nomeEntidade(), emailContatoEntidade(), origemAtual()])
   const cabecalhos = { ...(destino.cabecalhos ?? {}) }
-  if (registro) cabecalhos["X-Mailin-custom"] = marcaComEnvio(cabecalhos["X-Mailin-custom"], registro.id)
+  if (registro.id) cabecalhos["X-Mailin-custom"] = marcaComEnvio(cabecalhos["X-Mailin-custom"], registro.id)
 
   const assunto = destino.assunto.replaceAll("{ENTIDADE}", entidade)
   const rodape =

@@ -96,3 +96,26 @@ test("estado do envio: rejeição vence entrega, entrega vence adiamento", async
   expect(estadoDoEnvio({ ...base, situacao: "falhou" })).toBe("falhou")
   expect(estadoDoEnvio({ ...base, situacao: "teste", entregueEm: "y" })).toBe("teste")
 })
+
+test("travas da Gestão: essencial passa por módulo, teto e cota; endereço bloqueado barra tudo", async () => {
+  const { motivoParaBarrar, CONTROLES_PADRAO } = await import("../../src/lib/email-processos")
+  const base = { enderecoBloqueado: false, enviadosNoMes: 0, departamentoId: "d1", enviadosDoDepartamento: 0, controles: CONTROLES_PADRAO }
+  // Sem controles, tudo sai.
+  expect(motivoParaBarrar({ ...base, processo: "compras.ordem_compra" })).toBeNull()
+  // Módulo desligado barra o comum, não o essencial do mesmo módulo.
+  const semCompras = { ...CONTROLES_PADRAO, modulosDesligados: ["compras"] }
+  expect(motivoParaBarrar({ ...base, controles: semCompras, processo: "compras.ordem_compra" })).toMatch(/desligado no módulo Compras/)
+  expect(motivoParaBarrar({ ...base, controles: semCompras, processo: "compras.rpa_assinatura_codigo" })).toBeNull()
+  // Teto: só barra com "parar no teto".
+  const teto = { ...CONTROLES_PADRAO, limiteMensal: 100, bloquearNoLimite: true }
+  expect(motivoParaBarrar({ ...base, controles: teto, enviadosNoMes: 100, processo: "comunicacao.mensagens_filiados" })).toMatch(/teto mensal/)
+  expect(motivoParaBarrar({ ...base, controles: teto, enviadosNoMes: 99, processo: "comunicacao.mensagens_filiados" })).toBeNull()
+  expect(motivoParaBarrar({ ...base, controles: { ...teto, bloquearNoLimite: false }, enviadosNoMes: 500, processo: "comunicacao.mensagens_filiados" })).toBeNull()
+  expect(motivoParaBarrar({ ...base, controles: teto, enviadosNoMes: 500, processo: "votacao.aviso_link" })).toBeNull()
+  // Cota do departamento de quem disparou.
+  const cota = { ...CONTROLES_PADRAO, bloquearNoLimite: true, cotasDepartamento: { d1: 10 } }
+  expect(motivoParaBarrar({ ...base, controles: cota, enviadosDoDepartamento: 10, processo: "financeiro.reembolso" })).toMatch(/cota mensal/)
+  expect(motivoParaBarrar({ ...base, controles: cota, departamentoId: "d2", enviadosDoDepartamento: 10, processo: "financeiro.reembolso" })).toBeNull()
+  // Endereço bloqueado barra até o essencial.
+  expect(motivoParaBarrar({ ...base, enderecoBloqueado: true, processo: "acesso.codigo" })).toMatch(/Endereço bloqueado/)
+})

@@ -162,6 +162,8 @@ O app lê os dados de um tenant com `createAdminClient()` (JWT `authenticated` c
 | `documento_assinatura_eventos` | compras | sim | `trilha_insercao` | INSERT | authenticated |  | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `documento_assinatura_eventos` | compras | sim | `trilha_leitura` | SELECT | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |  |
 | `documento_assinaturas` | compras | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
+| `email_bloqueios` | plataforma | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
+| `email_config` | plataforma | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `email_envios` | plataforma | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `emails` | filiacao | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |
 | `emails_institucionais` | filiacao | sim | `tenant_isolation` | ALL | authenticated | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` | `(emp_proprietaria_id = ((auth.jwt() ->> 'tenant_id'::text))::uuid)` |

@@ -2,7 +2,7 @@
 
 # Plataforma, acesso e auditoria
 
-40 tabelas. Diagrama: [er/plataforma.md](../er/plataforma.md).
+42 tabelas. Diagrama: [er/plataforma.md](../er/plataforma.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -18,6 +18,8 @@
 | [auth_codigos_envios](#auth_codigos_envios) | identificação | Registro de cada envio de código de acesso por e-mail (lib/codigo-acesso.ts), usado para limitar a frequência de envios por endereço. |
 | [auth_identidades](#auth_identidades) | identificação | Quem é a conta Supabase Auth no tenant (CPF do filiado ou do trabalhador não filiado). Só o servidor grava, após prova de posse do e-mail. |
 | [auth_vinculos_pendentes](#auth_vinculos_pendentes) | identificação | Par e-mail↔CPF derivado pelo servidor antes de enviar o código de acesso; consumido após o código ser conferido. Expira junto com o código. |
+| [email_bloqueios](#email_bloqueios) | identificação | Endereços de e-mail que o sistema não usa mais (Gestão › E-mail, 26/11/2026): rejeição definitiva informada pelo provedor ou bloqueio à mão.… |
+| [email_config](#email_config) | — | Controles do e-mail da entidade (Gestão › E-mail, 26/11/2026): módulos desligados, teto mensal de envios, parar ou só avisar no teto e cotas… |
 | [email_envios](#email_envios) | identificação | Uma linha por e-mail enviado pelo sistema (src/lib/email.ts): processo, módulo, quem disparou, departamento, destinatário, provedor, situaçã… |
 | [empresa](#empresa) | identificação | Cadastro único de organizações: tenants (sindicatos), empregadores e fontes pagadoras, fundos de pensão, fornecedores, conveniados e entidad… |
 | [empresa_contatos](#empresa_contatos) | identificação, trabalhista | Pessoas de contato de fornecedores e empregadores (nome, cargo, telefone, e-mail), mantidas na ficha do fornecedor. A marca recebe_ordem_com… |
@@ -337,6 +339,50 @@ Checks: `auth_vinculos_pendentes_cpf_check` `CHECK ((cpf ~ '^[0-9]{11}$'::text))
 
 Índices: `auth_vinculos_pendentes_email_idx`, `auth_vinculos_pendentes_pkey`
 
+## email_bloqueios
+
+Endereços de e-mail que o sistema não usa mais (Gestão › E-mail, 26/11/2026): rejeição definitiva informada pelo provedor ou bloqueio à mão. Liberar = apagar a linha.
+
+- **LGPD:** identificação · titulares: filiados,funcionarios,fornecedores
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `endereco` | text | não |  |  | identificação | Endereço bloqueado, em minúsculas. |
+| `motivo` | text | sim |  |  | nenhum | Tipo e motivo curto da rejeição do provedor, ou o motivo informado no bloqueio à mão. |
+| `origem` | text | não | `'rejeicao'::text` |  |  | rejeicao (webhook do provedor) ou manual (Gestão). |
+| `criado_em` | timestamp with time zone | não | `now()` |  |  |  |
+| `criado_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem bloqueou à mão; nulo quando veio do provedor. |
+
+Checks: `email_bloqueios_endereco_minusculo` `CHECK ((endereco = lower(btrim(endereco))))`; `email_bloqueios_origem_valida` `CHECK ((origem = ANY (ARRAY['rejeicao'::text, 'manual'::text])))`
+
+Índices: `email_bloqueios_emp_endereco_uniq`, `email_bloqueios_pkey`
+
+## email_config
+
+Controles do e-mail da entidade (Gestão › E-mail, 26/11/2026): módulos desligados, teto mensal de envios, parar ou só avisar no teto e cotas por departamento. Envios essenciais nunca são barrados.
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `modulos_desligados` | text[] | não | `'{}'::text[]` |  |  | Módulos (slug de src/lib/email-processos.ts) cujos e-mails não saem, exceto os essenciais. |
+| `limite_mensal` | integer | sim |  |  |  | Teto de e-mails por mês (fuso de Brasília); nulo = sem teto. |
+| `bloquear_no_limite` | boolean | não | `false` |  |  | true = no teto (ou na cota do departamento) os e-mails não essenciais param até o dia 1º; false = só avisa. |
+| `cotas_departamento` | jsonb | não | `'{}'::jsonb` |  |  | Cota mensal de e-mails por departamento (id → quantidade), contada pelo departamento de quem disparou. |
+| `atualizado_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem mudou a configuração por último. |
+| `updated_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Checks: `email_config_limite_positivo` `CHECK (((limite_mensal IS NULL) OR (limite_mensal > 0)))`
+
+Índices: `email_config_pkey`
+
 ## email_envios
 
 Uma linha por e-mail enviado pelo sistema (src/lib/email.ts): processo, módulo, quem disparou, departamento, destinatário, provedor, situação e os eventos do provedor (entrega, adiamento, rejeição). Não guarda assunto nem corpo (Gestão, 23/11/2026).
@@ -358,7 +404,7 @@ Uma linha por e-mail enviado pelo sistema (src/lib/email.ts): processo, módulo,
 | `destinatario` | text | sim |  |  | identificação | Endereço de e-mail do destinatário; apagado depois de 1 ano pelo motor de retenção (RT38). |
 | `dominio` | text | sim |  |  | nenhum | Domínio do destinatário (ex.: petrobras.com.br), que fica depois da retenção para as estatísticas de entrega. |
 | `provedor` | text | não |  |  |  | Provedor usado: brevo, resend ou nenhum (envio não configurado neste ambiente). |
-| `situacao` | text | não | `'enviando'::text` |  |  | enviando (antes da resposta do provedor), enviado (aceito pelo provedor), falhou, sem_configuracao (ambiente sem chave) ou teste (sandbox, não entregue). |
+| `situacao` | text | não | `'enviando'::text` |  |  | enviando (antes da resposta do provedor), enviado (aceito pelo provedor), falhou, sem_configuracao (ambiente sem chave), teste (sandbox, não entregue) ou barrado (não enviado por trava da Gestão: módulo desligado, teto, cota ou endereço bloqueado; o motivo vai em erro). |
 | `erro` | text | sim |  |  | nenhum | Motivo curto da falha do envio (código HTTP ou erro de rede), nunca o conteúdo. |
 | `anexos` | integer | não | `0` |  |  | Quantos arquivos foram anexados. |
 | `entregue_em` | timestamp with time zone | sim |  |  |  | Brevo: quando o servidor do destinatário aceitou o e-mail. |
@@ -366,7 +412,7 @@ Uma linha por e-mail enviado pelo sistema (src/lib/email.ts): processo, módulo,
 | `rejeitado_em` | timestamp with time zone | sim |  |  |  | Brevo: rejeição definitiva (hard bounce, endereço inválido, bloqueado ou marcado como spam). |
 | `rejeicao` | text | sim |  |  | nenhum | Brevo: tipo e motivo curto da rejeição definitiva. |
 
-Checks: `email_envios_provedor_valido` `CHECK ((provedor = ANY (ARRAY['brevo'::text, 'resend'::text, 'nenhum'::text])))`; `email_envios_situacao_valida` `CHECK ((situacao = ANY (ARRAY['enviando'::text, 'enviado'::text, 'falhou'::text, 'sem_configuracao'::text, 'teste'::text])))`
+Checks: `email_envios_provedor_valido` `CHECK ((provedor = ANY (ARRAY['brevo'::text, 'resend'::text, 'nenhum'::text])))`; `email_envios_situacao_valida` `CHECK ((situacao = ANY (ARRAY['enviando'::text, 'enviado'::text, 'falhou'::text, 'sem_configuracao'::text, 'teste'::text, 'barrado'::text])))`
 
 Índices: `email_envios_emp_data_idx`, `email_envios_emp_destinatario_idx`, `email_envios_pkey`
 
