@@ -774,8 +774,9 @@ apurador e clique em **Atribuir**. Cada urna tem um apurador. O apurador acessa
     **nulo**, e clica em **Salvar contagem**.
   </Passo>
   <Passo titulo="Conclui">
-    **Concluir apuração da urna**: os números entram no **resultado final** da
-    assembleia. Salve antes: depois de concluída, a contagem não muda mais.
+    **Concluir apuração da urna** trava a urna com a **última contagem salva** —
+    não com o que está digitado na tela — e não tem volta. Clique em **Salvar
+    contagem**, confira os números e só então conclua.
   </Passo>
 </PassoAPasso>
 
@@ -816,6 +817,14 @@ resultado parcial.
 libera-o ao filiado em **Minhas votações**, avisa quem votou, calcula o hash e roda
 a conferência da votação. O sistema recusa o encerramento se houver voto em
 separado sem decisão.
+
+<Aviso tipo="perigo" titulo="Confira as urnas físicas antes de encerrar">
+  O total da aba Apuração soma **toda contagem salva** pelos apuradores, inclusive
+  de urna ainda **não concluída**, e o encerramento **não confere** se cada urna
+  física foi concluída. Antes de clicar em **Encerrar apuração**, confirme com os
+  apuradores que todas as urnas físicas foram contadas e concluídas. Encerrar
+  avisa quem votou; corrigir depois exige **Reabrir apuração**, que fica no livro.
+</Aviso>
 
 **Reabrir apuração** exige um **motivo** de ao menos 5 caracteres. Ele fica no
 livro da apuração, com o seu nome, a hora e o resultado que deixa de valer, e não
@@ -894,7 +903,12 @@ provisório. Encerrada, o PDF traz o hash do resultado.
 - **"O apurador não consegue abrir a urna."** A votação nessa urna ainda não
   terminou, ou ele não marcou o atestado e não escreveu a ressalva.
 - **"A presença foi recusada na urna digital."** Falta parear o terminal, ou o
-  terminal ainda está com a cédula de outro eleitor.
+  terminal ainda está com a cédula de outro eleitor. A cédula só se fecha com o
+  voto: nenhuma tela a cancela. Por isso, registre a presença só com o eleitor
+  diante do terminal; se ele saiu sem votar, lance uma **anomalia** e chame quem
+  administra a votação.
+- **"Registrei a presença da pessoa errada."** A presença não se desfaz e gasta
+  o voto único da pessoa na rodada. Lance uma **anomalia** com o caso.
 - **"O mesário não registra presença na urna física."** Falta a **Abertura do
   dia** — faça-a com o primeiro eleitor antes.
 - **"O apurador não vê a urna."** Confira se a urna foi **atribuída** a ele e se

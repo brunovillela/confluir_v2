@@ -162,9 +162,20 @@ terminou e indica o caminho do pedido de desfiliação, conforme a configuraçã
 ## Reversão
 
 Se o processamento foi feito por engano, o botão **Reverter processo** desfaz o
-lote inteiro: as filiações criadas são excluídas e as demais voltam à condição
-anterior. Por ser uma ação de massa e sem volta, ela exige digitar REVERTER
-**e a sua senha de acesso**.
+lote inteiro. Por ser uma ação de massa e sem volta, ela exige digitar REVERTER
+**e a sua senha de acesso**. O efeito em cada pessoa:
+
+- **Cadastro criado pelo lote:** não é apagado. Fica na condição **Excluído(a)
+  do quadro associativo**, para preservar o histórico.
+- **Cadastro que já existia:** volta à condição que tinha antes do lote, e o
+  vínculo que o lote acrescentou é apagado.
+
+<Aviso tipo="perigo" titulo="Reverter vale mesmo depois do prazo">
+  O sistema não impede a reversão depois do fim do prazo de oposição, quando parte
+  das pessoas já está Ativa ou já desistiu, e **não avisa a empresa** nem os
+  trabalhadores. Reverta só para corrigir um engano de processamento, e
+  comunique a empresa por fora se a relação já tiver sido enviada.
+</Aviso>
 
 ## Erros comuns
 

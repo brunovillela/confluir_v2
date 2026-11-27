@@ -59,10 +59,7 @@ const EXTRAS: Record<string, string> = {
   "/painel/filiados/duplicidades": "/painel/ajuda/filiados/duplicidades",
   "/painel/filiados/saude-cadastros/atualizar": "/painel/ajuda/filiados/atualizar-por-lista",
   "/painel/filiados/termos": "/painel/ajuda/filiados/termos",
-  "/painel/filiados/importar": "/painel/ajuda/filiados/importar",
   "/painel/filiados/acompanhamento": "/painel/ajuda/filiados/acompanhamento",
-  "/painel/filiados/lista": "/painel/ajuda/filiados/perfil",
-  "/painel/representacao/votacoes": "/painel/ajuda/representacao/votacao-presencial",
   "/painel/representacao/filiacao-coletiva": "/painel/ajuda/representacao/filiacao-coletiva",
   "/painel/financeiro/caixas": "/painel/ajuda/financeiro/caixa",
   "/painel/financeiro/centros-custo": "/painel/ajuda/financeiro/centros-custo",
@@ -74,7 +71,6 @@ const EXTRAS: Record<string, string> = {
   "/painel/compras/contratos/minutas": "/painel/ajuda/compras/minutas",
   "/painel/institucional/viagens/faturas": "/painel/ajuda/viagens/faturas",
   "/painel/veiculos/checklists": "/painel/ajuda/veiculos/checklist",
-  "/painel/espacos/configuracao": "/painel/ajuda/espacos/publico",
   "/painel/hospedagem/servicos": "/painel/ajuda/hospedagem/reservas",
   "/painel/juridico/homologacoes": "/painel/ajuda/juridico/homologacoes",
   "/painel/juridico/processos": "/painel/ajuda/juridico/processos",
@@ -84,13 +80,101 @@ const EXTRAS: Record<string, string> = {
   "/painel/comunicacao/slides": "/painel/ajuda/noticias/slides-tv",
   "/painel/comunicacao/links": "/painel/ajuda/noticias/pagina-links",
   "/painel/comunicacao/mensagens": "/painel/ajuda/noticias/mala-direta",
-  "/painel/comunicacao/aniversariantes": "/painel/ajuda/noticias/mala-direta",
   "/painel/eventos/lgpd": "/painel/ajuda/eventos/dados-participantes",
+  // Pente fino de 26/11/2026: telas que caíam no índice da área ou no artigo
+  // errado. `:id` casa com o identificador do registro (ver casaPrefixo).
+  "/painel/representacao/votacoes/urnas": "/painel/ajuda/representacao/votacao-presencial",
+  "/painel/filiados/:id": "/painel/ajuda/filiados/perfil",
+  "/painel/filiados/:id/lgpd": "/painel/ajuda/filiados/perfil#lgpd",
+  "/painel/filiados/:id/prontuario": "/painel/ajuda/filiados/prontuarios",
+  "/painel/filiados/prontuarios": "/painel/ajuda/filiados/prontuarios",
+  "/painel/filiados/saude-cadastros": "/painel/ajuda/filiados/cadastros-pendentes",
+  "/painel/filiados/divergencias-votacao": "/painel/ajuda/filiados/cadastros-pendentes",
+  "/painel/filiados/inadimplentes": "/painel/ajuda/filiados/direitos",
+  "/painel/filiados/coletivas": "/painel/ajuda/representacao/filiacao-coletiva",
+  "/painel/pessoal/funcionarios": "/painel/ajuda/pessoal/funcionarios",
+  "/painel/pessoal/:id": "/painel/ajuda/pessoal/funcionarios",
+  "/painel/pessoal/anuenios": "/painel/ajuda/pessoal/anuenios-niveis",
+  "/painel/pessoal/carreira": "/painel/ajuda/pessoal/anuenios-niveis",
+  "/painel/pessoal/contabilidade": "/painel/ajuda/pessoal/movimento-folha",
+  "/painel/saude/agenda": "/painel/ajuda/saude/atendimentos",
+  "/painel/saude/assistidos": "/painel/ajuda/saude/atendimentos",
+  "/painel/saude/profissionais": "/painel/ajuda/saude/atendimentos",
+  "/painel/perfil/ferias": "/painel/ajuda/pessoal/ferias",
+  "/painel/perfil/faltas": "/painel/ajuda/pessoal/faltas",
+  "/painel/perfil/ponto": "/painel/ajuda/pessoal/ponto",
+  "/painel/perfil/carreira": "/painel/ajuda/pessoal/anuenios-niveis",
+  "/painel/perfil/asos": "/painel/ajuda/pessoal/atestados-aso",
+  "/painel/perfil/ausencias": "/painel/ajuda/pessoal/atestados-aso",
+  "/painel/perfil/treinamentos": "/painel/ajuda/pessoal/treinamentos",
+  "/painel/perfil/informes": "/painel/ajuda/pessoal/informes",
+  "/painel/perfil/plano-saude": "/painel/ajuda/pessoal/plano-saude",
+  "/painel/perfil/diarias": "/painel/ajuda/pessoal/diarias",
+  "/painel/perfil/caixa": "/painel/ajuda/financeiro/caixa",
+  "/painel/perfil/despesas-caixa": "/painel/ajuda/financeiro/caixa",
+  "/painel/perfil/cartao": "/painel/ajuda/financeiro/cartoes",
+  "/painel/perfil/viagens": "/painel/ajuda/viagens",
+  "/painel/perfil/tarefas": "/painel/ajuda/ferramentas/projetos",
+  "/painel/financeiro/auditoria": "/painel/ajuda/financeiro/auditoria",
+  "/painel/financeiro/multas": "/painel/ajuda/veiculos/infracoes",
+  "/painel/financeiro/ordens/devolvidas": "/painel/ajuda/financeiro",
+  "/painel/devolvidas": "/painel/ajuda/financeiro",
+  "/painel/estornos": "/painel/ajuda/financeiro/estornos",
+  "/painel/pedidos": "/painel/ajuda/ferramentas/projetos",
+  "/painel/compras/:id": "/painel/ajuda/compras/comprar",
+  "/painel/compras/processos": "/painel/ajuda/compras/comprar",
+  "/painel/compras/minhas": "/painel/ajuda/compras/comprar",
+  "/painel/compras/comprador": "/painel/ajuda/compras/comprar",
+  "/painel/compras/avaliacoes": "/painel/ajuda/compras/comprar",
+  "/painel/compras/recebimentos": "/painel/ajuda/compras/comprar",
+  "/painel/compras/notas-a-receber": "/painel/ajuda/compras/comprar",
+  "/painel/compras/rpa": "/painel/ajuda/compras/comprar",
+  "/painel/gestao/email": "/painel/ajuda/gestao/email",
+  "/painel/institucional/atas": "/painel/ajuda/institucional/diretoria",
+  "/painel/institucional/deliberacoes": "/painel/ajuda/institucional/diretoria",
+  "/painel/institucional/viagens/solicitacoes": "/painel/ajuda/viagens/atendimento",
+  "/painel/institucional/viagens/configuracoes": "/painel/ajuda/viagens/atendimento",
+  "/painel/comunicacao/textos": "/painel/ajuda/noticias/assistente-redacao",
+  "/painel/eventos/novo": "/painel/ajuda/eventos/criar",
+  "/painel/eventos/:id": "/painel/ajuda/eventos/inscricoes",
+  "/painel/eventos/:id/editar": "/painel/ajuda/eventos/criar",
+  "/painel/eventos/:id/campos": "/painel/ajuda/eventos/criar",
+  "/painel/eventos/:id/convidados": "/painel/ajuda/eventos/convidados",
+  "/painel/eventos/configuracao": "/painel/ajuda/eventos/dados-participantes",
+  "/painel/ferramentas/demandas": "/painel/ajuda/ferramentas/projetos",
+  "/painel/ferramentas/tarefas": "/painel/ajuda/ferramentas/projetos",
+  "/painel/ferramentas/anomalias": "/painel/ajuda/ferramentas/projetos",
+  "/painel/ferramentas/automacoes": "/painel/ajuda/ferramentas/projetos",
+  "/painel/ferramentas/modelos": "/painel/ajuda/ferramentas/projetos",
+  "/painel/ferramentas/paineis": "/painel/ajuda/ferramentas/projetos",
+  "/painel/patrimonio/novo": "/painel/ajuda/patrimonio/itens",
+  "/painel/patrimonio/:id": "/painel/ajuda/patrimonio/itens",
+  "/painel/hospedagem/cupons": "/painel/ajuda/hospedagem/reservas",
+  "/painel/veiculos/contratos": "/painel/ajuda/veiculos/infracoes",
+  "/painel/veiculos/:id/movimentacao": "/painel/ajuda/veiculos/agendamentos",
+  "/painel/veiculos/:id/manutencoes": "/painel/ajuda/veiculos/manutencoes",
+  "/painel/veiculos/:id/checklist": "/painel/ajuda/veiculos/checklist",
+  "/painel/veiculos/:id/abastecimentos": "/painel/ajuda/veiculos/abastecimentos",
+  "/painel/veiculos/:id/infracoes": "/painel/ajuda/veiculos/infracoes",
 }
 
 export type EntradaAjuda = [prefixo: string, href: string]
 
-/** Pares (prefixo de rota, link do artigo), do prefixo mais longo ao mais curto. */
+/**
+ * Segmento `:id` casa com o identificador de um registro (uuid, número,
+ * protocolo): qualquer segmento com algum dígito. Nome de rota não tem dígito,
+ * então `/painel/filiados/:id` não engole `/painel/filiados/coletivas`.
+ */
+const SEGMENTO_ID = ":id"
+const pareceId = (segmento: string) => /\d/.test(segmento)
+
+/** Ordem de prioridade: mais segmentos primeiro; empate, mais segmentos fixos. */
+function pesoDoPrefixo(prefixo: string): [number, number] {
+  const segs = prefixo.split("/").filter(Boolean)
+  return [segs.length, segs.filter((s) => s !== SEGMENTO_ID).length]
+}
+
+/** Pares (prefixo de rota, link do artigo), do prefixo mais específico ao mais geral. */
 export function mapaAjuda(): EntradaAjuda[] {
   const rotas = new Set(MODULOS.map((m) => m.href))
   const pares = new Map<string, string>()
@@ -107,17 +191,29 @@ export function mapaAjuda(): EntradaAjuda[] {
   }
   for (const [rota, href] of Object.entries(EXTRAS)) pares.set(rota, href)
   // O índice do painel fala da introdução, mas só na home exata.
-  return [...pares.entries()].sort((a, b) => b[0].length - a[0].length)
+  return [...pares.entries()].sort((a, b) => {
+    const [sa, fa] = pesoDoPrefixo(a[0])
+    const [sb, fb] = pesoDoPrefixo(b[0])
+    return sb - sa || fb - fa || b[0].length - a[0].length
+  })
 }
 
-/** Artigo da rota: o prefixo mais longo que casa (a home só casa exata). */
+/** O caminho começa pelo prefixo (segmento a segmento; `:id` casa com identificador). */
+function casaPrefixo(prefixo: string, pathname: string): boolean {
+  const p = prefixo.split("/").filter(Boolean)
+  const c = pathname.split("/").filter(Boolean)
+  if (c.length < p.length) return false
+  return p.every((seg, i) => (seg === SEGMENTO_ID ? pareceId(c[i]) : seg === c[i]))
+}
+
+/** Artigo da rota: o prefixo mais específico que casa (a home só casa exata). */
 export function ajudaDaRota(mapa: EntradaAjuda[], pathname: string): string {
   for (const [prefixo, href] of mapa) {
     if (prefixo === "/painel") {
       if (pathname === "/painel") return href
       continue
     }
-    if (pathname === prefixo || pathname.startsWith(`${prefixo}/`)) return href
+    if (casaPrefixo(prefixo, pathname)) return href
   }
   return "/painel/ajuda"
 }

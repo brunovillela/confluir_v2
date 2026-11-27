@@ -109,6 +109,14 @@ registrada abre a cédula** naquele terminal para o eleitor votar, e o terminal
 volta a **Aguardando o próximo eleitor** depois do voto. Um terminal por urna. A
 urna digital não tem Abertura do dia nem lacres: opera direto dentro do horário.
 
+<Aviso tipo="atencao" titulo="Só registre a presença com o eleitor diante do terminal">
+  A cédula fica aberta no terminal até o eleitor votar, e nenhuma tela a cancela.
+  Enquanto ela estiver aberta, a próxima presença é recusada ("O terminal ainda
+  está com outra cédula liberada. Aguarde o voto."). Se o eleitor sair sem votar,
+  a urna para: oriente quem ficar a votar só depois que ele concluir, registre uma
+  **anomalia** e chame quem administra a votação.
+</Aviso>
+
 ## 4. O dia da votação (urna física)
 
 <PassoAPasso>
@@ -132,6 +140,13 @@ urna digital não tem Abertura do dia nem lacres: opera direto dentro do horári
     Para cada eleitor apto: o mesário **busca na lista** e clica **Registrar
     presença**; o eleitor recebe a **cédula**, vota na cabine e **deposita na
     boca** da urna.
+
+    <Aviso tipo="atencao" titulo="Registrar presença não pede confirmação nem se desfaz">
+      Um clique grava a presença e gasta o voto único da pessoa na rodada: ela não
+      vota mais em outra urna nem pela internet. Confira **nome e CPF** com o
+      documento antes de clicar. Se registrou a pessoa errada, lance uma
+      **anomalia** descrevendo o caso e avise quem administra a votação.
+    </Aviso>
   </Passo>
   <Passo titulo="Voto em separado">
     Se a pessoa alega direito mas **não está na lista** e a assembleia tem a chave
@@ -205,6 +220,12 @@ urna digital não tem Abertura do dia nem lacres: opera direto dentro do horári
     mostra o total (todas as urnas + online) e **Encerrar apuração** libera o
     resultado ao filiado — só **após o término da assembleia**. Veja hash, livro e
     reabertura em [Votações](/painel/ajuda/representacao/votacoes).
+
+    <Aviso tipo="perigo" titulo="Salve antes de concluir">
+      **Concluir apuração da urna** fecha a urna com a **última contagem salva**,
+      não com o que está digitado na tela, e não tem volta. Clique em **Salvar
+      contagem**, confira os números que voltaram na tela e só então conclua.
+    </Aviso>
   </Passo>
 </PassoAPasso>
 

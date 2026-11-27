@@ -16,6 +16,14 @@ numa mesclagem), os números antigos aparecem ao lado, entre parênteses ("antes
   **CPF e matrícula sindical**, que confere repetição e registra a correção no
   prontuário.
   <RequerPermissao>Gestão da filiação</RequerPermissao>
+
+<Aviso tipo="atencao" titulo="Condição em Editar cadastro é só acerto">
+  Trocar a **Condição da filiação** em Editar cadastro só grava o campo: não
+  marca a data da etapa, não registra no prontuário e não avisa o filiado. Para
+  mover a filiação de verdade (entrar, ficar Ativo, desfiliar), use **Avançar
+  etapa** ou a remessa. Use Editar só para corrigir um cadastro que ficou com a
+  condição errada.
+</Aviso>
 - **LGPD** — abre o pedido de eliminação dos dados. Ver
   [LGPD: direito ao esquecimento](#lgpd), mais abaixo.
 
@@ -192,6 +200,14 @@ aberto não tem motivo. Para vários de uma vez, use o registro em lote em
   <em>naquela fonte pagadora</em>.
 </Aviso>
 
+<Aviso tipo="atencao" titulo="A data de desfiliação no vínculo não desfilia a pessoa">
+  Preencher **Desfiliação** e o motivo no vínculo só registra a saída daquela
+  fonte. A condição do cadastro continua a mesma (por exemplo, *Ativo*), com
+  acesso ao portal, direito a voto e cobrança. Para desfiliar, mude também a
+  condição do cadastro: **Avançar etapa** na desfiliação em andamento ou a
+  remessa da fonte.
+</Aviso>
+
 ### O que o vínculo precisa ter
 
 Um vínculo completo tem fonte pagadora, matrícula, cargo, lotação, admissão na
@@ -245,6 +261,13 @@ nelas abre o documento** numa nova aba. Documento que falta não ganha etiqueta
 
 Clique no lápis do vínculo para gerenciar os documentos. Ali dá para anexar,
 substituir, abrir e remover cada um deles, em PDF.
+
+<Aviso tipo="perigo" titulo="Remover apaga o arquivo na hora">
+  O botão **Remover** não pede confirmação: a ficha ou a carta assinada é apagada
+  do armazenamento no clique e não volta. Se for trocar o documento, use
+  **substituir**; se for mesmo remover, clique em **Abrir documento** e guarde uma
+  cópia antes.
+</Aviso>
 
 <Aviso tipo="dica" titulo="Precisa colher a assinatura?">
   Na mesma tela há **Baixar ficha preenchida**: sai o PDF com os dados do
@@ -314,6 +337,22 @@ cópia cifrada do nome e do CPF e é desvinculado do cadastro (NR-07: guarda de
 Só execute com o pedido do titular documentado e depois de conferir que não
 há cobrança, ação judicial ou prestação em aberto. O livro de solicitações,
 na mesma página, registra o que foi feito sem guardar dados pessoais.
+
+<PassoAPasso>
+  <Passo titulo="Descreva o pedido">
+    Em **Motivo e referência do pedido**, escreva de onde veio o pedido e como
+    localizá-lo, com pelo menos 10 caracteres (por exemplo: "pedido do titular por
+    e-mail em 01/10/2026, protocolo 123").
+  </Passo>
+  <Passo titulo="Confirme">
+    Em **Digite ANONIMIZAR para confirmar**, digite a palavra em maiúsculas. Só
+    então o botão **Anonimizar este cadastro** é liberado.
+  </Passo>
+  <Passo titulo="Anonimize">
+    Clique em **Anonimizar este cadastro**. A página passa a mostrar a data em que
+    o cadastro foi anonimizado, e a pessoa deixa de constar como filiada.
+  </Passo>
+</PassoAPasso>
 
 ## Exportação
 

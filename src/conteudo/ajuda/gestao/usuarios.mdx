@@ -73,6 +73,26 @@ em duas etapas** e **Ajustes finos (exceções)**.
   perdido ou computador compartilhado. Ela entra de novo com a senha. Quem usa a
   mesma conta na área do filiado também sai de lá.
 
+### Pessoa com dois cadastros: Unificar
+
+Quando a mesma pessoa tem mais de um cadastro de usuário (mesmo CPF ou mesmo
+nome), a página dela mostra o aviso **"Esta pessoa tem outro cadastro no
+sistema"**, com a lista dos outros. Com cadastros separados, o acesso, a
+diretoria e os pedidos podem cair em lugares diferentes, e a pessoa não consegue,
+por exemplo, pedir viagem ou diária.
+
+Em cada linha, **Unificar** junta os dois. A confirmação diz qual cadastro fica e
+qual sai: fica o que tem **login**. O que estava no outro (diretoria, permissões,
+vínculos, pedidos) passa para ele, e o outro fica **inativo**, marcado como
+unificado. Se os dois têm login, a tela pede para revogar o login de um antes.
+
+<Aviso tipo="perigo" titulo="Unificar não se desfaz pela tela">
+  Antes de unificar, confira pelo CPF e pelo e-mail que os dois cadastros são
+  mesmo da mesma pessoa: homônimos também aparecem no aviso.
+</Aviso>
+
+<RequerPermissao>Gerenciar usuários e permissões</RequerPermissao>
+
 ## Convidar funcionários em lote
 
 Em **Convidar funcionários em lote**, a tela mostra os funcionários do quadro que
@@ -240,8 +260,12 @@ a caso. É a exceção; o normal é resolver pelo perfil.
 
 <Aviso tipo="atencao" titulo="Alçada de aprovação">
   Para quem autoriza ordens de pagamento, além da permissão há a **alçada** — o
-  valor máximo que a pessoa pode aprovar. No perfil ela já vem definida; no
-  ajuste individual você pode sobrepor.
+  valor máximo que a pessoa pode aprovar. Ela pode vir do perfil e do ajuste
+  individual, e vale **a maior** entre todas: o ajuste individual só **aumenta**
+  a alçada, nunca reduz. Um perfil com a alçada **em branco** não tem teto: quem
+  o recebe aprova qualquer valor, por cima de tudo. Para baixar a alçada de
+  alguém, troque o perfil dele (ou o valor no perfil) e confira que o ajuste
+  individual não está mais alto.
 </Aviso>
 
 <Print src="institucional/usuarios.png" alt="Página de uma pessoa em Usuários e permissões, no cartão Ajustes finos (exceções): as permissões individuais agrupadas por área — em Ferramentas administrativas, Ofícios e a nova Ofícios — todos os departamentos." legenda="Ajustes finos: permissões individuais, para exceções ao perfil." />
@@ -315,8 +339,10 @@ quando o prazo de uma revisão aberta vence com itens pendentes.
 - **"Mudei um perfil e afetou várias pessoas."** É esperado — editar um perfil
   repercute em **todos** que o têm. Para uma exceção de uma pessoa só, use o
   **ajuste individual**.
-- **"A pessoa autoriza acima do que devia."** Ajuste a **alçada** (o valor
-  máximo que ela aprova), no perfil ou no ajuste individual.
+- **"A pessoa autoriza acima do que devia."** Vale a maior alçada entre os
+  perfis dela e o ajuste individual. Confira se algum perfil está com a alçada
+  em branco (sem teto) e baixe o valor no perfil ou troque o perfil; reduzir só
+  o ajuste individual não adianta.
 - **"O Conselho Fiscal está editando dados."** Use um **perfil de leitura** — ele
   mostra os dados sem botões de escrita.
 - **"A pessoa perdeu o celular e não consegue o código."** Na ficha dela, o

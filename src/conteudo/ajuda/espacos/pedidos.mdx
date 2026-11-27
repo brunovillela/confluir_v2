@@ -71,13 +71,22 @@ avisos da esteira.
   </Passo>
   <Passo titulo="Confirmar">
     **Confirmar a cessão** só aparece quando não falta nada. Enquanto faltar, a tela
-    diz exatamente o quê. O termo não trava a confirmação.
+    diz exatamente o quê. O termo não entra nessa conta, mas **gere e envie o termo
+    antes de confirmar**: depois da confirmação, o cartão **Termo de cessão** fica
+    só para leitura e não dá mais para gerar nem mandar para assinatura.
   </Passo>
   <Passo titulo="Recusar ou cancelar">
     No cartão **Fechamento**, **Recusar pedido** exige motivo, e **Cancelar pedido**
     aceita motivo opcional. Os dois encerram o pedido e avisam o solicitante.
   </Passo>
 </PassoAPasso>
+
+<Aviso tipo="atencao" titulo="Cessão confirmada não se cancela pela tela">
+  Depois de **Confirmar a cessão**, o cartão **Fechamento** some: não há como
+  cancelar nem recusar o pedido, e a data continua ocupada na agenda. Confirme só
+  com tudo acertado, inclusive o termo. Se o solicitante desistir depois, procure
+  quem administra o sistema.
+</Aviso>
 
 <Print src="espacos/pedido.png" alt="Página de um pedido de uso com os cartões de visita técnica, autorização, custeio e fechamento, e ao lado o pedido, o contato, as exigências acordadas e o histórico." legenda="O pedido: os passos à esquerda, o que foi pedido e a trilha à direita." />
 
@@ -98,7 +107,8 @@ avisos da esteira.
   que falta — visita não realizada, autorização pendente ou custeio não pago.
 - **&quot;Não aparece o botão de autorizar.&quot;** É uma permissão à parte
   (<RequerPermissao>Cessão — autorizar</RequerPermissao>), pedida em
-  Gestão → Usuários e permissões.
+  Gestão → Usuários e permissões. Ela sozinha não abre a fila nem o pedido:
+  quem autoriza precisa também de **Cessão de espaços**.
 - **&quot;Recusei sem querer.&quot;** Recusa e cancelamento encerram o pedido e
   avisam o solicitante. Se foi engano, peça um pedido novo pelo link público
   ou registre-o você mesmo em **Registrar pedido**.

@@ -1,0 +1,98 @@
+# Financeiro, Compras e fluxo de aprovação
+
+Rotas conferidas: 65 (Financeiro 30, Compras 29, aprovação 6: aprovar, estornos, estornos/[id], devolvidas, pedidos, diretor, coordenador — diretor e coordenador hoje só redirecionam para as abas Gestão/Coordenação do painel).
+Artigos lidos: financeiro/index, ordens, remessas, estornos, conciliacao, caixa, cartoes, tributos, centros-custo, auditoria, gerencial; compras/index, comprar, contratos, minutas, fornecedores; introducao/celular (Aprovar, Gestão, Coordenação); trechos de veiculos/infracoes (Cobranças de multas), ferramentas/projetos (Pedidos), filiados/cobrancas (Chave Pix da entidade). Auditorias anteriores conferidas: docs/manual-auditoria-2026-11.md e docs/manual-entregas-2026-11-14.md.
+Método: além da leitura, comparei por script todos os rótulos visíveis do JSX das telas (textos, title, placeholder, label) com o texto de todos os MDX do manual; os não achados foram conferidos à mão.
+
+Panorama: o manual do Financeiro está muito em dia (ordens, extrato, pagamento em lote, duplicidade, contas bancárias, estornos, conciliação, caixa, cartões, tributos, fechamento contábil). As lacunas do Financeiro são poucas e pequenas; não achei P1 nessa parte. As P1 da fatia estão em Compras.
+
+## Telas sem nenhum artigo
+| Rota | O que a tela faz | Artigo sugerido (novo ou existente) | Prioridade |
+|---|---|---|---|
+| /painel/financeiro/multas | **Cobranças de multas**: indicadores *Cobranças pendentes* e *Valor a receber*, lista **Pendentes de baixa** com o campo "Como foi recebido (contracheque 08/2026, depósito…)", anexo opcional de comprovante e **Dar baixa** (confirmação "…O registro fica no histórico de auditoria."), e o histórico das baixas. Só é descrita em veiculos/infracoes.mdx:43-48; o Financeiro não tem uma linha sobre ela (**já apontado na auditoria 2026-11, linha 215, e continua**) | Seção "Cobranças de multas" em financeiro/index (ou ordens) + link de veiculos/infracoes | P2 |
+| /painel/pedidos | **Pedidos** a outros setores: cada formulário com **Fazer um pedido** → *O que você precisa*, *Detalhes*, *Para quando (opcional)*, **Enviar pedido**; e **Meus pedidos** com as situações *A fazer / Fazendo / Feito*. O manual só fala do lado de quem configura o formulário (ferramentas/projetos.mdx:332-338) | Parágrafo em introducao (Meu perfil ou index) para quem pede | P3 |
+
+Em Compras nenhuma tela fica sem artigo; o RPA (/painel/compras/rpa/**) não tem artigo próprio, o conteúdo está em compras/contratos.mdx:304-549 (sugestão P3: separar em compras/rpa).
+
+## Lacunas em telas que têm artigo
+| Rota | Feature (rótulo na tela) | Situação | O que falta dizer | Artigo | Prioridade | Evidência |
+|---|---|---|---|---|---|---|
+| /painel/compras/[id] | Cotação, propostas, Efetivar compra e Gerar ordem de pagamento para quem tem só **Comprador (operar processos)** | defasado | O manual diz que o comprador opera tudo pela Área do comprador; as ações só aparecem com **Aquisição — editar**, e a página nem abre para quem tem só Comprador. **Já estava na auditoria 2026-11 (financeiro-compras, defeito 1) e continua.** Corrigir o código ou o texto | comprar, compras/index | P1 | src/app/painel/compras/[id]/page.tsx:243-247, 271, 276; [id]/actions.ts:80; comprar.mdx:287-289; compras/index.mdx:103-104 |
+| /painel/compras/contratos/[id] | **Excluir** ("Excluir este contrato? Ele sai das listagens.") | ausente | O efeito: some das listagens, sem desfazer na tela; parcelas e ordens dele (inclusive as aguardando documento fiscal) não são conferidas nem tratadas. Dizer quando excluir e quando usar **Finalizar contrato** | contratos | P1 | src/app/painel/compras/contratos/contrato-forms.tsx:316; src/lib/db/contratos.ts:1230-1237; contratos.mdx:17, 97 |
+| /painel/financeiro/ordens?pendencia=duplicadas | Painel **N pares de possível duplicidade** ("X **parece duplicada de** Y") com **Conferi: não é a mesma cobrança** → motivo → **Tirar da lista** | ausente | O manual descreve só o aviso por ordem e o "Conferi" no pagamento. Falta: a fila abre os pares; tirar um par da lista grava o motivo na trilha das duas ordens e **o par deixa de ser apontado** (depois disso o pagamento em lote não barra mais essas ordens). Exige Ordens de pagamento | financeiro/ordens (Possível duplicidade) | P2 | src/app/painel/financeiro/ordens/pares-duplicidade.tsx:55-101; ordens/page.tsx:275-276, 572, 582; ordens/actions.ts:16; ordens.mdx:118-140 |
+| /painel/financeiro/remessas/** e /painel/financeiro/conciliacao | Permissão exigida | defasado | Os artigos pedem **"Financeiro — pagamento"**, rótulo que não existe em Usuários e permissões; o nome é **Ordens de pagamento**. Remessas também abre para **Financeiro — somente leitura** (só consulta), o que o artigo não diz | remessas, conciliacao | P2 | remessas.mdx:6; conciliacao.mdx:7; src/lib/permissoes-catalogo.ts:32; src/lib/permissoes.ts:1094-1104 |
+| /painel/financeiro/multas | Caminho "Financeiro → **Cobranças de multas**" | defasado | A tela é `oculto: true`: não há cartão no painel do Financeiro. Só se chega pelo link na página da infração (ou pela URL). Dizer o caminho real ou criar o cartão | veiculos/infracoes | P2 | veiculos/infracoes.mdx:12, 45-46; src/lib/permissoes.ts:463-471; src/app/painel/veiculos/infracoes/[id]/page.tsx:243; financeiro/page.tsx:101-184 (sem o cartão) |
+| /painel/compras | **Atualizar agora** e "renovados a cada 10 min ou quando há compra nova" | ausente | Indicadores em cache de 10 min; **Atualizar agora** recalcula | compras/index | P2 | src/app/painel/compras/page.tsx:309-331 |
+| /painel/compras/[id] | "Processo migrado do Bubble sem o fornecedor da compra — sem ele não há onde lançar pagamentos." | ausente | O que fazer com processo migrado sem fornecedor; **Repetir compra** não aparece em processo migrado | comprar | P2 | src/app/painel/compras/[id]/page.tsx:922-927, 561-563 |
+| /painel/compras/rpa | **Tabelas de retenção (INSS, IRRF e ISS)**: quem pode alterar | ausente | Alteram alíquotas, teto, tabela do IRRF e **INSS patronal da entidade (%)** quem tem Contratos — editar, Aquisição — editar, Comprador ou Aquisição — registrar aquisição direta | contratos | P2 | src/app/painel/compras/rpa/page.tsx:70-75, 333-350; rpa/actions.ts:63-67, 751-755; contratos.mdx:465-469, 547-549 |
+| /painel/compras/contratos/novo | Formulário **Novo contrato** (**Objeto do contrato**, **Valor (R$)**, **Início/Término da vigência**, **Responsável (gestor)**, **Categoria**, **Tipo (pode combinar)**, **Arquivo do contrato**) | parcial | Passo a passo: só o objeto é obrigatório; término vazio = "Sem termo definido"; papel do responsável; quem cadastra | contratos | P2 | contrato-forms.tsx:125-275; contratos.mdx:10-38 |
+| /painel/financeiro/ordens/[id] | **Extrato simplificado** ("Sem as verificações e a auditoria automática") e **Extrato completo (PDF)** | defasado | O artigo fala de um botão **Extrato (PDF)** só; hoje são dois, e a auditoria automática sai só no completo. O alt do print também cita "Extrato (PDF)" | financeiro/ordens | P3 | src/app/painel/financeiro/ordens/[id]/page.tsx:268-289, 1091; ordens.mdx:177, 605 |
+| /painel/financeiro/ordens (extrato) | Barra das marcadas | defasado | O texto diz "duas ações" e lista três (**Marcar como Processando**, **Gerar remessa**, **Registrar pagamento**); falta o "Desmarcar todas" | financeiro/ordens | P3 | ordens.mdx:103; selecao-extrato.tsx:130-146 |
+| /painel/financeiro/ordens/comprovantes | Aviso "Esta ordem foi escolhida para outro comprovante também" | ausente | Mesma ordem em dois comprovantes: nenhum é confirmado até trocar um (a conciliação explica o equivalente; a distribuição não) | financeiro/ordens (Distribuir comprovantes) | P3 | distribuidor.tsx:345 |
+| /painel/financeiro/multas | Anexo do comprovante na baixa | ausente | O campo de arquivo (PDF, JPG, PNG) existe e é opcional | veiculos/infracoes | P3 | src/app/painel/financeiro/multas/baixa-form.tsx:40-55 |
+| /painel/financeiro/remessas/contas | **Chave Pix da entidade** ("Usada na cobrança da contribuição (dia 3)") | ausente | O artigo de remessas não cita o campo nem liga para filiados/cobrancas, onde ele é explicado | remessas | P3 | remessas/contas/conta-form.tsx:93-96; filiados/cobrancas.mdx:16 |
+| /painel/aprovar | **Ver detalhes** | defasado | O manual diz que abre a ordem; abre o **extrato em PDF** da ordem (ou o processo, se é compra) | introducao/celular | P3 | src/app/painel/aprovar/page.tsx:76-81; celular.mdx:33 |
+| /painel/aprovar | Linha "Reenviada após estorno: motivo — correção" no card | ausente | O que é e o que conferir antes de aprovar (o dinheiro vai por outro caminho) | introducao/celular | P3 | src/app/painel/aprovar/page.tsx:70-74 |
+| /painel/compras/contratos/[id] | **Editar** em Dados do contrato; troca do arquivo | parcial | Como editar o cadastro e trocar o arquivo | contratos | P3 | contratos/[id]/page.tsx:449-456; contrato-forms.tsx:295; contratos.mdx:266 |
+| /painel/compras/contratos | Filtros (busca "Código, objeto ou fornecedor", situação, **Todos os tipos**, **Todas as categorias**), coluna **PDF** | parcial | O manual diz só "os filtros" | contratos | P3 | contratos/page.tsx:171, 305-330 |
+| /painel/compras/contratos/categorias | **Nova categoria**, renomear, excluir; **Sigilosa — oculta os contratos de quem não edita** | parcial | Como criar/editar/excluir; recusa "Categoria em uso por N contrato(s)…" | contratos | P3 | categorias/page.tsx:21, 44; categorias-forms.tsx:30, 47, 180; contratos.ts:1334-1336; contratos.mdx:292-295 |
+| /painel/compras/contratos/minutas | Colunas **Minuta**, **Tipo**, **Contrato**, **Situação**, **Atualizada** | parcial | As situações da minuta e como achar uma | minutas | P3 | minutas/page.tsx:88-96 |
+| /painel/compras/contratos/minutas/configuracao | **Novo tipo**; **Ativo — aparece na criação de minutas**; **Ativa — entra nas minutas novas** | parcial | Desativar um tipo e o efeito | minutas | P3 | config-forms.tsx:76, 161; configuracao/page.tsx:143; minutas.mdx:135-142 |
+| /painel/compras | Quadros **A cotar**, **Em cotação**, **Cotadas (aguardando compra)**, **Ordens em autorização**, **Fornecimentos a receber** | parcial | O manual cita só "A cotar" | compras/index | P3 | compras/page.tsx:255-279; comprar.mdx:391-392 |
+| /painel/compras | "Essa compra é de um departamento fora do seu alcance em Aquisição." | ausente | Entrar no erro "Não vejo a compra de outro departamento" | compras/index | P3 | compras/page.tsx:148-154; [id]/page.tsx:266 |
+| /painel/compras/comprador | Abre também com **Aquisição — editar** | defasado | O manual exige Comprador | compras/index, comprar | P3 | comprador/page.tsx:132; compras/page.tsx:97-99; compras/index.mdx:44; comprar.mdx:374 |
+| /painel/compras/comprador | Filtros "Código ou produto/serviço", **Todas as etapas**, **Todos os departamentos**, **Prazo vencido** | ausente | Como filtrar a fila | comprar | P3 | comprador/page.tsx:237-275 |
+| /painel/compras/minhas | Permissão, busca, **Todas as etapas**, quadros **Em andamento** / **Recebidas e canceladas** | defasado | Abre também com Aquisição (consulta), aquisição direta e Comprador; lista só Via Aquisição | comprar | P3 | minhas/page.tsx:69-72, 204-233; compras.ts:1520-1521; comprar.mdx:399 |
+| /painel/compras/processos | Busca "Código ou produto/serviço"; colunas **Aquisição** e **Registro** | parcial | A busca não é citada | compras/index | P3 | processos/page.tsx:170-177, 234, 245; compras/index.mdx:33-39 |
+| /painel/compras/processos e [id] | Selo **Migrado do Bubble**; "(migração parcial — sem descrição)" | ausente | O que é e o que muda | comprar | P3 | [id]/page.tsx:549; processos/page.tsx:262 |
+| /painel/compras/[id] | **Cobranças do processo** | ausente | Ordens ligadas ao processo sem fornecimento (legado) | comprar | P3 | [id]/page.tsx:1300-1316 |
+| /painel/compras/recebimentos | Busca "Código, produto ou fornecedor", **Todos os departamentos**, **Só atrasados** | ausente | Como filtrar | comprar | P3 | recebimentos/page.tsx:104-123 |
+| /painel/compras/notas-a-receber | Busca e filtro de departamento | ausente | Como filtrar | comprar | P3 | notas-a-receber/page.tsx:108-127 |
+| /painel/compras/avaliacoes | Quadro **Fora do seu alcance** ("Precisa da permissão …") | parcial | Junta também as ordens que pedem Contratos — autorizar ou Custeio — autorizar | comprar | P3 | avaliacoes/page.tsx:160-185; comprar.mdx:808-813 |
+| /painel/compras/avaliacoes | Aviso de alçada zerada | ausente | O que fazer e onde a gestão define o limite | comprar | P3 | avaliacoes/page.tsx:118-123; comprar.mdx:848-852 |
+| /painel/compras/rpa | Coluna **Emitido por**; origens "Avulso — sem compra ainda" e "Sem contrato (anterior)" | ausente | O que significa cada origem | contratos | P3 | rpa/page.tsx:217, 268-270 |
+| /painel/compras/fornecedores/[id] | Quadros **Contratos** e **Ordens de pagamento** (inclusive migradas) | ausente | O que a ficha mostra abaixo dos dados | fornecedores | P3 | fornecedores/[id]/page.tsx:819-829, 960-969; fornecedores.mdx:185-190 |
+| /painel/compras/fornecedores/duplicados | Abas **Mesmo CPF/CNPJ (N)** e por nome; **Incorporar**; **Mesclar**; atalhos **Mesclar duplicados** / **Ver duplicados** | parcial | Onde fica a página e o passo a passo | fornecedores | P3 | duplicados/page.tsx:100-105; mescla-form.tsx:41-45, 120; fornecedores/page.tsx:200-204; lista/page.tsx:161-162 |
+| /painel/compras/nova | **Preferir preencher à mão** | ausente | Como voltar ao modo manual antes de ler a nota | comprar | P3 | nova-compra-form.tsx:600-610 |
+
+Conferido e coberto (sem lacuna): painel do Financeiro e O que fazer hoje; extrato/lista/filtros/busca de ordens; Registrar/Editar/Remover pagamento; Trocar situação; Corrigir/Cancelar/Desfazer cancelamento/Reenviar; Reclassificar; Documentos; Distribuir comprovantes e Anexar; Ordens devolvidas e Minhas ordens devolvidas; Contas bancárias (saúde, Juntar, Está certa, pedidos de funcionários/diretores); estornos (registrar, prazo, Meus estornos, correção); remessas (conta, nova, retorno, cancelar); conciliação (importar, candidatas, Pagar pelo extrato, devoluções de compras canceladas, desfazer/excluir); caixa (aporte, prestação, ocorrências, configuração); cartões e faturas; tributos (guias, previstas, retenções do RPA); centros de custo; auditoria das ordens; gerencial e exportação contábil (fechamento, reabertura, e-mail da contabilidade, créditos e devoluções); Aprovar (exceto os dois itens acima); abas Gestão e Coordenação.
+
+## Rotas sem "Ajuda desta tela"
+Caem num artigo genérico ou errado (regra em src/lib/ajuda/rota.ts:94-122; EXTRAS em rota.ts:22-89):
+- /painel/financeiro/multas → visão geral do Financeiro, que não fala de multas (o conteúdo está em veiculos/infracoes).
+- /painel/financeiro/ordens/devolvidas → financeiro/ordens, mas a seção "Ordens devolvidas" está em financeiro/index.mdx:123.
+- /painel/estornos e /painel/estornos/[id] (Meus estornos, tela do estorno para quem lançou) → índice geral do manual; o certo é financeiro/estornos.
+- /painel/devolvidas (Minhas ordens devolvidas) → índice geral; o certo é financeiro/index (Ordens devolvidas).
+- /painel/pedidos → índice geral.
+- /painel/diretor e /painel/coordenador: o EXTRAS de /painel/diretor (rota.ts:25) não chega a valer, porque as duas redirecionam para /painel?aba=gestao e /painel?aba=coordenacao, cuja ajuda é a introdução geral, não introducao/celular (onde Gestão e Coordenação estão explicadas).
+- Compras → visão geral (/painel/ajuda/compras) em vez do artigo da tela: /painel/compras/processos, /painel/compras/[id], /painel/compras/[id]/editar, /painel/compras/minhas, /painel/compras/comprador, /painel/compras/avaliacoes, /painel/compras/recebimentos, /painel/compras/notas-a-receber, /painel/compras/rpa, /painel/compras/rpa/novo, /painel/compras/rpa/[id] (comprar ou contratos-RPA). MODULOS de compras: src/lib/permissoes.ts:335-379.
+
+Total: 19 rotas.
+
+## Prints sugeridos (só os críticos)
+| Tela | Por quê | Arquivo sugerido |
+|---|---|---|
+| /painel/aprovar no celular (ordem com apontamento e campo de motivo aberto) | Decisão de dinheiro no celular. **Já sugerido na auditoria 2026-11 (linha 71) e ainda sem arquivo** em public/ajuda/introducao | introducao/aprovar.png |
+| Fila de pares de duplicidade com **Conferi: não é a mesma cobrança** aberto | Tirar um par da lista libera o pagamento das duas ordens | financeiro/ordens-duplicidade-pares.png |
+| Cobranças de multas com uma baixa preenchida | Tela do Financeiro sem nenhuma imagem nem artigo próprio | financeiro/multas-baixa.png |
+| Extrato com ordens marcadas e a barra inferior; Conciliação pendentes; Contas bancárias (saúde); conta da remessa | **Já sugeridos na auditoria 2026-11 (linhas 111-113, 152) e ainda sem arquivo** | financeiro/ordens-extrato-lote.png, conciliacao-pendentes.png, contas-bancarias-saude.png, remessa-conta.png |
+| Recebimentos com **Registrar chegada** aberto | Tarefa da recepção sem imagem | compras/recebimentos.png |
+| Notas a receber (sem nota fiscal, créditos com fornecedores) | Três quadros com ações diferentes | compras/notas-a-receber.png |
+| Compra com ordem devolvida (**Editar compra** / **Responder e reenviar**) | Duas saídas com efeitos diferentes na autorização | compras/ordem-devolvida.png |
+| Contrato não autorizado / aguardando documento fiscal; cotação com Escolher | **Já sugeridos na auditoria 2026-11 e ainda sem arquivo** | compras/contrato-autorizar.png, contrato-aguardando-nota.png, cotacao-escolher.png |
+
+Todos os prints já citados nos artigos do Financeiro e em celular.mdx existem em public/ajuda (conferido por script).
+
+## Possíveis defeitos vistos de passagem (opcional, curto)
+1. **Comprador puro não abre o processo** (continuação do defeito 1 da auditoria 2026-11): compras/[id]/page.tsx:243-247, 271, 276; comprador/page.tsx:132.
+2. **Excluir contrato não confere parcelas/ordens em aberto**: src/lib/db/contratos.ts:1230-1237.
+3. **Tabelas de retenção do RPA editáveis por quem só registra aquisição direta** (alíquotas e INSS patronal de todos os RPAs seguintes): compras/rpa/actions.ts:63-67, 751-755.
+4. **Mensagens técnicas na tela** ("Falta rodar o SQL supabase/….sql", "falta aplicar a migração"), contra a regra de migrações: financeiro/estornos/page.tsx:63; remessas/page.tsx:89; remessas/nova/page.tsx:41; remessas/contas/page.tsx:49; conciliacao/page.tsx:91; cartoes/[id]/page.tsx:74; contas-bancarias/alteracoes/page.tsx:58; e 14 telas de Compras (page.tsx:287, 361; comprador:230; recebimentos:94; notas-a-receber:98; [id]:932; rpa:157-158; contratos:226; contratos/[id]:585; minutas:75; minutas/nova:70; minutas/configuracao:48; fornecedores/[id]:481, 577). Avaliações cita o campo `alcada_aprovacao` (avaliacoes/page.tsx:118-123).
+5. **Quem tem só "Caixa — administração" não entra no módulo Financeiro**: a entrada exige financeiro_caixa ou as alternativas, sem financeiro_caixa_admin (src/lib/permissoes.ts:125-126), embora o cartão Contas de caixa a aceite (permissoes.ts:177-178).
+6. **Cobranças de multas sem entrada no menu/painel** (`oculto: true`, permissoes.ts:470): só pelo link da infração.
+
+## Contagens
+- Telas sem nenhum artigo: 2 (financeiro/multas, pedidos); em Compras, 0.
+- Lacunas (tabela de telas com artigo): 35 no total. P1: 2. P2: 7. P3: 26. (Mais as 2 telas sem artigo: 1 P2, 1 P3.)
+- Defasados (incluídos nas lacunas): 8 (comprador sem "editar"; Área do comprador × permissão; Minhas solicitações × permissão; permissão "Financeiro — pagamento" inexistente em remessas/conciliação; caminho "Financeiro → Cobranças de multas"; botão "Extrato (PDF)"; "duas ações" no extrato; "Ver detalhes abre a ordem" no Aprovar).
+- Rotas sem "Ajuda desta tela" adequada: 19.
