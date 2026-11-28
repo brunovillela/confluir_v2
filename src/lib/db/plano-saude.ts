@@ -623,7 +623,44 @@ export async function salvarRegraDependente(id: string | null, dados: Linha): Pr
 }
 
 export async function salvarBeneficiario(id: string | null, dados: Linha, usuarioId: string): Promise<Resultado> {
+  const repetido = await jaNoPlano(id, dados)
+  if (repetido) return { erro: repetido }
   return gravar("pessoal_saude_beneficiarios", id, id ? dados : { ...dados, criado_por: usuarioId })
+}
+
+/**
+ * A mesma pessoa (titular ou dependente do cadastro) não pode estar duas
+ * vezes no mesmo contrato ao mesmo tempo (28/11/2026: a inclusão pela fatura
+ * deixava). Trocar de produto: exclua no dia X e inclua no novo a partir de X.
+ * Agregado (só nome) não é conferido.
+ */
+async function jaNoPlano(id: string | null, dados: Linha): Promise<string | null> {
+  const tipo = String(dados.tipo ?? "")
+  const produtoId = texto(dados.produto_id)
+  const inclusao = texto(dados.inclusao)
+  if (!produtoId || !inclusao || (tipo !== "titular" && tipo !== "dependente")) return null
+  const chave = tipo === "titular" ? texto(dados.titular_id) : texto(dados.dependente_id)
+  if (!chave) return null
+  const { admin, emp } = await ctx()
+  const { data: prod } = await admin.from("pessoal_saude_produtos").select("contrato_id").eq("id", produtoId).maybeSingle()
+  if (!prod) return null
+  const { data: irmaos } = await admin.from("pessoal_saude_produtos").select("id, nome").eq("contrato_id", prod.contrato_id)
+  const nomeProduto = new Map((irmaos ?? []).map((p) => [String(p.id), String(p.nome)]))
+  let q = admin
+    .from("pessoal_saude_beneficiarios")
+    .select("id, produto_id, inclusao, exclusao")
+    .eq("emp_proprietaria_id", emp)
+    .in("produto_id", [...nomeProduto.keys()])
+    .eq("tipo", tipo)
+  q = tipo === "titular" ? q.eq("titular_id", chave) : q.eq("dependente_id", chave)
+  const { data: outros } = await q
+  const fim = texto(dados.exclusao)
+  const conflito = (outros ?? []).find(
+    (o) => String(o.id) !== id && (!o.exclusao || String(o.exclusao) > inclusao) && (!fim || fim > String(o.inclusao))
+  )
+  if (!conflito) return null
+  const desde = String(conflito.inclusao).split("-").reverse().join("/")
+  return `${tipo === "titular" ? "Este funcionário" : "Este dependente"} já está no plano (${nomeProduto.get(String(conflito.produto_id)) ?? "produto"}, desde ${desde}). Para trocar de produto, registre a exclusão do atual e inclua no novo a partir da mesma data.`
 }
 
 /** Cadastra um dependente em Pessoal (pessoal_dependentes), para incluí-lo no plano. */

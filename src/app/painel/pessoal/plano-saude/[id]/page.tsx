@@ -174,6 +174,18 @@ export default async function ContratoSaudePage({
           <AlertDescription>{sp.apagado ? "Registro apagado." : "Salvo."}</AlertDescription>
         </Alert>
       )}
+      {/* O aviso do reajuste também no alto (28/11/2026): na seção das tabelas ficava fora da vista. */}
+      {reajuste && (
+        <Alert variant="warning">
+          <AlertDescription>
+            Reajuste anual de {reajuste.aniversario.slice(5, 7)}/{reajuste.aniversario.slice(0, 4)} sem a tabela nova em{" "}
+            {reajuste.produtos.join(", ")}: os meses a partir do aniversário estão sendo calculados pela tabela anterior.{" "}
+            <a href="#tabelas" className="underline underline-offset-4">
+              Cadastrar o reajuste
+            </a>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <nav className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-sm">
         {[

@@ -75,7 +75,7 @@ export default async function FaturaPage({ searchParams }: { searchParams: Promi
   // Carga inicial: as linhas que não casaram com ninguém do plano podem virar
   // adesões, com a pessoa do cadastro sugerida pelo nome.
   const soltas = fatura && !fatura.conferidaEm ? fatura.linhas.map((l, i) => ({ l, i })).filter(({ l }) => !l.beneficiarioId && !linhaDaEntidade(l)) : []
-  const pessoas = soltas.length ? await pessoasParaIncluir() : []
+  const pessoas = soltas.length && atual ? await pessoasParaIncluir(atual.contrato.id) : []
   const sugestoes = soltas.map(({ l, i }) => ({ l, i, sugerida: sugerirPessoa(l.nome, pessoas) }))
   const produtosAtivos = (completo?.produtos ?? []).filter((p) => p.ativo).map((p) => ({ id: p.id, nome: p.nome }))
 

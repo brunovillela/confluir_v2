@@ -1,6 +1,6 @@
 import "server-only"
 
-import { esquemaAusente, texto } from "@/lib/db/comum"
+import { esquemaAusente, hojeSP, texto } from "@/lib/db/comum"
 import { funcionariosDaArea } from "@/lib/db/pessoal-area"
 import { dependentesDoCadastro, obterContratoSaude, salvarBeneficiario, salvarCoparticipacao } from "@/lib/db/plano-saude"
 import { type EsquemaJsonIA, gerarJsonIA, gerarJsonIADeImagem, gerarJsonIADePdf } from "@/lib/ia"
@@ -350,14 +350,20 @@ export async function lancarCopartDaFatura(
 // ── Carga inicial: incluir no plano quem está na fatura ─────────────────────
 
 /** Funcionários ativos e os dependentes ativos deles, para incluir no plano a partir da fatura. */
-export async function pessoasParaIncluir(): Promise<PessoaParaIncluir[]> {
-  const area = (await funcionariosDaArea()).filter((f) => f.ativo)
+export async function pessoasParaIncluir(contratoId: string): Promise<PessoaParaIncluir[]> {
+  const [area0, completo] = await Promise.all([funcionariosDaArea(), obterContratoSaude(contratoId)])
+  // Quem já está no contrato (sem exclusão, ou excluído só no futuro) não entra de novo (28/11/2026).
+  const hoje = hojeSP()
+  const noPlano = (completo?.beneficiarios ?? []).filter((b) => !b.exclusao || b.exclusao > hoje)
+  const titularesNoPlano = new Set(noPlano.filter((b) => b.tipo === "titular").map((b) => b.titularId))
+  const depsNoPlano = new Set(noPlano.map((b) => b.dependenteId).filter(Boolean))
+  const area = area0.filter((f) => f.ativo)
   const deps = await dependentesDoCadastro(area.map((f) => f.usuarioId))
   const nomeDe = new Map(area.map((f) => [f.usuarioId, f.nome]))
   return [
-    ...area.map((f) => ({ chave: `titular:${f.usuarioId}`, nome: f.nome, rotulo: "funcionário" })),
+    ...area.filter((f) => !titularesNoPlano.has(f.usuarioId)).map((f) => ({ chave: `titular:${f.usuarioId}`, nome: f.nome, rotulo: "funcionário" })),
     ...deps
-      .filter((d) => d.ativo)
+      .filter((d) => d.ativo && !depsNoPlano.has(d.id))
       .map((d) => ({
         chave: `dependente:${d.id}:${d.funcionarioId}`,
         nome: d.nome,
@@ -403,10 +409,10 @@ export async function incluirSugeridosNoPlano(
   usuarioId: string
 ): Promise<{ erro?: string; incluidos: number; semSugestao: number }> {
   const { admin, emp } = await ctx()
-  const { data, error } = await admin.from("pessoal_saude_faturas").select("linhas").eq("emp_proprietaria_id", emp).eq("id", faturaId).maybeSingle()
+  const { data, error } = await admin.from("pessoal_saude_faturas").select("linhas, contrato_id").eq("emp_proprietaria_id", emp).eq("id", faturaId).maybeSingle()
   if (error || !data) return { erro: error?.message ?? "Fatura não encontrada.", incluidos: 0, semSugestao: 0 }
   const linhas = (Array.isArray(data.linhas) ? (data.linhas as Linha[]) : []).map(linhaGravada)
-  const pessoas = await pessoasParaIncluir()
+  const pessoas = await pessoasParaIncluir(String(data.contrato_id))
   const usadas = new Set<string>()
   let incluidos = 0
   let semSugestao = 0
