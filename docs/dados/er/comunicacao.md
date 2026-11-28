@@ -142,6 +142,14 @@ erDiagram
     uuid dia_id FK
     uuid confirmada_por FK
   }
+  eventos_presencas_ajustes {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid evento_id FK
+    uuid inscricao_id FK
+    uuid dia_id FK
+    uuid usuario_id FK
+  }
   eventos_termos {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -201,6 +209,10 @@ erDiagram
   eventos_presencas }o--o| eventos_dias : "dia_id"
   eventos_presencas }o--o| eventos_inscricoes : "inscricao_id"
   eventos_presencas }o--o| usuarios : "confirmada_por"
+  eventos_presencas_ajustes }o--o| eventos_dias : "dia_id"
+  eventos_presencas_ajustes }o--o| eventos_inscricoes : "inscricao_id"
+  eventos_presencas_ajustes }o--o| usuarios : "usuario_id"
+  eventos_presencas_ajustes }o--|| eventos : "evento_id"
   notificacoes }o--o| pessoal_contracheques : "contracheque_id_fk"
   notificacoes }o--o| pessoal_registro_ponto : "registro_ponto_id_fk"
   notificacoes }o--|| usuarios : "usuario_id"

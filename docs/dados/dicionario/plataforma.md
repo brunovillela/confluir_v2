@@ -2,7 +2,7 @@
 
 # Plataforma, acesso e auditoria
 
-42 tabelas. Diagrama: [er/plataforma.md](../er/plataforma.md).
+43 tabelas. Diagrama: [er/plataforma.md](../er/plataforma.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -18,6 +18,7 @@
 | [auth_codigos_envios](#auth_codigos_envios) | identificação | Registro de cada envio de código de acesso por e-mail (lib/codigo-acesso.ts), usado para limitar a frequência de envios por endereço. |
 | [auth_identidades](#auth_identidades) | identificação | Quem é a conta Supabase Auth no tenant (CPF do filiado ou do trabalhador não filiado). Só o servidor grava, após prova de posse do e-mail. |
 | [auth_vinculos_pendentes](#auth_vinculos_pendentes) | identificação | Par e-mail↔CPF derivado pelo servidor antes de enviar o código de acesso; consumido após o código ser conferido. Expira junto com o código. |
+| [email_avisos](#email_avisos) | — | Avisos do e-mail já dados à Gestão (Gestão › E-mail, 27/11/2026 — fase 5): teto e cota a 80%/100%, rejeição alta, chave da conta própria rec… |
 | [email_bloqueios](#email_bloqueios) | identificação | Endereços de e-mail que o sistema não usa mais (Gestão › E-mail, 26/11/2026): rejeição definitiva informada pelo provedor ou bloqueio à mão.… |
 | [email_config](#email_config) | **credencial (nunca exportar)** | Configuração do e-mail da entidade (Gestão › E-mail): controles (módulos desligados, teto mensal, cotas por departamento; 26/11/2026) e a co… |
 | [email_envios](#email_envios) | identificação | Uma linha por e-mail enviado pelo sistema (src/lib/email.ts): processo, módulo, quem disparou, departamento, destinatário, provedor, situaçã… |
@@ -338,6 +339,23 @@ Par e-mail↔CPF derivado pelo servidor antes de enviar o código de acesso; con
 Checks: `auth_vinculos_pendentes_cpf_check` `CHECK ((cpf ~ '^[0-9]{11}$'::text))`; `auth_vinculos_pendentes_tipo_check` `CHECK ((tipo = ANY (ARRAY['filiado'::text, 'nao_filiado'::text])))`
 
 Índices: `auth_vinculos_pendentes_email_idx`, `auth_vinculos_pendentes_pkey`
+
+## email_avisos
+
+Avisos do e-mail já dados à Gestão (Gestão › E-mail, 27/11/2026 — fase 5): teto e cota a 80%/100%, rejeição alta, chave da conta própria recusada, remetente fora dos domínios verificados, falhas seguidas. A chave única impede o aviso repetido no mesmo período.
+
+- **LGPD:** nenhum dado pessoal
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `chave` | text | não |  |  |  | Tipo do aviso e período (ex.: teto:2026-11:80, cota:<departamento>:2026-11:100, chave:2026-11-27). |
+| `criado_em` | timestamp with time zone | não | `now()` |  |  |  |
+
+Índices: `email_avisos_emp_chave_uniq`, `email_avisos_pkey`
 
 ## email_bloqueios
 

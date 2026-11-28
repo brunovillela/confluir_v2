@@ -161,6 +161,7 @@ export const TABELAS_TENANT: ReadonlySet<string> = new Set([
   "eventos_inscricao_respostas",
   "eventos_inscricoes",
   "eventos_inscricoes_fechamentos",
+  "eventos_presencas_ajustes",
   "eventos_presencas",
   "eventos_termos",
   "filiacoes",

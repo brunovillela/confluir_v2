@@ -381,6 +381,16 @@ export default async function EventoPage({
               O evento tem {indicadores.presencasPorDia.length} dia(s) e a
               presença é registrada em cada um.
             </CardDescription>
+            {gestor && (
+              <CardAction>
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/painel/eventos/${evento.id}/presencas`}>
+                    <ListChecks />
+                    Lançar presenças
+                  </Link>
+                </Button>
+              </CardAction>
+            )}
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">

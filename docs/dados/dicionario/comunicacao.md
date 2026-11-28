@@ -2,7 +2,7 @@
 
 # Comunicação, eventos e avisos
 
-30 tabelas. Diagrama: [er/comunicacao.md](../er/comunicacao.md).
+31 tabelas. Diagrama: [er/comunicacao.md](../er/comunicacao.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -31,6 +31,7 @@
 | [eventos_inscricoes](#eventos_inscricoes) | identificação, **sensível: sindical**, **credencial (nunca exportar)** | Inscrições em eventos, de filiados ou convidados sem login: identificação, foto, consentimento LGPD, aprovação, RSVP, controle de acesso e a… |
 | [eventos_inscricoes_fechamentos](#eventos_inscricoes_fechamentos) | — | Histórico de fechamentos e reaberturas à mão das inscrições de um evento (só inserção). |
 | [eventos_presencas](#eventos_presencas) | identificação | Presença confirmada de um inscrito em um dia do evento, pela recepção, por QR code ou busca. |
+| [eventos_presencas_ajustes](#eventos_presencas_ajustes) | identificação | Presenças lançadas ou retiradas à mão na página do evento, depois da porta (só inserção). |
 | [eventos_termos](#eventos_termos) | — | Versões dos termos de consentimento exibidos na inscrição (participação e uso de foto); a inscrição guarda qual versão foi aceita. |
 | [eventos_titular_sessao](#eventos_titular_sessao) | identificação, **credencial (nunca exportar)** | Sessões curtas do canal LGPD do convidado de evento: ele se identifica pelo e-mail, confirma por código e pode consultar ou anonimizar seus … |
 | [noticias](#noticias) | — | Notícias publicadas para o painel/portal: manchete, texto e imagem. Origem Bubble. |
@@ -733,12 +734,35 @@ Presença confirmada de um inscrito em um dia do evento, pela recepção, por QR
 | `dia_id` | uuid | sim |  | → eventos_dias (**cascade**) |  |  |
 | `confirmada_em` | timestamp with time zone | não | `now()` |  |  |  |
 | `confirmada_por` | uuid | sim |  | → usuarios |  |  |
-| `metodo` | text | não | `'busca'::text` |  |  | Como a presença foi confirmada: qr ou busca. |
+| `metodo` | text | não | `'busca'::text` |  | nenhum | Como a presença foi confirmada: qr ou busca (na porta) ou manual (lançada depois pela gestão, na página do evento). |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 
-Checks: `ck_eventos_presencas_metodo` `CHECK ((metodo = ANY (ARRAY['qr'::text, 'busca'::text]))) NOT VALID`
+Checks: `ck_eventos_presencas_metodo` `CHECK ((metodo = ANY (ARRAY['qr'::text, 'busca'::text, 'manual'::text]))) NOT VALID`
 
 Índices: `eventos_presencas_pkey`, `idx_eventos_presencas_dia`, `ux_eventos_presencas`
+
+## eventos_presencas_ajustes
+
+Presenças lançadas ou retiradas à mão na página do evento, depois da porta (só inserção).
+
+- **LGPD:** identificação · titulares: filiados e convidados
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa (**cascade**) |  |  |
+| `evento_id` | uuid | não |  | → eventos (**cascade**) |  |  |
+| `inscricao_id` | uuid | sim |  | → eventos_inscricoes (**cascade**) | identificação | De quem é a presença (eventos_inscricoes). |
+| `dia_id` | uuid | sim |  | → eventos_dias (**cascade**) |  |  |
+| `acao` | text | não |  |  | nenhum | lancou ou retirou. |
+| `usuario_id` | uuid | sim |  | → usuarios (set null) | identificação | Quem lançou ou retirou. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Checks: `eventos_presencas_ajustes_acao_check` `CHECK ((acao = ANY (ARRAY['lancou'::text, 'retirou'::text])))`
+
+Índices: `eventos_presencas_ajustes_evento`, `eventos_presencas_ajustes_pkey`
 
 ## eventos_termos
 

@@ -60,6 +60,10 @@ erDiagram
     uuid id PK
     uuid emp_proprietaria_id FK
   }
+  email_avisos {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+  }
   email_bloqueios {
     uuid id PK
     uuid emp_proprietaria_id FK
