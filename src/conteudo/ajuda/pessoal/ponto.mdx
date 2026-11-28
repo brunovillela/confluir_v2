@@ -418,8 +418,9 @@ A página do funcionário no Ponto tem o mesmo quadro, com os números só dele.
 Na página do funcionário no Ponto, **Relatório do ponto (PDF)** gera um
 documento para arquivar ou levar a uma conversa. Ele traz a ficha (matrícula,
 cargo, departamento, admissão), a comparação entre anos, os alertas de cada
-ano, o mês a mês (horas extras e pagas, banco nas duas faixas, atestados,
-faltas e ocorrências das marcações) e as isenções de registro.
+ano, o mês a mês (horas extras e pagas nas duas faixas, o valor pago quando
+veio do contracheque, banco nas duas faixas, atestados, faltas e ocorrências
+das marcações), os acertos do banco de horas e as isenções de registro.
 
 Se o funcionário tem jornada vinculada, o PDF termina com o **uso do sistema
 fora do expediente** dos últimos 12 meses: uma linha por mês (uso, antes e
@@ -440,6 +441,37 @@ que os meses anteriores à mudança podem estar distorcidos.
   departamento usado é o **atual** de cada funcionário, inclusive nos anos
   anteriores. A resenha é um apoio: confira os números antes de agir.
 </Aviso>
+
+## Relatório do ponto e das horas extras
+
+Na aba **Relatório** do Controle de ponto, escolha o **período** (de um mês a
+outro), e, se quiser, um **departamento** ou um **funcionário**. O relatório
+mostra:
+
+- **Resumo**: horas extras realizadas e pagas nas duas faixas, o **valor
+  pago** com o custo médio da hora (quando as horas pagas vieram do
+  contracheque), o banco de horas no fim do período e o que foi zerado em
+  acertos (pago em folha e descontado).
+- **Mês a mês**: horas, valor, o banco no fim de cada mês e o zerado nos
+  acertos do mês.
+- **Por funcionário**: totais de cada pessoa, o valor da hora, o banco no fim
+  do período (depois dos acertos) e os acertos. O nome abre a página da
+  pessoa no Ponto.
+- **Divergências**: o que merece conferência, com link para a remessa.
+
+**PDF** gera o mesmo conteúdo para arquivar; **Planilha** traz uma linha por
+pessoa e mês (horas em HH:MM e em decimal, valor pago, se as horas pagas
+vieram do contracheque ou foram digitadas e as divergências da linha), sem
+CPF. Cada download fica registrado no histórico de exportações.
+
+| Divergência | O que quer dizer |
+| --- | --- |
+| Saldo não fecha | O saldo remanescente não é saldo anterior + realizadas − pagas. |
+| Cadeia quebrada | O saldo anterior não é o saldo da remessa anterior da pessoa (nem zero, depois de um acerto). Recalcule as remessas seguintes. |
+| Pagou sem saldo | Mais horas pagas do que havia no banco: o saldo ficou negativo. |
+| Valor da hora fora do padrão | O valor por hora difere mais de 30% da mediana da própria pessoa no período. |
+| Valor sem horas | Valor pago na faixa sem nenhuma hora paga. |
+| Horas pagas sem valor | Numa remessa lida do contracheque, a pessoa ficou com as horas digitadas. |
 
 ## Uso fora do expediente
 

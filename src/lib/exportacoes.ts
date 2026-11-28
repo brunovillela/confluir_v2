@@ -24,6 +24,7 @@ export const RECURSOS_EXPORTACAO = {
   cat: { rotulo: "CATs", categorias: ["identificacao", "saude", "trabalhista"] },
   folha_movimento: { rotulo: "Movimento da folha (contabilidade)", categorias: ["identificacao", "cpf", "trabalhista", "financeiro"] },
   ponto_remessa: { rotulo: "Remessa de controle de ponto", categorias: ["identificacao", "cpf", "trabalhista"] },
+  ponto_relatorio: { rotulo: "Relatório do ponto e das horas extras", categorias: ["identificacao", "trabalhista", "financeiro"] },
   ponto_uso_fora: { rotulo: "Uso fora do expediente", categorias: ["identificacao", "trabalhista"] },
   remessa_cnab: { rotulo: "Remessa/retorno bancário (CNAB)", categorias: ["identificacao", "cpf", "financeiro"] },
   ordens: { rotulo: "Ordens de pagamento", categorias: ["identificacao", "financeiro"] },

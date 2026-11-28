@@ -67,6 +67,17 @@ export type RegistroAnalise = {
   saldo: number
   saldo70: number
   saldo100: number
+  /** Horas pagas por faixa, saldo anterior e valor pago (R$; null = não informado) — Fase 3, 28/11/2026. */
+  pagas70: number
+  pagas100: number
+  anterior70: number | null
+  anterior100: number | null
+  remanescente70: number | null
+  remanescente100: number | null
+  valor70: number | null
+  valor100: number | null
+  /** As horas pagas vieram do contracheque (Fase 2). */
+  pagasDoContracheque: boolean
   temEspelho: boolean
   lido: boolean
   espelhoErro: string | null
@@ -137,6 +148,7 @@ const n = (v: unknown) => {
   const x = Number(v ?? 0)
   return Number.isFinite(x) ? x : 0
 }
+const nulo = (v: unknown) => (v === null || v === undefined || v === "" ? null : n(v))
 // Duas casas: mostradas em HH:MM, uma casa só daria saltos de 6 minutos.
 const r2 = (v: number) => Math.round(v * 100) / 100
 
@@ -246,7 +258,7 @@ export async function carregarBasePonto(): Promise<BasePonto> {
   const compDe = new Map(remessas.map((r) => [r.id, r.competencia]))
 
   const colunas =
-    "id, remessa_id, funcionario_id, arquivo, horas_realizadas_70, horas_pagas_70, saldo_remanescente_70, horas_realizadas_100, horas_pagas_100, saldo_remanescente_100"
+    "id, remessa_id, funcionario_id, arquivo, horas_realizadas_70, horas_pagas_70, saldo_remanescente_70, saldo_remessa_anterior_70, horas_realizadas_100, horas_pagas_100, saldo_remanescente_100, saldo_remessa_anterior_100, valor_pago_70, valor_pago_100, pagas_contracheque_id"
   let marcacoesDisponiveis = true
   let brutos: Record<string, unknown>[]
   try {
@@ -329,6 +341,15 @@ export async function carregarBasePonto(): Promise<BasePonto> {
       saldo: n(b.saldo_remanescente_70) + n(b.saldo_remanescente_100),
       saldo70: n(b.saldo_remanescente_70),
       saldo100: n(b.saldo_remanescente_100),
+      pagas70: n(b.horas_pagas_70),
+      pagas100: n(b.horas_pagas_100),
+      anterior70: nulo(b.saldo_remessa_anterior_70),
+      anterior100: nulo(b.saldo_remessa_anterior_100),
+      remanescente70: nulo(b.saldo_remanescente_70),
+      remanescente100: nulo(b.saldo_remanescente_100),
+      valor70: nulo(b.valor_pago_70),
+      valor100: nulo(b.valor_pago_100),
+      pagasDoContracheque: Boolean(texto(b.pagas_contracheque_id)),
       temEspelho: Boolean(texto(b.arquivo)),
       lido: Boolean(marc?.dias?.length),
       espelhoErro: texto(b.marcacoes_erro),

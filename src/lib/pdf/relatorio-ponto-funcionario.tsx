@@ -4,6 +4,7 @@ import type { RelatorioPontoFuncionario } from "@/lib/db/ponto-relatorio"
 import type { UsoForaRelatorio } from "@/lib/db/uso-fora-expediente"
 import { CATEGORIAS_FORA, LIMITE_AVISO_MES_MIN, TOLERANCIA_DIARIA_MIN, textoMinutos } from "@/lib/uso-fora-expediente"
 import { hhmm as hhmmTela } from "@/lib/horas"
+import { motivoAcerto } from "@/lib/ponto-acertos"
 import { rotuloAteMes, textoVariacao as variacaoTela, variacaoPct } from "@/lib/ponto-comparacao"
 
 /** Relatório do ponto de um funcionário (16/11/2026): anos lado a lado, alertas e mês a mês. */
@@ -33,6 +34,8 @@ const s = StyleSheet.create({
   rotulo: { flex: 1 },
   num: { width: 70, textAlign: "right" },
   numEstreito: { width: 48, textAlign: "right" },
+  // Mês a mês: 11 colunas (pagas por faixa e valor pago, 28/11/2026).
+  numMes: { width: 41, textAlign: "right" },
   alerta: { marginLeft: 8, marginBottom: 1 },
   rodape: {
     position: "absolute",
@@ -175,6 +178,9 @@ export function RelatorioPontoFuncionarioPDF({
     { rotulo: "Alertas", valor: (i) => String(colunas[i].alertas.length) },
   ]
   const mp = comparacao.mesmoPeriodo
+  // Valor pago só aparece se a entidade informa (leitura do contracheque, 28/11/2026).
+  const comValor = anos.some((a) => a.meses.some((m) => m.valor !== null))
+  const r$ = (v: number | null) => (v === null ? "—" : v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
   return (
     <Document title={`Relatório do ponto — ${f.nome}`}>
       <Page size="A4" style={s.page}>
@@ -252,30 +258,34 @@ export function RelatorioPontoFuncionarioPDF({
               <Text style={s.nota}>Sem alertas no ano.</Text>
             )}
             <Text style={s.subsecao}>Mês a mês</Text>
-            <View style={s.cabeca} wrap={false}>
+            <View style={[s.cabeca, { fontSize: 7.5 }]} wrap={false}>
               <Text style={s.rotulo}>Mês</Text>
-              <Text style={s.numEstreito}>HE {faixas["70"]}</Text>
-              <Text style={s.numEstreito}>HE {faixas["100"]}</Text>
-              <Text style={s.numEstreito}>Pagas</Text>
-              <Text style={s.numEstreito}>Banco {faixas["70"]}</Text>
-              <Text style={s.numEstreito}>Banco {faixas["100"]}</Text>
-              <Text style={s.numEstreito}>Atestados</Text>
-              <Text style={s.numEstreito}>Faltas J/I</Text>
-              <Text style={s.numEstreito}>Ocorr.</Text>
+              <Text style={s.numMes}>HE {faixas["70"]}</Text>
+              <Text style={s.numMes}>HE {faixas["100"]}</Text>
+              <Text style={s.numMes}>Pagas {faixas["70"]}</Text>
+              <Text style={s.numMes}>Pagas {faixas["100"]}</Text>
+              {comValor ? <Text style={s.numMes}>Pago R$</Text> : null}
+              <Text style={s.numMes}>Banco {faixas["70"]}</Text>
+              <Text style={s.numMes}>Banco {faixas["100"]}</Text>
+              <Text style={s.numMes}>Atestados</Text>
+              <Text style={s.numMes}>Faltas J/I</Text>
+              <Text style={s.numMes}>Ocorr.</Text>
             </View>
             {a.meses.map((m) => (
-              <View key={m.rotulo} style={s.linha} wrap={false}>
+              <View key={m.rotulo} style={[s.linha, { fontSize: 8 }]} wrap={false}>
                 <Text style={s.rotulo}>{m.rotulo}</Text>
-                <Text style={s.numEstreito}>{hhmm(m.he70)}</Text>
-                <Text style={s.numEstreito}>{hhmm(m.he100)}</Text>
-                <Text style={s.numEstreito}>{hhmm(m.pagas)}</Text>
-                <Text style={s.numEstreito}>{hhmm(m.saldo70)}</Text>
-                <Text style={s.numEstreito}>{hhmm(m.saldo100)}</Text>
-                <Text style={s.numEstreito}>{m.atestados ? `${m.atestados} (${m.diasAtestado}d)` : "—"}</Text>
-                <Text style={s.numEstreito}>
+                <Text style={s.numMes}>{hhmm(m.he70)}</Text>
+                <Text style={s.numMes}>{hhmm(m.he100)}</Text>
+                <Text style={s.numMes}>{hhmm(m.pagas70)}</Text>
+                <Text style={s.numMes}>{hhmm(m.pagas100)}</Text>
+                {comValor ? <Text style={s.numMes}>{r$(m.valor)}</Text> : null}
+                <Text style={s.numMes}>{hhmm(m.saldo70)}</Text>
+                <Text style={s.numMes}>{hhmm(m.saldo100)}</Text>
+                <Text style={s.numMes}>{m.atestados ? `${m.atestados} (${m.diasAtestado}d)` : "—"}</Text>
+                <Text style={s.numMes}>
                   {m.faltasJustificadas || m.faltasInjustificadas ? `${m.faltasJustificadas}/${m.faltasInjustificadas}` : "—"}
                 </Text>
-                <Text style={s.numEstreito}>{m.ocorrencias === null ? "n/l" : String(m.ocorrencias)}</Text>
+                <Text style={s.numMes}>{m.ocorrencias === null ? "n/l" : String(m.ocorrencias)}</Text>
               </View>
             ))}
           </View>
@@ -285,6 +295,28 @@ export function RelatorioPontoFuncionarioPDF({
             Faltas J/I: justificadas autorizadas / injustificadas. Ocorr.: ocorrências de jornada nas marcações do
             espelho; n/l = marcações não lidas (sem espelho, escaneado ou erro na leitura).
           </Text>
+        )}
+
+        {dados.acertos.length > 0 && (
+          <>
+            <Text style={s.secao}>Acertos do banco de horas</Text>
+            <Text style={s.nota}>
+              Meses em que o saldo do banco foi zerado: a remessa seguinte começou do zero. Horas negativas zeradas são
+              descontadas em folha; positivas vão à folha com o motivo pago ou rescisão.
+            </Text>
+            {dados.acertos.map((a) => (
+              <View key={a.id} style={s.linha} wrap={false}>
+                <Text style={{ width: 70 }}>{rotuloMes(a.competencia)}</Text>
+                <Text style={{ width: 110 }}>{motivoAcerto(a.motivo)?.rotulo ?? a.motivo}</Text>
+                <Text style={s.rotulo}>
+                  {[a.saldo70 !== null && `${hhmm(a.saldo70)} a ${faixas["70"]}`, a.saldo100 !== null && `${hhmm(a.saldo100)} a ${faixas["100"]}`]
+                    .filter(Boolean)
+                    .join("; ") || "saldo já zerado"}
+                  {a.observacao ? ` — ${a.observacao}` : ""}
+                </Text>
+              </View>
+            ))}
+          </>
         )}
 
         {dados.isencoes.length > 0 && (

@@ -8,6 +8,7 @@ import {
   rotuloCompetenciaPonto,
   type ComparacaoAnos,
 } from "@/lib/db/ponto-analise"
+import { acertosDoFuncionario } from "@/lib/db/ponto-acertos"
 import { listarIsencoesPonto, type IsencaoPonto } from "@/lib/db/ponto-isencoes"
 import { usoForaParaRelatorio, type UsoForaRelatorio } from "@/lib/db/uso-fora-expediente"
 import type { FaixasHE } from "@/lib/faixas-he"
@@ -25,6 +26,10 @@ export type MesRelatorioPonto = {
   he70: number
   he100: number
   pagas: number
+  /** Horas pagas por faixa e o valor pago (R$; null = não informado) — 28/11/2026. */
+  pagas70: number
+  pagas100: number
+  valor: number | null
   saldo70: number
   saldo100: number
   atestados: number
@@ -49,6 +54,8 @@ export type RelatorioPontoFuncionario = {
   /** Do mais recente ao mais antigo. */
   anos: { ano: string; alertas: string[]; meses: MesRelatorioPonto[] }[]
   isencoes: IsencaoPonto[]
+  /** Acertos do banco de horas (quando o saldo foi zerado e quanto). */
+  acertos: Awaited<ReturnType<typeof acertosDoFuncionario>>
   /** Uso do sistema fora do expediente nos últimos 12 meses (22/11/2026). */
   usoFora: UsoForaRelatorio
   geradoEm: string
@@ -56,11 +63,12 @@ export type RelatorioPontoFuncionario = {
 
 /** null quando o funcionário não é da área do Pessoal. */
 export async function relatorioPontoFuncionario(usuarioId: string): Promise<RelatorioPontoFuncionario | null> {
-  const [funcionario, base, isencoes, usoFora] = await Promise.all([
+  const [funcionario, base, isencoes, usoFora, acertos] = await Promise.all([
     funcionarioDaArea(usuarioId),
     carregarBasePonto(),
     listarIsencoesPonto(usuarioId),
     usoForaParaRelatorio(usuarioId).catch((): UsoForaRelatorio => ({ disponivel: false, desde: null, meses: [] })),
+    acertosDoFuncionario(usuarioId).catch(() => []),
   ])
   if (!funcionario) return null
   const comparacao = comparacaoAnos(base, { funcionarioId: usuarioId })
@@ -79,6 +87,9 @@ export async function relatorioPontoFuncionario(usuarioId: string): Promise<Rela
           he70: r.he70,
           he100: r.he100,
           pagas: r.pagas,
+          pagas70: r.pagas70,
+          pagas100: r.pagas100,
+          valor: r.valor70 === null && r.valor100 === null ? null : (r.valor70 ?? 0) + (r.valor100 ?? 0),
           saldo70: r.saldo70,
           saldo100: r.saldo100,
           atestados: aus?.atestados ?? 0,
@@ -102,6 +113,7 @@ export async function relatorioPontoFuncionario(usuarioId: string): Promise<Rela
     comparacao,
     anos,
     isencoes,
+    acertos: [...acertos].sort((a, b) => b.competencia.localeCompare(a.competencia)),
     usoFora,
     geradoEm: new Date().toISOString(),
   }

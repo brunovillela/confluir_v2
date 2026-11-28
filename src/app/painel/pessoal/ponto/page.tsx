@@ -163,6 +163,7 @@ export default async function PontoPage({
           { href: "/painel/pessoal/ponto?aba=remessas", rotulo: "Remessas", ativo: aba === "remessas", contador: remessas.length },
           { href: "/painel/pessoal/ponto?aba=isencoes", rotulo: "Isenções", ativo: aba === "isencoes", contador: vigentes },
           { href: "/painel/pessoal/ponto?aba=acertos", rotulo: "Acertos do banco", ativo: aba === "acertos", contador: acertos.acertos.length },
+          { href: "/painel/pessoal/ponto/relatorio", rotulo: "Relatório", ativo: false },
         ]}
       />
 
