@@ -149,9 +149,18 @@ export type Beneficiario = {
   inclusao: string
   exclusao: string | null
   estudanteAte: string | null
+  /** Dependente desativado no cadastro do Pessoal (pessoal_dependentes.ativo = false). */
+  dependenteInativo?: boolean
 }
 
-export type Titular = { id: string; nome: string; cargo: string | null; departamento: string | null }
+export type Titular = {
+  id: string
+  nome: string
+  cargo: string | null
+  departamento: string | null
+  /** Data do desligamento do vínculo, se houver. */
+  demissao?: string | null
+}
 
 // ── Regras ──────────────────────────────────────────────────────────────────
 
@@ -296,6 +305,12 @@ export function calcularMes(d: DadosMes): GrupoTitular[] {
     if (direito === null && b.tipo !== "titular") alertas.push(`Sem regra para o grau "${b.grau}" no contrato.`)
     else if (direito && !direito.ok) alertas.push(`Perdeu o direito: ${direito.motivo}.`)
     if (b.estudanteAte && b.estudanteAte < data) alertas.push("Comprovante de estudante vencido.")
+    if (b.tipo === "titular" && b.condicao === "ativo" && titular.demissao && titular.demissao <= ultimoDia(d.competencia)) {
+      alertas.push(
+        `Desligado em ${titular.demissao.split("-").reverse().join("/")} e ainda no plano como funcionário ativo: exclua ou passe para "demitido que manteve o plano".`
+      )
+    }
+    if (b.tipo === "dependente" && b.dependenteInativo) alertas.push("Dependente desativado no cadastro do Pessoal e ainda no plano.")
     const linha: LinhaBeneficiario = { beneficiario: b, idade, faixa, mensalidade, entidade, funcionario, regra: regra?.nome ?? null, alertas }
     const g = grupos.get(b.titularId) ?? {
       titular,
@@ -387,4 +402,35 @@ export function lerValor(s: string | null | undefined): number | null {
   if (!t) return null
   const n = Number(t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t)
   return Number.isFinite(n) ? n : null
+}
+
+// ── Reajuste anual ──────────────────────────────────────────────────────────
+
+/**
+ * O reajuste anual que já devia estar cadastrado: o último aniversário do
+ * contrato (mês de aniversário até hoje) sem tabela com vigência a partir
+ * dele em algum produto ativo. null = em dia (ou contrato sem mês de
+ * aniversário, ou que começou depois desse aniversário).
+ */
+export function reajustePendente(
+  contrato: { mesAniversario: number | null; inicio: string | null },
+  produtos: { id: string; nome: string; ativo: boolean }[],
+  tabelas: Tabela[],
+  hoje: string
+): { aniversario: string; produtos: string[] } | null {
+  if (!contrato.mesAniversario) return null
+  const ano = Number(hoje.slice(0, 4))
+  const mes = Number(hoje.slice(5, 7))
+  const anoAniv = mes >= contrato.mesAniversario ? ano : ano - 1
+  const aniversario = `${anoAniv}-${String(contrato.mesAniversario).padStart(2, "0")}-01`
+  if (contrato.inicio && contrato.inicio >= aniversario) return null
+  const faltam = produtos
+    .filter((p) => p.ativo)
+    .filter((p) => {
+      const doProduto = tabelas.filter((t) => t.produtoId === p.id)
+      // Produto sem tabela nenhuma: o alerta é outro ("sem tabela vigente").
+      return doProduto.length > 0 && !doProduto.some((t) => t.inicio >= aniversario)
+    })
+    .map((p) => p.nome)
+  return faltam.length ? { aniversario, produtos: faltam } : null
 }

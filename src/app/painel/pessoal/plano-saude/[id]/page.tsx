@@ -20,7 +20,7 @@ import {
   type RegraCusteioSaude,
   type TabelaSaude,
 } from "@/lib/db/plano-saude"
-import { avisosTabelaANS, CONDICOES_TITULAR, FAIXAS_ANS, idadeEm, moeda } from "@/lib/plano-saude"
+import { avisosTabelaANS, CONDICOES_TITULAR, FAIXAS_ANS, idadeEm, moeda, reajustePendente } from "@/lib/plano-saude"
 
 import {
   ApagarContratoBotao,
@@ -112,6 +112,7 @@ export default async function ContratoSaudePage({
   const [editTipo, editId] = (sp.editar ?? "").split(":")
   const aqui = `/painel/pessoal/plano-saude/${id}`
   const hoje = hojeSP()
+  const reajuste = reajustePendente(c, produtos, tabelas, hoje)
 
   const nomeProduto = new Map(produtos.map((p) => [p.id, p.nome]))
   const nomePessoa = new Map(area.map((f) => [f.usuarioId, f.nome]))
@@ -270,6 +271,14 @@ export default async function ContratoSaudePage({
         descricao="As 10 faixas da ANS. Cada reajuste é uma tabela nova, a partir da data em que vale: as antigas ficam, e os meses passados continuam certos."
       >
         {produtos.length === 0 && <p className="text-muted-foreground text-sm">Cadastre um produto primeiro.</p>}
+        {reajuste && (
+          <Alert variant="warning">
+            <AlertDescription>
+              Chegou o reajuste anual de {reajuste.aniversario.slice(5, 7)}/{reajuste.aniversario.slice(0, 4)} e falta a tabela nova em{" "}
+              {reajuste.produtos.join(", ")}. Use <strong>Nova tabela (reajuste)</strong> com vigência a partir do aniversário.
+            </AlertDescription>
+          </Alert>
+        )}
         {produtos.map((p) => {
           const lista = tabelasDe(p.id)
           const atual = vigenteHoje(lista)

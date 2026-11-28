@@ -1,10 +1,21 @@
 import "server-only"
 
 import { esquemaAusente, texto } from "@/lib/db/comum"
-import { obterContratoSaude, salvarCoparticipacao } from "@/lib/db/plano-saude"
+import { funcionariosDaArea } from "@/lib/db/pessoal-area"
+import { dependentesDoCadastro, obterContratoSaude, salvarBeneficiario, salvarCoparticipacao } from "@/lib/db/plano-saude"
 import { type EsquemaJsonIA, gerarJsonIA, gerarJsonIADeImagem, gerarJsonIADePdf } from "@/lib/ia"
 import { imagemNaoSuportada, mimeDeImagem, textoDoArquivo } from "@/lib/ia-arquivo"
-import { casarLinhas, valorDaIA, type Candidato, type ComoCasou, type LinhaFatura, type LinhaLida } from "@/lib/plano-saude-fatura"
+import {
+  casarLinhas,
+  linhaDaEntidade,
+  sugerirPessoa,
+  valorDaIA,
+  type Candidato,
+  type ComoCasou,
+  type LinhaFatura,
+  type LinhaLida,
+  type PessoaParaIncluir,
+} from "@/lib/plano-saude-fatura"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -334,4 +345,82 @@ export async function lancarCopartDaFatura(
     lancados++
   }
   return { lancados }
+}
+
+// ── Carga inicial: incluir no plano quem está na fatura ─────────────────────
+
+/** Funcionários ativos e os dependentes ativos deles, para incluir no plano a partir da fatura. */
+export async function pessoasParaIncluir(): Promise<PessoaParaIncluir[]> {
+  const area = (await funcionariosDaArea()).filter((f) => f.ativo)
+  const deps = await dependentesDoCadastro(area.map((f) => f.usuarioId))
+  const nomeDe = new Map(area.map((f) => [f.usuarioId, f.nome]))
+  return [
+    ...area.map((f) => ({ chave: `titular:${f.usuarioId}`, nome: f.nome, rotulo: "funcionário" })),
+    ...deps
+      .filter((d) => d.ativo)
+      .map((d) => ({
+        chave: `dependente:${d.id}:${d.funcionarioId}`,
+        nome: d.nome,
+        rotulo: `${d.grau ?? "dependente"} de ${nomeDe.get(d.funcionarioId) ?? "funcionário"}`,
+      })),
+  ].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+}
+
+/** Inclui no plano a pessoa da chave (titular:… ou dependente:…) e casa a linha `indice` com ela. */
+export async function incluirLinhaNoPlano(
+  faturaId: string,
+  indice: number,
+  pessoa: string,
+  produtoId: string,
+  inclusao: string,
+  usuarioId: string
+): Promise<{ erro?: string }> {
+  const { admin, emp } = await ctx()
+  const { data, error } = await admin.from("pessoal_saude_faturas").select("linhas").eq("emp_proprietaria_id", emp).eq("id", faturaId).maybeSingle()
+  if (error || !data) return { erro: error?.message ?? "Fatura não encontrada." }
+  const linha = (Array.isArray(data.linhas) ? (data.linhas as Linha[]) : []).map(linhaGravada)[indice]
+  if (!linha) return { erro: "Linha não encontrada." }
+  if (linha.beneficiarioId) return { erro: "Esta linha já está casada com alguém do plano." }
+  const [tipo, a, b] = pessoa.split(":")
+  const base = { produto_id: produtoId, carteirinha: linha.carteirinha, inclusao }
+  const dados =
+    tipo === "titular" && a
+      ? { ...base, titular_id: a, tipo: "titular", condicao: "ativo" }
+      : tipo === "dependente" && a && b
+        ? { ...base, titular_id: b, tipo: "dependente", dependente_id: a }
+        : null
+  if (!dados) return { erro: "Escolha quem é." }
+  const r = await salvarBeneficiario(null, dados, usuarioId)
+  if (r.erro || !r.id) return { erro: r.erro ?? "Não consegui incluir." }
+  return casarLinhaManual(faturaId, indice, r.id)
+}
+
+/** Inclui de uma vez todas as linhas sem beneficiário que têm uma pessoa sugerida pelo nome. */
+export async function incluirSugeridosNoPlano(
+  faturaId: string,
+  produtoId: string,
+  inclusao: string,
+  usuarioId: string
+): Promise<{ erro?: string; incluidos: number; semSugestao: number }> {
+  const { admin, emp } = await ctx()
+  const { data, error } = await admin.from("pessoal_saude_faturas").select("linhas").eq("emp_proprietaria_id", emp).eq("id", faturaId).maybeSingle()
+  if (error || !data) return { erro: error?.message ?? "Fatura não encontrada.", incluidos: 0, semSugestao: 0 }
+  const linhas = (Array.isArray(data.linhas) ? (data.linhas as Linha[]) : []).map(linhaGravada)
+  const pessoas = await pessoasParaIncluir()
+  const usadas = new Set<string>()
+  let incluidos = 0
+  let semSugestao = 0
+  for (const [i, l] of linhas.entries()) {
+    if (l.beneficiarioId || linhaDaEntidade(l)) continue
+    const chave = sugerirPessoa(l.nome, pessoas.filter((p) => !usadas.has(p.chave)))
+    if (!chave) {
+      semSugestao++
+      continue
+    }
+    const r = await incluirLinhaNoPlano(faturaId, i, chave, produtoId, inclusao, usuarioId)
+    if (r.erro) return { erro: `${l.nome}: ${r.erro}`, incluidos, semSugestao }
+    usadas.add(chave)
+    incluidos++
+  }
+  return { incluidos, semSugestao }
 }

@@ -1,11 +1,12 @@
 import "server-only"
 
-import { esquemaAusente, lerEmLotes, lerEmLotesPorIds, texto } from "@/lib/db/comum"
+import { esquemaAusente, hojeSP, lerEmLotes, lerEmLotesPorIds, texto } from "@/lib/db/comum"
 import { funcionariosDaArea } from "@/lib/db/pessoal-area"
 import {
   calcularMes,
   deslocarCompetencia,
   mudancasEntreMeses,
+  reajustePendente,
   type Beneficiario,
   type CondicaoTitular,
   type FaixaMuda,
@@ -298,7 +299,7 @@ async function beneficiariosDosProdutos(produtoIds: string[]): Promise<Beneficia
       admin.from("usuarios").select("id, nome_completo, nome_guerra, data_nascimento, nascimento_data").in("id", fatia).order("id").range(de, ate)
     ),
     lerEmLotesPorIds<Linha>(depIds, (fatia, de, ate) =>
-      admin.from("pessoal_dependentes").select("id, nome_completo, grau_parentesco, nascimento").in("id", fatia).order("id").range(de, ate)
+      admin.from("pessoal_dependentes").select("id, nome_completo, grau_parentesco, nascimento, ativo").in("id", fatia).order("id").range(de, ate)
     ),
   ])
   const usuario = new Map(us.map((u) => [String(u.id), u]))
@@ -329,6 +330,7 @@ async function beneficiariosDosProdutos(produtoIds: string[]): Promise<Beneficia
       inclusao: String(l.inclusao),
       exclusao: texto(l.exclusao),
       estudanteAte: texto(l.estudante_ate),
+      dependenteInativo: tipo === "dependente" && d?.ativo === false,
       dependenteId: texto(l.dependente_id),
       carteirinha: texto(l.carteirinha),
       cpf: texto(l.cpf),
@@ -368,6 +370,8 @@ export async function dependentesDoCadastro(funcionarioIds: string[]): Promise<D
 
 export type MesContrato = {
   contrato: ContratoSaude
+  /** Reajuste anual que já devia estar cadastrado (pela data de hoje). */
+  reajuste: { aniversario: string; produtos: string[] } | null
   grupos: GrupoTitular[]
   mudancas: Map<string, Mudanca[]>
   totais: { mensalidade: number; entidade: number; funcionario: number; coparticipacao: number; desconto: number }
@@ -403,6 +407,7 @@ function calcularContrato(
   const soma = (f: (g: GrupoTitular) => number) => Math.round(grupos.reduce((s, g) => s + f(g), 0) * 100) / 100
   return {
     contrato: completo.contrato,
+    reajuste: reajustePendente(completo.contrato, completo.produtos, completo.tabelas, hojeSP()),
     grupos,
     mudancas: mudancasEntreMeses(antes, grupos),
     totais: {
@@ -417,7 +422,9 @@ function calcularContrato(
 
 async function titularesDaArea(): Promise<Map<string, Titular>> {
   const area = await funcionariosDaArea()
-  return new Map(area.map((f) => [f.usuarioId, { id: f.usuarioId, nome: f.nome, cargo: f.cargo, departamento: f.departamento }]))
+  return new Map(
+    area.map((f) => [f.usuarioId, { id: f.usuarioId, nome: f.nome, cargo: f.cargo, departamento: f.departamento, demissao: f.demissao ?? null }])
+  )
 }
 
 async function coparticipacoesDe(contratoId: string, competencias: string[], titularId?: string): Promise<Cops[]> {
@@ -472,6 +479,8 @@ export type AvisosPlanoSaude = {
   comAlerta: number
   /** Beneficiários que mudam de faixa no mês seguinte. */
   mudamDeFaixa: number
+  /** Contratos com o reajuste anual sem a tabela nova. */
+  reajustes: { contrato: string; produtos: string[] }[]
   total: number
   /** Para onde levar: o mês com alerta ou, sem alerta, o seguinte (com a mudança de faixa). */
   competencia: string
@@ -489,7 +498,14 @@ export async function avisosPlanoSaude(hoje: string): Promise<AvisosPlanoSaude |
     (s, c) => s + [...c.mudancas.values()].flat().filter((m) => m.texto.startsWith("mudou de faixa")).length,
     0
   )
-  return { comAlerta, mudamDeFaixa, total: comAlerta + mudamDeFaixa, competencia: comAlerta ? atual : proximo }
+  const reajustes = doMes.filter((c) => c.reajuste).map((c) => ({ contrato: c.contrato.nome, produtos: c.reajuste!.produtos }))
+  return {
+    comAlerta,
+    mudamDeFaixa,
+    reajustes,
+    total: comAlerta + mudamDeFaixa + reajustes.length,
+    competencia: comAlerta || reajustes.length ? atual : proximo,
+  }
 }
 
 // ── Meu perfil ──────────────────────────────────────────────────────────────

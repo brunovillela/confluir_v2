@@ -283,6 +283,17 @@ erDiagram
     uuid sindicato_id FK
     uuid tabela_id FK
   }
+  pessoal_ponto_acerto_itens {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid acerto_id FK
+    uuid funcionario_id FK
+  }
+  pessoal_ponto_acertos {
+    uuid id PK
+    uuid emp_proprietaria_id FK
+    uuid criado_por FK
+  }
   pessoal_ponto_importacao_itens {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -520,6 +531,9 @@ erDiagram
   pessoal_nivel_salarial_base }o--o| empresa : "sindicato_id"
   pessoal_nivel_salarial_base }o--o| pessoal_cargo : "cargo_id"
   pessoal_nivel_salarial_base }o--o| pessoal_tabelas_salariais : "tabela_id"
+  pessoal_ponto_acerto_itens }o--|| pessoal_ponto_acertos : "acerto_id"
+  pessoal_ponto_acerto_itens }o--|| usuarios : "funcionario_id"
+  pessoal_ponto_acertos }o--o| usuarios : "criado_por"
   pessoal_ponto_importacao_itens }o--o| pessoal_registro_ponto : "registro_id"
   pessoal_ponto_importacao_itens }o--o| usuarios : "aplicado_por"
   pessoal_ponto_importacao_itens }o--o| usuarios : "funcionario_id"

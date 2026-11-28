@@ -2,6 +2,8 @@ import "server-only"
 
 import { lerEmLotesPorIds, texto } from "@/lib/db/comum"
 import { competenciaDaRemessa } from "@/lib/db/ponto-analise"
+import { acertosPorFuncionario } from "@/lib/db/ponto-acertos-leitura"
+import { zeradoEntre } from "@/lib/ponto-acertos"
 import { duasCasas } from "@/lib/horas"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
@@ -18,6 +20,9 @@ import { tenantAtual } from "@/lib/tenant"
  *
  * Remessa FINALIZADA está travada: a cadeia para nela, e as seguintes também
  * ficam como estão (dependem do saldo dela, que não muda).
+ *
+ * Marco de acerto (27/11/2026, lib/ponto-acertos): um acerto entre o registro
+ * anterior e a remessa zera o saldo anterior dela nas faixas do acerto.
  */
 
 type RemessaCadeia = { id: string; competencia: string; nome: string; finalizada: boolean }
@@ -94,13 +99,12 @@ export async function recalcularPosteriores(remessaId: string, funcionarioId: st
 
   // O ponto de partida é o registro desta remessa; se ele foi EXCLUÍDO, o da
   // última remessa antes dela em que o funcionário aparece (sem nenhuma, nulo).
-  const base =
-    porRemessa.get(atual.id) ??
-    [...remessas]
-      .filter((r) => r.competencia < atual.competencia)
-      .reverse()
-      .map((r) => porRemessa.get(r.id))
-      .find(Boolean)
+  const baseRemessa = porRemessa.has(atual.id)
+    ? atual
+    : ([...remessas].filter((r) => r.competencia < atual.competencia && porRemessa.has(r.id)).pop() ?? null)
+  const base = baseRemessa ? porRemessa.get(baseRemessa.id) : undefined
+  const acertos = (await acertosPorFuncionario([funcionarioId])).get(funcionarioId) ?? []
+  let anterior: string | null = baseRemessa?.competencia ?? null
   let saldo70 = base ? num(base.saldo_remanescente_70) : null
   let saldo100 = base ? num(base.saldo_remanescente_100) : null
   const recalculadas: string[] = []
@@ -108,6 +112,10 @@ export async function recalcularPosteriores(remessaId: string, funcionarioId: st
     const reg = porRemessa.get(rem.id)
     if (!reg) continue
     if (rem.finalizada) return { recalculadas, paradaEm: rem.nome }
+    const zerado = zeradoEntre(acertos, anterior, rem.competencia)
+    if (zerado.faixa1) saldo70 = 0
+    if (zerado.faixa2) saldo100 = 0
+    anterior = rem.competencia
     const conta = (ant: number | null, real: unknown, pag: unknown) => {
       const partes = [ant, num(real), num(pag)]
       return partes.every((v) => v === null) ? null : duasCasas((partes[0] ?? 0) + (partes[1] ?? 0) - (partes[2] ?? 0))

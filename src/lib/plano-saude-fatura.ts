@@ -224,3 +224,21 @@ export function valorDaIA(v: unknown): number {
   const n = Number(t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t)
   return Number.isFinite(n) ? centavos(n) : 0
 }
+
+/** Quem pode ser incluído no plano a partir de uma linha da fatura (funcionário ou dependente do cadastro). */
+export type PessoaParaIncluir = { chave: string; nome: string; rotulo: string }
+
+/**
+ * A pessoa do cadastro com o mesmo nome da linha (sem acento e caixa) ou, sem
+ * ela, com o mesmo primeiro e último nome — só quando há uma única.
+ */
+export function sugerirPessoa(nome: string, pessoas: PessoaParaIncluir[]): string | null {
+  const exato = pessoas.filter((p) => semAcento(p.nome) === semAcento(nome))
+  if (exato.length === 1) return exato[0].chave
+  if (exato.length > 1) return null
+  const parcial = pessoas.filter((p) => pontas(p.nome) === pontas(nome))
+  return parcial.length === 1 ? parcial[0].chave : null
+}
+
+/** Linha que é da entidade (taxa), não de um beneficiário. */
+export const linhaDaEntidade = (l: { nome: string; mensalidade: number }) => semAcento(l.nome) === "entidade" && !l.mensalidade

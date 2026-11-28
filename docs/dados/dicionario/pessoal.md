@@ -2,7 +2,7 @@
 
 # Pessoal (RH da entidade)
 
-71 tabelas. Diagrama: [er/pessoal.md](../er/pessoal.md).
+73 tabelas. Diagrama: [er/pessoal.md](../er/pessoal.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -52,6 +52,8 @@
 | [pessoal_jornadas](#pessoal_jornadas) | — | Jornadas de trabalho da entidade (ex.: "Administrativo 8h–17h"): configuradas uma vez e vinculadas aos funcionários. Alterar a jornada alter… |
 | [pessoal_nivel_salarial](#pessoal_nivel_salarial) | financeiro, trabalhista | Lançamento de nível salarial de um funcionário (nível atual e próximo, tipo de avanço: automático, mérito, ajuste, inicial). Espelho do Bubb… |
 | [pessoal_nivel_salarial_base](#pessoal_nivel_salarial_base) | — | Tabela salarial: cargo x nível vertical x horizontal x carreira, com o salário base. Espelho do Bubble; cadastrada em Pessoal > Níveis. |
+| [pessoal_ponto_acerto_itens](#pessoal_ponto_acerto_itens) | trabalhista | Quem foi zerado num acerto do banco de horas e quanto. |
+| [pessoal_ponto_acertos](#pessoal_ponto_acertos) | trabalhista | Marco de acerto do banco de horas: no fechamento do mês, o saldo das pessoas do acerto é zerado (pago, compensado, vencido, rescisão, acordo… |
 | [pessoal_ponto_importacao_itens](#pessoal_ponto_importacao_itens) | identificação, trabalhista | Um funcionário de um relatório de ponto importado: as páginas dele, a leitura da IA, a apuração pelas batidas e a situação até virar o regis… |
 | [pessoal_ponto_importacoes](#pessoal_ponto_importacoes) | identificação, trabalhista | Relatório de ponto (PDF do relógio, um ou vários funcionários) enviado a uma remessa para apurar as horas pelas batidas (src/lib/db/ponto-im… |
 | [pessoal_ponto_isencoes](#pessoal_ponto_isencoes) | identificação, trabalhista | Isenções de registro de ponto: funcionário, período e justificativa; quem está isento no mês da remessa não aparece como pendente (src/lib/d… |
@@ -1032,8 +1034,11 @@ Configuração do movimento da folha para a contabilidade, uma linha por entidad
 | `ferias_pagamento_descricao` | text | sim |  |  |  | O que é pago nas férias, como aparece no aviso (ex.: gratificação de férias de 100% da remuneração). |
 | `ferias_pagamento_fundamento` | text | sim |  |  |  | Fundamento da regra de pagamento citado no aviso (ex.: cláusula 3ª do ACT). Opcional. |
 | `reembolso_prazo_dias` | integer | sim |  |  |  | Reembolso do ACT: até quantos dias depois da data da despesa o pedido é aceito (null = sem limite). Vale para o pedido do funcionário (Meu perfil e Telegram). |
+| `acerto_meses` | smallint[] | sim |  |  |  | Meses (1 a 12) em que a entidade zera o banco de horas (o ACT pode fixá-los); a caixa de entrada lembra. Vazio = sem acerto recorrente. |
+| `acerto_faixas` | text | não | `'ambas'::text` |  |  | Acerto recorrente: faixas zeradas (ambas, faixa1, faixa2). |
+| `acerto_motivo` | text | não | `'compensado'::text` |  |  | Acerto recorrente: motivo padrão. |
 
-Checks: `ck_folha_config_ferias_pagamento_dias` `CHECK (((ferias_pagamento_dias IS NULL) OR ((ferias_pagamento_dias >= 0) AND (ferias_pagamento_dias <= 60))))`; `pessoal_folha_config_he_mes_sem_batidas_check` `CHECK ((he_mes_sem_batidas = ANY (ARRAY['alertar'::text, 'lancar'::text])))`; `pessoal_folha_config_he_negativas_check` `CHECK ((he_negativas = ANY (ARRAY['faixa1'::text, 'faixa1_depois_faixa2'::text])))`; `pessoal_folha_config_he_tolerancia_check` `CHECK (((he_tolerancia_diaria_min >= 0) AND (he_tolerancia_diaria_min <= 60)))`; `pessoal_folha_config_reembolso_prazo_dias_check` `CHECK (((reembolso_prazo_dias IS NULL) OR ((reembolso_prazo_dias >= 1) AND (reembolso_prazo_dias <= 3650))))`
+Checks: `ck_folha_config_ferias_pagamento_dias` `CHECK (((ferias_pagamento_dias IS NULL) OR ((ferias_pagamento_dias >= 0) AND (ferias_pagamento_dias <= 60))))`; `pessoal_folha_config_acerto_faixas_check` `CHECK ((acerto_faixas = ANY (ARRAY['ambas'::text, 'faixa1'::text, 'faixa2'::text])))`; `pessoal_folha_config_acerto_meses_check` `CHECK (((acerto_meses IS NULL) OR (acerto_meses <@ ARRAY[(1)::smallint, (2)::smallint, (3)::smallint, (4)::smallint, (5)::smallint, (6)::smallint, (7)::smallint, (8)::smallint, (9)::smallint, (10)::smallint, (11)::smallint, (12)::smallint])))`; `pessoal_folha_config_acerto_motivo_check` `CHECK ((acerto_motivo = ANY (ARRAY['pago'::text, 'compensado'::text, 'vencido'::text, 'rescisao'::text, 'acordo'::text, 'outro'::text])))`; `pessoal_folha_config_he_mes_sem_batidas_check` `CHECK ((he_mes_sem_batidas = ANY (ARRAY['alertar'::text, 'lancar'::text])))`; `pessoal_folha_config_he_negativas_check` `CHECK ((he_negativas = ANY (ARRAY['faixa1'::text, 'faixa1_depois_faixa2'::text])))`; `pessoal_folha_config_he_tolerancia_check` `CHECK (((he_tolerancia_diaria_min >= 0) AND (he_tolerancia_diaria_min <= 60)))`; `pessoal_folha_config_reembolso_prazo_dias_check` `CHECK (((reembolso_prazo_dias IS NULL) OR ((reembolso_prazo_dias >= 1) AND (reembolso_prazo_dias <= 3650))))`
 
 Índices: `pessoal_folha_config_pkey`
 
@@ -1305,6 +1310,54 @@ Tabela salarial: cargo x nível vertical x horizontal x carreira, com o salário
 Únicas: `UNIQUE (bubble_id)`
 
 Índices: `pessoal_nivel_salarial_base_bubble_id_key`, `pessoal_nivel_salarial_base_pkey`, `pessoal_nivel_salarial_base_tabela_idx`
+
+## pessoal_ponto_acerto_itens
+
+Quem foi zerado num acerto do banco de horas e quanto.
+
+- **LGPD:** trabalhista · titulares: funcionarios
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  |  |
+| `acerto_id` | uuid | não |  | → pessoal_ponto_acertos (**cascade**) |  | Acerto a que pertence. |
+| `funcionario_id` | uuid | não |  | → usuarios | identificação | Funcionário zerado. |
+| `competencia` | text | não |  |  |  | Mês do acerto (cópia, para impedir dois acertos da mesma pessoa no mesmo mês). |
+| `saldo_70` | numeric(8,2) | sim |  |  | trabalhista | Saldo da faixa 1 zerado (negativo = horas a descontar). Null = faixa não zerada. |
+| `saldo_100` | numeric(8,2) | sim |  |  | trabalhista | Saldo da faixa 2 zerado (negativo = horas a descontar). Null = faixa não zerada. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+
+Únicas: `UNIQUE (funcionario_id, competencia)`; `UNIQUE (acerto_id, funcionario_id)`
+
+Índices: `pessoal_ponto_acerto_itens_func_idx`, `pessoal_ponto_acerto_itens_mes_unico`, `pessoal_ponto_acerto_itens_pkey`, `pessoal_ponto_acerto_itens_unica`
+
+## pessoal_ponto_acertos
+
+Marco de acerto do banco de horas: no fechamento do mês, o saldo das pessoas do acerto é zerado (pago, compensado, vencido, rescisão, acordo). Saldo negativo zerado é descontado em folha.
+
+- **LGPD:** trabalhista · titulares: funcionarios
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `auditoria_registrar` → `registrar_auditoria`, `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `id` | uuid | não | `gen_random_uuid()` |  |  |  |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  |  |
+| `competencia` | text | não |  |  |  | Mês do acerto (AAAA-MM): o saldo no fechamento dele é zerado; a remessa seguinte começa do zero. |
+| `faixas` | text | não | `'ambas'::text` |  |  | Faixas zeradas: ambas, faixa1 (colunas *_70) ou faixa2 (colunas *_100). |
+| `motivo` | text | não |  |  |  | pago (em folha), compensado (em folga), vencido (prazo de compensação), rescisao, acordo ou outro. |
+| `observacao` | text | sim |  |  |  | Explicação do acerto (cláusula do ACT, acordo individual). |
+| `alcance` | text | não | `'parcial'::text` |  |  | individual, parcial (algumas pessoas) ou massa (todos). |
+| `criado_por` | uuid | sim |  | → usuarios (set null) | identificação | Quem lançou o acerto. |
+| `created_at` | timestamp with time zone | não | `now()` |  |  |  |
+| `updated_at` | timestamp with time zone | sim |  |  |  |  |
+
+Checks: `pessoal_ponto_acertos_alcance_check` `CHECK ((alcance = ANY (ARRAY['individual'::text, 'parcial'::text, 'massa'::text])))`; `pessoal_ponto_acertos_competencia_check` `CHECK ((competencia ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'::text))`; `pessoal_ponto_acertos_faixas_check` `CHECK ((faixas = ANY (ARRAY['ambas'::text, 'faixa1'::text, 'faixa2'::text])))`; `pessoal_ponto_acertos_motivo_check` `CHECK ((motivo = ANY (ARRAY['pago'::text, 'compensado'::text, 'vencido'::text, 'rescisao'::text, 'acordo'::text, 'outro'::text])))`
+
+Índices: `pessoal_ponto_acertos_emp_idx`, `pessoal_ponto_acertos_pkey`
 
 ## pessoal_ponto_importacao_itens
 

@@ -415,22 +415,6 @@ export default async function PessoalPage() {
         </p>
       </div>
 
-      <section aria-label="Áreas do Pessoal">
-        <h2 className="mb-2 text-sm font-medium">Áreas</h2>
-        <div className={GRADE_AREAS}>
-          {visiveis.map((a) => (
-            <AreaCard
-              key={a.href}
-              href={a.href}
-              titulo={a.titulo}
-              indicador={a.indicador}
-              descricao={a.descricao}
-              icone={a.icone}
-            />
-          ))}
-        </div>
-      </section>
-
       {alertas.length > 0 && (
         <section aria-label="Pendências">
           <div className="mb-2 flex items-center gap-2">
@@ -449,6 +433,22 @@ export default async function PessoalPage() {
           </div>
         </section>
       )}
+
+      <section aria-label="Áreas do Pessoal">
+        <h2 className="mb-2 text-sm font-medium">Áreas</h2>
+        <div className={GRADE_AREAS}>
+          {visiveis.map((a) => (
+            <AreaCard
+              key={a.href}
+              href={a.href}
+              titulo={a.titulo}
+              indicador={a.indicador}
+              descricao={a.descricao}
+              icone={a.icone}
+            />
+          ))}
+        </div>
+      </section>
 
       <p className="text-muted-foreground text-xs">
         <BriefcaseBusiness className="mr-1 inline size-3.5 align-[-2px]" />

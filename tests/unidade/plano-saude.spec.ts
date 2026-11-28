@@ -12,6 +12,7 @@ import {
   mudancasEntreMeses,
   parteDaEntidade,
   regraQueCasa,
+  reajustePendente,
   type Beneficiario,
   type DadosMes,
   type RegraCusteio,
@@ -167,5 +168,59 @@ test.describe("plano de saúde", () => {
     expect(lerValor("R$ 99,9")).toBe(99.9)
     expect(lerValor("12.5")).toBe(12.5)
     expect(lerValor("")).toBeNull()
+  })
+
+  test("reajuste anual pendente a partir do mês de aniversário", () => {
+    const produtos = [
+      { id: "p1", nome: "Básico", ativo: true },
+      { id: "p2", nome: "Executivo", ativo: true },
+      { id: "p3", nome: "Antigo", ativo: false },
+    ]
+    const tabs = [
+      { produtoId: "p1", inicio: "2025-07-01", fim: null, precos },
+      { produtoId: "p2", inicio: "2025-07-01", fim: null, precos },
+      { produtoId: "p3", inicio: "2025-07-01", fim: null, precos },
+    ]
+    const c = { mesAniversario: 7, inicio: "2024-01-01" }
+    // Antes do aniversário deste ano: o de 2025 está em dia.
+    expect(reajustePendente(c, produtos, tabs, "2026-06-30")).toBeNull()
+    // Chegou julho/2026 sem tabela nova: os dois produtos ativos.
+    expect(reajustePendente(c, produtos, tabs, "2026-07-01")).toEqual({ aniversario: "2026-07-01", produtos: ["Básico", "Executivo"] })
+    // Cadastrada a do Básico, falta a do Executivo.
+    const comBasico = [...tabs, { produtoId: "p1", inicio: "2026-07-01", fim: null, precos }]
+    expect(reajustePendente(c, produtos, comBasico, "2026-11-25")?.produtos).toEqual(["Executivo"])
+    // Contrato que começou depois do aniversário, ou sem mês de aniversário: nada.
+    expect(reajustePendente({ mesAniversario: 7, inicio: "2026-08-01" }, produtos, tabs, "2026-11-25")).toBeNull()
+    expect(reajustePendente({ mesAniversario: null, inicio: null }, produtos, tabs, "2026-11-25")).toBeNull()
+  })
+
+  test("desligado e dependente inativo ainda no plano viram alerta", () => {
+    const [g] = calcularMes({
+      competencia: "2026-11",
+      faixaMuda: "mes_seguinte",
+      beneficiarios: [
+        ben({ id: "t", nome: "Ana" }),
+        ben({ id: "d", nome: "Bia", tipo: "dependente", grau: "Cônjuge", dependenteInativo: true }),
+      ],
+      titulares: new Map([["t1", { id: "t1", nome: "Ana", cargo: null, departamento: null, demissao: "2026-11-10" }]]),
+      tabelas: [{ produtoId: "p1", inicio: "2026-01-01", fim: null, precos }],
+      regras: [regra({ entidadePercentual: 100 })],
+      regrasDependentes: [{ grau: "Cônjuge", permitido: true, idadeLimite: null, idadeLimiteEstudante: null }],
+      coparticipacoes: new Map(),
+    })
+    expect(g.alertas.some((a) => a.startsWith("Desligado em 10/11/2026"))).toBe(true)
+    expect(g.alertas).toContain("Dependente desativado no cadastro do Pessoal e ainda no plano.")
+    // Demitido que manteve o plano (art. 30): sem alerta de desligamento.
+    const [h] = calcularMes({
+      competencia: "2026-11",
+      faixaMuda: "mes_seguinte",
+      beneficiarios: [ben({ id: "t", nome: "Ana", condicao: "demitido" })],
+      titulares: new Map([["t1", { id: "t1", nome: "Ana", cargo: null, departamento: null, demissao: "2026-11-10" }]]),
+      tabelas: [{ produtoId: "p1", inicio: "2026-01-01", fim: null, precos }],
+      regras: [regra({ entidadePercentual: 0 })],
+      regrasDependentes: [],
+      coparticipacoes: new Map(),
+    })
+    expect(h.alertas).toEqual([])
   })
 })

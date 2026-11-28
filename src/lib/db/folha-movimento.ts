@@ -17,6 +17,7 @@ import {
 import { nascimentoDe, type NascimentoUsuario } from "@/lib/nascimento"
 import { conferenciaDoMes } from "@/lib/db/plano-saude"
 import { moeda as moedaBR } from "@/lib/plano-saude"
+import { destinoDoZerado, type MotivoAcerto } from "@/lib/ponto-acertos"
 import { tenantAtual } from "@/lib/tenant"
 
 /**
@@ -939,6 +940,54 @@ export async function calcularMovimento(
     }
   }
 
+  // 8b. Acertos do banco de horas (27/11/2026): saldo positivo zerado com
+  // motivo "pago em folha" ou rescisão vai a pagar; saldo negativo zerado vai
+  // a descontar. Acerto de mês anterior lançado depois entra como retroativo.
+  const { data: acs } = await admin
+    .from("pessoal_ponto_acertos")
+    .select("id, competencia, motivo, created_at")
+    .eq("emp_proprietaria_id", emp)
+    .lte("competencia", competencia)
+  const acertosAte = (acs ?? []) as Record<string, unknown>[]
+  if (acertosAte.length) {
+    const { data: its } = await admin
+      .from("pessoal_ponto_acerto_itens")
+      .select("acerto_id, funcionario_id, saldo_70, saldo_100")
+      .in(
+        "acerto_id",
+        acertosAte.map((a) => String(a.id))
+      )
+    const acertoDe = new Map(acertosAte.map((a) => [String(a.id), a]))
+    for (const i of (its ?? []) as Record<string, unknown>[]) {
+      const f = texto(i.funcionario_id)
+      const a = acertoDe.get(String(i.acerto_id))
+      if (!f || !a || !funcionarios.has(f)) continue
+      const compA = String(a.competencia)
+      for (const pct of ["70", "100"] as const) {
+        const v = i[`saldo_${pct}`] === null || i[`saldo_${pct}`] === undefined ? null : Number(i[`saldo_${pct}`])
+        if (!v) continue
+        const destino = destinoDoZerado(v, String(a.motivo) as MotivoAcerto)
+        if (destino === "nenhum") continue
+        add({
+          chave: `acerto${pct}:${a.id}:${f}`,
+          registradoEm: a.created_at,
+          secao: destino === "pagar" ? "variaveis" : "descontos",
+          funcionarioId: f,
+          descricao:
+            destino === "pagar"
+              ? `Banco de horas zerado no acerto de ${compA.slice(5, 7)}/${compA.slice(0, 4)}: ${hhmm(v)} a ${faixas[pct]} a pagar`
+              : `Banco de horas zerado no acerto de ${compA.slice(5, 7)}/${compA.slice(0, 4)}: ${hhmm(-v)} negativas (faixa de ${faixas[pct]}) a descontar`,
+          inicio: `${compA}-01`,
+          fim: null,
+          quantidade: Math.abs(v),
+          valor: null,
+          retroativo: compA < competencia,
+          origem: `/painel/pessoal/ponto/acertos/${a.id}`,
+        })
+      }
+    }
+  }
+
   // 9. Descontos: infrações de trânsito a descontar em contracheque.
   for (const i of (infracoes.data ?? []) as Record<string, unknown>[]) {
     const f = texto(i.condutor_infrator_id)
@@ -973,8 +1022,9 @@ export async function calcularMovimento(
       const mudou = (c.mudancas.get(f) ?? []).map((m) => `${m.nome}: ${m.texto}`)
       if (!g.desconto && !mudou.length) continue
       const dependentes = g.linhas.filter((l) => l.beneficiario.tipo !== "titular").length
-      // Quem perdeu o direito ainda está no plano: avisa, para não descontar sem conferir.
-      const atencao = g.linhas.flatMap((l) => l.alertas.filter((x) => x.startsWith("Perdeu o direito")).map((x) => `${l.beneficiario.nome}: ${x.replace(/\.$/, "").toLowerCase()}`))
+      // Quem perdeu o direito, foi desligado ou é dependente desativado e ainda
+      // está no plano: avisa, para não descontar sem conferir.
+      const atencao = g.linhas.flatMap((l) => l.alertas.filter((x) => /^(Perdeu o direito|Desligado em|Dependente desativado)/.test(x)).map((x) => `${l.beneficiario.nome}: ${x.replace(/\.$/, "").toLowerCase()}`))
       const quem = `${titular ? "titular" : "sem o titular"}${dependentes ? ` + ${dependentes} ${dependentes === 1 ? "dependente ou agregado" : "dependentes ou agregados"}` : ""}`
       const partes = [
         `mensalidades ${moedaBR(g.funcionario)}`,

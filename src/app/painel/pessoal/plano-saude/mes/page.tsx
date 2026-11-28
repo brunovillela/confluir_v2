@@ -68,7 +68,7 @@ export default async function ConferenciaMesPage({ searchParams }: { searchParam
         </Alert>
       )}
 
-      {contratos.map(({ contrato, grupos, mudancas, totais }) => {
+      {contratos.map(({ contrato, grupos, mudancas, totais, reajuste }) => {
         const comAlerta = grupos.filter((g) => g.alertas.length > 0).length
         const comMudanca = grupos.filter((g) => mudancas.get(g.titular.id)?.length).length
         const vidas = grupos.reduce((s, g) => s + g.linhas.length, 0)
@@ -95,6 +95,18 @@ export default async function ConferenciaMesPage({ searchParams }: { searchParam
               </div>
             </CardHeader>
             <CardContent className="grid gap-4">
+              {reajuste && (
+                <Alert variant="warning">
+                  <AlertTriangle />
+                  <AlertDescription>
+                    Reajuste anual de {reajuste.aniversario.slice(5, 7)}/{reajuste.aniversario.slice(0, 4)} sem a tabela nova em{" "}
+                    {reajuste.produtos.join(", ")}. Os meses a partir do aniversário estão sendo calculados pela tabela anterior.{" "}
+                    <Link href={`/painel/pessoal/plano-saude/${contrato.id}#tabelas`} className="underline">
+                      Cadastrar o reajuste
+                    </Link>
+                  </AlertDescription>
+                </Alert>
+              )}
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <TileIndicador rotulo="Mensalidades" valor={moeda(totais.mensalidade)} nota="pela tabela vigente" />
                 <TileIndicador rotulo="Parte da entidade" valor={moeda(totais.entidade)} nota={contrato.coparticipacao ? "com a coparticipação" : undefined} />

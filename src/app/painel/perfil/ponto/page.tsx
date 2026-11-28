@@ -33,6 +33,8 @@ import { formatarDataHora } from "@/lib/formato"
 import { descreverAjuste } from "@/lib/ponto-marcacoes-ajuste"
 import { lerPaginacao } from "@/lib/paginacao"
 import { competenciaValida, hojeEmSaoPaulo, usoForaDoFuncionario } from "@/lib/db/uso-fora-expediente"
+import { acertosDoFuncionario } from "@/lib/db/ponto-acertos"
+import { AcertosBancoCard } from "@/components/pessoal/acertos-banco-card"
 import { JANELA_MOTIVO_DIAS, TOLERANCIA_DIARIA_MIN, podeInformarMotivo, textoMinutos } from "@/lib/uso-fora-expediente"
 
 import { MotivoUsoDoDia } from "./motivo-uso"
@@ -48,10 +50,11 @@ export default async function MeuPontoPage({
   const sessao = await requireSessaoPainel()
   // Área de funcionário: diretor e demais usuários sem vínculo com o sindicato voltam ao perfil.
   await exigirFuncionario(sessao.usuario.id as string)
-  const [{ pontos }, faixas, ajustes] = await Promise.all([
+  const [{ pontos }, faixas, ajustes, acertos] = await Promise.all([
     meusDocumentosPessoal(sessao.usuario.id),
     faixasHoraExtra(),
     meusAjustesDePonto(String(sessao.usuario.id)),
+    acertosDoFuncionario(String(sessao.usuario.id)).catch(() => []),
   ])
   const params = await searchParams
   const paginacao = lerPaginacao(params, 10)
@@ -117,6 +120,8 @@ export default async function MeuPontoPage({
           />
         </CardContent>
       </Card>
+
+      <AcertosBancoCard acertos={acertos} faixas={faixas} />
 
       {uso?.disponivel && uso.jornada && (
         <Card id="uso-fora" className="scroll-mt-20">

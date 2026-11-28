@@ -221,6 +221,26 @@ export default async function VeiculosPage({
         </div>
       </div>
 
+      {gestor && alertas.length > 0 && (
+        <Card>
+          <CardContent>
+            <p className="mb-2 flex items-center gap-2 text-sm font-medium">
+              <TriangleAlert className="text-warning-fg size-4" />
+              Alertas
+            </p>
+            <ul className="grid gap-1.5">
+              {alertas.map((a) => (
+                <li key={a.chave} className={`text-sm ${a.grave ? "text-warning-fg" : ""}`}>
+                  <Link href={a.href} className="hover:underline">
+                    {a.texto}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
       <div className={GRADE_AREAS}>
         {areasVeiculos.map((a) => (
           <CartaoArea
@@ -253,26 +273,6 @@ export default async function VeiculosPage({
             habilitar condutores, agendamentos e cobranças.
           </AlertDescription>
         </Alert>
-      )}
-
-      {gestor && alertas.length > 0 && (
-        <Card>
-          <CardContent>
-            <p className="mb-2 flex items-center gap-2 text-sm font-medium">
-              <TriangleAlert className="text-warning-fg size-4" />
-              Alertas
-            </p>
-            <ul className="grid gap-1.5">
-              {alertas.map((a) => (
-                <li key={a.chave} className={`text-sm ${a.grave ? "text-warning-fg" : ""}`}>
-                  <Link href={a.href} className="hover:underline">
-                    {a.texto}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
       )}
 
       <form

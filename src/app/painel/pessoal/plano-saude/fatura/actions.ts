@@ -4,10 +4,12 @@ import { revalidatePath } from "next/cache"
 
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
-import { conferenciaDoMes, obterContratoSaude } from "@/lib/db/plano-saude"
+import { conferenciaDoMes, contratoDoProduto, obterContratoSaude } from "@/lib/db/plano-saude"
 import {
   apagarFatura,
   casarLinhaManual,
+  incluirLinhaNoPlano,
+  incluirSugeridosNoPlano,
   lancarCopartDaFatura,
   lerEGravarFatura,
   marcarFaturaConferida,
@@ -87,4 +89,39 @@ export async function apagarFaturaAction(_p: EstadoForm, f: FormData): Promise<E
   if (r.erro) return { erro: r.erro }
   revalidatePath(CAMINHO)
   return { ok: "Fatura apagada." }
+}
+
+/** Produto do contrato e data de inclusão válidos (carga inicial pela fatura). */
+async function produtoEInclusao(f: FormData): Promise<{ produtoId: string; inclusao: string } | { erro: string; campo?: string }> {
+  const produtoId = t(f, "produto_id")
+  if (!produtoId || (await contratoDoProduto(produtoId)) !== t(f, "contrato_id")) return { erro: "Escolha o produto.", campo: "produto_id" }
+  const inclusao = t(f, "inclusao")
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(inclusao)) return { erro: "Informe a data de inclusão.", campo: "inclusao" }
+  return { produtoId, inclusao }
+}
+
+export async function incluirDaFaturaAction(_p: EstadoForm, f: FormData): Promise<EstadoForm> {
+  const sessao = await exigir()
+  const pi = await produtoEInclusao(f)
+  if ("erro" in pi) return pi
+  const indice = Number.parseInt(t(f, "indice"), 10)
+  if (!Number.isInteger(indice) || indice < 0) return { erro: "Linha inválida." }
+  const pessoa = t(f, "pessoa")
+  if (!pessoa) return { erro: "Escolha quem é.", campo: "pessoa" }
+  const r = await incluirLinhaNoPlano(t(f, "fatura_id"), indice, pessoa, pi.produtoId, pi.inclusao, String(sessao.usuario.id))
+  if (r.erro) return { erro: r.erro }
+  revalidatePath(CAMINHO)
+  return { ok: "Incluído no plano." }
+}
+
+export async function incluirSugeridosAction(_p: EstadoForm, f: FormData): Promise<EstadoForm> {
+  const sessao = await exigir()
+  const pi = await produtoEInclusao(f)
+  if ("erro" in pi) return pi
+  const r = await incluirSugeridosNoPlano(t(f, "fatura_id"), pi.produtoId, pi.inclusao, String(sessao.usuario.id))
+  revalidatePath(CAMINHO)
+  if (r.erro) return { erro: `${r.erro} (${r.incluidos} incluído(s) antes do erro)` }
+  return {
+    ok: `${r.incluidos} incluído(s) no plano.${r.semSugestao ? ` ${r.semSugestao} linha(s) sem pessoa sugerida: escolha uma a uma.` : ""}`,
+  }
 }

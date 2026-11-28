@@ -23,7 +23,9 @@ import { GrupoColapsavel } from "@/components/grupo-colapsavel"
 import { percentuaisHoraExtra, regrasApuracaoPonto } from "@/lib/db/ponto-config"
 import { isentosNaCompetencia, listarIsencoesPonto, situacaoIsencao } from "@/lib/db/ponto-isencoes"
 
+import { listarAcertos } from "@/lib/db/ponto-acertos"
 import { horas } from "./analise/componentes"
+import { AbaAcertos } from "./acertos/aba"
 import { RegrasHoraExtraForm } from "./faixas-form"
 import { IsencaoPontoForm } from "./isencoes-form"
 import { TabelaIsencoes } from "./isencoes-tabela"
@@ -44,15 +46,16 @@ export default async function PontoPage({
 }) {
   await requirePermissao("pessoal_gestao")
   const sp = await searchParams
-  const aba = sp.aba === "remessas" || sp.aba === "isencoes" ? sp.aba : "funcionarios"
+  const aba = sp.aba === "remessas" || sp.aba === "isencoes" || sp.aba === "acertos" ? sp.aba : "funcionarios"
 
-  const [base, remessas, funcionarios, percentuais, isencoes, regras] = await Promise.all([
+  const [base, remessas, funcionarios, percentuais, isencoes, regras, acertos] = await Promise.all([
     carregarBasePonto(),
     listarRemessasPonto(),
     funcionariosDaArea(),
     percentuaisHoraExtra(),
     listarIsencoesPonto(),
     regrasApuracaoPonto(),
+    listarAcertos(),
   ])
   const { faixas } = base
   const anos = anosDaBase(base)
@@ -159,6 +162,7 @@ export default async function PontoPage({
           { href: "/painel/pessoal/ponto", rotulo: "Funcionários", ativo: aba === "funcionarios" },
           { href: "/painel/pessoal/ponto?aba=remessas", rotulo: "Remessas", ativo: aba === "remessas", contador: remessas.length },
           { href: "/painel/pessoal/ponto?aba=isencoes", rotulo: "Isenções", ativo: aba === "isencoes", contador: vigentes },
+          { href: "/painel/pessoal/ponto?aba=acertos", rotulo: "Acertos do banco", ativo: aba === "acertos", contador: acertos.acertos.length },
         ]}
       />
 
@@ -166,6 +170,8 @@ export default async function PontoPage({
         <ListaRemessasPonto brutos={sp} />
       ) : aba === "isencoes" ? (
         <AbaIsencoes sp={sp} isencoes={isencoes} />
+      ) : aba === "acertos" ? (
+        <AbaAcertos sp={sp} lista={acertos} faixas={faixas} />
       ) : (
         <AbaFuncionarios sp={sp} ano={ano} anos={anos} ind={ind} funcionarios={funcionarios} />
       )}

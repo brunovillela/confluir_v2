@@ -1,7 +1,7 @@
 import { expect, test } from "playwright/test"
 
 import { calcularMes, type Beneficiario, type RegraCusteio } from "../../src/lib/plano-saude"
-import { casarLinhas, compararFatura, valorDaIA, type LinhaLida } from "../../src/lib/plano-saude-fatura"
+import { casarLinhas, compararFatura, linhaDaEntidade, sugerirPessoa, valorDaIA, type LinhaLida } from "../../src/lib/plano-saude-fatura"
 
 const lida = (l: Partial<LinhaLida>): LinhaLida => ({
   nome: "",
@@ -138,6 +138,21 @@ test.describe("plano de saúde: fatura", () => {
     const c = compararFatura([{ ...base, mensalidade: 180, coparticipacao: 0 }, { ...base, mensalidade: 0, coparticipacao: 25.5 }], grupos, null)
     expect(c.itens).toHaveLength(1)
     expect(c.itens[0]).toMatchObject({ situacao: "confere", coparticipacao: 25.5 })
+  })
+
+  test("sugere a pessoa do cadastro para incluir no plano", () => {
+    const pessoas = [
+      { chave: "titular:1", nome: "Ana Beatriz Nogueira", rotulo: "Funcionário" },
+      { chave: "dependente:9:1", nome: "Pedro Nogueira", rotulo: "Filho" },
+      { chave: "titular:2", nome: "José Carlos Silva", rotulo: "Funcionário" },
+      { chave: "titular:3", nome: "José Pedro Silva", rotulo: "Funcionário" },
+    ]
+    expect(sugerirPessoa("ANA BEATRIZ NOGUEIRA", pessoas)).toBe("titular:1")
+    expect(sugerirPessoa("PEDRO H NOGUEIRA", pessoas)).toBe("dependente:9:1")
+    expect(sugerirPessoa("JOSE SILVA", pessoas)).toBeNull()
+    expect(sugerirPessoa("Fulano", pessoas)).toBeNull()
+    expect(linhaDaEntidade({ nome: "ENTIDADE", mensalidade: 0 })).toBe(true)
+    expect(linhaDaEntidade({ nome: "Ana", mensalidade: 0 })).toBe(false)
   })
 
   test("valores vindos da IA", () => {

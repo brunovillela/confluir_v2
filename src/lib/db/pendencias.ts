@@ -12,6 +12,8 @@ import { funcionariosSemJornada } from "@/lib/db/jornada-pendentes"
 import { avisosDeUsoDoMes } from "@/lib/db/uso-fora-expediente"
 import { avisosPlanoSaude } from "@/lib/db/plano-saude"
 import { LIMITE_AVISO_MES_MIN } from "@/lib/uso-fora-expediente"
+import { competenciasComAcerto, configAcerto } from "@/lib/db/ponto-acertos"
+import { acertosRecorrentesPendentes } from "@/lib/ponto-acertos"
 import { DIAS_SILENCIO_COBRANCA, empresasParaCobrar, relacoesDoRhALancar } from "@/lib/db/repasse"
 import { SITUACAO_EM_AUTORIZACAO } from "@/lib/db/ordens-ciclo"
 import { situacaoDosPlanos } from "@/lib/db/veiculos-manutencoes"
@@ -271,13 +273,14 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
       },
     }
     fontes.push(usoFora)
-    // Plano de saúde (25/11): alertas da conferência do mês (perda do direito
-    // pela idade, comprovante de estudante vencido, falta de dado, tabela ou
-    // regra) e quem muda de faixa etária no mês seguinte.
+    // Plano de saúde (25/11): reajuste anual sem tabela nova, alertas da
+    // conferência do mês (perda do direito pela idade, desligado ou
+    // dependente inativo ainda no plano, comprovante de estudante vencido,
+    // falta de dado, tabela ou regra) e quem muda de faixa no mês seguinte.
     const planoSaude: Fonte = {
       chave: "plano_saude",
       titulo: "Plano de saúde para conferir",
-      descricao: "Alertas do mês e mudanças de faixa etária no mês seguinte",
+      descricao: "Reajuste anual, alertas do mês e mudanças de faixa etária no mês seguinte",
       href: "/painel/pessoal/plano-saude/mes",
       tabela: "pessoal_saude_beneficiarios",
       montar: (q) => head(q),
@@ -303,6 +306,7 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
       descricao: "Pedidos sem decisão",
       href: "/painel/pessoal/faltas",
       tabela: "pessoal_faltas_justificadas",
+          ...a.reajustes.map((r) => `${r.contrato}: reajuste anual sem a tabela nova (${r.produtos.join(", ")})`),
       // Aguardando = nem autorizada nem recusada (falso conta como sem decisão).
       montar: (q) => head(q).not("autorizado", "is", true).not("recusado", "is", true).is("cancelado_em", null),
     })
@@ -310,6 +314,28 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
 
   // Filiação
   if (pode("filiacao_gestao")) {
+    // Acerto recorrente do banco de horas (27/11): mês configurado (o ACT
+    // costuma fixá-lo) sem o acerto lançado, no próprio mês e no seguinte.
+    const acertoRec: Fonte = {
+      chave: "ponto_acerto_recorrente",
+      titulo: "Acerto do banco de horas a lançar",
+      descricao: "Mês de zeramento do banco de horas configurado para a entidade",
+      href: "/painel/pessoal/ponto?aba=acertos",
+      tabela: "pessoal_ponto_acertos",
+      montar: (q) => head(q),
+      contarCom: async () => {
+        const [config, lancados] = await Promise.all([configAcerto(), competenciasComAcerto()]).catch(() => [null, null] as const)
+        if (!config || !lancados) return null
+        const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date())
+        const pend = acertosRecorrentesPendentes(config.meses, lancados, hoje)
+        if (pend.length === 1) {
+          acertoRec.href = `/painel/pessoal/ponto/acertos/novo?competencia=${pend[0]}`
+          acertoRec.descricao = `Zeramento de ${pend[0].slice(5, 7)}/${pend[0].slice(0, 4)} previsto e ainda não lançado`
+        }
+        return pend.length
+      },
+    }
+    fontes.push(acertoRec)
     fontes.push({
       chave: "filiacao_solicitacoes",
       titulo: "Solicitações de filiação",

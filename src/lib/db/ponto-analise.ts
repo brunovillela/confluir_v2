@@ -1,10 +1,12 @@
 import "server-only"
 
 import { esquemaAusente, lerEmLotesPorIds, nomesDosUsuarios, texto } from "@/lib/db/comum"
+import { acertosPorFuncionario } from "@/lib/db/ponto-acertos-leitura"
 import { avaliarJornada, type MarcacoesEspelho, type OcorrenciasJornada } from "@/lib/db/ponto-marcacoes"
 import { faixasHoraExtra } from "@/lib/db/ponto-config"
 import type { FaixasHE } from "@/lib/faixas-he"
 import { hhmm } from "@/lib/horas"
+import { zeradoEntre, type AcertoDaPessoa } from "@/lib/ponto-acertos"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -197,15 +199,22 @@ export async function saldosAnterioresPonto(remessaId: string): Promise<Record<s
     if (!atualF || comp > atualF.competencia) melhor.set(f, { competencia: comp, reg: r })
   }
   const num = (v: unknown) => (v === null || v === undefined ? null : Number(v))
+  // Marco de acerto entre o registro anterior e esta remessa: começa do zero.
+  const acertos = await acertosPorFuncionario([...melhor.keys()])
   return Object.fromEntries(
-    [...melhor].map(([f, { reg }]) => [
-      f,
-      {
-        saldo70: num(reg.saldo_remanescente_70),
-        saldo100: num(reg.saldo_remanescente_100),
-        remessa: info.get(String(reg.remessa_id))?.nome ?? "",
-      },
-    ])
+    [...melhor].map(([f, { competencia, reg }]) => {
+      const z = zeradoEntre(acertos.get(f) ?? [], competencia, atual)
+      return [
+        f,
+        {
+          saldo70: z.faixa1 ? 0 : num(reg.saldo_remanescente_70),
+          saldo100: z.faixa2 ? 0 : num(reg.saldo_remanescente_100),
+          remessa: z.acerto
+            ? `acerto do banco de ${z.acerto.competencia.slice(5, 7)}/${z.acerto.competencia.slice(0, 4)}`
+            : (info.get(String(reg.remessa_id))?.nome ?? ""),
+        },
+      ]
+    })
   )
 }
 
@@ -218,6 +227,8 @@ export type BasePonto = {
   departamentos: { chave: string; nome: string }[]
   marcacoesDisponiveis: boolean
   faixas: FaixasHE
+  /** Marcos de acerto do banco por funcionário (o saldo depois do acerto é zero). */
+  acertos?: Map<string, AcertoDaPessoa[]>
 }
 
 /** Tudo de uma vez (são poucas centenas de registros por ano). */
@@ -363,7 +374,8 @@ export async function carregarBasePonto(): Promise<BasePonto> {
     ...new Map(registros.map((r) => [r.departamento.chave, r.departamento])).values(),
   ].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
 
-  return { remessas, registros, ausencias, departamentos, marcacoesDisponiveis, faixas: await faixasHoraExtra() }
+  const acertos = await acertosPorFuncionario(ids)
+  return { remessas, registros, ausencias, departamentos, marcacoesDisponiveis, faixas: await faixasHoraExtra(), acertos }
 }
 
 // ── Indicadores ──────────────────────────────────────────────────────────────
@@ -421,6 +433,13 @@ export function indicadoresDe(
   for (const [f, lista] of porFunc) {
     lista.sort((a, b) => a.competencia.localeCompare(b.competencia))
     const ultimo = lista[lista.length - 1]
+    // Saldo de agora: o do último registro, menos o que um acerto depois dele
+    // (até o fim do ano olhado) zerou. Na remessa, o saldo é o do mês.
+    const zerado =
+      filtro.escopo === "remessa"
+        ? { faixa1: false, faixa2: false }
+        : zeradoEntre(base.acertos?.get(f) ?? [], ultimo.competencia, `${filtro.ano}-13`)
+    const saldoAgora = (zerado.faixa1 ? 0 : ultimo.saldo70) + (zerado.faixa2 ? 0 : ultimo.saldo100)
     const ocorrencias = zeroOcorr()
     let britanico = false
     for (const r of lista) {
@@ -460,8 +479,8 @@ export function indicadoresDe(
       alertas.push(`Horas extras habituais: ${comHEJanela} de ${janela.length} meses (integram a remuneração; Súmula 291 do TST se forem suprimidas)`)
       pontuacao += 2
     }
-    if (ultimo.saldo >= LIMITE_SALDO) {
-      alertas.push(`Banco de horas com ${hhmm(ultimo.saldo)} — conferir o prazo de compensação (art. 59, §§ 2º e 5º)`)
+    if (saldoAgora >= LIMITE_SALDO) {
+      alertas.push(`Banco de horas com ${hhmm(saldoAgora)} — conferir o prazo de compensação (art. 59, §§ 2º e 5º)`)
       pontuacao += 2
     }
     const ult3 = hist.slice(-3)
@@ -509,7 +528,7 @@ export function indicadoresDe(
       mesesComHE,
       meses: lista.length,
       maiorHEMes: r2(maiorHEMes),
-      saldo: r2(ultimo.saldo),
+      saldo: r2(saldoAgora),
       atestados: aus.atestados,
       diasAtestado: aus.diasAtestado,
       faltasJustificadas: aus.justificadas,

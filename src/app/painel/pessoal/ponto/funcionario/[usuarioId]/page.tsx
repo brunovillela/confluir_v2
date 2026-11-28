@@ -17,6 +17,8 @@ import { funcionarioDaArea } from "@/lib/db/pessoal-area"
 import { carregarBasePonto, comparacaoAnos, indicadoresDe, OCORRENCIAS, rotuloCompetenciaPonto } from "@/lib/db/ponto-analise"
 import { faixasHoraExtra } from "@/lib/db/ponto-config"
 import { listarIsencoesPonto } from "@/lib/db/ponto-isencoes"
+import { acertosDoFuncionario } from "@/lib/db/ponto-acertos"
+import { AcertosBancoCard } from "@/components/pessoal/acertos-banco-card"
 
 import { ComparacaoAnosCard, horas } from "../../analise/componentes"
 import { IsencaoPontoForm } from "../../isencoes-form"
@@ -35,11 +37,12 @@ export default async function PontoFuncionarioPage({
   const sessao = await requirePermissao("pessoal_gestao")
   const { usuarioId } = await params
   const sp = await searchParams
-  const [funcionario, base, faixas, isencoes] = await Promise.all([
+  const [funcionario, base, faixas, isencoes, acertos] = await Promise.all([
     funcionarioDaArea(usuarioId),
     carregarBasePonto(),
     faixasHoraExtra(),
     listarIsencoesPonto(usuarioId),
+    acertosDoFuncionario(usuarioId).catch(() => []),
   ])
   if (!funcionario) notFound()
 
@@ -210,6 +213,8 @@ export default async function PontoFuncionarioPage({
           </Card>
         </>
       )}
+
+      <AcertosBancoCard acertos={acertos} faixas={faixas} comLink />
 
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">

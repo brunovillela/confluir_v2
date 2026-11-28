@@ -10,11 +10,19 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { requirePermissao } from "@/lib/auth"
 import { conferenciaDoMes, obterContratoSaude } from "@/lib/db/plano-saude"
-import { obterFatura } from "@/lib/db/plano-saude-fatura"
+import { obterFatura, pessoasParaIncluir } from "@/lib/db/plano-saude-fatura"
 import { deslocarCompetencia, moeda } from "@/lib/plano-saude"
-import { compararFatura, type ComoCasou, type SituacaoItem } from "@/lib/plano-saude-fatura"
+import { compararFatura, linhaDaEntidade, sugerirPessoa, type ComoCasou, type SituacaoItem } from "@/lib/plano-saude-fatura"
 
-import { ApagarFaturaBotao, CasarLinhaForm, ConferirFaturaForm, LancarCopartForm, LerFaturaForm } from "./forms"
+import {
+  ApagarFaturaBotao,
+  CasarLinhaForm,
+  ConferirFaturaForm,
+  IncluirLinhaForm,
+  IncluirSugeridosForm,
+  LancarCopartForm,
+  LerFaturaForm,
+} from "./forms"
 
 export const metadata: Metadata = { title: "Plano de saúde: fatura da operadora — Confluir" }
 
@@ -64,6 +72,12 @@ export default async function FaturaPage({ searchParams }: { searchParams: Promi
     .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
   const diferencaTotal = comp && comp.totais.totalFatura !== null ? Math.round((comp.totais.totalFatura - comp.totais.somaLinhas) * 100) / 100 : 0
   const pendentes = comp ? comp.contagem.diferente + comp.contagem.so_na_fatura + comp.contagem.so_no_sistema : 0
+  // Carga inicial: as linhas que não casaram com ninguém do plano podem virar
+  // adesões, com a pessoa do cadastro sugerida pelo nome.
+  const soltas = fatura && !fatura.conferidaEm ? fatura.linhas.map((l, i) => ({ l, i })).filter(({ l }) => !l.beneficiarioId && !linhaDaEntidade(l)) : []
+  const pessoas = soltas.length ? await pessoasParaIncluir() : []
+  const sugestoes = soltas.map(({ l, i }) => ({ l, i, sugerida: sugerirPessoa(l.nome, pessoas) }))
+  const produtosAtivos = (completo?.produtos ?? []).filter((p) => p.ativo).map((p) => ({ id: p.id, nome: p.nome }))
 
   return (
     <>
@@ -223,6 +237,63 @@ export default async function FaturaPage({ searchParams }: { searchParams: Promi
               </table>
             </CardContent>
           </Card>
+
+          {sugestoes.length > 0 && produtosAtivos.length > 0 && atual && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Incluir no plano quem está na fatura</CardTitle>
+                <CardDescription>
+                  {sugestoes.length} linha{sugestoes.length === 1 ? "" : "s"} sem ninguém do plano. Se a pessoa é funcionária ou
+                  dependente cadastrado, inclua no plano daqui (a carteirinha vem da fatura); a linha já fica casada. Agregados e
+                  quem não está no cadastro se incluem pela página do contrato.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <IncluirSugeridosForm
+                  faturaId={fatura.id}
+                  contratoId={atual.contrato.id}
+                  sugeridos={sugestoes.filter((x) => x.sugerida).length}
+                  produtos={produtosAtivos}
+                  inclusao={`${mes}-01`}
+                />
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="text-muted-foreground text-left text-xs">
+                      <tr>
+                        <th className="py-1.5 pr-3 font-medium">Na fatura</th>
+                        <th className="py-1.5 font-medium">Quem é, produto e inclusão</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sugestoes.map(({ l, i, sugerida }) => (
+                        <tr key={i} className="border-t align-top">
+                          <td className="py-1.5 pr-3">
+                            {l.nome}
+                            <div className="text-muted-foreground text-xs">
+                              {moeda(l.mensalidade)}
+                              {l.carteirinha ? ` · carteirinha ${l.carteirinha}` : ""}
+                              {sugerida ? " · sugerido pelo nome" : " · sem sugestão"}
+                            </div>
+                          </td>
+                          <td className="py-1.5">
+                            <IncluirLinhaForm
+                              faturaId={fatura.id}
+                              contratoId={atual.contrato.id}
+                              indice={i}
+                              sugerida={sugerida}
+                              pessoas={pessoas}
+                              produtos={produtosAtivos}
+                              inclusao={`${mes}-01`}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
