@@ -90,8 +90,9 @@ export function ControlesForm({ inicial }: { inicial: ControlesIniciais }) {
         </div>
         <p className="text-muted-foreground text-xs">
           {inteiro.format(inicial.enviadosNoMes)} e-mails neste mês
-          {inicial.limiteMensal ? ` — ${Math.round((inicial.enviadosNoMes / inicial.limiteMensal) * 100)}% do teto` : ""}. Desmarcado, o teto e as cotas
-          só aparecem como alerta; marcado, os e-mails não essenciais param até o dia 1º. Use o limite do plano do provedor como referência.
+          {inicial.limiteMensal ? ` — ${Math.round((inicial.enviadosNoMes / inicial.limiteMensal) * 100)}% do teto` : ""}. A 80% e a 100% a Gestão (e, na
+          cota, o coordenador do departamento) recebe um aviso. Desmarcado, o teto e as cotas só avisam; marcado, os e-mails não essenciais param até o
+          dia 1º. Use o limite do plano do provedor como referência.
         </p>
       </fieldset>
 

@@ -25,6 +25,7 @@ export const NOVIDADES: Novidade[] = [
       "Oposição: a tela diz para quais e-mails do cadastro o código saiu e, se algum não recebeu, o porquê (acabou de receber um, muitos pedidos, falha no envio). Antes, dizia \"o código foi para os e-mails do seu cadastro\" mesmo quando um deles não recebia nada.",
       "Portal do associado: o código vai para todos os e-mails do cadastro (o pessoal e o da empresa), como na Oposição, e vale o de qualquer um. Antes ia só para o primeiro, e quem olhava só o outro não recebia.",
       "E-mails do cadastro com erro óbvio de digitação (\"hotmail..com\", \"petrobras.com. br\", ponto no fim) são corrigidos sozinhos — no envio do código e na ficha, com registro no prontuário. Os 21 que existiam já foram corrigidos. O que não tem conserto (telefone no campo, falta o @) aparece na Saúde dos cadastros como E-mail inválido; o filiado ativo só com e-mail assim entra na Oposição como sem e-mail e informa um novo.",
+      "Gestão → E-mail: avisos à Gestão (sino, e-mail e Telegram) quando os e-mails chegam a 80% e a 100% do teto mensal ou da cota de um departamento (a cota avisa também o coordenador), quando a rejeição dos últimos 7 dias passa de 5%, quando o provedor recusa a chave da conta própria ou o remetente sai dos domínios verificados, e quando os últimos e-mails falham todos. Cada aviso sai uma vez por período; ligue ou desligue em Meu perfil → Avisos.",
     ],
   },
   {

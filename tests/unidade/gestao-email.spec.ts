@@ -136,3 +136,28 @@ test("conta própria: chave com cara de chave e remetente de domínio verificado
   expect(remetenteNoDominio("x@naosindicato.org.br", dominios)).toBe(false)
   expect(remetenteNoDominio("sem-arroba", dominios)).toBe(false)
 })
+
+test("avisos: nível do teto, rejeição alta, falhas seguidas e períodos de Brasília", async () => {
+  const { nivelDoLimite, rejeicaoAlta, falhasSeguidas, periodoBrasilia } = await import("../../src/lib/email-processos")
+  expect(nivelDoLimite(79, 100)).toBeNull()
+  expect(nivelDoLimite(80, 100)).toBe(80)
+  expect(nivelDoLimite(99, 100)).toBe(80)
+  expect(nivelDoLimite(100, 100)).toBe(100)
+  expect(nivelDoLimite(500, null)).toBeNull()
+  expect(nivelDoLimite(500, 0)).toBeNull()
+
+  expect(rejeicaoAlta(39, 39)).toBe(false) // amostra pequena
+  expect(rejeicaoAlta(100, 4)).toBe(false)
+  expect(rejeicaoAlta(100, 5)).toBe(true)
+  expect(rejeicaoAlta(0, 0)).toBe(false)
+
+  expect(falhasSeguidas(["falhou", "falhou", "falhou", "falhou", "falhou"])).toBe(true)
+  expect(falhasSeguidas(["falhou", "falhou", "falhou", "falhou", "enviado", "falhou"])).toBe(false)
+  expect(falhasSeguidas(["falhou", "falhou", "falhou"])).toBe(false)
+
+  // 01/12 01:30 UTC ainda é 30/11 em Brasília; 30/11/2026 é segunda-feira.
+  const p = periodoBrasilia(new Date("2026-12-01T01:30:00Z"))
+  expect(p).toEqual({ mes: "2026-11", dia: "2026-11-30", hora: "2026-11-30T22", semana: "2026-11-30" })
+  expect(periodoBrasilia(new Date("2026-12-06T15:00:00Z")).semana).toBe("2026-11-30") // domingo
+  expect(periodoBrasilia(new Date("2026-12-07T15:00:00Z")).semana).toBe("2026-12-07")
+})

@@ -1,6 +1,7 @@
 import "server-only"
 
 import { textoValidade } from "@/lib/auth-email-constantes"
+import { avisarChaveEmailRecusada } from "@/lib/db/email-avisos"
 import { contaEnvioDaEntidade, esquecerContaEmail, marcarChaveEmailRecusada } from "@/lib/db/email-conta"
 import { abrirRegistroEnvio, concluirRegistroEnvio, type ProvedorEmail } from "@/lib/db/email-envios"
 import { emailContatoEntidade, nomeEntidade } from "@/lib/db/organizacao"
@@ -163,6 +164,7 @@ export async function enviarEmail(destino: {
   if (daEntidade && chaveRecusada(r) && plataforma && remetentePlataforma && emp) {
     await marcarChaveEmailRecusada(emp, r.erro ?? "Chave recusada")
     esquecerContaEmail(emp)
+    avisarChaveEmailRecusada(emp, r.erro ?? "Chave recusada.")
     r = await entregar(plataforma, mensagem(remetentePlataforma, `Confluir — ${entidade}`))
     await concluirRegistroEnvio(
       registro,

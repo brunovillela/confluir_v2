@@ -292,3 +292,39 @@ export function remetenteNoDominio(email: string, dominios: { nome: string; veri
   if (!d) return false
   return dominios.some((x) => x.verificado && (d === x.nome || d.endsWith(`.${x.nome}`)))
 }
+
+// ── Avisos à Gestão (fase 5) ────────────────────────────────────────────────
+
+/** Nível atingido do teto ou da cota: 100 (atingiu), 80 (perto) ou null. */
+export function nivelDoLimite(enviados: number, limite: number | null | undefined): 80 | 100 | null {
+  if (!limite || limite <= 0) return null
+  if (enviados >= limite) return 100
+  if (enviados >= limite * 0.8) return 80
+  return null
+}
+
+/** Mínimo de e-mails na semana para a taxa de rejeição valer como alarme. */
+export const REJEICAO_AMOSTRA_MINIMA = 40
+export const REJEICAO_TAXA_ALERTA = 0.05
+
+/** Rejeição alta nos últimos 7 dias: 5% ou mais, com amostra suficiente. */
+export function rejeicaoAlta(enviados: number, rejeitados: number): boolean {
+  return enviados >= REJEICAO_AMOSTRA_MINIMA && rejeitados / enviados >= REJEICAO_TAXA_ALERTA
+}
+
+/** Quantas falhas seguidas do provedor viram aviso. */
+export const FALHAS_SEGUIDAS_ALERTA = 5
+
+/** As últimas situações (mais recente primeiro) são todas falha, em número suficiente. */
+export function falhasSeguidas(situacoes: string[], minimo = FALHAS_SEGUIDAS_ALERTA): boolean {
+  return situacoes.length >= minimo && situacoes.slice(0, minimo).every((s) => s === "falhou")
+}
+
+/** Mês (AAAA-MM), dia (AAAA-MM-DD) e hora (AAAA-MM-DDTHH) no fuso de Brasília, para as chaves dos avisos. */
+export function periodoBrasilia(agora = new Date()): { mes: string; dia: string; hora: string; semana: string } {
+  const br = new Date(agora.getTime() - 3 * 3600_000)
+  const iso = br.toISOString()
+  // Semana: segunda-feira (em Brasília) que abre a semana.
+  const seg = new Date(Date.UTC(br.getUTCFullYear(), br.getUTCMonth(), br.getUTCDate() - ((br.getUTCDay() + 6) % 7)))
+  return { mes: iso.slice(0, 7), dia: iso.slice(0, 10), hora: iso.slice(0, 13), semana: seg.toISOString().slice(0, 10) }
+}

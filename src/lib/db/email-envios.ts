@@ -3,6 +3,7 @@ import "server-only"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 import { departamentoDaPessoa } from "@/lib/db/departamento-principal"
+import { conferirFalhasEmail, conferirLimitesEmail, conferirRejeicaoEmail } from "@/lib/db/email-avisos"
 import { bloquearPorRejeicao, contarEnvio, controlesEmail, enderecoBloqueado, enviadosNoMes } from "@/lib/db/email-controles"
 import { envioDaMarca, motivoParaBarrar, mudancaDoEvento, processoEmail } from "@/lib/email-processos"
 import { usuarioIdAtual } from "@/lib/sessao-atual"
@@ -48,18 +49,26 @@ function dominioDe(email: string): string | null {
 async function travaDoEnvio(emp: string, processo: string, destinatario: string, departamentoId: string | null): Promise<string | null> {
   try {
     const [{ controles }, bloqueado] = await Promise.all([controlesEmail(emp), enderecoBloqueado(emp, destinatario)])
-    const precisaContar = controles.bloquearNoLimite && (controles.limiteMensal !== null || Object.keys(controles.cotasDepartamento).length > 0)
+    // Com teto ou cota, conta sempre: para barrar (se "parar no teto") e para avisar a Gestão a 80% e 100% (fase 5).
+    const precisaContar = controles.limiteMensal !== null || Object.keys(controles.cotasDepartamento).length > 0
     const contagem = precisaContar
       ? await enviadosNoMes(emp, Boolean(departamentoId && controles.cotasDepartamento[departamentoId] !== undefined))
       : { total: 0, porDepto: new Map<string, number>() }
-    return motivoParaBarrar({
+    const doDepartamento = departamentoId ? (contagem.porDepto.get(departamentoId) ?? 0) : 0
+    const motivo = motivoParaBarrar({
       processo,
       controles,
       enderecoBloqueado: bloqueado,
       enviadosNoMes: contagem.total,
       departamentoId,
-      enviadosDoDepartamento: departamentoId ? (contagem.porDepto.get(departamentoId) ?? 0) : 0,
+      enviadosDoDepartamento: doDepartamento,
     })
+    if (precisaContar) {
+      // Este e-mail entra na conta se sair; barrado no teto, a conta já passou do limite.
+      const soma = motivo ? 0 : 1
+      conferirLimitesEmail(emp, controles, contagem.total + soma, departamentoId, doDepartamento + soma)
+    }
+    return motivo
   } catch {
     return null
   }
@@ -121,6 +130,8 @@ export async function concluirRegistroEnvio(
       .update({ situacao, erro: erro ? erro.slice(0, 200) : null, ...(conta ? { conta } : {}) })
       .eq("id", reg.id)
       .eq("emp_proprietaria_id", reg.emp)
+    // Fase 5: as últimas tentativas falharam todas? Avisa a Gestão.
+    if (situacao === "falhou") conferirFalhasEmail(reg.emp)
   } catch {
     // Acessório: o e-mail já saiu (ou não) de qualquer jeito.
   }
@@ -145,6 +156,7 @@ export async function registrarEventoEnvio(client: SupabaseClient, e: Record<str
     // Rejeição definitiva: o endereço vai para os bloqueios (a Gestão libera).
     if (mudanca.rejeitado_em && data?.destinatario) {
       await bloquearPorRejeicao(String(data.emp_proprietaria_id), String(data.destinatario), String(mudanca.rejeicao ?? evento))
+      conferirRejeicaoEmail(String(data.emp_proprietaria_id))
       return `envio: ${evento} (endereço bloqueado)`
     }
     return `envio: ${evento}`

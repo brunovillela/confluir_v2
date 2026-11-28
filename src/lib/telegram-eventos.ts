@@ -124,6 +124,10 @@ export const EVENTOS_TELEGRAM = [
   // e cota mensal de IA do departamento a 80% e a 100%.
   { chave: "revisao_acessos", rotulo: "Revisão de acessos: confirmar quem da sua equipe ainda precisa do acesso", grupo: "notificacao", acesso: { permissoes: ["gestao_sistema"], coordenador: true } },
   { chave: "ia_cota_departamento", rotulo: "IA do departamento: cota mensal perto do fim ou atingida", grupo: "notificacao", acesso: { permissoes: ["gestao_sistema"], coordenador: true } },
+  // Gestão › E-mail (27/11/2026, fase 5): teto e cota a 80% e 100%, rejeição alta,
+  // chave da conta própria recusada, remetente sem domínio verificado e falhas seguidas.
+  { chave: "gestao_email", rotulo: "E-mail da entidade: teto mensal, rejeição alta, conta própria com problema ou envios falhando", grupo: "notificacao", acesso: { permissoes: ["gestao_sistema"] } },
+  { chave: "email_cota_departamento", rotulo: "E-mails do departamento: cota mensal perto do fim ou atingida", grupo: "notificacao", acesso: { permissoes: ["gestao_sistema"], coordenador: true } },
   { chave: "lembrete_pendencias", rotulo: "Lembrete diário do que está esperando você", grupo: "resumo" },
   { chave: "resumo_vencimentos", rotulo: "Resumo diário de vencimentos das áreas que você cuida", grupo: "resumo", acesso: { permissoes: PERMISSOES_VENCIMENTOS } },
   { chave: "resumo_semanal", rotulo: "Resumo semanal de gestão (segunda-feira)", grupo: "resumo" },

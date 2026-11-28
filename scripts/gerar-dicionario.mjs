@@ -113,7 +113,7 @@ const MODULOS = [
   ["veiculos", "Veículos e condutores", /^(veiculo|veiculos|cnh$)/],
   ["comunicacao", "Comunicação, eventos e avisos", /^(comunicacao|noticias|notificacoes|push|telegram|avisos|eventos|mensagens)/],
   ["ferramentas", "Ferramentas administrativas", /^(demandas|projeto|ferramentas|tabela$|assinaturas)/],
-  ["plataforma", "Plataforma, acesso e auditoria", /^(empresa|tenants|plataforma|perfis|perfil_|permissoes|usuario|usuarios|auth_|login_|api_|acesso_agente|lgpd_|analitica|webhooks|auditoria|ia_config$|ia_uso$|email_envios$|email_config$|email_bloqueios$|ia_cota_avisos$|acessos_revisao_|gestao_)/],
+  ["plataforma", "Plataforma, acesso e auditoria", /^(empresa|tenants|plataforma|perfis|perfil_|permissoes|usuario|usuarios|auth_|login_|api_|acesso_agente|lgpd_|analitica|webhooks|auditoria|ia_config$|ia_uso$|email_envios$|email_config$|email_bloqueios$|email_avisos$|ia_cota_avisos$|acessos_revisao_|gestao_)/],
 ]
 const moduloDe = (t) => MODULOS.find(([, , re]) => re.test(t))?.[0] ?? "outros"
 const ROTULO = Object.fromEntries([...MODULOS.map(([k, r]) => [k, r]), ["outros", "Outros"]])
