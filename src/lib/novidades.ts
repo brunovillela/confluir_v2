@@ -13,16 +13,10 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
-    id: "2026-11-28",
-    titulo: "Veículos: checklist do carro dedicado pelo Telegram",
-    itens: [
-      "Veículos: o carro de locação de uso dedicado, que não passa pela recepção, tem o checklist feito pelo próprio condutor no Telegram. Quando chega o prazo do checklist, o condutor recebe o pedido com o botão Fazer o checklist agora (e um lembrete a cada 3 dias), ou manda /checklist quando quiser: o bot pede o km do painel, pergunta se cada problema apontado continua ou foi resolvido, mostra os itens para marcar (em ordem, com problema ou não se aplica) e pede a descrição de cada problema. O checklist entra no histórico como qualquer outro, e o km passa a ser o do carro. O resumo diário de vencimentos avisa a gestão do carro dedicado com o checklist vencido, a quem foi pedido — ou que o condutor não tem o Telegram vinculado.",
-    ],
-  },
-  {
     id: "2026-11-27",
     titulo: "Código de acesso: todos os e-mails do cadastro",
     itens: [
+      "Veículos: o carro de locação de uso dedicado, que não passa pela recepção, tem o checklist feito pelo próprio condutor no Telegram. Quando chega o prazo do checklist, o condutor recebe o pedido com o botão Fazer o checklist agora (e um lembrete a cada 3 dias), ou manda /checklist quando quiser: o bot pede o km do painel, pergunta se cada problema apontado continua ou foi resolvido, mostra os itens para marcar (em ordem, com problema ou não se aplica) e pede a descrição de cada problema. O checklist entra no histórico como qualquer outro, e o km passa a ser o do carro. O resumo diário de vencimentos avisa a gestão do carro dedicado com o checklist vencido, a quem foi pedido — ou que o condutor não tem o Telegram vinculado.",
       "Eventos → Lançar presenças (novo), no quadro Presença por dia da página do evento: para registrar depois quem veio — a partir da lista de assinatura em papel, por exemplo — ou retirar uma presença marcada por engano. Escolha o dia, marque e desmarque numa lista com busca e salve de uma vez; funciona também com o evento encerrado. A presença lançada aqui aparece como lançada depois, com quem lançou e quando, e cada lançamento ou retirada fica registrado.",
       "Controle de ponto → Acertos do banco (novo): registre os meses em que o banco de horas é zerado, de uma pessoa, de um departamento, de algumas ou de todas, com o motivo (pago em folha, compensado em folga, vencido, rescisão, acordo coletivo). A tela mostra o saldo de cada um antes de zerar; a remessa seguinte começa do zero e as já lançadas são recalculadas. O quanto foi zerado fica registrado, aparece na página do funcionário e no Meu perfil → Ponto, e vai ao movimento da folha: horas pagas a pagar, horas negativas a descontar. Se o acordo coletivo fixa os meses de zeramento, marque-os em Acerto recorrente e a caixa de entrada lembra.",
       "Controle de ponto → Relatório (novo): o ponto e as horas extras de um período, de todos, de um departamento ou de uma pessoa — horas realizadas e pagas nas duas faixas, o valor pago e o custo médio da hora, o banco no fim do período, os acertos e as divergências a conferir (saldo que não fecha, cadeia quebrada entre remessas, hora paga sem saldo, valor da hora fora do padrão). Em PDF e em planilha. O PDF de cada funcionário ganhou as horas pagas por faixa, o valor pago e os acertos do banco.",
