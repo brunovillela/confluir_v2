@@ -291,6 +291,7 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
         const partes = [
           a.comAlerta ? `${a.comAlerta} beneficiário${a.comAlerta === 1 ? "" : "s"} com alerta neste mês` : "",
           a.mudamDeFaixa ? `${a.mudamDeFaixa} muda${a.mudamDeFaixa === 1 ? "" : "m"} de faixa no mês que vem` : "",
+          ...a.reajustes.map((r) => `${r.contrato}: reajuste anual sem a tabela nova (${r.produtos.join(", ")})`),
         ].filter(Boolean)
         if (partes.length) planoSaude.descricao = partes.join(" · ")
         planoSaude.href = `/painel/pessoal/plano-saude/mes?mes=${a.competencia}`
@@ -306,7 +307,6 @@ export async function pendenciasPara(amb: AmbientePendencias): Promise<Pendencia
       descricao: "Pedidos sem decisão",
       href: "/painel/pessoal/faltas",
       tabela: "pessoal_faltas_justificadas",
-          ...a.reajustes.map((r) => `${r.contrato}: reajuste anual sem a tabela nova (${r.produtos.join(", ")})`),
       // Aguardando = nem autorizada nem recusada (falso conta como sem decisão).
       montar: (q) => head(q).not("autorizado", "is", true).not("recusado", "is", true).is("cancelado_em", null),
     })
