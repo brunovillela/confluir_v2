@@ -334,10 +334,12 @@ erDiagram
     uuid id PK
     uuid funcionario_id FK
     uuid remessa_id FK
+    uuid pagas_contracheque_id FK
   }
   pessoal_registro_ponto_remessas {
     uuid id PK
     uuid emp_proprietaria_id FK
+    uuid contracheques_remessa_id FK
   }
   pessoal_saude_beneficiarios {
     uuid id PK
@@ -547,8 +549,10 @@ erDiagram
   pessoal_reembolsos_act }o--o| usuarios : "avaliador_id"
   pessoal_reembolsos_act }o--|| pessoal_reembolsos_act_tipos : "tipo_id"
   pessoal_reembolsos_act }o--|| usuarios : "funcionario_id"
+  pessoal_registro_ponto }o--o| pessoal_contracheques : "pagas_contracheque_id"
   pessoal_registro_ponto }o--o| pessoal_registro_ponto_remessas : "remessa_id"
   pessoal_registro_ponto }o--o| usuarios : "funcionario_id"
+  pessoal_registro_ponto_remessas }o--o| pessoal_contracheques_remessas : "contracheques_remessa_id"
   pessoal_saude_beneficiarios }o--o| pessoal_dependentes : "dependente_id"
   pessoal_saude_beneficiarios }o--o| usuarios : "criado_por"
   pessoal_saude_beneficiarios }o--|| pessoal_saude_produtos : "produto_id"

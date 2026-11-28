@@ -512,6 +512,8 @@ Contracheque (PDF) de um funcionário numa remessa da folha, com valor líquido 
 | `remessa_id` | uuid | sim |  | → pessoal_contracheques_remessas |  |  |
 | `valor_liquido` | numeric(14,2) | sim |  |  | financeiro | Valor líquido a pagar ao funcionário — vira o valor da ordem de pagamento. |
 | `ordem_pagamento_id` | uuid | sim |  | → ordens_pagamento (set null) |  | Ordem de pagamento gerada no registro do contracheque (tipo Folha de pagamento). |
+| `he_lidas` | jsonb | sim |  |  | financeiro | Linhas de hora extra lidas do contracheque: {chave, origem, linhas: [{rubrica, faixa, tipo, horas, valor, texto}]}. |
+| `he_lidas_em` | timestamp with time zone | sim |  |  |  | Quando as linhas de hora extra foram lidas. |
 
 Únicas: `UNIQUE (bubble_id)`
 
@@ -536,6 +538,12 @@ Configuração por entidade da geração de ordem de pagamento a partir dos cont
 | `atualizada_por` | uuid | sim |  | → usuarios |  |  |
 | `created_at` | timestamp with time zone | não | `now()` |  |  |  |
 | `updated_at` | timestamp with time zone | sim |  |  |  |  |
+| `he_rubricas` | jsonb | não | `'[]'::jsonb` |  |  | Rubricas de hora extra do contracheque da entidade: [{codigo, descricao, faixa (1\|2), tipo (horas\|valor)}]. "valor" soma só o valor (ex.: DSR sobre horas extras). |
+| `he_referencia` | text | não | `'decimal'::text` |  |  | Como a referência das horas vem impressa: decimal (10,50 = 10h30) ou hhmm (10,30 = 10h30). "10:30" vale nos dois. |
+| `he_ia_linhas` | boolean | não | `true` |  |  | Se a IA pode interpretar as linhas de hora extra que o texto não resolve. Vão só essas linhas, sem nome nem CPF. |
+| `he_ler_imagem` | boolean | não | `false` |  |  | Se a IA pode ler o contracheque escaneado (sem texto) inteiro: vai a página toda, com nome, CPF e todos os valores. Desligado por padrão. |
+
+Checks: `pessoal_contracheques_config_he_referencia_check` `CHECK ((he_referencia = ANY (ARRAY['decimal'::text, 'hhmm'::text])))`; `pessoal_contracheques_config_he_rubricas_check` `CHECK ((jsonb_typeof(he_rubricas) = 'array'::text))`
 
 Índices: `pessoal_contracheques_config_pkey`, `ux_pessoal_contracheques_config_emp`
 
@@ -1552,10 +1560,14 @@ Espelho de ponto mensal (PDF) de um funcionário numa remessa, com saldos de hor
 | `marcacoes` | jsonb | sim |  |  | trabalhista | Marcações diárias lidas do espelho pela IA: { departamento, carga_diaria, dias: [{ data, ocorrencia, marcacoes[] }] }. |
 | `marcacoes_lidas_em` | timestamp with time zone | sim |  |  |  |  |
 | `marcacoes_erro` | text | sim |  |  |  | Erro da leitura por IA, quando houver. |
+| `valor_pago_70` | numeric(12,2) | sim |  |  | financeiro | Valor (R$) pago pelas horas extras da faixa 1, lido do contracheque. |
+| `valor_pago_100` | numeric(12,2) | sim |  |  | financeiro | Valor (R$) pago pelas horas extras da faixa 2, lido do contracheque. |
+| `pagas_contracheque_id` | uuid | sim |  | → pessoal_contracheques (set null) |  | Contracheque de onde as horas pagas foram lidas (null = digitadas). |
+| `pagas_lidas_em` | timestamp with time zone | sim |  |  |  | Quando as horas pagas foram preenchidas pelo contracheque. |
 
 Únicas: `UNIQUE (bubble_id)`
 
-Índices: `pessoal_registro_ponto_bubble_id_key`, `pessoal_registro_ponto_pkey`
+Índices: `ix_pessoal_registro_ponto_pagas_cc`, `pessoal_registro_ponto_bubble_id_key`, `pessoal_registro_ponto_pkey`
 
 ## pessoal_registro_ponto_remessas
 
@@ -1579,6 +1591,7 @@ Remessa mensal de espelhos de ponto (mês de referência, finalizada). Migrada d
 | `created_at` | timestamp with time zone | sim | `now()` |  |  |  |
 | `liberar_em` | date | sim |  |  |  | Dia em que a rotina diária libera ao funcionário os registros de ponto ainda bloqueados (vazio = só liberação manual). |
 | `liberada_automaticamente_em` | timestamp with time zone | sim |  |  |  | Quando a rotina diária liberou a remessa (uma vez; nova data futura zera). |
+| `contracheques_remessa_id` | uuid | sim |  | → pessoal_contracheques_remessas (set null) |  | Remessa de contracheques de onde vieram as horas pagas (em geral a do mês seguinte). |
 
 Únicas: `UNIQUE (bubble_id)`
 

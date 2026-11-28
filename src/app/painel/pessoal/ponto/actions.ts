@@ -356,11 +356,20 @@ export async function atualizarRegistroPonto(
   const admin = await createAdminClient()
   const { data: anterior } = await admin
     .from("pessoal_registro_ponto")
-    .select("liberado, funcionario_id")
+    .select("liberado, funcionario_id, horas_pagas_70, horas_pagas_100")
     .eq("id", id)
     .eq("remessa_id", remessaId)
     .maybeSingle()
   if (!anterior) return { erro: "Registro não encontrado." }
+  // Horas pagas mudadas à mão deixam de ser "do contracheque" (Fase 2, 28/11/2026):
+  // o valor pago da faixa mudada some, para não ficar um R$ que não bate com as horas.
+  const mudou = (a: unknown, b: number | null) => Number(a ?? 0).toFixed(2) !== Number(b ?? 0).toFixed(2)
+  const pagas70 = mudou(anterior.horas_pagas_70, horas.horas_pagas_70)
+  const pagas100 = mudou(anterior.horas_pagas_100, horas.horas_pagas_100)
+  const origemPagas =
+    pagas70 || pagas100
+      ? { pagas_contracheque_id: null, pagas_lidas_em: null, ...(pagas70 ? { valor_pago_70: null } : {}), ...(pagas100 ? { valor_pago_100: null } : {}) }
+      : {}
 
   const liberado = formData.get("liberado") === "on"
   const { error, count } = await admin
@@ -370,6 +379,7 @@ export async function atualizarRegistroPonto(
         liberado,
         ...(upload.caminho ? { arquivo: upload.caminho } : {}),
         ...horas,
+        ...origemPagas,
       },
       { count: "exact" }
     )

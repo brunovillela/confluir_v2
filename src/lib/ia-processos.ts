@@ -84,6 +84,7 @@ export const PROCESSOS_IA: ProcessoIA[] = [
   { chave: "pessoal.contracheque_leitura", titulo: "Leitura da folha / contracheque em PDF", modulo: "pessoal", minutos: 30, semIA: "Digitar a folha ou o contracheque" },
   { chave: "pessoal.ponto_cartao", titulo: "Leitura do cartão de ponto", modulo: "pessoal", minutos: 20, semIA: "Digitar as marcações do cartão de ponto" },
   { chave: "pessoal.ponto_marcacoes", titulo: "Ajuste das marcações de ponto", modulo: "pessoal", minutos: 10, semIA: "Conferir e ajustar as marcações do mês" },
+  { chave: "pessoal.ponto_horas_pagas", titulo: "Horas extras pagas lidas do contracheque", modulo: "pessoal", minutos: 15, semIA: "Conferir no contracheque as horas extras pagas e digitar na remessa de ponto" },
   { chave: "pessoal.ponto_resenha", titulo: "Resenha do ponto", modulo: "pessoal", minutos: 30, semIA: "Analisar o ponto do período e escrever a resenha" },
   { chave: "pessoal.sst", titulo: "Atribuições e SST", modulo: "pessoal", minutos: 60, semIA: "Redigir atribuições e riscos do cargo" },
   { chave: "pessoal.plano_saude_fatura", titulo: "Leitura da fatura do plano de saúde", modulo: "pessoal", minutos: 45, semIA: "Conferir a fatura do plano linha a linha" },

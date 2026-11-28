@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { Fragment } from "react"
 import { notFound } from "next/navigation"
-import { ArrowLeft, BarChart3, Download, ExternalLink, FileUp, Pencil, Plus } from "lucide-react"
+import { ArrowLeft, BarChart3, Download, ExternalLink, FileUp, Pencil, Plus, ReceiptText } from "lucide-react"
 
 import { TileIndicador } from "@/components/graficos/tile"
 import { GrupoColapsavel } from "@/components/grupo-colapsavel"
@@ -252,6 +252,14 @@ export default async function RemessaPontoPage({
                   <Link href={`/painel/pessoal/ponto/${id}/importar`}>
                     <FileUp />
                     Importar relatório
+                  </Link>
+                </Button>
+              )}
+              {!naAnalise && itens.length > 0 && (
+                <Button variant="outline" asChild>
+                  <Link href={`/painel/pessoal/ponto/${id}/horas-pagas`}>
+                    <ReceiptText />
+                    Horas pagas pelo contracheque
                   </Link>
                 </Button>
               )}

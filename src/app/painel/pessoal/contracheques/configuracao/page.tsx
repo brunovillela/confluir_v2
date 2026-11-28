@@ -30,18 +30,30 @@ import {
 import { funcionariosParaSelecao } from "@/lib/db/pessoal"
 import { podeAcessar } from "@/lib/permissoes"
 
+import { faixasHoraExtra } from "@/lib/db/ponto-config"
+import { configHE, remessasCCParaPonto, sugerirRubricas } from "@/lib/db/ponto-horas-pagas"
+
 import { ConfigContrachequesForm } from "./config-form"
+import { ConfigHEForm } from "./he-form"
 
 export const metadata: Metadata = { title: "Configuração dos contracheques — Confluir" }
 
-export default async function ConfiguracaoContrachequesPage() {
+// A sugestão de rubricas abre os PDFs de uma remessa.
+export const maxDuration = 120
+
+export default async function ConfiguracaoContrachequesPage({ searchParams }: { searchParams: Promise<{ sugerir?: string }> }) {
   const sessao = await requirePermissao("pessoal_gestao")
-  const [config, centros, departamentos, funcionarios] = await Promise.all([
+  const { sugerir } = await searchParams
+  const [config, centros, departamentos, funcionarios, he, faixas, remessasCC] = await Promise.all([
     obterConfigContracheques(),
     centrosDeCustoParaFolha(),
     listarDepartamentos(),
     funcionariosParaSelecao(),
+    configHE(),
+    faixasHoraExtra(),
+    remessasCCParaPonto(null),
   ])
+  const sugestao = sugerir && remessasCC.some((r) => r.id === sugerir) ? await sugerirRubricas(sugerir) : null
   const contas = await dadosBancariosDosFuncionarios(funcionarios.map((f) => f.usuarioId))
   const semConta = funcionarios.filter((f) => {
     const c = contas.get(f.usuarioId)
@@ -93,6 +105,50 @@ export default async function ConfiguracaoContrachequesPage() {
               "Peça ao Financeiro para cadastrá-lo em Centros de custo."
             )}
           </p>
+        </CardContent>
+      </Card>
+
+      <Card id="horas-extras">
+        <CardHeader>
+          <CardTitle className="text-base">Horas extras no contracheque</CardTitle>
+          <CardDescription>
+            Para o Controle de ponto preencher as horas extras pagas (e o valor pago) a partir de uma remessa de
+            contracheques. O PDF é lido aqui, no servidor, pelo texto: só as linhas destas rubricas são usadas, e nada
+            vai à IA sem as opções abaixo.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          {!he.disponivel ? (
+            <Alert variant="warning">
+              <AlertDescription>A migração das horas pagas ainda não foi aplicada neste banco.</AlertDescription>
+            </Alert>
+          ) : (
+            <>
+              <form className="flex flex-wrap items-end gap-2 text-sm" action="/painel/pessoal/contracheques/configuracao#horas-extras">
+                <label className="grid gap-1">
+                  <span className="text-muted-foreground text-xs">Procurar rubricas de hora extra nos contracheques de</span>
+                  <select name="sugerir" defaultValue={sugerir ?? ""} className="border-input bg-background h-9 rounded-md border px-2 text-sm [color-scheme:light] dark:[color-scheme:dark]">
+                    <option value="">Escolha a remessa</option>
+                    {remessasCC.filter((r) => r.itens > 0).map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.nome} ({r.itens})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <Button type="submit" variant="outline">Procurar</Button>
+              </form>
+              {sugestao && (
+                <p className="text-muted-foreground text-xs">
+                  {sugestao.lidos} contracheque(s) lido(s) pelo texto
+                  {sugestao.semTexto > 0 && `, ${sugestao.semTexto} escaneado(s) sem texto`}
+                  {sugestao.sugestoes.length === 0 && ": nenhuma linha com cara de hora extra. Digite as rubricas abaixo."}
+                  {sugestao.sugestoes.length > 0 && ". Só o código e a descrição aparecem aqui, sem valores."}
+                </p>
+              )}
+              <ConfigHEForm config={he} faixas={faixas} sugestoes={sugestao?.sugestoes ?? []} />
+            </>
+          )}
         </CardContent>
       </Card>
 
