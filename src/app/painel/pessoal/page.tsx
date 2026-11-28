@@ -25,6 +25,8 @@ import { CartaoArea, GRADE_AREAS } from "@/components/cartao-area";
 import { requirePermissao } from "@/lib/auth";
 import { resumoPessoal } from "@/lib/db/pessoal-dashboard";
 import { resumoSST } from "@/lib/db/pessoal-sst";
+import { hojeSP } from "@/lib/db/comum";
+import { avisosPlanoSaude } from "@/lib/db/plano-saude";
 import { funcionariosSemJornada } from "@/lib/db/jornada-pendentes";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { tenantAtual } from "@/lib/tenant";
@@ -98,6 +100,8 @@ export default async function PessoalPage() {
   const semJornada = veGestao
     ? await funcionariosSemJornada(await createAdminClient(), await tenantAtual())
     : null;
+  // Plano de saúde (28/11/2026): os mesmos avisos da caixa de entrada.
+  const saude = veGestao ? await avisosPlanoSaude(hojeSP()).catch(() => null) : null;
 
   const plural = (n: number, um: string, muitos: string) =>
     `${n} ${n === 1 ? um : muitos}`;
@@ -180,6 +184,32 @@ export default async function PessoalPage() {
       icone: Clock4,
       texto: `${plural(semJornada.total, "funcionário ativo", "funcionários ativos")} sem jornada vinculada: sem ela, o uso fora do expediente não é registrado.`,
     });
+  }
+  if (saude) {
+    const mesAtual = hojeSP().slice(0, 7);
+    const [ano, mes] = mesAtual.split("-").map(Number);
+    const mesSeguinte = mes === 12 ? `${ano + 1}-01` : `${ano}-${String(mes + 1).padStart(2, "0")}`;
+    for (const rj of saude.reajustes) {
+      alertas.push({
+        href: `/painel/pessoal/plano-saude/mes?mes=${mesAtual}`,
+        icone: HeartHandshake,
+        texto: `Plano de saúde ${rj.contrato}: reajuste anual sem a tabela nova (${rj.produtos.join(", ")}).`,
+      });
+    }
+    if (saude.comAlerta > 0) {
+      alertas.push({
+        href: `/painel/pessoal/plano-saude/mes?mes=${mesAtual}`,
+        icone: HeartHandshake,
+        texto: `${plural(saude.comAlerta, "beneficiário do plano de saúde", "beneficiários do plano de saúde")} com alerta neste mês (desligado no plano, dependente desativado, idade-limite, sem tabela ou regra).`,
+      });
+    }
+    if (saude.mudamDeFaixa > 0) {
+      alertas.push({
+        href: `/painel/pessoal/plano-saude/mes?mes=${mesSeguinte}`,
+        icone: HeartHandshake,
+        texto: `${plural(saude.mudamDeFaixa, "beneficiário muda", "beneficiários mudam")} de faixa etária do plano de saúde no mês que vem.`,
+      });
+    }
   }
   if (sst?.ativo && sst.treinamentosPendentes > 0) {
     alertas.push({
@@ -305,7 +335,9 @@ export default async function PessoalPage() {
       mostrar: veGestao,
       href: "/painel/pessoal/plano-saude",
       titulo: "Plano de saúde",
-      indicador: "Contratos e conferência do mês",
+      indicador: saude?.total
+        ? plural(saude.total, "aviso na conferência do mês", "avisos na conferência do mês")
+        : "Contratos e conferência do mês",
       descricao: "Tabelas por faixa etária, custeio e dependentes",
       icone: HeartHandshake,
     },
