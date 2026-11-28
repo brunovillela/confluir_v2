@@ -10,6 +10,7 @@ import { FILTRO_NAO_PAGA_NO_ATO, SITUACOES_ABERTAS } from "@/lib/db/financeiro"
 import { escaparHtml, paragrafo, textoSuave } from "@/lib/email-layout"
 import { formatarData, formatarMoeda } from "@/lib/formato"
 import { resumoLocacao } from "@/lib/locacao-periodo"
+import { situacaoDosDedicados } from "@/lib/db/veiculos-dedicados"
 import { PERMISSOES_USUARIO_FK, podeAcessar, type Permissoes } from "@/lib/permissoes"
 import { resolverPermissoes } from "@/lib/permissoes-resolver"
 import { createServiceClient } from "@/lib/supabase/admin"
@@ -254,6 +255,34 @@ async function cobrancasLocacao(f: Fonte): Promise<ItemVencimento[]> {
     }
   }
   return itens
+}
+
+/**
+ * Carro de locação de uso dedicado com o checklist vencido: o pedido vai ao
+ * condutor pelo Telegram (veiculos-dedicados.ts); aqui a gestão vê quem não
+ * respondeu — ou não tem o Telegram vinculado e precisa ser procurado.
+ */
+async function checklistDedicados(f: Fonte): Promise<ItemVencimento[]> {
+  const lista = await situacaoDosDedicados(f.tenantId, f.svc)
+  return lista
+    .filter((s) => s.vencido)
+    .map((s) => {
+      const quem = s.condutorNome ?? "o condutor"
+      const atraso = s.ultimoEm === null ? "sem checklist registrado" : `checklist vencido há ${-s.diasRestantes} dia${s.diasRestantes === -1 ? "" : "s"}`
+      const pedido = !s.chatId
+        ? `${quem} não tem o Telegram vinculado — peça o checklist a ele`
+        : s.pedidoEm
+          ? `pedido a ${quem} pelo Telegram em ${formatarData(s.pedidoEm.slice(0, 10))}`
+          : `será pedido a ${quem} pelo Telegram`
+      return {
+        rotulo: `${s.veiculoRotulo} (uso dedicado)`,
+        data: s.venceEm,
+        dias: s.diasRestantes,
+        href: `/painel/veiculos/${s.veiculoId}`,
+        nota: `${atraso} — ${pedido}`,
+        atrasado: true,
+      }
+    })
 }
 
 async function apontamentosChecklist(f: Fonte): Promise<ItemVencimento[]> {
@@ -622,6 +651,7 @@ export async function vencimentosDoTenant(tenantId: string): Promise<GrupoVencim
     { chave: "locacoes", titulo: "Locação de veículos", permissao: { chave: "veiculos_gestao", alternativas: [] }, itens: await seguro(() => locacoes(f)) },
     { chave: "locacao_cobrancas", titulo: "Contratos de aluguel: cobranças e uso", permissao: { chave: "veiculos_gestao", alternativas: [] }, itens: await seguro(() => cobrancasLocacao(f)) },
     { chave: "apontamentos", titulo: "Apontamentos de checklist", permissao: { chave: "veiculos_gestao", alternativas: [] }, itens: await seguro(() => apontamentosChecklist(f)) },
+    { chave: "checklist_dedicados", titulo: "Checklist dos carros de uso dedicado", permissao: { chave: "veiculos_gestao", alternativas: [] }, itens: await seguro(() => checklistDedicados(f)) },
     { chave: "asos", titulo: "ASO", permissao: { chave: "pessoal_gestao", alternativas: ["pessoal_aso"] }, itens: await seguro(() => asos(f)) },
     { chave: "ferias", titulo: "Férias (período concessivo)", permissao: { chave: "pessoal_gestao", alternativas: [] }, itens: await seguro(() => ferias(f)) },
     { chave: "treinamentos", titulo: "Treinamentos", permissao: { chave: "pessoal_gestao", alternativas: [] }, itens: await seguro(() => treinamentos(f)) },

@@ -153,6 +153,12 @@ erDiagram
     uuid plano_id FK
     uuid registrada_por FK
   }
+  veiculos_telegram_checklists {
+    text chat_id PK
+    uuid emp_proprietaria_id FK
+    uuid usuario_id FK
+    uuid veiculo_id FK
+  }
   veiculos_verificacao {
     uuid id PK
     uuid emp_proprietaria_id FK
@@ -220,6 +226,8 @@ erDiagram
   veiculos_manutencoes }o--o| usuarios : "registrada_por"
   veiculos_manutencoes }o--o| veiculos : "veiculo_id"
   veiculos_manutencoes }o--o| veiculos_manutencao_planos : "plano_id"
+  veiculos_telegram_checklists }o--|| usuarios : "usuario_id"
+  veiculos_telegram_checklists }o--|| veiculos : "veiculo_id"
   veiculos_verificacao }o--o| usuarios : "inspetor_id"
   veiculos_verificacao }o--o| veiculos : "veiculo_id"
 ```

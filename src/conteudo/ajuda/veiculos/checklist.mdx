@@ -30,6 +30,30 @@ ligar a área, todos aparecem em vermelho.
   &quot;em dia&quot; e nada é exibido — alerta que aparece sempre vira paisagem.
 </Aviso>
 
+## Carro de uso dedicado: pelo Telegram
+
+O carro de locação de **uso dedicado** fica com um condutor e não passa pela
+recepção. Por isso o checklist dele é feito pelo **próprio condutor**, no bot
+do Telegram, com o mesmo prazo e os mesmos itens da frota:
+
+- quando o prazo chega (já contando a antecedência do aviso), o condutor
+  recebe no Telegram **Hora do checklist**, com o botão **Fazer o checklist
+  agora**; sem resposta, o lembrete se repete a cada 3 dias. Ele também pode
+  mandar **/checklist** quando estiver junto do carro;
+- o bot pede o **km** do painel (não aceita menos que o último registrado e
+  confirma um salto acima de 5.000 km), pergunta se cada **apontamento** em
+  aberto continua ou foi resolvido, mostra os **itens** — um toque alterna ✅
+  em ordem, ⚠️ com problema e ➖ não se aplica — e pede a descrição de cada
+  problema; no fim, **Salvar**;
+- o checklist entra no histórico como qualquer outro, com o condutor como quem
+  fez: zera o prazo, abre e encerra apontamentos, e o km passa a ser o do carro
+  (vale para a preventiva por quilometragem).
+
+Para a gestão, o **resumo diário de vencimentos** mostra o carro dedicado com o
+checklist vencido, a quem foi pedido e desde quando — ou que o condutor não tem
+o Telegram vinculado e é preciso procurá-lo. Quer o checklist semanal? Defina
+o prazo próprio do carro (7 dias) na página dele.
+
 ## Realizar a verificação
 
 <PassoAPasso>

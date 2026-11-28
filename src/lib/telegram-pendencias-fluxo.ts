@@ -128,6 +128,7 @@ export const COMANDOS_BOT: readonly ComandoBot[] = [
   { comando: "informes", descricao: "seus informes de rendimentos" },
   { comando: "asos", descricao: "seus atestados de saúde ocupacional" },
   { comando: "carros", descricao: "frota agora: disponíveis por sede e com quem estão os carros" },
+  { comando: "checklist", descricao: "checklist e km do carro dedicado a você (locação)" },
   { comando: "filiado", argumento: "nome ou CPF", descricao: "consulta de filiação" },
   { comando: "eu", descricao: "confirma sua conta vinculada" },
   { comando: "ajuda", descricao: "lista os comandos" },

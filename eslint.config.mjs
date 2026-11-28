@@ -24,6 +24,8 @@ const PODEM_USAR_SERVICE_ROLE = [
   "src/lib/db/email-avisos.ts",
   "src/lib/db/filiacao-coletiva.ts",
   "src/lib/db/veiculos-avisos.ts",
+  // Checklist do carro dedicado: pedido ao condutor no tick diário de veículos.
+  "src/lib/db/veiculos-dedicados.ts",
   "src/lib/db/pendencias-lembrete.ts",
   "src/lib/db/vencimentos.ts",
   "src/lib/db/analitica.ts",

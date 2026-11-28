@@ -4,6 +4,10 @@
 
 O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga. É o mesmo conteúdo do aviso "O que há de novo" dentro do sistema. O detalhe técnico de cada entrega está no histórico do git; as decisões de arquitetura, em [`docs/arquitetura/adr/`](../arquitetura/adr/LEIA-ME.md).
 
+## 28/11/2026 — Veículos: checklist do carro dedicado pelo Telegram
+
+- Veículos: o carro de locação de uso dedicado, que não passa pela recepção, tem o checklist feito pelo próprio condutor no Telegram. Quando chega o prazo do checklist, o condutor recebe o pedido com o botão Fazer o checklist agora (e um lembrete a cada 3 dias), ou manda /checklist quando quiser: o bot pede o km do painel, pergunta se cada problema apontado continua ou foi resolvido, mostra os itens para marcar (em ordem, com problema ou não se aplica) e pede a descrição de cada problema. O checklist entra no histórico como qualquer outro, e o km passa a ser o do carro. O resumo diário de vencimentos avisa a gestão do carro dedicado com o checklist vencido, a quem foi pedido — ou que o condutor não tem o Telegram vinculado.
+
 ## 27/11/2026 — Código de acesso: todos os e-mails do cadastro
 
 - Eventos → Lançar presenças (novo), no quadro Presença por dia da página do evento: para registrar depois quem veio — a partir da lista de assinatura em papel, por exemplo — ou retirar uma presença marcada por engano. Escolha o dia, marque e desmarque numa lista com busca e salve de uma vez; funciona também com o evento encerrado. A presença lançada aqui aparece como lançada depois, com quem lançou e quando, e cada lançamento ou retirada fica registrado.

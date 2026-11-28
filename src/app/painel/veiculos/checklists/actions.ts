@@ -5,13 +5,13 @@ import { redirect } from "next/navigation"
 
 import { requirePermissao } from "@/lib/auth"
 import { type EstadoForm } from "@/lib/contas"
+import { apontamentosAbertos, vincularManutencao } from "@/lib/db/veiculos-apontamentos"
+import { listarItens } from "@/lib/db/veiculos-checklist"
 import {
-  aplicarChecklistAosApontamentos,
-  apontamentosAbertos,
-  vincularManutencao,
-  type RespostaApontamento,
-} from "@/lib/db/veiculos-apontamentos"
-import { listarItens, type SituacaoItem } from "@/lib/db/veiculos-checklist"
+  gravarChecklist,
+  type EntradaApontamentoChecklist,
+  type EntradaItemChecklist,
+} from "@/lib/db/veiculos-checklist-gravar"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -40,140 +40,32 @@ export async function registrarChecklist(
   const veiculoId = txt(fd, "veiculo_id")
   if (!veiculoId) return { erro: "Escolha o veículo." }
 
-  const itens = await listarItens(true)
-  if (itens.length === 0) {
-    return { erro: "Nenhum item de verificação cadastrado. Fale com a gestão da frota." }
-  }
-
-  // Apontamentos em aberto do veículo: cada um precisa de resposta — permanece
-  // ou foi sanado. Só esta resposta encerra um apontamento.
-  const abertos = await apontamentosAbertos(veiculoId)
-  const respostasApont: RespostaApontamento[] = []
-  const novos: { item_id: string; categoria: string; descricao: string | null }[] = []
-  const lerApontamento = (a: (typeof abertos)[number]) => {
-    const r = txt(fd, `apont_${a.id}`)
-    return r === "permanece" || r === "sanado" ? r : null
-  }
-
-  // Toda categoria precisa de resposta — checklist pela metade não serve de
-  // registro, e o "não se aplica" existe justamente para não obrigar a mentir.
-  const respostas: {
-    item_id: string
-    categoria: string
-    situacao: SituacaoItem
-    observacao: string | null
-  }[] = []
+  // Respostas por item e por apontamento em aberto; as regras do registro
+  // (tudo respondido, descrição do não conforme, apontamento permanece ou
+  // sanado) ficam em gravarChecklist — as mesmas do /checklist do Telegram.
+  const [itens, abertos] = await Promise.all([listarItens(true), apontamentosAbertos(veiculoId)])
+  const entradaItens: Record<string, EntradaItemChecklist> = {}
   for (const item of itens) {
-    const aberto = abertos.find((a) => a.item_id === item.id)
-    const obs = txt(fd, `obs_${item.id}`)
-    if (aberto) {
-      const r = lerApontamento(aberto)
-      if (!r) {
-        return { erro: `Diga se o apontamento de "${item.categoria}" permanece ou foi sanado.` }
-      }
-      if (r === "permanece") {
-        // O problema segue: o item fica não conforme, com o que se viu agora
-        // (ou a descrição original, se o inspetor não acrescentou nada).
-        respostasApont.push({ apontamentoId: aberto.id, permanece: true, observacao: obs || null })
-        respostas.push({
-          item_id: item.id,
-          categoria: item.categoria,
-          situacao: "nao_conforme",
-          observacao: obs || aberto.descricao,
-        })
-        continue
-      }
-      respostasApont.push({ apontamentoId: aberto.id, permanece: false, observacao: null })
-    }
-    const s = txt(fd, `situacao_${item.id}`) as SituacaoItem
-    if (!["conforme", "nao_conforme", "nao_aplica"].includes(s)) {
-      return { erro: `Responda a verificação de "${item.categoria}".` }
-    }
-    if (s === "nao_conforme" && !obs) {
-      return {
-        erro: `Descreva o problema encontrado em "${item.categoria}" — um item não conforme sem descrição não ajuda a oficina.`,
-      }
-    }
-    if (s === "nao_conforme") novos.push({ item_id: item.id, categoria: item.categoria, descricao: obs })
-    respostas.push({
-      item_id: item.id,
-      categoria: item.categoria,
-      situacao: s,
-      observacao: obs || null,
-    })
+    entradaItens[item.id] = { situacao: txt(fd, `situacao_${item.id}`), observacao: txt(fd, `obs_${item.id}`) }
   }
-  // Apontamento de item que saiu do catálogo: a pergunta continua valendo.
-  let orfaosPermanecem = 0
-  for (const a of abertos.filter((a) => !itens.some((i) => i.id === a.item_id))) {
-    const r = lerApontamento(a)
-    if (!r) return { erro: `Diga se o apontamento de "${a.categoria}" permanece ou foi sanado.` }
-    if (r === "permanece") orfaosPermanecem++
-    respostasApont.push({
-      apontamentoId: a.id,
-      permanece: r === "permanece",
-      observacao: r === "permanece" ? txt(fd, `obs_apont_${a.id}`) || null : null,
-    })
+  const entradaApont: Record<string, EntradaApontamentoChecklist> = {}
+  for (const a of abertos) {
+    // Apontamento de item que saiu do catálogo tem campo de observação próprio.
+    const orfao = !itens.some((i) => i.id === a.item_id)
+    entradaApont[a.id] = { resposta: txt(fd, `apont_${a.id}`), observacao: orfao ? txt(fd, `obs_apont_${a.id}`) : "" }
   }
 
   const hodometroBruto = txt(fd, "hodometro")
   const hodometro = hodometroBruto ? Number(hodometroBruto) : null
-  if (hodometro !== null && (!Number.isFinite(hodometro) || hodometro < 0)) {
-    return { erro: "Hodômetro inválido." }
-  }
-
-  const pendencias = respostas.filter((r) => r.situacao === "nao_conforme").length + orfaosPermanecem
-  const realizadoEm = new Date().toISOString()
-
-  const admin = await createAdminClient()
-  const emp = await tenantAtual()
-  const { data: criado, error } = await admin
-    .from("veiculos_checklists")
-    .insert({
-      emp_proprietaria_id: emp,
-      veiculo_id: veiculoId,
-      realizado_em: realizadoEm,
-      hodometro,
-      inspetor_id: sessao.usuario.id,
-      observacoes: txt(fd, "observacoes") || null,
-      pendencias,
-    })
-    .select("id")
-    .single()
-  if (error || !criado) {
-    return { erro: `Não foi possível registrar: ${error?.message ?? "?"}` }
-  }
-
-  const checklistId = criado.id as string
-  const { error: erroResp } = await admin
-    .from("veiculos_checklist_respostas")
-    .insert(
-      respostas.map((r) => ({
-        emp_proprietaria_id: emp,
-        checklist_id: checklistId,
-        item_id: r.item_id,
-        categoria: r.categoria,
-        situacao: r.situacao,
-        observacao: r.observacao,
-      }))
-    )
-  if (erroResp) {
-    // sem as respostas o checklist não vale nada — desfaz o cabeçalho
-    await admin.from("veiculos_checklists").delete().eq("id", checklistId)
-    return { erro: `Não foi possível gravar as respostas: ${erroResp.message}` }
-  }
-
-  const { erro: erroApont } = await aplicarChecklistAosApontamentos({
+  const { id: checklistId, erro } = await gravarChecklist({
     veiculoId,
-    checklistId,
-    realizadoEm,
     inspetorId: sessao.usuario.id,
-    respostas: respostasApont,
-    novos,
+    hodometro,
+    observacoes: txt(fd, "observacoes") || null,
+    itens: entradaItens,
+    apontamentos: entradaApont,
   })
-  if (erroApont) {
-    await admin.from("veiculos_checklists").delete().eq("id", checklistId)
-    return { erro: erroApont }
-  }
+  if (erro || !checklistId) return { erro: erro ?? "Não foi possível registrar o checklist." }
 
   revalidatePath(BASE)
   revalidatePath("/painel/veiculos")

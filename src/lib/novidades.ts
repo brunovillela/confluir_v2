@@ -13,6 +13,13 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-28",
+    titulo: "Veículos: checklist do carro dedicado pelo Telegram",
+    itens: [
+      "Veículos: o carro de locação de uso dedicado, que não passa pela recepção, tem o checklist feito pelo próprio condutor no Telegram. Quando chega o prazo do checklist, o condutor recebe o pedido com o botão Fazer o checklist agora (e um lembrete a cada 3 dias), ou manda /checklist quando quiser: o bot pede o km do painel, pergunta se cada problema apontado continua ou foi resolvido, mostra os itens para marcar (em ordem, com problema ou não se aplica) e pede a descrição de cada problema. O checklist entra no histórico como qualquer outro, e o km passa a ser o do carro. O resumo diário de vencimentos avisa a gestão do carro dedicado com o checklist vencido, a quem foi pedido — ou que o condutor não tem o Telegram vinculado.",
+    ],
+  },
+  {
     id: "2026-11-27",
     titulo: "Código de acesso: todos os e-mails do cadastro",
     itens: [

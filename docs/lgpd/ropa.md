@@ -28,8 +28,8 @@
 | P11 | [Financeiro, compras, fornecedores e contratos](#p11) | 39 | identificação, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P12 | [Institucional: custeios, viagens, linhas e patrimônio](#p12) | 10 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde**, financeiro, trabalhista | sim |
 | P13 | [Hospedagem conveniada e cessão de espaços](#p13) | 12 | identificação, **sensível: filiação/posição sindical**, financeiro, credencial (segredo de acesso, nunca exportar) | sim |
-| P14 | [Frota: veículos e condutores](#p14) | 16 | identificação, financeiro | sim |
-| P15 | [Comunicação, eventos e avisos](#p15) | 9 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
+| P14 | [Frota: veículos e condutores](#p14) | 17 | identificação, financeiro | sim |
+| P15 | [Comunicação, eventos e avisos](#p15) | 10 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P16 | [Contas de acesso, segurança, auditoria e gestão interna](#p16) | 37 | identificação, **sensível: filiação/posição sindical**, financeiro, trabalhista, credencial (segredo de acesso, nunca exportar) | sim |
 | P17 | [Congressos e conferências](#p17) | 24 | identificação, **sensível: filiação/posição sindical**, **sensível: saúde** | sim |
 
@@ -700,7 +700,7 @@
 
 **Observações.** Pendência: cópias da CNH em jsonb de unificação de condutores.
 
-<details><summary>Tabelas (16) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (17) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -708,7 +708,7 @@
 | [ferramentas_anomalias](../dados/dicionario/ferramentas.md#ferramentas_anomalias) | identificacao | `descricao_detalhada` (identificacao), `envolvidos_raw` (identificacao), `fato` (identificacao) |
 | [ferramentas_anomalias_sugestoes](../dados/dicionario/ferramentas.md#ferramentas_anomalias_sugestoes) | identificacao | `origem` (nenhum), `chave` (nenhum), `fato` (identificacao), `descricao` (identificacao), `link` (nenhum), `situacao` (nenhum), `decidido_por` (identificacao) |
 | [veiculo_contratos_aluguel](../dados/dicionario/veiculos.md#veiculo_contratos_aluguel) | identificacao | `uso` (nenhum), `uso_justificativa` (nenhum), `condutor_dedicado_id` (identificacao) |
-| [veiculos](../dados/dicionario/veiculos.md#veiculos) | identificacao | `condutor` (identificacao) |
+| [veiculos](../dados/dicionario/veiculos.md#veiculos) | identificacao | `condutor` (identificacao), `checklist_pedido_em` (nenhum) |
 | [veiculos_abastecimentos](../dados/dicionario/veiculos.md#veiculos_abastecimentos) | identificacao | `condutor_informado` (identificacao), `comprovante_url` (nenhum) |
 | [veiculos_agendamentos](../dados/dicionario/veiculos.md#veiculos_agendamentos) | identificacao | `motivo` (identificacao), `destino` (identificacao) |
 | [veiculos_checklist_apontamentos](../dados/dicionario/veiculos.md#veiculos_checklist_apontamentos) | identificacao | `emp_proprietaria_id` (nenhum), `veiculo_id` (nenhum), `item_id` (nenhum), `categoria` (nenhum), `descricao` (nenhum), `situacao` (nenhum), `aberto_em` (nenhum), `checklist_abertura_id` (nenhum), `confirmacoes` (nenhum), `ultima_confirmacao_em` (nenhum), `ultima_observacao` (nenhum), `resolvido_em` (nenhum), `checklist_resolucao_id` (nenhum), `resolvido_por` (identificacao), `manutencao_id` (nenhum), `created_at` (nenhum) |
@@ -720,6 +720,7 @@
 | [veiculos_infracoes](../dados/dicionario/veiculos.md#veiculos_infracoes) | identificacao, financeiro | `infracao_local` (identificacao), `reembolso_obs_financeiro` (financeiro), `justificativa_descricao` (identificacao), `reembolso_infrator` (financeiro), `identificacao_real_infrator` (identificacao), `formaliz_real_infrator` (identificacao), `cobranca_forma` (financeiro), `cobranca_situacao` (financeiro), `cobranca_valor` (financeiro), `baixa_observacao` (financeiro), `baixa_comprovante_url` (financeiro) |
 | [veiculos_infracoes_config](../dados/dicionario/veiculos.md#veiculos_infracoes_config) | identificacao | `emails_copia` (identificacao) |
 | [veiculos_infracoes_historico](../dados/dicionario/veiculos.md#veiculos_infracoes_historico) | identificacao | `detalhe` (identificacao) |
+| [veiculos_telegram_checklists](../dados/dicionario/veiculos.md#veiculos_telegram_checklists) | identificacao | `chat_id` (identificacao), `usuario_id` (identificacao), `veiculo_id` (nenhum), `passo` (nenhum), `dados` (nenhum), `atualizado_em` (nenhum), `expira_em` (nenhum) |
 
 </details>
 
@@ -751,7 +752,7 @@
 
 **Observações.** `comunicacao_envios` copia nome, CPF, e-mail e telefone a cada envio.
 
-<details><summary>Tabelas (9) e colunas com dado pessoal</summary>
+<details><summary>Tabelas (10) e colunas com dado pessoal</summary>
 
 | Tabela | Categorias | Colunas com dado pessoal |
 |---|---|---|
@@ -760,7 +761,8 @@
 | [comunicacao_textos](../dados/dicionario/comunicacao.md#comunicacao_textos) | identificacao | `fatos` (identificacao), `texto_gerado` (identificacao), `texto_final` (identificacao) |
 | [eventos_inscricao_respostas](../dados/dicionario/comunicacao.md#eventos_inscricao_respostas) | identificacao | `valor` (identificacao) |
 | [eventos_inscricoes](../dados/dicionario/comunicacao.md#eventos_inscricoes) | identificacao, sens. sindical, credencial | `nome` (identificacao), `cpf` (identificacao), `email` (identificacao), `telefone` (identificacao), `filiacao_id` (sens. sindical), `foto_url` (identificacao), `consentimento_ip` (identificacao), `rsvp_token` (credencial), `acesso_observacao` (identificacao), `token` (credencial), `codigo_hash` (credencial), `convidado_por` (identificacao) |
-| [eventos_presencas](../dados/dicionario/comunicacao.md#eventos_presencas) | identificacao | _pela existência do registro_ |
+| [eventos_presencas](../dados/dicionario/comunicacao.md#eventos_presencas) | identificacao | `metodo` (nenhum) |
+| [eventos_presencas_ajustes](../dados/dicionario/comunicacao.md#eventos_presencas_ajustes) | identificacao | `inscricao_id` (identificacao), `acao` (nenhum), `usuario_id` (identificacao) |
 | [eventos_titular_sessao](../dados/dicionario/comunicacao.md#eventos_titular_sessao) | identificacao, credencial | `email` (identificacao), `codigo_hash` (credencial), `token` (credencial) |
 | [notificacoes](../dados/dicionario/comunicacao.md#notificacoes) | financeiro, trabalhista | `notificacao` (trabalhista), `registro_ponto_id` (trabalhista), `contracheque_id` (financeiro), `contracheque_id_fk` (financeiro) |
 | [push_assinaturas](../dados/dicionario/comunicacao.md#push_assinaturas) | identificacao, credencial | `endpoint` (credencial), `p256dh` (credencial), `auth` (credencial), `user_agent` (identificacao) |
@@ -925,4 +927,4 @@ Até o desligamento, o Bubble ainda grava hospedagem, portal e anuênio, e guard
 
 ---
 
-Cobertura: 285 de 285 tabelas com dado pessoal atribuídas a 17 processos.
+Cobertura: 287 de 287 tabelas com dado pessoal atribuídas a 17 processos.

@@ -2,7 +2,7 @@
 
 # Veículos e condutores
 
-23 tabelas. Diagrama: [er/veiculos.md](../er/veiculos.md).
+24 tabelas. Diagrama: [er/veiculos.md](../er/veiculos.md).
 
 | Tabela | Dado pessoal | Descrição |
 |---|---|---|
@@ -28,6 +28,7 @@
 | [veiculos_infracoes_historico](#veiculos_infracoes_historico) | identificação | Trilha de eventos de uma infração (notificação, justificativa, cobrança, baixa) com usuário e detalhe. |
 | [veiculos_manutencao_planos](#veiculos_manutencao_planos) | — | Plano de manutenção preventiva de um veículo por intervalo de dias e/ou km, com alertas. |
 | [veiculos_manutencoes](#veiculos_manutencoes) | — | Manutenção realizada em veículo: tipo, oficina, valor, nota fiscal, garantia e plano atendido. |
+| [veiculos_telegram_checklists](#veiculos_telegram_checklists) | identificação | Checklist do carro dedicado em andamento no bot do Telegram (/checklist): o passo da conversa e as respostas até ali; apagada ao salvar ou c… |
 | [veiculos_verificacao](#veiculos_verificacao) | — | Inspeção de veículo herdada do Bubble, com um par de colunas fixo por item (buzina/buzina_ok etc.). Vazia e sem uso; substituída por veiculo… |
 
 ## cnh
@@ -159,6 +160,7 @@ Veículo da frota da entidade (próprio ou alugado): placa, RENAVAM, documentos,
 | `checklist_recorrencia_dias` | integer | sim |  |  |  |  |
 | `manutencao_desde` | timestamp with time zone | sim |  |  |  |  |
 | `inativo_desde` | timestamp with time zone | sim |  |  |  |  |
+| `checklist_pedido_em` | timestamp with time zone | sim |  |  | nenhum | Carro de uso dedicado: quando o checklist foi pedido ao condutor pelo Telegram pela última vez (tick diário de veículos); o lembrete se repete a cada 3 dias enquanto o checklist estiver no prazo ou vencido. |
 
 Únicas: `UNIQUE (bubble_id)`
 
@@ -675,6 +677,27 @@ Manutenção realizada em veículo: tipo, oficina, valor, nota fiscal, garantia 
 Checks: `ck_veic_manut_tipo` `CHECK ((tipo = ANY (ARRAY['preventiva'::text, 'corretiva'::text]))) NOT VALID`
 
 Índices: `idx_veic_manut_plano`, `idx_veic_manut_veiculo`, `veiculos_manutencoes_pkey`
+
+## veiculos_telegram_checklists
+
+Checklist do carro dedicado em andamento no bot do Telegram (/checklist): o passo da conversa e as respostas até ali; apagada ao salvar ou cancelar e expira em 2 horas (src/lib/telegram-checklist.ts).
+
+- **LGPD:** identificação · titulares: condutores
+- **RLS:** ligado · policies: `tenant_isolation`
+- **Triggers:** `set_emp_from_jwt` → `set_emp_from_jwt`
+
+| Coluna | Tipo | Nulo | Padrão | Referência | LGPD | Descrição |
+|---|---|---|---|---|---|---|
+| 🔑 `chat_id` | text | não |  |  | identificação | Chat do Telegram do condutor (o mesmo de usuarios.telegram_chat_id). |
+| `emp_proprietaria_id` | uuid | não |  | → empresa |  | Entidade (tenant). |
+| `usuario_id` | uuid | não |  | → usuarios (**cascade**) | identificação | Condutor que está fazendo o checklist — vira o inspetor do checklist. |
+| `veiculo_id` | uuid | não |  | → veiculos (**cascade**) | nenhum | Carro verificado. |
+| `passo` | text | não |  |  | nenhum | Passo atual da conversa (km, apontamentos, itens, descrições, confirmar). |
+| `dados` | jsonb | não | `'{}'::jsonb` |  | nenhum | Respostas até o passo atual: km, apontamentos que permanecem, itens com problema e as descrições. |
+| `atualizado_em` | timestamp with time zone | não | `now()` |  | nenhum | Última resposta. |
+| `expira_em` | timestamp with time zone | não |  |  | nenhum | Depois disso a conversa é descartada e o /checklist recomeça. |
+
+Índices: `veiculos_telegram_checklists_expira_idx`, `veiculos_telegram_checklists_pkey`
 
 ## veiculos_verificacao
 
