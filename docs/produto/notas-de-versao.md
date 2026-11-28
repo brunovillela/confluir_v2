@@ -4,6 +4,12 @@
 
 O que mudou para quem usa o Confluir, da entrega mais recente para a mais antiga. É o mesmo conteúdo do aviso "O que há de novo" dentro do sistema. O detalhe técnico de cada entrega está no histórico do git; as decisões de arquitetura, em [`docs/arquitetura/adr/`](../arquitetura/adr/LEIA-ME.md).
 
+## 27/11/2026 — Código de acesso: todos os e-mails do cadastro
+
+- Oposição: a tela diz para quais e-mails do cadastro o código saiu e, se algum não recebeu, o porquê (acabou de receber um, muitos pedidos, falha no envio). Antes, dizia "o código foi para os e-mails do seu cadastro" mesmo quando um deles não recebia nada.
+- Portal do associado: o código vai para todos os e-mails do cadastro (o pessoal e o da empresa), como na Oposição, e vale o de qualquer um. Antes ia só para o primeiro, e quem olhava só o outro não recebia.
+- E-mails do cadastro com erro óbvio de digitação ("hotmail..com", "petrobras.com. br", ponto no fim) são corrigidos sozinhos — no envio do código e na ficha, com registro no prontuário. Os 21 que existiam já foram corrigidos. O que não tem conserto (telefone no campo, falta o @) aparece na Saúde dos cadastros como E-mail inválido; o filiado ativo só com e-mail assim entra na Oposição como sem e-mail e informa um novo.
+
 ## 26/11/2026 — Ordens: filtro por projeto com as ordens das compras
 
 - Gestão → E-mail → Conta de envio (novo): a entidade pode mandar os e-mails pela própria conta no Brevo ou no Resend, com o remetente do domínio dela (ex.: comunicacao@sindicato.org.br), o nome que aparece e o endereço de resposta. A chave fica cifrada, é testada antes de salvar e todo dia de manhã, e se for recusada num envio o e-mail sai pela conta da plataforma, sem se perder. No Brevo, um webhook com token próprio traz a entrega e a rejeição.

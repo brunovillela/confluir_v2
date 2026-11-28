@@ -43,6 +43,7 @@ import { COOKIE_ORIGEM, origemValida } from "@/lib/oposicao-origem"
 import { diagnosticarCodigoRecusado, emailDoCodigo } from "@/lib/auth-diagnostico"
 import { textoValidade } from "@/lib/auth-email-constantes"
 import { createClient } from "@/lib/supabase/server"
+import { mensagemDosEnvios } from "@/lib/oposicao-envio-codigo"
 import { exigirHumano } from "@/lib/turnstile"
 
 function texto(fd: FormData, campo: string): string {
@@ -125,27 +126,9 @@ export async function enviarCodigoFiliado(
       erro: 'Não encontramos cadastro de filiado com e-mail para este CPF. Se você não é filiado, use "Não sou filiado". Se é, procure o sindicato para atualizar o e-mail do cadastro.',
     }
   }
-  const { enviarCodigoAcesso } = await import("@/lib/codigo-acesso")
-  for (const email of emails) {
-    // Cada e-mail é uma conta; o vínculo pendente (e-mail ↔ CPF) vira a
-    // identidade só depois de o código daquele e-mail ser conferido.
-    await registrarVinculoPendente({ email, tipo: "filiado", cpf })
-    const { erro } = await enviarCodigoAcesso({
-      email,
-      metadata: { tipo: "filiado" },
-      next: "/portal/oposicao",
-      contexto: CONTEXTO_CODIGO,
-      semLink: true,
-    })
-    if (erro) console.warn("[oposicao] código do filiado não enviado a um dos e-mails:", erro)
-  }
-  const lista = emails.map(mascararEmailMedio)
-  return {
-    ok:
-      lista.length === 1
-        ? `Código enviado para ${lista[0]}.`
-        : `Código enviado para os e-mails do seu cadastro: ${lista.join(", ")}. Use o código de qualquer um deles.`,
-  }
+  // Cada e-mail é uma conta; o vínculo pendente (e-mail ↔ CPF) vira a
+  // identidade só depois de o código daquele e-mail ser conferido.
+  return await enviarAosEmailsDoCadastro(cpf, emails)
 }
 
 export async function confirmarCodigoFiliado(
@@ -331,8 +314,16 @@ function campanhaDoVoltar(voltar: string): string | null {
   return /^\/portal\/oposicao\/([0-9a-f-]{36})(?:[/?]|$)/i.exec(voltar)?.[1] ?? null
 }
 
-async function enviarAosEmailsDoCadastro(cpf: string, emails: string[]): Promise<string> {
+/**
+ * Manda o código a cada e-mail do cadastro e diz a verdade sobre cada um
+ * (27/11/2026): antes a tela afirmava "o código foi para os e-mails" mesmo
+ * quando um deles falhava (limite de pedidos, provedor) — a pessoa esperava
+ * num e-mail que não tinha recebido nada.
+ */
+async function enviarAosEmailsDoCadastro(cpf: string, emails: string[]): Promise<{ ok?: string; erro?: string }> {
   const { enviarCodigoAcesso } = await import("@/lib/codigo-acesso")
+  const enviados: string[] = []
+  const falhas: { email: string; erro: string }[] = []
   for (const email of emails) {
     await registrarVinculoPendente({ email, tipo: "filiado", cpf })
     const { erro } = await enviarCodigoAcesso({
@@ -342,12 +333,12 @@ async function enviarAosEmailsDoCadastro(cpf: string, emails: string[]): Promise
       contexto: CONTEXTO_CODIGO,
       semLink: true,
     })
-    if (erro) console.warn("[oposicao] código do filiado não enviado a um dos e-mails:", erro)
+    if (erro) {
+      console.warn("[oposicao] código do filiado não enviado a um dos e-mails:", erro)
+      falhas.push({ email, erro })
+    } else enviados.push(email)
   }
-  const lista = emails.map(mascararEmailMedio)
-  return lista.length === 1
-    ? `Você é filiado: o código foi para o e-mail do seu cadastro, ${lista[0]}.`
-    : `Você é filiado: o código foi para os e-mails do seu cadastro, ${lista.join(", ")}. Use o código de qualquer um deles.`
+  return mensagemDosEnvios(enviados, falhas, mascararEmailMedio)
 }
 
 export async function identificarCpf(_prev: EstadoEntradaCpf, fd: FormData): Promise<EstadoEntradaCpf> {
@@ -357,7 +348,7 @@ export async function identificarCpf(_prev: EstadoEntradaCpf, fd: FormData): Pro
   if (erroHumano) return { erro: erroHumano }
   const { rotaDoCpf } = await import("@/lib/db/oposicao-acesso-cpf")
   const r = await rotaDoCpf(cpf)
-  if (r.rota === "filiado") return { rota: "filiado", cpf, ok: await enviarAosEmailsDoCadastro(cpf, r.emails) }
+  if (r.rota === "filiado") return { rota: "filiado", cpf, ...(await enviarAosEmailsDoCadastro(cpf, r.emails)) }
   return { rota: r.rota, cpf }
 }
 

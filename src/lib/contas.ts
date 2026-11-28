@@ -1,5 +1,6 @@
 import "server-only"
 import { cpfConfiavel, grafiasDoCpf } from "@/lib/cpf"
+import { emailsDeEnvio } from "@/lib/email-cadastro"
 import { tenantAtual } from "@/lib/tenant"
 
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -79,17 +80,13 @@ export async function buscarFiliadoPorCpf(
 
   if (!data || data.length === 0) return null
 
+  // E-mails pela régua de lib/email-cadastro.ts: erro óbvio de digitação
+  // corrigido e o que não é e-mail fora (27/11/2026 — "hotmail..com" fazia o
+  // código sumir sem aviso).
   const email =
-    data.map((f) => f.email_pessoal ?? f.email_corporativo).find(Boolean) ??
-    null
+    data.map((f) => emailsDeEnvio([f.email_pessoal, f.email_corporativo])[0]).find(Boolean) ?? null
   const nome = data.map((f) => f.nome_completo).find(Boolean) ?? null
-  const emails = [
-    ...new Set(
-      [...data.map((f) => f.email_pessoal), ...data.map((f) => f.email_corporativo)]
-        .filter((e): e is string => typeof e === "string" && e.trim() !== "")
-        .map((e) => e.trim().toLowerCase())
-    ),
-  ]
+  const emails = emailsDeEnvio([...data.map((f) => f.email_pessoal), ...data.map((f) => f.email_corporativo)])
 
   return {
     cpf: cpfLimpo,

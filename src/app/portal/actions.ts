@@ -8,7 +8,7 @@ import {
   type EstadoForm,
   type Filiado,
 } from "@/lib/contas"
-import { diagnosticarCodigoRecusado } from "@/lib/auth-diagnostico"
+import { diagnosticarCodigoRecusado, emailDoCodigo } from "@/lib/auth-diagnostico"
 import { textoValidade } from "@/lib/auth-email-constantes"
 import {
   consumirVinculoPendente,
@@ -44,7 +44,7 @@ const PISO_CODIGO_MS = 900
  * em todos os casos; para quem não recebeu nada, o código só não confere.
  */
 const RESPOSTA_PEDIDO =
-  "Se o CPF estiver no cadastro com e-mail, enviamos um código para esse e-mail. Confira também a caixa de spam. Sem e-mail no cadastro? Procure o sindicato."
+  "Se o CPF estiver no cadastro com e-mail, enviamos um código para os e-mails do cadastro (o pessoal e o da empresa, se houver): use o de qualquer um. Confira também a caixa de spam. Sem e-mail no cadastro? Procure o sindicato."
 
 /**
  * Resposta ÚNICA a qualquer código recusado (A68). diagnosticarCodigoRecusado
@@ -68,18 +68,21 @@ async function portalForaDoAr(): Promise<string | null> {
   return portal?.estado === "desabilitada" ? mensagemDaSituacao("portal", portal) : null
 }
 
+/** Até quantos e-mails do cadastro recebem o código (o mesmo da Oposição). */
+const MAX_EMAILS_CODIGO = 3
+
 /**
- * E-mail para onde o código vai, ou null quando nada deve ser enviado. Recebe
+ * E-mails para onde o código vai — vazio quando nada deve ser enviado. Recebe
  * quem tem filiação ativa e também quem está na filiação coletiva em
  * andamento: esse não entra no portal, mas, depois de provar a identidade,
- * fica sabendo como desistir (A4).
+ * fica sabendo como desistir (A4). TODOS os e-mails do cadastro (27/11/2026):
+ * com só o primeiro, quem tem o pessoal e o da empresa e olha só o da empresa
+ * "não recebia o código". Já vêm na régua de lib/email-cadastro.ts.
  */
-async function emailQueRecebeCodigo(filiado: Filiado | null, cpf: string): Promise<string | null> {
-  // Mesma forma que a conta tem no Auth (enviarCodigoAcesso grava assim).
-  const email = filiado?.email?.trim().toLowerCase()
-  if (!filiado || !email) return null
-  if (filiado.ativo || (await emFiliacaoColetiva(cpf))) return email
-  return null
+async function emailsQueRecebemCodigo(filiado: Filiado | null, cpf: string): Promise<string[]> {
+  if (!filiado || filiado.emails.length === 0) return []
+  if (filiado.ativo || (await emFiliacaoColetiva(cpf))) return filiado.emails.slice(0, MAX_EMAILS_CODIGO)
+  return []
 }
 
 /** Porta 2 — filiados: CPF + senha. */
@@ -224,21 +227,22 @@ export async function pedirCodigoFiliado(
  */
 async function prepararCodigoFiliado(cpf: string, next: string): Promise<void> {
   try {
-    const email = await emailQueRecebeCodigo(await buscarFiliadoPorCpf(cpf), cpf)
-    if (!email) return
-    // O CPF fica como vínculo PENDENTE (e-mail do cadastro ↔ CPF) e vira
-    // identidade da conta depois de o código (ou o link) ser aceito — ver
-    // lib/auth-identidade.ts.
-    await registrarVinculoPendente({ email, tipo: "filiado", cpf })
+    const emails = await emailsQueRecebemCodigo(await buscarFiliadoPorCpf(cpf), cpf)
     const { enviarCodigoAcesso } = await import("@/lib/codigo-acesso")
-    const { erro } = await enviarCodigoAcesso({
-      email,
-      metadata: { tipo: "filiado" },
-      next,
-      contexto: "Digite este código na tela de entrada do Portal do Associado.",
-      botao: "Entrar no portal",
-    })
-    if (erro) console.warn("[portal/codigo] código não enviado:", erro)
+    for (const email of emails) {
+      // O CPF fica como vínculo PENDENTE (e-mail do cadastro ↔ CPF) e vira
+      // identidade da conta depois de o código (ou o link) ser aceito — ver
+      // lib/auth-identidade.ts. Cada e-mail é uma conta, com o seu código.
+      await registrarVinculoPendente({ email, tipo: "filiado", cpf })
+      const { erro } = await enviarCodigoAcesso({
+        email,
+        metadata: { tipo: "filiado" },
+        next,
+        contexto: "Digite este código na tela de entrada do Portal do Associado.",
+        botao: "Entrar no portal",
+      })
+      if (erro) console.warn("[portal/codigo] código não enviado a um dos e-mails:", erro)
+    }
   } catch (e) {
     console.error("[portal/codigo] falha ao preparar o código:", e instanceof Error ? e.message : e)
   }
@@ -269,8 +273,8 @@ export async function confirmarCodigoFiliado(
   if (bloqueio) return { erro: bloqueio }
 
   const filiado = await buscarFiliadoPorCpf(cpf)
-  const email = await emailQueRecebeCodigo(filiado, cpf)
-  if (!email) {
+  const emails = await emailsQueRecebemCodigo(filiado, cpf)
+  if (emails.length === 0) {
     // Nada foi enviado a este CPF: o código nunca confere. A falha conta no
     // mesmo bloqueio e a resposta sai no mesmo tempo de um CPF do cadastro.
     await registrarFalhaLogin(chave)
@@ -279,11 +283,19 @@ export async function confirmarCodigoFiliado(
   }
 
   const supabase = await createClient()
-  const { data, error } = await supabase.auth.verifyOtp({ email, token, type: "email" })
+  // O código pode ser de qualquer e-mail do cadastro: acha o dono pelo
+  // diagnóstico e, sem ele, tenta um a um (como a Oposição).
+  const certo = await emailDoCodigo(emails, token)
+  let data: Awaited<ReturnType<typeof supabase.auth.verifyOtp>>["data"] = { user: null, session: null }
+  let error: Awaited<ReturnType<typeof supabase.auth.verifyOtp>>["error"] = null
+  for (const email of certo ? [certo] : emails) {
+    ;({ data, error } = await supabase.auth.verifyOtp({ email, token, type: "email" }))
+    if (!error && data.user) break
+  }
   if (error || !data.user) {
     await registrarFalhaLogin(chave)
     // O diagnóstico vai só para o log: a tela recebe a resposta única.
-    await diagnosticarCodigoRecusado({ erro: error, email, token, fluxo: "portal_filiado" })
+    await diagnosticarCodigoRecusado({ erro: error, email: certo ?? emails[0], token, fluxo: "portal_filiado" })
     await igualarTempo(inicio, PISO_CODIGO_MS)
     return { erro: CODIGO_NAO_CONFERE }
   }

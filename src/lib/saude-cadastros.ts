@@ -58,6 +58,13 @@ export const CAMPOS_SAUDE = [
       "No futuro (século trocado: 1949 gravado como 2049), menos de 14 ou mais de 110 anos, igual à data de filiação ou admissão, ou depois da filiação. A votação confere o nascimento: com a data errada, a pessoa é barrada.",
   },
   {
+    chave: "email",
+    rotulo: "E-mail inválido",
+    grupo: "cadastro",
+    ajuda:
+      "E-mail pessoal ou da empresa que não é um endereço (telefone no campo, \"re\", dois e-mails juntos, \"gmail.com.br\" sem o @). O código de acesso da oposição, da votação e do portal não chega a ele. Erros óbvios de digitação (\"hotmail..com\", espaço no meio) já são corrigidos sozinhos.",
+  },
+  {
     chave: "motivo_saida",
     rotulo: "Vínculo encerrado sem motivo",
     grupo: "cadastro",
@@ -164,7 +171,8 @@ export function niveisPadrao(base: BaseCategoria): NiveisCategoria {
     CAMPOS_SAUDE.map((c) => [c.chave, "pendencia"])
   ) as NiveisCategoria
   // Nascimento suspeito (19/11/2026) também nasce apontamento: eram 227 ativos.
-  const comMotivo = { ...tudo, motivo_saida: "apontamento", nascimento: "apontamento" } as NiveisCategoria
+  // E-mail inválido (27/11/2026) idem: não derruba a saúde, aparece para acertar.
+  const comMotivo = { ...tudo, motivo_saida: "apontamento", nascimento: "apontamento", email: "apontamento" } as NiveisCategoria
   return base === "fundo_pensao" ? { ...comMotivo, v_cargo: "normal", v_lotacao: "normal" } : comMotivo
 }
 

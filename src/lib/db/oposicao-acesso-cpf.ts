@@ -4,6 +4,7 @@ import { grafiasDoCpf } from "@/lib/cpf"
 import { hojeSP } from "@/lib/db/comum"
 import { regrasDaCampanha, regrasDaEntidade } from "@/lib/db/oposicao-regras"
 import { nomesConferem } from "@/lib/db/votacao-primeiro-acesso"
+import { emailsDeEnvio } from "@/lib/email-cadastro"
 import { padraoDaDecisao } from "@/lib/oposicao-constantes"
 import { motivoNascimentoSuspeito } from "@/lib/saude-cadastros"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -56,14 +57,9 @@ async function fichasDoCpf(cpf: string): Promise<Ficha[]> {
   return (data ?? []) as Ficha[]
 }
 
-const emailsDe = (fichas: Ficha[]) => [
-  ...new Set(
-    fichas
-      .flatMap((f) => [f.email_pessoal, f.email_corporativo])
-      .filter((e): e is string => typeof e === "string" && e.trim() !== "")
-      .map((e) => e.trim().toLowerCase())
-  ),
-]
+// Pela régua de lib/email-cadastro.ts: só ficha com e-mail que recebe conta
+// como "com e-mail" — a de e-mail estragado segue o caminho do sem e-mail.
+const emailsDe = (fichas: Ficha[]) => emailsDeEnvio(fichas.flatMap((f) => [f.email_pessoal, f.email_corporativo]))
 
 export async function rotaDoCpf(cpf: string): Promise<RotaCpf> {
   const fichas = await fichasDoCpf(cpf)

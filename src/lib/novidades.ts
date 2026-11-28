@@ -13,6 +13,15 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    id: "2026-11-27",
+    titulo: "Código de acesso: todos os e-mails do cadastro",
+    itens: [
+      "Oposição: a tela diz para quais e-mails do cadastro o código saiu e, se algum não recebeu, o porquê (acabou de receber um, muitos pedidos, falha no envio). Antes, dizia \"o código foi para os e-mails do seu cadastro\" mesmo quando um deles não recebia nada.",
+      "Portal do associado: o código vai para todos os e-mails do cadastro (o pessoal e o da empresa), como na Oposição, e vale o de qualquer um. Antes ia só para o primeiro, e quem olhava só o outro não recebia.",
+      "E-mails do cadastro com erro óbvio de digitação (\"hotmail..com\", \"petrobras.com. br\", ponto no fim) são corrigidos sozinhos — no envio do código e na ficha, com registro no prontuário. Os 21 que existiam já foram corrigidos. O que não tem conserto (telefone no campo, falta o @) aparece na Saúde dos cadastros como E-mail inválido; o filiado ativo só com e-mail assim entra na Oposição como sem e-mail e informa um novo.",
+    ],
+  },
+  {
     id: "2026-11-26",
     titulo: "Ordens: filtro por projeto com as ordens das compras",
     itens: [

@@ -154,9 +154,10 @@ export function EntradaPorCodigo({
                 aria-describedby={descritoPor(estadoPedido.erro && "erro-pedido-codigo", "dica-cpf-codigo")}
               />
               <p id="dica-cpf-codigo" className="text-muted-foreground text-xs">
-                Enviaremos um código para o e-mail do seu cadastro. O mesmo
-                e-mail traz o botão “Entrar no portal”, que faz o mesmo que
-                digitar o código.
+                Enviaremos um código para os e-mails do seu cadastro (o pessoal e
+                o da empresa, se houver): vale o de qualquer um. O e-mail traz
+                também o botão “Entrar no portal”, que faz o mesmo que digitar o
+                código.
               </p>
             </div>
           </>
@@ -279,6 +280,10 @@ function PassoCodigo({
             no Gmail, também em <strong>Promoções</strong> e <strong>Atualizações</strong>.
           </li>
           <li>O assunto é “Confluir | Seu código de acesso”.</li>
+          <li>
+            Olhe o e-mail pessoal e também o da empresa, se ele estiver no seu
+            cadastro. Não usa mais esses e-mails? Procure o sindicato.
+          </li>
           <li>
             No e-mail, tocar em <strong>Entrar no portal</strong> faz o mesmo que
             digitar o código.

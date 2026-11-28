@@ -3,6 +3,7 @@ import "server-only"
 import { cache } from "react"
 
 import { grafiasDoCpf, validarCpf } from "@/lib/cpf"
+import { emailsDeEnvio } from "@/lib/email-cadastro"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { tenantAtual } from "@/lib/tenant"
 
@@ -84,12 +85,9 @@ async function cadastroDoCpf(cpf: string): Promise<{ emails: Set<string>; ativo:
     .eq("emp_proprietaria_id", await tenantAtual())
     .not("filiacao_excluida", "is", true)
   const linhas = data ?? []
-  const emails = new Set<string>()
-  for (const f of linhas) {
-    for (const e of [f.email_pessoal, f.email_corporativo]) {
-      if (typeof e === "string" && e.trim()) emails.add(e.trim().toLowerCase())
-    }
-  }
+  // A mesma régua do envio (lib/email-cadastro.ts): o código foi para o
+  // e-mail corrigido, então é ele que prova o cadastro.
+  const emails = new Set(emailsDeEnvio(linhas.flatMap((f) => [f.email_pessoal, f.email_corporativo])))
   return {
     emails,
     ativo: linhas.some((f) => f.filiacao_condicao === "Ativo"),

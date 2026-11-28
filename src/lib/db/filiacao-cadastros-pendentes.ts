@@ -5,6 +5,7 @@ import { normalizarMatricula } from "@/lib/db/filiacao-matricula"
 import { hojeSP, lerEmLotes as lerLotes } from "@/lib/db/comum"
 import { listarFontesPagadoras } from "@/lib/db/fontes"
 import { cpfConfiavel, validarCpf } from "@/lib/cpf"
+import { corrigirEmailObvio } from "@/lib/email-cadastro"
 import { camposFaltandoNoVinculo, ROTULO_FALTA_VINCULO } from "@/lib/filiacao"
 import { configSaudeCadastros } from "@/lib/db/organizacao"
 import {
@@ -55,6 +56,7 @@ export const TIPOS_PENDENCIA = [
   "desconto",
   "historico",
   "nascimento",
+  "email",
   "motivo_saida",
   "vinculo",
 ] as const
@@ -69,6 +71,7 @@ export const ROTULO_PENDENCIA: Record<TipoPendencia, string> = {
   desconto: "Termo de desconto não aceito",
   historico: "Sem vínculo em aberto",
   nascimento: "Data de nascimento suspeita",
+  email: "E-mail inválido",
   motivo_saida: "Vínculo encerrado sem motivo",
   vinculo: "Vínculo incompleto",
 }
@@ -120,6 +123,8 @@ type Cadastro = {
   tl_lgpd_id: string | null
   tl_desconto_id: string | null
   nascimento_data: string | null
+  email_pessoal: string | null
+  email_corporativo: string | null
 }
 
 type LinhaVinculo = {
@@ -198,7 +203,7 @@ export async function cadastrosPendentes(): Promise<CadastrosPendentes> {
     lerLotes<Cadastro>((de, ate) =>
       admin
         .from("filiacoes")
-        .select("id, nome_completo, cpf, matricula_sindical, tl_lgpd_id, tl_desconto_id, nascimento_data")
+        .select("id, nome_completo, cpf, matricula_sindical, tl_lgpd_id, tl_desconto_id, nascimento_data, email_pessoal, email_corporativo")
         .eq("emp_proprietaria_id", emp)
         .eq("filiacao_condicao", "Ativo")
         .not("filiacao_excluida", "is", true)
@@ -278,6 +283,7 @@ export async function cadastrosPendentes(): Promise<CadastrosPendentes> {
     desconto: 0,
     historico: 0,
     nascimento: 0,
+    email: 0,
     motivo_saida: 0,
     vinculo: 0,
   }
@@ -306,6 +312,8 @@ export async function cadastrosPendentes(): Promise<CadastrosPendentes> {
     if (termos.lgpd && c.tl_lgpd_id !== termos.lgpd && comConta.has(cpf)) faltas.push("lgpd")
     if (termos.desconto && c.tl_desconto_id !== termos.desconto) faltas.push("desconto")
     if (motivoNascimentoSuspeito(c.nascimento_data, datasDosVinculos.get(c.id) ?? [], hoje)) faltas.push("nascimento")
+    // Preenchido e sem conserto pela régua de lib/email-cadastro.ts.
+    if ([c.email_pessoal, c.email_corporativo].some((e) => (e ?? "").trim() && !corrigirEmailObvio(e))) faltas.push("email")
     if (semMotivo.has(c.id)) faltas.push("motivo_saida")
     if (!v) faltas.push("historico")
     else faltas.push(...camposFaltandoNoVinculo({ ...v, temFicha: ehArquivo(v.ficha_filiacao) }))
